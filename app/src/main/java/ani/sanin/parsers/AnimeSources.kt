@@ -19,6 +19,7 @@ object AnimeSources : WatchSources() {
             AnimeGGProvider(),
             AniZoneProvider(),
             SenshiProvider(),
+            LatanimeProvider(),
         )
     }
 
