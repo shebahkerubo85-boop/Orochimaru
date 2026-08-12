@@ -53,11 +53,12 @@ abstract class WebViewBottomDialog : BottomSheetDialogFragment() {
         binding.webView.settings.apply {
             javaScriptEnabled = true
             userAgentString = defaultHeaders["User-Agent"]
+            domStorageEnabled = true
+            cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
         }
         cookies?.setAcceptThirdPartyCookies(binding.webView, true)
         binding.webView.webViewClient = webViewClient
         binding.webView.loadUrl(location.url, location.headers)
-        this.dismiss()
     }
 
     override fun onDestroy() {
