@@ -59,7 +59,7 @@ class AnimeJLProvider : NativeAnimeParser() {
                 episodePattern.findAll(episodesString).mapNotNull { match ->
                     val number = match.groupValues[1].toIntOrNull() ?: return@mapNotNull null
                     val coverPath = match.groupValues[3]
-                    val thumb = if (coverPath.isNotEmpty()) "$baseUrl/storage/$coverPath" else null
+                    val thumb = if (coverPath.isNotEmpty()) "$baseUrl/storage/$coverPath" else defaultImage
                     Episode(
                         number = number.toString(),
                         link = "$baseUrl/anime/$id/$slug/episodio-$number",
