@@ -307,10 +307,13 @@ class AnimeJLUqloadExtractor(override val server: VideoServer) : VideoExtractor(
             val script = pickScript(doc) { it.contains("sources:") } ?: return@withContext VideoContainer(emptyList()).also {
                 Logger.log("AnimeJL Uqload: no sources script in ${server.embed.url}")
             }
-            val videoUrl = script.substringAfter("sources: [\"").substringBefore('"')
-                .takeIf { it.startsWith("http") } ?: return@withContext VideoContainer(emptyList()).also {
-                Logger.log("AnimeJL Uqload: no url in sources")
-            }
+            val videoUrl = script.substringAfter("file:\"").substringBefore("\"")
+                .takeIf { it.startsWith("http") }
+                ?: script.substringAfter("sources: [\"").substringBefore('"')
+                    .takeIf { it.startsWith("http") }
+                ?: return@withContext VideoContainer(emptyList()).also {
+                    Logger.log("AnimeJL Uqload: no url in sources")
+                }
             Logger.log("AnimeJL Uqload: ${videoUrl.take(120)}")
             VideoContainer(listOf(Video(null, VideoType.CONTAINER, FileUrl(videoUrl, mapOf("Referer" to ajlOrigin(videoUrl))))))
         } catch (e: Exception) {
