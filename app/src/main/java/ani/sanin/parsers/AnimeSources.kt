@@ -21,6 +21,7 @@ object AnimeSources : WatchSources() {
             SenshiProvider(),
             LatanimeProvider(),
             AnimeAV1Provider(),
+            AnimeJLProvider(),
         )
     }
 
