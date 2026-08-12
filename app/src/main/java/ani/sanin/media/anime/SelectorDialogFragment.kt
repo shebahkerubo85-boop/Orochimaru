@@ -188,9 +188,12 @@ class SelectorDialogFragment : DialogFragment() {
                     // Reuse already-loaded servers when reopening the same episode from the
                     // same source; only force a fresh fetch when there's no cache or the
                     // cache came from a different source (e.g. right after a source switch).
-                    if (!ep.allStreams || ep.extractors.isNullOrEmpty() ||
-                        ep.extractorsSource != media!!.selected?.sourceIndex
-                    ) {
+                    // A preloaded single-server cache has allStreams=false but is still valid,
+                    // so base reuse on extractor presence + source match rather than allStreams.
+                    val cacheValid =
+                        !ep.extractors.isNullOrEmpty() &&
+                            ep.extractorsSource == media!!.selected?.sourceIndex
+                    if (!cacheValid) {
                         ep.allStreams = false
                         ep.extractors = null
                         ep.extractorsSource = null
@@ -202,7 +205,7 @@ class SelectorDialogFragment : DialogFragment() {
                             adapter.add(extractor)
                         }
                     }
-                    if (!ep.allStreams) {
+                    if (!cacheValid) {
                         scope.launch(Dispatchers.IO) {
                             // Phase 1: fetch server names and show them immediately
                             val servers = model.loadEpisodeVideoServers(ep, media!!.selected!!.sourceIndex)
