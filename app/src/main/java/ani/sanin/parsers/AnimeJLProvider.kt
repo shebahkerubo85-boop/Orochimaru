@@ -30,6 +30,7 @@ class AnimeJLProvider : NativeAnimeParser() {
 
     override val name = "AnimeJL"
     override val saveName = "animejl"
+    override val language = "Spanish"
     override val defaultBaseUrl = "https://www.anime-jl.net"
     override val knownServers = listOf("Voe", "Mp4Upload", "YourUpload", "Okru", "StreamWish", "Uqload", "VidHide", "Universal")
 
@@ -436,7 +437,10 @@ private fun ajlResolveHls(masterUrl: String, headers: Map<String, String>): AjlH
             val attrLine = line.trim()
             if (!attrLine.startsWith("#EXT-X-MEDIA:", ignoreCase = true)) continue
             if (!attrLine.contains("TYPE=AUDIO", ignoreCase = true)) continue
-            val lang = attrLine.substringAfter("LANGUAGE=", "")
+            val name = attrLine.substringAfter("NAME=", "")
+                .substringAfter('"', "").substringBefore('"', "")
+                .trim().takeIf { it.isNotBlank() }
+            val lang = name ?: attrLine.substringAfter("LANGUAGE=", "")
                 .substringAfter('"', "").substringBefore('"', "")
                 .trim().takeIf { it.isNotBlank() } ?: "und"
             val uri = attrLine.substringAfter("URI=", "")

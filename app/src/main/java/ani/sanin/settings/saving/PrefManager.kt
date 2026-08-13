@@ -337,7 +337,8 @@ object PrefManager {
 
     /** Per-provider dub/sub preference, falling back to the global default. */
     fun getProviderDub(saveName: String): Boolean {
-        val fallback = getVal<Boolean>(PrefName.PreferDub)
+        // AnimeJL is a Spanish-dubbed source, so prefer dub by default there.
+        val fallback = if (saveName.equals("animejl", ignoreCase = true)) true else getVal<Boolean>(PrefName.PreferDub)
         return generalPreferences?.getBoolean("prefer_dub_$saveName", fallback) ?: fallback
     }
 

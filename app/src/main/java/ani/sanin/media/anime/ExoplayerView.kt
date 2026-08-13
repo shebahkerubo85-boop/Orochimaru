@@ -2109,7 +2109,13 @@ class ExoplayerView :
         // .setOverrideForType(TrackSelectionOverride(trackSelector, TRACK_TYPE_VIDEO))
         val activeParser = (if (media.isAdult) HAnimeSources else AnimeSources)[media.selected?.sourceIndex ?: 0]
         if (activeParser.selectDub) {
-            parameters.setPreferredAudioLanguage(Locale.getDefault().language)
+            // Prefer the source's dubbed language (e.g. "Spanish" for AnimeJL) so the
+            // player picks the right audio track, falling back to the device language.
+            val sourceLangCode = runCatching { LanguageMapper.getLanguageCode(activeParser.language) }
+                .getOrDefault(Locale.getDefault().language)
+            val preferred = if (sourceLangCode.isNotBlank() && sourceLangCode != "all") sourceLangCode
+                else Locale.getDefault().language
+            parameters.setPreferredAudioLanguage(preferred)
         }
         trackSelector.setParameters(parameters)
 
