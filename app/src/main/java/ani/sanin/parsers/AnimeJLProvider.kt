@@ -32,7 +32,7 @@ class AnimeJLProvider : NativeAnimeParser() {
     override val saveName = "animejl"
     override val language = "Spanish"
     override val defaultBaseUrl = "https://www.anime-jl.net"
-    override val knownServers = listOf("Voe", "Mp4Upload", "YourUpload", "Okru", "StreamWish", "Uqload", "VidHide", "Universal")
+    override val knownServers = listOf("Voe", "Mp4Upload", "YourUpload", "StreamWish", "Uqload", "VidHide", "Universal")
 
     override suspend fun search(query: String): List<ShowResponse> {
         return withContext(Dispatchers.IO) {
@@ -118,7 +118,6 @@ class AnimeJLProvider : NativeAnimeParser() {
             "Mp4Upload" -> Mp4UploadExtractor(server)
             "StreamWish" -> AnimeJLStreamWishExtractor(server)
             "YourUpload" -> YourUploadExtractor(server)
-            "Okru" -> AnimeJLWebViewExtractor(server)
             "Uqload" -> AnimeJLUqloadExtractor(server)
             "VidHide" -> AnimeJLVidHideExtractor(server)
             else -> UniversalEmbedExtractor(server)
@@ -133,7 +132,6 @@ class AnimeJLProvider : NativeAnimeParser() {
                 host == "voe.sx" || host.endsWith(".voe.sx") -> "Voe"
                 host == "mp4upload.com" || host.endsWith(".mp4upload.com") -> "Mp4Upload"
                 host == "yourupload.com" || host.endsWith(".yourupload.com") -> "YourUpload"
-                host == "ok.ru" || host.endsWith(".ok.ru") -> "Okru"
                 host.contains("streamwish") || host.contains("playerwish") ||
                     host.contains("wishonly") || host.contains("filemoon") -> "StreamWish"
                 host.contains("uqload") -> "Uqload"
@@ -165,66 +163,6 @@ class YourUploadExtractor(override val server: VideoServer) : VideoExtractor() {
             ajlLog("AnimeJL YourUpload extract error: ${e.message}")
             VideoContainer(emptyList())
         }
-    }
-}
-
-class OkruExtractor(override val server: VideoServer) : VideoExtractor() {
-    override suspend fun extract(): VideoContainer = withContext(Dispatchers.IO) {
-        try {
-            val referer = server.extraData?.get("referer") ?: "https://ok.ru/"
-            val page = ajlGet(server.embed.url, referer)
-            val doc = Jsoup.parse(page)
-            val videoString = doc.selectFirst("div[data-options]")?.attr("data-options")
-                ?: return@withContext VideoContainer(emptyList()).also {
-                    ajlLog("AnimeJL Okru: no data-options in ${server.embed.url}")
-                }
-            val videos = when {
-                "ondemandHls" in videoString -> listOf(
-                    Video(null, VideoType.M3U8, FileUrl(extractOkruLink(videoString, "ondemandHls"), mapOf("Referer" to referer)))
-                )
-                "ondemandDash" in videoString -> listOf(
-                    Video(null, VideoType.DASH, FileUrl(extractOkruLink(videoString, "ondemandDash"), mapOf("Referer" to referer)))
-                )
-                else -> okruVideosFromJson(videoString, referer)
-            }
-            if (videos.isEmpty()) {
-                ajlLog("AnimeJL Okru: no video URLs parsed in ${server.embed.url}")
-                VideoContainer(emptyList())
-            } else {
-                ajlLog("AnimeJL Okru: ${videos.size} options")
-                VideoContainer(videos)
-            }
-        } catch (e: Exception) {
-            ajlLog("AnimeJL Okru extract error: ${e.message}")
-            VideoContainer(emptyList())
-        }
-    }
-
-    private fun extractOkruLink(videoString: String, attr: String): String =
-        videoString.substringAfter("$attr\\\":\\\"").substringBefore("\\\"")
-            .replace("\\u0026", "&")
-
-    private fun okruVideosFromJson(videoString: String, referer: String): List<Video> {
-        val arrayData = videoString.substringAfter("\\\"videos\\\":[{\\\"name\\\":\\\"").substringBefore("]")
-        return arrayData.split("{\\\"name\\\":\\\"").reversed().mapNotNull {
-            val url = extractOkruLink(it, "url")
-            val qualityLabel = it.substringBefore("\\\"")
-            if (url.startsWith("https://")) {
-                Video(okruQuality(qualityLabel), VideoType.M3U8, FileUrl(url, mapOf("Referer" to referer)))
-            } else null
-        }
-    }
-
-    private fun okruQuality(label: String): Int? = when (label) {
-        "mobile" -> 144
-        "lowest" -> 240
-        "low" -> 360
-        "sd" -> 480
-        "hd" -> 720
-        "full" -> 1080
-        "quad" -> 1440
-        "ultra" -> 2160
-        else -> label.filter { it.isDigit() }.takeIf { it.isNotEmpty() }?.toIntOrNull()
     }
 }
 
@@ -523,7 +461,6 @@ class AnimeJLWebViewExtractor(override val server: VideoServer) : VideoExtractor
     override suspend fun extract(): VideoContainer = withContext(Dispatchers.IO) {
         try {
             val static = when (server.extraData?.get("host")) {
-                "Okru" -> OkruExtractor(server).extract().videos
                 "Voe" -> AnimeJLVoeExtractor(server).extract().videos
                 else -> null
             }
