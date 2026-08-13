@@ -180,7 +180,16 @@ class AnilistHomeViewModel : ViewModel() {
             tryWithSuspend {
                 val favData = MAL.jikan.getUserFavorites(username)
                 if (favData != null) {
+                    val listData = mutableMapOf<Int, Pair<Int, Int?>>()
+                    tryWithSuspend {
+                        MAL.query.getUserAnimeList()?.data?.forEach { entry ->
+                            entry.listStatus?.numEpisodesWatched?.let { progress ->
+                                listData[entry.node.id] = progress to entry.node.numEpisodes
+                            }
+                        }
+                    }
                     val favAnime = favData.anime.map { fav ->
+                        val data = listData[fav.malId]
                         Media(
                             id = fav.malId,
                             idMAL = fav.malId,
@@ -189,7 +198,8 @@ class AnilistHomeViewModel : ViewModel() {
                             userPreferredName = fav.title ?: "",
                             cover = fav.images?.jpg?.largeImageUrl ?: fav.images?.jpg?.imageUrl,
                             isAdult = false,
-                            anime = Anime(null, null, null),
+                            userProgress = data?.first,
+                            anime = Anime(data?.second, null, null),
                         )
                     }
                     animeFav.postValue(ArrayList(favAnime))

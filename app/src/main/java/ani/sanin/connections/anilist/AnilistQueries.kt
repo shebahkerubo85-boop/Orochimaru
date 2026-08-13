@@ -706,6 +706,8 @@ class AnilistQueries {
         }
         val returnMap = mutableMapOf<String, ArrayList<Media>>()
 
+        val listProgressById = mutableMapOf<Int, Int>()
+
         fun processMedia(
             type: String,
             currentMedia: List<MediaList>?,
@@ -732,6 +734,9 @@ class AnilistQueries {
                 } else {
                     removedMedia.add(media)
                 }
+            }
+            subMap.forEach { (id, media) ->
+                media.userProgress?.let { listProgressById[id] = it }
             }
             @Suppress("UNCHECKED_CAST")
             val list = PrefManager.getNullableCustomVal(
@@ -773,6 +778,7 @@ class AnilistQueries {
             favorites?.forEach { edge ->
                 edge.node?.let {
                     val media = Media(it).apply { isFav = true }
+                    if (media.userProgress == null) media.userProgress = listProgressById[media.id]
                     if (media.id !in removeList && (!hidePrivate || !media.isListPrivate)) {
                         returnArray.add(media)
                     } else {
