@@ -150,6 +150,11 @@ class AnimeWatchAdapter(
             chip.isCheckable = true
             chip.isClickable = true
             chip.isFocusable = true
+            if (name in watchSources.nativeNames) {
+                chip.isChipIconVisible = true
+                chip.chipIcon = ContextCompat.getDrawable(chip.context, R.drawable.ic_chip_dot)
+                chip.chipIconSize = 5f.px.toFloat()
+            }
             val actualIndex = watchSources.names.indexOf(name)
             if (actualIndex >= 0) {
                 chip.tag = actualIndex

@@ -30,7 +30,7 @@ object AnimeSources : WatchSources() {
         return allNativeParsers.filter { it.saveName in enabled }
     }
 
-    val nativeNames: List<String> get() = nativeParsers.map { it.name }
+    override val nativeNames: List<String> get() = nativeParsers.map { it.name }
 
     override val displayNames: List<String> get() {
         val all = list
@@ -99,4 +99,5 @@ object AnimeSources : WatchSources() {
 
 object HAnimeSources : WatchSources() {
     override val list: List<Lazier<BaseParser>> get() = AnimeSources.list
+    override val nativeNames: List<String> get() = AnimeSources.nativeNames
 }

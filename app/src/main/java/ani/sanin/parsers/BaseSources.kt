@@ -13,6 +13,8 @@ import eu.kanade.tachiyomi.source.model.SManga
 
 abstract class WatchSources : BaseSources() {
 
+    open val nativeNames: List<String> get() = emptyList()
+
     override operator fun get(i: Int): AnimeParser {
         return (list.getOrNull(i) ?: list.firstOrNull())?.get?.value as? AnimeParser
             ?: EmptyAnimeParser()
