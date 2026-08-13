@@ -4137,7 +4137,12 @@ class ExoplayerView :
                 episodeCommentPanel.visibility == View.VISIBLE)
         ) {
             if (event.action == KeyEvent.ACTION_DOWN) {
-                if (episodeDrawer.isDrawerOpen(episodeDrawerContent)) {
+                if (episodeDrawer.isDrawerOpen(episodeDrawerContent) &&
+                    currentFocus?.id == R.id.episodeRailComment
+                ) {
+                    // On the comment button, left moves focus back to the episode card.
+                    currentFocus?.focusSearch(View.FOCUS_LEFT)?.requestFocus()
+                } else if (episodeDrawer.isDrawerOpen(episodeDrawerContent)) {
                     episodeDrawer.closeDrawer(episodeDrawerContent)
                 } else {
                     closeEpisodeCommentPanel(returnToRail = true)
