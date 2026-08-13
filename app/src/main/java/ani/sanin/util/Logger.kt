@@ -236,30 +236,42 @@ object Logger {
     }
 
     fun shareLog(context: Context) {
-        if (file == null) {
-            // Fall back to the always-available AnimeJL diagnostics log.
-            val ajl = AnimeJLLog.file
-            if (ajl != null && ajl.exists() && ajl.length() > 0) {
-                AnimeJLLog.share(context)
-                return
-            }
+        if (file != null) {
+            val shareIntent = Intent(Intent.ACTION_SEND)
+            shareIntent.type = "text/plain"
+            shareIntent.putExtra(
+                Intent.EXTRA_STREAM,
+                FileProvider.getUriForFile(
+                    context,
+                    "${BuildConfig.APPLICATION_ID}.provider",
+                    file!!
+                )
+            )
+            shareIntent.putExtra(Intent.EXTRA_SUBJECT, "Log file")
+            shareIntent.putExtra(Intent.EXTRA_TEXT, "Log file")
+            shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            context.startActivity(Intent.createChooser(shareIntent, "Share log file"))
+            return
+        }
+
+        // No saved log file: share general logcat output instead of the AnimeJL-only log.
+        val logs = try {
+            val recent = readLogcatLastMinutes(15)
+            if (recent.isBlank() || recent.startsWith("No logs")) readLogcat(500) else recent
+        } catch (e: Exception) {
+            "Failed to read logs: ${e.message}"
+        }
+        if (logs.isBlank() || logs.startsWith("Failed to read")) {
             snackString("No log file found")
             return
         }
-        val shareIntent = Intent(Intent.ACTION_SEND)
-        shareIntent.type = "text/plain"
-        shareIntent.putExtra(
-            Intent.EXTRA_STREAM,
-            FileProvider.getUriForFile(
-                context,
-                "${BuildConfig.APPLICATION_ID}.provider",
-                file!!
-            )
-        )
-        shareIntent.putExtra(Intent.EXTRA_SUBJECT, "Log file")
-        shareIntent.putExtra(Intent.EXTRA_TEXT, "Log file")
-        shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        context.startActivity(Intent.createChooser(shareIntent, "Share log file"))
+        val truncated = if (logs.length > 500_000) logs.takeLast(500_000) else logs
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "General logs")
+            putExtra(Intent.EXTRA_TEXT, truncated)
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "Share logs"))
     }
 
     fun clearLog() {
