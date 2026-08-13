@@ -7,6 +7,7 @@ import ani.sanin.util.Logger
 import ani.sanin.util.AnimeJLLog
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
+import eu.kanade.tachiyomi.animesource.model.Track
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
@@ -296,14 +297,19 @@ class AnimeJLVoeExtractor(override val server: VideoServer) : VideoExtractor() {
             val mp4 = (obj["direct_access_url"] as? JsonPrimitive)?.contentOrNull
             val origin = ajlOrigin(m3u8 ?: mp4 ?: embed)
             val videos = mutableListOf<Video>()
-            if (!m3u8.isNullOrBlank()) videos.addAll(ajlResolveHls(m3u8, mapOf("Referer" to origin)))
+            var audioTracks = emptyList<Track>()
+            if (!m3u8.isNullOrBlank()) {
+                val hls = ajlResolveHls(m3u8, mapOf("Referer" to origin))
+                videos.addAll(hls.videos)
+                audioTracks = hls.audioTracks
+            }
             if (!mp4.isNullOrBlank()) videos.add(Video(null, VideoType.CONTAINER, FileUrl(mp4, mapOf("Referer" to origin))))
             if (videos.isEmpty()) {
                 ajlLog("AnimeJL Voe: payload had no source/mp4 for $embed")
                 return@withContext VideoContainer(emptyList())
             }
             ajlLog("AnimeJL Voe: resolved ${videos.size} video(s) for $embed")
-            VideoContainer(videos)
+            VideoContainer(videos, audioTracks = audioTracks)
         } catch (e: Exception) {
             ajlLog("AnimeJL Voe extract error: ${e.message}")
             VideoContainer(emptyList())
@@ -376,7 +382,8 @@ class AnimeJLVidHideExtractor(override val server: VideoServer) : VideoExtractor
                 .takeIf { it.isNotBlank() && it.contains(".m3u8", ignoreCase = true) }
                 ?: return@withContext VideoContainer(emptyList()).also { ajlLog("AnimeJL VidHide: no master") }
             ajlLog("AnimeJL VidHide: ${master.take(120)}")
-            VideoContainer(ajlResolveHls(master, mapOf("Referer" to referer)))
+            val hls = ajlResolveHls(master, mapOf("Referer" to referer))
+            VideoContainer(hls.videos, audioTracks = hls.audioTracks)
         } catch (e: Exception) {
             ajlLog("AnimeJL VidHide extract error: ${e.message}")
             VideoContainer(emptyList())
@@ -397,7 +404,8 @@ class AnimeJLStreamWishExtractor(override val server: VideoServer) : VideoExtrac
                 .takeIf { it.isNotBlank() && it.contains(".m3u8", ignoreCase = true) }
                 ?: return@withContext VideoContainer(emptyList()).also { ajlLog("AnimeJL StreamWish: no master") }
             ajlLog("AnimeJL StreamWish: ${master.take(120)}")
-            VideoContainer(ajlResolveHls(master, mapOf("Referer" to referer)))
+            val hls = ajlResolveHls(master, mapOf("Referer" to referer))
+            VideoContainer(hls.videos, audioTracks = hls.audioTracks)
         } catch (e: Exception) {
             ajlLog("AnimeJL StreamWish extract error: ${e.message}")
             VideoContainer(emptyList())
@@ -415,15 +423,37 @@ private fun pickScript(doc: Document, marker: (String) -> Boolean): String? {
     return null
 }
 
-private fun ajlResolveHls(masterUrl: String, headers: Map<String, String>): List<Video> {
+private data class AjlHlsResult(val videos: List<Video>, val audioTracks: List<Track>)
+
+private fun ajlResolveHls(masterUrl: String, headers: Map<String, String>): AjlHlsResult {
     return try {
         val body = ajlGet(masterUrl, headers["Referer"])
         val lines = body.lines()
         val base = URI(masterUrl)
-        val hasAudioGroup = lines.any {
-            it.trim().startsWith("#EXT-X-MEDIA:", ignoreCase = true) && it.contains("TYPE=AUDIO", ignoreCase = true)
+        // Parse audio groups from #EXT-X-MEDIA entries
+        val audioTracks = mutableListOf<Track>()
+        for (line in lines) {
+            val attrLine = line.trim()
+            if (!attrLine.startsWith("#EXT-X-MEDIA:", ignoreCase = true)) continue
+            if (!attrLine.contains("TYPE=AUDIO", ignoreCase = true)) continue
+            val lang = attrLine.substringAfter("LANGUAGE=", "")
+                .substringAfter('"', "").substringBefore('"', "")
+                .trim().takeIf { it.isNotBlank() } ?: "und"
+            val uri = attrLine.substringAfter("URI=", "")
+                .substringAfter('"', "").substringBefore('"', "")
+                .trim().takeIf { it.isNotBlank() } ?: continue
+            val audioUrl = if (uri.startsWith("http")) uri else base.resolve(uri).toString()
+            audioTracks.add(Track(url = audioUrl, lang = lang))
         }
-        if (hasAudioGroup) return listOf(Video(null, VideoType.M3U8, FileUrl(masterUrl, headers)))
+
+        val hasAudioGroup = audioTracks.isNotEmpty()
+        if (hasAudioGroup) {
+            return AjlHlsResult(
+                listOf(Video(null, VideoType.M3U8, FileUrl(masterUrl, headers))),
+                audioTracks,
+            )
+        }
+
         val videos = mutableListOf<Video>()
         var i = 0
         while (i < lines.size) {
@@ -444,10 +474,13 @@ private fun ajlResolveHls(masterUrl: String, headers: Map<String, String>): List
                 i = j
             } else i++
         }
-        if (videos.isEmpty()) listOf(Video(null, VideoType.M3U8, FileUrl(masterUrl, headers)))
-        else videos
+        if (videos.isEmpty()) {
+            AjlHlsResult(listOf(Video(null, VideoType.M3U8, FileUrl(masterUrl, headers))), emptyList())
+        } else {
+            AjlHlsResult(videos, emptyList())
+        }
     } catch (e: Exception) {
-        listOf(Video(null, VideoType.M3U8, FileUrl(masterUrl, headers)))
+        AjlHlsResult(listOf(Video(null, VideoType.M3U8, FileUrl(masterUrl, headers))), emptyList())
     }
 }
 
