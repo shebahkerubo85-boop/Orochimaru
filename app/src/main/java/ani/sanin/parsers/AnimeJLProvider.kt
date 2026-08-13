@@ -255,55 +255,88 @@ class UniversalEmbedExtractor(override val server: VideoServer) : VideoExtractor
 class AnimeJLVoeExtractor(override val server: VideoServer) : VideoExtractor() {
     override suspend fun extract(): VideoContainer = withContext(Dispatchers.IO) {
         try {
-            val referer = server.extraData?.get("referer") ?: "https://voe.sx/"
-            // OkHttp follows the JS redirect (voe.sx -> nicolehappyoutside.com)
-            val page = ajlGet(server.embed.url, referer)
-            val doc = Jsoup.parse(page)
-            val script = doc.select("script").firstOrNull {
-                val d = it.data()
-                d.contains("sources") || d.contains("wc0") || d.contains("var source")
-            }?.data() ?: return@withContext VideoContainer(emptyList()).also {
-                ajlLog("AnimeJL Voe: no player script in ${server.embed.url}")
-            }
-            val (link, isHls) = when {
-                script.contains("sources") -> {
-                    val raw = script.substringAfter("hls': '").substringBefore("'")
-                    val url = if (VOE_LINK_REGEX.matches(raw)) raw
-                    else runCatching { String(Base64.decode(raw, Base64.DEFAULT)) }.getOrNull() ?: raw
-                    url to url.contains(".m3u8", ignoreCase = true)
-                }
-                script.contains("wc0") -> {
-                    val b64 = VOE_BASE64_REGEX.find(script)?.value?.removeSurrounding("'") ?: ""
-                    val decoded = runCatching { String(Base64.decode(b64, Base64.DEFAULT)) }.getOrNull() ?: ""
-                    val file = (runCatching {
-                        Mapper.json.parseToJsonElement(decoded) as? JsonObject
-                    }.getOrNull()?.get("file") as? JsonPrimitive)?.contentOrNull ?: decoded
-                    file to file.contains(".m3u8", ignoreCase = true)
-                }
-                else -> {
-                    val raw = script.substringAfter("var source='").substringBefore("'")
-                    raw to raw.contains(".m3u8", ignoreCase = true)
-                }
-            }
-            if (link.isBlank() || link.contains("test-videos.co.uk", ignoreCase = true)) {
-                ajlLog("AnimeJL Voe: no usable link (placeholder?) in ${server.embed.url}")
+            val referer = server.extraData?.get("referer") ?: "https://www.anime-jl.net/"
+            val embed = server.embed.url
+            val voeClient = okHttpClient.newBuilder()
+                .addInterceptor(DdosGuardInterceptor(okHttpClient))
+                .build()
+            val req = Request.Builder().url(embed)
+                .header("User-Agent", NativeAnimeParser.USER_AGENT)
+                .header("Referer", referer)
+                .get().build()
+            val body = voeClient.newCall(req).execute().use { it.body?.string().orEmpty() }
+            if (body.isEmpty()) {
+                ajlLog("AnimeJL Voe: empty response for $embed")
                 return@withContext VideoContainer(emptyList())
             }
-            val headers = mapOf("Referer" to ajlOrigin(link))
-            val format = if (isHls) VideoType.M3U8 else VideoType.CONTAINER
-            ajlLog("AnimeJL Voe: resolved ${link.take(120)}")
-            VideoContainer(listOf(Video(null, format, FileUrl(link, headers))))
+            val firstScript = Jsoup.parse(body).selectFirst("script")?.data()
+            val redirect = firstScript?.let {
+                Regex("""window\.location\.href\s*=\s*'([^']+)'""").find(it)?.groupValues?.get(1)
+            }
+            val page = if (redirect != null && redirect.startsWith("http")) {
+                val r2 = Request.Builder().url(redirect)
+                    .header("User-Agent", NativeAnimeParser.USER_AGENT)
+                    .header("Referer", referer)
+                    .get().build()
+                voeClient.newCall(r2).execute().use { it.body?.string().orEmpty() }
+            } else body
+            val encoded = Jsoup.parse(page).selectFirst("script[type=application/json]")?.data()?.trim()
+                ?.substringAfter("[\"").substringBeforeLast("\"]")
+                ?: return@withContext VideoContainer(emptyList()).also {
+                    ajlLog("AnimeJL Voe: no application/json script in $embed")
+                }
+            val json = decryptVoe(encoded) ?: return@withContext VideoContainer(emptyList()).also {
+                ajlLog("AnimeJL Voe: decryption failed for $embed")
+            }
+            val obj = runCatching { Mapper.json.parseToJsonElement(json) as? JsonObject }.getOrNull()
+                ?: return@withContext VideoContainer(emptyList()).also {
+                    ajlLog("AnimeJL Voe: json parse failed for $embed")
+                }
+            val m3u8 = (obj["source"] as? JsonPrimitive)?.contentOrNull
+            val mp4 = (obj["direct_access_url"] as? JsonPrimitive)?.contentOrNull
+            val origin = ajlOrigin(m3u8 ?: mp4 ?: embed)
+            val videos = mutableListOf<Video>()
+            if (!m3u8.isNullOrBlank()) videos.addAll(ajlResolveHls(m3u8, mapOf("Referer" to origin)))
+            if (!mp4.isNullOrBlank()) videos.add(Video(null, VideoType.CONTAINER, FileUrl(mp4, mapOf("Referer" to origin))))
+            if (videos.isEmpty()) {
+                ajlLog("AnimeJL Voe: payload had no source/mp4 for $embed")
+                return@withContext VideoContainer(emptyList())
+            }
+            ajlLog("AnimeJL Voe: resolved ${videos.size} video(s) for $embed")
+            VideoContainer(videos)
         } catch (e: Exception) {
             ajlLog("AnimeJL Voe extract error: ${e.message}")
             VideoContainer(emptyList())
         }
     }
 
+    private fun decryptVoe(p8: String): String? = runCatching {
+        val v1 = rot13(p8)
+        val v2 = v1.replace(VOE_PATTERN_REGEX, "_")
+        val v3 = v2.replace("_", "")
+        val v4 = String(Base64.decode(v3, Base64.DEFAULT), Charsets.ISO_8859_1)
+        val v5 = charShift(v4, 3)
+        val v6 = v5.reversed()
+        String(Base64.decode(v6, Base64.DEFAULT), Charsets.ISO_8859_1)
+    }.getOrNull()
+
+    private fun rot13(input: String): String = input.map { c ->
+        when {
+            c in 'A'..'Z' -> ((c - 'A' + 13) % 26 + 'A'.code).toChar()
+            c in 'a'..'z' -> ((c - 'a' + 13) % 26 + 'a'.code).toChar()
+            else -> c
+        }
+    }.joinToString("")
+
+    private fun charShift(input: String, shift: Int): String =
+        input.map { (it.code - shift).toChar() }.joinToString("")
+
     companion object {
-        private val VOE_LINK_REGEX = Regex("(http|https)://([\\w_-]+(?:\\.[\\w_-]+)+)([\\w.,@?^=%&:/~+#-]*[\\w@?^=%&/~+#-])")
-        private val VOE_BASE64_REGEX = Regex("'.*'")
+        private val VOE_PATTERN_REGEX = listOf("@$", "^^", "~@", "%?", "*~", "!!", "#&")
+            .joinToString("|") { Regex.escape(it) }.toRegex()
     }
 }
+
 
 class AnimeJLUqloadExtractor(override val server: VideoServer) : VideoExtractor() {
     override suspend fun extract(): VideoContainer = withContext(Dispatchers.IO) {
