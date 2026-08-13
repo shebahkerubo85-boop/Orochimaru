@@ -31,10 +31,11 @@ object AnimeSources : WatchSources() {
     }
 
     val nativeNames: List<String> get() = nativeParsers.map { it.name }
+    private val nativeSaveNames: List<String> get() = nativeParsers.map { it.saveName }
 
     override val displayNames: List<String> get() {
         val all = list
-        val extNames = all.filter { it.name !in nativeNames && it.name != "Local" }
+        val extNames = all.filter { it.name !in nativeSaveNames && it.name != "Local" }
             .map { it.name }
         return buildList {
             if (nativeNames.isNotEmpty()) add("─── Built-in ───")
@@ -68,7 +69,7 @@ object AnimeSources : WatchSources() {
     }
 
     fun performReorderAnimeSources() {
-        val extParsers = list.filter { it.name !in nativeNames && it.name != "Local" }
+        val extParsers = list.filter { it.name !in nativeSaveNames && it.name != "Local" }
         val sortedExt = sortPinnedAnimeSources(extParsers, pinnedAnimeSources)
         list = buildList {
             nativeParsers.forEach { add(Lazier({ it }, it.saveName)) }
