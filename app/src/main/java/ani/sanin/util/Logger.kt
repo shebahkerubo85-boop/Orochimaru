@@ -237,6 +237,12 @@ object Logger {
 
     fun shareLog(context: Context) {
         if (file == null) {
+            // Fall back to the always-available AnimeJL diagnostics log.
+            val ajl = AnimeJLLog.file
+            if (ajl != null && ajl.exists() && ajl.length() > 0) {
+                AnimeJLLog.share(context)
+                return
+            }
             snackString("No log file found")
             return
         }
