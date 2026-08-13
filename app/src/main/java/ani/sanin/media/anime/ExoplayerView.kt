@@ -207,6 +207,7 @@ import ani.sanin.connections.comments.CommentsAPI
 import ani.sanin.connections.subtitles.StremioSubtitles
 import ani.sanin.connections.subtitles.StremioSub
 import ani.sanin.media.comments.CommentZoomDialog
+import ani.sanin.media.comments.parseGifCommentContent
 import ani.sanin.loadImage
 import java.net.URI
 
@@ -4399,27 +4400,20 @@ private class EpisodeCommentPillViewHolder(val card: MaterialCardView) : ViewHol
     fun bind(comment: Comment) {
         username.text = comment.username
         time.text = formatCommentTime(comment.timestamp)
-        val gifMatch = GIF_IMAGE_REGEX.find(comment.content)
-        if (gifMatch != null) {
+        val parsed = parseGifCommentContent(comment.content)
+        val gifUrl = parsed.gifUrl
+        if (gifUrl != null) {
             // Gif comments: text capped at one line, gif shown above or below
             // depending on where it appears in the comment.
-            content.text = comment.content
-                .replace(GIF_IMAGE_REGEX, " ")
-                .replace(Regex("\\s+"), " ")
-                .trim()
+            content.text = parsed.text.replace(Regex("\\s+"), " ").trim()
             content.maxLines = 1
             content.ellipsize = TextUtils.TruncateAt.END
-            val gifUrl = gifMatch.groupValues.getOrNull(1)
-            val gifAbove = comment.content.substring(0, gifMatch.range.first).isBlank()
-            gifAboveView.visibility =
-                if (gifAbove && gifUrl != null) View.VISIBLE else View.GONE
-            gifBelowView.visibility =
-                if (!gifAbove && gifUrl != null) View.VISIBLE else View.GONE
-            if (gifUrl != null) {
-                (if (gifAbove) gifAboveView else gifBelowView).loadImage(gifUrl)
-            }
+            val gifAbove = parsed.gifAbove
+            gifAboveView.visibility = if (gifAbove) View.VISIBLE else View.GONE
+            gifBelowView.visibility = if (!gifAbove) View.VISIBLE else View.GONE
+            (if (gifAbove) gifAboveView else gifBelowView).loadImage(gifUrl)
         } else {
-            content.text = comment.content.replace(Regex("\\s+"), " ").trim()
+            content.text = parsed.text.replace(Regex("\\s+"), " ").trim()
             content.maxLines = 3
             content.ellipsize = TextUtils.TruncateAt.END
             gifAboveView.visibility = View.GONE
@@ -4460,5 +4454,3 @@ private fun formatCommentTime(timestamp: String): String {
     }
 }
 
-private val GIF_IMAGE_REGEX =
-    Regex("""!\[[^\]]*\]\((https?://[^\s)]+)\)""")

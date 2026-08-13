@@ -81,7 +81,7 @@ class CommentZoomDialog : DialogFragment() {
 
         binding.zoomUserName.text = username
         binding.zoomUserTime.text = formatTimestamp(timestamp)
-        markwon.setMarkdown(binding.zoomCommentText, args.getString("content") ?: "")
+        markwon.setMarkdown(binding.zoomCommentText, stripGifMarkdown(args.getString("content") ?: ""))
         binding.zoomVotes.text = "${upvotes - downvotes} votes"
         updateVoteCount()
         updateVoteIcons()
@@ -192,7 +192,7 @@ class CommentZoomDialog : DialogFragment() {
         row.findViewById<android.widget.TextView>(R.id.replyUserTime).text = formatTimestamp(reply.timestamp)
         markwon.setMarkdown(
             row.findViewById(R.id.replyContent),
-            reply.content
+            stripGifMarkdown(reply.content)
         )
         val avatar = row.findViewById<com.google.android.material.imageview.ShapeableImageView>(R.id.replyAvatar)
         if (reply.profilePictureUrl != null) {
