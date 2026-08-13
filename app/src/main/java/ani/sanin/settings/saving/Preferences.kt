@@ -73,7 +73,7 @@ enum class PrefName(val data: Pref) {
     AutoUpdateExtensions(Pref(Location.General, Boolean::class, true)),
     ConfirmPlayerExit(Pref(Location.General, Boolean::class, false)),
     ServerLoadTimeoutSeconds(Pref(Location.General, Int::class, 12)),
-    AnikotoCommentsEnabled(Pref(Location.General, Int::class, 0)),
+    AnikotoCommentsEnabled(Pref(Location.General, Int::class, 1)),
 
     //User Interface
     EpisodeMetadataSource(Pref(Location.UI, Int::class, 0)),
