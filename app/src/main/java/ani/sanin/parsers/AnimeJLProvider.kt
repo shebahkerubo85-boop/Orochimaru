@@ -20,11 +20,6 @@ import ani.sanin.others.JsUnpacker
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import android.util.Log
-import androidx.fragment.app.FragmentActivity
-import ani.sanin.currContext
-import ani.sanin.others.webview.VideoCatcher
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 class AnimeJLProvider : NativeAnimeParser() {
 
@@ -122,7 +117,7 @@ class AnimeJLProvider : NativeAnimeParser() {
 
     override suspend fun getVideoExtractor(server: VideoServer): VideoExtractor {
         return when (server.extraData?.get("host")) {
-            "Voe" -> AnimeJLWebViewExtractor(server)
+            "Voe" -> AnimeJLVoeExtractor(server)
             "Mp4Upload" -> Mp4UploadExtractor(server)
             "StreamWish" -> AnimeJLStreamWishExtractor(server)
             "YourUpload" -> YourUploadExtractor(server)
@@ -446,66 +441,6 @@ private fun ajlLog(message: String) {
     Log.d("AnimeJL", message)
     Logger.log(message)
     AnimeJLLog.write(message)
-}
-
-private suspend fun ajlWebViewCatch(embedUrl: String, referer: String?): List<String> {
-    return withContext(Dispatchers.IO) {
-        var result: Map<String, String>? = null
-        val latch = CountDownLatch(1)
-        val headers = if (!referer.isNullOrBlank()) mapOf("Referer" to referer) else emptyMap()
-        val dialog = VideoCatcher(FileUrl(embedUrl, headers))
-        dialog.callback = { result = it; latch.countDown() }
-        val shown = withContext(Dispatchers.Main) {
-            val activity = currContext() as? FragmentActivity
-            val fm = activity?.supportFragmentManager
-            if (fm != null) { dialog.show(fm, "animejl-webview-catcher"); true } else false
-        }
-        if (!shown) {
-            ajlLog("AnimeJL WebView: no foreground activity to show dialog")
-            return@withContext emptyList()
-        }
-        val captured = latch.await(45, TimeUnit.SECONDS)
-        if (!captured) {
-            withContext(Dispatchers.Main) { if (dialog.isAdded) dialog.dismiss() }
-            ajlLog("AnimeJL WebView: timed out after 45s for $embedUrl")
-        }
-        result?.get("videos")?.split("\n")?.mapNotNull { u -> u.takeIf { it.isNotBlank() } } ?: emptyList()
-    }
-}
-
-class AnimeJLWebViewExtractor(override val server: VideoServer) : VideoExtractor() {
-    override suspend fun extract(): VideoContainer = withContext(Dispatchers.IO) {
-        try {
-            val static = when (server.extraData?.get("host")) {
-                "Voe" -> AnimeJLVoeExtractor(server).extract().videos
-                else -> null
-            }
-            val referer = server.extraData?.get("referer") ?: ajlOrigin(server.embed.url)
-            if (!static.isNullOrEmpty()) {
-                ajlLog("AnimeJL WebView(${server.name}): static extraction succeeded")
-                return@withContext VideoContainer(static)
-            }
-            ajlLog("AnimeJL WebView(${server.name}): static empty, launching WebView for ${server.embed.url}")
-            val urls = ajlWebViewCatch(server.embed.url, referer)
-            if (urls.isEmpty()) {
-                ajlLog("AnimeJL WebView(${server.name}): no media captured")
-                VideoContainer(emptyList())
-            } else {
-                ajlLog("AnimeJL WebView(${server.name}): captured ${urls.size} url(s)")
-                VideoContainer(urls.map { url ->
-                    val fmt = when {
-                        url.contains(".m3u8", ignoreCase = true) -> VideoType.M3U8
-                        url.contains(".mpd", ignoreCase = true) -> VideoType.DASH
-                        else -> VideoType.CONTAINER
-                    }
-                    Video(null, fmt, FileUrl(url, mapOf("Referer" to referer)))
-                })
-            }
-        } catch (e: Exception) {
-            ajlLog("AnimeJL WebView(${server.name}) extract error: ${e.message}")
-            VideoContainer(emptyList())
-        }
-    }
 }
 
 private fun ajlGet(url: String, referer: String? = null): String {
