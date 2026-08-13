@@ -52,12 +52,20 @@ class AnimeJLProvider : NativeAnimeParser() {
                         coverUrl = coverUrl,
                         extra = mutableMapOf("id" to id, "slug" to slug)
                     )
-                }
+                }.sortedBy { dubPriority(it.name) }
             } catch (e: Exception) {
                 ajlLog("AnimeJL search error: ${e.message}")
                 emptyList()
             }
         }
+    }
+
+    // AnimeJL keeps Castellano/Latino versions as separate entries: prefer
+    // Spanish-dub (Castellano) first, then Latino, then the default sub entry.
+    private fun dubPriority(title: String): Int = when {
+        title.contains("castellano", ignoreCase = true) -> 0
+        title.contains("latino", ignoreCase = true) -> 1
+        else -> 2
     }
 
     override suspend fun loadEpisodes(animeLink: String, extra: Map<String, String>?, sAnime: SAnime): List<Episode> {
@@ -300,7 +308,15 @@ class AnimeJLUqloadExtractor(override val server: VideoServer) : VideoExtractor(
                     ajlLog("AnimeJL Uqload: no url in sources")
                 }
             ajlLog("AnimeJL Uqload: ${videoUrl.take(120)}")
-            VideoContainer(listOf(Video(null, VideoType.CONTAINER, FileUrl(videoUrl, mapOf("Referer" to ajlOrigin(videoUrl))))))
+            if (videoUrl.contains(".m3u8", ignoreCase = true)) {
+                val hls = ajlResolveHls(videoUrl, mapOf("Referer" to ajlOrigin(videoUrl)))
+                if (hls.audioTracks.isNotEmpty()) {
+                    ajlLog("AnimeJL Uqload: attached ${hls.audioTracks.size} audio track(s)")
+                }
+                VideoContainer(hls.videos, audioTracks = hls.audioTracks)
+            } else {
+                VideoContainer(listOf(Video(null, VideoType.CONTAINER, FileUrl(videoUrl, mapOf("Referer" to ajlOrigin(videoUrl))))))
+            }
         } catch (e: Exception) {
             ajlLog("AnimeJL Uqload extract error: ${e.message}")
             VideoContainer(emptyList())
