@@ -4129,6 +4129,22 @@ class ExoplayerView :
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN) markInteracted()
         if (!isInitialized) return super.dispatchKeyEvent(event)
+        // DPAD left dismisses the episode rail / comments panel. Consume both
+        // DOWN and UP so the event never falls through to the player-level
+        // left-skip handling (which would jump back an episode).
+        if (event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT &&
+            (episodeDrawer.isDrawerOpen(episodeDrawerContent) ||
+                episodeCommentPanel.visibility == View.VISIBLE)
+        ) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                if (episodeDrawer.isDrawerOpen(episodeDrawerContent)) {
+                    episodeDrawer.closeDrawer(episodeDrawerContent)
+                } else {
+                    closeEpisodeCommentPanel(returnToRail = true)
+                }
+            }
+            return true
+        }
         if (event.action == KeyEvent.ACTION_DOWN) {
             when (event.keyCode) {
                 KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
@@ -4138,16 +4154,6 @@ class ExoplayerView :
                     } else if (episodeCommentPanel.visibility == View.VISIBLE) {
                         closeEpisodeCommentPanel(returnToRail = true)
                         return true
-                    }
-                }
-                KeyEvent.KEYCODE_DPAD_LEFT -> {
-                    val id = currentFocus?.id
-                    if (id == R.id.episodeDrawerClose || id == R.id.episodeRailCard) {
-                        val focus = currentFocus
-                        if (focus?.focusSearch(View.FOCUS_LEFT) == null) {
-                            episodeDrawer.closeDrawer(episodeDrawerContent)
-                            return true
-                        }
                     }
                 }
             }
