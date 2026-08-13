@@ -281,7 +281,7 @@ class AnimeJLVoeExtractor(override val server: VideoServer) : VideoExtractor() {
                 voeClient.newCall(r2).execute().use { it.body?.string().orEmpty() }
             } else body
             val encoded = Jsoup.parse(page).selectFirst("script[type=application/json]")?.data()?.trim()
-                ?.substringAfter("[\"").substringBeforeLast("\"]")
+                ?.substringAfter("[\"")?.substringBeforeLast("\"]")
                 ?: return@withContext VideoContainer(emptyList()).also {
                     ajlLog("AnimeJL Voe: no application/json script in $embed")
                 }
