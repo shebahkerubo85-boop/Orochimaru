@@ -594,6 +594,7 @@ class ExoplayerView :
                 // Keep focus inside the rail: the background player controls are
                 // still visible next to it, so block them from receiving focus.
                 playerView.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                playerView.isFocusable = false
                 val pos = currentEpisodeIndex.coerceIn(0, episodeDrawerAdapter?.itemCount?.minus(1) ?: 0)
                 episodeDrawerList.scrollToPosition(pos)
                 episodeDrawerList.post {
@@ -606,8 +607,9 @@ class ExoplayerView :
                 }
             }
             override fun onDrawerClosed(drawerView: View) {
-                playerView.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
                 if (episodeCommentPanel.visibility != View.VISIBLE) {
+                    playerView.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+                    playerView.isFocusable = true
                     episodeTitleBtn.requestFocus()
                 }
             }
@@ -845,7 +847,6 @@ class ExoplayerView :
             }
         }
         playerView.post { exoPlay.requestFocus() }
-        FocusEffectUtil.applyFocusListener(playerView)
 
         // Focus chain: back → speed → ep_sel_btn
         //                 ↑              ↓
@@ -3925,6 +3926,7 @@ class ExoplayerView :
         episodeCommentPanel.visibility = View.VISIBLE
         // Same containment as the rail: keep focus inside the comment panel.
         playerView.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+        playerView.isFocusable = false
         episodeCommentPanel.requestFocus()
         loadEpisodeComments(epKey)
     }
@@ -4002,6 +4004,7 @@ class ExoplayerView :
     private fun closeEpisodeCommentPanel(returnToRail: Boolean) {
         episodeCommentJob?.cancel()
         playerView.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+        playerView.isFocusable = true
         episodeCommentPanel.visibility = View.GONE
         episodeCommentList.visibility = View.GONE
         episodeCommentProgress.visibility = View.GONE
