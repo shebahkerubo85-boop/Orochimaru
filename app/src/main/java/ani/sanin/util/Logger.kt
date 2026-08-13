@@ -255,6 +255,10 @@ object Logger {
         }
 
         // No saved log file: share general logcat output instead of the AnimeJL-only log.
+        if (!PrefManager.getVal<Boolean>(PrefName.LoggingEnabled)) {
+            snackString("Enable logging first")
+            return
+        }
         val logs = try {
             val recent = readLogcatLastMinutes(15)
             if (recent.isBlank() || recent.startsWith("No logs")) readLogcat(500) else recent
