@@ -55,11 +55,11 @@ class AnimeJLProvider : NativeAnimeParser() {
         }
     }
 
-    // AnimeJL keeps Castellano/Latino versions as separate entries: prefer
-    // Spanish-dub (Castellano) first, then Latino, then the default sub entry.
+    // AnimeJL keeps Latino/Castellano versions as separate entries: prefer
+    // Spanish-dub (Latino) first, then Castellano, then the default sub entry.
     private fun dubPriority(title: String): Int = when {
-        title.contains("castellano", ignoreCase = true) -> 0
-        title.contains("latino", ignoreCase = true) -> 1
+        title.contains("latino", ignoreCase = true) -> 0
+        title.contains("castellano", ignoreCase = true) -> 1
         else -> 2
     }
 
