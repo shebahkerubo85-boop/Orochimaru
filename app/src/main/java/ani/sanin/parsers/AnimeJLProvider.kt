@@ -4,7 +4,6 @@ import ani.sanin.FileUrl
 import ani.sanin.Mapper
 import ani.sanin.okHttpClient
 import ani.sanin.util.Logger
-import ani.sanin.util.AnimeJLLog
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Track
@@ -440,7 +439,6 @@ private fun ajlResolveHls(masterUrl: String, headers: Map<String, String>): AjlH
 private fun ajlLog(message: String) {
     Log.d("AnimeJL", message)
     Logger.log(message)
-    AnimeJLLog.write(message)
 }
 
 private fun ajlGet(url: String, referer: String? = null): String {

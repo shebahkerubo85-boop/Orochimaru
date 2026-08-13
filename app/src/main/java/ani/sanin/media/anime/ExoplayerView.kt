@@ -2512,7 +2512,7 @@ class ExoplayerView :
     }
 
     private fun subClick() {
-        Logger.log("subClick: Opening subtitle dialog")
+        Logger.log("subClick: Opening subtitle dialog (ep=${episode.number}, extractor=${episode.selectedExtractor}, selectedSubtitle=${episode.selectedSubtitle})")
         PrefManager.setCustomVal(
             "${media.id}_${media.anime!!.selectedEpisode}",
             exoPlayer.currentPosition,
@@ -2544,6 +2544,7 @@ class ExoplayerView :
      */
     fun reApplyLocalSubtitle(uriString: String) {
         android.util.Log.d("LocalSubDebug", "reApplyLocalSubtitle called with: $uriString")
+        Logger.log("reApplyLocalSubtitle: uriString=$uriString")
         try {
             val uri = android.net.Uri.parse(uriString)
             android.util.Log.d("LocalSubDebug", "reApplyLocalSubtitle: parsed URI=$uri, calling applyLocalSubtitle")
@@ -2558,6 +2559,7 @@ class ExoplayerView :
     private fun applyLocalSubtitle(uri: android.net.Uri) {
         try {
             val label = "Local Subtitle"
+            Logger.log("applyLocalSubtitle: uri=$uri")
             val contentResolver = applicationContext.contentResolver
 
             // --- Step 1: Determine MIME type ---
@@ -2673,6 +2675,7 @@ class ExoplayerView :
                 .setSubtitleConfigurations(existingSubtitles)
                 .build()
 
+            Logger.log("applyLocalSubtitle: pendingLabel='$label', setMediaItem+prepare, uri=$finalSubUri")
             android.util.Log.d("LocalSubDebug", "applyLocalSubtitle: pendingLabel='$label', setMediaItem+prepare, uri=$finalSubUri")
             pendingSubtitleLabel = label
             val currentPos = exoPlayer.currentPosition
@@ -2797,6 +2800,7 @@ class ExoplayerView :
     fun applyOnlineSubtitle(subtitle: ani.sanin.connections.subtitles.StremioSub) {
         android.util.Log.d("ExoplayerView", "=== applyOnlineSubtitle CALLED ===")
         android.util.Log.d("ExoplayerView", "applyOnlineSubtitle: lang=${subtitle.lang}, url=${subtitle.url}")
+        Logger.log("applyOnlineSubtitle: lang=${subtitle.lang}, url=${subtitle.url}")
 
         // Download subtitle content first, then apply
         lifecycleScope.launch(Dispatchers.IO) {
@@ -2811,6 +2815,7 @@ class ExoplayerView :
 
                 val response = client.newCall(request).execute()
                 if (!response.isSuccessful) {
+                    Logger.log("applyOnlineSubtitle: download FAILED http=${response.code} for ${subtitle.url}")
                     withContext(Dispatchers.Main) {
                         android.util.Log.e("ExoplayerView", "applyOnlineSubtitle: Download failed with code ${response.code}")
                         snackString("Failed to download subtitle: HTTP ${response.code}")
@@ -2828,6 +2833,7 @@ class ExoplayerView :
                 }
 
                 android.util.Log.d("ExoplayerView", "applyOnlineSubtitle: Downloaded ${subtitleContent.length} bytes")
+                Logger.log("applyOnlineSubtitle: downloaded ${subtitleContent.length} bytes")
 
                 // Detect format from content
                 val detectedFormat = when {
@@ -2838,6 +2844,7 @@ class ExoplayerView :
                 }
 
                 android.util.Log.d("ExoplayerView", "applyOnlineSubtitle: Detected format: $detectedFormat")
+                Logger.log("applyOnlineSubtitle: detected format=$detectedFormat")
 
                 // Strip positioning from ASS files
                 val cleanedContent = if (detectedFormat == "ASS") {
@@ -2872,6 +2879,7 @@ class ExoplayerView :
                 val parsedCues = parseSubtitleContent(subtitleContent, detectedFormat)
 
                 val label = "${subtitle.source}:${subtitle.lang}"
+                Logger.log("applyOnlineSubtitle: saved ${subtitleFile.absolutePath}, parsed ${parsedCues.size} cues, label=$label, applying")
 
                 withContext(Dispatchers.Main) {
                     storeParsedCues(parsedCues)
@@ -2892,6 +2900,7 @@ class ExoplayerView :
             val subUri = android.net.Uri.fromFile(file)
 
             android.util.Log.d("ExoplayerView", "applySubtitleFromFile: URI=$subUri, MIME=$mimeType, label=$label")
+            Logger.log("applySubtitleFromFile: file=${file.absolutePath} (${file.length()}B), lang=$lang, mime=$mimeType, label=$label")
 
             val subConfig = MediaItem.SubtitleConfiguration.Builder(subUri)
                 .setMimeType(mimeType)
@@ -2905,6 +2914,7 @@ class ExoplayerView :
 
             val alreadyExists = existingSubtitles.any { it.id == file.name }
             if (alreadyExists) {
+                Logger.log("applySubtitleFromFile: config already in media item, pendingLabel=$label")
                 android.util.Log.d("ExoplayerView", "applySubtitleFromFile: Subtitle already exists, selecting via pendingLabel")
                 // Even though track already exists in the media item, we may need
                 // to wait for onTracksChanged to fire to reliably select it.
@@ -2915,6 +2925,7 @@ class ExoplayerView :
             }
 
             existingSubtitles.add(subConfig)
+            Logger.log("applySubtitleFromFile: added config, total=${existingSubtitles.size}, pendingLabel=$label")
             android.util.Log.d("ExoplayerView", "applySubtitleFromFile: Added subtitle, total: ${existingSubtitles.size}")
 
             val newMediaItem = currentMediaItem.buildUpon()
@@ -3003,6 +3014,7 @@ class ExoplayerView :
 
     private fun selectSubtitleTrack(langCode: String, targetLabel: String? = null) {
         android.util.Log.d("ExoplayerView", "selectSubtitleTrack: Looking for lang=$langCode, targetLabel=$targetLabel")
+        Logger.log("selectSubtitleTrack: lang=$langCode, targetLabel=$targetLabel")
 
         val mappedLang = mapLanguageCode(langCode)
         android.util.Log.d("ExoplayerView", "selectSubtitleTrack: Mapped '$langCode' to '$mappedLang'")
@@ -3016,6 +3028,7 @@ class ExoplayerView :
 
                 if (group.type == TRACK_TYPE_TEXT) {
                     android.util.Log.d("ExoplayerView", "selectSubtitleTrack: Found TEXT group at index $groupIndex with ${group.length} tracks")
+                    Logger.log("selectSubtitleTrack: TEXT group $groupIndex has ${group.length} tracks")
 
                     for (trackIndex in 0 until group.length) {
                         val format = group.getTrackFormat(trackIndex)
@@ -3026,6 +3039,7 @@ class ExoplayerView :
                         // PRIORITY 1: Match by specific Label (e.g., "Online: eng")
                         if (targetLabel != null && trackLabel == targetLabel) {
                             android.util.Log.d("ExoplayerView", "selectSubtitleTrack: FOUND matching track by label! Selecting index $trackIndex")
+                            Logger.log("selectSubtitleTrack: MATCH by label -> group $groupIndex track $trackIndex")
                             onSetTrackGroupOverride(group, TRACK_TYPE_TEXT, trackIndex)
                             snackString("Subtitle loaded: $trackLabel")
                             return
@@ -3034,6 +3048,7 @@ class ExoplayerView :
                         // PRIORITY 2: Fallback to matching language code if no label provided
                         if (targetLabel == null && (trackLang == mappedLang || trackLang == langCode || trackLang.startsWith(langCode) || trackLang.startsWith(mappedLang))) {
                             android.util.Log.d("ExoplayerView", "selectSubtitleTrack: FOUND matching track by language! Selecting index $trackIndex")
+                            Logger.log("selectSubtitleTrack: MATCH by language -> group $groupIndex track $trackIndex")
                             onSetTrackGroupOverride(group, TRACK_TYPE_TEXT, trackIndex)
                             snackString("Subtitle loaded: ${mappedLang.replaceFirstChar { it.uppercase() }}")
                             return
@@ -3042,6 +3057,7 @@ class ExoplayerView :
                 }
             }
             android.util.Log.d("ExoplayerView", "selectSubtitleTrack: No matching track found for lang=$langCode, targetLabel=$targetLabel")
+            Logger.log("selectSubtitleTrack: NO MATCH for lang=$langCode, targetLabel=$targetLabel")
         } catch (e: Exception) {
             android.util.Log.e("ExoplayerView", "selectSubtitleTrack: ERROR - ${e.message}", e)
             e.printStackTrace()
@@ -3445,6 +3461,7 @@ class ExoplayerView :
         index: Int = 0,
     ) {
         val isDisabled = trackGroup.getTrackFormat(0).language == "none"
+        Logger.log("onSetTrackGroupOverride: type=$type index=$index isDisabled=$isDisabled")
         exoPlayer.trackSelectionParameters =
             exoPlayer.trackSelectionParameters
                 .buildUpon()
@@ -3477,6 +3494,7 @@ class ExoplayerView :
         val userLabel = pendingSubtitleLabel
         val pendingLabel = userLabel ?: initialSubtitleLabel
         android.util.Log.d("LocalSubDebug", "onTracksChanged: pendingLabel=$pendingLabel, totalGroups=${tracks.groups.size}")
+        Logger.log("onTracksChanged: pendingLabel=$pendingLabel, totalGroups=${tracks.groups.size}")
         if (pendingLabel != null) {
             var matched = false
             tracks.groups.forEachIndexed { groupIndex, group ->
@@ -3487,6 +3505,7 @@ class ExoplayerView :
                         android.util.Log.d("LocalSubDebug", "onTracksChanged: TEXT track[$trackIndex] label='$trackLabel', isSupported=${group.isTrackSupported(trackIndex, true)}")
                         if (trackLabel == pendingLabel) {
                             android.util.Log.d("LocalSubDebug", "onTracksChanged: MATCH FOUND for '$pendingLabel' at group=$groupIndex track=$trackIndex, selecting")
+                            Logger.log("onTracksChanged: MATCH '$pendingLabel' -> group $groupIndex track $trackIndex")
                             pendingSubtitleLabel = null
                             initialSubtitleLabel = null
                             matched = true
@@ -3500,6 +3519,7 @@ class ExoplayerView :
             }
             if (!matched) {
                 android.util.Log.w("LocalSubDebug", "onTracksChanged: NO MATCH found for '$pendingLabel' — will retry on next onTracksChanged")
+                Logger.log("onTracksChanged: NO MATCH for '$pendingLabel' (retrying on next onTracksChanged)")
             }
         }
 

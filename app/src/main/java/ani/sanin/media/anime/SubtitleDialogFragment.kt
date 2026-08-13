@@ -96,18 +96,18 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Logger.log("SubtitleDialogFragment: onViewCreated called")
+        Logger.log("SubtitleDialogFragment: onViewCreated called")
 
         binding.subtitlesRecycler.layoutManager = LinearLayoutManager(requireContext())
 
         model.getMedia().observe(viewLifecycleOwner) { media ->
-            // Logger.log("SubtitleDialogFragment: Media observed")
             episode = media?.anime?.episodes?.get(media.anime.selectedEpisode) ?: return@observe
+            Logger.log("SubtitleDialogFragment: Media observed, ep=${episode.number}")
             val currentExtractor =
                 episode.extractors?.find { it.server.name == episode.selectedExtractor }
                     ?: return@observe
 
-            // Logger.log("SubtitleDialogFragment: Got extractor with ${currentExtractor.subtitles.size} local subtitles")
+            Logger.log("SubtitleDialogFragment: extractor=${currentExtractor.server.name}, localSubtitles=${currentExtractor.subtitles.size}")
 
             viewLifecycleOwner.lifecycleScope.launch(kotlinx.coroutines.Dispatchers.Main) {
                 val episodeId = "${media.id}-${episode.number}"
@@ -141,6 +141,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                 if (_binding != null) {
                      binding.subtitlesRecycler.adapter = SubtitleAdapter(allSubtitles)
                 }
+                Logger.log("SubtitleDialogFragment: rows=${allSubtitles.size} (local=${currentExtractor.subtitles.size}, cachedOnline=${cached?.size ?: 0})")
 
                 // Fetch IMDB and Mapping in background so it's ready when users click "Online"
                 launch(kotlinx.coroutines.Dispatchers.IO) {
@@ -166,6 +167,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
     }
 
     private fun fetchOnlineSubtitles(adapter: SubtitleAdapter, item: SearchOnlineSubtitles, position: Int) {
+        Logger.log("SubtitleDialogFragment: fetchOnlineSubtitles start")
         item.text = "Searching..."
         adapter.notifyItemChanged(position)
 
@@ -182,6 +184,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                 val currentEpisode = media.anime?.episodes?.get(selectedEpisode)
                 val seasonEpisode = EpisodeMapper.mapEpisode(media, episodeNum, currentEpisode)
                 currentSeasonEpisode = seasonEpisode
+                Logger.log("SubtitleDialogFragment: fetch imdbId=$imdbId ep=$episodeNum season=${seasonEpisode.season} epInSeason=${seasonEpisode.episode}")
 
                 // Phase 3 & 4: Fetcher & Backup Plan
                 val onlineSubs = mutableListOf<Any>()
@@ -201,10 +204,12 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                             val list = validAdapter.subtitles as MutableList<Any>
                             list.removeAt(position) // Remove "Search..." button
 
+                            Logger.log("SubtitleDialogFragment: fetched ${onlineSubs.size} online subtitles")
                             if (onlineSubs.isNotEmpty()) {
                                 model.saveFetchedSubtitles("${media.id}-${episodeNum}", onlineSubs)
                                 list.addAll(onlineSubs)
                             } else {
+                                Logger.log("SubtitleDialogFragment: no online subtitles found")
                                      toast("No subtitles found")
                                 }
                             validAdapter.notifyDataSetChanged()
@@ -266,6 +271,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                     }
                 }
                 binding.root.setOnClickListener {
+                    Logger.log("SubtitleDialogFragment: None selected")
                     episode.selectedSubtitle = null
                     model.setEpisode(episode, "Subtitle")
                     model.getMedia().observe(viewLifecycleOwner) { media ->
@@ -293,6 +299,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                 binding.subtitleTitle.text = item.text
                 binding.root.setCardBackgroundColor(TRANSPARENT)
                 binding.root.setOnClickListener {
+                    Logger.log("SubtitleDialogFragment: Add Local Subtitle clicked")
                     (requireActivity() as? ExoplayerView)?.requestLocalSubtitle()
                     dismiss()
                 }
@@ -306,6 +313,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                 binding.root.setOnClickListener {
                     // Prevent double clicks
                     if (item.text == "Searching...") return@setOnClickListener
+                    Logger.log("SubtitleDialogFragment: Online Subtitle search clicked")
                     fetchOnlineSubtitles(this@SubtitleAdapter, item, adjustedPosition)
                 }
                 return
@@ -375,6 +383,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                 }
 
                 binding.root.setOnClickListener {
+                    Logger.log("SubtitleDialogFragment: local subtitle clicked language=${item.language}")
                     // Check if this is a custom local subtitle we cached
                     if (item.language.startsWith("[Local]")) {
                         // DO NOT call model.setEpisode() here — that triggers a full player
@@ -394,6 +403,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                         }
                     } else {
                         // Standard built-in local subtitle
+                        Logger.log("SubtitleDialogFragment: built-in subtitle selected index=$adjustedPosition language=${item.language}")
                         episode.selectedSubtitle = adjustedPosition
                         model.setEpisode(episode, "Subtitle")
                         model.getMedia().observe(viewLifecycleOwner) { media ->
@@ -429,6 +439,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                 }
 
                 binding.root.setOnClickListener {
+                    Logger.log("SubtitleDialogFragment: Wyzie subtitle clicked lang=${item.language} url=${item.url} format=${item.format}")
                     try {
                         val activity = requireActivity()
                         if (activity is ExoplayerView) {
@@ -475,13 +486,13 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                 }
 
                 binding.root.setOnClickListener {
-                    // Logger.log("SubtitleDialogFragment: Online subtitle clicked - ${item.lang}")
+                    Logger.log("SubtitleDialogFragment: Stremio subtitle clicked id=${item.id} lang=${item.lang}")
                     try {
                         val activity = requireActivity()
-                        // Logger.log("SubtitleDialogFragment: Activity = ${activity::class.simpleName}")
+                        Logger.log("SubtitleDialogFragment: Activity = ${activity::class.simpleName}")
 
                         if (activity is ExoplayerView) {
-                            // Logger.log("SubtitleDialogFragment: Activity IS ExoplayerView, calling applyOnlineSubtitle")
+                            Logger.log("SubtitleDialogFragment: Activity IS ExoplayerView, calling applyOnlineSubtitle")
 
                             // 1. Reset the Local Subtitle Selection Index
                             episode.selectedSubtitle = -1
@@ -494,12 +505,12 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
 
                             // 3. Apply the subtitle
                             activity.applyOnlineSubtitle(item)
-                            // Logger.log("SubtitleDialogFragment: applyOnlineSubtitle called successfully")
+                            Logger.log("SubtitleDialogFragment: applyOnlineSubtitle called successfully")
                         } else {
-                            // Logger.log("SubtitleDialogFragment: Activity is NOT ExoplayerView! Type = ${activity::class.qualifiedName}")
+                            Logger.log("SubtitleDialogFragment: Activity is NOT ExoplayerView! Type = ${activity::class.qualifiedName}")
                         }
                     } catch (e: Exception) {
-                        // Logger.log("SubtitleDialogFragment: Exception in online subtitle click: ${e.message}")
+                        Logger.log("SubtitleDialogFragment: Exception in online subtitle click: ${e.message}")
                         e.printStackTrace()
                     }
                     dismiss()
