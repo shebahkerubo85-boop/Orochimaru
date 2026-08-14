@@ -646,9 +646,10 @@ class ExoplayerView :
             isPlayerPlaying = savedInstanceState.getBoolean(playerOnPlay)
         }
 
-        // BackButton
+        // BackButton: one click always exits the player. The system back keeps its
+        // own handler (closes panels/overlay, optional exit dialog, hides controls).
         val exoBack = playerView.findViewById<ImageButton>(R.id.exo_back)
-        exoBack.setOnClickListener { handleBackPress() }
+        exoBack.setOnClickListener { finishAndRemoveTask() }
         onBackPressedDispatcher.addCallback(this) {
             if (!handleBackPress()) {
                 finishAndRemoveTask()
