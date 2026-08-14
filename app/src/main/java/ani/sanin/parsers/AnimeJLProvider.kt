@@ -33,7 +33,6 @@ import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import java.util.Collections
 import java.util.LinkedHashSet
-import java.util.concurrent.atomic.AtomicLong
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -288,28 +287,36 @@ class UniversalEmbedExtractor(override val server: VideoServer) : VideoExtractor
     override suspend fun extract(): VideoContainer = withContext(Dispatchers.IO) {
         try {
             val referer = server.extraData?.get("referer")
-            val page = ajlGet(server.embed.url, referer)
+            val embed = server.embed.url
+            val page = ajlGet(embed, referer)
             val hlsUrls = ajlHlsUrls(page)
             val mp4Urls = Regex("""https?://[^"'<>\s]+?\.mp4[^"'<>\s]*""", RegexOption.IGNORE_CASE)
                 .findAll(page).map { it.value }.distinct().toList()
             val dashUrls = Regex("""https?://[^"'<>\s]+?\.mpd[^"'<>\s]*""", RegexOption.IGNORE_CASE)
                 .findAll(page).map { it.value }.distinct().toList()
-            var allUrls = hlsUrls + mp4Urls + dashUrls
-            if (allUrls.isEmpty()) {
-                ajlLog("AnimeJL Universal: static empty, trying headless WebView for ${server.embed.url}")
-                allUrls = ajlWebViewCatch(server.embed.url, referer)
+            // Static URLs can be stale placeholders: hqq-style players embed an expired
+            // m3u8 in the HTML and only generate a fresh one via JS. Verify each URL is
+            // actually servable before offering it, then fall back to the headless
+            // WebView (which captures the real player request like the extension does).
+            val embedOrigin = ajlOrigin(embed)
+            val staticUrls = (hlsUrls + mp4Urls + dashUrls).distinct()
+            val allUrls = if (staticUrls.isEmpty()) {
+                emptyList()
+            } else {
+                staticUrls.filter { url -> ajlMediaOk(url, ajlMediaHeaders(url, embed, embedOrigin)) }
             }
-            if (allUrls.isEmpty()) {
-                ajlLog("AnimeJL Universal: no streams found in ${server.embed.url}")
+            val finalUrls = if (allUrls.isEmpty()) {
+                ajlLog("AnimeJL Universal: static empty, trying headless WebView for $embed")
+                ajlWebViewCatch(embed, referer)
+            } else {
+                allUrls
+            }
+            if (finalUrls.isEmpty()) {
+                ajlLog("AnimeJL Universal: no streams found in $embed")
                 VideoContainer(emptyList())
             } else {
-                ajlLog("AnimeJL Universal: ${allUrls.size} streams found")
-                // CDNs behind these embeds check the Referer and reject the CDN's own
-                // origin (403); send the embed page URL like a real iframe would, plus
-                // Origin for HLS/DASH (matches the upstream extension's behavior).
-                val embed = server.embed.url
-                val embedOrigin = ajlOrigin(embed)
-                VideoContainer(allUrls.map { url ->
+                ajlLog("AnimeJL Universal: ${finalUrls.size} streams found")
+                VideoContainer(finalUrls.map { url ->
                     val format = when {
                         url.contains(".m3u8", ignoreCase = true) -> VideoType.M3U8
                         url.contains(".mpd", ignoreCase = true) -> VideoType.DASH
@@ -537,20 +544,15 @@ private fun ajlResolveHls(masterUrl: String, headers: Map<String, String>): AjlH
             audioTracks.add(Track(url = audioUrl, lang = lang))
         }
 
-        val hasAudioGroup = audioTracks.isNotEmpty()
-        if (hasAudioGroup) {
-            return AjlHlsResult(
-                listOf(Video(null, VideoType.M3U8, FileUrl(masterUrl, headers))),
-                audioTracks,
-            )
-        }
-
+        // Keep parsing variants even when an audio group is present: servers like
+        // StreamWish carry EXT-X-MEDIA audio plus multiple quality variants, and
+        // collapsing to the master URL would hide the quality picker.
         val videos = mutableListOf<Video>()
         var i = 0
         while (i < lines.size) {
             val line = lines[i].trim()
             if (line.startsWith("#EXT-X-STREAM-INF:", ignoreCase = true)) {
-                val quality = Regex("RESOLUTION=\\d+x(\\d+)", RegexOption.IGNORE_CASE)
+                val quality = Regex("RESOLUTION=\\d+[xX](\\d+)", RegexOption.IGNORE_CASE)
                     .find(line)?.groupValues?.get(1)?.toIntOrNull()
                 var j = i + 1
                 while (j < lines.size) {
@@ -566,9 +568,9 @@ private fun ajlResolveHls(masterUrl: String, headers: Map<String, String>): AjlH
             } else i++
         }
         if (videos.isEmpty()) {
-            AjlHlsResult(listOf(Video(null, VideoType.M3U8, FileUrl(masterUrl, headers))), emptyList())
+            AjlHlsResult(listOf(Video(null, VideoType.M3U8, FileUrl(masterUrl, headers))), audioTracks)
         } else {
-            AjlHlsResult(videos, emptyList())
+            AjlHlsResult(videos, audioTracks)
         }
     } catch (e: Exception) {
         AjlHlsResult(listOf(Video(null, VideoType.M3U8, FileUrl(masterUrl, headers))), emptyList())
@@ -587,11 +589,11 @@ private fun ajlUpnsDecrypt(hex: String): String? = try {
     null
 }
 
-// Headless WebView capture is a last resort: cap the wait so a batch of dead
-// servers doesn't stall the source picker, and never attempt hosts that serve
-// encrypted/streamed content no media URL can be captured from (mega, d.tube).
-private const val AJL_WEBVIEW_TIMEOUT_MS = 8_000L
-private const val AJL_WEBVIEW_GRACE_AFTER_LOAD_MS = 3_000L
+// Headless WebView capture is a last resort: block up to 10s like the upstream
+// extension (JS players like hqq need a few seconds to mint a fresh stream URL),
+// and never attempt hosts that serve encrypted/streamed content no media URL can
+// be captured from (mega, d.tube).
+private const val AJL_WEBVIEW_TIMEOUT_MS = 10_000L
 private val AJL_WEBVIEW_SKIP_HOSTS = listOf("mega.nz", "mega.co.nz", "d.tube")
 
 /**
@@ -611,7 +613,6 @@ private suspend fun ajlWebViewCatch(embedUrl: String, referer: String?): List<St
         val candidates = Collections.synchronizedSet(LinkedHashSet<String>())
         val container = FrameLayout(activity)
         val webView = WebView(activity)
-        val loadedAt = AtomicLong(0L)
         try {
             webView.settings.javaScriptEnabled = true
             webView.settings.domStorageEnabled = true
@@ -651,10 +652,6 @@ private suspend fun ajlWebViewCatch(embedUrl: String, referer: String?): List<St
                 }
             }
             webView.webViewClient = object : WebViewClient() {
-                override fun onPageFinished(view: WebView?, url: String?) {
-                    loadedAt.set(System.currentTimeMillis())
-                }
-
                 override fun shouldInterceptRequest(
                     view: WebView?,
                     request: WebResourceRequest?
@@ -672,8 +669,6 @@ private suspend fun ajlWebViewCatch(embedUrl: String, referer: String?): List<St
             webView.loadUrl(embedUrl)
             val deadline = System.currentTimeMillis() + AJL_WEBVIEW_TIMEOUT_MS
             while (System.currentTimeMillis() < deadline && candidates.isEmpty()) {
-                val loaded = loadedAt.get()
-                if (loaded > 0L && System.currentTimeMillis() - loaded > AJL_WEBVIEW_GRACE_AFTER_LOAD_MS) break
                 delay(250)
             }
         } catch (e: Exception) {
@@ -731,6 +726,26 @@ private fun ajlGet(url: String, referer: String? = null): String {
 private fun ajlOrigin(url: String): String = runCatching {
     URI(url).let { "${it.scheme}://${it.authority}" }
 }.getOrDefault(url.substringBefore('/', ""))
+
+private fun ajlMediaHeaders(url: String, embed: String, embedOrigin: String): Map<String, String> =
+    if (url.contains(".mp4", ignoreCase = true)) mapOf("Referer" to embed)
+    else mapOf("Referer" to embed, "Origin" to embedOrigin)
+
+private fun ajlMediaOk(url: String, headers: Map<String, String>): Boolean = try {
+    val builder = Request.Builder().url(url)
+        .header("User-Agent", NativeAnimeParser.USER_AGENT)
+        .header("Accept", "*/*")
+    headers.forEach { (k, v) -> builder.header(k, v) }
+    if (url.contains(".mp4", ignoreCase = true)) builder.header("Range", "bytes=0-0")
+    okHttpClient.newCall(builder.get().build()).execute().use { resp ->
+        val statusOk = resp.isSuccessful
+        val contentType = resp.header("Content-Type").orEmpty().lowercase()
+        // Reject dead tokens (403) and pages that merely look like media (text/html).
+        statusOk && !contentType.contains("text/html") && !contentType.contains("application/xhtml")
+    }
+} catch (e: Exception) {
+    false
+}
 
 private fun ajlHlsUrls(html: String): List<String> = Regex(
     "(?:https?:)?(?:\\\\/|/)[^\"'\\s<>]+?\\.m3u8[^\"'\\s<>]*",
