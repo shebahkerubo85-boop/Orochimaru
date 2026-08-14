@@ -138,7 +138,7 @@ class AnimeJLProvider : NativeAnimeParser() {
                 host.contains("streamwish") || host.contains("playerwish") ||
                     host.contains("wishonly") || host.contains("filemoon") -> "StreamWish"
                 host.contains("uqload") -> "Uqload"
-                host.contains("vidhide") -> "VidHide"
+                host.contains("vidhide") || host.contains("streamhidevid") -> "VidHide"
                 host.contains("streamtape") || host.contains("streamta.pe") -> "StreamTape"
                 host == "ok.ru" || host.endsWith(".ok.ru") -> null
                 else -> {
@@ -224,14 +224,20 @@ class UniversalEmbedExtractor(override val server: VideoServer) : VideoExtractor
             val hlsUrls = ajlHlsUrls(page)
             val mp4Urls = Regex("""https?://[^"'<>\s]+?\.mp4[^"'<>\s]*""", RegexOption.IGNORE_CASE)
                 .findAll(page).map { it.value }.distinct().toList()
-            val allUrls = hlsUrls + mp4Urls
+            val dashUrls = Regex("""https?://[^"'<>\s]+?\.mpd[^"'<>\s]*""", RegexOption.IGNORE_CASE)
+                .findAll(page).map { it.value }.distinct().toList()
+            val allUrls = hlsUrls + mp4Urls + dashUrls
             if (allUrls.isEmpty()) {
                 ajlLog("AnimeJL Universal: no streams found in ${server.embed.url}")
                 VideoContainer(emptyList())
             } else {
                 ajlLog("AnimeJL Universal: ${allUrls.size} streams found")
                 VideoContainer(allUrls.map { url ->
-                    val format = if (url.contains(".m3u8", ignoreCase = true)) VideoType.M3U8 else VideoType.CONTAINER
+                    val format = when {
+                        url.contains(".m3u8", ignoreCase = true) -> VideoType.M3U8
+                        url.contains(".mpd", ignoreCase = true) -> VideoType.DASH
+                        else -> VideoType.CONTAINER
+                    }
                     Video(null, format, FileUrl(url, mapOf("Referer" to ajlOrigin(url))))
                 })
             }
