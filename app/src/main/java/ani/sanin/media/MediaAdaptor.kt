@@ -64,7 +64,6 @@ class MediaAdaptor(
     private var cachedBannerAnimations = PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.BannerAnimations)
     private var cachedAnimationSpeed = PrefManager.getVal<Float>(PrefName.AnimationSpeed)
     private var cachedCardTitlePosition = PrefManager.getVal<Int>(PrefName.CardTitlePosition)
-    private var cachedCardGradientIntensity = PrefManager.getVal<Float>(PrefName.CardGradientIntensity)
 
     fun refreshCache() {
         cachedCardRoundness = PrefManager.getVal<Int>(PrefName.StandardCardRoundness).toFloat()
@@ -72,7 +71,6 @@ class MediaAdaptor(
         cachedBannerAnimations = PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.BannerAnimations)
         cachedAnimationSpeed = PrefManager.getVal(PrefName.AnimationSpeed)
         cachedCardTitlePosition = PrefManager.getVal(PrefName.CardTitlePosition)
-        cachedCardGradientIntensity = PrefManager.getVal(PrefName.CardGradientIntensity)
         cachedAnimationSpeed = PrefManager.getVal(PrefName.AnimationSpeed)
     }
 
@@ -538,22 +536,7 @@ class MediaAdaptor(
             when (titlePos) {
                 0 -> {
                     b.itemCompactOverlay.visibility = View.VISIBLE
-                    val intensity = cachedCardGradientIntensity
-                    if (intensity <= 0f) {
-                        b.itemCompactOverlay.background = null
-                    } else {
-                        val endAlpha = 255
-                        val startColor = Color.argb(0, 0, 0, 0)
-                        val endColor = Color.argb(
-                            (endAlpha * intensity).toInt().coerceIn(0, 255),
-                            0, 0, 0
-                        )
-                        val gradient = GradientDrawable(
-                            GradientDrawable.Orientation.BOTTOM_TOP,
-                            intArrayOf(endColor, startColor)
-                        )
-                        b.itemCompactOverlay.background = gradient
-                    }
+                    setGradient(b.itemCompactOverlay)
                     b.itemCompactTitleBelow.visibility = View.GONE
                     logoJobs[position]?.cancel()
                     logoJobs[position] = activity.lifecycleScope.launch(Dispatchers.Main) {
@@ -593,6 +576,25 @@ class MediaAdaptor(
                 b.itemCompactProgressContainer.visibility = View.GONE
             }
         }
+    }
+
+    private fun setGradient(view: View) {
+        val intensity = PrefManager.getVal<Float>(PrefName.CardGradientIntensity)
+        if (intensity <= 0f) {
+            view.background = null
+            return
+        }
+        val endAlpha = 255
+        val startColor = Color.argb(0, 0, 0, 0)
+        val endColor = Color.argb(
+            (endAlpha * intensity).toInt().coerceIn(0, 255),
+            0, 0, 0
+        )
+        val gradient = GradientDrawable(
+            GradientDrawable.Orientation.BOTTOM_TOP,
+            intArrayOf(endColor, startColor)
+        )
+        view.background = gradient
     }
 
 
