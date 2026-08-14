@@ -59,6 +59,7 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefManager.asLiveBool
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.snackString
+import ani.sanin.sizeBannerCard
 import ani.sanin.statusBarHeight
 import ani.sanin.tryWithSuspend
 import ani.sanin.util.Logger
@@ -135,6 +136,7 @@ class HomeFragment : Fragment() {
                     binding.homeUserBg.visibility = View.GONE
                     binding.homeUserBgNoKen.visibility = View.GONE
                     binding.homeNavigatingBannerContainer.visibility = View.VISIBLE
+                    binding.navBannerCard.sizeBannerCard()
                     binding.homeNavigatingBannerContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                         topMargin = statusBarHeight
                     }
@@ -689,6 +691,7 @@ class HomeFragment : Fragment() {
     private var bannerAutoScrollRunnable: Runnable? = null
 
     private fun setupBannerCarousel() {
+        binding.homeBannerCard.sizeBannerCard()
         binding.homeBannerCardWrap.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             topMargin = statusBarHeight
         }

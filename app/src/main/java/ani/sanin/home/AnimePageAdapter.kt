@@ -38,6 +38,7 @@ import ani.sanin.setSlideUp
 import ani.sanin.settings.SettingsDialogFragment
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
+import ani.sanin.sizeBannerCard
 import ani.sanin.statusBarHeight
 import ani.sanin.util.FocusEffectUtil
 import com.google.android.material.card.MaterialCardView
@@ -64,6 +65,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
     override fun onBindViewHolder(holder: AnimePageViewHolder, position: Int) {
         binding = holder.binding
         trendingBinding = LayoutTrendingBinding.bind(binding.root)
+        trendingBinding.trendingCard.sizeBannerCard()
         trendingBinding.trendingViewPager.overScrollMode = RecyclerView.OVER_SCROLL_NEVER
 
         trendingBinding.titleContainer.updatePadding(top = statusBarHeight)
