@@ -7,13 +7,13 @@ import ani.sanin.okHttpClient
 import ani.sanin.util.Logger
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
+import eu.kanade.tachiyomi.animesource.model.Track
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import okhttp3.FormBody
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
+import org.jsoup.Jsoup
 import java.io.IOException
 import java.net.URI
 
@@ -307,48 +307,90 @@ class DoodStreamExtractor(override val server: VideoServer) : VideoExtractor() {
 class VoeExtractor(override val server: VideoServer) : VideoExtractor() {
     override suspend fun extract(): VideoContainer = withContext(Dispatchers.IO) {
         try {
-            val referer = server.extraData?.get("referer")
+            val referer = server.extraData?.get("referer") ?: "https://latanime.org/"
             val embed = server.embed.url
-            val id = embed.substringAfterLast('/').substringBefore('?')
-            val page = latGet(embed, referer)
-            val mirror = Regex("""window\.location\.href\s*=\s*'([^']+)'""")
-                .find(page)?.groupValues?.get(1)?.takeIf { it.startsWith("http") }
-            val target = mirror ?: embed
-            val page2 = if (mirror == null) page else latGet(target, referer)
-            val heleket = Regex(
-                """<meta[^>]*name=["']heleket["'][^>]*content=["']([^"']+)["']""",
-                RegexOption.IGNORE_CASE
-            ).find(page2)?.groupValues?.get(1)
-            Logger.log("Latanime Voe: mirror=${mirror ?: "none"} heleket=${heleket ?: "none"}")
-            if (heleket.isNullOrBlank()) {
-                Logger.log("Latanime Voe: no heleket token in $target")
-                VideoContainer(emptyList())
-            } else {
-                val api = "${originOf(target)}/api/player/$id"
-                val res = latPostJson(api, """{"heleket":"$heleket"}""", target)
-                Logger.log("Latanime Voe: api response=${res.take(300)}")
-                val obj = runCatching { Mapper.json.parseToJsonElement(res) as? JsonObject }.getOrNull()
-                val sources = obj?.get("sources") as? JsonArray
-                val videos = sources?.mapNotNull { s ->
-                    val so = s as? JsonObject ?: return@mapNotNull null
-                    val url = (so["file"] as? JsonPrimitive)?.contentOrNull
-                        ?: (so["src"] as? JsonPrimitive)?.contentOrNull
-                        ?: return@mapNotNull null
-                    val label = (so["label"] as? JsonPrimitive)?.contentOrNull
-                    val quality = label?.filter { it.isDigit() }?.takeIf { it.isNotEmpty() }?.toIntOrNull()
-                    Video(quality, VideoType.M3U8, FileUrl(url, mapOf("Referer" to target)))
-                }
-                if (videos.isNullOrEmpty()) {
-                    Logger.log("Latanime Voe: no sources parsed from api")
-                    VideoContainer(emptyList())
-                } else {
-                    VideoContainer(videos)
-                }
+            val voeClient = okHttpClient.newBuilder()
+                .addInterceptor(DdosGuardInterceptor(okHttpClient))
+                .build()
+            val req = Request.Builder().url(embed)
+                .header("User-Agent", NativeAnimeParser.USER_AGENT)
+                .header("Referer", referer)
+                .get().build()
+            val body = voeClient.newCall(req).execute().use { it.body?.string().orEmpty() }
+            if (body.isEmpty()) {
+                Logger.log("Latanime Voe: empty response for $embed")
+                return@withContext VideoContainer(emptyList())
             }
+            val firstScript = Jsoup.parse(body).selectFirst("script")?.data()
+            val redirect = firstScript?.let {
+                Regex("""window\.location\.href\s*=\s*'([^']+)'""").find(it)?.groupValues?.get(1)
+            }
+            val page = if (redirect != null && redirect.startsWith("http")) {
+                val r2 = Request.Builder().url(redirect)
+                    .header("User-Agent", NativeAnimeParser.USER_AGENT)
+                    .header("Referer", referer)
+                    .get().build()
+                voeClient.newCall(r2).execute().use { it.body?.string().orEmpty() }
+            } else body
+            val encoded = Jsoup.parse(page).selectFirst("script[type=application/json]")?.data()?.trim()
+                ?.substringAfter("[\"")?.substringBeforeLast("\"]")
+                ?: return@withContext VideoContainer(emptyList()).also {
+                    Logger.log("Latanime Voe: no application/json script in $embed")
+                }
+            val json = decryptVoe(encoded) ?: return@withContext VideoContainer(emptyList()).also {
+                Logger.log("Latanime Voe: decryption failed for $embed")
+            }
+            val obj = runCatching { Mapper.json.parseToJsonElement(json) as? JsonObject }.getOrNull()
+                ?: return@withContext VideoContainer(emptyList()).also {
+                    Logger.log("Latanime Voe: json parse failed for $embed")
+                }
+            val m3u8 = (obj["source"] as? JsonPrimitive)?.contentOrNull
+            val mp4 = (obj["direct_access_url"] as? JsonPrimitive)?.contentOrNull
+            val origin = originOf(m3u8 ?: mp4 ?: embed)
+            val videos = mutableListOf<Video>()
+            var audioTracks = emptyList<Track>()
+            if (!m3u8.isNullOrBlank()) {
+                val hls = latResolveHls(m3u8, mapOf("Referer" to origin))
+                videos.addAll(hls.videos)
+                audioTracks = hls.audioTracks
+            }
+            if (!mp4.isNullOrBlank()) videos.add(Video(null, VideoType.CONTAINER, FileUrl(mp4, mapOf("Referer" to origin))))
+            if (videos.isEmpty()) {
+                Logger.log("Latanime Voe: payload had no source/mp4 for $embed")
+                return@withContext VideoContainer(emptyList())
+            }
+            Logger.log("Latanime Voe: resolved ${videos.size} video(s) for $embed")
+            VideoContainer(videos, audioTracks = audioTracks)
         } catch (e: Exception) {
             Logger.log("Latanime Voe extract error: ${e.message}")
             VideoContainer(emptyList())
         }
+    }
+
+    private fun decryptVoe(p8: String): String? = runCatching {
+        val v1 = rot13(p8)
+        val v2 = v1.replace(VOE_PATTERN_REGEX, "_")
+        val v3 = v2.replace("_", "")
+        val v4 = String(Base64.decode(v3, Base64.DEFAULT), Charsets.ISO_8859_1)
+        val v5 = charShift(v4, 3)
+        val v6 = v5.reversed()
+        String(Base64.decode(v6, Base64.DEFAULT), Charsets.ISO_8859_1)
+    }.getOrNull()
+
+    private fun rot13(input: String): String = input.map { c ->
+        when {
+            c in 'A'..'Z' -> ((c - 'A' + 13) % 26 + 'A'.code).toChar()
+            c in 'a'..'z' -> ((c - 'a' + 13) % 26 + 'a'.code).toChar()
+            else -> c
+        }
+    }.joinToString("")
+
+    private fun charShift(input: String, shift: Int): String =
+        input.map { (it.code - shift).toChar() }.joinToString("")
+
+    companion object {
+        private val VOE_PATTERN_REGEX = listOf("@$", "^^", "~@", "%?", "*~", "!!", "#&")
+            .joinToString("|") { Regex.escape(it) }.toRegex()
     }
 }
 
@@ -466,20 +508,6 @@ private suspend fun latPostForm(
     }
 }
 
-private suspend fun latPostJson(url: String, json: String, referer: String?): String = withContext(Dispatchers.IO) {
-    val request = Request.Builder().url(url)
-        .header("User-Agent", NativeAnimeParser.USER_AGENT)
-        .apply { referer?.let { header("Referer", it) } }
-        .header("Content-Type", "application/json")
-        .post(json.toRequestBody("application/json".toMediaType()))
-        .build()
-    okHttpClient.newCall(request).execute().use { response ->
-        val bodyStr = response.body?.string().orEmpty()
-        if (!response.isSuccessful) throw IOException("HTTP ${response.code} for $url")
-        bodyStr
-    }
-}
-
 private fun b64Decode(value: String): String? = try {
     String(Base64.decode(value.trim(), Base64.DEFAULT), Charsets.UTF_8)
 } catch (e: Exception) {
@@ -577,3 +605,66 @@ private fun jsUnescape(value: String): String {
     return sb.toString()
 }
 
+private data class LatHlsResult(val videos: List<Video>, val audioTracks: List<Track>)
+
+private fun latResolveHls(masterUrl: String, headers: Map<String, String>): LatHlsResult {
+    return try {
+        val body = latGet(masterUrl, headers["Referer"])
+        val lines = body.lines()
+        val base = URI(masterUrl)
+        // Parse audio groups from #EXT-X-MEDIA entries
+        val audioTracks = mutableListOf<Track>()
+        for (line in lines) {
+            val attrLine = line.trim()
+            if (!attrLine.startsWith("#EXT-X-MEDIA:", ignoreCase = true)) continue
+            if (!attrLine.contains("TYPE=AUDIO", ignoreCase = true)) continue
+            val name = attrLine.substringAfter("NAME=", "")
+                .substringAfter('"', "").substringBefore('"', "")
+                .trim().takeIf { it.isNotBlank() }
+            val lang = name ?: attrLine.substringAfter("LANGUAGE=", "")
+                .substringAfter('"', "").substringBefore('"', "")
+                .trim().takeIf { it.isNotBlank() } ?: "und"
+            val uri = attrLine.substringAfter("URI=", "")
+                .substringAfter('"', "").substringBefore('"', "")
+                .trim().takeIf { it.isNotBlank() } ?: continue
+            val audioUrl = if (uri.startsWith("http")) uri else base.resolve(uri).toString()
+            audioTracks.add(Track(url = audioUrl, lang = lang))
+        }
+
+        val hasAudioGroup = audioTracks.isNotEmpty()
+        if (hasAudioGroup) {
+            return LatHlsResult(
+                listOf(Video(null, VideoType.M3U8, FileUrl(masterUrl, headers))),
+                audioTracks,
+            )
+        }
+
+        val videos = mutableListOf<Video>()
+        var i = 0
+        while (i < lines.size) {
+            val line = lines[i].trim()
+            if (line.startsWith("#EXT-X-STREAM-INF:", ignoreCase = true)) {
+                val quality = Regex("RESOLUTION=\\d+x(\\d+)", RegexOption.IGNORE_CASE)
+                    .find(line)?.groupValues?.get(1)?.toIntOrNull()
+                var j = i + 1
+                while (j < lines.size) {
+                    val next = lines[j].trim()
+                    if (next.isNotEmpty() && !next.startsWith("#")) {
+                        val variant = if (next.startsWith("http")) next else base.resolve(next).toString()
+                        videos.add(Video(quality, VideoType.M3U8, FileUrl(variant, headers)))
+                        break
+                    }
+                    j++
+                }
+                i = j
+            } else i++
+        }
+        if (videos.isEmpty()) {
+            LatHlsResult(listOf(Video(null, VideoType.M3U8, FileUrl(masterUrl, headers))), emptyList())
+        } else {
+            LatHlsResult(videos, emptyList())
+        }
+    } catch (e: Exception) {
+        LatHlsResult(listOf(Video(null, VideoType.M3U8, FileUrl(masterUrl, headers))), emptyList())
+    }
+}
