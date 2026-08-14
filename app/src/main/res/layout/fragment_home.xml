@@ -50,16 +50,36 @@
                     android:src="@drawable/linear_gradient_bg"
                     tools:ignore="ContentDescription" />
 
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/homeBannerCarousel"
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/homeBannerCardWrap"
                     android:layout_width="match_parent"
-                    android:layout_height="360dp"
-                    android:clipToPadding="false"
-                    android:nextFocusUp="@id/mainUserAvatarContainer"
+                    android:layout_height="wrap_content"
                     android:visibility="gone"
-                    tools:visibility="visible"
-                    tools:listitem="@layout/item_banner_carousel"
-                    tools:orientation="horizontal" />
+                    tools:visibility="visible">
+
+                    <androidx.cardview.widget.CardView
+                        android:id="@+id/homeBannerCard"
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:clipToOutline="true"
+                        app:cardBackgroundColor="@android:color/transparent"
+                        app:cardCornerRadius="16dp"
+                        app:cardElevation="0dp"
+                        app:layout_constraintDimensionRatio="H,16:9"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent">
+
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/homeBannerCarousel"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:clipToPadding="false"
+                            android:nextFocusUp="@id/mainUserAvatarContainer"
+                            tools:listitem="@layout/item_banner_card"
+                            tools:orientation="horizontal" />
+                    </androidx.cardview.widget.CardView>
+                </androidx.constraintlayout.widget.ConstraintLayout>
 
                 <LinearLayout
                     android:id="@+id/homeBannerDots"
@@ -74,151 +94,168 @@
                 <FrameLayout
                     android:id="@+id/homeNavigatingBannerContainer"
                     android:layout_width="match_parent"
-                    android:layout_height="350dp"
+                    android:layout_height="wrap_content"
                     android:nextFocusUp="@id/mainUserAvatarContainer"
                     android:visibility="gone">
 
-                    <ImageView
-                        android:id="@+id/navBannerBgA"
+                    <androidx.constraintlayout.widget.ConstraintLayout
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:contentDescription="@null"
-                        android:scaleType="centerCrop" />
+                        android:layout_height="wrap_content">
 
-                    <ImageView
-                        android:id="@+id/navBannerBgB"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:alpha="0"
-                        android:contentDescription="@null"
-                        android:scaleType="centerCrop" />
+                        <androidx.cardview.widget.CardView
+                            android:id="@+id/navBannerCard"
+                            android:layout_width="0dp"
+                            android:layout_height="0dp"
+                            android:clipToOutline="true"
+                            app:cardBackgroundColor="@android:color/transparent"
+                            app:cardCornerRadius="16dp"
+                            app:cardElevation="0dp"
+                            app:layout_constraintDimensionRatio="H,16:9"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent">
 
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="80dp"
-                        android:layout_gravity="top"
-                        android:background="@drawable/gradient_top_banner"
-                        android:importantForAccessibility="no" />
+                            <FrameLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent">
 
-                    <ImageView
-                        android:layout_width="match_parent"
-                        android:layout_height="120dp"
-                        android:layout_gravity="bottom"
-                        android:src="@drawable/linear_gradient_bg"
-                        android:importantForAccessibility="no" />
+                                <ImageView
+                                    android:id="@+id/navBannerBgA"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent"
+                                    android:contentDescription="@null"
+                                    android:scaleType="centerCrop" />
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="bottom"
-                        android:orientation="vertical"
-                        android:padding="20dp"
-                        android:paddingBottom="20dp">
+                                <ImageView
+                                    android:id="@+id/navBannerBgB"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent"
+                                    android:alpha="0"
+                                    android:contentDescription="@null"
+                                    android:scaleType="centerCrop" />
 
-                        <ImageView
-                            android:id="@+id/navBannerLogo"
-                            android:layout_width="160dp"
-                            android:layout_height="56dp"
-                            android:contentDescription="@null"
-                            android:scaleType="fitStart"
-                            android:visibility="gone" />
+                                <ImageView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="120dp"
+                                    android:layout_gravity="bottom"
+                                    android:src="@drawable/linear_gradient_bg"
+                                    android:importantForAccessibility="no" />
 
-                        <TextView
-                            android:id="@+id/navBannerTitle"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:ellipsize="end"
-                            android:fontFamily="sans-serif-medium"
-                            android:maxLines="2"
-                            android:shadowColor="#99000000"
-                            android:shadowDx="1"
-                            android:shadowDy="1"
-                            android:shadowRadius="4"
-                            android:textColor="#FFFFFF"
-                            android:textSize="22sp" />
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="bottom"
+                                    android:orientation="vertical"
+                                    android:padding="12dp"
+                                    android:paddingBottom="12dp">
 
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal">
+                                    <ImageView
+                                        android:id="@+id/navBannerLogo"
+                                        android:layout_width="120dp"
+                                        android:layout_height="32dp"
+                                        android:contentDescription="@null"
+                                        android:scaleType="fitStart"
+                                        android:visibility="gone" />
 
-                            <TextView
-                                android:id="@+id/navBannerStatus"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:background="@drawable/ic_banner_background"
-                                android:paddingHorizontal="8dp"
-                                android:paddingVertical="2dp"
-                                android:textColor="#FFFFFF"
-                                android:textSize="11sp" />
+                                    <TextView
+                                        android:id="@+id/navBannerTitle"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:ellipsize="end"
+                                        android:fontFamily="sans-serif-medium"
+                                        android:maxLines="1"
+                                        android:shadowColor="#99000000"
+                                        android:shadowDx="1"
+                                        android:shadowDy="1"
+                                        android:shadowRadius="4"
+                                        android:textColor="#FFFFFF"
+                                        android:textSize="16sp" />
 
-                            <View
-                                android:layout_width="1dp"
-                                android:layout_height="12dp"
-                                android:layout_marginHorizontal="8dp"
-                                android:background="#88FFFFFF" />
+                                    <LinearLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="4dp"
+                                        android:gravity="center_vertical"
+                                        android:orientation="horizontal">
 
-                            <TextView
-                                android:id="@+id/navBannerRating"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:textColor="#FFDD44"
-                                android:textSize="13sp" />
+                                        <TextView
+                                            android:id="@+id/navBannerStatus"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:background="@drawable/ic_banner_background"
+                                            android:paddingHorizontal="8dp"
+                                            android:paddingVertical="2dp"
+                                            android:textColor="#FFFFFF"
+                                            android:textSize="11sp" />
 
-                            <View
-                                android:layout_width="1dp"
-                                android:layout_height="12dp"
-                                android:layout_marginHorizontal="8dp"
-                                android:background="#88FFFFFF" />
+                                        <View
+                                            android:layout_width="1dp"
+                                            android:layout_height="12dp"
+                                            android:layout_marginHorizontal="8dp"
+                                            android:background="#88FFFFFF" />
 
-                            <TextView
-                                android:id="@+id/navBannerGenres"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:ellipsize="end"
-                                android:maxLines="1"
-                                android:textColor="#CCFFFFFF"
-                                android:textSize="12sp" />
+                                        <TextView
+                                            android:id="@+id/navBannerRating"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:textColor="#FFDD44"
+                                            android:textSize="13sp" />
 
-                        </LinearLayout>
+                                        <View
+                                            android:layout_width="1dp"
+                                            android:layout_height="12dp"
+                                            android:layout_marginHorizontal="8dp"
+                                            android:background="#88FFFFFF" />
 
-                        <TextView
-                            android:id="@+id/navBannerSynopsis"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:ellipsize="end"
-                            android:maxLines="2"
-                            android:textColor="#BBFFFFFF"
-                            android:textSize="13sp" />
+                                        <TextView
+                                            android:id="@+id/navBannerGenres"
+                                            android:layout_width="0dp"
+                                            android:layout_height="wrap_content"
+                                            android:layout_weight="1"
+                                            android:ellipsize="end"
+                                            android:maxLines="1"
+                                            android:textColor="#CCFFFFFF"
+                                            android:textSize="12sp" />
 
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:orientation="horizontal">
+                                    </LinearLayout>
 
-                            <Button
-                                android:id="@+id/navBannerWatchBtn"
-                                style="@style/Widget.Material3.Button"
-                                android:layout_width="wrap_content"
-                                android:layout_height="40dp"
-                                android:backgroundTint="?attr/colorPrimaryContainer"
-                                android:focusable="true"
-                                android:focusableInTouchMode="false"
-                                android:minWidth="120dp"
-                                android:paddingHorizontal="20dp"
-                                android:text="@string/watch_now"
-                                android:textColor="?attr/colorOnPrimaryContainer"
-                                android:textSize="14sp" />
+                                    <TextView
+                                        android:id="@+id/navBannerSynopsis"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="4dp"
+                                        android:ellipsize="end"
+                                        android:maxLines="1"
+                                        android:textColor="#BBFFFFFF"
+                                        android:textSize="12sp" />
 
-                        </LinearLayout>
+                                    <LinearLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="8dp"
+                                        android:orientation="horizontal">
 
-                    </LinearLayout>
+                                        <Button
+                                            android:id="@+id/navBannerWatchBtn"
+                                            style="@style/Widget.Material3.Button"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="32dp"
+                                            android:backgroundTint="?attr/colorPrimaryContainer"
+                                            android:focusable="true"
+                                            android:focusableInTouchMode="false"
+                                            android:minWidth="100dp"
+                                            android:paddingHorizontal="16dp"
+                                            android:text="@string/watch_now"
+                                            android:textColor="?attr/colorOnPrimaryContainer"
+                                            android:textSize="13sp" />
 
+                                    </LinearLayout>
+
+                                </LinearLayout>
+
+                            </FrameLayout>
+                        </androidx.cardview.widget.CardView>
+                    </androidx.constraintlayout.widget.ConstraintLayout>
                 </FrameLayout>
 
                 <LinearLayout

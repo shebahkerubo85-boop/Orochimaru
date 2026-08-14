@@ -118,10 +118,10 @@ class HomeFragment : Fragment() {
                     binding.homeUserBg.visibility = View.GONE
                     binding.homeUserBgNoKen.visibility = View.GONE
                     binding.homeUserDataContainer.visibility = View.GONE
-                    binding.homeBannerCarousel.visibility = View.VISIBLE
+                    binding.homeBannerCardWrap.visibility = View.VISIBLE
                     setupBannerCarousel()
                 } else if (showProfileHeader) {
-                    binding.homeBannerCarousel.visibility = View.GONE
+                    binding.homeBannerCardWrap.visibility = View.GONE
                     binding.homeUserBg.visibility = View.VISIBLE
                     binding.homeUserBgNoKen.visibility = View.VISIBLE
                     val bannerAnimations: Boolean = PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.BannerAnimations)
@@ -131,12 +131,15 @@ class HomeFragment : Fragment() {
                         bannerUrl
                     )
                 } else if (bannerMode == 2) {
-                    binding.homeBannerCarousel.visibility = View.GONE
+                    binding.homeBannerCardWrap.visibility = View.GONE
                     binding.homeUserBg.visibility = View.GONE
                     binding.homeUserBgNoKen.visibility = View.GONE
                     binding.homeNavigatingBannerContainer.visibility = View.VISIBLE
+                    binding.homeNavigatingBannerContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                        topMargin = statusBarHeight
+                    }
                 } else {
-                    binding.homeBannerCarousel.visibility = View.GONE
+                    binding.homeBannerCardWrap.visibility = View.GONE
                     binding.homeUserBg.visibility = View.GONE
                     binding.homeUserBgNoKen.visibility = View.GONE
                     binding.homeNavigatingBannerContainer.visibility = View.GONE
@@ -686,6 +689,9 @@ class HomeFragment : Fragment() {
     private var bannerAutoScrollRunnable: Runnable? = null
 
     private fun setupBannerCarousel() {
+        binding.homeBannerCardWrap.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+            topMargin = statusBarHeight
+        }
         val rv = binding.homeBannerCarousel
         rv.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
         rv.isFocusable = true
@@ -705,7 +711,9 @@ class HomeFragment : Fragment() {
                                 intent.putExtra("anime", true)
                                 startActivity(intent)
                             }, urls,
-                            nextFocusDownId = R.id.homeContinueWatch
+                            nextFocusDownId = R.id.homeContinueWatch,
+                            layoutRes = R.layout.item_banner_card,
+                            cardMode = true
                         )
                         rv.adapter = bannerCarouselAdapter
                         val start = Int.MAX_VALUE / 2 - (Int.MAX_VALUE / 2 % items.size)
