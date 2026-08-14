@@ -14,11 +14,29 @@ import okhttp3.Request
 import java.io.IOException
 import java.net.URI
 
+import android.app.Activity
+import android.os.Message
 import android.util.Base64
+import android.util.Log
+import android.view.ViewGroup
+import android.webkit.JsPromptResult
+import android.webkit.JsResult
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.FrameLayout
+import ani.sanin.currContext
 import ani.sanin.others.JsUnpacker
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
-import android.util.Log
+import java.util.Collections
+import java.util.LinkedHashSet
+import javax.crypto.Cipher
+import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.SecretKeySpec
+import kotlinx.coroutines.delay
 
 class AnimeJLProvider : NativeAnimeParser() {
 
@@ -26,7 +44,7 @@ class AnimeJLProvider : NativeAnimeParser() {
     override val saveName = "animejl"
     override val language = "Spanish"
     override val defaultBaseUrl = "https://www.anime-jl.net"
-    override val knownServers = listOf("Voe", "Mp4Upload", "YourUpload", "StreamWish", "Uqload", "VidHide", "StreamTape", "Universal")
+    override val knownServers = listOf("Voe", "Mp4Upload", "YourUpload", "StreamWish", "Uqload", "VidHide", "StreamTape", "Upns", "Universal")
 
     override suspend fun search(query: String): List<ShowResponse> {
         return withContext(Dispatchers.IO) {
@@ -121,6 +139,7 @@ class AnimeJLProvider : NativeAnimeParser() {
             "StreamWish" -> AnimeJLStreamWishExtractor(server)
             "YourUpload" -> YourUploadExtractor(server)
             "StreamTape" -> AnimeJLStreamTapeExtractor(server)
+            "Upns" -> AnimeJLUpnsExtractor(server)
             "Uqload" -> AnimeJLUqloadExtractor(server)
             "VidHide" -> AnimeJLVidHideExtractor(server)
             else -> UniversalEmbedExtractor(server)
@@ -140,6 +159,8 @@ class AnimeJLProvider : NativeAnimeParser() {
                 host.contains("uqload") -> "Uqload"
                 host.contains("vidhide") || host.contains("streamhidevid") -> "VidHide"
                 host.contains("streamtape") || host.contains("streamta.pe") -> "StreamTape"
+                host.contains("upns.pro") || host.contains("4meplayer") ||
+                    host.contains("p2pstream") -> "Upns"
                 host == "ok.ru" || host.endsWith(".ok.ru") -> null
                 else -> {
                     // Unknown embed hosts fall back to the universal extractor,
@@ -216,6 +237,50 @@ class AnimeJLStreamTapeExtractor(override val server: VideoServer) : VideoExtrac
     }
 }
 
+class AnimeJLUpnsExtractor(override val server: VideoServer) : VideoExtractor() {
+    override suspend fun extract(): VideoContainer = withContext(Dispatchers.IO) {
+        try {
+            val embed = server.embed.url
+            val id = embed.substringAfter('#', "").trim().ifEmpty {
+                embed.substringAfterLast('/').trim()
+            }
+            if (id.isBlank()) {
+                ajlLog("AnimeJL Upns: no id in $embed")
+                return@withContext VideoContainer(emptyList())
+            }
+            val referer = server.extraData?.get("referer") ?: ajlOrigin(embed)
+            val host = runCatching { URI(embed).host }.getOrNull()?.removePrefix("www.") ?: ""
+            if (host.isBlank()) {
+                ajlLog("AnimeJL Upns: no host in $embed")
+                return@withContext VideoContainer(emptyList())
+            }
+            val api = "https://$host/api/v1/video?id=$id&w=1920&h=1080&r=$host"
+            val res = ajlGet(api, referer)
+            val obj = ajlUpnsDecrypt(res)?.let {
+                runCatching { Mapper.json.parseToJsonElement(it) as? JsonObject }.getOrNull()
+            }
+            val source = (obj?.get("source") as? JsonPrimitive)?.contentOrNull
+                ?.takeIf { it.isNotBlank() }
+                ?: (obj?.get("cfNative") as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+            if (source.isNullOrBlank()) {
+                ajlLog("AnimeJL Upns: no source in api response")
+                return@withContext VideoContainer(emptyList())
+            }
+            ajlLog("AnimeJL Upns: got ${source.take(140)}")
+            val hls = ajlResolveHls(source, mapOf("Referer" to referer))
+            if (hls.videos.isEmpty()) {
+                ajlLog("AnimeJL Upns: no playable variants from $source")
+                VideoContainer(emptyList())
+            } else {
+                VideoContainer(hls.videos, audioTracks = hls.audioTracks)
+            }
+        } catch (e: Exception) {
+            ajlLog("AnimeJL Upns extract error: ${e.message}")
+            VideoContainer(emptyList())
+        }
+    }
+}
+
 class UniversalEmbedExtractor(override val server: VideoServer) : VideoExtractor() {
     override suspend fun extract(): VideoContainer = withContext(Dispatchers.IO) {
         try {
@@ -226,7 +291,11 @@ class UniversalEmbedExtractor(override val server: VideoServer) : VideoExtractor
                 .findAll(page).map { it.value }.distinct().toList()
             val dashUrls = Regex("""https?://[^"'<>\s]+?\.mpd[^"'<>\s]*""", RegexOption.IGNORE_CASE)
                 .findAll(page).map { it.value }.distinct().toList()
-            val allUrls = hlsUrls + mp4Urls + dashUrls
+            var allUrls = hlsUrls + mp4Urls + dashUrls
+            if (allUrls.isEmpty()) {
+                ajlLog("AnimeJL Universal: static empty, trying headless WebView for ${server.embed.url}")
+                allUrls = ajlWebViewCatch(server.embed.url, referer)
+            }
             if (allUrls.isEmpty()) {
                 ajlLog("AnimeJL Universal: no streams found in ${server.embed.url}")
                 VideoContainer(emptyList())
@@ -488,6 +557,121 @@ private fun ajlResolveHls(masterUrl: String, headers: Map<String, String>): AjlH
     } catch (e: Exception) {
         AjlHlsResult(listOf(Video(null, VideoType.M3U8, FileUrl(masterUrl, headers))), emptyList())
     }
+}
+
+private fun ajlUpnsDecrypt(hex: String): String? = try {
+    val bytes = hex.trim().chunked(2).mapNotNull { it.toIntOrNull(16)?.toByte() }.toByteArray()
+    val key = SecretKeySpec("kiemtienmua911ca".toByteArray(Charsets.UTF_8), "AES")
+    val iv = IvParameterSpec("1234567890oiuytr".toByteArray(Charsets.UTF_8))
+    val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+    cipher.init(Cipher.DECRYPT_MODE, key, iv)
+    String(cipher.doFinal(bytes), Charsets.UTF_8)
+} catch (e: Exception) {
+    ajlLog("AnimeJL Upns decrypt error: ${e.message}")
+    null
+}
+
+/**
+ * Quietly loads an embed page in an off-screen 1x1 WebView (no dialog, no popups)
+ * and captures the first media URL the player requests. Used as a last resort for
+ * JS-heavy players that expose no stream URL in the raw HTML.
+ */
+private suspend fun ajlWebViewCatch(embedUrl: String, referer: String?): List<String> =
+    withContext(Dispatchers.Main) {
+        val activity = currContext() as? Activity ?: return@withContext emptyList()
+        val candidates = Collections.synchronizedSet(LinkedHashSet<String>())
+        val container = FrameLayout(activity)
+        val webView = WebView(activity)
+        try {
+            webView.settings.javaScriptEnabled = true
+            webView.settings.domStorageEnabled = true
+            webView.settings.mediaPlaybackRequiresUserGesture = false
+            webView.settings.javaScriptCanOpenWindowsAutomatically = false
+            webView.webChromeClient = object : WebChromeClient() {
+                override fun onCreateWindow(
+                    view: WebView?,
+                    isDialog: Boolean,
+                    isUserGesture: Boolean,
+                    resultMsg: Message?
+                ): Boolean = false
+
+                override fun onJsAlert(
+                    view: WebView?, url: String?, message: String?, result: JsResult?
+                ): Boolean {
+                    result?.confirm()
+                    return true
+                }
+
+                override fun onJsConfirm(
+                    view: WebView?, url: String?, message: String?, result: JsResult?
+                ): Boolean {
+                    result?.confirm()
+                    return true
+                }
+
+                override fun onJsPrompt(
+                    view: WebView?,
+                    url: String?,
+                    message: String?,
+                    defaultValue: String?,
+                    result: JsPromptResult?
+                ): Boolean {
+                    result?.confirm("")
+                    return true
+                }
+            }
+            webView.webViewClient = object : WebViewClient() {
+                override fun shouldInterceptRequest(
+                    view: WebView?,
+                    request: WebResourceRequest?
+                ): WebResourceResponse? {
+                    val url = request?.url?.toString().orEmpty()
+                    if (isMediaUrl(url) && !isAdUrl(url) && candidates.add(url)) {
+                        ajlLog("AnimeJL WebView: captured ${url.take(140)}")
+                    }
+                    return null
+                }
+            }
+            container.addView(webView, FrameLayout.LayoutParams(1, 1))
+            val content = activity.findViewById<ViewGroup>(android.R.id.content)
+            content?.addView(container)
+            webView.loadUrl(embedUrl)
+            val deadline = System.currentTimeMillis() + 20_000
+            while (System.currentTimeMillis() < deadline && candidates.isEmpty()) {
+                delay(250)
+            }
+        } catch (e: Exception) {
+            ajlLog("AnimeJL WebView catch error: ${e.message}")
+        } finally {
+            runCatching { webView.stopLoading() }
+            runCatching { (webView.parent as? ViewGroup)?.removeView(webView) }
+            runCatching { (container.parent as? ViewGroup)?.removeView(container) }
+            runCatching { webView.destroy() }
+        }
+        candidates.toList()
+    }
+
+private fun isMediaUrl(url: String): Boolean {
+    if (url.isEmpty()) return false
+    val lower = url.lowercase()
+    if (lower.contains(".jpg") || lower.contains(".jpeg") || lower.contains(".png") ||
+        lower.contains(".webp") || lower.contains(".svg") || lower.contains(".gif") ||
+        lower.contains(".css") || lower.contains(".js") || lower.contains(".ico") ||
+        lower.contains("favicon") || lower.endsWith("/")
+    ) return false
+    return lower.contains(".m3u8") || lower.contains(".mpd") ||
+        lower.contains(".mp4") || lower.contains(".webm")
+}
+
+private fun isAdUrl(url: String): Boolean {
+    val lower = url.lowercase()
+    val adMarkers = listOf(
+        "doubleclick", "googlesyndication", "googletagmanager", "googlead", "adservice",
+        "amazon-adsystem", "outbrain", "taboola", "revcontent", "adform", "adsystem",
+        "adsdk", "vast", "vpaid", "adserver", "/ad/", "/ads/", "adshorte", "exoclick",
+        "/banner/", "adpush", "/ad?", "=ad", "ads?", "double-click"
+    )
+    return adMarkers.any { lower.contains(it) }
 }
 
 private fun ajlLog(message: String) {
