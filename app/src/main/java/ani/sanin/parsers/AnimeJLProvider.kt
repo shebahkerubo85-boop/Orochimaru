@@ -26,7 +26,7 @@ class AnimeJLProvider : NativeAnimeParser() {
     override val saveName = "animejl"
     override val language = "Spanish"
     override val defaultBaseUrl = "https://www.anime-jl.net"
-    override val knownServers = listOf("Voe", "Mp4Upload", "YourUpload", "StreamWish", "Uqload", "VidHide", "Universal")
+    override val knownServers = listOf("Voe", "Mp4Upload", "YourUpload", "StreamWish", "Uqload", "VidHide", "StreamTape", "Universal")
 
     override suspend fun search(query: String): List<ShowResponse> {
         return withContext(Dispatchers.IO) {
@@ -120,6 +120,7 @@ class AnimeJLProvider : NativeAnimeParser() {
             "Mp4Upload" -> Mp4UploadExtractor(server)
             "StreamWish" -> AnimeJLStreamWishExtractor(server)
             "YourUpload" -> YourUploadExtractor(server)
+            "StreamTape" -> AnimeJLStreamTapeExtractor(server)
             "Uqload" -> AnimeJLUqloadExtractor(server)
             "VidHide" -> AnimeJLVidHideExtractor(server)
             else -> UniversalEmbedExtractor(server)
@@ -138,7 +139,15 @@ class AnimeJLProvider : NativeAnimeParser() {
                     host.contains("wishonly") || host.contains("filemoon") -> "StreamWish"
                 host.contains("uqload") -> "Uqload"
                 host.contains("vidhide") -> "VidHide"
-                else -> null
+                host.contains("streamtape") || host.contains("streamta.pe") -> "StreamTape"
+                host == "ok.ru" || host.endsWith(".ok.ru") -> null
+                else -> {
+                    // Unknown embed hosts fall back to the universal extractor,
+                    // named after the host so every server on the page shows up.
+                    val labels = host.split(".")
+                    val label = if (labels.size >= 2) labels[labels.size - 2] else labels[0]
+                    label.replaceFirstChar { it.uppercase() }.takeIf { it.length >= 2 }
+                }
             }
         }
     }
@@ -163,6 +172,45 @@ class YourUploadExtractor(override val server: VideoServer) : VideoExtractor() {
             }
         } catch (e: Exception) {
             ajlLog("AnimeJL YourUpload extract error: ${e.message}")
+            VideoContainer(emptyList())
+        }
+    }
+}
+
+class AnimeJLStreamTapeExtractor(override val server: VideoServer) : VideoExtractor() {
+    override suspend fun extract(): VideoContainer = withContext(Dispatchers.IO) {
+        try {
+            val referer = server.extraData?.get("referer") ?: ajlOrigin(server.embed.url)
+            val baseUrl = "https://streamtape.com/e/"
+            val embed = server.embed.url
+            val pageUrl = if (embed.startsWith(baseUrl)) embed else {
+                val id = embed.split("/").getOrNull(4)
+                    ?: return@withContext VideoContainer(emptyList()).also {
+                        ajlLog("AnimeJL StreamTape: no id in ${server.embed.url}")
+                    }
+                baseUrl + id
+            }
+            val page = ajlGet(pageUrl, referer)
+            val doc = Jsoup.parse(page)
+            val targetLine = "document.getElementById('robotlink')"
+            val script = doc.select("script").firstOrNull { it.data().contains(targetLine) }?.data()
+                ?: return@withContext VideoContainer(emptyList()).also {
+                    ajlLog("AnimeJL StreamTape: no robotlink script in ${server.embed.url}")
+                }
+            val part1 = script.substringAfter("$targetLine.innerHTML = '").substringBefore("'")
+            val part2 = script.substringAfter("+ ('xcd").substringBefore("'")
+            val videoUrl = "https:" + part1 + part2
+            if (!videoUrl.startsWith("https:")) {
+                return@withContext VideoContainer(emptyList()).also {
+                    ajlLog("AnimeJL StreamTape: empty url from ${server.embed.url}")
+                }
+            }
+            ajlLog("AnimeJL StreamTape: got ${videoUrl.take(120)}")
+            VideoContainer(
+                listOf(Video(null, VideoType.CONTAINER, FileUrl(videoUrl, mapOf("Referer" to referer))))
+            )
+        } catch (e: Exception) {
+            ajlLog("AnimeJL StreamTape extract error: ${e.message}")
             VideoContainer(emptyList())
         }
     }
