@@ -43,6 +43,7 @@ class FirstTimeProviderDialog : BottomSheetDialogFragment() {
         val adapter = ProviderAdapter(items) {
             val enabledNow = items.filter { it.isEnabled }.map { it.saveName }.toSet()
             PrefManager.setVal(PrefName.EnabledProviders, enabledNow)
+            AnimeSources.rebuildNativeParsers()
         }
         binding.firstTimeRecyclerView.adapter = adapter
     }

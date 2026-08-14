@@ -67,6 +67,18 @@ object AnimeSources : WatchSources() {
         }
     }
 
+    // Providers can be toggled at runtime (first-time dialog / settings); rebuild the
+    // cached parser list so displayed chips and their indices stay in sync without
+    // requiring an app restart.
+    fun rebuildNativeParsers() {
+        val extParsers = list.filter { it.name !in nativeNames && it.name != "Local" }
+        list = buildList {
+            nativeParsers.forEach { add(Lazier({ it }, it.name)) }
+            addAll(extParsers)
+            add(Lazier({ LocalAnimeParser() }, "Local"))
+        }
+    }
+
     fun performReorderAnimeSources() {
         val extParsers = list.filter { it.name !in nativeNames && it.name != "Local" }
         val sortedExt = sortPinnedAnimeSources(extParsers, pinnedAnimeSources)
