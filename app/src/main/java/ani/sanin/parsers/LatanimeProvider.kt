@@ -607,7 +607,7 @@ private fun jsUnescape(value: String): String {
 
 private data class LatHlsResult(val videos: List<Video>, val audioTracks: List<Track>)
 
-private fun latResolveHls(masterUrl: String, headers: Map<String, String>): LatHlsResult {
+private suspend fun latResolveHls(masterUrl: String, headers: Map<String, String>): LatHlsResult {
     return try {
         val body = latGet(masterUrl, headers["Referer"])
         val lines = body.lines()
