@@ -1,9 +1,11 @@
 package ani.sanin.home
 
 import android.graphics.drawable.Drawable
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -32,6 +34,16 @@ class BannerCarouselAdapter(
     private val layoutRes: Int = R.layout.item_banner_carousel,
     private val cardMode: Boolean = false,
 ) : RecyclerView.Adapter<BannerCarouselAdapter.ViewHolder>() {
+
+    private var landscapeOverlay = false
+    private var cardWidthPx = 0
+
+    fun setLandscapeMode(enabled: Boolean, cardWidthPx: Int) {
+        if (this.landscapeOverlay == enabled && this.cardWidthPx == cardWidthPx) return
+        this.landscapeOverlay = enabled
+        this.cardWidthPx = cardWidthPx
+        notifyDataSetChanged()
+    }
 
     val actualCount: Int get() = items.size
 
@@ -227,6 +239,8 @@ class BannerCarouselAdapter(
             holder.favBtn.isVisible = false
         }
 
+        applyLandscapeOverlay(holder)
+
         // --- Preload adjacent items ---
         for (offset in listOf(-1, 1)) {
             val pos = realPosition(position + offset)
@@ -257,5 +271,41 @@ class BannerCarouselAdapter(
 
         val playBtn: android.widget.Button = view.findViewById(R.id.bannerPlayBtn)
         val favBtn: ImageView = view.findViewById(R.id.bannerFavBtn)
+
+        val scrim: View? = view.findViewById(R.id.bannerScrimLeft)
+        val content: LinearLayout? = view.findViewById(R.id.bannerContent)
+        val bottomGradient: View? = view.findViewById(R.id.bannerBottomGradient)
+    }
+
+    private fun applyLandscapeOverlay(holder: ViewHolder) {
+        val scrim = holder.scrim ?: return
+        val content = holder.content ?: return
+        val bottomGradient = holder.bottomGradient ?: return
+        val density = holder.itemView.context.resources.displayMetrics.density
+        if (!landscapeOverlay) {
+            scrim.isVisible = false
+            bottomGradient.isVisible = true
+            val lp = content.layoutParams as FrameLayout.LayoutParams
+            lp.width = FrameLayout.LayoutParams.MATCH_PARENT
+            lp.gravity = Gravity.BOTTOM
+            content.layoutParams = lp
+            val pad = (12 * density).toInt()
+            content.setPadding(pad, pad, pad, pad)
+            holder.description.isVisible = false
+            holder.genresRow.isVisible = false
+            return
+        }
+        val half = cardWidthPx / 2
+        scrim.isVisible = true
+        scrim.layoutParams = scrim.layoutParams.apply { width = half }
+        bottomGradient.isVisible = false
+        val lp = content.layoutParams as FrameLayout.LayoutParams
+        lp.width = half
+        lp.gravity = Gravity.LEFT or Gravity.CENTER_VERTICAL
+        content.layoutParams = lp
+        val pad = (16 * density).toInt()
+        content.setPadding(pad, pad, pad, pad)
+        holder.description.isVisible = holder.description.text?.isNotBlank() == true
+        holder.genresRow.isVisible = holder.genresRow.childCount > 0
     }
 }

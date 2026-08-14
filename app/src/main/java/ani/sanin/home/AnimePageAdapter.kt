@@ -1,12 +1,15 @@
 package ani.sanin.home
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.view.animation.LayoutAnimationController
 import androidx.appcompat.app.AppCompatActivity
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
@@ -38,6 +41,7 @@ import ani.sanin.setSlideUp
 import ani.sanin.settings.SettingsDialogFragment
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
+import ani.sanin.bannerCardSizePx
 import ani.sanin.sizeBannerCard
 import ani.sanin.statusBarHeight
 import ani.sanin.util.FocusEffectUtil
@@ -66,6 +70,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         binding = holder.binding
         trendingBinding = LayoutTrendingBinding.bind(binding.root)
         trendingBinding.trendingCard.sizeBannerCard()
+        applyTrendingBannerMode()
         trendingBinding.trendingViewPager.overScrollMode = RecyclerView.OVER_SCROLL_NEVER
 
         trendingBinding.titleContainer.updatePadding(top = statusBarHeight)
@@ -116,7 +121,32 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             trendingBinding.trendingContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                 topMargin = statusBarHeight
             }
+            applyTrendingBannerMode()
         }
+    }
+
+    private fun applyTrendingBannerMode() {
+        val ctx = trendingBinding.root.context
+        val isLandscape =
+            ctx.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val (cardW, cardH) = trendingBinding.trendingCard.bannerCardSizePx()
+
+        val cardLp =
+            trendingBinding.trendingCard.layoutParams as ConstraintLayout.LayoutParams
+        cardLp.startToStart = if (isLandscape) ConstraintSet.UNSET
+        else ConstraintLayout.LayoutParams.PARENT_ID
+        cardLp.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID
+        trendingBinding.trendingCard.layoutParams = cardLp
+
+        trendingBinding.trendingLeftFade.isVisible = isLandscape
+        if (isLandscape) {
+            trendingBinding.trendingLeftFade.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                width = ctx.resources.displayMetrics.widthPixels - cardW
+                height = cardH
+            }
+        }
+
+        bannerAdapter?.setLandscapeMode(isLandscape, cardW)
     }
 
     fun updateTrending(media: List<Media>) {
@@ -147,6 +177,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             cardMode = true
         )
         rv.adapter = bannerAdapter
+        applyTrendingBannerMode()
         val start = Int.MAX_VALUE / 2 - (Int.MAX_VALUE / 2 % media.size)
         rv.scrollToPosition(start)
         setupTrendingDots(rv, media.size)

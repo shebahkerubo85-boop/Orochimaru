@@ -167,7 +167,7 @@ private const val MARKDOWN_IMAGE_MAX_SCREEN_SCALE_FACTOR = 2L
 val Int.dp: Float get() = (this / getSystem().displayMetrics.density)
 val Float.px: Int get() = (this * getSystem().displayMetrics.density).toInt()
 
-fun View.sizeBannerCard() {
+fun View.bannerCardSizePx(): Pair<Int, Int> {
     val dm = resources.displayMetrics
     val density = dm.density
     val screenW = dm.widthPixels / density
@@ -183,9 +183,14 @@ fun View.sizeBannerCard() {
         finalH = maxH
         finalW = maxH * 16f / 9f
     }
+    return (finalW * density).toInt() to (finalH * density).toInt()
+}
+
+fun View.sizeBannerCard() {
+    val (w, h) = bannerCardSizePx()
     updateLayoutParams {
-        width = (finalW * density).toInt()
-        height = (finalH * density).toInt()
+        width = w
+        height = h
     }
 }
 

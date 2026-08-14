@@ -23,6 +23,16 @@
         tools:src="@tools:sample/backgrounds/scenic" />
 
     <View
+        android:id="@+id/bannerScrimLeft"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="left"
+        android:background="@drawable/banner_scrim_left"
+        android:importantForAccessibility="no"
+        android:visibility="gone" />
+
+    <View
+        android:id="@+id/bannerBottomGradient"
         android:layout_width="match_parent"
         android:layout_height="140dp"
         android:layout_gravity="bottom"
@@ -30,6 +40,7 @@
         android:importantForAccessibility="no" />
 
     <LinearLayout
+        android:id="@+id/bannerContent"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
@@ -132,15 +143,17 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
+            android:alpha="0.85"
             android:ellipsize="end"
             android:fontFamily="@font/poppins"
-            android:maxLines="2"
+            android:lineSpacingExtra="4sp"
+            android:maxLines="4"
             android:shadowColor="#99000000"
             android:shadowDx="1"
             android:shadowDy="1"
             android:shadowRadius="4"
-            android:textColor="#BBFFFFFF"
-            android:textSize="11sp"
+            android:textColor="@android:color/white"
+            android:textSize="13sp"
             android:visibility="gone"
             tools:text="In a world where humanity lives inside cities surrounded by enormous walls..." />
 
