@@ -172,20 +172,18 @@ fun View.sizeBannerCard() {
     val density = dm.density
     val screenW = dm.widthPixels / density
     val screenH = dm.heightPixels / density
-    val maxH = (screenH - statusBarHeight / density) * 0.55f
-    val naturalH = screenW * 9f / 16f
-    val finalH: Float
-    val finalW: Float
-    if (naturalH <= maxH) {
-        finalW = screenW
-        finalH = naturalH
+    val w: Float
+    val h: Float
+    if (screenW >= screenH) {
+        w = screenW
+        h = (screenH - statusBarHeight / density) * 0.55f
     } else {
-        finalH = maxH
-        finalW = maxH * 16f / 9f
+        w = screenW
+        h = screenW * 9f / 16f
     }
     updateLayoutParams {
-        width = (finalW * density).toInt()
-        height = (finalH * density).toInt()
+        width = (w * density).toInt()
+        height = (h * density).toInt()
     }
 }
 

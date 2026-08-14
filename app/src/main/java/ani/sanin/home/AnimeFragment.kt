@@ -3,6 +3,7 @@ package ani.sanin.home
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -319,6 +320,13 @@ class AnimeFragment : Fragment() {
                     running = false
                 }
             }
+        }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (::animePageAdapter.isInitialized) {
+            animePageAdapter.resizeBanner()
         }
     }
 

@@ -2,6 +2,7 @@ package ani.sanin.home
 
 import android.animation.ObjectAnimator
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.drawable.Animatable
 import android.net.Uri
 import android.os.Build
@@ -850,6 +851,20 @@ class HomeFragment : Fragment() {
                     b.navBannerLogo.visibility = View.GONE
                     b.navBannerTitle.visibility = View.VISIBLE
                 }
+            }
+        }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (_binding != null) {
+            binding.homeBannerCard.sizeBannerCard()
+            binding.navBannerCard.sizeBannerCard()
+            binding.homeBannerCardWrap.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                topMargin = statusBarHeight
+            }
+            binding.homeNavigatingBannerContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                topMargin = statusBarHeight
             }
         }
     }

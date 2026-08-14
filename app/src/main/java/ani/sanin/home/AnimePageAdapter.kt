@@ -110,6 +110,15 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         }
     }
 
+    fun resizeBanner() {
+        if (::trendingBinding.isInitialized) {
+            trendingBinding.trendingCard.sizeBannerCard()
+            trendingBinding.trendingContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                topMargin = statusBarHeight
+            }
+        }
+    }
+
     fun updateTrending(media: List<Media>) {
         trendingBinding.trendingProgressBar.visibility = View.GONE
         val rv = trendingBinding.trendingViewPager
