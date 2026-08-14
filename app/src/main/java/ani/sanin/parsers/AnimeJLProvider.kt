@@ -33,6 +33,7 @@ import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import java.util.Collections
 import java.util.LinkedHashSet
+import java.util.concurrent.atomic.AtomicLong
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -571,17 +572,31 @@ private fun ajlUpnsDecrypt(hex: String): String? = try {
     null
 }
 
+// Headless WebView capture is a last resort: cap the wait so a batch of dead
+// servers doesn't stall the source picker, and never attempt hosts that serve
+// encrypted/streamed content no media URL can be captured from (mega, d.tube).
+private const val AJL_WEBVIEW_TIMEOUT_MS = 8_000L
+private const val AJL_WEBVIEW_GRACE_AFTER_LOAD_MS = 3_000L
+private val AJL_WEBVIEW_SKIP_HOSTS = listOf("mega.nz", "mega.co.nz", "d.tube")
+
 /**
  * Quietly loads an embed page in an off-screen 1x1 WebView (no dialog, no popups)
  * and captures the first media URL the player requests. Used as a last resort for
  * JS-heavy players that expose no stream URL in the raw HTML.
  */
+
 private suspend fun ajlWebViewCatch(embedUrl: String, referer: String?): List<String> =
     withContext(Dispatchers.Main) {
         val activity = currContext() as? Activity ?: return@withContext emptyList()
+        val host = runCatching { URI(embedUrl).host?.lowercase() }.getOrNull().orEmpty()
+        if (AJL_WEBVIEW_SKIP_HOSTS.any { host == it || host.endsWith(".$it") }) {
+            ajlLog("AnimeJL WebView: skipping JS capture for $host")
+            return@withContext emptyList()
+        }
         val candidates = Collections.synchronizedSet(LinkedHashSet<String>())
         val container = FrameLayout(activity)
         val webView = WebView(activity)
+        val loadedAt = AtomicLong(0L)
         try {
             webView.settings.javaScriptEnabled = true
             webView.settings.domStorageEnabled = true
@@ -621,6 +636,10 @@ private suspend fun ajlWebViewCatch(embedUrl: String, referer: String?): List<St
                 }
             }
             webView.webViewClient = object : WebViewClient() {
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    loadedAt.set(System.currentTimeMillis())
+                }
+
                 override fun shouldInterceptRequest(
                     view: WebView?,
                     request: WebResourceRequest?
@@ -636,8 +655,10 @@ private suspend fun ajlWebViewCatch(embedUrl: String, referer: String?): List<St
             val content = activity.findViewById<ViewGroup>(android.R.id.content)
             content?.addView(container)
             webView.loadUrl(embedUrl)
-            val deadline = System.currentTimeMillis() + 20_000
+            val deadline = System.currentTimeMillis() + AJL_WEBVIEW_TIMEOUT_MS
             while (System.currentTimeMillis() < deadline && candidates.isEmpty()) {
+                val loaded = loadedAt.get()
+                if (loaded > 0L && System.currentTimeMillis() - loaded > AJL_WEBVIEW_GRACE_AFTER_LOAD_MS) break
                 delay(250)
             }
         } catch (e: Exception) {
