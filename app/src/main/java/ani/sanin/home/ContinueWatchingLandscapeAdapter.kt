@@ -70,7 +70,6 @@ class ContinueWatchingLandscapeAdapter(
             val logoUrl = LogoApi.getLogoUrl(media.id)
             if (!logoUrl.isNullOrBlank()) {
                 holder.clearlogo.visibility = View.VISIBLE
-                holder.clearlogo.setColorFilter(Color.WHITE)
                 holder.clearlogo.loadImage(logoUrl)
                 holder.overlayTitle.visibility = View.GONE
             } else {

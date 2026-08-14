@@ -16,8 +16,8 @@
 
         <androidx.cardview.widget.CardView
             android:id="@+id/itemCompactCard"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="260dp"
+            android:layout_height="148dp"
             android:clipToOutline="true"
             android:translationZ="8dp"
             app:cardBackgroundColor="@android:color/transparent"
