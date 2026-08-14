@@ -8,18 +8,31 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp">
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/trendingViewPager"
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
-            android:layout_height="360dp"
-            />
+            android:layout_height="wrap_content">
 
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="80dp"
-            android:layout_gravity="top"
-            android:background="@drawable/gradient_top_banner"
-            android:importantForAccessibility="no" />
+            <androidx.cardview.widget.CardView
+                android:id="@+id/trendingCard"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:clipToOutline="true"
+                app:cardBackgroundColor="@android:color/transparent"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:layout_constraintDimensionRatio="H,16:9"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/trendingViewPager"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipToPadding="false"
+                    tools:listitem="@layout/item_banner_card" />
+            </androidx.cardview.widget.CardView>
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
         <LinearLayout
             android:id="@+id/titleContainer"

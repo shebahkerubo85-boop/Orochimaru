@@ -103,7 +103,9 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
     override fun getItemCount(): Int = 1
 
     fun updateHeight() {
-        trendingBinding.trendingViewPager.updateLayoutParams { height += statusBarHeight }
+        trendingBinding.trendingContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+            topMargin = statusBarHeight
+        }
     }
 
     fun updateTrending(media: List<Media>) {
@@ -129,7 +131,9 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
                     null
                 )
             },
-            nextFocusDownId = R.id.animeSeasons
+            nextFocusDownId = R.id.animeSeasons,
+            layoutRes = R.layout.item_banner_card,
+            cardMode = true
         )
         rv.adapter = bannerAdapter
         val start = Int.MAX_VALUE / 2 - (Int.MAX_VALUE / 2 % media.size)

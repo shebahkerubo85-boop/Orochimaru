@@ -29,6 +29,8 @@ class BannerCarouselAdapter(
     private var backdropUrls: Map<Int, String?> = emptyMap(),
     private var logoUrls: Map<Int, String?> = emptyMap(),
     var nextFocusDownId: Int = View.NO_ID,
+    private val layoutRes: Int = R.layout.item_banner_carousel,
+    private val cardMode: Boolean = false,
 ) : RecyclerView.Adapter<BannerCarouselAdapter.ViewHolder>() {
 
     val actualCount: Int get() = items.size
@@ -43,7 +45,7 @@ class BannerCarouselAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_banner_carousel, parent, false)
+            .inflate(layoutRes, parent, false)
         return ViewHolder(view)
     }
 
@@ -217,6 +219,13 @@ class BannerCarouselAdapter(
         if (nextFocusDownId != View.NO_ID) {
             holder.playBtn.nextFocusDownId = nextFocusDownId
             holder.favBtn.nextFocusDownId = nextFocusDownId
+        }
+
+        if (cardMode) {
+            holder.description.isVisible = false
+            holder.genresRow.isVisible = false
+            holder.playBtn.isVisible = false
+            holder.favBtn.isVisible = false
         }
 
         // --- Preload adjacent items ---
