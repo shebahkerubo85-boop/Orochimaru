@@ -178,8 +178,8 @@ class AnimeJLProvider : NativeAnimeParser() {
 class YourUploadExtractor(override val server: VideoServer) : VideoExtractor() {
     override suspend fun extract(): VideoContainer = withContext(Dispatchers.IO) {
         try {
-            val referer = server.extraData?.get("referer") ?: "https://www.yourupload.com/"
-            val page = ajlGet(server.embed.url, referer)
+            val pageReferer = server.extraData?.get("referer") ?: "https://www.yourupload.com/"
+            val page = ajlGet(server.embed.url, pageReferer)
             val doc = Jsoup.parse(page)
             val baseData = doc.select("script").firstOrNull { it.data().contains("jwplayerOptions") }?.data()
             val mp4 = baseData?.substringAfter("file: '")?.substringBefore("',")?.takeIf { it.startsWith("http") }
@@ -189,7 +189,7 @@ class YourUploadExtractor(override val server: VideoServer) : VideoExtractor() {
             } else {
                 ajlLog("AnimeJL YourUpload: got ${mp4.take(120)}")
                 VideoContainer(
-                    listOf(Video(null, VideoType.CONTAINER, FileUrl(mp4, mapOf("Referer" to referer))))
+                    listOf(Video(null, VideoType.CONTAINER, FileUrl(mp4, mapOf("Referer" to "https://www.yourupload.com/"))))
                 )
             }
         } catch (e: Exception) {
@@ -270,7 +270,7 @@ class AnimeJLUpnsExtractor(override val server: VideoServer) : VideoExtractor() 
                 return@withContext VideoContainer(emptyList())
             }
             ajlLog("AnimeJL Upns: got ${source.take(140)}")
-            val hls = ajlResolveHls(source, mapOf("Referer" to referer))
+            val hls = ajlResolveHls(source, mapOf("Referer" to referer, "Origin" to referer))
             if (hls.videos.isEmpty()) {
                 ajlLog("AnimeJL Upns: no playable variants from $source")
                 VideoContainer(emptyList())
@@ -305,15 +305,22 @@ class UniversalEmbedExtractor(override val server: VideoServer) : VideoExtractor
             } else {
                 ajlLog("AnimeJL Universal: ${allUrls.size} streams found")
                 // CDNs behind these embeds check the Referer and reject the CDN's own
-                // origin (403); send the embed host's origin like a real iframe would.
-                val mediaReferer = ajlOrigin(server.embed.url)
+                // origin (403); send the embed page URL like a real iframe would, plus
+                // Origin for HLS/DASH (matches the upstream extension's behavior).
+                val embed = server.embed.url
+                val embedOrigin = ajlOrigin(embed)
                 VideoContainer(allUrls.map { url ->
                     val format = when {
                         url.contains(".m3u8", ignoreCase = true) -> VideoType.M3U8
                         url.contains(".mpd", ignoreCase = true) -> VideoType.DASH
                         else -> VideoType.CONTAINER
                     }
-                    Video(null, format, FileUrl(url, mapOf("Referer" to mediaReferer)))
+                    val headers = if (format == VideoType.CONTAINER) {
+                        mapOf("Referer" to embed)
+                    } else {
+                        mapOf("Referer" to embed, "Origin" to embedOrigin)
+                    }
+                    Video(null, format, FileUrl(url, headers))
                 })
             }
         } catch (e: Exception) {
@@ -431,14 +438,15 @@ class AnimeJLUqloadExtractor(override val server: VideoServer) : VideoExtractor(
                     ajlLog("AnimeJL Uqload: no url in sources")
                 }
             ajlLog("AnimeJL Uqload: ${videoUrl.take(120)}")
+            val embedOrigin = ajlOrigin(server.embed.url)
             if (videoUrl.contains(".m3u8", ignoreCase = true)) {
-                val hls = ajlResolveHls(videoUrl, mapOf("Referer" to ajlOrigin(videoUrl)))
+                val hls = ajlResolveHls(videoUrl, mapOf("Referer" to embedOrigin, "Origin" to embedOrigin))
                 if (hls.audioTracks.isNotEmpty()) {
                     ajlLog("AnimeJL Uqload: attached ${hls.audioTracks.size} audio track(s)")
                 }
                 VideoContainer(hls.videos, audioTracks = hls.audioTracks)
             } else {
-                VideoContainer(listOf(Video(null, VideoType.CONTAINER, FileUrl(videoUrl, mapOf("Referer" to ajlOrigin(videoUrl))))))
+                VideoContainer(listOf(Video(null, VideoType.CONTAINER, FileUrl(videoUrl, mapOf("Referer" to embedOrigin)))))
             }
         } catch (e: Exception) {
             ajlLog("AnimeJL Uqload extract error: ${e.message}")
@@ -450,8 +458,8 @@ class AnimeJLUqloadExtractor(override val server: VideoServer) : VideoExtractor(
 class AnimeJLVidHideExtractor(override val server: VideoServer) : VideoExtractor() {
     override suspend fun extract(): VideoContainer = withContext(Dispatchers.IO) {
         try {
-            val referer = server.extraData?.get("referer") ?: ajlOrigin(server.embed.url)
-            val page = ajlGet(server.embed.url, referer)
+            val pageReferer = server.extraData?.get("referer") ?: ajlOrigin(server.embed.url)
+            val page = ajlGet(server.embed.url, pageReferer)
             val doc = Jsoup.parse(page)
             val script = pickScript(doc) { it.contains("m3u8") } ?: return@withContext VideoContainer(emptyList()).also {
                 ajlLog("AnimeJL VidHide: no m3u8 script in ${server.embed.url}")
@@ -460,7 +468,8 @@ class AnimeJLVidHideExtractor(override val server: VideoServer) : VideoExtractor
                 .takeIf { it.isNotBlank() && it.contains(".m3u8", ignoreCase = true) }
                 ?: return@withContext VideoContainer(emptyList()).also { ajlLog("AnimeJL VidHide: no master") }
             ajlLog("AnimeJL VidHide: ${master.take(120)}")
-            val hls = ajlResolveHls(master, mapOf("Referer" to referer))
+            val embed = server.embed.url
+            val hls = ajlResolveHls(master, mapOf("Referer" to embed, "Origin" to ajlOrigin(embed)))
             VideoContainer(hls.videos, audioTracks = hls.audioTracks)
         } catch (e: Exception) {
             ajlLog("AnimeJL VidHide extract error: ${e.message}")
@@ -472,8 +481,8 @@ class AnimeJLVidHideExtractor(override val server: VideoServer) : VideoExtractor
 class AnimeJLStreamWishExtractor(override val server: VideoServer) : VideoExtractor() {
     override suspend fun extract(): VideoContainer = withContext(Dispatchers.IO) {
         try {
-            val referer = server.extraData?.get("referer") ?: ajlOrigin(server.embed.url)
-            val page = ajlGet(server.embed.url, referer)
+            val pageReferer = server.extraData?.get("referer") ?: ajlOrigin(server.embed.url)
+            val page = ajlGet(server.embed.url, pageReferer)
             val doc = Jsoup.parse(page)
             val script = pickScript(doc) { it.contains("m3u8") } ?: return@withContext VideoContainer(emptyList()).also {
                 ajlLog("AnimeJL StreamWish: no m3u8 script in ${server.embed.url}")
@@ -482,7 +491,8 @@ class AnimeJLStreamWishExtractor(override val server: VideoServer) : VideoExtrac
                 .takeIf { it.isNotBlank() && it.contains(".m3u8", ignoreCase = true) }
                 ?: return@withContext VideoContainer(emptyList()).also { ajlLog("AnimeJL StreamWish: no master") }
             ajlLog("AnimeJL StreamWish: ${master.take(120)}")
-            val hls = ajlResolveHls(master, mapOf("Referer" to referer))
+            val embedOrigin = ajlOrigin(server.embed.url)
+            val hls = ajlResolveHls(master, mapOf("Referer" to "$embedOrigin/", "Origin" to embedOrigin))
             VideoContainer(hls.videos, audioTracks = hls.audioTracks)
         } catch (e: Exception) {
             ajlLog("AnimeJL StreamWish extract error: ${e.message}")
