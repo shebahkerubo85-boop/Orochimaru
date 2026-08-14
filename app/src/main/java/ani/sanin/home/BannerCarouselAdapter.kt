@@ -223,7 +223,6 @@ class BannerCarouselAdapter(
 
         if (cardMode) {
             holder.description.isVisible = false
-            holder.genresRow.isVisible = false
             holder.playBtn.isVisible = false
             holder.favBtn.isVisible = false
         }
