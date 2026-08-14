@@ -543,6 +543,7 @@ class MediaAdaptor(
                         val logoUrl = LogoApi.getLogoUrl(media.id)
                         if (!logoUrl.isNullOrBlank()) {
                             b.itemCompactClearlogo.visibility = View.VISIBLE
+                            b.itemCompactClearlogo.setColorFilter(Color.WHITE)
                             b.itemCompactClearlogo.loadImage(logoUrl)
                             b.itemCompactOverlayTitle.visibility = View.GONE
                         } else {

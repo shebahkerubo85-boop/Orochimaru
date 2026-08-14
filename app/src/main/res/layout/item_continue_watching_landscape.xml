@@ -38,10 +38,13 @@
 
         <ImageView
             android:id="@+id/cwClearlogo"
-            android:layout_width="140dp"
-            android:layout_height="48dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_gravity="bottom|start"
             android:layout_margin="10dp"
+            android:adjustViewBounds="true"
+            android:maxWidth="140dp"
+            android:maxHeight="48dp"
             android:scaleType="fitCenter"
             android:visibility="gone"
             tools:ignore="ContentDescription"
