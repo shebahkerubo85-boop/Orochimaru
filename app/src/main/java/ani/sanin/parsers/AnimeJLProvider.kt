@@ -249,7 +249,9 @@ class AnimeJLUpnsExtractor(override val server: VideoServer) : VideoExtractor() 
                 ajlLog("AnimeJL Upns: no id in $embed")
                 return@withContext VideoContainer(emptyList())
             }
-            val referer = server.extraData?.get("referer") ?: ajlOrigin(embed)
+            // The CDN rejects the site origin as Referer (403); it only serves with
+            // the embed host's own origin, e.g. https://anime.upns.pro
+            val referer = ajlOrigin(embed)
             val host = runCatching { URI(embed).host }.getOrNull()?.removePrefix("www.") ?: ""
             if (host.isBlank()) {
                 ajlLog("AnimeJL Upns: no host in $embed")
@@ -302,13 +304,16 @@ class UniversalEmbedExtractor(override val server: VideoServer) : VideoExtractor
                 VideoContainer(emptyList())
             } else {
                 ajlLog("AnimeJL Universal: ${allUrls.size} streams found")
+                // CDNs behind these embeds check the Referer and reject the CDN's own
+                // origin (403); send the embed host's origin like a real iframe would.
+                val mediaReferer = ajlOrigin(server.embed.url)
                 VideoContainer(allUrls.map { url ->
                     val format = when {
                         url.contains(".m3u8", ignoreCase = true) -> VideoType.M3U8
                         url.contains(".mpd", ignoreCase = true) -> VideoType.DASH
                         else -> VideoType.CONTAINER
                     }
-                    Video(null, format, FileUrl(url, mapOf("Referer" to ajlOrigin(url))))
+                    Video(null, format, FileUrl(url, mapOf("Referer" to mediaReferer)))
                 })
             }
         } catch (e: Exception) {
