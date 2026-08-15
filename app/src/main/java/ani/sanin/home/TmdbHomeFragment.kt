@@ -17,6 +17,7 @@ import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.tmdb.TmdbMedia
 import ani.sanin.databinding.FragmentTmdbHomeBinding
 import ani.sanin.databinding.ItemTmdbCardBinding
+import ani.sanin.getThemeColor
 import ani.sanin.loadImage
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
@@ -123,7 +124,7 @@ class TmdbHomeFragment : Fragment() {
 
     private fun startAutoAdvance() {
         bannerHandler.removeCallbacksAndMessages(null)
-        val mode = PrefManager.getVal(PrefName.HomeBannerMode)
+        val mode = PrefManager.getVal<Int>(PrefName.HomeBannerMode)
         if (mode != 0 || bannerItems.size < 2) return
         bannerHandler.postDelayed(object : Runnable {
             override fun run() {
