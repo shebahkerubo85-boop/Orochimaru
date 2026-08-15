@@ -12,68 +12,99 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="16dp">
 
-        <androidx.cardview.widget.CardView
+        <com.google.android.material.chip.Chip
+            android:id="@+id/aniyomiChip"
+            style="@style/Widget.MaterialComponents.Chip.Choice"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:cardBackgroundColor="@color/nav_bg_inv"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="0dp">
-
-        </androidx.cardview.widget.CardView>
+            android:checkable="true"
+            android:checked="true"
+            android:focusable="true"
+            android:fontFamily="@font/poppins_semi_bold"
+            android:text="Aniyomi Extensions"
+            android:textSize="13sp"
+            app:chipBackgroundColor="@color/nav_bg_inv"
+            app:chipStrokeColor="@color/cs_chip_stroke"
+            app:chipStrokeWidth="2dp"
+            app:chipTextColor="@color/cs_chip_text" />
 
         <TextView
             android:id="@+id/extensions"
             android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_marginStart="32dp"
-            android:layout_marginEnd="32dp"
-            android:layout_weight="1"
-            android:fontFamily="@font/poppins_bold"
-            android:gravity="center_vertical"
-            android:text="@string/extensions"
-            android:textColor="?attr/colorOnSurface"
-            android:textSize="16sp" />
+            android:layout_height="0dp"
+            android:visibility="gone" />
 
-        <LinearLayout
+        <com.google.android.material.chip.Chip
+            android:id="@+id/cloudstreamChip"
+            style="@style/Widget.MaterialComponents.Chip.Choice"
             android:layout_width="wrap_content"
-            android:layout_height="48dp"
-            android:layout_marginHorizontal="16dp"
-            android:orientation="horizontal">
-
-            <ImageButton
-                android:id="@+id/openSettingsButton"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:background="?android:attr/selectableItemBackground"
-                android:contentDescription="@string/sort_by"
-                app:srcCompat="@drawable/ic_round_menu_book_24"
-                app:tint="?attr/colorOnBackground" />
-
-            <ImageButton
-                android:id="@+id/languageselect"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:background="?android:attr/selectableItemBackground"
-                android:contentDescription="@string/sort_by"
-                app:srcCompat="@drawable/ic_round_translate_24"
-                app:tint="?attr/colorOnBackground" />
-
-        </LinearLayout>
-
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:checkable="true"
+            android:focusable="true"
+            android:fontFamily="@font/poppins_semi_bold"
+            android:text="CloudStream Extensions"
+            android:textSize="13sp"
+            app:chipBackgroundColor="@color/nav_bg_inv"
+            app:chipStrokeColor="@color/cs_chip_stroke"
+            app:chipStrokeWidth="2dp"
+            app:chipTextColor="@color/cs_chip_text" />
     </LinearLayout>
 
-    <com.google.android.material.tabs.TabLayout
-        android:id="@+id/tabLayout"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="48dp"
-        app:tabContentStart="32dp"
-        app:tabGravity="fill"
-        app:tabMode="scrollable"
-        app:tabPaddingEnd="16dp"
-        app:tabPaddingStart="16dp"
-        app:tabTextAppearance="@style/NavBarText" />
+        android:orientation="horizontal">
+
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tabLayout"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            app:tabContentStart="16dp"
+            app:tabGravity="fill"
+            app:tabMode="scrollable"
+            app:tabPaddingEnd="16dp"
+            app:tabPaddingStart="16dp"
+            app:tabTextAppearance="@style/NavBarText" />
+
+        <ImageButton
+            android:id="@+id/filterButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:contentDescription="@string/sort_by"
+            android:focusable="true"
+            android:visibility="gone"
+            app:srcCompat="@drawable/ic_round_filter_24"
+            app:tint="?attr/colorOnBackground" />
+
+        <ImageButton
+            android:id="@+id/languageselect"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:contentDescription="@string/sort_by"
+            android:focusable="true"
+            app:srcCompat="@drawable/ic_round_translate_24"
+            app:tint="?attr/colorOnBackground" />
+
+        <ImageButton
+            android:id="@+id/openSettingsButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:contentDescription="@string/sort_by"
+            android:focusable="true"
+            app:srcCompat="@drawable/ic_round_menu_book_24"
+            app:tint="?attr/colorOnBackground" />
+    </LinearLayout>
 
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/viewPager"
@@ -87,7 +118,7 @@
         android:layout_height="match_parent"
         android:layout_gravity="bottom"
         android:layout_weight="1"
-        android:visibility="gone"/>
+        android:visibility="gone" />
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/searchView"

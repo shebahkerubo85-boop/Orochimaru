@@ -1,12 +1,10 @@
 package ani.sanin.settings
 
-import android.content.Context
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
 import android.view.ViewGroup
-import android.view.inputmethod.InputMethodManager
 import android.widget.AutoCompleteTextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.updateLayoutParams
@@ -14,9 +12,12 @@ import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import ani.sanin.R
+import ani.sanin.cloudstream.CloudStreamAvailableFragment
+import ani.sanin.cloudstream.CloudStreamInstalledFragment
+import ani.sanin.cloudstream.CsRepos
+import ani.sanin.cloudstream.CsTypeFilter
 import ani.sanin.databinding.ActivityExtensionsBinding
 import ani.sanin.initActivity
-import ani.sanin.util.FocusEffectUtil
 import ani.sanin.media.MediaType
 import ani.sanin.navBarHeight
 import ani.sanin.others.AndroidBug5497Workaround
@@ -25,6 +26,7 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
+import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.TvKeyboardUtil
 import ani.sanin.util.customAlertDialog
 import com.google.android.material.tabs.TabLayout
@@ -33,6 +35,9 @@ import java.util.Locale
 
 class ExtensionsActivity : AppCompatActivity() {
     lateinit var binding: ActivityExtensionsBinding
+
+    private var cloudStreamMode = false
+    private var tabMediator: TabLayoutMediator? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,40 +62,31 @@ class ExtensionsActivity : AppCompatActivity() {
             bottomMargin = statusBarHeight + navBarHeight
         }
 
+        FocusEffectUtil.applyFocusListener(binding.aniyomiChip)
+        FocusEffectUtil.applyFocusListener(binding.cloudstreamChip)
+        binding.aniyomiChip.setOnCheckedChangeListener { _, checked ->
+            if (checked) switchMode(false)
+        }
+        binding.cloudstreamChip.setOnCheckedChangeListener { _, checked ->
+            if (checked) switchMode(true)
+        }
+
         val tabLayout = findViewById<TabLayout>(R.id.tabLayout)
         val viewPager = findViewById<ViewPager2>(R.id.viewPager)
         viewPager.offscreenPageLimit = 1
 
-        viewPager.adapter = object : FragmentStateAdapter(this) {
-            override fun getItemCount(): Int = 2
-
-            override fun createFragment(position: Int): Fragment {
-                return when (position) {
-                    0 -> InstalledAnimeExtensionsFragment()
-                    1 -> AnimeExtensionsFragment()
-                    else -> AnimeExtensionsFragment()
-                }
-            }
-
-        }
-
-        val searchView: AutoCompleteTextView = findViewById(R.id.searchViewText)
+        setupTabs()
 
         tabLayout.addOnTabSelectedListener(
             object : TabLayout.OnTabSelectedListener {
                 override fun onTabSelected(tab: TabLayout.Tab) {
-                    searchView.setText("")
-                    searchView.clearFocus()
+                    binding.searchViewText.setText("")
+                    binding.searchViewText.clearFocus()
                     tabLayout.clearFocus()
-                    if (tab.text?.contains("Installed") == true) binding.languageselect.visibility =
-                        View.GONE
-                    else binding.languageselect.visibility = View.VISIBLE
+                    binding.languageselect.visibility =
+                        if (tab.text?.contains("Installed") == true) View.GONE else View.VISIBLE
                     viewPager.updateLayoutParams<ViewGroup.LayoutParams> {
                         height = ViewGroup.LayoutParams.MATCH_PARENT
-                    }
-
-                    if (tab.text?.contains("Anime") == true) {
-                        generateRepositoryButton(MediaType.ANIME)
                     }
                 }
 
@@ -105,23 +101,11 @@ class ExtensionsActivity : AppCompatActivity() {
                     viewPager.updateLayoutParams<ViewGroup.LayoutParams> {
                         height = ViewGroup.LayoutParams.MATCH_PARENT
                     }
-                    // Do nothing
                 }
             }
         )
 
-        TabLayoutMediator(tabLayout, viewPager) { tab, position ->
-            tab.text = when (position) {
-                0 -> "Installed Anime"
-                1 -> "Available Anime"
-                2 -> "Installed Manga"
-                3 -> "Available Manga"
-                4 -> "Installed Novels"
-                5 -> "Available Novels"
-                else -> null
-            }
-        }.attach()
-
+        val searchView: AutoCompleteTextView = findViewById(R.id.searchViewText)
 
         searchView.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
@@ -141,7 +125,6 @@ class ExtensionsActivity : AppCompatActivity() {
 
         TvKeyboardUtil.setupTvInput(binding.searchViewText)
 
-        initActivity(this)
         binding.languageselect.setOnClickListener {
             val languageOptions =
                 LanguageMapper.Companion.Language.entries.map { entry ->
@@ -167,23 +150,88 @@ class ExtensionsActivity : AppCompatActivity() {
                 show()
             }
         }
+
         binding.settingsContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             topMargin = statusBarHeight
             bottomMargin = navBarHeight
         }
+
+        setupModeButtons()
     }
 
-    private fun generateRepositoryButton(type: MediaType) {
-        binding.openSettingsButton.setOnClickListener {
-            val repos = PrefManager.getVal<Set<String>>(PrefName.AnimeExtensionRepos)
-            AddRepositoryBottomSheet.newInstance(
-                type,
-                repos.toList(),
-                AddRepositoryBottomSheet::addRepo,
-                AddRepositoryBottomSheet::removeRepo
+    private fun switchMode(cloudStream: Boolean) {
+        if (cloudStreamMode == cloudStream) return
+        cloudStreamMode = cloudStream
+        binding.searchViewText.setText("")
+        binding.searchViewText.clearFocus()
+        setupTabs()
+        setupModeButtons()
+    }
 
+    private fun setupTabs() {
+        tabMediator?.detach()
+        tabMediator = null
+        val tabLayout = findViewById<TabLayout>(R.id.tabLayout)
+        val viewPager = findViewById<ViewPager2>(R.id.viewPager)
+        viewPager.adapter = object : FragmentStateAdapter(this) {
+            override fun getItemCount(): Int = 2
+
+            override fun createFragment(position: Int): Fragment {
+                return if (cloudStreamMode) {
+                    when (position) {
+                        0 -> CloudStreamInstalledFragment()
+                        else -> CloudStreamAvailableFragment()
+                    }
+                } else {
+                    when (position) {
+                        0 -> InstalledAnimeExtensionsFragment()
+                        else -> AnimeExtensionsFragment()
+                    }
+                }
+            }
+        }
+        tabMediator = TabLayoutMediator(tabLayout, viewPager) { tab, position ->
+            tab.text = if (cloudStreamMode) {
+                when (position) {
+                    0 -> "Installed Extensions"
+                    else -> "Available Extensions"
+                }
+            } else {
+                when (position) {
+                    0 -> "Installed Anime"
+                    else -> "Available Anime"
+                }
+            }
+        }
+        tabMediator?.attach()
+    }
+
+    private fun setupModeButtons() {
+        binding.openSettingsButton.setOnClickListener {
+            val repos = if (cloudStreamMode) {
+                CsRepos.repos().toList()
+            } else {
+                PrefManager.getVal<Set<String>>(PrefName.AnimeExtensionRepos).toList()
+            }
+            AddRepositoryBottomSheet.newInstance(
+                MediaType.ANIME,
+                repos,
+                { input, _ -> AddRepositoryBottomSheet.addRepo(input, MediaType.ANIME, cloudStreamMode) },
+                { input, _ -> AddRepositoryBottomSheet.removeRepo(input, MediaType.ANIME, cloudStreamMode) },
+                cloudStreamMode
             ).show(supportFragmentManager, "add_repo")
         }
+        binding.filterButton.visibility = if (cloudStreamMode) View.VISIBLE else View.GONE
+        binding.filterButton.setOnClickListener {
+            CsTypeFilter.show(this) {
+                val currentFragment =
+                    supportFragmentManager.findFragmentByTag("f${binding.viewPager.currentItem}")
+                if (currentFragment is SearchQueryHandler) currentFragment.notifyDataChanged()
+            }
+        }
+        FocusEffectUtil.applyFocusListener(binding.openSettingsButton)
+        FocusEffectUtil.applyFocusListener(binding.languageselect)
+        FocusEffectUtil.applyFocusListener(binding.filterButton)
     }
 }
 

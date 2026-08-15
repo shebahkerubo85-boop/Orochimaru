@@ -12,6 +12,7 @@ import android.view.inputmethod.EditorInfo
 import androidx.fragment.app.DialogFragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import ani.sanin.R
+import ani.sanin.cloudstream.CsRepos
 import ani.sanin.copyToClipboard
 import ani.sanin.databinding.BottomSheetAddRepositoryBinding
 import ani.sanin.databinding.ItemRepoBinding
@@ -68,6 +69,7 @@ class AddRepositoryBottomSheet : DialogFragment() {
     private var repositories: MutableList<String> = mutableListOf()
     private var onRepositoryRemoved: ((String, MediaType) -> Unit)? = null
     private var adapter: GroupieAdapter = GroupieAdapter()
+    private var cloudStream: Boolean = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -97,7 +99,9 @@ class AddRepositoryBottomSheet : DialogFragment() {
         adapter.addAll(repositories.map { RepoItem(it, mediaType, ::onRepositoryRemoved) })
 
         dialog?.window?.let { TvKeyboardUtil.retainWindowFocus(it) }
-        binding.repositoryInput.hint = getString(R.string.anime_add_repository)
+        binding.repositoryInput.hint =
+            if (cloudStream) getString(R.string.anime_add_repository) + " (index.json)"
+            else getString(R.string.anime_add_repository)
         TvKeyboardUtil.setupTvInput(binding.repositoryInput)
 
         dialog?.setOnKeyListener { _, keyCode, event ->
@@ -156,9 +160,10 @@ class AddRepositoryBottomSheet : DialogFragment() {
     }
 
     private fun isValidUrl(input: String): String? {
+        val suffix = if (cloudStream) "index.json" else "index.min.json"
         if (input.startsWith("http://") || input.startsWith("https://")) {
-            if (!input.removeSuffix("/").endsWith("index.min.json")) {
-                return "URL must end with index.min.json"
+            if (!input.removeSuffix("/").endsWith(suffix)) {
+                return "URL must end with $suffix"
             }
             return null
         }
@@ -190,9 +195,10 @@ class AddRepositoryBottomSheet : DialogFragment() {
         val parts = input.split("/")
         val username = parts[0]
         val repo = parts[1]
-        val branch = if (parts.size == 3) parts[2] else "repo"
+        val branch = if (parts.size == 3) parts[2] else if (cloudStream) "main" else "repo"
+        val suffix = if (cloudStream) "index.json" else "index.min.json"
 
-        return "https://raw.githubusercontent.com/$username/$repo/$branch/index.min.json"
+        return "https://raw.githubusercontent.com/$username/$repo/$branch/$suffix"
     }
 
     private fun onRepositoryRemoved(url: String, mediaType: MediaType) {
@@ -218,12 +224,16 @@ class AddRepositoryBottomSheet : DialogFragment() {
                 .show()
         }
 
-        fun addRepo(input: String, mediaType: MediaType) {
+        fun addRepo(input: String, mediaType: MediaType, cloudStream: Boolean = false) {
             val validLink = if (input.contains("github.com") && input.contains("blob")) {
                 input.replace("github.com", "raw.githubusercontent.com")
                     .replace("/blob/", "/")
             } else input
 
+            if (cloudStream) {
+                CsRepos.addRepo(validLink)
+                return
+            }
             when (mediaType) {
                 MediaType.ANIME -> {
                     val anime =
@@ -238,7 +248,11 @@ class AddRepositoryBottomSheet : DialogFragment() {
             }
         }
 
-        fun removeRepo(input: String, mediaType: MediaType) {
+        fun removeRepo(input: String, mediaType: MediaType, cloudStream: Boolean = false) {
+            if (cloudStream) {
+                CsRepos.removeRepo(input)
+                return
+            }
             when (mediaType) {
                 MediaType.ANIME -> {
                     val anime =
@@ -257,13 +271,15 @@ class AddRepositoryBottomSheet : DialogFragment() {
             mediaType: MediaType,
             repositories: List<String>,
             onRepositoryAdded: (String, MediaType) -> Unit,
-            onRepositoryRemoved: (String, MediaType) -> Unit
+            onRepositoryRemoved: (String, MediaType) -> Unit,
+            cloudStream: Boolean = false
         ): AddRepositoryBottomSheet {
             return AddRepositoryBottomSheet().apply {
                 this.mediaType = mediaType
                 this.repositories.addAll(repositories)
                 this.onRepositoryAdded = onRepositoryAdded
                 this.onRepositoryRemoved = onRepositoryRemoved
+                this.cloudStream = cloudStream
             }
         }
     }
