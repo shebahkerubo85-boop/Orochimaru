@@ -77,6 +77,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         trendingBinding.trendingViewPager.overScrollMode = RecyclerView.OVER_SCROLL_NEVER
 
         trendingBinding.titleContainer.updatePadding(top = statusBarHeight)
+        applySeasonSelectorSpacing()
 
         if (PrefManager.getVal(PrefName.SmallView)) trendingBinding.trendingContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             bottomMargin = (-108f).px
@@ -125,6 +126,17 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
                 topMargin = statusBarHeight
             }
             applyTrendingBannerMode()
+            applySeasonSelectorSpacing()
+        }
+    }
+
+    private fun applySeasonSelectorSpacing() {
+        val ctx = binding.root.context
+        val density = ctx.resources.displayMetrics.density
+        val topGap = if (ctx.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
+            (108 * density).toInt() else (48 * density).toInt()
+        binding.animeSeasons.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+            topMargin = topGap
         }
     }
 

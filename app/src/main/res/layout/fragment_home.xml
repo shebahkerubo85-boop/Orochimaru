@@ -75,7 +75,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="bottom|center_horizontal"
-                    android:layout_marginBottom="16dp"
+                    android:layout_marginBottom="0dp"
                     android:orientation="horizontal"
                     android:gravity="center"
                     android:visibility="gone" />
@@ -124,6 +124,7 @@
                                     android:scaleType="centerCrop" />
 
                                 <ImageView
+                                    android:id="@+id/navBannerBottomGradient"
                                     android:layout_width="match_parent"
                                     android:layout_height="120dp"
                                     android:layout_gravity="bottom"
@@ -131,6 +132,7 @@
                                     android:importantForAccessibility="no" />
 
                                 <LinearLayout
+                                    android:id="@+id/navBannerContent"
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
                                     android:layout_gravity="bottom"
@@ -246,6 +248,82 @@
                         </androidx.cardview.widget.CardView>
                     </androidx.constraintlayout.widget.ConstraintLayout>
                 </FrameLayout>
+
+                <View
+                    android:id="@+id/homeLeftFade"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/gradient_fade_black_left"
+                    android:importantForAccessibility="no"
+                    android:visibility="gone" />
+
+                <LinearLayout
+                    android:id="@+id/homeBannerOverlay"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="start|center_vertical"
+                    android:clipChildren="false"
+                    android:orientation="vertical"
+                    android:paddingStart="24dp"
+                    android:visibility="gone">
+
+                    <ImageView
+                        android:id="@+id/homeBannerOverlayLogo"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:adjustViewBounds="true"
+                        android:importantForAccessibility="no"
+                        android:maxWidth="220dp"
+                        android:maxHeight="90dp"
+                        android:scaleType="fitStart" />
+
+                    <TextView
+                        android:id="@+id/homeBannerOverlayTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/poppins_bold"
+                        android:maxLines="2"
+                        android:shadowColor="#99000000"
+                        android:shadowDx="1"
+                        android:shadowDy="1"
+                        android:shadowRadius="4"
+                        android:textColor="@color/bg_white"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:visibility="gone" />
+
+                    <LinearLayout
+                        android:id="@+id/homeBannerOverlayChips"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal" />
+
+                    <LinearLayout
+                        android:id="@+id/homeBannerOverlayGenres"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal" />
+
+                    <TextView
+                        android:id="@+id/homeBannerOverlaySynopsis"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:alpha="0.85"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/poppins"
+                        android:lineSpacingExtra="4sp"
+                        android:maxLines="4"
+                        android:textColor="@android:color/white"
+                        android:textSize="13sp"
+                        android:visibility="gone" />
+
+                </LinearLayout>
 
                 <LinearLayout
                     android:id="@+id/homeTopContainer"

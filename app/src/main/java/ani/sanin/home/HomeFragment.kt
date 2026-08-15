@@ -19,6 +19,8 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
@@ -60,6 +62,7 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefManager.asLiveBool
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.snackString
+import ani.sanin.bannerCardSizePx
 import ani.sanin.sizeBannerCard
 import ani.sanin.statusBarHeight
 import ani.sanin.tryWithSuspend
@@ -79,7 +82,10 @@ class HomeFragment : Fragment() {
     private val binding get() = _binding!!
     private val rvDataMap = mutableMapOf<RecyclerView, List<Media>>()
     private var navBannerCurrentMediaId = -1
+    private var navBannerCurrentMedia: Media? = null
     private var navBannerSlotA = true
+    private var homeBannerItems: List<Media> = emptyList()
+    private var homeBannerLogos: Map<Int, String?> = emptyMap()
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -137,7 +143,6 @@ class HomeFragment : Fragment() {
                     binding.homeUserBg.visibility = View.GONE
                     binding.homeUserBgNoKen.visibility = View.GONE
                     binding.homeNavigatingBannerContainer.visibility = View.VISIBLE
-                    binding.navBannerCard.sizeBannerCard()
                     binding.homeNavigatingBannerContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                         topMargin = statusBarHeight
                     }
@@ -147,6 +152,7 @@ class HomeFragment : Fragment() {
                     binding.homeUserBgNoKen.visibility = View.GONE
                     binding.homeNavigatingBannerContainer.visibility = View.GONE
                 }
+                applyHomeBannerLandscapeMode()
 
                 binding.homeUserDataProgressBar.visibility = View.GONE
 
@@ -692,7 +698,7 @@ class HomeFragment : Fragment() {
     private var bannerAutoScrollRunnable: Runnable? = null
 
     private fun setupBannerCarousel() {
-        binding.homeBannerCard.sizeBannerCard()
+        applyHomeBannerLandscapeMode()
         binding.homeBannerCardWrap.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             topMargin = statusBarHeight
         }
@@ -705,8 +711,11 @@ class HomeFragment : Fragment() {
 
         model.getTrendingBanner().observe(viewLifecycleOwner) { items ->
             if (items != null && items.isNotEmpty()) {
+                homeBannerItems = items
                 lifecycleScope.launch(Dispatchers.IO) {
-                    val urls = items.associate { it.id to ani.sanin.connections.anizip.AniZip.getBackdropUrl(it.id) }
+                    val allImages = AniZip.getImagesBatch(items.map { it.id })
+                    val urls = allImages.mapValues { it.value.backdropUrl }
+                    val logos = allImages.mapValues { it.value.logoUrl }
                     withContext(Dispatchers.Main) {
                         bannerCarouselAdapter = BannerCarouselAdapter(
                             items, lifecycleScope, { media ->
@@ -714,16 +723,52 @@ class HomeFragment : Fragment() {
                                 intent.putExtra("media", media)
                                 intent.putExtra("anime", true)
                                 startActivity(intent)
-                            }, urls,
+                            }, urls, logos,
                             nextFocusDownId = R.id.homeContinueWatch,
                             layoutRes = R.layout.item_banner_card,
                             cardMode = true
                         )
                         rv.adapter = bannerCarouselAdapter
+                        homeBannerLogos = logos
                         val start = Int.MAX_VALUE / 2 - (Int.MAX_VALUE / 2 % items.size)
                         rv.scrollToPosition(start)
+                        rv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                            private var lastTarget = -1
+
+                            override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
+                                val overlay = binding.homeBannerOverlay
+                                if (!overlay.isVisible) return
+                                val lm = rv.layoutManager as? LinearLayoutManager ?: return
+                                val child = lm.getChildAt(0) ?: return
+                                val pos = lm.getPosition(child)
+                                if (pos == RecyclerView.NO_POSITION || homeBannerItems.isEmpty()) return
+                                val cardW = child.width
+                                val stripW = overlay.width - cardW / 4
+                                if (cardW <= 0 || stripW <= 0) return
+                                val progress = (-child.left).toFloat() / cardW
+                                val real = pos % homeBannerItems.size
+                                val target = if (progress < 0.5f) real else (real + 1) % homeBannerItems.size
+                                if (target != lastTarget) {
+                                    lastTarget = target
+                                    updateHomeBannerOverlay(homeBannerItems[target])
+                                }
+                                val scale = stripW.toFloat() / cardW
+                                overlay.translationX =
+                                    (if (progress < 0.5f) child.left else child.left + cardW) * scale
+                            }
+
+                            override fun onScrollStateChanged(rv: RecyclerView, newState: Int) {
+                                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                                    lastTarget = -1
+                                    binding.homeBannerOverlay.translationX = 0f
+                                    updateHomeBannerOverlayForCurrent()
+                                }
+                            }
+                        })
+                        applyHomeBannerLandscapeMode()
                         setupBannerDots(rv, items.size)
                         startBannerAutoScroll(rv, items.size, start)
+                        updateHomeBannerOverlayForCurrent()
                     }
                 }
             }
@@ -797,6 +842,8 @@ class HomeFragment : Fragment() {
     private fun updateNavigatingBanner(media: Media) {
         val b = _binding ?: return
         navBannerCurrentMediaId = media.id
+        navBannerCurrentMedia = media
+        updateHomeBannerOverlay(media)
 
         val front = if (navBannerSlotA) b.navBannerBgA else b.navBannerBgB
         val back = if (navBannerSlotA) b.navBannerBgB else b.navBannerBgA
@@ -832,12 +879,8 @@ class HomeFragment : Fragment() {
             getString(R.string.continue_watching_short)
         else
             getString(R.string.watch_now)
-        b.navBannerWatchBtn.setOnClickListener {
-            val intent = Intent(requireContext(), ani.sanin.media.MediaDetailsActivity::class.java)
-            intent.putExtra("media", media)
-            intent.putExtra("anime", true)
-            startActivity(intent)
-        }
+        b.navBannerWatchBtn.setOnClickListener { openNavBannerMedia(media) }
+        b.navBannerCard.setOnClickListener { openNavBannerMedia(media) }
 
         lifecycleScope.launch(Dispatchers.IO) {
             val logoUrl = ani.sanin.connections.LogoApi.getLogoUrl(media.id)
@@ -851,15 +894,23 @@ class HomeFragment : Fragment() {
                     b.navBannerLogo.visibility = View.GONE
                     b.navBannerTitle.visibility = View.VISIBLE
                 }
+                homeBannerLogos = homeBannerLogos + (media.id to logoUrl)
+                updateHomeBannerOverlay(media)
             }
         }
+    }
+
+    private fun openNavBannerMedia(media: Media) {
+        val intent = Intent(requireContext(), ani.sanin.media.MediaDetailsActivity::class.java)
+        intent.putExtra("media", media)
+        intent.putExtra("anime", true)
+        startActivity(intent)
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         if (_binding != null) {
-            binding.homeBannerCard.sizeBannerCard()
-            binding.navBannerCard.sizeBannerCard()
+            applyHomeBannerLandscapeMode()
             binding.homeBannerCardWrap.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                 topMargin = statusBarHeight
             }
@@ -868,6 +919,186 @@ class HomeFragment : Fragment() {
             }
         }
     }
+
+    private fun applyHomeBannerLandscapeMode() {
+        val b = _binding ?: return
+        val ctx = b.root.context
+        val isLandscape =
+            ctx.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val bannerMode: Int = PrefManager.getVal(PrefName.HomeBannerMode)
+        val carouselActive = bannerMode == 0
+        val navActive = bannerMode == 2
+        val hasBanner = carouselActive || navActive
+        val card = if (carouselActive) b.homeBannerCard else b.navBannerCard
+        val fade = b.homeLeftFade
+        val overlay = b.homeBannerOverlay
+
+        val setCardCentered = { c: androidx.cardview.widget.CardView ->
+            val lp = c.layoutParams as ConstraintLayout.LayoutParams
+            lp.startToStart = ConstraintLayout.LayoutParams.PARENT_ID
+            lp.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID
+            c.layoutParams = lp
+        }
+
+        if (!isLandscape || !hasBanner) {
+            b.homeBannerCard.sizeBannerCard()
+            b.navBannerCard.sizeBannerCard()
+            setCardCentered(b.homeBannerCard)
+            setCardCentered(b.navBannerCard)
+            b.navBannerContent.isVisible = true
+            b.navBannerBottomGradient.isVisible = true
+            b.navBannerBgA.scaleType = ImageView.ScaleType.CENTER_CROP
+            b.navBannerBgB.scaleType = ImageView.ScaleType.CENTER_CROP
+            b.navBannerCard.isFocusable = false
+            fade.isVisible = false
+            overlay.isVisible = false
+            overlay.translationX = 0f
+            bannerCarouselAdapter?.setLandscapeMode(false, 0)
+            return
+        }
+
+        card.sizeBannerCard(0.65f)
+        val (cardW, cardH) = card.bannerCardSizePx(0.65f)
+        val lp = card.layoutParams as ConstraintLayout.LayoutParams
+        lp.startToStart = ConstraintSet.UNSET
+        lp.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID
+        card.layoutParams = lp
+
+        val density = ctx.resources.displayMetrics.density
+        val sidePad = (24 * density).toInt()
+        val stripW = ctx.resources.displayMetrics.widthPixels - cardW
+
+        fade.isVisible = true
+        fade.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+            width = stripW
+            height = cardH
+        }
+
+        overlay.isVisible = true
+        overlay.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+            width = stripW + cardW / 4
+        }
+        overlay.setPadding(sidePad, 0, sidePad, 0)
+        b.homeBannerOverlayLogo.maxWidth = (stripW - sidePad * 2).coerceAtLeast(1)
+        b.homeBannerOverlayLogo.maxHeight = (cardH * 0.30f).toInt()
+        b.homeBannerOverlaySynopsis.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+            width = (stripW - sidePad * 2 + cardW / 4).coerceAtLeast(1)
+        }
+
+        if (navActive) {
+            b.navBannerContent.isVisible = false
+            b.navBannerBottomGradient.isVisible = false
+            b.navBannerBgA.scaleType = ImageView.ScaleType.FIT_CENTER
+            b.navBannerBgB.scaleType = ImageView.ScaleType.FIT_CENTER
+            b.navBannerCard.isFocusable = true
+            b.navBannerCard.nextFocusDownId = R.id.homeContinueWatch
+            navBannerCurrentMedia?.let { updateHomeBannerOverlay(it) }
+        } else {
+            b.navBannerContent.isVisible = true
+            b.navBannerBottomGradient.isVisible = true
+            b.navBannerBgA.scaleType = ImageView.ScaleType.CENTER_CROP
+            b.navBannerBgB.scaleType = ImageView.ScaleType.CENTER_CROP
+            b.navBannerCard.isFocusable = false
+            bannerCarouselAdapter?.setLandscapeMode(true, cardW)
+            updateHomeBannerOverlayForCurrent()
+        }
+    }
+
+    private fun updateHomeBannerOverlayForCurrent() {
+        val b = _binding ?: return
+        if (homeBannerItems.isEmpty()) return
+        val lm = b.homeBannerCarousel.layoutManager as? LinearLayoutManager ?: return
+        val pos = lm.findFirstVisibleItemPosition()
+        if (pos == RecyclerView.NO_POSITION || pos < 0) return
+        updateHomeBannerOverlay(homeBannerItems[pos % homeBannerItems.size])
+    }
+
+    private fun updateHomeBannerOverlay(media: Media) {
+        val b = _binding ?: return
+        val logo = b.homeBannerOverlayLogo
+        val title = b.homeBannerOverlayTitle
+        val chips = b.homeBannerOverlayChips
+        val genres = b.homeBannerOverlayGenres
+        val synopsis = b.homeBannerOverlaySynopsis
+
+        val logoUrl = homeBannerLogos[media.id]
+        if (!logoUrl.isNullOrBlank()) {
+            logo.isVisible = true
+            title.isVisible = false
+            logo.loadImage(logoUrl)
+        } else {
+            logo.isVisible = false
+            logo.setImageDrawable(null)
+            title.isVisible = true
+            title.text = media.userPreferredName ?: media.name
+        }
+
+        chips.removeAllViews()
+        addHomeOverlayChip(chips, homeOverlayFormatText(media))
+        addHomeOverlayChip(chips, homeOverlayStatusText(media))
+        addHomeOverlayChip(chips, homeOverlaySeasonText(media))
+        addHomeOverlayChip(chips, homeOverlayScoreText(media))
+
+        genres.removeAllViews()
+        for (g in media.genres.take(4)) addHomeOverlayChip(genres, g)
+
+        val desc = media.description
+            ?.replace(Regex("<.*?>"), "")
+            ?.replace(Regex("\s+"), " ")
+            ?.trim()
+        if (!desc.isNullOrBlank()) {
+            synopsis.text = desc
+            synopsis.isVisible = true
+        } else {
+            synopsis.isVisible = false
+        }
+    }
+
+    private fun addHomeOverlayChip(container: LinearLayout, text: String?) {
+        if (text.isNullOrBlank()) return
+        val ctx = container.context
+        val density = ctx.resources.displayMetrics.density
+        val chip = TextView(ctx).apply {
+            this.text = text
+            setTextColor(ContextCompat.getColor(ctx, R.color.bg_white))
+            textSize = 12f
+            setBackgroundResource(R.drawable.tag_chip_bg)
+            setPadding(
+                (10 * density).toInt(),
+                (4 * density).toInt(),
+                (10 * density).toInt(),
+                (4 * density).toInt()
+            )
+            maxLines = 1
+        }
+        val lp = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        lp.marginEnd = (6 * density).toInt()
+        container.addView(chip, lp)
+    }
+
+    private fun homeOverlayFormatText(media: Media): String? =
+        media.format?.replace("_", " ")?.let { fmt ->
+            when {
+                fmt.equals("TV", true) -> "TV Series"
+                fmt.equals("TV_SHORT", true) -> "TV Short"
+                else -> fmt
+            }
+        }
+
+    private fun homeOverlayStatusText(media: Media): String? =
+        media.status?.replace("_", " ")?.lowercase()?.replaceFirstChar { it.uppercase() }
+
+    private fun homeOverlaySeasonText(media: Media): String? {
+        val season = media.anime?.season?.lowercase()
+        val year = media.anime?.seasonYear
+        return if (season != null && year != null) "$season $year" else null
+    }
+
+    private fun homeOverlayScoreText(media: Media): String? =
+        media.meanScore?.let { "$it%" }
 
     override fun onResume() {
         if (!model.loaded) Refresh.activity[1]!!.postValue(true)
