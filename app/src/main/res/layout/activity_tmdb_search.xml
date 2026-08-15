@@ -42,7 +42,7 @@
             android:layout_weight="1"
             android:background="@color/nav_bg_inv"
             android:fontFamily="@font/poppins_semi_bold"
-            android:hint="Search movies & TV"
+            android:hint="Search movies &amp; TV"
             android:imeOptions="actionSearch"
             android:inputType="text"
             android:paddingStart="16dp"
