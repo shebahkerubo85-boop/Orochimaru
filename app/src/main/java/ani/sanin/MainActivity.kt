@@ -109,7 +109,7 @@ class MainActivity : AppCompatActivity() {
     )
 
     private fun isAnimeMode(): Boolean =
-        PrefManager.getVal(PrefName.ContentMode) != "movie_tv"
+        PrefManager.getVal<String>(PrefName.ContentMode) != "movie_tv"
 
     private fun getFragmentForTab(index: Int): Fragment = when (index) {
         0 -> if (isAnimeMode()) HomeFragment() else TmdbHomeFragment()
@@ -636,11 +636,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateModeLabel() {
-        val mode = PrefManager.getVal(PrefName.ContentMode)
+        val mode = PrefManager.getVal<String>(PrefName.ContentMode)
         val text = if (mode != "movie_tv") {
             "Anime"
         } else {
-            val src = PrefManager.getVal(PrefName.ContentSource)
+            val src = PrefManager.getVal<String>(PrefName.ContentSource)
             if (src == "tmdb") "TMDB"
             else CsRepos.installed(this).firstOrNull { it.id == src }?.name ?: "Movie & TV"
         }
