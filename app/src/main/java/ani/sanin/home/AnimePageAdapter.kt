@@ -69,7 +69,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
     override fun onBindViewHolder(holder: AnimePageViewHolder, position: Int) {
         binding = holder.binding
         trendingBinding = LayoutTrendingBinding.bind(binding.root)
-        trendingBinding.trendingCard.sizeBannerCard()
+        trendingBinding.trendingCard.sizeBannerCard(0.65f)
         applyTrendingBannerMode()
         trendingBinding.trendingViewPager.overScrollMode = RecyclerView.OVER_SCROLL_NEVER
 
@@ -117,7 +117,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
 
     fun resizeBanner() {
         if (::trendingBinding.isInitialized) {
-            trendingBinding.trendingCard.sizeBannerCard()
+            trendingBinding.trendingCard.sizeBannerCard(0.65f)
             trendingBinding.trendingContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                 topMargin = statusBarHeight
             }
@@ -129,7 +129,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         val ctx = trendingBinding.root.context
         val isLandscape =
             ctx.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-        val (cardW, cardH) = trendingBinding.trendingCard.bannerCardSizePx()
+        val (cardW, cardH) = trendingBinding.trendingCard.bannerCardSizePx(0.65f)
 
         val cardLp =
             trendingBinding.trendingCard.layoutParams as ConstraintLayout.LayoutParams
