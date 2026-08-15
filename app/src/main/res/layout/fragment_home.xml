@@ -131,6 +131,15 @@
                                     android:src="@drawable/linear_gradient_bg"
                                     android:importantForAccessibility="no" />
 
+                                <View
+                                    android:id="@+id/navBannerScrim"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent"
+                                    android:layout_gravity="left"
+                                    android:background="@drawable/banner_scrim_left"
+                                    android:importantForAccessibility="no"
+                                    android:visibility="gone" />
+
                                 <LinearLayout
                                     android:id="@+id/navBannerContent"
                                     android:layout_width="match_parent"

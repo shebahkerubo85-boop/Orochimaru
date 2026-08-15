@@ -726,7 +726,8 @@ class HomeFragment : Fragment() {
                             }, urls, logos,
                             nextFocusDownId = R.id.homeContinueWatch,
                             layoutRes = R.layout.item_banner_card,
-                            cardMode = true
+                            cardMode = true,
+                            hideDescription = true
                         )
                         rv.adapter = bannerCarouselAdapter
                         homeBannerLogos = logos
@@ -870,9 +871,7 @@ class HomeFragment : Fragment() {
         b.navBannerRating.isVisible = media.meanScore != null
         b.navBannerGenres.text = media.genres.take(2).joinToString(" • ")
         b.navBannerGenres.isVisible = media.genres.isNotEmpty()
-        b.navBannerSynopsis.text = media.description
-            ?.replace(Regex("<.*?>"), "")
-            ?.take(200) ?: ""
+        b.navBannerSynopsis.isVisible = false
 
         val isWatching = media.userStatus == "CURRENT"
         b.navBannerWatchBtn.text = if (isWatching)
@@ -947,6 +946,7 @@ class HomeFragment : Fragment() {
             setCardCentered(b.navBannerCard)
             b.navBannerContent.isVisible = true
             b.navBannerBottomGradient.isVisible = true
+            b.navBannerScrim.isVisible = false
             b.navBannerBgA.scaleType = ImageView.ScaleType.CENTER_CROP
             b.navBannerBgB.scaleType = ImageView.ScaleType.CENTER_CROP
             b.navBannerCard.isFocusable = false
@@ -972,7 +972,10 @@ class HomeFragment : Fragment() {
         fade.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             width = stripW
             height = cardH
+            topMargin = statusBarHeight
         }
+        fade.bringToFront()
+        overlay.bringToFront()
 
         overlay.isVisible = true
         overlay.updateLayoutParams<ViewGroup.MarginLayoutParams> {
@@ -988,6 +991,10 @@ class HomeFragment : Fragment() {
         if (navActive) {
             b.navBannerContent.isVisible = false
             b.navBannerBottomGradient.isVisible = false
+            b.navBannerScrim.isVisible = true
+            b.navBannerScrim.layoutParams = b.navBannerScrim.layoutParams.apply {
+                width = cardW / 2
+            }
             b.navBannerBgA.scaleType = ImageView.ScaleType.FIT_CENTER
             b.navBannerBgB.scaleType = ImageView.ScaleType.FIT_CENTER
             b.navBannerCard.isFocusable = true

@@ -33,6 +33,7 @@ class BannerCarouselAdapter(
     var nextFocusDownId: Int = View.NO_ID,
     private val layoutRes: Int = R.layout.item_banner_carousel,
     private val cardMode: Boolean = false,
+    private val hideDescription: Boolean = false,
 ) : RecyclerView.Adapter<BannerCarouselAdapter.ViewHolder>() {
 
     private var landscapeOverlay = false
@@ -153,7 +154,9 @@ class BannerCarouselAdapter(
             ?.replace(Regex("<.*?>"), "")
             ?.replace(Regex("\\s+"), " ")
             ?.trim()
-        if (!desc.isNullOrBlank()) {
+        if (hideDescription) {
+            holder.description.isVisible = false
+        } else if (!desc.isNullOrBlank()) {
             holder.description.text = desc
             holder.description.isVisible = true
         } else {
