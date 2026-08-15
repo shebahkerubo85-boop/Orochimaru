@@ -28,7 +28,7 @@ import java.util.Locale
 class CloudStreamRepoDetailActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityCsRepoDetailBinding
-    private val adapter = SourceAdapter(::onInstallClick)
+    private val adapter = SourceAdapter(::onInstallClick) { installedIds }
     private var installedIds: Set<String> = emptySet()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -111,8 +111,9 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
         .replace("index.json", "")
         .removeSuffix("/")
 
-    inner class SourceAdapter(
-        private val onInstall: (CsSource) -> Unit
+    class SourceAdapter(
+        private val onInstall: (CsSource) -> Unit,
+        private val installedIdsProvider: () -> Set<String>
     ) : ListAdapter<CsSource, SourceAdapter.VH>(CloudStreamRepoDetailActivity.DIFF) {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -125,7 +126,7 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
             holder.binding.sourceNameTextView.text = item.name
             holder.binding.sourceMetaTextView.text =
                 "v${item.version} • ${item.type.ifBlank { "unknown" }} • ${item.lang}"
-            val installed = item.id in installedIds
+            val installed = item.id in installedIdsProvider()
             holder.binding.sourceInstallImageView.setImageResource(
                 if (installed) R.drawable.ic_check else R.drawable.ic_download_24
             )

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
+    android:clipToPadding="false">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <FrameLayout
+            android:id="@+id/tmdbBannerFrame"
+            android:layout_width="match_parent"
+            android:layout_height="320dp"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <ImageView
+                android:id="@+id/tmdbBannerImage"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                tools:ignore="ContentDescription" />
+
+            <View
+                android:id="@+id/tmdbBannerGradient"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/tmdb_banner_gradient" />
+
+            <LinearLayout
+                android:id="@+id/tmdbBannerContent"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_gravity="center_vertical"
+                android:orientation="vertical"
+                android:paddingStart="32dp"
+                android:paddingEnd="32dp">
+
+                <TextView
+                    android:id="@+id/tmdbBannerTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/poppins_bold"
+                    android:maxLines="2"
+                    android:textColor="@color/bg_white"
+                    android:textSize="28sp"
+                    tools:text="Dune: Part Two" />
+
+                <TextView
+                    android:id="@+id/tmdbBannerMeta"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:fontFamily="@font/poppins_semi_bold"
+                    android:textColor="@color/bg_white"
+                    android:textSize="13sp"
+                    tools:text="★ 8.4  •  2024  •  Movie" />
+
+                <TextView
+                    android:id="@+id/tmdbBannerSynopsis"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:fontFamily="@font/poppins_semi_bold"
+                    android:maxLines="3"
+                    android:textColor="@color/bg_white"
+                    android:textSize="13sp"
+                    tools:text="Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family." />
+
+                <TextView
+                    android:id="@+id/tmdbBannerGenres"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:fontFamily="@font/poppins_semi_bold"
+                    android:textColor="@color/colorPrimary"
+                    android:textSize="12sp"
+                    tools:text="Science Fiction • Adventure • Action" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <LinearLayout
+            android:id="@+id/tmdbHomeSections"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

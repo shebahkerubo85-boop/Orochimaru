@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical"
+    tools:context=".cloudstream.TmdbSearchActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="16dp">
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="@color/nav_bg_inv"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp">
+
+            <ImageButton
+                android:id="@+id/tmdbSearchBack"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@color/nav_bg_inv"
+                android:focusable="true"
+                android:padding="14dp"
+                app:srcCompat="@drawable/ic_round_arrow_back_ios_new_24"
+                app:tint="?attr/colorOnBackground"
+                tools:ignore="ContentDescription" />
+        </androidx.cardview.widget.CardView>
+
+        <EditText
+            android:id="@+id/tmdbSearchInput"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:background="@color/nav_bg_inv"
+            android:fontFamily="@font/poppins_semi_bold"
+            android:hint="Search movies & TV"
+            android:imeOptions="actionSearch"
+            android:inputType="text"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:textColor="?attr/colorOnSurface"
+            android:textColorHint="?attr/colorOutline"
+            android:textSize="14sp" />
+
+        <ImageButton
+            android:id="@+id/tmdbSearchFilter"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:contentDescription="Filter"
+            android:focusable="true"
+            app:srcCompat="@drawable/ic_round_filter_24"
+            app:tint="?attr/colorOnBackground" />
+
+        <ImageButton
+            android:id="@+id/tmdbSearchClearHistory"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:contentDescription="Clear history"
+            android:focusable="true"
+            app:srcCompat="@drawable/ic_round_delete_24"
+            app:tint="?attr/colorOnBackground" />
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/tmdbSearchProgress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/tmdbSearchGrid"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="64dp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/tmdbSearchHistory"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/tmdbSearchEmpty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/poppins_semi_bold"
+        android:gravity="center"
+        android:padding="32dp"
+        android:text="No results"
+        android:textColor="?attr/colorOutline"
+        android:visibility="gone" />
+</LinearLayout>

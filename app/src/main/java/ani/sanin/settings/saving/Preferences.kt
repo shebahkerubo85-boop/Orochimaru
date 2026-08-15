@@ -44,6 +44,8 @@ enum class PrefName(val data: Pref) {
     CloudStreamInstalledSources(Pref(Location.General, List::class, listOf<String>())),
     CloudStreamTypeFilter(Pref(Location.General, String::class, "All")),
     ContentMode(Pref(Location.General, String::class, "anime")),
+    TmdbApiKey(Pref(Location.General, String::class, "3075f2db53ed0690a350d3559ac9cd8c")),
+    TmdbSearchHistory(Pref(Location.General, List::class, listOf<String>())),
 
     AnimeSourcesOrder(Pref(Location.General, List::class, listOf<String>())),
     EnabledProviders(Pref(Location.General, Set::class, setOf<String>())),

@@ -206,6 +206,19 @@
             android:process=":error_process"
             android:launchMode="singleTask" />
         <activity
+            android:name=".cloudstream.TmdbDetailsActivity"
+            android:configChanges="orientation|screenSize|layoutDirection"
+            android:parentActivityName=".MainActivity" />
+        <activity
+            android:name=".cloudstream.TmdbSearchActivity"
+            android:configChanges="orientation|screenSize|layoutDirection"
+            android:parentActivityName=".MainActivity" />
+        <activity
+            android:name=".cloudstream.TmdbPlayerActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation"
+            android:excludeFromRecents="true"
+            android:supportsPictureInPicture="true" />
+        <activity
             android:name=".media.anime.ExoplayerView"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation"
             android:excludeFromRecents="true"
