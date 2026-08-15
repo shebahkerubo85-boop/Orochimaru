@@ -78,12 +78,16 @@ class BannerCarouselAdapter(
                 .load(imageUrl)
                 .placeholder(R.color.bg_black)
                 .error(R.drawable.ic_round_person_24)
+                .into(holder.bannerBg)
+            Glide.with(holder.itemView.context)
+                .load(imageUrl)
+                .placeholder(R.color.bg_black)
+                .error(R.drawable.ic_round_person_24)
                 .listener(object : RequestListener<Drawable> {
                     override fun onResourceReady(
                         resource: Drawable, model: Any, target: Target<Drawable>,
                         dataSource: DataSource, isFirstResource: Boolean
                     ): Boolean {
-                        holder.bannerBg.setImageDrawable(resource)
                         holder.bannerImage.scaleType = if (resource.intrinsicHeight > resource.intrinsicWidth)
                             ImageView.ScaleType.CENTER_CROP
                         else
