@@ -168,7 +168,7 @@
                     android:id="@+id/tmdbDetailGenreChips"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:singleSelection="false" />
+                    app:singleSelection="false" />
             </HorizontalScrollView>
 
             <LinearLayout
