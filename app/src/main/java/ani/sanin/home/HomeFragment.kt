@@ -4,6 +4,7 @@ import android.animation.ObjectAnimator
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.drawable.Animatable
+import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -34,6 +35,11 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.DataSource
+import com.bumptech.glide.load.engine.GlideException
+import com.bumptech.glide.request.RequestListener
+import com.bumptech.glide.request.target.Target
 import ani.sanin.MainActivity
 import ani.sanin.R
 import ani.sanin.Refresh
@@ -854,7 +860,31 @@ class HomeFragment : Fragment() {
             val bannerUrl = anizipUrl ?: media.banner ?: media.cover ?: return@launch
             withContext(Dispatchers.Main) {
                 if (_binding == null || navBannerCurrentMediaId != media.id) return@withContext
-                back.loadImage(bannerUrl)
+                Glide.with(back.context)
+                    .load(bannerUrl)
+                    .error(R.drawable.ic_round_person_24)
+                    .listener(object : RequestListener<Drawable> {
+                        override fun onResourceReady(
+                            resource: Drawable, model: Any, target: Target<Drawable>,
+                            dataSource: DataSource, isFirstResource: Boolean
+                        ): Boolean {
+                            val portrait = resource.intrinsicHeight > resource.intrinsicWidth
+                            val isLandscape = back.context.resources.configuration.orientation ==
+                                Configuration.ORIENTATION_LANDSCAPE
+                            val navActive = PrefManager.getVal<Int>(PrefName.HomeBannerMode) == 2
+                            back.scaleType = when {
+                                portrait -> ImageView.ScaleType.CENTER_CROP
+                                isLandscape && navActive -> ImageView.ScaleType.FIT_CENTER
+                                else -> ImageView.ScaleType.CENTER_CROP
+                            }
+                            return false
+                        }
+                        override fun onLoadFailed(
+                            e: GlideException?, model: Any?, target: Target<Drawable>,
+                            isFirstResource: Boolean
+                        ): Boolean = false
+                    })
+                    .into(back)
                 back.alpha = 1f
                 front.alpha = 0f
                 navBannerSlotA = !navBannerSlotA

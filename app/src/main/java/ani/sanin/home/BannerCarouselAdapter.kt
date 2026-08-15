@@ -73,6 +73,7 @@ class BannerCarouselAdapter(
         if (!imageUrl.isNullOrBlank()) {
             holder.bannerBg.visibility = View.VISIBLE
             holder.bannerImage.visibility = View.VISIBLE
+            holder.bannerImage.scaleType = ImageView.ScaleType.FIT_CENTER
             Glide.with(holder.itemView.context)
                 .load(imageUrl)
                 .placeholder(R.color.bg_black)
@@ -83,12 +84,19 @@ class BannerCarouselAdapter(
                         dataSource: DataSource, isFirstResource: Boolean
                     ): Boolean {
                         holder.bannerBg.setImageDrawable(resource)
+                        holder.bannerImage.scaleType = if (resource.intrinsicHeight > resource.intrinsicWidth)
+                            ImageView.ScaleType.CENTER_CROP
+                        else
+                            ImageView.ScaleType.FIT_CENTER
                         return false
                     }
                     override fun onLoadFailed(
                         e: GlideException?, model: Any?, target: Target<Drawable>,
                         isFirstResource: Boolean
-                    ): Boolean = false
+                    ): Boolean {
+                        holder.bannerImage.scaleType = ImageView.ScaleType.FIT_CENTER
+                        return false
+                    }
                 })
                 .into(holder.bannerImage)
         }
