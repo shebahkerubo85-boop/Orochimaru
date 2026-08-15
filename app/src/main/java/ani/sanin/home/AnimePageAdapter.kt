@@ -212,7 +212,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
 
         val desc = media.description
             ?.replace(Regex("<.*?>"), "")
-            ?.replace(Regex("\s+"), " ")
+            ?.replace(Regex("\\s+"), " ")
             ?.trim()
         if (!desc.isNullOrBlank()) {
             synopsis.text = desc
