@@ -681,43 +681,81 @@ class HomeFragment : Fragment() {
 
 
 
+    private class HomeSection(val container: View, val rv: RecyclerView, val title: TextView)
+
+    private val sectionItemFocusListeners = mutableSetOf<RecyclerView>()
+    private var cwItemUpTarget = View.NO_ID
+
+    private fun homeSections(): List<HomeSection> = listOf(
+        HomeSection(binding.homeContinueWatchingContainer, binding.homeWatchingRecyclerView, binding.homeContinueWatch),
+        HomeSection(binding.homeFavAnimeContainer, binding.homeFavAnimeRecyclerView, binding.homeFavAnime),
+        HomeSection(binding.homePlannedAnimeContainer, binding.homePlannedAnimeRecyclerView, binding.homePlannedAnime),
+        HomeSection(binding.homeMissingSequelsContainer, binding.homeMissingSequelsRecyclerView, binding.homeMissingSequels),
+        HomeSection(binding.homeRecommendedContainer, binding.homeRecommendedRecyclerView, binding.homeRecommended),
+    )
+
     private fun setupSectionFocusChain() {
-        val sections = listOf(
-            Triple(binding.homeContinueWatchingContainer, binding.homeWatchingRecyclerView, binding.homeContinueWatch),
-            Triple(binding.homeFavAnimeContainer, binding.homeFavAnimeRecyclerView, binding.homeFavAnime),
-            Triple(binding.homePlannedAnimeContainer, binding.homePlannedAnimeRecyclerView, binding.homePlannedAnime),
-            Triple(binding.homeMissingSequelsContainer, binding.homeMissingSequelsRecyclerView, binding.homeMissingSequels),
-            Triple(binding.homeRecommendedContainer, binding.homeRecommendedRecyclerView, binding.homeRecommended),
-        )
+        val sections = homeSections()
         // Reset links first so sections that are no longer visible can't grab focus
-        for ((container, recycler, _) in sections) {
-            recycler.nextFocusUpId = View.NO_ID
-            recycler.nextFocusDownId = View.NO_ID
-            if (container.childCount > 0) {
-                val row = container.getChildAt(0)
+        for (sec in sections) {
+            sec.rv.nextFocusUpId = View.NO_ID
+            sec.rv.nextFocusDownId = View.NO_ID
+            if (sec.container.childCount > 0) {
+                val row = sec.container.getChildAt(0)
                 row.isFocusable = false
                 row.nextFocusUpId = View.NO_ID
                 row.nextFocusDownId = View.NO_ID
             }
+            if (sectionItemFocusListeners.add(sec.rv)) {
+                sec.rv.addOnChildAttachStateChangeListener(object : RecyclerView.OnChildAttachStateChangeListener {
+                    override fun onChildViewAttachedToWindow(view: View) { wireSectionItem(view) }
+                    override fun onChildViewDetachedFromWindow(view: View) {}
+                })
+            }
         }
         // Wire only sections that actually have visible content
         val wired = sections.filter {
-            it.first.visibility == View.VISIBLE &&
-                it.second.visibility == View.VISIBLE &&
-                it.third.visibility == View.VISIBLE
+            it.container.visibility == View.VISIBLE &&
+                it.rv.visibility == View.VISIBLE &&
+                it.title.visibility == View.VISIBLE
         }
         for (i in wired.indices) {
-            val (container, recycler, _) = wired[i]
-            val row = container.getChildAt(0)
+            val sec = wired[i]
+            val row = sec.container.getChildAt(0)
             val prev = wired.getOrNull(i - 1)
             val next = wired.getOrNull(i + 1)
-            recycler.isFocusable = true
+            sec.rv.isFocusable = true
             row.isFocusable = true
-            row.nextFocusDownId = recycler.id
-            recycler.nextFocusUpId = row.id
-            recycler.nextFocusDownId = next?.second?.id ?: View.NO_ID
-            row.nextFocusUpId = prev?.second?.id ?: View.NO_ID
+            row.nextFocusDownId = sec.rv.id
+            sec.rv.nextFocusUpId = row.id
+            sec.rv.nextFocusDownId = next?.rv?.id ?: View.NO_ID
+            row.nextFocusUpId = prev?.rv?.id ?: View.NO_ID
         }
+        // Apply the same item-level links to already-attached children
+        for (sec in sections) {
+            for (i in 0 until sec.rv.childCount) {
+                wireSectionItem(sec.rv.getChildAt(i))
+            }
+        }
+    }
+
+    private fun wireSectionItem(view: View) {
+        val parentRv = view.parent as? RecyclerView ?: return
+        val wired = homeSections().filter {
+            it.container.visibility == View.VISIBLE &&
+                it.rv.visibility == View.VISIBLE &&
+                it.title.visibility == View.VISIBLE
+        }
+        val idx = wired.indexOfFirst { it.rv == parentRv }
+        if (idx < 0) return
+        val prev = wired.getOrNull(idx - 1)
+        val next = wired.getOrNull(idx + 1)
+        if (parentRv == binding.homeWatchingRecyclerView) {
+            view.nextFocusUpId = cwItemUpTarget
+        } else {
+            view.nextFocusUpId = prev?.rv?.id ?: View.NO_ID
+        }
+        view.nextFocusDownId = next?.rv?.id ?: View.NO_ID
     }
 
     private var bannerCarouselAdapter: BannerCarouselAdapter? = null
@@ -734,7 +772,7 @@ class HomeFragment : Fragment() {
         rv.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
         rv.isFocusable = true
         rv.descendantFocusability = android.view.ViewGroup.FOCUS_AFTER_DESCENDANTS
-        rv.nextFocusDownId = R.id.homeContinueWatchRow
+        rv.nextFocusDownId = R.id.homeWatchingRecyclerView
         bannerSnapHelper.attachToRecyclerView(rv)
 
         model.getTrendingBanner().observe(viewLifecycleOwner) { items ->
@@ -752,7 +790,7 @@ class HomeFragment : Fragment() {
                                 intent.putExtra("anime", true)
                                 startActivity(intent)
                             }, urls, logos,
-                            nextFocusDownId = R.id.homeContinueWatchRow,
+                            nextFocusDownId = R.id.homeWatchingRecyclerView,
                             layoutRes = R.layout.item_banner_card,
                             cardMode = true,
                             hideDescription = true
@@ -1001,7 +1039,7 @@ class HomeFragment : Fragment() {
         }
         FocusEffectUtil.applyFocusListener(btn)
         btn.nextFocusUpId = R.id.mainCalendarContainer
-        btn.nextFocusDownId = R.id.homeContinueWatchRow
+        btn.nextFocusDownId = R.id.homeWatchingRecyclerView
     }
 
     private fun currentHomeBannerMedia(): Media? {
@@ -1042,23 +1080,30 @@ class HomeFragment : Fragment() {
         val watchBtn = b.homeBannerWatchBtn
         when {
             !isLandscape || !hasBanner -> {
+                cwItemUpTarget = R.id.homeBannerCarousel
                 cwRow?.nextFocusUpId = R.id.homeBannerCarousel
                 cal?.nextFocusDownId = R.id.homeBannerCarousel
                 avatar?.nextFocusDownId = R.id.homeBannerCarousel
                 watchBtn.isVisible = false
             }
             navActive -> {
+                cwItemUpTarget = R.id.mainCalendarContainer
                 cwRow?.nextFocusUpId = R.id.mainCalendarContainer
-                cal?.nextFocusDownId = R.id.navBannerCard
-                avatar?.nextFocusDownId = R.id.navBannerCard
+                cal?.nextFocusDownId = R.id.homeWatchingRecyclerView
+                avatar?.nextFocusDownId = R.id.homeWatchingRecyclerView
                 watchBtn.isVisible = false
             }
             else -> {
+                cwItemUpTarget = R.id.homeBannerWatchBtn
                 cwRow?.nextFocusUpId = R.id.homeBannerWatchBtn
                 cal?.nextFocusDownId = R.id.homeBannerWatchBtn
                 avatar?.nextFocusDownId = R.id.homeBannerWatchBtn
                 watchBtn.isVisible = true
             }
+        }
+        // Keep already-attached continue-watching cards pointed at the mode target
+        for (i in 0 until b.homeWatchingRecyclerView.childCount) {
+            b.homeWatchingRecyclerView.getChildAt(i).nextFocusUpId = cwItemUpTarget
         }
     }
 
