@@ -60,7 +60,8 @@ class TmdbSearchActivity : AppCompatActivity() {
         FocusEffectUtil.applyFocusListener(binding.tmdbSearchClearHistory)
 
         binding.tmdbSearchFilter.setOnClickListener {
-            snackString("Filter coming soon")
+            val dialog = TmdbSearchFilterDialog.newInstance { result -> runFiltered(result) }
+            dialog.show(supportFragmentManager, "tmdbFilter")
         }
         FocusEffectUtil.applyFocusListener(binding.tmdbSearchFilter)
 
@@ -96,6 +97,26 @@ class TmdbSearchActivity : AppCompatActivity() {
             adapter.submit(results)
             binding.tmdbSearchEmpty.isVisible = results.isEmpty()
             if (results.isEmpty()) snackString("No results for '$query'")
+        }
+    }
+
+    private fun runFiltered(filter: TmdbFilterResult) {
+        binding.tmdbSearchHistory.isVisible = false
+        binding.tmdbSearchGrid.isVisible = true
+        binding.tmdbSearchProgress.isVisible = true
+        binding.tmdbSearchEmpty.isVisible = false
+        lifecycleScope.launch {
+            val results = Tmdb.discover(
+                mediaType = filter.mediaType,
+                genres = filter.genres.joinToString(",").ifBlank { null },
+                keywords = filter.keywords.joinToString(",").ifBlank { null },
+                year = filter.year,
+                sort = filter.sort
+            )
+            binding.tmdbSearchProgress.isVisible = false
+            adapter.submit(results)
+            binding.tmdbSearchEmpty.isVisible = results.isEmpty()
+            if (results.isEmpty()) snackString("No results with this filter")
         }
     }
 

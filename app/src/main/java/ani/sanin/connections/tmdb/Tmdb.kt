@@ -73,6 +73,9 @@ data class TmdbImage(@SerialName("file_path") val filePath: String? = null)
 data class TmdbGenre(val id: Int, val name: String)
 
 @Serializable
+data class TmdbKeyword(val id: Int, val name: String)
+
+@Serializable
 data class TmdbExternalIds(@SerialName("imdb_id") val imdbId: String? = null)
 
 @Serializable
@@ -153,6 +156,7 @@ object Tmdb {
     }
 
     suspend fun discover(
+        mediaType: String = "movie",
         genres: String? = null,
         sort: String? = null,
         year: Int? = null,
@@ -164,7 +168,7 @@ object Tmdb {
         sort?.let { query.add("sort_by" to it) }
         year?.let { query.add("year" to it.toString()) }
         keywords?.let { query.add("with_keywords" to it) }
-        val body = get("/discover/movie", *query.toTypedArray()) ?: return emptyList()
+        val body = get("/discover/$mediaType", *query.toTypedArray()) ?: return emptyList()
         return runCatching { json.decodeFromString<TmdbPage<TmdbMedia>>(body).results }
             .getOrDefault(emptyList())
     }
@@ -192,10 +196,12 @@ object Tmdb {
     suspend fun latestMovies(page: Int = 1): List<TmdbMedia> =
         discover(sort = "primary_release_date.desc", page = page)
 
-    suspend fun latestSeries(page: Int = 1): List<TmdbMedia> {
-        val body = get("/discover/tv", "sort_by" to "first_air_date.desc", "page" to page.toString())
-            ?: return emptyList()
-        return runCatching { json.decodeFromString<TmdbPage<TmdbMedia>>(body).results }
+    suspend fun latestSeries(page: Int = 1): List<TmdbMedia> =
+        discover("tv", sort = "first_air_date.desc", page = page)
+
+    suspend fun searchKeywords(query: String): List<TmdbKeyword> {
+        val body = get("/search/keyword", "query" to query) ?: return emptyList()
+        return runCatching { json.decodeFromString<TmdbPage<TmdbKeyword>>(body).results }
             .getOrDefault(emptyList())
     }
 

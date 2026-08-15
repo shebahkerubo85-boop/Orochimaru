@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="@font/poppins_bold"
+            android:text="Filter"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="18sp" />
+
+        <ImageButton
+            android:id="@+id/tmdbFilterReset"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="Reset filter"
+            android:focusable="true"
+            android:padding="10dp"
+            app:srcCompat="@drawable/ic_round_refresh_24"
+            app:tint="?attr/colorOnSurface" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/tmdbFilterSort"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:focusable="true"
+            android:text="Sort: Popularity"
+            app:chipBackgroundColor="@color/nav_bg_inv"
+            app:chipStrokeColor="@color/cs_chip_stroke"
+            app:chipStrokeWidth="1.5dp"
+            android:textColor="@color/cs_chip_text" />
+
+        <EditText
+            android:id="@+id/tmdbFilterYear"
+            android:layout_width="100dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="16dp"
+            android:background="@color/nav_bg_inv"
+            android:focusable="true"
+            android:fontFamily="@font/poppins_semi_bold"
+            android:hint="Year"
+            android:imeOptions="actionDone"
+            android:inputType="number"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:textColor="?attr/colorOnSurface"
+            android:textColorHint="?attr/colorOutline"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <com.google.android.material.chip.ChipGroup
+        android:id="@+id/tmdbFilterMedia"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        app:singleSelection="true">
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/tmdbFilterMovieChip"
+            style="@style/Widget.Material3.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:focusable="true"
+            android:text="Movies" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/tmdbFilterTvChip"
+            style="@style/Widget.Material3.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:focusable="true"
+            android:text="TV" />
+    </com.google.android.material.chip.ChipGroup>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:fontFamily="@font/poppins_bold"
+        android:text="Genres"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp" />
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:scrollbars="none">
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/tmdbFilterGenres"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:singleSelection="false" />
+    </HorizontalScrollView>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:fontFamily="@font/poppins_bold"
+        android:text="Keywords"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <EditText
+            android:id="@+id/tmdbFilterKeywordInput"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:background="@color/nav_bg_inv"
+            android:focusable="true"
+            android:fontFamily="@font/poppins_semi_bold"
+            android:hint="Add keyword (e.g. superhero)"
+            android:imeOptions="actionDone"
+            android:inputType="text"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:textColor="?attr/colorOnSurface"
+            android:textColorHint="?attr/colorOutline"
+            android:textSize="13sp" />
+
+        <ImageButton
+            android:id="@+id/tmdbFilterKeywordAdd"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="8dp"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="Add keyword"
+            android:focusable="true"
+            android:padding="10dp"
+            app:srcCompat="@drawable/ic_round_add_circle_24"
+            app:tint="?attr/colorPrimary" />
+    </LinearLayout>
+
+    <com.google.android.material.chip.ChipGroup
+        android:id="@+id/tmdbFilterKeywordChips"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        app:singleSelection="false" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/tmdbFilterApply"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="20dp"
+        android:focusable="true"
+        android:text="Apply Filter"
+        android:textSize="15sp"
+        app:cornerRadius="26dp" />
+</LinearLayout>
