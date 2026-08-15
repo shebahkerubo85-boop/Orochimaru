@@ -163,7 +163,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
                 (stripW - sidePad * 2).coerceAtLeast(1)
             trendingBinding.trendingOverlayLogo.maxHeight = (cardH * 0.30f).toInt()
             trendingBinding.trendingOverlaySynopsis.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                width = (stripW - sidePad * 2).coerceAtLeast(1)
+                width = (stripW - sidePad * 2 + cardW / 4).coerceAtLeast(1)
             }
             updateTrendingOverlayForCurrent()
         } else {
