@@ -127,7 +127,7 @@ class SubtitleRailController(
         recycler.post {
             recycler.scrollToPosition(0)
             recycler.post {
-                val holder = recycler.findViewHolderForAdapterPosition(0) as? RailViewHolder
+                val holder = recycler.findViewHolderForAdapterPosition(0) as? RailAdapter.RailViewHolder
                 val toggle = holder?.binding?.subtitleToggle
                 if (toggle != null) toggle.requestFocus() else closeButton.requestFocus()
             }
@@ -379,7 +379,7 @@ class SubtitleRailController(
             distinct.indexOfFirst { it.equals(filter, ignoreCase = true) }
         }?.plus(1) ?: 0
 
-        customAlertDialog().apply {
+        activity.customAlertDialog().apply {
             setTitle("Subtitle Language")
             singleChoiceItems(options.toTypedArray(), currentIndex) { selected ->
                 languageFilter = if (selected == 0) null else distinct[selected - 1]
