@@ -681,7 +681,7 @@ class HomeFragment : Fragment() {
 
 
 
-    private class HomeSection(val container: View, val rv: RecyclerView, val title: TextView)
+    private class HomeSection(val container: ViewGroup, val rv: RecyclerView, val title: TextView)
 
     private val sectionItemFocusListeners = mutableSetOf<RecyclerView>()
     private var cwItemUpTarget = View.NO_ID
