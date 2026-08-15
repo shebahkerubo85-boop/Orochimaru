@@ -1,5 +1,7 @@
 package ani.sanin.media.anime
 
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.graphics.Color.TRANSPARENT
 import android.view.LayoutInflater
 import android.view.View
@@ -35,10 +37,11 @@ import kotlinx.coroutines.withContext
 /**
  * Left-side subtitle rail for the player.
  *
- * Replaces the old bottom-sheet [SubtitleDialogFragment]: the rail shows
- * Subtitles Off, the current server's subtitles, other servers' subtitles
- * (fetched on demand), embedded stream tracks, online subtitles, local
- * subtitles and subtitle sync — all in one D-pad friendly list.
+ * Replaces the old bottom-sheet [SubtitleDialogFragment]: the rail shows a
+ * master subtitle toggle, the current server's subtitles, other servers'
+ * subtitles (fetched on demand), embedded stream tracks, online subtitles,
+ * local subtitles and subtitle sync — all in one D-pad friendly list.
+ * When the master toggle is off every row below it is greyed out.
  */
 class SubtitleRailController(
     private val activity: ExoplayerView,
@@ -53,6 +56,9 @@ class SubtitleRailController(
         val label: String,
         val isHeader: Boolean = false,
         val isStatus: Boolean = false,
+        val isToggle: Boolean = false,
+        val badge: String? = null,
+        val globe: Boolean = false,
         val selectedKey: String? = null,
         val selectedWhen: (String?) -> Boolean = { it == selectedKey },
         val onClick: (() -> Unit)? = null,
@@ -86,8 +92,9 @@ class SubtitleRailController(
     }
 
     fun focusFirst() {
+        val enabled = PrefManager.getVal<Boolean>(PrefName.Subtitles)
         val focusable = (0 until rows.size).firstOrNull { index ->
-            rows[index].onClick != null
+            rows[index].onClick != null && (rows[index].isToggle || enabled)
         }
         if (focusable != null) {
             recycler.post {
@@ -111,13 +118,12 @@ class SubtitleRailController(
 
         rows.clear()
 
-        // 1. Subtitles Off
+        // 1. Master subtitle toggle
         rows.add(
             RailItem(
-                label = "Subtitles Off",
-                selectedKey = "None",
-                selectedWhen = { it == "None" || (it == null && episode.selectedSubtitle == null) },
-                onClick = { selectNone(media, episode, prefKey) },
+                label = "Subtitles",
+                isToggle = true,
+                onClick = { toggleSubtitles() },
             )
         )
 
@@ -129,6 +135,7 @@ class SubtitleRailController(
                 rows.add(
                     RailItem(
                         label = languageLabel(sub.language),
+                        badge = serverAbbrev(currentExtractor.server.name),
                         selectedKey = sub.language,
                         onClick = { selectServerSub(media, episode, prefKey, index, sub.language) },
                     )
@@ -145,7 +152,8 @@ class SubtitleRailController(
                     ex.subtitles.forEach { sub ->
                         rows.add(
                             RailItem(
-                                label = "[${ex.server.name}] ${languageLabel(sub.language)}",
+                                label = languageLabel(sub.language),
+                                badge = serverAbbrev(ex.server.name),
                                 selectedKey = "Online:${sub.file.url}",
                                 onClick = { selectRemoteSub(media, episode, prefKey, ex.server.name, sub) },
                             )
@@ -181,6 +189,7 @@ class SubtitleRailController(
                     rows.add(
                         RailItem(
                             label = label,
+                            badge = "EM",
                             onClick = {
                                 activity.onSetTrackGroupOverride(group, C.TRACK_TYPE_TEXT, trackIndex)
                                 close()
@@ -199,14 +208,18 @@ class SubtitleRailController(
                 when (item) {
                     is StremioSub -> rows.add(
                         RailItem(
-                            label = "[ONLINE] ${languageLabel(item.lang)}",
+                            label = languageLabel(item.lang),
+                            badge = sourceAbbrev(item.source),
+                            globe = true,
                             selectedKey = "Online:${item.id}",
                             onClick = { selectOnline(media, episode, prefKey, item) },
                         )
                     )
                     is WyzieSub -> rows.add(
                         RailItem(
-                            label = "[${item.format.uppercase()}] ${item.displayLabel}",
+                            label = item.displayLabel,
+                            badge = "WY",
+                            globe = true,
                             selectedKey = "Online:${item.url}",
                             onClick = { selectWyzie(media, episode, prefKey, item) },
                         )
@@ -231,6 +244,7 @@ class SubtitleRailController(
                 rows.add(
                     RailItem(
                         label = item.language,
+                        badge = "LO",
                         selectedKey = item.language,
                         onClick = { selectLocal(media, prefKey, item) },
                     )
@@ -255,17 +269,12 @@ class SubtitleRailController(
         adapter.notifyDataSetChanged()
     }
 
-    // --- Selection actions ---
+    // --- Toggle & selection actions ---
 
-    private fun selectNone(media: Media, episode: Episode, prefKey: String) {
-        val embeddedMode = !activity.subtitleRailHasExtSubtitles()
-        PrefManager.setCustomVal(prefKey, "None")
-        episode.selectedSubtitle = null
-        model.setEpisode(episode, "Subtitle")
-        if (embeddedMode) {
-            activity.onSetTrackGroupOverride(activity.subtitleRailDummyTrack(), C.TRACK_TYPE_TEXT, 0)
-        }
-        close()
+    private fun toggleSubtitles() {
+        val enabled = !PrefManager.getVal<Boolean>(PrefName.Subtitles)
+        activity.setSubtitlesEnabled(enabled)
+        rebuild()
     }
 
     private fun selectServerSub(media: Media, episode: Episode, prefKey: String, index: Int, language: String) {
@@ -363,6 +372,19 @@ class SubtitleRailController(
 
     // --- Formatting helpers ---
 
+    private fun sourceAbbrev(source: String): String = when (source.lowercase()) {
+        "wyzie", "wy" -> "WY"
+        "stremio", "st" -> "ST"
+        "opensubtitles", "op" -> "OP"
+        "subsource", "ss" -> "SS"
+        else -> source.take(2).uppercase()
+    }
+
+    private fun serverAbbrev(server: String): String {
+        val letters = server.filter { it.isLetter() }.uppercase()
+        return letters.take(2).ifEmpty { "SR" }
+    }
+
     private fun languageLabel(lang: String): String {
         return when (lang.lowercase()) {
             "eng", "en", "en-us" -> "English"
@@ -420,25 +442,61 @@ class SubtitleRailController(
             val binding = holder.binding
             val item = rows[position]
             FocusEffectUtil.applyFocusListener(binding.root)
+
+            val subtitlesEnabled = PrefManager.getVal<Boolean>(PrefName.Subtitles)
+            val enabled = item.isToggle || subtitlesEnabled
+            val primary = PrefManager.getVal<Int>(PrefName.PrimaryColor)
+            val grey = 0xFF808080.toInt()
+
             binding.subtitleTitle.text = item.label
+            binding.subtitleTitle.setTextColor(if (enabled) Color.WHITE else grey)
+
+            // Master toggle switch
+            binding.subtitleToggle.visibility = if (item.isToggle) View.VISIBLE else View.GONE
+            if (item.isToggle) {
+                binding.subtitleToggle.setOnCheckedChangeListener(null)
+                binding.subtitleToggle.isChecked = subtitlesEnabled
+                binding.subtitleToggle.setOnCheckedChangeListener { _, checked ->
+                    activity.setSubtitlesEnabled(checked)
+                    rebuild()
+                }
+            }
+
+            // Globe icon replaces the old "[ONLINE]" text prefix
+            binding.subtitleGlobe.visibility = if (item.globe) View.VISIBLE else View.GONE
+            if (item.globe) {
+                binding.subtitleGlobe.imageTintList =
+                    ColorStateList.valueOf(if (enabled) primary else grey)
+            }
+
+            // Source badge in primary color
+            binding.subtitleBadge.visibility = if (item.badge != null) View.VISIBLE else View.GONE
+            if (item.badge != null) {
+                binding.subtitleBadge.text = item.badge
+                binding.subtitleBadge.setTextColor(if (enabled) primary else grey)
+                binding.subtitleBadge.backgroundTintList = ColorStateList.valueOf(
+                    if (enabled) {
+                        ColorUtils.setAlphaComponent(primary, 40)
+                    } else {
+                        ColorUtils.setAlphaComponent(grey, 40)
+                    }
+                )
+            }
 
             val media = model.getMedia().value
             val currentPref = media?.let {
                 PrefManager.getNullableCustomVal("subLang_${it.id}", null, String::class.java)
             }
-            val highlighted = item.selectedWhen(currentPref)
+            val highlighted = enabled && item.selectedWhen(currentPref)
             binding.root.setCardBackgroundColor(
                 if (highlighted) {
-                    ColorUtils.setAlphaComponent(
-                        PrefManager.getVal<Int>(PrefName.PrimaryColor),
-                        60
-                    )
+                    ColorUtils.setAlphaComponent(primary, 60)
                 } else {
                     TRANSPARENT
                 }
             )
 
-            val clickable = item.onClick != null
+            val clickable = item.onClick != null && enabled
             binding.root.isClickable = clickable
             binding.root.isFocusable = clickable
             binding.root.setOnClickListener { item.onClick?.invoke() }
