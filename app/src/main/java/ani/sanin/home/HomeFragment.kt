@@ -326,6 +326,8 @@ class HomeFragment : Fragment() {
                     more.startAnimation(setSlideUp())
                     title.startAnimation(setSlideUp())
                     progress.visibility = View.GONE
+                    setupSectionFocusChain()
+                    applyHomeBannerFocusChain()
                 }
             }
         }
@@ -380,6 +382,8 @@ class HomeFragment : Fragment() {
                     more.startAnimation(setSlideUp())
                     title.startAnimation(setSlideUp())
                     progress.visibility = View.GONE
+                    setupSectionFocusChain()
+                    applyHomeBannerFocusChain()
                 }
             }
 
@@ -554,6 +558,8 @@ class HomeFragment : Fragment() {
                         }
                     }
                 }
+                setupSectionFocusChain()
+                applyHomeBannerFocusChain()
             }
 
         live.observe(viewLifecycleOwner) { shouldRefresh ->
@@ -677,28 +683,40 @@ class HomeFragment : Fragment() {
 
     private fun setupSectionFocusChain() {
         val sections = listOf(
-            binding.homeContinueWatchingContainer to binding.homeWatchingRecyclerView,
-            binding.homeFavAnimeContainer to binding.homeFavAnimeRecyclerView,
-            binding.homePlannedAnimeContainer to binding.homePlannedAnimeRecyclerView,
+            Triple(binding.homeContinueWatchingContainer, binding.homeWatchingRecyclerView, binding.homeContinueWatch),
+            Triple(binding.homeFavAnimeContainer, binding.homeFavAnimeRecyclerView, binding.homeFavAnime),
+            Triple(binding.homePlannedAnimeContainer, binding.homePlannedAnimeRecyclerView, binding.homePlannedAnime),
+            Triple(binding.homeMissingSequelsContainer, binding.homeMissingSequelsRecyclerView, binding.homeMissingSequels),
+            Triple(binding.homeRecommendedContainer, binding.homeRecommendedRecyclerView, binding.homeRecommended),
         )
-        var prevRecycler: View? = null
-        var prevTitleRow: View? = null
-        for ((container, recycler) in sections) {
-            recycler.isFocusable = true
-            val titleRow = if (container.childCount > 0) container.getChildAt(0) else null
-            if (titleRow != null) {
-                titleRow.isFocusable = true
-                titleRow.nextFocusDownId = recycler.id
-                if (prevRecycler != null) {
-                    titleRow.nextFocusUpId = prevRecycler.id
-                    prevRecycler.nextFocusDownId = titleRow.id
-                } else {
-                    titleRow.nextFocusUpId = binding.homeBannerCarousel.id
-                }
-                recycler.nextFocusUpId = titleRow.id
-                prevRecycler = recycler
-                prevTitleRow = titleRow
+        // Reset links first so sections that are no longer visible can't grab focus
+        for ((container, recycler, _) in sections) {
+            recycler.nextFocusUpId = View.NO_ID
+            recycler.nextFocusDownId = View.NO_ID
+            if (container.childCount > 0) {
+                val row = container.getChildAt(0)
+                row.isFocusable = false
+                row.nextFocusUpId = View.NO_ID
+                row.nextFocusDownId = View.NO_ID
             }
+        }
+        // Wire only sections that actually have visible content
+        val wired = sections.filter {
+            it.first.visibility == View.VISIBLE &&
+                it.second.visibility == View.VISIBLE &&
+                it.third.visibility == View.VISIBLE
+        }
+        for (i in wired.indices) {
+            val (container, recycler, _) = wired[i]
+            val row = container.getChildAt(0)
+            val prev = wired.getOrNull(i - 1)
+            val next = wired.getOrNull(i + 1)
+            recycler.isFocusable = true
+            row.isFocusable = true
+            row.nextFocusDownId = recycler.id
+            recycler.nextFocusUpId = row.id
+            recycler.nextFocusDownId = next?.second?.id ?: View.NO_ID
+            row.nextFocusUpId = prev?.second?.id ?: View.NO_ID
         }
     }
 
@@ -716,7 +734,7 @@ class HomeFragment : Fragment() {
         rv.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
         rv.isFocusable = true
         rv.descendantFocusability = android.view.ViewGroup.FOCUS_AFTER_DESCENDANTS
-        rv.nextFocusDownId = R.id.homeContinueWatch
+        rv.nextFocusDownId = R.id.homeContinueWatchRow
         bannerSnapHelper.attachToRecyclerView(rv)
 
         model.getTrendingBanner().observe(viewLifecycleOwner) { items ->
@@ -734,7 +752,7 @@ class HomeFragment : Fragment() {
                                 intent.putExtra("anime", true)
                                 startActivity(intent)
                             }, urls, logos,
-                            nextFocusDownId = R.id.homeContinueWatch,
+                            nextFocusDownId = R.id.homeContinueWatchRow,
                             layoutRes = R.layout.item_banner_card,
                             cardMode = true,
                             hideDescription = true
@@ -844,8 +862,16 @@ class HomeFragment : Fragment() {
             private var currentIndex = startPos
             override fun run() {
                 if (itemCount == 0) return
-                currentIndex++
-                rv.smoothScrollToPosition(currentIndex)
+                val focus = activity?.currentFocus
+                val onBannerControl = focus != null && (
+                    focus.id == R.id.homeBannerWatchBtn ||
+                    focus.id == R.id.homeBannerCarousel ||
+                    binding.homeBannerCarousel.findContainingViewHolder(focus) != null
+                )
+                if (!onBannerControl) {
+                    currentIndex++
+                    rv.smoothScrollToPosition(currentIndex)
+                }
                 bannerAutoScrollHandler?.postDelayed(this, 5000L)
             }
         }
@@ -1115,7 +1141,7 @@ class HomeFragment : Fragment() {
             b.navBannerBgA.scaleType = ImageView.ScaleType.FIT_CENTER
             b.navBannerBgB.scaleType = ImageView.ScaleType.FIT_CENTER
             b.navBannerCard.isFocusable = true
-            b.navBannerCard.nextFocusDownId = R.id.homeContinueWatch
+            b.navBannerCard.nextFocusDownId = R.id.homeContinueWatchRow
             navBannerCurrentMedia?.let { updateHomeBannerOverlay(it) }
         } else {
             b.navBannerContent.isVisible = true

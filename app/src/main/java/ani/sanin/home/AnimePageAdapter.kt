@@ -238,6 +238,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         }
 
         bannerAdapter?.setLandscapeMode(isLandscape, cardW)
+        trendingBinding.trendingWatchBtn.isVisible = isLandscape
         setupTrendingWatchBtn()
     }
 
@@ -414,8 +415,16 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             private var currentIndex = start
             override fun run() {
                 if (media.isEmpty()) return
-                currentIndex++
-                rv.smoothScrollToPosition(currentIndex)
+                val focus = (binding.root.context as? AppCompatActivity)?.currentFocus
+                val onTrendingControl = focus != null && (
+                    focus.id == R.id.trendingWatchBtn ||
+                    focus.id == R.id.trendingViewPager ||
+                    trendingBinding.trendingViewPager.findContainingViewHolder(focus) != null
+                )
+                if (!onTrendingControl) {
+                    currentIndex++
+                    rv.smoothScrollToPosition(currentIndex)
+                }
                 trendingAutoScrollHandler?.postDelayed(this, 5000L)
             }
         }
