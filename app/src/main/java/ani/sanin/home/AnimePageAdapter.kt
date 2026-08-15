@@ -301,6 +301,39 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         applyTrendingBannerMode()
         val start = Int.MAX_VALUE / 2 - (Int.MAX_VALUE / 2 % media.size)
         rv.scrollToPosition(start)
+        rv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            private var lastTarget = -1
+
+            override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
+                val overlay = trendingBinding.trendingOverlay
+                if (!overlay.isVisible) return
+                val lm = rv.layoutManager as? LinearLayoutManager ?: return
+                val child = lm.getChildAt(0) ?: return
+                val pos = lm.getPosition(child)
+                if (pos == RecyclerView.NO_POSITION) return
+                val cardW = child.width
+                val stripW = overlay.width
+                if (cardW <= 0 || stripW <= 0) return
+                val progress = (-child.left).toFloat() / cardW
+                val real = pos % media.size
+                val target = if (progress < 0.5f) real else (real + 1) % media.size
+                if (target != lastTarget) {
+                    lastTarget = target
+                    updateTrendingOverlay(trendingMedia[target])
+                }
+                val scale = stripW.toFloat() / cardW
+                overlay.translationX =
+                    (if (progress < 0.5f) child.left else child.left + cardW) * scale
+            }
+
+            override fun onScrollStateChanged(rv: RecyclerView, newState: Int) {
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    lastTarget = -1
+                    trendingBinding.trendingOverlay.translationX = 0f
+                    updateTrendingOverlayForCurrent()
+                }
+            }
+        })
         setupTrendingDots(rv, media.size)
         updateTrendingOverlayForCurrent()
         rv.layoutAnimation = LayoutAnimationController(setSlideIn(), 0.25f)

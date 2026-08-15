@@ -221,6 +221,7 @@ fun aniMangaSearch(perPage: Int?) = """
 fun standardMediaInformation() = """
 id
 idMal
+description
 siteUrl
 isAdult
 status(version: 2)
