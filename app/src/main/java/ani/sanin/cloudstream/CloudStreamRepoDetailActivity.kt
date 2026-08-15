@@ -113,7 +113,7 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
 
     inner class SourceAdapter(
         private val onInstall: (CsSource) -> Unit
-    ) : ListAdapter<CsSource, SourceAdapter.VH>(DIFF) {
+    ) : ListAdapter<CsSource, SourceAdapter.VH>(CloudStreamRepoDetailActivity.DIFF) {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
             val b = ItemCsSourceBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -136,19 +136,17 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
         }
 
         class VH(val binding: ItemCsSourceBinding) : RecyclerView.ViewHolder(binding.root)
-
-        companion object {
-            val DIFF = object : DiffUtil.ItemCallback<CsSource>() {
-                override fun areItemsTheSame(oldItem: CsSource, newItem: CsSource) =
-                    oldItem.id == newItem.id
-
-                override fun areContentsTheSame(oldItem: CsSource, newItem: CsSource) =
-                    oldItem == newItem
-            }
-        }
     }
 
     companion object {
         const val ARG_REPO_URL = "repoUrl"
+
+        val DIFF = object : DiffUtil.ItemCallback<CsSource>() {
+            override fun areItemsTheSame(oldItem: CsSource, newItem: CsSource) =
+                oldItem.id == newItem.id
+
+            override fun areContentsTheSame(oldItem: CsSource, newItem: CsSource) =
+                oldItem == newItem
+        }
     }
 }
