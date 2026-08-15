@@ -146,7 +146,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             }
         }
 
-        bannerAdapter?.setLandscapeMode(isLandscape, cardW)
+        bannerAdapter?.setLandscapeMode(isLandscape, cardW, cardH)
     }
 
     fun updateTrending(media: List<Media>) {

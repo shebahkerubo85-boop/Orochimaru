@@ -37,11 +37,15 @@ class BannerCarouselAdapter(
 
     private var landscapeOverlay = false
     private var cardWidthPx = 0
+    private var cardHeightPx = 0
 
-    fun setLandscapeMode(enabled: Boolean, cardWidthPx: Int) {
-        if (this.landscapeOverlay == enabled && this.cardWidthPx == cardWidthPx) return
+    fun setLandscapeMode(enabled: Boolean, cardWidthPx: Int, cardHeightPx: Int) {
+        if (this.landscapeOverlay == enabled && this.cardWidthPx == cardWidthPx &&
+            this.cardHeightPx == cardHeightPx
+        ) return
         this.landscapeOverlay = enabled
         this.cardWidthPx = cardWidthPx
+        this.cardHeightPx = cardHeightPx
         notifyDataSetChanged()
     }
 
@@ -291,6 +295,11 @@ class BannerCarouselAdapter(
             content.layoutParams = lp
             val pad = (12 * density).toInt()
             content.setPadding(pad, pad, pad, pad)
+            holder.description.layoutParams = holder.description.layoutParams.apply {
+                width = ViewGroup.LayoutParams.MATCH_PARENT
+            }
+            holder.clearlogo.maxWidth = (160 * density).toInt()
+            holder.clearlogo.maxHeight = (40 * density).toInt()
             holder.description.isVisible = false
             holder.genresRow.isVisible = false
             return
@@ -300,11 +309,16 @@ class BannerCarouselAdapter(
         scrim.layoutParams = scrim.layoutParams.apply { width = half }
         bottomGradient.isVisible = false
         val lp = content.layoutParams as FrameLayout.LayoutParams
-        lp.width = half
+        lp.width = FrameLayout.LayoutParams.MATCH_PARENT
         lp.gravity = Gravity.LEFT or Gravity.CENTER_VERTICAL
         content.layoutParams = lp
         val pad = (16 * density).toInt()
         content.setPadding(pad, pad, pad, pad)
+        holder.clearlogo.maxWidth = (cardWidthPx * 0.40f).toInt()
+        holder.clearlogo.maxHeight = (cardHeightPx * 0.32f).toInt()
+        holder.description.layoutParams = holder.description.layoutParams.apply {
+            width = cardWidthPx / 4
+        }
         holder.description.isVisible = holder.description.text?.isNotBlank() == true
         holder.genresRow.isVisible = holder.genresRow.childCount > 0
     }
