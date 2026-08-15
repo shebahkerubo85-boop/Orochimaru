@@ -32,7 +32,7 @@
             app:chipBackgroundColor="@color/nav_bg_inv"
             app:chipStrokeColor="@color/cs_chip_stroke"
             app:chipStrokeWidth="2dp"
-            app:chipTextColor="@color/cs_chip_text" />
+            android:textColor="@color/cs_chip_text" />
 
         <TextView
             android:id="@+id/extensions"
@@ -54,7 +54,7 @@
             app:chipBackgroundColor="@color/nav_bg_inv"
             app:chipStrokeColor="@color/cs_chip_stroke"
             app:chipStrokeWidth="2dp"
-            app:chipTextColor="@color/cs_chip_text" />
+            android:textColor="@color/cs_chip_text" />
     </LinearLayout>
 
     <LinearLayout
