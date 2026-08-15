@@ -43,6 +43,73 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
 
         <LinearLayout
+            android:id="@+id/trendingOverlay"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start|center_vertical"
+            android:orientation="vertical"
+            android:paddingStart="24dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/trendingOverlayLogo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:adjustViewBounds="true"
+                android:importantForAccessibility="no"
+                android:maxWidth="220dp"
+                android:maxHeight="90dp"
+                android:scaleType="fitStart" />
+
+            <TextView
+                android:id="@+id/trendingOverlayTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="@font/poppins_bold"
+                android:maxLines="2"
+                android:shadowColor="#99000000"
+                android:shadowDx="1"
+                android:shadowDy="1"
+                android:shadowRadius="4"
+                android:textColor="@color/bg_white"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/trendingOverlayChips"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal" />
+
+            <LinearLayout
+                android:id="@+id/trendingOverlayGenres"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal" />
+
+            <TextView
+                android:id="@+id/trendingOverlaySynopsis"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:alpha="0.85"
+                android:ellipsize="end"
+                android:fontFamily="@font/poppins"
+                android:lineSpacingExtra="4sp"
+                android:maxLines="4"
+                android:textColor="@android:color/white"
+                android:textSize="13sp"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+        <LinearLayout
             android:id="@+id/titleContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

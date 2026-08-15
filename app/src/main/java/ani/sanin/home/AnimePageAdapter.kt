@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import android.widget.TextView
 import android.view.animation.LayoutAnimationController
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -57,6 +58,8 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
     private lateinit var trendingBinding: LayoutTrendingBinding
     var bannerAdapter: BannerCarouselAdapter? = null
     private var bannerSnap: PagerSnapHelper? = null
+    private var trendingMedia: List<Media> = emptyList()
+    private var trendingLogos: Map<Int, String?> = emptyMap()
     private var trendingAutoScrollHandler: android.os.Handler? = null
     private var trendingAutoScrollRunnable: Runnable? = null
 
@@ -146,10 +149,128 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             }
         }
 
-        bannerAdapter?.setLandscapeMode(isLandscape, cardW, cardH)
+        val overlay = trendingBinding.trendingOverlay
+        if (isLandscape) {
+            overlay.isVisible = true
+            val density = ctx.resources.displayMetrics.density
+            val sidePad = (24 * density).toInt()
+            val stripW = ctx.resources.displayMetrics.widthPixels - cardW
+            overlay.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                width = stripW
+            }
+            overlay.setPadding(sidePad, 0, sidePad, 0)
+            trendingBinding.trendingOverlayLogo.maxWidth =
+                (stripW - sidePad * 2).coerceAtLeast(1)
+            trendingBinding.trendingOverlayLogo.maxHeight = (cardH * 0.30f).toInt()
+            trendingBinding.trendingOverlaySynopsis.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                width = minOf(cardW / 4, stripW - sidePad * 2)
+            }
+            updateTrendingOverlayForCurrent()
+        } else {
+            overlay.isVisible = false
+        }
+
+        bannerAdapter?.setLandscapeMode(isLandscape, cardW)
     }
 
+    private fun updateTrendingOverlayForCurrent() {
+        if (!::trendingBinding.isInitialized || trendingMedia.isEmpty()) return
+        val rv = trendingBinding.trendingViewPager
+        val lm = rv.layoutManager as? LinearLayoutManager ?: return
+        val pos = lm.findFirstVisibleItemPosition()
+        val real = if (pos == RecyclerView.NO_POSITION || pos < 0) 0 else pos % trendingMedia.size
+        updateTrendingOverlay(trendingMedia[real])
+    }
+
+    private fun updateTrendingOverlay(media: Media) {
+        val logo = trendingBinding.trendingOverlayLogo
+        val title = trendingBinding.trendingOverlayTitle
+        val chips = trendingBinding.trendingOverlayChips
+        val genres = trendingBinding.trendingOverlayGenres
+        val synopsis = trendingBinding.trendingOverlaySynopsis
+
+        val logoUrl = trendingLogos[media.id]
+        if (!logoUrl.isNullOrBlank()) {
+            logo.isVisible = true
+            title.isVisible = false
+            logo.loadImage(logoUrl)
+        } else {
+            logo.isVisible = false
+            logo.setImageDrawable(null)
+            title.isVisible = true
+            title.text = media.userPreferredName ?: media.name
+        }
+
+        chips.removeAllViews()
+        addTrendingChip(chips, trendingFormatText(media))
+        addTrendingChip(chips, trendingStatusText(media))
+        addTrendingChip(chips, trendingSeasonText(media))
+        addTrendingChip(chips, trendingScoreText(media))
+
+        genres.removeAllViews()
+        for (g in media.genres.take(4)) addTrendingChip(genres, g)
+
+        val desc = media.description
+            ?.replace(Regex("<.*?>"), "")
+            ?.replace(Regex("\s+"), " ")
+            ?.trim()
+        if (!desc.isNullOrBlank()) {
+            synopsis.text = desc
+            synopsis.isVisible = true
+        } else {
+            synopsis.isVisible = false
+        }
+    }
+
+    private fun addTrendingChip(container: LinearLayout, text: String?) {
+        if (text.isNullOrBlank()) return
+        val ctx = container.context
+        val density = ctx.resources.displayMetrics.density
+        val chip = TextView(ctx).apply {
+            this.text = text
+            setTextColor(ContextCompat.getColor(ctx, R.color.bg_white))
+            textSize = 12f
+            setBackgroundResource(R.drawable.tag_chip_bg)
+            setPadding(
+                (10 * density).toInt(),
+                (4 * density).toInt(),
+                (10 * density).toInt(),
+                (4 * density).toInt()
+            )
+            maxLines = 1
+        }
+        val lp = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        lp.marginEnd = (6 * density).toInt()
+        container.addView(chip, lp)
+    }
+
+    private fun trendingFormatText(media: Media): String? =
+        media.format?.replace("_", " ")?.let { fmt ->
+            when {
+                fmt.equals("TV", true) -> "TV Series"
+                fmt.equals("TV_SHORT", true) -> "TV Short"
+                else -> fmt
+            }
+        }
+
+    private fun trendingStatusText(media: Media): String? =
+        media.status?.replace("_", " ")?.lowercase()?.replaceFirstChar { it.uppercase() }
+
+    private fun trendingSeasonText(media: Media): String? {
+        val season = media.anime?.season?.lowercase()
+        val year = media.anime?.seasonYear
+        return if (season != null && year != null) "$season $year" else null
+    }
+
+    private fun trendingScoreText(media: Media): String? =
+        media.meanScore?.let { "$it%" }
+
     fun updateTrending(media: List<Media>) {
+        trendingMedia = media
+        trendingLogos = emptyMap()
         trendingBinding.trendingProgressBar.visibility = View.GONE
         val rv = trendingBinding.trendingViewPager
         rv.layoutManager = LinearLayoutManager(rv.context, LinearLayoutManager.HORIZONTAL, false)
@@ -181,6 +302,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         val start = Int.MAX_VALUE / 2 - (Int.MAX_VALUE / 2 % media.size)
         rv.scrollToPosition(start)
         setupTrendingDots(rv, media.size)
+        updateTrendingOverlayForCurrent()
         rv.layoutAnimation = LayoutAnimationController(setSlideIn(), 0.25f)
         trendingBinding.titleContainer.startAnimation(setSlideUp())
         binding.animeSeasonsCont.layoutAnimation =
@@ -203,7 +325,9 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             val backdrops = allImages.mapValues { it.value.backdropUrl }
             val logos = allImages.mapValues { it.value.logoUrl }
             withContext(Dispatchers.Main) {
+                trendingLogos = logos
                 bannerAdapter?.updateUrls(backdrops, logos)
+                updateTrendingOverlayForCurrent()
             }
         }
     }
@@ -251,6 +375,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
                         else
                             ContextCompat.getDrawable(rv.context, R.drawable.banner_dot_inactive)
                     }
+                    updateTrendingOverlayForCurrent()
                 }
             }
         })
