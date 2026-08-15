@@ -551,6 +551,9 @@ class MainActivity : AppCompatActivity() {
                 }
                 KeyEvent.KEYCODE_DPAD_LEFT -> {
                     val id = currentFocus?.id
+                    if (id == R.id.homeBannerWatchBtn || id == R.id.trendingWatchBtn) {
+                        return false
+                    }
                     if (id == R.id.homeNavHome || id == R.id.homeNavAnime || id == R.id.homeNavDiscovery || id == R.id.homeNavLibrary) {
                         return true
                     }

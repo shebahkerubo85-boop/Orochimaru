@@ -12,6 +12,7 @@ import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -61,6 +62,7 @@ import ani.sanin.navBarHeight
 import ani.sanin.openLinkInBrowser
 import ani.sanin.profile.ProfileActivity
 import ani.sanin.setSafeOnClickListener
+import ani.sanin.util.FocusEffectUtil
 import ani.sanin.setSlideIn
 import ani.sanin.setSlideUp
 import ani.sanin.settings.SettingsDialogFragment
@@ -192,6 +194,8 @@ class HomeFragment : Fragment() {
             }
         }
         setupSectionFocusChain()
+        applyHomeBannerFocusChain()
+        setupHomeBannerWatchBtn()
         binding.homeContinueReadingContainer.visibility = View.GONE
         binding.homeFavMangaContainer.visibility = View.GONE
         binding.homePlannedMangaContainer.visibility = View.GONE
@@ -773,6 +777,8 @@ class HomeFragment : Fragment() {
                             }
                         })
                         applyHomeBannerLandscapeMode()
+                        setupHomeBannerWatchBtn()
+                        applyHomeBannerFocusChain()
                         setupBannerDots(rv, items.size)
                         startBannerAutoScroll(rv, items.size, start)
                         updateHomeBannerOverlayForCurrent()
@@ -940,11 +946,92 @@ class HomeFragment : Fragment() {
         super.onConfigurationChanged(newConfig)
         if (_binding != null) {
             applyHomeBannerLandscapeMode()
+            applyHomeBannerFocusChain()
             binding.homeBannerCardWrap.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                 topMargin = statusBarHeight
             }
             binding.homeNavigatingBannerContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                 topMargin = statusBarHeight
+            }
+        }
+    }
+
+    private fun setupHomeBannerWatchBtn() {
+        val btn = binding.homeBannerWatchBtn
+        btn.setOnClickListener { currentHomeBannerMedia()?.let { openHomeBannerMedia(it) } }
+        btn.setOnKeyListener { _, keyCode, event ->
+            if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+            when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                    currentHomeBannerMedia()?.let { openHomeBannerMedia(it) }
+                    true
+                }
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    moveHomeBannerCarousel(keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
+                    true
+                }
+                else -> false
+            }
+        }
+        FocusEffectUtil.applyFocusListener(btn)
+        btn.nextFocusUpId = R.id.mainCalendarContainer
+        btn.nextFocusDownId = R.id.homeContinueWatchRow
+    }
+
+    private fun currentHomeBannerMedia(): Media? {
+        if (homeBannerItems.isEmpty()) return null
+        val lm = binding.homeBannerCarousel.layoutManager as? LinearLayoutManager ?: return null
+        val pos = lm.findFirstVisibleItemPosition()
+        if (pos == RecyclerView.NO_POSITION || pos < 0) return null
+        return homeBannerItems[pos % homeBannerItems.size]
+    }
+
+    private fun openHomeBannerMedia(media: Media) {
+        val intent = Intent(requireContext(), ani.sanin.media.MediaDetailsActivity::class.java)
+        intent.putExtra("media", media)
+        intent.putExtra("anime", true)
+        startActivity(intent)
+    }
+
+    private fun moveHomeBannerCarousel(forward: Boolean) {
+        val rv = binding.homeBannerCarousel
+        val lm = rv.layoutManager as? LinearLayoutManager ?: return
+        val pos = lm.findFirstVisibleItemPosition()
+        if (pos == RecyclerView.NO_POSITION) return
+        rv.smoothScrollToPosition(pos + (if (forward) 1 else -1))
+    }
+
+    private fun applyHomeBannerFocusChain() {
+        val b = _binding ?: return
+        val isLandscape =
+            b.root.context.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val bannerMode: Int = PrefManager.getVal(PrefName.HomeBannerMode)
+        val carouselActive = bannerMode == 0
+        val navActive = bannerMode == 2
+        val hasBanner = carouselActive || navActive
+        val cal = activity?.findViewById<View>(R.id.mainCalendarContainer)
+        val avatar = activity?.findViewById<View>(R.id.mainUserAvatarContainer)
+        val cwRow = if (b.homeContinueWatchingContainer.childCount > 0)
+            b.homeContinueWatchingContainer.getChildAt(0) else null
+        val watchBtn = b.homeBannerWatchBtn
+        when {
+            !isLandscape || !hasBanner -> {
+                cwRow?.nextFocusUpId = R.id.homeBannerCarousel
+                cal?.nextFocusDownId = R.id.homeBannerCarousel
+                avatar?.nextFocusDownId = R.id.homeBannerCarousel
+                watchBtn.isVisible = false
+            }
+            navActive -> {
+                cwRow?.nextFocusUpId = R.id.mainCalendarContainer
+                cal?.nextFocusDownId = R.id.navBannerCard
+                avatar?.nextFocusDownId = R.id.navBannerCard
+                watchBtn.isVisible = false
+            }
+            else -> {
+                cwRow?.nextFocusUpId = R.id.homeBannerWatchBtn
+                cal?.nextFocusDownId = R.id.homeBannerWatchBtn
+                avatar?.nextFocusDownId = R.id.homeBannerWatchBtn
+                watchBtn.isVisible = true
             }
         }
     }

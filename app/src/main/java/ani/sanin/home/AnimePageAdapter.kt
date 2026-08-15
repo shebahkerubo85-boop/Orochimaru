@@ -2,6 +2,7 @@ package ani.sanin.home
 
 import android.content.Intent
 import android.content.res.Configuration
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -140,6 +141,60 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         }
     }
 
+    private fun setupTrendingWatchBtn() {
+        val btn = trendingBinding.trendingWatchBtn
+        val activity = binding.root.context as? AppCompatActivity
+        btn.setOnClickListener { currentTrendingMedia()?.let { openTrendingMedia(it) } }
+        btn.setOnKeyListener { _, keyCode, event ->
+            if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+            when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                    currentTrendingMedia()?.let { openTrendingMedia(it) }
+                    true
+                }
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    moveTrendingCarousel(keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
+                    true
+                }
+                else -> false
+            }
+        }
+        FocusEffectUtil.applyFocusListener(btn)
+        btn.nextFocusUpId = R.id.mainCalendarContainer
+        binding.animeRecently.isFocusable = true
+        binding.animeRecently.nextFocusUpId = R.id.trendingWatchBtn
+        btn.nextFocusDownId = R.id.animeRecently
+        activity?.findViewById<View>(R.id.mainCalendarContainer)?.nextFocusDownId = R.id.trendingWatchBtn
+        activity?.findViewById<View>(R.id.mainUserAvatarContainer)?.nextFocusDownId = R.id.trendingWatchBtn
+    }
+
+    private fun currentTrendingMedia(): Media? {
+        if (trendingMedia.isEmpty()) return null
+        val lm = trendingBinding.trendingViewPager.layoutManager as? LinearLayoutManager ?: return null
+        val pos = lm.findFirstVisibleItemPosition()
+        if (pos == RecyclerView.NO_POSITION || pos < 0) return null
+        return trendingMedia[pos % trendingMedia.size]
+    }
+
+    private fun openTrendingMedia(media: Media) {
+        val context = binding.root.context
+        ContextCompat.startActivity(
+            context,
+            Intent(context, ani.sanin.media.MediaDetailsActivity::class.java)
+                .putExtra("media", media)
+                .putExtra("anime", true),
+            null
+        )
+    }
+
+    private fun moveTrendingCarousel(forward: Boolean) {
+        val rv = trendingBinding.trendingViewPager
+        val lm = rv.layoutManager as? LinearLayoutManager ?: return
+        val pos = lm.findFirstVisibleItemPosition()
+        if (pos == RecyclerView.NO_POSITION) return
+        rv.smoothScrollToPosition(pos + (if (forward) 1 else -1))
+    }
+
     private fun applyTrendingBannerMode() {
         val ctx = trendingBinding.root.context
         val isLandscape =
@@ -183,6 +238,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         }
 
         bannerAdapter?.setLandscapeMode(isLandscape, cardW)
+        setupTrendingWatchBtn()
     }
 
     private fun updateTrendingOverlayForCurrent() {

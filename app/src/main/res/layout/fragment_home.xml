@@ -332,6 +332,24 @@
                         android:textSize="13sp"
                         android:visibility="gone" />
 
+                    <TextView
+                        android:id="@+id/homeBannerWatchBtn"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:background="@drawable/tag_chip_bg"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:focusableInTouchMode="false"
+                        android:gravity="center"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="6dp"
+                        android:text="@string/watch_now"
+                        android:textColor="@color/bg_white"
+                        android:textSize="12sp"
+                        android:visibility="gone"
+                        tools:visibility="visible" />
+
                 </LinearLayout>
 
                 <LinearLayout
@@ -779,6 +797,7 @@
                 android:visibility="gone">
 
                 <LinearLayout
+                    android:id="@+id/homeContinueWatchRow"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
