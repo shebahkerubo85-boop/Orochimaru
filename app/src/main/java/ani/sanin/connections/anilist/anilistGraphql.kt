@@ -240,6 +240,8 @@ isFavourite
 format
 bannerImage
 countryOfOrigin
+season
+seasonYear
 coverImage {
   large
   extraLarge

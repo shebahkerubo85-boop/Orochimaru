@@ -126,7 +126,9 @@ data class Media(
         timeUntilAiring = apiMedia.nextAiringEpisode?.timeUntilAiring?.let { it.toLong() * 1000 },
         anime = Anime(
             totalEpisodes = apiMedia.episodes,
-            nextAiringEpisode = apiMedia.nextAiringEpisode?.episode?.minus(1)
+            nextAiringEpisode = apiMedia.nextAiringEpisode?.episode?.minus(1),
+            season = apiMedia.season?.toString()?.lowercase(),
+            seasonYear = apiMedia.seasonYear
         ),
         format = apiMedia.format?.toString(),
     )
