@@ -73,7 +73,7 @@ object StremioSubtitles {
                                 if (response.isSuccessful && response.body != null) {
                                     val text = response.body!!.string()
                                     val data = Mapper.json.decodeFromString<StremioResponse>(text)
-                                    allSubs.addAll(data.subtitles)
+                                    allSubs.addAll(data.subtitles.map { it.copy(source = "stremio") })
                                     if (data.subtitles.isNotEmpty()) break
                                 }
                             } catch (e: Exception) {

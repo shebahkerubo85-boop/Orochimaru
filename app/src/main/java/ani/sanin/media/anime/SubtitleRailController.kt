@@ -3,6 +3,11 @@ package ani.sanin.media.anime
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Color.TRANSPARENT
+import android.graphics.Typeface
+import android.text.SpannableString
+import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
+import android.text.style.StyleSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -30,6 +35,7 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.toast
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.Logger
+import ani.sanin.util.customAlertDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -38,27 +44,30 @@ import kotlinx.coroutines.withContext
  * Left-side subtitle rail for the player.
  *
  * Replaces the old bottom-sheet [SubtitleDialogFragment]: the rail shows a
- * master subtitle toggle, the current server's subtitles, other servers'
- * subtitles (fetched on demand), embedded stream tracks, online subtitles,
- * local subtitles and subtitle sync — all in one D-pad friendly list.
+ * master subtitle toggle, subtitle sync, the current server's subtitles,
+ * other servers' subtitles (fetched on demand), embedded stream tracks,
+ * online subtitles and local subtitles — all in one D-pad friendly list.
  * When the master toggle is off every row below it is greyed out.
+ * A language filter in the header narrows rows to one language.
  */
 class SubtitleRailController(
     private val activity: ExoplayerView,
     private val model: MediaDetailsViewModel,
     private val drawer: DrawerLayout,
     private val content: View,
+    private val languageButton: ImageButton,
     private val closeButton: ImageButton,
     private val recycler: RecyclerView,
 ) {
 
     data class RailItem(
-        val label: String,
+        val label: CharSequence,
         val isHeader: Boolean = false,
         val isStatus: Boolean = false,
         val isToggle: Boolean = false,
         val badge: String? = null,
         val globe: Boolean = false,
+        val language: String? = null,
         val selectedKey: String? = null,
         val selectedWhen: (String?) -> Boolean = { it == selectedKey },
         val onClick: (() -> Unit)? = null,
@@ -68,13 +77,17 @@ class SubtitleRailController(
     private val adapter = RailAdapter()
     private val attemptedServers = mutableSetOf<String>()
     private var searchingOnline = false
+    private var languageFilter: String? = null
 
     init {
         recycler.layoutManager = LinearLayoutManager(activity)
         recycler.adapter = adapter
+        languageButton.nextFocusDownId = R.id.subtitleDrawerList
         closeButton.nextFocusDownId = R.id.subtitleDrawerList
         recycler.nextFocusUpId = R.id.subtitleDrawerClose
+        FocusEffectUtil.applyFocusListener(languageButton)
         FocusEffectUtil.applyFocusListener(closeButton)
+        languageButton.setOnClickListener { showLanguageDialog() }
         closeButton.setOnClickListener { close() }
     }
 
@@ -110,6 +123,17 @@ class SubtitleRailController(
         }
     }
 
+    private fun focusToggle() {
+        recycler.post {
+            recycler.scrollToPosition(0)
+            recycler.post {
+                val holder = recycler.findViewHolderForAdapterPosition(0) as? RailViewHolder
+                val toggle = holder?.binding?.subtitleToggle
+                if (toggle != null) toggle.requestFocus() else closeButton.requestFocus()
+            }
+        }
+    }
+
     private fun rebuild() {
         val media = model.getMedia().value ?: return
         val episode = media.anime?.episodes?.get(media.anime.selectedEpisode) ?: return
@@ -127,7 +151,18 @@ class SubtitleRailController(
             )
         )
 
-        // 2. Current server subtitles
+        // 2. Subtitle sync (moved up, styled with smaller italic helper text)
+        rows.add(
+            RailItem(
+                label = syncLabel(),
+                onClick = {
+                    close()
+                    SubtitleSyncDialogFragment().show(activity.supportFragmentManager, "subtitle_sync")
+                }
+            )
+        )
+
+        // 3. Current server subtitles
         val currentExtractor = episode.extractors?.find { it.server.name == episode.selectedExtractor }
         if (currentExtractor != null && currentExtractor.subtitles.isNotEmpty()) {
             rows.add(RailItem("Current Server — ${currentExtractor.server.name}", isHeader = true))
@@ -136,6 +171,7 @@ class SubtitleRailController(
                     RailItem(
                         label = languageLabel(sub.language),
                         badge = serverAbbrev(currentExtractor.server.name),
+                        language = sub.language,
                         selectedKey = sub.language,
                         onClick = { selectServerSub(media, episode, prefKey, index, sub.language) },
                     )
@@ -143,7 +179,7 @@ class SubtitleRailController(
             }
         }
 
-        // 3. Other servers (fetch subtitles on demand)
+        // 4. Other servers (fetch subtitles on demand)
         val otherExtractors = episode.extractors.orEmpty().filter { it.server.name != episode.selectedExtractor }
         if (otherExtractors.isNotEmpty()) {
             rows.add(RailItem("Other Servers", isHeader = true))
@@ -154,6 +190,7 @@ class SubtitleRailController(
                             RailItem(
                                 label = languageLabel(sub.language),
                                 badge = serverAbbrev(ex.server.name),
+                                language = sub.language,
                                 selectedKey = "Online:${sub.file.url}",
                                 onClick = { selectRemoteSub(media, episode, prefKey, ex.server.name, sub) },
                             )
@@ -167,7 +204,7 @@ class SubtitleRailController(
             }
         }
 
-        // 4. Embedded stream tracks (only when the stream itself carries subtitles)
+        // 5. Embedded stream tracks (only when the stream itself carries subtitles)
         val embeddedTracks = activity.subtitleRailEmbeddedTracks()
         if (embeddedTracks.isNotEmpty()) {
             rows.add(RailItem("Embedded Tracks", isHeader = true))
@@ -190,6 +227,7 @@ class SubtitleRailController(
                         RailItem(
                             label = label,
                             badge = "EM",
+                            language = format.language,
                             onClick = {
                                 activity.onSetTrackGroupOverride(group, C.TRACK_TYPE_TEXT, trackIndex)
                                 close()
@@ -200,7 +238,7 @@ class SubtitleRailController(
             }
         }
 
-        // 5. Online subtitles
+        // 6. Online subtitles
         rows.add(RailItem("Online", isHeader = true))
         val cached = model.getFetchedSubtitles(episodeId)
         if (cached != null) {
@@ -211,6 +249,7 @@ class SubtitleRailController(
                             label = languageLabel(item.lang),
                             badge = sourceAbbrev(item.source),
                             globe = true,
+                            language = item.lang,
                             selectedKey = "Online:${item.id}",
                             onClick = { selectOnline(media, episode, prefKey, item) },
                         )
@@ -220,6 +259,7 @@ class SubtitleRailController(
                             label = item.displayLabel,
                             badge = "WY",
                             globe = true,
+                            language = item.language,
                             selectedKey = "Online:${item.url}",
                             onClick = { selectWyzie(media, episode, prefKey, item) },
                         )
@@ -236,7 +276,7 @@ class SubtitleRailController(
             }
         }
 
-        // 6. Local subtitles
+        // 7. Local subtitles
         rows.add(RailItem("Local", isHeader = true))
         val localSubs = model.getLocalSubtitles(episodeId)
         localSubs.forEach { item ->
@@ -245,6 +285,7 @@ class SubtitleRailController(
                     RailItem(
                         label = item.language,
                         badge = "LO",
+                        language = item.language,
                         selectedKey = item.language,
                         onClick = { selectLocal(media, prefKey, item) },
                     )
@@ -258,12 +299,15 @@ class SubtitleRailController(
             })
         )
 
-        // 7. Subtitle sync
-        rows.add(
-            RailItem("Subtitle Sync (online subtitles only)", onClick = {
-                close()
-                SubtitleSyncDialogFragment().show(activity.supportFragmentManager, "subtitle_sync")
-            })
+        // Apply the language filter (keeps toggle, sync, headers and actions)
+        val filter = languageFilter
+        if (filter != null) {
+            rows.removeAll { it.language != null && !it.language.equals(filter, ignoreCase = true) }
+        }
+
+        // Language button reflects an active filter in primary color
+        languageButton.imageTintList = ColorStateList.valueOf(
+            if (filter != null) PrefManager.getVal<Int>(PrefName.PrimaryColor) else Color.WHITE
         )
 
         adapter.notifyDataSetChanged()
@@ -275,6 +319,7 @@ class SubtitleRailController(
         val enabled = !PrefManager.getVal<Boolean>(PrefName.Subtitles)
         activity.setSubtitlesEnabled(enabled)
         rebuild()
+        focusToggle()
     }
 
     private fun selectServerSub(media: Media, episode: Episode, prefKey: String, index: Int, language: String) {
@@ -321,6 +366,29 @@ class SubtitleRailController(
         close()
     }
 
+    // --- Language filter ---
+
+    private fun showLanguageDialog() {
+        val distinct = rows.mapNotNull { it.language }
+            .distinctBy { it.lowercase() }
+            .sortedBy { languageLabel(it).lowercase() }
+        val options = mutableListOf("All Languages")
+        options.addAll(distinct.map { languageLabel(it) })
+
+        val currentIndex = languageFilter?.let { filter ->
+            distinct.indexOfFirst { it.equals(filter, ignoreCase = true) }
+        }?.plus(1) ?: 0
+
+        customAlertDialog().apply {
+            setTitle("Subtitle Language")
+            singleChoiceItems(options.toTypedArray(), currentIndex) { selected ->
+                languageFilter = if (selected == 0) null else distinct[selected - 1]
+                rebuild()
+            }
+            show()
+        }
+    }
+
     // --- On-demand fetches ---
 
     private fun fetchOtherServer(ex: VideoExtractor) {
@@ -336,7 +404,7 @@ class SubtitleRailController(
 
     private fun searchOnline(media: Media, episode: Episode, episodeId: String) {
         searchingOnline = true
-        val searchIndex = rows.indexOfFirst { it.label == "+ Search Online Subtitles" }
+        val searchIndex = rows.indexOfFirst { it.label.toString() == "+ Search Online Subtitles" }
         if (searchIndex != -1) {
             rows[searchIndex] = rows[searchIndex].copy(label = "Searching…", isStatus = true, onClick = null)
             adapter.notifyDataSetChanged()
@@ -374,7 +442,7 @@ class SubtitleRailController(
 
     private fun sourceAbbrev(source: String): String = when (source.lowercase()) {
         "wyzie", "wy" -> "WY"
-        "stremio", "st" -> "ST"
+        "stremio", "st", "online" -> "ST"
         "opensubtitles", "op" -> "OP"
         "subsource", "ss" -> "SS"
         else -> source.take(2).uppercase()
@@ -383,6 +451,21 @@ class SubtitleRailController(
     private fun serverAbbrev(server: String): String {
         val letters = server.filter { it.isLetter() }.uppercase()
         return letters.take(2).ifEmpty { "SR" }
+    }
+
+    private fun syncLabel(): CharSequence {
+        val primary = PrefManager.getVal<Int>(PrefName.PrimaryColor)
+        val lowContrast = 0xFF9E9E9E.toInt()
+        val text = "Subtitle Sync (online subtitles only)"
+        val openIdx = text.indexOf('(')
+        val closeIdx = text.indexOf(')')
+        return SpannableString(text).apply {
+            setSpan(ForegroundColorSpan(primary), openIdx, openIdx + 1, 0)
+            setSpan(RelativeSizeSpan(0.8f), openIdx + 1, closeIdx, 0)
+            setSpan(StyleSpan(Typeface.ITALIC), openIdx + 1, closeIdx, 0)
+            setSpan(ForegroundColorSpan(lowContrast), openIdx + 1, closeIdx, 0)
+            setSpan(ForegroundColorSpan(primary), closeIdx, closeIdx + 1, 0)
+        }
     }
 
     private fun languageLabel(lang: String): String {
@@ -459,6 +542,7 @@ class SubtitleRailController(
                 binding.subtitleToggle.setOnCheckedChangeListener { _, checked ->
                     activity.setSubtitlesEnabled(checked)
                     rebuild()
+                    focusToggle()
                 }
             }
 

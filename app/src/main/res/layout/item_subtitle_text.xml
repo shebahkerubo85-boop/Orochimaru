@@ -33,7 +33,7 @@
             android:layout_height="18dp"
             android:layout_marginStart="6dp"
             android:importantForAccessibility="no"
-            android:src="@drawable/ic_globe_24"
+            android:src="@drawable/ic_globe_primary_24"
             android:visibility="gone"
             tools:visibility="visible" />
 

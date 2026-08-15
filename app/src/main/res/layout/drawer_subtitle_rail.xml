@@ -27,6 +27,16 @@
             android:textSize="16sp" />
 
         <ImageButton
+            android:id="@+id/subtitleLangButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@android:color/transparent"
+            android:focusable="true"
+            android:src="@drawable/ic_round_translate_24"
+            app:tint="@android:color/white"
+            tools:ignore="ContentDescription" />
+
+        <ImageButton
             android:id="@+id/subtitleDrawerClose"
             android:layout_width="40dp"
             android:layout_height="40dp"

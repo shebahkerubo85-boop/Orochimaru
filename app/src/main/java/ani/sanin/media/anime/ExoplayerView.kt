@@ -240,6 +240,7 @@ class ExoplayerView :
     private lateinit var exoSubtitleView: SubtitleView
     private lateinit var subtitleDrawerContent: View
     private lateinit var subtitleDrawerClose: ImageButton
+    private lateinit var subtitleLangButton: ImageButton
     private lateinit var subtitleDrawerList: RecyclerView
     private var subtitleRailController: SubtitleRailController? = null
     private var embeddedSubTracks: List<Tracks.Group> = emptyList()
@@ -637,12 +638,14 @@ class ExoplayerView :
         // Subtitle rail (left side) — mirrors the episode rail focus behaviour.
         subtitleDrawerContent = findViewById(R.id.subtitleDrawer)
         subtitleDrawerClose = findViewById(R.id.subtitleDrawerClose)
+        subtitleLangButton = findViewById(R.id.subtitleLangButton)
         subtitleDrawerList = findViewById(R.id.subtitleDrawerList)
         subtitleRailController = SubtitleRailController(
             this,
             model,
             binding.root,
             subtitleDrawerContent,
+            subtitleLangButton,
             subtitleDrawerClose,
             subtitleDrawerList,
         )
