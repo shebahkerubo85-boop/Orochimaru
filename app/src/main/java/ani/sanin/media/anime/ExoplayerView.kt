@@ -12,9 +12,7 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
-import android.content.res.ColorStateList
 import android.graphics.drawable.Animatable
-import android.graphics.Color
 import android.hardware.SensorManager
 import android.media.AudioManager
 import android.media.AudioManager.AUDIOFOCUS_GAIN
@@ -1932,13 +1930,8 @@ class ExoplayerView :
         if (hasExtSubtitles || media.idIMDB != null) {
             exoSubtitle.isVisible = true
             exoSubtitle.setOnClickListener {
-                toggleSubtitles()
-            }
-            exoSubtitle.setOnLongClickListener {
                 subClick()
-                true
             }
-            applySubtitlesEnabledState()
         }
         val sub: MutableList<MediaItem.SubtitleConfiguration> =
             emptyList<MediaItem.SubtitleConfiguration>().toMutableList()
@@ -3561,23 +3554,11 @@ class ExoplayerView :
     fun subtitleRailDummyTrack(): Tracks.Group = dummyTrack
 
     /**
-     * Master subtitle toggle shared with the settings screen and the player
-     * controller button. Turning it off greys out every subtitle option in the
-     * rail and hides subtitles immediately.
+     * Master subtitle toggle used by the subtitle rail. Turning it off greys
+     * out every subtitle option in the rail and hides subtitles immediately.
      */
     fun setSubtitlesEnabled(enabled: Boolean) {
         PrefManager.setVal(PrefName.Subtitles, enabled)
-        applySubtitlesEnabledState()
-    }
-
-    private fun toggleSubtitles() {
-        setSubtitlesEnabled(!PrefManager.getVal<Boolean>(PrefName.Subtitles))
-    }
-
-    private fun applySubtitlesEnabledState() {
-        val enabled = PrefManager.getVal<Boolean>(PrefName.Subtitles)
-        exoSubtitle.imageTintList =
-            ColorStateList.valueOf(if (enabled) Color.WHITE else 0xFF808080.toInt())
         if (!isInitialized) return
         if (!hasExtSubtitles) {
             if (enabled) {
@@ -3670,15 +3651,8 @@ class ExoplayerView :
         }
         if (!hasExtSubtitles) {
             exoSubtitle.isVisible = subTracks.size > 1 || media.idIMDB != null
-            exoSubtitle.imageTintList = ColorStateList.valueOf(
-                if (PrefManager.getVal<Boolean>(PrefName.Subtitles)) Color.WHITE else 0xFF808080.toInt()
-            )
             exoSubtitle.setOnClickListener {
-                toggleSubtitles()
-            }
-            exoSubtitle.setOnLongClickListener {
                 subClick()
-                true
             }
         }
     }
