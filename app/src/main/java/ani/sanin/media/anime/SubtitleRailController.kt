@@ -1,0 +1,447 @@
+package ani.sanin.media.anime
+
+import android.graphics.Color.TRANSPARENT
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageButton
+import androidx.core.graphics.ColorUtils
+import androidx.drawerlayout.widget.DrawerLayout
+import androidx.lifecycle.lifecycleScope
+import androidx.media3.common.C
+import androidx.media3.common.Tracks
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import ani.sanin.R
+import ani.sanin.connections.subtitles.StremioSub
+import ani.sanin.connections.subtitles.StremioSubtitles
+import ani.sanin.connections.subtitles.WyzieSub
+import ani.sanin.databinding.ItemSubtitleTextBinding
+import ani.sanin.media.EpisodeMapper
+import ani.sanin.media.Media
+import ani.sanin.media.MediaDetailsViewModel
+import ani.sanin.others.IdMappers
+import ani.sanin.parsers.Subtitle
+import ani.sanin.parsers.VideoExtractor
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
+import ani.sanin.toast
+import ani.sanin.util.FocusEffectUtil
+import ani.sanin.util.Logger
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+/**
+ * Left-side subtitle rail for the player.
+ *
+ * Replaces the old bottom-sheet [SubtitleDialogFragment]: the rail shows
+ * Subtitles Off, the current server's subtitles, other servers' subtitles
+ * (fetched on demand), embedded stream tracks, online subtitles, local
+ * subtitles and subtitle sync — all in one D-pad friendly list.
+ */
+class SubtitleRailController(
+    private val activity: ExoplayerView,
+    private val model: MediaDetailsViewModel,
+    private val drawer: DrawerLayout,
+    private val content: View,
+    private val closeButton: ImageButton,
+    private val recycler: RecyclerView,
+) {
+
+    data class RailItem(
+        val label: String,
+        val isHeader: Boolean = false,
+        val isStatus: Boolean = false,
+        val selectedKey: String? = null,
+        val selectedWhen: (String?) -> Boolean = { it == selectedKey },
+        val onClick: (() -> Unit)? = null,
+    )
+
+    private val rows = mutableListOf<RailItem>()
+    private val adapter = RailAdapter()
+    private val attemptedServers = mutableSetOf<String>()
+    private var searchingOnline = false
+
+    init {
+        recycler.layoutManager = LinearLayoutManager(activity)
+        recycler.adapter = adapter
+        closeButton.nextFocusDownId = R.id.subtitleDrawerList
+        recycler.nextFocusUpId = R.id.subtitleDrawerClose
+        FocusEffectUtil.applyFocusListener(closeButton)
+        closeButton.setOnClickListener { close() }
+    }
+
+    fun open() {
+        rebuild()
+        if (drawer.isDrawerOpen(content)) {
+            focusFirst()
+        } else {
+            drawer.openDrawer(content)
+        }
+    }
+
+    fun close() {
+        drawer.closeDrawer(content)
+    }
+
+    fun focusFirst() {
+        val focusable = (0 until rows.size).firstOrNull { index ->
+            rows[index].onClick != null
+        }
+        if (focusable != null) {
+            recycler.post {
+                recycler.scrollToPosition(focusable)
+                recycler.post {
+                    val holder = recycler.findViewHolderForAdapterPosition(focusable)
+                    if (holder != null) holder.itemView.requestFocus()
+                    else closeButton.requestFocus()
+                }
+            }
+        } else {
+            closeButton.requestFocus()
+        }
+    }
+
+    private fun rebuild() {
+        val media = model.getMedia().value ?: return
+        val episode = media.anime?.episodes?.get(media.anime.selectedEpisode) ?: return
+        val prefKey = "subLang_${media.id}"
+        val episodeId = "${media.id}-${episode.number}"
+
+        rows.clear()
+
+        // 1. Subtitles Off
+        rows.add(
+            RailItem(
+                label = "Subtitles Off",
+                selectedKey = "None",
+                selectedWhen = { it == "None" || (it == null && episode.selectedSubtitle == null) },
+                onClick = { selectNone(media, episode, prefKey) },
+            )
+        )
+
+        // 2. Current server subtitles
+        val currentExtractor = episode.extractors?.find { it.server.name == episode.selectedExtractor }
+        if (currentExtractor != null && currentExtractor.subtitles.isNotEmpty()) {
+            rows.add(RailItem("Current Server — ${currentExtractor.server.name}", isHeader = true))
+            currentExtractor.subtitles.forEachIndexed { index, sub ->
+                rows.add(
+                    RailItem(
+                        label = languageLabel(sub.language),
+                        selectedKey = sub.language,
+                        onClick = { selectServerSub(media, episode, prefKey, index, sub.language) },
+                    )
+                )
+            }
+        }
+
+        // 3. Other servers (fetch subtitles on demand)
+        val otherExtractors = episode.extractors.orEmpty().filter { it.server.name != episode.selectedExtractor }
+        if (otherExtractors.isNotEmpty()) {
+            rows.add(RailItem("Other Servers", isHeader = true))
+            otherExtractors.forEach { ex ->
+                if (ex.subtitles.isNotEmpty()) {
+                    ex.subtitles.forEach { sub ->
+                        rows.add(
+                            RailItem(
+                                label = "[${ex.server.name}] ${languageLabel(sub.language)}",
+                                selectedKey = "Online:${sub.file.url}",
+                                onClick = { selectRemoteSub(media, episode, prefKey, ex.server.name, sub) },
+                            )
+                        )
+                    }
+                } else if ("${episode.number}|${ex.server.name}" !in attemptedServers) {
+                    rows.add(RailItem("Loading ${ex.server.name}…", isStatus = true))
+                    attemptedServers.add("${episode.number}|${ex.server.name}")
+                    fetchOtherServer(ex)
+                }
+            }
+        }
+
+        // 4. Embedded stream tracks (only when the stream itself carries subtitles)
+        val embeddedTracks = activity.subtitleRailEmbeddedTracks()
+        if (embeddedTracks.isNotEmpty()) {
+            rows.add(RailItem("Embedded Tracks", isHeader = true))
+            rows.add(
+                RailItem(
+                    label = "Off (embedded)",
+                    onClick = {
+                        activity.onSetTrackGroupOverride(activity.subtitleRailDummyTrack(), C.TRACK_TYPE_TEXT, 0)
+                        close()
+                    },
+                )
+            )
+            embeddedTracks.forEach { group ->
+                for (trackIndex in 0 until group.length) {
+                    val format = group.getTrackFormat(trackIndex)
+                    val label = format.label?.takeIf { it.isNotBlank() }
+                        ?: format.language
+                        ?: "Track ${trackIndex + 1}"
+                    rows.add(
+                        RailItem(
+                            label = label,
+                            onClick = {
+                                activity.onSetTrackGroupOverride(group, C.TRACK_TYPE_TEXT, trackIndex)
+                                close()
+                            },
+                        )
+                    )
+                }
+            }
+        }
+
+        // 5. Online subtitles
+        rows.add(RailItem("Online", isHeader = true))
+        val cached = model.getFetchedSubtitles(episodeId)
+        if (cached != null) {
+            cached.forEach { item ->
+                when (item) {
+                    is StremioSub -> rows.add(
+                        RailItem(
+                            label = "[ONLINE] ${languageLabel(item.lang)}",
+                            selectedKey = "Online:${item.id}",
+                            onClick = { selectOnline(media, episode, prefKey, item) },
+                        )
+                    )
+                    is WyzieSub -> rows.add(
+                        RailItem(
+                            label = "[${item.format.uppercase()}] ${item.displayLabel}",
+                            selectedKey = "Online:${item.url}",
+                            onClick = { selectWyzie(media, episode, prefKey, item) },
+                        )
+                    )
+                    else -> Unit
+                }
+            }
+        } else if (searchingOnline) {
+            rows.add(RailItem("Searching…", isStatus = true))
+        } else {
+            val onlineEnabled = PrefManager.getVal<Boolean>(PrefName.OnlineSubtitlesEnabled)
+            if (onlineEnabled) {
+                rows.add(RailItem("+ Search Online Subtitles", onClick = { searchOnline(media, episode, episodeId) }))
+            }
+        }
+
+        // 6. Local subtitles
+        rows.add(RailItem("Local", isHeader = true))
+        val localSubs = model.getLocalSubtitles(episodeId)
+        localSubs.forEach { item ->
+            if (item is Subtitle) {
+                rows.add(
+                    RailItem(
+                        label = item.language,
+                        selectedKey = item.language,
+                        onClick = { selectLocal(media, prefKey, item) },
+                    )
+                )
+            }
+        }
+        rows.add(
+            RailItem("+ Add Local Subtitle", onClick = {
+                activity.requestLocalSubtitle()
+                close()
+            })
+        )
+
+        // 7. Subtitle sync
+        rows.add(
+            RailItem("Subtitle Sync (online subtitles only)", onClick = {
+                close()
+                SubtitleSyncDialogFragment().show(activity.supportFragmentManager, "subtitle_sync")
+            })
+        )
+
+        adapter.notifyDataSetChanged()
+    }
+
+    // --- Selection actions ---
+
+    private fun selectNone(media: Media, episode: Episode, prefKey: String) {
+        val embeddedMode = !activity.subtitleRailHasExtSubtitles()
+        PrefManager.setCustomVal(prefKey, "None")
+        episode.selectedSubtitle = null
+        model.setEpisode(episode, "Subtitle")
+        if (embeddedMode) {
+            activity.onSetTrackGroupOverride(activity.subtitleRailDummyTrack(), C.TRACK_TYPE_TEXT, 0)
+        }
+        close()
+    }
+
+    private fun selectServerSub(media: Media, episode: Episode, prefKey: String, index: Int, language: String) {
+        PrefManager.setCustomVal(prefKey, language)
+        episode.selectedSubtitle = index
+        model.setEpisode(episode, "Subtitle")
+        close()
+    }
+
+    private fun selectRemoteSub(media: Media, episode: Episode, prefKey: String, serverName: String, sub: Subtitle) {
+        val stremioSub = StremioSub(
+            id = sub.file.url,
+            url = sub.file.url,
+            lang = sub.language,
+            source = serverName,
+        )
+        PrefManager.setCustomVal(prefKey, "Online:${stremioSub.id}")
+        episode.selectedSubtitle = -1
+        model.setEpisode(episode, "Subtitle")
+        activity.applyOnlineSubtitle(stremioSub)
+        close()
+    }
+
+    private fun selectOnline(media: Media, episode: Episode, prefKey: String, sub: StremioSub) {
+        PrefManager.setCustomVal(prefKey, "Online:${sub.id}")
+        episode.selectedSubtitle = -1
+        model.setEpisode(episode, "Subtitle")
+        activity.applyOnlineSubtitle(sub)
+        close()
+    }
+
+    private fun selectWyzie(media: Media, episode: Episode, prefKey: String, item: WyzieSub) {
+        selectOnline(
+            media,
+            episode,
+            prefKey,
+            StremioSub(id = item.url, url = item.url, lang = item.language, source = "wyzie")
+        )
+    }
+
+    private fun selectLocal(media: Media, prefKey: String, item: Subtitle) {
+        PrefManager.setCustomVal(prefKey, item.language)
+        activity.reApplyLocalSubtitle(item.file.url)
+        close()
+    }
+
+    // --- On-demand fetches ---
+
+    private fun fetchOtherServer(ex: VideoExtractor) {
+        Logger.log("SubtitleRail: fetching subtitles from ${ex.server.name}")
+        activity.lifecycleScope.launch(Dispatchers.IO) {
+            runCatching { ex.load() }
+            withContext(Dispatchers.Main) {
+                Logger.log("SubtitleRail: ${ex.server.name} returned ${ex.subtitles.size} subs")
+                rebuild()
+            }
+        }
+    }
+
+    private fun searchOnline(media: Media, episode: Episode, episodeId: String) {
+        searchingOnline = true
+        val searchIndex = rows.indexOfFirst { it.label == "+ Search Online Subtitles" }
+        if (searchIndex != -1) {
+            rows[searchIndex] = rows[searchIndex].copy(label = "Searching…", isStatus = true, onClick = null)
+            adapter.notifyDataSetChanged()
+        }
+        activity.lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val imdbId = media.idIMDB ?: IdMappers.getImdbId(media.id) ?: return@launch
+                if (media.idIMDB == null) media.idIMDB = imdbId
+                val selectedEpisode = media.anime?.selectedEpisode ?: "1"
+                val episodeNum = selectedEpisode.toIntOrNull() ?: 1
+                val seasonEpisode = EpisodeMapper.mapEpisode(media, episodeNum, episode)
+                val subs = StremioSubtitles.getSubtitles(media, seasonEpisode.season, seasonEpisode.episode)
+                withContext(Dispatchers.Main) {
+                    searchingOnline = false
+                    if (subs.isNotEmpty()) {
+                        model.saveFetchedSubtitles(episodeId, subs)
+                        Logger.log("SubtitleRail: online search found ${subs.size} subs")
+                    } else {
+                        toast("No subtitles found")
+                    }
+                    rebuild()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    searchingOnline = false
+                    toast("Error fetching subtitles")
+                    rebuild()
+                }
+            }
+        }
+    }
+
+    // --- Formatting helpers ---
+
+    private fun languageLabel(lang: String): String {
+        return when (lang.lowercase()) {
+            "eng", "en", "en-us" -> "English"
+            "spa", "es", "es-es", "es-419" -> "Spanish"
+            "fra", "fr", "fr-fr" -> "French"
+            "deu", "de", "de-de" -> "German"
+            "ita", "it", "it-it" -> "Italian"
+            "por", "pt", "pt-br", "pt-pt" -> "Portuguese"
+            "rus", "ru", "ru-ru" -> "Russian"
+            "jpn", "ja", "ja-jp" -> "Japanese"
+            "zho", "chi", "zh", "zh-cn" -> "Chinese"
+            "ara", "ar" -> "Arabic"
+            "hin" -> "Hindi"
+            "kor", "ko" -> "Korean"
+            "pol", "pl" -> "Polish"
+            "tur", "tr" -> "Turkish"
+            "hun" -> "Hungarian"
+            "ron", "ro" -> "Romanian"
+            "ell", "el" -> "Greek"
+            "cze", "cs" -> "Czech"
+            "swe", "sv" -> "Swedish"
+            "dan", "da" -> "Danish"
+            "fin", "fi" -> "Finnish"
+            "nor", "no" -> "Norwegian"
+            "nld", "nl" -> "Dutch"
+            "tha", "th" -> "Thai"
+            "vie", "vi" -> "Vietnamese"
+            "ind", "id" -> "Indonesian"
+            "ukr", "uk" -> "Ukrainian"
+            "heb", "he" -> "Hebrew"
+            "bul", "bg" -> "Bulgarian"
+            "hrv", "hr" -> "Croatian"
+            "slk", "sk" -> "Slovak"
+            "slv", "sl" -> "Slovenian"
+            "mon", "mn" -> "Mongolian"
+            "srp", "sr" -> "Serbian"
+            "und" -> "Unknown"
+            else -> lang
+        }
+    }
+
+    private inner class RailAdapter : RecyclerView.Adapter<RailAdapter.RailViewHolder>() {
+
+        inner class RailViewHolder(val binding: ItemSubtitleTextBinding) :
+            RecyclerView.ViewHolder(binding.root)
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RailViewHolder =
+            RailViewHolder(
+                ItemSubtitleTextBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+            )
+
+        override fun getItemCount(): Int = rows.size
+
+        override fun onBindViewHolder(holder: RailViewHolder, position: Int) {
+            val binding = holder.binding
+            val item = rows[position]
+            FocusEffectUtil.applyFocusListener(binding.root)
+            binding.subtitleTitle.text = item.label
+
+            val media = model.getMedia().value
+            val currentPref = media?.let {
+                PrefManager.getNullableCustomVal("subLang_${it.id}", null, String::class.java)
+            }
+            val highlighted = item.selectedWhen(currentPref)
+            binding.root.setCardBackgroundColor(
+                if (highlighted) {
+                    ColorUtils.setAlphaComponent(
+                        PrefManager.getVal<Int>(PrefName.PrimaryColor),
+                        60
+                    )
+                } else {
+                    TRANSPARENT
+                }
+            )
+
+            val clickable = item.onClick != null
+            binding.root.isClickable = clickable
+            binding.root.isFocusable = clickable
+            binding.root.setOnClickListener { item.onClick?.invoke() }
+        }
+    }
+}

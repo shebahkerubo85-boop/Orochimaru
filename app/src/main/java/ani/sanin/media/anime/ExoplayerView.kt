@@ -238,6 +238,11 @@ class ExoplayerView :
     private lateinit var exoSettings: ImageButton
     private lateinit var exoSubtitle: ImageButton
     private lateinit var exoSubtitleView: SubtitleView
+    private lateinit var subtitleDrawerContent: View
+    private lateinit var subtitleDrawerClose: ImageButton
+    private lateinit var subtitleDrawerList: RecyclerView
+    private var subtitleRailController: SubtitleRailController? = null
+    private var embeddedSubTracks: List<Tracks.Group> = emptyList()
     private lateinit var exoAudioTrack: ImageButton
     private lateinit var exoSpeed: ImageButton
     private lateinit var exoScreen: ImageButton
@@ -592,6 +597,7 @@ class ExoplayerView :
         episodeDrawer.setDrawerListener(object : DrawerLayout.DrawerListener {
             override fun onDrawerSlide(drawerView: View, slideOffset: Float) {}
             override fun onDrawerOpened(drawerView: View) {
+                if (drawerView !== episodeDrawerContent) return
                 // Keep focus inside the rail: the background player controls are
                 // still visible next to it, so block them from receiving focus.
                 playerView.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
@@ -608,6 +614,7 @@ class ExoplayerView :
                 }
             }
             override fun onDrawerClosed(drawerView: View) {
+                if (drawerView !== episodeDrawerContent) return
                 if (episodeCommentPanel.visibility != View.VISIBLE) {
                     playerView.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
                     playerView.isFocusable = true
@@ -626,6 +633,36 @@ class ExoplayerView :
                 episodeDrawer.openDrawer(episodeDrawerContent)
             }
         }
+
+        // Subtitle rail (left side) — mirrors the episode rail focus behaviour.
+        subtitleDrawerContent = findViewById(R.id.subtitleDrawer)
+        subtitleDrawerClose = findViewById(R.id.subtitleDrawerClose)
+        subtitleDrawerList = findViewById(R.id.subtitleDrawerList)
+        subtitleRailController = SubtitleRailController(
+            this,
+            model,
+            binding.root,
+            subtitleDrawerContent,
+            subtitleDrawerClose,
+            subtitleDrawerList,
+        )
+
+        binding.root.addDrawerListener(object : DrawerLayout.DrawerListener {
+            override fun onDrawerSlide(drawerView: View, slideOffset: Float) {}
+            override fun onDrawerOpened(drawerView: View) {
+                if (drawerView !== subtitleDrawerContent) return
+                playerView.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                playerView.isFocusable = false
+                subtitleRailController?.focusFirst()
+            }
+            override fun onDrawerClosed(drawerView: View) {
+                if (drawerView !== subtitleDrawerContent) return
+                playerView.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+                playerView.isFocusable = true
+                exoSubtitle.requestFocus()
+            }
+            override fun onDrawerStateChanged(newState: Int) {}
+        })
 
         playerView.controllerShowTimeoutMs = PrefManager.getVal<Int>(PrefName.AutoHideTimeout) * 1000
 
@@ -1879,7 +1916,7 @@ class ExoplayerView :
                      if (media.idIMDB == null) {
                          media.idIMDB = IdMappers.getImdbId(media.id)
                      }
-                     // Prefetch episode mapping so SubtitleDialogFragment doesn't have visual label pop
+                     // Prefetch episode mapping so the subtitle rail doesn't have a visual label pop
                      val selectedEpisodeStr = media.anime?.selectedEpisode ?: "1"
                      val episodeNum = selectedEpisodeStr.toIntOrNull() ?: 1
                      val currentEpisode = media.anime?.episodes?.get(selectedEpisodeStr)
@@ -1962,7 +1999,7 @@ class ExoplayerView :
         // 2. Online Subtitles (Stremio/Wyzie)
         // Auto-fetch removed for Lazy Loading.
         // Subtitles are now fetched only when the user opens the Subtitle Dialog.
-        // The "Online Subtitles" button availability is handled by SubtitleDialogFragment.
+        // The "Online Subtitles" button availability is handled by the subtitle rail.
 
 
         lifecycleScope.launch(Dispatchers.IO) {
@@ -2541,9 +2578,8 @@ class ExoplayerView :
             exoPlayer.currentPosition,
         )
         model.saveSelected(media.id, media.selected!!)
-        val dialog = SubtitleDialogFragment()
-        Logger.log("subClick: Showing dialog")
-        dialog.show(supportFragmentManager, "dialog")
+        Logger.log("subClick: Opening subtitle rail")
+        subtitleRailController?.open()
     }
 
     fun requestLocalSubtitle() {
@@ -2561,7 +2597,7 @@ class ExoplayerView :
 
     /**
      * Public entry point for re-applying a cached local subtitle from its stored URI string.
-     * Called from SubtitleDialogFragment when a user re-selects a "[Local]" entry.
+     * Called from the subtitle rail when a user re-selects a "[Local]" entry.
      * Always performs a full re-add: sets the pending label so onTracksChanged will select
      * the track as soon as ExoPlayer reports it as available.
      */
@@ -3511,6 +3547,12 @@ class ExoplayerView :
             booleanArrayOf(false),
         )
 
+    fun subtitleRailHasExtSubtitles(): Boolean = hasExtSubtitles
+
+    fun subtitleRailEmbeddedTracks(): List<Tracks.Group> = embeddedSubTracks
+
+    fun subtitleRailDummyTrack(): Tracks.Group = dummyTrack
+
     override fun onTracksChanged(tracks: Tracks) {
         // Consume any pending subtitle label set by applyLocalSubtitle / applySubtitleFromFile.
         // This fires reliably once ExoPlayer has parsed all tracks after setMediaItem+prepare.
@@ -3566,6 +3608,11 @@ class ExoplayerView :
                 }
             }
         }
+        embeddedSubTracks = if (!hasExtSubtitles) {
+            subTracks.filter { it.mediaTrackGroup.id != "Dummy Track" }
+        } else {
+            emptyList()
+        }
         exoAudioTrack.isVisible = audioTracks.size > 1
         exoAudioTrack.setOnClickListener {
             TrackGroupDialogFragment(this, audioTracks, TRACK_TYPE_AUDIO, audioLanguages)
@@ -3581,10 +3628,9 @@ class ExoplayerView :
             }
         }
         if (!hasExtSubtitles) {
-            exoSubtitle.isVisible = subTracks.size > 1
+            exoSubtitle.isVisible = subTracks.size > 1 || media.idIMDB != null
             exoSubtitle.setOnClickListener {
-                TrackGroupDialogFragment(this, subTracks, TRACK_TYPE_TEXT)
-                    .show(supportFragmentManager, "dialog")
+                subClick()
             }
         }
     }
@@ -4152,6 +4198,24 @@ class ExoplayerView :
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN) markInteracted()
         if (!isInitialized) return super.dispatchKeyEvent(event)
+        // Subtitle rail: focus is trapped inside. DPAD right dismisses it (it is
+        // a left-side rail), left stays trapped, back/escape closes it too.
+        if (this::subtitleDrawerContent.isInitialized && binding.root.isDrawerOpen(subtitleDrawerContent)) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                        binding.root.closeDrawer(subtitleDrawerContent)
+                    }
+                    return true
+                }
+                KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
+                    if (event.action == KeyEvent.ACTION_DOWN) {
+                        binding.root.closeDrawer(subtitleDrawerContent)
+                    }
+                    return true
+                }
+            }
+        }
         // DPAD left dismisses the episode rail / comments panel. Consume both
         // DOWN and UP so the event never falls through to the player-level
         // left-skip handling (which would jump back an episode).

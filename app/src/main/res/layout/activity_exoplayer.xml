@@ -25,4 +25,6 @@
     </FrameLayout>
 
     <include layout="@layout/drawer_episode_rail" />
+
+    <include layout="@layout/drawer_subtitle_rail" />
 </androidx.drawerlayout.widget.DrawerLayout>

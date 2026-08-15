@@ -101,6 +101,33 @@ object StremioSubtitles {
                 }
             }
 
+            // 4. Try SubSource if enabled
+            if (providers.contains("SubSource")) {
+                Logger.log("StremioSubtitles: Fetching SubSource...")
+                try {
+                    val imdbId = media.idIMDB
+                    if (imdbId != null) {
+                        val subsourceSubs = SubSourceSubtitles.getSubtitles(imdbId, episode, season)
+                        Logger.log("SubSource: returned ${subsourceSubs.size} subs")
+                        for (sub in subsourceSubs) {
+                            val downloadUrl = runCatching { SubSourceSubtitles.getDownloadUrl(sub) }.getOrNull()
+                            if (downloadUrl != null) {
+                                allSubs.add(
+                                    StremioSub(
+                                        id = downloadUrl,
+                                        url = downloadUrl,
+                                        lang = sub.lang,
+                                        source = "subsource"
+                                    )
+                                )
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Logger.log("SubSource: Error - ${e.message}")
+                }
+            }
+
             allSubs
         }
     }
