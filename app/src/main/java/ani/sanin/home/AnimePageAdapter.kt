@@ -156,7 +156,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             val sidePad = (24 * density).toInt()
             val stripW = ctx.resources.displayMetrics.widthPixels - cardW
             overlay.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                width = stripW
+                width = stripW + cardW / 4
             }
             overlay.setPadding(sidePad, 0, sidePad, 0)
             trendingBinding.trendingOverlayLogo.maxWidth =
@@ -312,7 +312,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
                 val pos = lm.getPosition(child)
                 if (pos == RecyclerView.NO_POSITION) return
                 val cardW = child.width
-                val stripW = overlay.width
+                val stripW = overlay.width - cardW / 4
                 if (cardW <= 0 || stripW <= 0) return
                 val progress = (-child.left).toFloat() / cardW
                 val real = pos % media.size
