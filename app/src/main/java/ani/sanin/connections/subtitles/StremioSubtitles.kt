@@ -92,7 +92,7 @@ object StremioSubtitles {
                 try {
                     val imdbId = media.idIMDB
                     if (imdbId != null) {
-                        val subs = OpenSubtitles.search(imdbId, season, episode)
+                        val subs = OpenSubtitles.search(imdbId, season, episode, media.userPreferredName)
                         Logger.log("OpenSubtitles: returned ${subs.size} subs")
                         allSubs.addAll(subs)
                     }
@@ -146,5 +146,7 @@ data class StremioSub(
     val id: String,
     val url: String,
     val lang: String,
-    val source: String = "online"
+    val source: String = "online",
+    val label: String? = null,
+    val headers: Map<String, String> = emptyMap()
 )

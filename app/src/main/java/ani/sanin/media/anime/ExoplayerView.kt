@@ -2859,7 +2859,11 @@ class ExoplayerView :
         }
     }
 
-    fun applyOnlineSubtitle(subtitle: ani.sanin.connections.subtitles.StremioSub) {
+    fun applyOnlineSubtitle(
+        subtitle: ani.sanin.connections.subtitles.StremioSub,
+        headers: Map<String, String> = emptyMap(),
+        baseUrls: List<String> = emptyList(),
+    ) {
         android.util.Log.d("ExoplayerView", "=== applyOnlineSubtitle CALLED ===")
         android.util.Log.d("ExoplayerView", "applyOnlineSubtitle: lang=${subtitle.lang}, url=${subtitle.url}")
         Logger.log("applyOnlineSubtitle: lang=${subtitle.lang}, url=${subtitle.url}")
@@ -2867,17 +2871,26 @@ class ExoplayerView :
         // Download subtitle content first, then apply
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                android.util.Log.d("ExoplayerView", "applyOnlineSubtitle: Downloading subtitle from ${subtitle.url}")
+                val resolvedUrl = resolveSubtitleUrl(
+                    subtitle.url,
+                    *baseUrls.ifEmpty { listOfNotNull(video?.file?.url) }.toTypedArray()
+                )
+                android.util.Log.d("ExoplayerView", "applyOnlineSubtitle: Downloading subtitle from $resolvedUrl")
+                Logger.log("applyOnlineSubtitle: resolved url=$resolvedUrl")
 
-                // Download subtitle content
+                // Download subtitle content (carrying extractor headers when present)
                 val client = okhttp3.OkHttpClient()
                 val request = okhttp3.Request.Builder()
-                    .url(subtitle.url)
+                    .url(resolvedUrl)
+                    .apply {
+                        defaultHeaders.forEach { (k, v) -> addHeader(k, v) }
+                        headers.forEach { (k, v) -> addHeader(k, v) }
+                    }
                     .build()
 
                 val response = client.newCall(request).execute()
                 if (!response.isSuccessful) {
-                    Logger.log("applyOnlineSubtitle: download FAILED http=${response.code} for ${subtitle.url}")
+                    Logger.log("applyOnlineSubtitle: download FAILED http=${response.code} for $resolvedUrl")
                     withContext(Dispatchers.Main) {
                         android.util.Log.e("ExoplayerView", "applyOnlineSubtitle: Download failed with code ${response.code}")
                         snackString("Failed to download subtitle: HTTP ${response.code}")
@@ -2933,7 +2946,8 @@ class ExoplayerView :
                 android.util.Log.d("ExoplayerView", "applyOnlineSubtitle: Using MIME type: $mimeType, extension: $extension")
 
                 val cacheDir = this@ExoplayerView.cacheDir
-                val subtitleFile = File(cacheDir, "online_subtitle_${subtitle.id}.$extension")
+                val safeId = subtitle.id.replace(Regex("[^A-Za-z0-9._-]"), "_").ifBlank { "sub" }
+                val subtitleFile = File(cacheDir, "online_subtitle_${safeId}.$extension")
                 subtitleFile.writeText(cleanedContent)
 
                 android.util.Log.d("ExoplayerView", "applyOnlineSubtitle: Saved to ${subtitleFile.absolutePath}")

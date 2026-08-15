@@ -9,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import java.net.URLEncoder
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -19,48 +20,68 @@ object OpenSubtitles {
     private const val USER_AGENT = "Sanin v3.2.2"
     private const val API_KEY = "sMaSHqhfU08qaUehns7TOLJbbEg8O3D4"
 
-    suspend fun search(imdbId: String, season: Int, episode: Int): List<StremioSub> {
+    suspend fun search(imdbId: String, season: Int, episode: Int, queryText: String? = null): List<StremioSub> {
         return withContext(Dispatchers.IO) {
             try {
                 val languages = PrefManager.getVal<Set<String>>(PrefName.OnlineSubtitleLanguages)
                     .joinToString(",") { it.take(2).lowercase() }
 
-                val url = buildString {
-                    append("$BASE_URL/subtitles?imdb_id=$imdbId&languages=$languages")
-                    append("&type=episode&season_number=$season&episode_number=$episode")
-                }
-                Logger.log("OpenSubtitles: Searching $url")
-
-                val request = Request.Builder()
-                    .url(url)
-                    .header("Api-Key", API_KEY)
-                    .header("User-Agent", USER_AGENT)
-                    .header("Content-Type", "application/json")
-                    .build()
-
-                val response = okHttpClient.newCall(request).execute()
-                if (!response.isSuccessful) {
-                    Logger.log("OpenSubtitles: Search failed HTTP ${response.code}")
-                    return@withContext emptyList()
+                val urls = mutableListOf<String>()
+                urls.add("$BASE_URL/subtitles?imdb_id=$imdbId&languages=$languages&type=episode&season_number=$season&episode_number=$episode")
+                if (!queryText.isNullOrBlank()) {
+                    // imdb_id searches come back empty for many shows, so also try a text
+                    // query (same trick as Dantotsu) to surface release-named subtitles.
+                    val queryUrl = buildString {
+                        append("$BASE_URL/subtitles?query=${URLEncoder.encode(queryText, "UTF-8")}&languages=$languages")
+                        if (episode > 0) append("&episode_number=$episode")
+                    }
+                    urls.add(queryUrl)
                 }
 
-                val body = response.body?.string() ?: return@withContext emptyList()
-                val searchResult = Mapper.json.decodeFromString<OpenSubtitlesSearchResponse>(body)
-
-                searchResult.data.mapNotNull { item ->
+                val results = mutableListOf<StremioSub>()
+                for (url in urls) {
                     try {
-                        val fileId = item.attributes.files.firstOrNull()?.fileId ?: return@mapNotNull null
-                        val downloadUrl = downloadSubtitle(fileId, API_KEY) ?: return@mapNotNull null
-                        Logger.log("OpenSubtitles: Got link for file $fileId → $downloadUrl")
+                        Logger.log("OpenSubtitles: Searching $url")
 
-                        StremioSub(
-                            id = item.id,
-                            url = downloadUrl,
-                            lang = item.attributes.language,
-                            source = "opensubtitles"
-                        )
-                    } catch (_: Exception) { null }
+                        val request = Request.Builder()
+                            .url(url)
+                            .header("Api-Key", API_KEY)
+                            .header("User-Agent", USER_AGENT)
+                            .header("Content-Type", "application/json")
+                            .build()
+
+                        val response = okHttpClient.newCall(request).execute()
+                        if (!response.isSuccessful) {
+                            Logger.log("OpenSubtitles: Search failed HTTP ${response.code} for $url")
+                            continue
+                        }
+
+                        val body = response.body?.string() ?: continue
+                        val searchResult = Mapper.json.decodeFromString<OpenSubtitlesSearchResponse>(body)
+
+                        val mapped = searchResult.data.mapNotNull { item ->
+                            try {
+                                val file = item.attributes.files.firstOrNull() ?: return@mapNotNull null
+                                val downloadUrl = downloadSubtitle(file.fileId, API_KEY) ?: return@mapNotNull null
+                                val fileName = file.fileName ?: item.attributes.release ?: item.attributes.language
+                                Logger.log("OpenSubtitles: Got link for file ${file.fileId} → $downloadUrl")
+
+                                StremioSub(
+                                    id = item.id,
+                                    url = downloadUrl,
+                                    lang = item.attributes.language,
+                                    label = fileName,
+                                    source = "opensubtitles"
+                                )
+                            } catch (_: Exception) { null }
+                        }
+                        results.addAll(mapped.take(12))
+                        if (results.isNotEmpty()) break
+                    } catch (e: Exception) {
+                        Logger.log("OpenSubtitles: url failed $url -> ${e.message}")
+                    }
                 }
+                results
             } catch (e: Exception) {
                 Logger.log("OpenSubtitles: Error - ${e.message}")
                 emptyList()
@@ -110,6 +131,7 @@ data class OpenSubtitlesItem(
 @Serializable
 data class OpenSubtitlesAttributes(
     val language: String,
+    val release: String? = null,
     val files: List<OpenSubtitlesFile> = emptyList()
 )
 

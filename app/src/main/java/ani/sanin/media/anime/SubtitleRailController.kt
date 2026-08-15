@@ -192,7 +192,7 @@ class SubtitleRailController(
                                 badge = serverAbbrev(ex.server.name),
                                 language = sub.language,
                                 selectedKey = "Online:${sub.file.url}",
-                                onClick = { selectRemoteSub(media, episode, prefKey, ex.server.name, sub) },
+                                onClick = { selectRemoteSub(media, episode, prefKey, ex, sub) },
                             )
                         )
                     }
@@ -246,7 +246,7 @@ class SubtitleRailController(
                 when (item) {
                     is StremioSub -> rows.add(
                         RailItem(
-                            label = languageLabel(item.lang),
+                            label = item.label?.takeIf { it.isNotBlank() } ?: languageLabel(item.lang),
                             badge = sourceAbbrev(item.source),
                             globe = true,
                             language = item.lang,
@@ -329,17 +329,22 @@ class SubtitleRailController(
         close()
     }
 
-    private fun selectRemoteSub(media: Media, episode: Episode, prefKey: String, serverName: String, sub: Subtitle) {
+    private fun selectRemoteSub(media: Media, episode: Episode, prefKey: String, ex: VideoExtractor, sub: Subtitle) {
         val stremioSub = StremioSub(
             id = sub.file.url,
             url = sub.file.url,
             lang = sub.language,
-            source = serverName,
+            source = ex.server.name,
+            headers = sub.file.headers,
         )
         PrefManager.setCustomVal(prefKey, "Online:${stremioSub.id}")
         episode.selectedSubtitle = -1
         model.setEpisode(episode, "Subtitle")
-        activity.applyOnlineSubtitle(stremioSub)
+        activity.applyOnlineSubtitle(
+            stremioSub,
+            headers = sub.file.headers,
+            baseUrls = listOf(ex.server.embed.url),
+        )
         close()
     }
 
