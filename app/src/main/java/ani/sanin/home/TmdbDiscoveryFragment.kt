@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.chip.Chip
 import ani.sanin.cloudstream.TmdbDetailsActivity
+import ani.sanin.cloudstream.TmdbSearchActivity
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.tmdb.TmdbGenre
 import ani.sanin.connections.tmdb.TmdbMedia
@@ -45,6 +46,10 @@ class TmdbDiscoveryFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.tmdbDiscoveryGrid.layoutManager = GridLayoutManager(requireContext(), 3)
         binding.tmdbDiscoveryGrid.adapter = adapter
+        binding.tmdbDiscoverySearch.setOnClickListener {
+            startActivity(Intent(requireContext(), TmdbSearchActivity::class.java))
+        }
+        FocusEffectUtil.applyFocusListener(binding.tmdbDiscoverySearch)
         setupCategoryChips()
         viewLifecycleOwner.lifecycleScope.launch {
             genres = Tmdb.genres()

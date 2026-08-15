@@ -46,10 +46,15 @@ import ani.sanin.util.GlassComponent
 import ani.sanin.util.GlassEffectManager
 import ani.sanin.databinding.ActivityMainBinding
 import ani.sanin.databinding.DialogUserAgentBinding
+import ani.sanin.cloudstream.CsRepos
 import ani.sanin.home.AnimeFragment
 import ani.sanin.home.DiscoveryFragment
 import ani.sanin.home.HomeFragment
 import ani.sanin.home.LibraryFragment
+import ani.sanin.home.TmdbDiscoveryFragment
+import ani.sanin.home.TmdbHomeFragment
+import ani.sanin.home.TmdbLibraryFragment
+import ani.sanin.media.SheetSourceSelector
 import ani.sanin.home.NoInternet
 import ani.sanin.media.MediaDetailsActivity
 import ani.sanin.notifications.TaskScheduler
@@ -103,12 +108,15 @@ class MainActivity : AppCompatActivity() {
         3 to "library"
     )
 
+    private fun isAnimeMode(): Boolean =
+        PrefManager.getVal(PrefName.ContentMode) != "movie_tv"
+
     private fun getFragmentForTab(index: Int): Fragment = when (index) {
-        0 -> HomeFragment()
-        1 -> AnimeFragment()
-        2 -> DiscoveryFragment()
-        3 -> LibraryFragment()
-        else -> HomeFragment()
+        0 -> if (isAnimeMode()) HomeFragment() else TmdbHomeFragment()
+        1 -> if (isAnimeMode()) AnimeFragment() else TmdbDiscoveryFragment()
+        2 -> if (isAnimeMode()) DiscoveryFragment() else TmdbDiscoveryFragment()
+        3 -> if (isAnimeMode()) LibraryFragment() else TmdbLibraryFragment()
+        else -> if (isAnimeMode()) HomeFragment() else TmdbHomeFragment()
     }
 
     private fun switchTab(index: Int) {
@@ -393,6 +401,13 @@ class MainActivity : AppCompatActivity() {
             binding.mainUserAvatarContainer.nextFocusLeftId = R.id.mainCalendarContainer
             binding.mainUserAvatarContainer.nextFocusRightId = R.id.mainCalendarContainer
 
+            // Mode dropdown (far left): Anime / Movie & TV source
+            binding.mainModeContainer.visibility = View.VISIBLE
+            binding.mainModeCard.setOnClickListener { showModePicker() }
+            FocusEffectUtil.applyFocusListener(binding.mainModeCard)
+            updateModeLabel()
+            updateNavPillForMode()
+
             // Observe tab changes
             lifecycleScope.launch {
                 navPillsViewModel.currentTab.collect { tabIndex ->
@@ -620,6 +635,73 @@ class MainActivity : AppCompatActivity() {
         return super.dispatchKeyEvent(event)
     }
 
+    private fun updateModeLabel() {
+        val mode = PrefManager.getVal(PrefName.ContentMode)
+        val text = if (mode != "movie_tv") {
+            "Anime"
+        } else {
+            val src = PrefManager.getVal(PrefName.ContentSource)
+            if (src == "tmdb") "TMDB"
+            else CsRepos.installed(this).firstOrNull { it.id == src }?.name ?: "Movie & TV"
+        }
+        binding.mainModeText.text = text
+    }
+
+    private fun updateNavPillForMode() {
+        val anime = isAnimeMode()
+        binding.homeNavAnime.visibility = if (anime) View.VISIBLE else View.GONE
+        if (anime) {
+            binding.homeNavHome.nextFocusDownId = R.id.homeNavAnime
+            binding.homeNavAnime.nextFocusUpId = R.id.homeNavHome
+            binding.homeNavAnime.nextFocusDownId = R.id.homeNavDiscovery
+            binding.homeNavDiscovery.nextFocusUpId = R.id.homeNavAnime
+        } else {
+            binding.homeNavHome.nextFocusDownId = R.id.homeNavDiscovery
+            binding.homeNavDiscovery.nextFocusUpId = R.id.homeNavHome
+        }
+        binding.homeNavDiscovery.nextFocusDownId = R.id.homeNavLibrary
+        binding.homeNavLibrary.nextFocusUpId = R.id.homeNavDiscovery
+        binding.homeNavLibrary.nextFocusDownId = R.id.homeNavHome
+        binding.homeNavHome.nextFocusUpId = R.id.homeNavLibrary
+        updateHomeNavIconTints()
+    }
+
+    private fun showModePicker() {
+        val sheet = SheetSourceSelector.newInstance(
+            ArrayList(listOf("Anime", "Movie & TV")),
+            onSelect = { idx ->
+                if (idx == 0) setContentMode("anime") else showSourcePicker()
+            }
+        )
+        sheet.show(supportFragmentManager, "modePicker")
+    }
+
+    private fun showSourcePicker() {
+        val installed = CsRepos.installed(this)
+        val options = listOf("TMDB") + installed.map { it.name }
+        val sheet = SheetSourceSelector.newInstance(
+            ArrayList(options),
+            onSelect = { idx ->
+                if (idx == 0) {
+                    PrefManager.setVal(PrefName.ContentSource, "tmdb")
+                } else {
+                    PrefManager.setVal(PrefName.ContentSource, installed[idx - 1].id)
+                }
+                setContentMode("movie_tv")
+            }
+        )
+        sheet.show(supportFragmentManager, "sourcePicker")
+    }
+
+    private fun setContentMode(mode: String) {
+        PrefManager.setVal(PrefName.ContentMode, mode)
+        updateModeLabel()
+        updateNavPillForMode()
+        currentFragmentTag = null
+        navPillsViewModel.setTab(0)
+        hideHomeNavRail()
+    }
+
     override fun onRestart() {
         super.onRestart()
         window.navigationBarColor = ContextCompat.getColor(this, android.R.color.transparent)
@@ -817,6 +899,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateNavPillFocusChains() {
+        binding.mainModeCard.nextFocusRightId = R.id.mainCalendarContainer
+        binding.mainModeCard.nextFocusLeftId = View.NO_ID
         binding.mainCalendarContainer.nextFocusLeftId = View.NO_ID
         binding.mainCalendarContainer.nextFocusDownId = R.id.homeBannerCarousel
         binding.mainUserAvatarContainer.nextFocusDownId = R.id.homeBannerCarousel
