@@ -750,6 +750,7 @@ class MediaDetailsViewModel : ViewModel() {
         extensionTimestamps: List<eu.kanade.tachiyomi.animesource.model.TimeStamp> = emptyList()
     ) {
         episodeNum ?: return
+        if (duration <= 0 && extensionTimestamps.isEmpty()) return
         ani.sanin.util.Logger.log(
             "loadTimeStamps: enter episodeNum=$episodeNum malId=$malId duration=$duration " +
                 "useProxy=$useProxyForTimeStamps extCount=${extensionTimestamps.size} " +
@@ -757,7 +758,7 @@ class MediaDetailsViewModel : ViewModel() {
                 "cacheContainsKey=${timeStampsMap.containsKey(episodeNum)}"
         )
         val currentEpisode = media.value?.anime?.selectedEpisode?.trim()?.toIntOrNull()
-        if (timeStampsMap.containsKey(episodeNum)) {
+        if (timeStampsMap.containsKey(episodeNum) && !timeStampsMap[episodeNum].isNullOrEmpty()) {
             if (currentEpisode == episodeNum) timeStamps.postValue(timeStampsMap[episodeNum])
             ani.sanin.util.Logger.log(
                 "loadTimeStamps: cache hit episodeNum=$episodeNum " +
@@ -790,7 +791,9 @@ class MediaDetailsViewModel : ViewModel() {
                     ?: loadIntroDBTimeStamps(episodeNum)
             }
         }
-        if (result != null) timeStampsMap[episodeNum] = result
+        if (result != null || duration > 0) {
+            timeStampsMap[episodeNum] = result
+        }
         ani.sanin.util.Logger.log(
             "loadTimeStamps: result for episodeNum=$episodeNum = ${result?.size ?: "null"} " +
                 "currentEpisode=${media.value?.anime?.selectedEpisode}"
@@ -987,6 +990,20 @@ class MediaDetailsViewModel : ViewModel() {
 
     fun getLocalSubtitles(id: String): List<Any> {
         return localSubtitlesMap[id] ?: emptyList()
+    }
+
+    fun removeLocalSubtitle(id: String, sub: Any) {
+        val list = localSubtitlesMap[id] ?: return
+        list.removeAll { existing ->
+            if (existing is ani.sanin.parsers.Subtitle && sub is ani.sanin.parsers.Subtitle) {
+                existing.file.url == sub.file.url
+            } else {
+                existing == sub
+            }
+        }
+        if (list.isEmpty()) {
+            localSubtitlesMap.remove(id)
+        }
     }
 
     fun clearLocalSubtitles(id: String) {

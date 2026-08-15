@@ -204,7 +204,7 @@ Issues, feature requests, and pull requests are welcome. Join the [Discord](http
 
 ## 📜 License
 
-Sanin is distributed under the **Apache License 2.0**. See `LICENSE` for details.
+Sanin is distributed under the **Unabandon Public License (UPL)**, which incorporates the terms of the GNU General Public License v3 (GPLv3). See `LICENSE` for details.
 
 ---
 

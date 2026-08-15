@@ -21,21 +21,26 @@ object WyzieSubtitles {
                 // Get languages from Prefs
                 val languages = PrefManager.getVal<Set<String>>(PrefName.OnlineSubtitleLanguages).joinToString(",")
 
-                val url = "$BASE_URL?id=$imdbId&season=$season&episode=$episode&language=$languages"
-                Logger.log("WyzieSubtitles: Fetching from $url")
-
-                val response = client.get(url)
-                val text = response.text
-
-                // Logger.log("WyzieSubtitles: Response: ${text.take(100)}...")
-
-                // Basic check for valid JSON array start
-                if (text.trim().startsWith("<") || !text.trim().startsWith("[")) {
-                     Logger.log("WyzieSubtitles: Invalid response (likely 404/Error Page)")
-                     return@withContext emptyList()
+                suspend fun fetchWyzie(s: Int, e: Int): List<WyzieSub> {
+                    val url = "$BASE_URL?id=$imdbId&season=$s&episode=$e&language=$languages"
+                    Logger.log("WyzieSubtitles: Fetching from $url")
+                    val response = client.get(url)
+                    val text = response.text
+                    if (text.trim().startsWith("<") || !text.trim().startsWith("[")) {
+                        return emptyList()
+                    }
+                    return try {
+                        Mapper.json.decodeFromString<List<WyzieSub>>(text)
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
                 }
 
-                val data = Mapper.json.decodeFromString<List<WyzieSub>>(text)
+                var data = fetchWyzie(season, episode)
+                if (data.isEmpty() && season != 1) {
+                    Logger.log("WyzieSubtitles: No subs for S$season:E$episode, trying fallback S1:E$episode")
+                    data = fetchWyzie(1, episode)
+                }
                 Logger.log("WyzieSubtitles: Decoded ${data.size} subs")
 
                 // Filter & Sort Logic

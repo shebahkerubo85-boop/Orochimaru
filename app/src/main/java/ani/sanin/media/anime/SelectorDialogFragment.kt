@@ -283,8 +283,10 @@ class SelectorDialogFragment : DialogFragment() {
                     fail(R.string.empty_episodes_list)
                 }
                 if (isDownloadMenu == false) {
-                    media?.anime?.selectedEpisode = episodes?.get(0)
-                    val ep = media?.anime?.episodes?.get(media?.anime?.selectedEpisode)
+                    val rawKey = episodes?.get(0)
+                    val ep = media?.anime?.episodes?.getEpisode(rawKey)
+                    val actualKey = media?.anime?.episodes?.getEpisodeKey(rawKey) ?: rawKey
+                    media?.anime?.selectedEpisode = actualKey
                     episode = ep
                     if (ep != null) {
                         if (selected != null && media?.format != "LOCAL") {
@@ -351,8 +353,10 @@ class SelectorDialogFragment : DialogFragment() {
                 }
                 else {
                     binding.selectorMakeDefault.visibility = View.GONE
-                    media?.anime?.selectedEpisode = episodes?.get(0)
-                    val ep = media?.anime?.episodes?.get(media?.anime?.selectedEpisode)
+                    val rawKey = episodes?.get(0)
+                    val ep = media?.anime?.episodes?.getEpisode(rawKey)
+                    val actualKey = media?.anime?.episodes?.getEpisodeKey(rawKey) ?: rawKey
+                    media?.anime?.selectedEpisode = actualKey
                     episode = ep
 
                     if (ep != null) {

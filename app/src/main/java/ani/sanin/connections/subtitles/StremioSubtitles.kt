@@ -56,19 +56,29 @@ object StremioSubtitles {
                     val imdbId = media.idIMDB
                     if (imdbId != null) {
                         val isMovie = media.format == "MOVIE"
-                        val url = if (isMovie) {
-                            "$BASE_URL/movie/$imdbId.json"
+                        val urlsToTry = mutableListOf<String>()
+                        if (isMovie) {
+                            urlsToTry.add("$BASE_URL/movie/$imdbId.json")
                         } else {
-                            "$BASE_URL/series/$imdbId:$season:$episode.json"
+                            urlsToTry.add("$BASE_URL/episode/$imdbId:$season:$episode.json")
+                            urlsToTry.add("$BASE_URL/episode/$imdbId:1:$episode.json")
+                            urlsToTry.add("$BASE_URL/episode/$imdbId:$episode.json")
+                            urlsToTry.add("$BASE_URL/series/$imdbId:$season:$episode.json")
                         }
 
-                        val request = Request.Builder().url(url).build()
-                        val response = okHttpClient.newCall(request).execute()
-
-                        if (response.isSuccessful && response.body != null) {
-                            val text = response.body!!.string()
-                            val data = Mapper.json.decodeFromString<StremioResponse>(text)
-                            allSubs.addAll(data.subtitles)
+                        for (url in urlsToTry) {
+                            try {
+                                val request = Request.Builder().url(url).build()
+                                val response = okHttpClient.newCall(request).execute()
+                                if (response.isSuccessful && response.body != null) {
+                                    val text = response.body!!.string()
+                                    val data = Mapper.json.decodeFromString<StremioResponse>(text)
+                                    allSubs.addAll(data.subtitles)
+                                    if (data.subtitles.isNotEmpty()) break
+                                }
+                            } catch (e: Exception) {
+                                Logger.log("StremioSubtitles: url failed $url -> ${e.message}")
+                            }
                         }
                     }
                 } catch (e: Exception) {

@@ -22,17 +22,20 @@ fun updateProgress(media: Media, number: String) {
     val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
     val autoUpdate: Boolean = PrefManager.getVal(PrefName.UpdateProgressAutomatically)
     val autoSync: Boolean = PrefManager.getVal(PrefName.AutoSyncAniList)
+    val progressInt = ani.sanin.media.MediaNameAdapter.findEpisodeNumber(number)?.toInt()
+        ?: number.toFloatOrNull()?.toInt()
+        ?: return
     if (!incognito && autoUpdate) {
         if (rescueMode) {
             // In rescue mode: cache the update for later AL sync and mirror to MAL
-            val a = number.toFloatOrNull()?.toInt()
-            if ((a ?: 0) > (media.userProgress ?: -1)) {
+            val a = progressInt
+            if (a > (media.userProgress ?: -1)) {
                 val status = if (media.userStatus == "REPEATING") media.userStatus!! else "CURRENT"
                 val pending = PendingProgressUpdate(
                     mediaId = media.id,
                     idMAL = media.idMAL,
                     isAnime = media.anime != null,
-                    progress = a ?: 0,
+                    progress = a,
                     status = status,
                 )
                 val existing: List<PendingProgressUpdate> =
@@ -48,12 +51,12 @@ fun updateProgress(media: Media, number: String) {
                     toast(currContext()?.getString(R.string.setting_progress, a))
                 }
             }
-            media.userProgress = number.toFloatOrNull()?.toInt()
+            media.userProgress = progressInt
             Refresh.all()
         } else if (Anilist.userid != null) {
             CoroutineScope(Dispatchers.IO).launch {
-                val a = number.toFloatOrNull()?.toInt()
-                if ((a ?: 0) > (media.userProgress ?: -1)) {
+                val a = progressInt
+                if (a > (media.userProgress ?: -1)) {
                     if (autoSync) {
                         Anilist.mutation.editList(
                             media.id,

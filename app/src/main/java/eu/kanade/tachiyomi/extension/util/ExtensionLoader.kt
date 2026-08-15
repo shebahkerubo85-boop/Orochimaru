@@ -53,7 +53,7 @@ internal object ExtensionLoader {
     private const val XX_METADATA_HAS_README = ".hasReadme"
     private const val XX_METADATA_HAS_CHANGELOG = ".hasChangelog"
     const val ANIME_LIB_VERSION_MIN = 12
-    const val ANIME_LIB_VERSION_MAX = 16
+    const val ANIME_LIB_VERSION_MAX = 20
 
     val PACKAGE_FLAGS = PackageManager.GET_CONFIGURATIONS or
             PackageManager.GET_META_DATA or
@@ -120,8 +120,16 @@ internal object ExtensionLoader {
         }
 
         // Validate lib version
-        val libVersion = versionName.substringBeforeLast('.').toDoubleOrNull()
-        if (libVersion == null || libVersion < ANIME_LIB_VERSION_MIN || libVersion > ANIME_LIB_VERSION_MAX) {
+        val rawLib = appInfo.metaData?.get("tachiyomix.extensionLib")
+            ?: appInfo.metaData?.get("tachiyomi.animeextensionLib")
+            ?: appInfo.metaData?.get("aniyomi.animeextensionLib")
+        val libVersion = when (rawLib) {
+            is Number -> rawLib.toDouble().takeUnless { it == 0.0 }
+            is String -> rawLib.toDoubleOrNull()
+            else -> null
+        } ?: versionName.substringBeforeLast('.').toDoubleOrNull()
+        val majorLibVersion = libVersion?.toInt()
+        if (libVersion == null || majorLibVersion == null || majorLibVersion < ANIME_LIB_VERSION_MIN || majorLibVersion > ANIME_LIB_VERSION_MAX) {
             Logger.log(
                 "Lib version is $libVersion, while only versions " +
                         "$ANIME_LIB_VERSION_MIN to $ANIME_LIB_VERSION_MAX are allowed"
@@ -199,8 +207,20 @@ internal object ExtensionLoader {
     }
 
     private fun isPackageAnExtension(type: MediaType, pkgInfo: PackageInfo): Boolean {
-        return pkgInfo.reqFeatures.orEmpty().any {
-            it.name == ANIME_PACKAGE
+        val meta = pkgInfo.applicationInfo?.metaData
+        val hasFeature = pkgInfo.reqFeatures.orEmpty().any {
+            when (type) {
+                MediaType.ANIME -> it.name == ANIME_PACKAGE || it.name == "aniyomi.animeextension" || it.name == "tachiyomi.animeextension" || it.name == "tachiyomix.animeextension"
+                else -> false
+            }
+        }
+        if (hasFeature) return true
+
+        return when (type) {
+            MediaType.ANIME -> pkgInfo.packageName.startsWith("eu.kanade.tachiyomi.animeextension") ||
+                    meta?.containsKey("tachiyomi.animeextension.class") == true ||
+                    meta?.containsKey("tachiyomix.animeextension.class") == true
+            else -> false
         }
     }
 }

@@ -536,7 +536,31 @@ class AnimeWatchAdapter(
                     "${media.id}_current_ep", ""
                 )?.toIntOrNull() ?: 1
 
-                var continueEp = (if (anilistEp > appEp) anilistEp else appEp).toString()
+                val maxAvailableEp = episodes.maxOfOrNull { key ->
+                    MediaNameAdapter.findEpisodeNumber(key)
+                        ?: media.anime?.episodes?.get(key)?.number?.let { MediaNameAdapter.findEpisodeNumber(it) }
+                        ?: 0f
+                } ?: episodes.size.toFloat()
+                // If user progress already completed all available episodes, hide continue button
+                if (media.userProgress != null && media.userProgress!!.toFloat() >= maxAvailableEp && (media.userProgress ?: 0) >= appEp) {
+                    binding.sourceContinue.visibility = View.GONE
+                    binding.sourceProgressBar.visibility = View.GONE
+                    return
+                }
+                val targetEpNum = (if (anilistEp > appEp) anilistEp else appEp).toFloat()
+                // Find matching episode key in media.anime.episodes (keys can be numbers or labels)
+                var matchingKey: String? = episodes.find { key ->
+                    val epObj = media.anime.episodes?.get(key)
+                    MediaNameAdapter.findEpisodeNumber(key) == targetEpNum ||
+                        (epObj?.number != null && MediaNameAdapter.findEpisodeNumber(epObj.number) == targetEpNum)
+                }
+                if (matchingKey == null) {
+                    val targetIdx = targetEpNum.toInt() - 1
+                    if (targetIdx in episodes.indices) {
+                        matchingKey = episodes[targetIdx]
+                    }
+                }
+                var continueEp = matchingKey ?: ""
                 if (episodes.contains(continueEp)) {
                     binding.sourceContinue.visibility = View.VISIBLE
                     handleProgress(

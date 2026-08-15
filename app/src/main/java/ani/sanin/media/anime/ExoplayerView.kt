@@ -659,21 +659,25 @@ class ExoplayerView :
         // TimeStamps
         model.timeStamps.observe(this) { it ->
             // Only mark as loaded once real data arrives; the initial null emission
-            // must not block the first load in onRenderedFirstFrame.
-            if (it != null) isTimeStampsLoaded = true
+            // must not block the first load in onRenderedFirstFrame. Empty results
+            // reset the flag so a later provider response can still load.
+            isTimeStampsLoaded = !it.isNullOrEmpty()
             Logger.log(
                 "Player: timeStamps observer fired for ep '${media.anime?.selectedEpisode}' " +
                     "value=${if (it == null) "null" else "list(${it.size})"} " +
                     "isTimeStampsLoaded=$isTimeStampsLoaded"
             )
             exoSkipOpEd.visibility =
-                if (it != null) {
+                if (it.isNullOrEmpty()) {
+                    playerView.setExtraAdGroupMarkers(longArrayOf(), booleanArrayOf())
+                    View.GONE
+                } else {
                     val adGroups =
                         it
                             .flatMap {
                                 listOf(
-                                    it.interval.startTime.toLong() * 1000,
-                                    it.interval.endTime.toLong() * 1000,
+                                    (it.interval.startTime * 1000).toLong(),
+                                    (it.interval.endTime * 1000).toLong(),
                                 )
                             }.toLongArray()
                     val playedAdGroups =
@@ -683,8 +687,6 @@ class ExoplayerView :
                             }.toBooleanArray()
                     playerView.setExtraAdGroupMarkers(adGroups, playedAdGroups)
                     View.VISIBLE
-                } else {
-                    View.GONE
                 }
         }
 
@@ -1419,7 +1421,7 @@ class ExoplayerView :
         }
 
         episodeArr = episodes.keys.toList()
-        currentEpisodeIndex = episodeArr.indexOf(media.anime!!.selectedEpisode!!)
+        currentEpisodeIndex = episodeArr.indexOf(episodes.getEpisodeKey(media.anime?.selectedEpisode)).coerceAtLeast(0)
 
         episodeTitleArr = arrayListOf()
         episodes.forEach {
@@ -1534,8 +1536,13 @@ class ExoplayerView :
                 episode = ep
                 media.selected = model.loadSelected(media)
                 model.setMedia(media)
-                currentEpisodeIndex = episodeArr.indexOf(ep.number)
-                episodeTitle.setSelection(currentEpisodeIndex)
+                val epKey = episodes.getEpisodeKey(ep.number)
+                    ?: episodeArr.find { episodes[it] == ep || episodes[it]?.number == ep.number }
+                    ?: episodeArr.firstOrNull()
+                currentEpisodeIndex = if (epKey != null) max(0, episodeArr.indexOf(epKey)) else 0
+                if (currentEpisodeIndex in 0 until episodeTitleArr.size) {
+                    episodeTitle.setSelection(currentEpisodeIndex)
+                }
                 episodeTitleText.text = episodeTitleArr.getOrElse(currentEpisodeIndex) { "" }
                 if (isInitialized) releasePlayer()
                 playbackPosition =
@@ -2016,6 +2023,13 @@ class ExoplayerView :
         val handler = assHandler!!
         val assSubtitleParserFactory = AssSubtitleParserFactory(handler)
         val extractorsFactory = DefaultExtractorsFactory()
+            .setTsExtractorFlags(
+                androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ENABLE_HDMV_DTS_AUDIO_STREAMS or
+                    androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES
+            )
+            .setTsExtractorTimestampSearchBytes(1500 * androidx.media3.extractor.ts.TsExtractor.TS_PACKET_SIZE)
+            .setMp4ExtractorFlags(androidx.media3.extractor.mp4.Mp4Extractor.FLAG_WORKAROUND_IGNORE_EDIT_LISTS)
+            .setMatroskaExtractorFlags(androidx.media3.extractor.mkv.MatroskaExtractor.FLAG_DISABLE_SEEK_FOR_CUES)
             .withAssMkvSupport(assSubtitleParserFactory, handler)
         assMediaSourceFactory = DefaultMediaSourceFactory(cacheFactory, extractorsFactory)
         assMediaSourceFactory.setSubtitleParserFactory(assSubtitleParserFactory)
@@ -2079,6 +2093,13 @@ class ExoplayerView :
         val videoMediaSource = if (isContentUri) {
             val localDataSourceFactory = DefaultDataSource.Factory(this)
             val localExtractorsFactory = DefaultExtractorsFactory()
+                .setTsExtractorFlags(
+                    androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ENABLE_HDMV_DTS_AUDIO_STREAMS or
+                        androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES
+                )
+                .setTsExtractorTimestampSearchBytes(1500 * androidx.media3.extractor.ts.TsExtractor.TS_PACKET_SIZE)
+                .setMp4ExtractorFlags(androidx.media3.extractor.mp4.Mp4Extractor.FLAG_WORKAROUND_IGNORE_EDIT_LISTS)
+                .setMatroskaExtractorFlags(androidx.media3.extractor.mkv.MatroskaExtractor.FLAG_DISABLE_SEEK_FOR_CUES)
                 .withAssMkvSupport(AssSubtitleParserFactory(assHandler!!), assHandler!!)
             DefaultMediaSourceFactory(localDataSourceFactory, localExtractorsFactory)
                 .createMediaSource(mediaItem)
@@ -3317,10 +3338,10 @@ class ExoplayerView :
     private fun updateTimeStamp() {
         maybeLoadTimeStamps("tick")
         if (isInitialized) {
-            val playerCurrentTime = exoPlayer.currentPosition / 1000
+            val playerCurrentTime = exoPlayer.currentPosition / 1000.0
             currentTimeStamp =
                 model.timeStamps.value?.find { timestamp ->
-                    timestamp.interval.startTime < playerCurrentTime &&
+                    timestamp.interval.startTime <= playerCurrentTime &&
                             playerCurrentTime < (timestamp.interval.endTime - 1)
                 }
 
