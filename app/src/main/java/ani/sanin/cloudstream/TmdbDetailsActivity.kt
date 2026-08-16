@@ -16,7 +16,13 @@ import ani.sanin.R
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.tmdb.TmdbCast
 import ani.sanin.connections.tmdb.TmdbDetail
+import ani.sanin.connections.tmdb.TmdbGenre
+import ani.sanin.connections.tmdb.TmdbImage
+import ani.sanin.connections.tmdb.TmdbImages
 import ani.sanin.connections.tmdb.TmdbMedia
+import ani.sanin.settings.saving.PrefName
+import com.lagradost.cloudstream3.LoadResponse
+import com.lagradost.cloudstream3.TvSeriesLoadResponse
 import ani.sanin.databinding.ActivityTmdbDetailsBinding
 import ani.sanin.databinding.ItemTmdbCardBinding
 import ani.sanin.databinding.ItemTmdbCastBinding
@@ -26,6 +32,8 @@ import ani.sanin.snackString
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.Logger
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.lagradost.cloudstream3.CommonActivity
 import kotlinx.coroutines.launch
 
@@ -34,11 +42,17 @@ class TmdbDetailsActivity : AppCompatActivity() {
     companion object {
         const val ARG_MEDIA_TYPE = "mediaType"
         const val ARG_MEDIA_ID = "mediaId"
+        const val ARG_PLUGIN_SOURCE = "pluginSource"
+        const val ARG_PLUGIN_URL = "pluginUrl"
     }
 
     private lateinit var binding: ActivityTmdbDetailsBinding
     private var mediaType: String = "movie"
     private var mediaId: Int = -1
+    private var pluginSourceId: String? = null
+    private var pluginUrl: String? = null
+    private var pluginLoad: LoadResponse? = null
+    private val pluginMode get() = pluginUrl != null
     private var detail: TmdbDetail? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,6 +67,8 @@ class TmdbDetailsActivity : AppCompatActivity() {
 
         mediaType = intent.getStringExtra(ARG_MEDIA_TYPE) ?: "movie"
         mediaId = intent.getIntExtra(ARG_MEDIA_ID, -1)
+        pluginSourceId = intent.getStringExtra(ARG_PLUGIN_SOURCE)
+        pluginUrl = intent.getStringExtra(ARG_PLUGIN_URL)
         Logger.log(
             "TMDB_DETAILS: opened mediaType=$mediaType mediaId=$mediaId"
         )
@@ -72,6 +88,10 @@ class TmdbDetailsActivity : AppCompatActivity() {
 
     private fun load() {
         lifecycleScope.launch {
+            if (pluginMode) {
+                loadPlugin()
+                return@launch
+            }
             val d = Tmdb.detail(mediaType, mediaId) ?: run {
                 snackString("Could not load details")
                 return@launch
@@ -125,11 +145,64 @@ class TmdbDetailsActivity : AppCompatActivity() {
 
     /** The play button is the gate to the movie/tv watch tab. */
     private fun onPlayClick() {
-        startActivity(
-            Intent(this, TmdbWatchActivity::class.java)
-                .putExtra(TmdbWatchActivity.ARG_MEDIA_TYPE, mediaType)
-                .putExtra(TmdbWatchActivity.ARG_MEDIA_ID, mediaId)
+        val i = Intent(this, TmdbWatchActivity::class.java)
+            .putExtra(TmdbWatchActivity.ARG_MEDIA_TYPE, mediaType)
+            .putExtra(TmdbWatchActivity.ARG_MEDIA_ID, mediaId)
+        if (pluginMode) {
+            i.putExtra(TmdbWatchActivity.ARG_PLUGIN_SOURCE, pluginSourceId)
+            i.putExtra(TmdbWatchActivity.ARG_PLUGIN_URL, pluginUrl)
+        }
+        startActivity(i)
+    }
+
+
+    /** Plugin-driven details: loads the title straight from a CloudStream plugin. */
+    private suspend fun loadPlugin() {
+        val url = pluginUrl ?: return
+        val sources = ani.sanin.cloudstream.CsRepos.installed(this)
+        val source = sources.firstOrNull { it.id == pluginSourceId } ?: run {
+            snackString("Plugin not installed"); finish(); return
+        }
+        val api = withContext(Dispatchers.IO) {
+            ani.sanin.cloudstream.CsRuntime.apisFor(this@TmdbDetailsActivity, source).firstOrNull()
+        } ?: run { snackString("Could not load ${source.name}"); finish(); return }
+        Logger.log("TMDB_DETAILS: plugin mode, loading '$url' via ${source.name}")
+        val load = withContext(Dispatchers.IO) { runCatching { api.load(url) }.getOrNull() }
+        if (load == null) {
+            snackString("Plugin returned nothing"); finish(); return
+        }
+        pluginLoad = load
+        val poster = load.posterUrl
+        val backdrop = load.backgroundPosterUrl ?: load.posterUrl
+        val rating = load.score?.toFloat(10)?.toDouble() ?: 0.0
+        val genres = load.tags.orEmpty().map { ani.sanin.connections.tmdb.TmdbGenre(0, it) }
+        val year = load.year?.toString()
+        val images = load.logoUrl?.let { TmdbImages(logos = listOf(TmdbImage(it))) }
+        detail = TmdbDetail(
+            id = mediaId, name = load.name, overview = load.plot,
+            voteAverage = rating, backdropPath = backdrop, posterPath = poster,
+            firstAirDate = year?.let { "$it-01-01" }, genres = genres, images = images
         )
+        val d = detail ?: return
+        binding.tmdbDetailBackdrop.loadImage(backdrop)
+        val logo = load.logoUrl
+        if (logo != null) binding.tmdbDetailLogo.loadImage(logo) else binding.tmdbDetailLogo.visibility = View.GONE
+        binding.tmdbDetailRating.text = buildString {
+            if (d.voteAverage > 0) append("★ ").append(String.format("%.1f", d.voteAverage)).append("  •  ")
+            if (d.year.isNotBlank()) append(d.year)
+        }
+        binding.tmdbDetailStatus.text = ""
+        binding.tmdbDetailSynopsis.text = d.overview?.takeIf { it.isNotBlank() } ?: "No synopsis available."
+        d.genres.take(5).forEach { genre ->
+            val chip = TextView(this@TmdbDetailsActivity).apply {
+                text = genre.name; setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+                setBackgroundResource(R.drawable.tmdb_chip_bg); textSize = 12f; setPadding(36, 12, 36, 12); isFocusable = true
+            }
+            val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginEnd = 20 }
+            binding.tmdbDetailGenreChips.addView(chip, lp)
+            FocusEffectUtil.applyFocusListener(chip)
+        }
+        binding.tmdbDetailPlayText.text = getString(if (load is TvSeriesLoadResponse) R.string.watch else R.string.play)
     }
 
     // ── cast / more like this ───────────────────────────────────────────────

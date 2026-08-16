@@ -148,7 +148,14 @@ class TmdbHomeFragment : Fragment() {
                 return@launch
             }
             val requests = apis.flatMap { api ->
-                api.mainPage.filter { it.data.isNotBlank() }.map { api to it }
+                val pages = api.mainPage.filter { it.data.isNotBlank() }
+                if (pages.isNotEmpty()) {
+                    pages.map { api to it }
+                } else {
+                    // Fallback: some providers override getMainPage with hardcoded logic
+                    // even when mainPage property is the default. Try a synthetic request.
+                    listOf(api to com.lagradost.cloudstream3.MainPageRequest("Home", "", false))
+                }
             }
             if (requests.isEmpty()) {
                 addEmptyState("Plugin '${source.name}' exposes no home sections.")
@@ -200,9 +207,9 @@ class TmdbHomeFragment : Fragment() {
             layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
             adapter = PluginRowAdapter(items) { item ->
                 startActivity(
-                    Intent(requireContext(), TmdbWatchActivity::class.java)
-                        .putExtra(TmdbWatchActivity.ARG_PLUGIN_SOURCE, source.id)
-                        .putExtra(TmdbWatchActivity.ARG_PLUGIN_URL, item.url)
+                    Intent(requireContext(), TmdbDetailsActivity::class.java)
+                        .putExtra(TmdbDetailsActivity.ARG_PLUGIN_SOURCE, source.id)
+                        .putExtra(TmdbDetailsActivity.ARG_PLUGIN_URL, item.url)
                 )
             }
             isNestedScrollingEnabled = false
