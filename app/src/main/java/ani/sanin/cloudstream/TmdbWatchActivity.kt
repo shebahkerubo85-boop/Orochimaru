@@ -201,7 +201,7 @@ class TmdbWatchActivity : AppCompatActivity() {
             return
         }
         val api = withContext(Dispatchers.IO) {
-            CsRuntime.apisFor(this, source).firstOrNull()
+            CsRuntime.apisFor(this@TmdbWatchActivity, source).firstOrNull()
         } ?: run {
             snackString("Could not load ${source.name}")
             finish()
