@@ -74,6 +74,8 @@ class SettingsAccountActivity : AppCompatActivity() {
                 }.show(supportFragmentManager, "dialog")
             }
 
+            Simkl.getSavedToken()
+
             fun reload() {
                 settingsAnilistLogin.isFocusable = true
                 settingsAnilistAvatar.isFocusable = true
@@ -220,6 +222,7 @@ class SettingsAccountActivity : AppCompatActivity() {
                 settingsSimklLogin.setOnClickListener {
                     Simkl.loginIntent(this@SettingsAccountActivity)
                 }
+            }
             }
             reload()
         }
