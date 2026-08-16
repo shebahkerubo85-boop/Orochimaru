@@ -133,7 +133,9 @@ class CloudflareKiller : Interceptor {
                 // Match every url for the requestCallBack
                 additionalUrls = listOf(Regex("."))
             ).resolveUsingWebView(
-                url
+                url,
+                referer = null,
+                method = "GET"
             ) {
                 trySolveWithSavedCookies(request)
             }

@@ -735,7 +735,7 @@ class ExoplayerView :
 
         exoSkipOpEd.alpha = if (PrefManager.getVal(PrefName.AutoSkipOPED)) 1f else 0.3f
         exoSkipOpEd.setOnClickListener {
-            val prev = PrefManager.getVal(PrefName.AutoSkipOPED)
+            val prev: Boolean = PrefManager.getVal(PrefName.AutoSkipOPED)
             Logger.log("Player: SKIP_OP_ED pressed — toggling AutoSkip from $prev")
             if (PrefManager.getVal(PrefName.AutoSkipOPED)) {
                 snackString(getString(R.string.disabled_auto_skip))

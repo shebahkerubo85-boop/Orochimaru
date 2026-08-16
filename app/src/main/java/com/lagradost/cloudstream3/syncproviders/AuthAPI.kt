@@ -2,9 +2,7 @@ package com.lagradost.cloudstream3.syncproviders
 
 import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.lagradost.cloudstream3.APIHolder
 import com.lagradost.cloudstream3.APIHolder.unixTime
-import com.lagradost.cloudstream3.APIHolder
 import com.lagradost.cloudstream3.APIHolder.unixTimeMS
 import com.lagradost.cloudstream3.base64Encode
 import com.lagradost.cloudstream3.splitUrlParameters
