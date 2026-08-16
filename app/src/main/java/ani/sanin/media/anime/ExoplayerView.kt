@@ -3355,6 +3355,8 @@ class ExoplayerView :
     private var lastLoggedStampId: String? = null
 
     private fun maybeLoadTimeStamps(source: String) {
+        // Synthetic TMDB streams use a negative id — no AniSkip timestamps for them.
+        if (media.id < 0) return
         if (!isInitialized || isTimeStampsLoaded || timeStampsLoading) return
         if (!PrefManager.getVal<Boolean>(PrefName.TimeStampsEnabled)) return
         // Rate-limit retries so a transient failure (e.g. on slower TV hardware)
@@ -3803,6 +3805,8 @@ class ExoplayerView :
     }
 
     private fun updateAniProgress() {
+        // Synthetic TMDB streams use a negative id — never sync progress for them.
+        if (media.id < 0) return
         val incognito: Boolean = PrefManager.getVal(PrefName.Incognito)
         if (episodeLength <= 0f) {
             maybeHandleSubscriptionAfterEpisodeCompletion(false, incognito)
