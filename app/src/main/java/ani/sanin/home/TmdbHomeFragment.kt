@@ -166,7 +166,7 @@ class TmdbHomeFragment : Fragment() {
             val chip = TextView(requireContext()).apply {
                 text = name
                 textSize = 12f
-                setTextColor(resources.getColor(R.color.cs_chip_text, null))
+                setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurface))
                 setBackgroundResource(R.drawable.tmdb_chip_bg)
                 setPadding(36, 10, 36, 10)
             }

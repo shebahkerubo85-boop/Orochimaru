@@ -210,6 +210,10 @@
             android:configChanges="orientation|screenSize|layoutDirection"
             android:parentActivityName=".MainActivity" />
         <activity
+            android:name=".cloudstream.TmdbWatchActivity"
+            android:configChanges="orientation|screenSize|layoutDirection"
+            android:parentActivityName=".MainActivity" />
+        <activity
             android:name=".cloudstream.TmdbSearchActivity"
             android:configChanges="orientation|screenSize|layoutDirection"
             android:parentActivityName=".MainActivity" />

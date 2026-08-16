@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingTop="16dp">
+
+    <!-- Source row: title + refresh / notification / appearance -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ProgressBar
+            android:id="@+id/tmdbWatchSpinner"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginEnd="8dp"
+            android:indeterminate="true"
+            android:indeterminateTint="?attr/colorSecondary"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tmdbWatchSourceTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="marquee"
+            android:fontFamily="@font/poppins_bold"
+            android:marqueeRepeatLimit="marquee_forever"
+            android:singleLine="true"
+            android:text="@string/tmdb_watch_sources"
+            android:textColor="?attr/colorOnSurface" />
+
+        <ImageView
+            android:id="@+id/tmdbWatchRefresh"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:focusable="true"
+            android:padding="4dp"
+            android:src="@drawable/ic_round_refresh_24"
+            app:tint="?attr/colorOnBackground"
+            tools:ignore="ContentDescription" />
+
+        <ImageView
+            android:id="@+id/tmdbWatchNotify"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginStart="8dp"
+            android:focusable="true"
+            android:padding="4dp"
+            android:src="@drawable/ic_round_notifications_none_24"
+            app:tint="?attr/colorOnBackground"
+            tools:ignore="ContentDescription" />
+
+        <ImageView
+            android:id="@+id/tmdbWatchAppearance"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginStart="8dp"
+            android:focusable="true"
+            android:padding="4dp"
+            android:src="@drawable/ic_round_grid_view_24"
+            app:tint="?attr/colorOnBackground"
+            tools:ignore="ContentDescription" />
+    </LinearLayout>
+
+    <!-- Source chips (installed CS3 plugins + Auto Search) -->
+    <HorizontalScrollView
+        android:id="@+id/tmdbWatchSourceScroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipToPadding="false"
+        android:scrollbars="none">
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/tmdbWatchSourceChips"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:singleLine="true"
+            app:singleSelection="true" />
+    </HorizontalScrollView>
+
+    <!-- Season area (tv) -->
+    <HorizontalScrollView
+        android:id="@+id/tmdbWatchSeasonScroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:clipToPadding="false"
+        android:scrollbars="none"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/tmdbWatchSeasonChips"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:singleLine="true"
+            app:singleSelection="true" />
+    </HorizontalScrollView>
+
+    <!-- Single-season label -->
+    <TextView
+        android:id="@+id/tmdbWatchSingleSeason"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:fontFamily="@font/poppins_semi_bold"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="14sp"
+        android:visibility="gone"
+        tools:text="1 Season"
+        tools:visibility="visible" />
+
+    <!-- Movie row: prequel / sequel -->
+    <LinearLayout
+        android:id="@+id/tmdbWatchMovieRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <Button
+            android:id="@+id/tmdbWatchPrequel"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:fontFamily="@font/poppins_semi_bold"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:text="@string/tmdb_watch_prequel"
+            android:textAllCaps="false"
+            android:textColor="?attr/colorPrimary" />
+
+        <Button
+            android:id="@+id/tmdbWatchSequel"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:layout_marginStart="12dp"
+            android:fontFamily="@font/poppins_semi_bold"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:text="@string/tmdb_watch_sequel"
+            android:textAllCaps="false"
+            android:textColor="?attr/colorPrimary" />
+    </LinearLayout>
+
+    <!-- Continue watching -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/tmdbWatchContinueCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:focusable="true"
+        android:translationZ="8dp"
+        app:cardBackgroundColor="?attr/colorSurfaceVariant"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="4dp"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="12dp">
+
+            <ImageView
+                android:id="@+id/tmdbWatchContinueImage"
+                android:layout_width="100dp"
+                android:layout_height="56dp"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_round_play_arrow_24"
+                tools:ignore="ContentDescription" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tmdbWatchContinueText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/poppins_bold"
+                    android:maxLines="1"
+                    android:text="@string/tmdb_watch_continue"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/tmdbWatchContinueDetail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:alpha="0.6"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/poppins_semi_bold"
+                    android:maxLines="1"
+                    android:textSize="12sp"
+                    android:textColor="?attr/colorOnSurface"
+                    tools:text="S1 E3 • 12:34" />
+            </LinearLayout>
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginEnd="8dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_round_play_arrow_24"
+                app:tint="?attr/colorPrimary" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Episodes header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:layout_marginBottom="8dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/poppins_bold"
+            android:text="@string/episodes"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="18sp" />
+
+        <TextView
+            android:id="@+id/tmdbWatchEpisodeCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:alpha="0.6"
+            android:fontFamily="@font/poppins_semi_bold"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="13sp"
+            tools:text="24 Episodes" />
+    </LinearLayout>
+</LinearLayout>

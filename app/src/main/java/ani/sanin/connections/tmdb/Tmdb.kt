@@ -53,11 +53,19 @@ data class TmdbDetail(
     @SerialName("external_ids") val externalIds: TmdbExternalIds? = null,
     val credits: TmdbCredits? = null,
     val recommendations: TmdbPage<TmdbMedia>? = null,
-    val seasons: List<TmdbSeason> = emptyList()
+    val seasons: List<TmdbSeason> = emptyList(),
+    @SerialName("belongs_to_collection") val collection: TmdbCollection? = null
 ) {
     val displayTitle: String get() = title ?: name ?: ""
     val year: String get() = (releaseDate ?: firstAirDate ?: "").take(4)
 }
+
+@Serializable
+data class TmdbCollection(
+    val id: Int,
+    val name: String? = null,
+    val parts: List<TmdbMedia> = emptyList()
+)
 
 @Serializable
 data class TmdbImages(
@@ -234,6 +242,16 @@ object Tmdb {
             json.decodeFromString<TmdbSeasonDetail>(body).episodes
         }.getOrDefault(emptyList())
     }
+
+    /** All movies in a collection, sorted by release date (earliest first). */
+    suspend fun collection(id: Int): List<TmdbMedia> {
+        val body = get("/collection/$id") ?: return emptyList()
+        return runCatching {
+            json.decodeFromString<TmdbCollection>(body).parts
+                .sortedBy { it.releaseDate }
+        }.getOrDefault(emptyList())
+    }
+
 
     fun imageUrl(path: String?, width: Int = 500): String? {
         if (path.isNullOrBlank()) return null
