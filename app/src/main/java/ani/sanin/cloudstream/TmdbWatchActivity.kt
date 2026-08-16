@@ -526,7 +526,7 @@ class TmdbWatchActivity : AppCompatActivity() {
                     holder.binding.itemEpisodeDate.text = date
                     holder.binding.itemEpisodeDate.isVisible = date.isNotBlank()
                     holder.binding.itemMediaImage.loadImage(image)
-                    holder.binding.itemMediaProgress_cont.isVisible = false
+                    holder.binding.itemMediaProgressCont.isVisible = false
                     holder.binding.root.setOnClickListener { onClick(ep) }
                     FocusEffectUtil.applyFocusListener(holder.binding.root)
                 }
