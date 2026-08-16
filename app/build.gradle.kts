@@ -119,7 +119,10 @@ kotlin {
     compilerOptions {
         freeCompilerArgs.addAll(
             "-XXLanguage:+ContextParameters",
-            "-Xmulti-platform"
+            "-Xmulti-platform",
+            "-opt-in=com.lagradost.cloudstream3.InternalAPI",
+            "-opt-in=com.lagradost.cloudstream3.Prerelease",
+            "-opt-in=kotlin.uuid.ExperimentalUuidApi"
         )
     }
 }

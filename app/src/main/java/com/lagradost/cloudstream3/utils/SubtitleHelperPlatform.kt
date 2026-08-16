@@ -1,5 +1,7 @@
 package com.lagradost.cloudstream3.utils
 
+import java.util.Locale
+
 /**
  * Returns the current locale as an IETF BCP 47 language tag.
  */

@@ -100,7 +100,7 @@ class WebViewResolver(
     @SuppressLint("SetJavaScriptEnabled")
     suspend fun resolveUsingWebView(
         request: Request,
-        requestCallBack: (Request) -> Boolean
+        requestCallBack: (Request) -> Boolean = { false }
     ): Pair<Request?, List<Request>> {
         val url = request.url.toString()
         val headers = request.headers

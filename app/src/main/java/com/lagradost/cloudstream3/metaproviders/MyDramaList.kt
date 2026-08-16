@@ -1,7 +1,6 @@
 package com.lagradost.cloudstream3.metaproviders
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.lagradost.api.BuildConfig
 import com.lagradost.cloudstream3.APIHolder.unixTimeMS
 import com.lagradost.cloudstream3.Actor
 import com.lagradost.cloudstream3.ActorData
@@ -48,7 +47,7 @@ abstract class MyDramaListAPI : MainAPI() {
 
     companion object {
         const val TAG = "MyDramaList"
-        val API_KEY: String = BuildConfig.MDL_API_KEY
+        val API_KEY: String = ""
         const val API_HOST = "https://api.mydramalist.com/v1"
         const val SITE_HOST = "https://mydramalist.com"
         private val headerInterceptor = MyDramaListInterceptor()
