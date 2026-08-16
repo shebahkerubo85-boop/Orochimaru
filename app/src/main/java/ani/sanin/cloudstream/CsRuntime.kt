@@ -31,6 +31,10 @@ object CsRuntime {
     /** Returns the providers registered by a plugin, keyed by source id. */
     private val apis = mutableMapOf<String, List<MainAPI>>()
 
+    /** Details of the most recent load failure (exception class + message), if any. */
+    var lastError: String? = null
+        private set
+
     @Synchronized
     fun load(context: Context, source: CsInstalledSource): Boolean {
         setContext(context.applicationContext)
@@ -54,11 +58,13 @@ object CsRuntime {
 
             @Suppress("UNCHECKED_CAST")
             val pluginClass = loader.loadClass(className) as Class<out BasePlugin>
+            Log.i(TAG, "Loaded class $className for ${source.name}")
             // Most plugins register their MainAPI providers in the constructor (init block),
             // so snapshot the provider list before instantiating.
             val before = APIHolder.allProviders.size
             val instance = pluginClass.getDeclaredConstructor().newInstance()
             instance.filename = file.absolutePath
+            Log.i(TAG, "Instantiated ${instance::class.java.name}, providers before=$before")
             if (manifest.requiresResources && instance is Plugin) {
                 // Plugin was built with requiresResources: give it a Resources
                 // wrapper backed by its own asset path (same as CloudStream).
@@ -79,13 +85,14 @@ object CsRuntime {
             }
             val after = APIHolder.allProviders.size
             val registered = APIHolder.allProviders.subList(before, after).toList()
-
+            lastError = null
             plugins[source.id] = instance
             apis[source.id] = registered
-            Log.i(TAG, "Loaded ${source.name} (${registered.size} providers)")
+            Log.i(TAG, "Loaded ${source.name} (${registered.size} providers, providers after=$after)")
             true
         }.getOrElse { t ->
-            Log.e(TAG, "Failed to load ${source.name}", t)
+            lastError = t::class.java.simpleName + (t.message?.let { ": $it" } ?: "")
+            Log.e(TAG, "Failed to load ${source.name}: ${lastError}", t)
             plugins.remove(source.id)
             apis.remove(source.id)
             false

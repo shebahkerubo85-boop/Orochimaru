@@ -144,8 +144,9 @@ class TmdbHomeFragment : Fragment() {
         binding.tmdbBannerSideMeta.text = meta
         binding.tmdbBannerRating.text = meta
         val synopsis = item.overview?.takeIf { it.isNotBlank() } ?: ""
+        val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
         binding.tmdbBannerSynopsis.text = synopsis
-        binding.tmdbBannerSynopsis.isVisible = synopsis.isNotBlank()
+        binding.tmdbBannerSynopsis.isVisible = !isPortrait && synopsis.isNotBlank()
         binding.tmdbBannerSideSynopsis.text = synopsis
         binding.tmdbBannerSideSynopsis.isVisible = synopsis.isNotBlank()
         val genreText = item.genreIds.take(3).mapNotNull { genreNames[it] }.joinToString("  •  ")

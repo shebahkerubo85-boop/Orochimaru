@@ -291,7 +291,8 @@ class TmdbDetailsActivity : AppCompatActivity() {
     ): StreamResult {
         val apis = CsRuntime.apisFor(this, source)
         if (apis.isEmpty()) {
-            return StreamResult.Error("Failed to load ${source.name} — is it a .cs3 plugin?")
+            val why = CsRuntime.lastError?.let { "\n$it" } ?: ""
+            return StreamResult.Error("Failed to load ${source.name} — is it a .cs3 plugin?$why")
         }
         for (api in apis) {
             try {
