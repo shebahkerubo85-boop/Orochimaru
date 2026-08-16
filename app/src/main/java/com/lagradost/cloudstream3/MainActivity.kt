@@ -37,3 +37,16 @@ var app = Requests(responseParser = jsonResponseParser).apply {
 var insecureApp = Requests(responseParser = jsonResponseParser).apply {
     defaultHeaders = mapOf("user-agent" to USER_AGENT)
 }
+
+
+/**
+ * Host implementation of CloudStream's [MainActivity] companion object. Plugins
+ * reference the events to react to library/bookmark changes.
+ */
+class MainActivity {
+    companion object {
+        val afterPluginsLoadedEvent = com.lagradost.cloudstream3.utils.Event<Boolean>()
+        val bookmarksUpdatedEvent = com.lagradost.cloudstream3.utils.Event<Boolean>()
+        val reloadLibraryEvent = com.lagradost.cloudstream3.utils.Event<Boolean>()
+    }
+}

@@ -689,7 +689,10 @@ class ExoplayerView :
         // BackButton: one click always exits the player. The system back keeps its
         // own handler (closes panels/overlay, optional exit dialog, hides controls).
         val exoBack = playerView.findViewById<ImageButton>(R.id.exo_back)
-        exoBack.setOnClickListener { finishAndRemoveTask() }
+        exoBack.setOnClickListener {
+            Logger.log("Player: BACK pressed — exiting player (ep=${media.anime?.selectedEpisode})")
+            finishAndRemoveTask()
+        }
         onBackPressedDispatcher.addCallback(this) {
             if (!handleBackPress()) {
                 finishAndRemoveTask()
@@ -732,6 +735,8 @@ class ExoplayerView :
 
         exoSkipOpEd.alpha = if (PrefManager.getVal(PrefName.AutoSkipOPED)) 1f else 0.3f
         exoSkipOpEd.setOnClickListener {
+            val prev = PrefManager.getVal(PrefName.AutoSkipOPED)
+            Logger.log("Player: SKIP_OP_ED pressed — toggling AutoSkip from $prev")
             if (PrefManager.getVal(PrefName.AutoSkipOPED)) {
                 snackString(getString(R.string.disabled_auto_skip))
                 PrefManager.setVal(PrefName.AutoSkipOPED, false)
@@ -746,6 +751,7 @@ class ExoplayerView :
         exoPlay.setOnClickListener {
             if (isInitialized) {
                 val wasPlaying = exoPlayer.playWhenReady
+                Logger.log("Player: PLAY/PAUSE pressed — wasPlaying=$wasPlaying (ep=${media.anime?.selectedEpisode})")
                 if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.AnimatedVectorDrawables)) (exoPlay.drawable as Animatable?)?.start()
                 if (wasPlaying) {
                     Glide.with(this).load(R.drawable.anim_play_to_pause).into(exoPlay)
@@ -778,6 +784,7 @@ class ExoplayerView :
             exoSkip.setOnClickListener {
                 if (isInitialized) {
                     val pos = exoPlayer.currentPosition
+                    Logger.log("Player: SKIP pressed — seek +${skipTime}s from ${pos}ms")
                     exoPlayer.seekTo(pos + skipTime * 1000)
                 }
             }
@@ -1410,6 +1417,10 @@ class ExoplayerView :
 
         // Handle Media
         if (!initialized) return startMainActivity(this)
+        Logger.log(
+            "Player: ExoplayerView opened media='${media.userPreferredName}' id=${media.id} " +
+                "selectedEp=${media.anime?.selectedEpisode} eps=${media.anime?.episodes?.size}"
+        )
         model.setMedia(media)
         title = media.userPreferredName
         episodes = media.anime?.episodes ?: return startMainActivity(this)
@@ -1551,6 +1562,7 @@ class ExoplayerView :
         exoNext = playerView.findViewById(R.id.exo_next_ep)
         exoNext.setOnClickListener {
             if (isInitialized) {
+                Logger.log("Player: NEXT EPISODE pressed (idx=$currentEpisodeIndex of ${episodeArr.size})")
                 nextEpisode { i ->
                     updateAniProgress()
                     disappeared = false
@@ -1563,6 +1575,7 @@ class ExoplayerView :
         exoPrev = playerView.findViewById(R.id.exo_prev_ep)
         exoPrev.setOnClickListener {
             if (currentEpisodeIndex > 0) {
+                Logger.log("Player: PREV EPISODE pressed (idx=$currentEpisodeIndex)")
                 disappeared = false
                 change(currentEpisodeIndex - 1)
             } else {
@@ -1608,6 +1621,7 @@ class ExoplayerView :
 
         exoScreen.setOnClickListener {
             if (isFullscreen < 2) isFullscreen += 1 else isFullscreen = 0
+            Logger.log("Player: SCREEN MODE pressed — now $isFullscreen (0=fit,1=zoom,2=stretch)")
             playerView.resizeMode =
                 when (isFullscreen) {
                     0 -> AspectRatioFrameLayout.RESIZE_MODE_FIT
@@ -1629,6 +1643,7 @@ class ExoplayerView :
         // Rotate: toggle between landscape and portrait
         exoRotate.setOnClickListener {
             val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+            Logger.log("Player: ROTATE pressed — switching from ${if (isLandscape) "landscape" else "portrait"}")
             requestedOrientation =
                 if (isLandscape) {
                     ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
@@ -1639,6 +1654,7 @@ class ExoplayerView :
 
         // Settings
         exoSettings.setOnClickListener {
+            Logger.log("Player: SETTINGS pressed (ep=${media.anime!!.selectedEpisode})")
             PrefManager.setCustomVal(
                 "${media.id}_${media.anime!!.selectedEpisode}",
                 exoPlayer.currentPosition,
@@ -1689,6 +1705,7 @@ class ExoplayerView :
             customAlertDialog().apply {
                 setTitle(R.string.speed)
                 singleChoiceItems(speedsName, curSpeed) { i ->
+                    Logger.log("Player: SPEED selected — ${speeds.getOrNull(i) ?: 1f}x")
                     PrefManager.setCustomVal("${media.id}_speed", i)
                     speed = speeds.getOrNull(i) ?: 1f
                     curSpeed = i
@@ -2099,6 +2116,12 @@ class ExoplayerView :
             .setSubtitleConfigurations(sub)
             .build()
 
+        Logger.log(
+            "Player: building media source url=${video!!.file.url.take(200)} " +
+                "mime=$mimeType headers=${video!!.file.headers} " +
+                "server=${ext.server.name} embed=${ext.server.embed.url.take(100)}"
+        )
+
         val audioMediaItem = mutableListOf<MediaItem>()
         audioLanguages.clear()
         ext.audioTracks.forEach {
@@ -2151,6 +2174,7 @@ class ExoplayerView :
 
         // Source
         exoSource.setOnClickListener {
+            Logger.log("Player: SOURCE pressed (ep=${media.anime?.selectedEpisode})")
             sourceClick()
         }
 
@@ -2433,6 +2457,7 @@ class ExoplayerView :
     }
 
     private fun sourceClick() {
+        Logger.log("Player: sourceClick — opening source selector (server=${media.selected?.server ?: "none"}, ep=${episode.number})")
         changingServer = true
 
         media.selected!!.server = null
@@ -3654,6 +3679,7 @@ class ExoplayerView :
         }
         exoAudioTrack.isVisible = audioTracks.size > 1
         exoAudioTrack.setOnClickListener {
+            Logger.log("Player: AUDIO TRACK pressed — ${audioTracks.size} tracks available")
             TrackGroupDialogFragment(this, audioTracks, TRACK_TYPE_AUDIO, audioLanguages)
                 .show(supportFragmentManager, "dialog")
         }

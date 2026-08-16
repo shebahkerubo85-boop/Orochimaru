@@ -15,6 +15,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import ani.sanin.FileUrl
 import ani.sanin.R
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.tmdb.TmdbCast
@@ -28,9 +29,20 @@ import ani.sanin.databinding.ItemTmdbCastBinding
 import ani.sanin.databinding.ItemTmdbEpisodeBinding
 import ani.sanin.getThemeColor
 import ani.sanin.loadImage
+import ani.sanin.media.Media
+import ani.sanin.media.anime.Anime
+import ani.sanin.media.anime.Episode
+import ani.sanin.media.anime.ExoplayerView
+import ani.sanin.parsers.Video
+import ani.sanin.parsers.VideoContainer
+import ani.sanin.parsers.VideoExtractor
+import ani.sanin.parsers.VideoServer
+import ani.sanin.parsers.VideoType
+import ani.sanin.util.Logger
 import ani.sanin.media.SheetSourceSelector
 import ani.sanin.snackString
 import ani.sanin.util.FocusEffectUtil
+import com.lagradost.cloudstream3.CommonActivity
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MovieLoadResponse
@@ -63,11 +75,17 @@ class TmdbDetailsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Plugins use CommonActivity.getActivity() for toasts/browser launches;
+        // keep it pointed at the TMDB screen while plugin streams are being used.
+        CommonActivity.setActivityInstance(this)
         binding = ActivityTmdbDetailsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         mediaType = intent.getStringExtra(ARG_MEDIA_TYPE) ?: "movie"
         mediaId = intent.getIntExtra(ARG_MEDIA_ID, -1)
+        Logger.log(
+            "TMDB_PLAY: TmdbDetailsActivity opened mediaType=$mediaType mediaId=$mediaId"
+        )
 
         binding.tmdbDetailBack.setOnClickListener { finish() }
         FocusEffectUtil.applyFocusListener(binding.tmdbDetailBack)
@@ -75,6 +93,11 @@ class TmdbDetailsActivity : AppCompatActivity() {
         FocusEffectUtil.applyFocusListener(binding.tmdbDetailPlayCard)
 
         load()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        CommonActivity.setActivityInstance(this)
     }
 
     private fun load() {
@@ -250,11 +273,18 @@ class TmdbDetailsActivity : AppCompatActivity() {
 
     private fun playFromSource(source: CsInstalledSource, season: Int?, episodeNumber: Int?) {
         val d = detail ?: return
+        Logger.log(
+            "TMDB_PLAY: user pressed play -> source '${source.name}' " +
+                "(season=$season ep=$episodeNumber) for '${d.displayTitle}'"
+        )
         snackString("Loading ${source.name}…")
         lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) { resolveStreams(source, d, season, episodeNumber) }
             when (result) {
-                is StreamResult.Error -> snackString(result.message)
+                is StreamResult.Error -> {
+                    Logger.log(Log.ERROR, "TMDB_PLAY: failed for ${source.name}: ${result.message}")
+                    snackString(result.message)
+                }
                 is StreamResult.Success -> {
                     // The activity may have been backgrounded/destroyed while links were
                     // resolving (e.g. the user pressed play again). Showing a dialog then
@@ -263,17 +293,20 @@ class TmdbDetailsActivity : AppCompatActivity() {
                         Log.i("TmdbDetails", "Discarding resolved links: activity not in a showable state")
                         return@launch
                     }
+                    Logger.log(
+                        "TMDB_PLAY: ${source.name} resolved ${result.links.size} links: " +
+                            result.links.mapIndexed { i, l -> "$i:${l.label}" }.joinToString(" | ")
+                    )
                     val labels = ArrayList(result.links.map { "${it.label}  •  ${source.name}" })
                     val picker = SheetSourceSelector.newInstance(labels, onSelect = { idx ->
                         if (!isFinishing && !isDestroyed) {
                             val link = result.links[idx]
-                            startActivity(
-                                Intent(this@TmdbDetailsActivity, TmdbPlayerActivity::class.java)
-                                    .putExtra(TmdbPlayerActivity.EXTRA_URL, link.url)
-                                    .putExtra(TmdbPlayerActivity.EXTRA_TITLE, d.displayTitle)
-                                    .putExtra(TmdbPlayerActivity.EXTRA_REFERER, link.referer)
-                                    .putExtra(TmdbPlayerActivity.EXTRA_HEADERS, HashMap(link.headers))
+                            Logger.log(
+                                "TMDB_PLAY: opening anime player for '${d.displayTitle}' " +
+                                    "url=${link.url} host=${runCatching { java.net.URI(link.url).host }.getOrNull() ?: "unknown"} " +
+                                    "referer=${link.referer} headers=${link.headers}"
                             )
+                            openInAnimePlayer(d.displayTitle, link)
                         }
                     })
                     picker.show(supportFragmentManager, "tmdbQualitySelector")
@@ -293,6 +326,61 @@ class TmdbDetailsActivity : AppCompatActivity() {
         data class Error(val message: String) : StreamResult()
     }
 
+    /**
+     * Plays a resolved TMDB stream through the full-featured anime player
+     * (ExoplayerView), so every button/behavior is identical to anime playback.
+     * The plugin link is wrapped into a synthetic one-episode [Media] with a
+     * single [VideoExtractor] carrying the URL + headers.
+     */
+    private fun openInAnimePlayer(title: String, link: StreamResult.PlayableLink) {
+        val url = link.url
+        val videoType = when {
+            url.contains(".m3u8", ignoreCase = true) -> VideoType.M3U8
+            url.contains(".mpd", ignoreCase = true) -> VideoType.DASH
+            else -> VideoType.CONTAINER
+        }
+        val headers = HashMap(link.headers).apply {
+            link.referer?.takeIf { it.isNotBlank() }?.let { put("Referer", it) }
+        }
+        val video = Video(quality = null, format = videoType, file = FileUrl(url, headers))
+        val extractor = object : VideoExtractor() {
+            override val server = VideoServer("TMDB", "")
+            override suspend fun extract() = VideoContainer(listOf(video))
+        }
+        val episode = Episode(
+            number = "1",
+            title = title,
+            selectedExtractor = "TMDB",
+            selectedVideo = 0,
+            selectedSubtitle = -1,
+            extractors = mutableListOf(extractor),
+            extractorsSource = 0,
+        )
+        val anime = Anime(
+            selectedEpisode = "1",
+            episodes = mutableMapOf("1" to episode),
+            totalEpisodes = 1,
+            episodeDuration = 1,
+        )
+        // Negative id space so it can never collide with a real anilist id.
+        val syntheticId = -1000000000 - (this.mediaId % 1000000)
+        val media = Media(
+            anime = anime,
+            id = syntheticId,
+            name = title,
+            nameRomaji = title,
+            userPreferredName = title,
+            isAdult = false,
+        )
+        ExoplayerView.media = media
+        ExoplayerView.initialized = true
+        Logger.log(
+            "TMDB_PLAY: launching ExoplayerView type=${videoType.name} " +
+                "headers=${headers} mediaId=${syntheticId}"
+        )
+        startActivity(Intent(this, ExoplayerView::class.java))
+    }
+
     private suspend fun resolveStreams(
         source: CsInstalledSource,
         d: TmdbDetail,
@@ -306,15 +394,27 @@ class TmdbDetailsActivity : AppCompatActivity() {
         }
         val failures = mutableListOf<String>()
         for (api in apis) {
+            Logger.log(
+                "TMDB_PLAY: trying provider ${api.name} for '${d.displayTitle}' " +
+                    "(season=$season ep=$episodeNumber)"
+            )
             Log.i("TmdbDetails", "Trying provider ${api.name} for '${d.displayTitle}' (season=$season ep=$episodeNumber)")
             try {
                 val (streams, reason) = resolveFromApi(api, d, season, episodeNumber)
+                Logger.log(
+                    "TMDB_PLAY: ${api.name} returned ${streams.size} playable links " +
+                        "reason=${if (reason.isNotBlank()) reason else "ok"}"
+                )
                 Log.i("TmdbDetails", "${api.name}: returned ${streams.size} playable links")
                 if (streams.isNotEmpty()) return StreamResult.Success(streams)
                 if (reason.isNotBlank()) failures += reason
             } catch (t: Throwable) {
+                if (t is kotlinx.coroutines.CancellationException) throw t
+                val detail = "${t::class.java.simpleName}${t.message?.let { ": $it" } ?: ""}"
+                Logger.log(Log.ERROR, "TMDB_PLAY: provider ${api.name} threw $detail")
+                Logger.log(t)
                 Log.e("TmdbDetails", "Provider ${api.name} failed", t)
-                failures += "${api.name}: ${t::class.java.simpleName} ${t.message}"
+                failures += "${api.name}: $detail"
             }
         }
         val why = failures.lastOrNull()?.let { " — $it" } ?: ""
@@ -337,18 +437,29 @@ class TmdbDetailsActivity : AppCompatActivity() {
         // Calling the one-arg form throws NotImplementedError in the base class, which made
         // paginated-only providers (MovieBox, Goojara, ...) report "no streams". Mirror
         // CloudStream: call search(query, 1) first, then fall back to quickSearch().
+        var searchError: String? = null
         val results = runCatching { api.search(d.displayTitle, 1)?.items }
             .getOrElse { t ->
                 if (t is kotlinx.coroutines.CancellationException) throw t
-                Log.e("TmdbDetails", "${api.name}: search(query,1) failed: ${t.message}")
+                searchError = "search threw ${t::class.java.simpleName}${t.message?.let { ": $it" } ?: ""}"
+                Logger.log(Log.ERROR, "TMDB_PLAY: ${api.name} $searchError")
+                Logger.log(t)
+                Log.e("TmdbDetails", "${api.name}: search(query,1) failed", t)
                 null
             }?.takeIf { it.isNotEmpty() }
             ?: runCatching { api.quickSearch(d.displayTitle) }
                 .getOrElse { t ->
                     if (t is kotlinx.coroutines.CancellationException) throw t
-                    Log.e("TmdbDetails", "${api.name}: quickSearch failed: ${t.message}")
+                    searchError = "quickSearch threw ${t::class.java.simpleName}${t.message?.let { ": $it" } ?: ""}"
+                    Logger.log(Log.ERROR, "TMDB_PLAY: ${api.name} $searchError")
+                    Logger.log(t)
+                    Log.e("TmdbDetails", "${api.name}: quickSearch failed", t)
                     null
                 } ?: emptyList()
+        Logger.log(
+            "TMDB_PLAY: ${api.name} search '${d.displayTitle}' -> ${results.size} results " +
+                (searchError ?: "")
+        )
         Log.i("TmdbDetails", "${api.name}: search '${d.displayTitle}' -> ${results.size} results")
         val match = bestSearchMatch(results, d.displayTitle, wantMovie)
         Log.i("TmdbDetails", "${api.name}: best match = ${match?.url ?: "NONE"}")
@@ -356,7 +467,20 @@ class TmdbDetailsActivity : AppCompatActivity() {
             return ApiResolve(emptyList(), "${api.name}: no search result matched '${d.displayTitle}' (${results.size} results)")
         }
 
-        val response = api.load(match.url)
+        val response = try {
+            api.load(match.url)
+        } catch (t: Throwable) {
+            if (t is kotlinx.coroutines.CancellationException) throw t
+            val detail = "${t::class.java.simpleName}${t.message?.let { ": $it" } ?: ""}"
+            Logger.log(Log.ERROR, "TMDB_PLAY: ${api.name} load threw $detail")
+            Logger.log(t)
+            Log.e("TmdbDetails", "${api.name}: load failed", t)
+            return ApiResolve(emptyList(), "${api.name}: load threw $detail")
+        }
+        Logger.log(
+            "TMDB_PLAY: ${api.name} load '${match.url}' -> " +
+                (response?.javaClass?.simpleName ?: "null response")
+        )
         Log.i("TmdbDetails", "${api.name}: load ${match.url} -> ${response?.javaClass?.simpleName ?: "null"}")
         if (response == null) {
             return ApiResolve(emptyList(), "${api.name}: load returned null for ${match.url}")
@@ -381,7 +505,20 @@ class TmdbDetailsActivity : AppCompatActivity() {
 
         val links = mutableListOf<ExtractorLink>()
         val subs = mutableListOf<SubtitleFile>()
-        val ok = api.loadLinks(dataUrl, isCasting = false, subtitleCallback = { subs.add(it) }, callback = { links.add(it) })
+        val ok = try {
+            api.loadLinks(dataUrl, isCasting = false, subtitleCallback = { subs.add(it) }, callback = { links.add(it) })
+        } catch (t: Throwable) {
+            if (t is kotlinx.coroutines.CancellationException) throw t
+            val detail = "${t::class.java.simpleName}${t.message?.let { ": $it" } ?: ""}"
+            Logger.log(Log.ERROR, "TMDB_PLAY: ${api.name} loadLinks threw $detail")
+            Logger.log(t)
+            Log.e("TmdbDetails", "${api.name}: loadLinks failed", t)
+            return ApiResolve(emptyList(), "${api.name}: loadLinks threw $detail")
+        }
+        Logger.log(
+            "TMDB_PLAY: ${api.name} loadLinks ok=$ok links=${links.size} subs=${subs.size} " +
+                "dataUrl=${dataUrl.take(120)}"
+        )
         Log.i("TmdbDetails", "${api.name}: loadLinks ok=$ok links=${links.size} subs=${subs.size}")
         if (!ok || links.isEmpty()) {
             return ApiResolve(emptyList(), "${api.name}: loadLinks ok=$ok links=${links.size}")

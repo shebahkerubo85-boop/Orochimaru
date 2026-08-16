@@ -1,0 +1,70 @@
+package com.lagradost.cloudstream3
+
+import android.app.Activity
+import android.widget.Toast
+import androidx.annotation.StringRes
+import com.lagradost.cloudstream3.utils.UiText
+import java.lang.ref.WeakReference
+
+object CommonActivity {
+
+    private var _activity: WeakReference<Activity>? = null
+    var activity: Activity?
+        get() = _activity?.get()
+        private set(value) {
+            _activity = WeakReference(value)
+        }
+
+    fun setActivityInstance(newActivity: Activity?) {
+        activity = newActivity
+    }
+
+    fun getActivity(): Activity? = activity
+
+    private var currentToast: Toast? = null
+
+    fun showToast(@StringRes message: Int, duration: Int? = null) {
+        val act = activity ?: return
+        act.runOnUiThread {
+            showToast(act, act.getString(message), duration)
+        }
+    }
+
+    fun showToast(message: String?, duration: Int? = null) {
+        val act = activity ?: return
+        act.runOnUiThread {
+            showToast(act, message, duration)
+        }
+    }
+
+    fun showToast(message: UiText?, duration: Int? = null) {
+        val act = activity ?: return
+        if (message == null) return
+        act.runOnUiThread {
+            showToast(act, message.asString(act), duration)
+        }
+    }
+
+    fun showToast(act: Activity?, text: UiText, duration: Int) {
+        if (act == null) return
+        text.asStringNull(act)?.let {
+            showToast(act, it, duration)
+        }
+    }
+
+    fun showToast(act: Activity?, @StringRes message: Int, duration: Int? = null) {
+        if (act == null) return
+        showToast(act, act.getString(message), duration)
+    }
+
+    fun showToast(act: Activity?, message: String?, duration: Int? = null) {
+        if (act == null || message == null) return
+        try {
+            currentToast?.cancel()
+        } catch (_: Exception) {
+        }
+        val toast = Toast.makeText(act, message, duration ?: Toast.LENGTH_SHORT)
+        currentToast = toast
+        toast.show()
+    }
+}
