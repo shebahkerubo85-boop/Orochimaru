@@ -89,7 +89,7 @@ object Simkl {
                 .post(body.toRequestBody("application/json".toMediaType()))
                 .build()
             val response = okHttpClient.newCall(request).execute()
-            val respBody = response.body?.string() ?: return@tryWithSuspend null
+            val respBody = response.body?.string() ?: return@tryWith null
             val token = json.decodeFromString(SimklToken.serializer(), respBody)
             saveToken(token)
             token
