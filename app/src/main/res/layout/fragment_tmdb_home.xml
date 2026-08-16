@@ -35,13 +35,23 @@
                     android:layout_height="match_parent"
                     android:scaleType="centerCrop"
                     tools:ignore="ContentDescription" />
+
+                <View
+                    android:id="@+id/tmdbBannerCardScrim"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:layout_gravity="left"
+                    android:background="@drawable/banner_scrim_left"
+                    android:importantForAccessibility="no"
+                    android:visibility="gone" />
             </androidx.cardview.widget.CardView>
 
             <View
                 android:id="@+id/tmdbBannerFade"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="@drawable/banner_scrim_left"
+                android:background="@drawable/gradient_fade_black_left"
+                android:importantForAccessibility="no"
                 android:visibility="gone" />
 
             <LinearLayout

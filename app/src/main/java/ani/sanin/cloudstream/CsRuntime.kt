@@ -1,11 +1,14 @@
 package ani.sanin.cloudstream
 
 import android.content.Context
+import android.content.res.AssetManager
+import android.content.res.Resources
 import android.util.Log
 import com.lagradost.api.setContext
 import com.lagradost.cloudstream3.APIHolder
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.plugins.BasePlugin
+import com.lagradost.cloudstream3.plugins.Plugin
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import dalvik.system.PathClassLoader
 import java.io.InputStreamReader
@@ -51,11 +54,29 @@ object CsRuntime {
 
             @Suppress("UNCHECKED_CAST")
             val pluginClass = loader.loadClass(className) as Class<out BasePlugin>
+            // Most plugins register their MainAPI providers in the constructor (init block),
+            // so snapshot the provider list before instantiating.
+            val before = APIHolder.allProviders.size
             val instance = pluginClass.getDeclaredConstructor().newInstance()
             instance.filename = file.absolutePath
-
-            val before = APIHolder.allProviders.size
-            instance.load()
+            if (manifest.requiresResources && instance is Plugin) {
+                // Plugin was built with requiresResources: give it a Resources
+                // wrapper backed by its own asset path (same as CloudStream).
+                val assets = AssetManager::class.java.getDeclaredConstructor().newInstance()
+                AssetManager::class.java.getMethod("addAssetPath", String::class.java)
+                    .invoke(assets, file.absolutePath)
+                @Suppress("DEPRECATION")
+                instance.resources = Resources(
+                    assets,
+                    context.resources.displayMetrics,
+                    context.resources.configuration
+                )
+            }
+            if (instance is Plugin) {
+                instance.load(context)
+            } else {
+                instance.load()
+            }
             val after = APIHolder.allProviders.size
             val registered = APIHolder.allProviders.subList(before, after).toList()
 

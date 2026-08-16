@@ -213,14 +213,21 @@ class TmdbHomeFragment : Fragment() {
                 gravity = Gravity.END or Gravity.TOP
             }
             val stripW = ctx.resources.displayMetrics.widthPixels - cardW
+            // Exact anime landscape gradient: strip fade on the left + scrim over the card's left half
             binding.tmdbBannerFade.isVisible = true
             binding.tmdbBannerFade.updateLayoutParams<FrameLayout.LayoutParams> {
-                width = stripW + cardW / 2
+                width = stripW
                 height = cardH
                 gravity = Gravity.START or Gravity.TOP
             }
             binding.tmdbBannerFade.bringToFront()
             binding.tmdbBannerFade.z = 10f
+            binding.tmdbBannerCardScrim.isVisible = true
+            binding.tmdbBannerCardScrim.updateLayoutParams<androidx.cardview.widget.CardView.LayoutParams> {
+                width = cardW / 2
+                height = cardH
+                gravity = Gravity.START or Gravity.TOP
+            }
             binding.tmdbBannerSide.isVisible = true
             binding.tmdbBannerSide.updateLayoutParams<FrameLayout.LayoutParams> {
                 width = stripW + cardW / 4
@@ -248,6 +255,7 @@ class TmdbHomeFragment : Fragment() {
             binding.tmdbBannerPortraitLogo.maxWidth = (cardW - 48 * density).toInt().coerceAtLeast(1)
             binding.tmdbBannerPortraitLogo.maxHeight = (cardH * 0.22f).toInt()
             binding.tmdbBannerFade.isVisible = false
+            binding.tmdbBannerCardScrim.isVisible = false
             binding.tmdbBannerSide.isVisible = false
             binding.tmdbBannerContent.isVisible = true
             binding.tmdbBannerImage.scaleType = ImageView.ScaleType.CENTER_CROP
