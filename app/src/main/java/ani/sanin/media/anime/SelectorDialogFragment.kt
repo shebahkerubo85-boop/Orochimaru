@@ -153,7 +153,11 @@ class SelectorDialogFragment : DialogFragment() {
             if (media != null && !loaded) {
                 loaded = true
                 val providerName =
-                    model.watchSources?.get(media!!.selected?.sourceIndex ?: 0)?.name
+                    if (media!!.id < 0) {
+                        ani.sanin.cloudstream.TmdbStreamResolver.syntheticSourceName(media.id)
+                    } else {
+                        model.watchSources?.get(media!!.selected?.sourceIndex ?: 0)?.name
+                    }
                 binding.selectorProviderName.isVisible = providerName != null
                 binding.selectorProviderName.text = providerName ?: ""
                 binding.selectorAutoProviderName.isVisible = providerName != null
@@ -205,7 +209,26 @@ class SelectorDialogFragment : DialogFragment() {
                             adapter.add(extractor)
                         }
                     }
-                    if (!cacheValid) {
+                    if (!cacheValid && media!!.id < 0) {
+                        // Synthetic TMDB episode: servers come from the plugin, cached
+                        // per episode so reopening the sheet is instant.
+                        scope.launch(Dispatchers.IO) {
+                            val ok = ani.sanin.cloudstream.TmdbStreamResolver.populateSyntheticEpisode(
+                                requireContext(), media!!, ep
+                            )
+                            withContext(Dispatchers.Main) {
+                                if (_binding == null || !isAdded) return@withContext
+                                binding.selectorProgressBar.visibility = View.GONE
+                                if (!ok || ep.extractors.isNullOrEmpty()) {
+                                    fail(R.string.stream_selection_empty)
+                                    return@withContext
+                                }
+                                ep.extractors.orEmpty().forEach { adapter.add(it) }
+                                adapter.removePendingPlaceholders()
+                                binding.selectorMakeDefault.post { binding.selectorMakeDefault.requestFocus() }
+                            }
+                        }
+                    } else if (!cacheValid) {
                         scope.launch(Dispatchers.IO) {
                             // Phase 1: fetch server names and show them immediately
                             val servers = model.loadEpisodeVideoServers(ep, media!!.selected!!.sourceIndex)
@@ -263,13 +286,19 @@ class SelectorDialogFragment : DialogFragment() {
                     episode = ep
 
                     var success = false
-                    scope.launch(Dispatchers.IO) {
-                        success = model.loadEpisodeSingleVideo(
-                            ep,
-                            media!!.selected!!,
-                            selectedServerName = selectedServerName
+                    if (media!!.id < 0) {
+                        success = ani.sanin.cloudstream.TmdbStreamResolver.populateSyntheticEpisode(
+                            requireContext(), media!!, ep
                         )
-                    }.join()
+                    } else {
+                        scope.launch(Dispatchers.IO) {
+                            success = model.loadEpisodeSingleVideo(
+                                ep,
+                                media!!.selected!!,
+                                selectedServerName = selectedServerName
+                            )
+                        }.join()
+                    }
                     Log.d("AnimeDownloader", "Loading Episode Server State: $success")
                     return success
                 }

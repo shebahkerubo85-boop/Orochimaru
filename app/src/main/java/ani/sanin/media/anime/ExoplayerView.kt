@@ -324,6 +324,12 @@ class ExoplayerView :
     private var currentEpisodeIndex = 0
     private var epChanging = false
 
+    // Season chips inside the episode rail (synthetic TMDB media only)
+    private lateinit var railSeasonScroll: android.widget.HorizontalScrollView
+    private lateinit var railSeasonChips: ChipGroup
+    private var seasonArr: List<String> = emptyList()
+    private var currentRailSeason: String? = null
+
     private var extractor: VideoExtractor? = null
     private var video: Video? = null
     private var subtitle: Subtitle? = null
@@ -574,6 +580,8 @@ class ExoplayerView :
         episodeDrawerList = findViewById(R.id.episodeDrawerList)
         episodeDrawerClose = findViewById(R.id.episodeDrawerClose)
         episodeDrawerContent = findViewById(R.id.episodeDrawer)
+        railSeasonScroll = findViewById(R.id.episodeRailSeasonScroll)
+        railSeasonChips = findViewById(R.id.episodeRailSeasonChips)
         episodeDrawerClose.nextFocusDownId = R.id.episodeDrawerList
         episodeDrawerList.nextFocusUpId = R.id.episodeDrawerClose
         FocusEffectUtil.applyFocusListener(episodeDrawerClose)
@@ -603,7 +611,9 @@ class ExoplayerView :
                 // still visible next to it, so block them from receiving focus.
                 playerView.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
                 playerView.isFocusable = false
-                val pos = currentEpisodeIndex.coerceIn(0, episodeDrawerAdapter?.itemCount?.minus(1) ?: 0)
+                val currentKey = episodes.getEpisodeKey(media.anime?.selectedEpisode)
+                val pos = railEpisodes().keys.indexOfFirst { it == currentKey }
+                    .coerceIn(0, episodeDrawerAdapter?.itemCount?.minus(1) ?: 0)
                 episodeDrawerList.scrollToPosition(pos)
                 episodeDrawerList.post {
                     val holder = episodeDrawerList.findViewHolderForAdapterPosition(pos)
@@ -1459,7 +1469,7 @@ class ExoplayerView :
             pauseGenres.addView(chip)
         }
         lifecycleScope.launch(Dispatchers.Main) {
-            val logoUrl = LogoApi.getLogoUrl(media.id)
+            val logoUrl = media.logoUrl ?: LogoApi.getLogoUrl(media.id)
             if (!logoUrl.isNullOrBlank()) {
                 pauseLogo.visibility = View.VISIBLE
                 pauseTitle.visibility = View.GONE
@@ -1482,6 +1492,14 @@ class ExoplayerView :
                 "Episode ${episode.number}${if (episode.filler) " [Filler]" else ""}${if (cleanedTitle.isNotBlank() && cleanedTitle != "null") ": $cleanedTitle" else ""}",
             )
         }
+
+        // Season chips: only for media whose episodes carry a season in extra
+        // (the synthetic TMDB build). Anime episodes have none -> chips hidden.
+        seasonArr = episodes.values.mapNotNull { it.extra?.get("season") }.distinct()
+            .sortedWith(compareBy { it.toIntOrNull() ?: 0 })
+        currentRailSeason = episodes.getEpisode(media.anime?.selectedEpisode)?.extra?.get("season")
+            ?: seasonArr.firstOrNull()
+        buildRailSeasonChips()
 
         // Episode Change
         fun change(index: Int) {
@@ -1541,7 +1559,7 @@ class ExoplayerView :
         // Episode Side Rail
         episodeDrawerList.layoutManager = LinearLayoutManager(this)
         episodeDrawerAdapter = EpisodeRailAdapter(
-            episodes = episodes,
+            episodes = railEpisodes(),
             onEpisodeClick = { epKey ->
                 val idx = episodeArr.indexOf(epKey)
                 if (idx >= 0 && idx != currentEpisodeIndex) {
@@ -3395,7 +3413,13 @@ class ExoplayerView :
                     val ep = episodes[episodeArr[currentEpisodeIndex + i]] ?: return@nextEpisode
                     val selected = media.selected ?: return@nextEpisode
                     lifecycleScope.launch(Dispatchers.IO) {
-                        if (media.selected!!.server != null) {
+                        if (media.id < 0) {
+                            // Synthetic TMDB media: preload the next episode through
+                            // the same plugin so autoplay starts instantly at ENDED.
+                            ani.sanin.cloudstream.TmdbStreamResolver.populateSyntheticEpisode(
+                                this@ExoplayerView, media, ep
+                            )
+                        } else if (media.selected!!.server != null) {
                             model.loadEpisodeSingleVideo(ep, selected, false)
                         } else {
                             model.loadEpisodeVideos(ep, selected.sourceIndex, false)
@@ -3408,6 +3432,38 @@ class ExoplayerView :
             handler.postDelayed({
                 updateProgress()
             }, 2500)
+        }
+    }
+
+    private fun railEpisodes(): Map<String, Episode> =
+        if (currentRailSeason == null) episodes
+        else episodes.filterValues { it.extra?.get("season") == currentRailSeason }
+
+    private fun buildRailSeasonChips() {
+        railSeasonChips.removeAllViews()
+        if (seasonArr.size <= 1) {
+            railSeasonScroll.isVisible = false
+            return
+        }
+        railSeasonScroll.isVisible = true
+        seasonArr.forEach { season ->
+            val chip = LayoutInflater.from(this)
+                .inflate(R.layout.item_tmdb_chip, railSeasonChips, false) as Chip
+            chip.text = getString(R.string.tmdb_watch_season_chip, season)
+            chip.isCheckable = true
+            chip.isClickable = true
+            chip.isFocusable = true
+            chip.tag = season
+            chip.isChecked = season == currentRailSeason
+            chip.setOnClickListener {
+                currentRailSeason = season
+                episodeDrawerAdapter?.showSeason(railEpisodes())
+                val currentKey = episodes.getEpisodeKey(media.anime?.selectedEpisode)
+                val pos = railEpisodes().keys.indexOfFirst { it == currentKey }
+                if (pos >= 0) episodeDrawerList.scrollToPosition(pos)
+            }
+            FocusEffectUtil.applyFocusListener(chip)
+            railSeasonChips.addView(chip)
         }
     }
 
@@ -4525,6 +4581,10 @@ private class EpisodeRailAdapter(
 
     init {
         submitList(episodes.entries.toList())
+    }
+
+    fun showSeason(map: Map<String, Episode>) {
+        submitList(map.entries.toList())
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): EpisodeRailViewHolder {

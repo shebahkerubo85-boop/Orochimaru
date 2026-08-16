@@ -197,12 +197,23 @@ class TmdbWatchActivity : AppCompatActivity() {
             chip.setOnClickListener {
                 val nowChecked = chip.isChecked
                 selectedSourceIndex = if (nowChecked) index else -1
+                lastAutoSource = null
+                // Switching plugins must never reuse server data from the old one:
+                // drop every cached server sheet for this title, cancel any
+                // in-flight resolve, then visibly re-resolve from the new source.
+                TmdbStreamResolver.invalidateLinks(mediaId)
+                resolveJob?.cancel()
+                resolveJob = null
+                isResolving = false
                 Logger.log(
                     "TMDB_WATCH: source chip -> '${source.name}' (idx $index) " +
-                        "checked=$nowChecked (selectedSourceIndex=$selectedSourceIndex)"
+                        "checked=$nowChecked (selectedSourceIndex=$selectedSourceIndex) " +
+                        "cached sheets invalidated"
                 )
                 setSourceStatus(getString(R.string.tmdb_watch_sources))
                 refreshChips(h.tmdbWatchSourceChips)
+                episodeAdapter?.submitEpisodes(episodesOrMovie())
+                if (nowChecked) refreshSelected() else autoSearchOnOpen()
             }
             FocusEffectUtil.applyFocusListener(chip)
             h.tmdbWatchSourceChips.addView(chip)
@@ -385,15 +396,66 @@ class TmdbWatchActivity : AppCompatActivity() {
             "TMDB_WATCH: episode click '${d.displayTitle}' season=$season ep=$ep " +
                 "sourceIdx=$selectedSourceIndex (${currentSourceName()})"
         )
+        val sourceName = currentSourceName()
+        val fetchingLabel = getString(R.string.tmdb_watch_fetching, sourceName)
+        val picker = SheetSourceSelector.newInstanceLoading(fetchingLabel)
+        fun fillPicker(result: TmdbStreamResolver.StreamResult.Success) {
+            val labels = ArrayList(result.links.map { "${it.label}  •  $sourceName" })
+            picker.setOnSelect { idx ->
+                if (!isFinishing && !isDestroyed) {
+                    val link = result.links[idx]
+                    Logger.log(
+                        "TMDB_WATCH: opening player url=${link.url} " +
+                            "host=${runCatching { java.net.URI(link.url).host }.getOrNull() ?: "unknown"} " +
+                            "referer=${link.referer} headers=${link.headers}"
+                    )
+                    saveLastPlayed(season, ep)
+                    val source = sources.getOrNull(selectedSourceIndex) ?: lastAutoSource
+                    if (source == null) {
+                        snackString(getString(R.string.tmdb_watch_no_sources))
+                        return@setOnSelect
+                    }
+                    lifecycleScope.launch {
+                        TmdbStreamResolver.launchPlayer(
+                            this@TmdbWatchActivity,
+                            mediaId,
+                            mediaType,
+                            d,
+                            source,
+                            season,
+                            ep,
+                            result.links,
+                            link.label
+                        )
+                    }
+                }
+            }
+            picker.updateSources(labels)
+        }
+
+        // Same plugin + same episode already resolved? Reuse the cached servers —
+        // the sheet appears instantly with no double loading.
+        val cached = TmdbStreamResolver.cachedLinks(mediaId, sourceName, season, ep)
+        if (cached != null && cached.links.isNotEmpty()) {
+            Logger.log(
+                "TMDB_WATCH: cached ${cached.links.size} links for " +
+                    "'${d.displayTitle}' S${season}E$ep via $sourceName"
+            )
+            setSourceStatus(
+                "${getString(R.string.found)} : ${cached.matchName ?: d.displayTitle} from $sourceName"
+            )
+            fillPicker(cached)
+            picker.show(supportFragmentManager, "tmdbWatchServerSelector")
+            return
+        }
         setSourceStatus(getString(R.string.tmdb_watch_searching, d.displayTitle))
         // Open the server sheet FIRST with a "Fetching from …" row; the resolved
         // links are dropped into the same sheet when they land, so the user sees
         // progress instead of a bare snackbar.
-        val fetchingLabel = getString(R.string.tmdb_watch_fetching, currentSourceName())
-        val picker = SheetSourceSelector.newInstanceLoading(fetchingLabel)
         picker.show(supportFragmentManager, "tmdbWatchServerSelector")
         isResolving = true
-        lifecycleScope.launch {
+        resolveJob?.cancel()
+        resolveJob = lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) { resolve(season, ep) }
             isResolving = false
             if (isFinishing || isDestroyed || supportFragmentManager.isStateSaved) {
@@ -407,34 +469,16 @@ class TmdbWatchActivity : AppCompatActivity() {
                     picker.updateSources(listOf("─── ${result.message} ───"))
                 }
                 is TmdbStreamResolver.StreamResult.Success -> {
+                    TmdbStreamResolver.cacheLinks(mediaId, sourceName, season, ep, result)
                     setSourceStatus(
                         "${if (selectedSourceIndex == -1) getString(R.string.found) else getString(R.string.selected)} : " +
-                            "${result.matchName ?: d.displayTitle} from ${currentSourceName()}"
+                            "${result.matchName ?: d.displayTitle} from $sourceName"
                     )
-                    val sourceName = currentSourceName()
                     Logger.log(
                         "TMDB_WATCH: ${result.links.size} links via $sourceName: " +
                             result.links.mapIndexed { i, l -> "$i:${l.label}" }.joinToString(" | ")
                     )
-                    val labels = ArrayList(result.links.map { "${it.label}  •  $sourceName" })
-                    picker.setOnSelect { idx ->
-                        if (!isFinishing && !isDestroyed) {
-                            val link = result.links[idx]
-                            Logger.log(
-                                "TMDB_WATCH: opening player url=${link.url} " +
-                                    "host=${runCatching { java.net.URI(link.url).host }.getOrNull() ?: "unknown"} " +
-                                    "referer=${link.referer} headers=${link.headers}"
-                            )
-                            saveLastPlayed(season, ep)
-                            TmdbStreamResolver.openInAnimePlayer(
-                                this@TmdbWatchActivity,
-                                d.displayTitle,
-                                link,
-                                mediaId
-                            )
-                        }
-                    }
-                    picker.updateSources(labels)
+                    fillPicker(result)
                 }
             }
         }
@@ -501,6 +545,10 @@ class TmdbWatchActivity : AppCompatActivity() {
      *  explicitly picks an episode or presses refresh so it never blocks them. */
     private var autoSearchJob: Job? = null
 
+    /** In-flight explicit resolve (episode click / refresh); cancelled when the
+     *  user switches plugin so its result is never cached under the new source. */
+    private var resolveJob: Job? = null
+
     private suspend fun resolve(season: Int?, ep: Int?): TmdbStreamResolver.StreamResult {
         val d = detail ?: return TmdbStreamResolver.StreamResult.Error("No title loaded")
         if (selectedSourceIndex == -1) {
@@ -533,7 +581,8 @@ class TmdbWatchActivity : AppCompatActivity() {
         snackString(getString(R.string.tmdb_watch_loading, d.displayTitle))
         setSourceStatus(getString(R.string.tmdb_watch_searching, d.displayTitle))
         isResolving = true
-        lifecycleScope.launch {
+        resolveJob?.cancel()
+        resolveJob = lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) { resolve(season, ep) }
             isResolving = false
             when (result) {

@@ -41,6 +41,7 @@ data class Media(
 
     var cover: String? = null,
     var banner: String? = null,
+    var logoUrl: String? = null,
     var relation: String? = null,
     var favourites: Int? = null,
 

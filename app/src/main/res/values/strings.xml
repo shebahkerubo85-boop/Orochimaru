@@ -83,6 +83,7 @@
     <string name="tmdb_watch_fetching">Fetching from %1$s</string>
     <string name="tmdb_watch_loading">Loading %s…</string>
     <string name="tmdb_watch_no_episodes">No episodes found</string>
+    <string name="tmdb_watch_season_chip">Season %1$s</string>
     <string name="tmdb_watch_one_season">1 Season</string>
     <string name="tmdb_watch_continue_detail">S%1$d E%2$d • %3$02d:%4$02d</string>
     <string name="missing_sequels">Missed Sequels</string>
