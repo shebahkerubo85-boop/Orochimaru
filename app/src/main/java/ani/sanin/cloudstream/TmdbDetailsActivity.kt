@@ -244,6 +244,7 @@ class TmdbDetailsActivity : AppCompatActivity() {
             ArrayList(usable.map { it.name }),
             onSelect = { idx -> playFromSource(usable[idx], season, episodeNumber) }
         )
+        if (isFinishing || isDestroyed || supportFragmentManager.isStateSaved) return
         sheet.show(supportFragmentManager, "tmdbSourceSelector")
     }
 
@@ -255,8 +256,16 @@ class TmdbDetailsActivity : AppCompatActivity() {
             when (result) {
                 is StreamResult.Error -> snackString(result.message)
                 is StreamResult.Success -> {
+                    // The activity may have been backgrounded/destroyed while links were
+                    // resolving (e.g. the user pressed play again). Showing a dialog then
+                    // crashes with "Can not perform this action after onSaveInstanceState".
+                    if (isFinishing || isDestroyed || supportFragmentManager.isStateSaved) {
+                        Log.i("TmdbDetails", "Discarding resolved links: activity not in a showable state")
+                        return@launch
+                    }
                     val labels = ArrayList(result.links.map { "${it.label}  •  ${source.name}" })
                     val picker = SheetSourceSelector.newInstance(labels, onSelect = { idx ->
+                        if (isFinishing || isDestroyed) return@onSelect
                         val link = result.links[idx]
                         startActivity(
                             Intent(this@TmdbDetailsActivity, TmdbPlayerActivity::class.java)
