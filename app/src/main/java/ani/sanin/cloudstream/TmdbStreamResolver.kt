@@ -16,6 +16,7 @@ import ani.sanin.parsers.Video
 import ani.sanin.parsers.VideoContainer
 import ani.sanin.parsers.VideoExtractor
 import ani.sanin.parsers.VideoServer
+import ani.sanin.parsers.DrmInfo
 import ani.sanin.parsers.VideoType
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.util.Logger
@@ -26,8 +27,10 @@ import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvSeriesLoadResponse
 import com.lagradost.cloudstream3.isMovieType
+import com.lagradost.cloudstream3.utils.DrmExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
+import kotlin.uuid.toJavaUuid
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
@@ -45,7 +48,8 @@ object TmdbStreamResolver {
             val label: String,
             val url: String,
             val referer: String? = null,
-            val headers: Map<String, String> = emptyMap()
+            val headers: Map<String, String> = emptyMap(),
+            val drm: DrmInfo? = null,
         )
 
         data class Success(val links: List<PlayableLink>, val matchName: String? = null) : StreamResult()
@@ -195,11 +199,23 @@ object TmdbStreamResolver {
             val url = link.url
             if (url.isBlank() || !seen.add(url)) return@mapNotNull null
             val quality = Qualities.getStringByInt(link.quality).ifBlank { link.name }
+            val drmInfo = when (link) {
+                is DrmExtractorLink -> DrmInfo(
+                    licenseUrl = link.licenseUrl,
+                    uuid = link.uuid.toJavaUuid(),
+                    keyRequestParameters = link.keyRequestParameters,
+                    kid = link.kid,
+                    key = link.key,
+                    kty = link.kty,
+                )
+                else -> null
+            }
             StreamResult.PlayableLink(
                 label = quality,
                 url = url,
                 referer = link.referer.takeIf { it.isNotBlank() },
-                headers = link.headers
+                headers = link.headers,
+                drm = drmInfo,
             )
         }
         return StreamResult.Success(playable, load.name)
@@ -331,11 +347,23 @@ object TmdbStreamResolver {
             val url = link.url
             if (url.isBlank() || !seen.add(url)) return@mapNotNull null
             val quality = Qualities.getStringByInt(link.quality).ifBlank { link.name }
+            val drmInfo = when (link) {
+                is DrmExtractorLink -> DrmInfo(
+                    licenseUrl = link.licenseUrl,
+                    uuid = link.uuid.toJavaUuid(),
+                    keyRequestParameters = link.keyRequestParameters,
+                    kid = link.kid,
+                    key = link.key,
+                    kty = link.kty,
+                )
+                else -> null
+            }
             StreamResult.PlayableLink(
                 label = quality,
                 url = url,
                 referer = link.referer.takeIf { it.isNotBlank() },
-                headers = link.headers
+                headers = link.headers,
+                drm = drmInfo,
             )
         }
         return ApiResolve(playable, "ok", match?.name)
@@ -424,7 +452,8 @@ object TmdbStreamResolver {
             val video = Video(
                 quality = qualityFromLabel(name),
                 format = videoTypeFor(link.url),
-                file = FileUrl(link.url, headers)
+                file = FileUrl(link.url, headers),
+                drm = link.drm,
             )
             object : VideoExtractor() {
                 override val server = VideoServer(name, "", mapOf("quality" to name))

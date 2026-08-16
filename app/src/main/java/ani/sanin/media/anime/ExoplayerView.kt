@@ -89,6 +89,9 @@ import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.SingleSampleMediaSource
+import androidx.media3.exoplayer.drm.DefaultDrmSessionManager
+import androidx.media3.exoplayer.drm.FrameworkMediaDrm
+import androidx.media3.exoplayer.drm.HttpMediaDrmCallback
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.util.EventLogger
 import androidx.media3.session.MediaSession
@@ -144,6 +147,7 @@ import ani.sanin.parsers.Subtitle
 import ani.sanin.parsers.SubtitleType
 import ani.sanin.parsers.Video
 import ani.sanin.parsers.VideoExtractor
+import ani.sanin.parsers.DrmInfo
 import ani.sanin.parsers.VideoType
 import ani.sanin.settings.PlayerSettingsActivity
 import ani.sanin.settings.saving.PrefManager
@@ -2165,6 +2169,24 @@ class ExoplayerView :
             .withAssMkvSupport(assSubtitleParserFactory, handler)
         assMediaSourceFactory = DefaultMediaSourceFactory(cacheFactory, extractorsFactory)
         assMediaSourceFactory.setSubtitleParserFactory(assSubtitleParserFactory)
+
+        // DRM session manager for Widevine/PlayReady encrypted streams
+        video?.drm?.let { drm ->
+            if (drm.uuid != null && drm.licenseUrl != null) {
+                Logger.log("Player: Setting up DRM session manager uuid=${drm.uuid} license=${drm.licenseUrl?.take(80)}")
+                val drmCallback = HttpMediaDrmCallback(drm.licenseUrl, httpDataSourceFactory)
+                val drmManager = DefaultDrmSessionManager.Builder()
+                    .setPlayClearSamplesWithoutKeys(true)
+                    .setMultiSession(true)
+                    .setKeyRequestParameters(drm.keyRequestParameters)
+                    .setUuidAndExoMediaDrmProvider(
+                        drm.uuid,
+                        FrameworkMediaDrm.DEFAULT_PROVIDER
+                    )
+                    .build(drmCallback)
+                assMediaSourceFactory.setDrmSessionManagerProvider { drmManager }
+            }
+        }
 
         val mimeType =
             when (video?.format) {

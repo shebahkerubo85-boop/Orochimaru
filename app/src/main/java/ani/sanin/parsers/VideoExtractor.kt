@@ -92,6 +92,18 @@ data class VideoContainer(
 ) : Serializable
 
 /**
+ * DRM metadata for encrypted streams (Widevine, PlayReady, ClearKey).
+ * **/
+data class DrmInfo(
+    val licenseUrl: String? = null,
+    val uuid: java.util.UUID? = null,
+    val keyRequestParameters: HashMap<String, String> = hashMapOf(),
+    val kid: String? = null,
+    val key: String? = null,
+    val kty: String? = null,
+) : Serializable
+
+/**
  * The Class which contains all the information about a Video
  * **/
 data class Video(
@@ -132,6 +144,7 @@ data class Video(
      * Ex: "Backup" which could be used if the site provides some
      * **/
     val extraNote: String? = null,
+    val drm: DrmInfo? = null,
 ) : Serializable {
 
     constructor(
@@ -139,9 +152,10 @@ data class Video(
         videoType: VideoType,
         url: String,
         size: Double?,
-        extraNote: String? = null
+        extraNote: String? = null,
+        drm: DrmInfo? = null,
     )
-            : this(quality, videoType, FileUrl(url), size, extraNote)
+            : this(quality, videoType, FileUrl(url), size, extraNote, drm)
 
     constructor(quality: Int? = null, videoType: VideoType, url: String, size: Double?)
             : this(quality, videoType, FileUrl(url), size)
