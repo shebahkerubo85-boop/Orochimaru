@@ -180,14 +180,31 @@ object TmdbStreamResolver {
             return ApiResolve(emptyList(), "${api.name}: load returned null for ${match.url}")
         }
         val dataUrl: String = when {
-            response is TvSeriesLoadResponse && season != null && episodeNumber != null -> {
-                val episode = response.episodes.firstOrNull {
-                    it.episode == episodeNumber && (it.season == null || it.season == season)
-                } ?: response.episodes.firstOrNull { it.episode == episodeNumber }
-                episode?.data ?: return ApiResolve(
-                    emptyList(),
-                    "${api.name}: episode $episodeNumber (season $season) not found in load response"
-                )
+            response is TvSeriesLoadResponse -> {
+                val episode = when {
+                    episodeNumber != null && season != null ->
+                        response.episodes.firstOrNull {
+                            it.episode == episodeNumber && (it.season == null || it.season == season)
+                        } ?: response.episodes.firstOrNull { it.episode == episodeNumber }
+                    episodeNumber != null ->
+                        response.episodes.firstOrNull { it.episode == episodeNumber }
+                    season != null ->
+                        response.episodes.firstOrNull { it.season == null || it.season == season }
+                    else -> response.episodes.firstOrNull()
+                }
+                if (episode == null) {
+                    return ApiResolve(
+                        emptyList(),
+                        "${api.name}: no episode found (season=$season ep=$episodeNumber) in load response"
+                    )
+                }
+                if (episodeNumber == null) {
+                    Logger.log(
+                        "TMDB_PLAY: ${api.name} no episode selected — using " +
+                            "S${episode.season ?: season}E${episode.episode} data"
+                    )
+                }
+                episode.data
             }
             response is MovieLoadResponse -> response.dataUrl
             else -> response.url
@@ -274,6 +291,10 @@ object TmdbStreamResolver {
         val extractor = object : VideoExtractor() {
             override val server = VideoServer("TMDB", "")
             override suspend fun extract() = VideoContainer(listOf(video))
+        }.apply {
+            // ExoplayerView.initPlayer reads ext.videos directly (the anime parsers
+            // populate this the same way); without it the player opens blank.
+            videos = listOf(video)
         }
         val episode = Episode(
             number = "1",

@@ -1841,9 +1841,25 @@ class ExoplayerView :
             extractor?.onVideoStopped(video)
         }
 
-        val ext = episode.extractors?.filterNotNull()?.find { it.server.name == episode.selectedExtractor } ?: return
+        val ext = episode.extractors?.filterNotNull()?.find { it.server.name == episode.selectedExtractor }
+        if (ext == null) {
+            Logger.log(
+                Log.ERROR,
+                "Player: no extractor '${episode.selectedExtractor}' on ep '${episode.number}' " +
+                    "(have ${episode.extractors?.filterNotNull()?.size ?: 0}) — aborting media build"
+            )
+            return
+        }
         extractor = ext
-        video = ext.videos.getOrNull(episode.selectedVideo) ?: return
+        video = ext.videos.getOrNull(episode.selectedVideo)
+        if (video == null) {
+            Logger.log(
+                Log.ERROR,
+                "Player: no video at index ${episode.selectedVideo} for server '${ext.server.name}' " +
+                    "(videos=${ext.videos.size}) on ep '${episode.number}' — aborting media build"
+            )
+            return
+        }
         val subLanguages =
             arrayOf(
                 "Albanian",
@@ -2026,6 +2042,11 @@ class ExoplayerView :
             ext.onVideoPlayed(video)
         }
 
+        val streamCookie = video?.file?.headers?.get("Cookie")
+        val streamHost = video?.file?.url?.let { url ->
+            runCatching { okhttp3.HttpUrl.Companion.toHttpUrlOrNull(url)?.host }
+                .getOrNull()
+        }
         val httpClient =
             okhttp3.OkHttpClient.Builder()
                 .apply {
@@ -2044,13 +2065,46 @@ class ExoplayerView :
                     connectTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
                     readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
                     writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-                }.build()
+                }
+                .let { base ->
+                    // Signed streams (e.g. CloudFront Cookie=... policies from MovieBox)
+                    // must send the SAME Cookie on every manifest/segment request. OkHttp's
+                    // cookie jar can silently replace a manually-set Cookie header with its
+                    // own cookies for the host, so re-assert the stream cookie after the
+                    // jar has been applied (network interceptors run after BridgeInterceptor).
+                    if (streamCookie.isNullOrBlank() || streamHost.isNullOrBlank()) {
+                        base
+                    } else {
+                        base.addNetworkInterceptor { chain ->
+                            val request = chain.request()
+                            val sameHost = request.url.host == streamHost
+                            if (sameHost && request.header("Cookie") != streamCookie) {
+                                chain.proceed(
+                                    request.newBuilder().header("Cookie", streamCookie).build()
+                                )
+                            } else {
+                                chain.proceed(request)
+                            }
+                        }
+                    }
+                }
+                .build()
+        // Keep anime behavior byte-for-byte: video headers (when present) replace the
+        // defaults, matching the previous two setDefaultRequestProperties calls.
+        // The ONLY exception is signed streams carrying a Cookie header (e.g. MovieBox
+        // CloudFront policies): those get the app defaults merged in underneath, because
+        // setDefaultRequestProperties replaces the whole map and the signed requests
+        // otherwise go out without a User-Agent.
+        val streamHeaders = video?.file?.headers
+        val requestHeaders =
+            if (streamHeaders?.containsKey("Cookie") == true) {
+                HashMap(defaultHeaders).apply { putAll(streamHeaders) }
+            } else {
+                streamHeaders ?: defaultHeaders
+            }
         val httpDataSourceFactory =
             OkHttpDataSource.Factory(httpClient).apply {
-                setDefaultRequestProperties(defaultHeaders)
-                video?.file?.headers?.let {
-                    setDefaultRequestProperties(it)
-                }
+                setDefaultRequestProperties(requestHeaders)
             }
         val defaultDataSourceFactory = DefaultDataSource.Factory(this, httpDataSourceFactory)
         cacheFactory =
