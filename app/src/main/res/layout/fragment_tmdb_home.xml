@@ -104,6 +104,15 @@
                 android:orientation="vertical"
                 android:padding="24dp">
 
+                <ImageView
+                    android:id="@+id/tmdbBannerPortraitLogo"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:adjustViewBounds="true"
+                    android:scaleType="fitCenter"
+                    android:visibility="gone"
+                    tools:ignore="ContentDescription" />
+
                 <TextView
                     android:id="@+id/tmdbBannerTitle"
                     android:layout_width="wrap_content"

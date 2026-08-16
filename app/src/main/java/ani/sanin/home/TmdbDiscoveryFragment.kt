@@ -140,8 +140,7 @@ class TmdbDiscoveryFragment : Fragment() {
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             val item = items[position]
-            TmdbCards.applyCardStyle(holder.binding.tmdbCardPoster, holder.binding.tmdbCard)
-            holder.binding.tmdbCardPoster.loadImage(Tmdb.imageUrl(item.posterPath, 300))
+            TmdbCards.applyCardStyle(holder.binding, item)
             holder.binding.tmdbCardTitle.text = item.displayTitle
             holder.binding.tmdbCardYear.text = item.year
             holder.binding.tmdbCardPoster.setOnClickListener { onOpen(item) }

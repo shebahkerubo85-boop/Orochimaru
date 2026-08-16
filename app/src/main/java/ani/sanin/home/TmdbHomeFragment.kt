@@ -176,6 +176,10 @@ class TmdbHomeFragment : Fragment() {
             val logo = detail?.let { Tmdb.logoUrl(it) }
             binding.tmdbBannerLogo.isVisible = logo != null
             if (logo != null) binding.tmdbBannerLogo.loadImage(logo)
+            val portraitLogo = binding.tmdbBannerPortraitLogo
+            portraitLogo.isVisible = logo != null
+            binding.tmdbBannerTitle.isVisible = logo == null
+            if (logo != null) portraitLogo.loadImage(logo)
         }
     }
 
@@ -194,15 +198,17 @@ class TmdbHomeFragment : Fragment() {
             val stripW = ctx.resources.displayMetrics.widthPixels - cardW
             binding.tmdbBannerFade.isVisible = true
             binding.tmdbBannerFade.updateLayoutParams<FrameLayout.LayoutParams> {
-                width = stripW
+                width = stripW + cardW / 2
                 height = cardH
                 gravity = Gravity.START or Gravity.TOP
             }
+            binding.tmdbBannerFade.bringToFront()
             binding.tmdbBannerSide.isVisible = true
             binding.tmdbBannerSide.updateLayoutParams<FrameLayout.LayoutParams> {
                 width = stripW + cardW / 4
                 gravity = Gravity.START or Gravity.CENTER_VERTICAL
             }
+            binding.tmdbBannerSide.bringToFront()
             binding.tmdbBannerSideSynopsis.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                 width = (stripW - 48 * density + cardW / 4).toInt().coerceAtLeast(1)
             }
@@ -212,9 +218,16 @@ class TmdbHomeFragment : Fragment() {
             binding.tmdbBannerContent.isVisible = false
         } else {
             card.sizeBannerCard()
+            val (cardW, cardH) = card.bannerCardSizePx()
             card.updateLayoutParams<FrameLayout.LayoutParams> {
                 gravity = Gravity.CENTER
             }
+            binding.tmdbBannerContent.updateLayoutParams<FrameLayout.LayoutParams> {
+                width = cardW
+                height = cardH
+            }
+            binding.tmdbBannerPortraitLogo.maxWidth = (cardW - 48 * density).toInt().coerceAtLeast(1)
+            binding.tmdbBannerPortraitLogo.maxHeight = (cardH * 0.22f).toInt()
             binding.tmdbBannerFade.isVisible = false
             binding.tmdbBannerSide.isVisible = false
             binding.tmdbBannerContent.isVisible = true
@@ -254,8 +267,7 @@ class TmdbHomeFragment : Fragment() {
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             val item = items[position]
-            TmdbCards.applyCardStyle(holder.binding.tmdbCardPoster, holder.binding.tmdbCard)
-            holder.binding.tmdbCardPoster.loadImage(Tmdb.imageUrl(item.posterPath, 300))
+            TmdbCards.applyCardStyle(holder.binding, item)
             holder.binding.tmdbCardTitle.text = item.displayTitle
             holder.binding.tmdbCardYear.text = item.year
             holder.binding.tmdbCardPoster.setOnClickListener { onClick(item) }
