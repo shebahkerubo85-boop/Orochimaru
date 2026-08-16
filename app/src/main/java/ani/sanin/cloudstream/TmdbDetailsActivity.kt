@@ -295,8 +295,10 @@ class TmdbDetailsActivity : AppCompatActivity() {
             return StreamResult.Error("Failed to load ${source.name} — is it a .cs3 plugin?$why")
         }
         for (api in apis) {
+            Log.i("TmdbDetails", "Trying provider ${api.name} for '${d.displayTitle}' (season=$season ep=$episodeNumber)")
             try {
                 val streams = resolveFromApi(api, d, season, episodeNumber)
+                Log.i("TmdbDetails", "${api.name}: returned ${streams.size} playable links")
                 if (streams.isNotEmpty()) return StreamResult.Success(streams)
             } catch (t: Throwable) {
                 Log.e("TmdbDetails", "Provider ${api.name} failed", t)
@@ -312,10 +314,28 @@ class TmdbDetailsActivity : AppCompatActivity() {
         episodeNumber: Int?
     ): List<StreamResult.PlayableLink> {
         val wantMovie = d.displayTitle.isNotBlank() && mediaType == "movie"
-        val results = api.search(d.displayTitle) ?: emptyList()
-        val match = bestSearchMatch(results, d.displayTitle, wantMovie) ?: return emptyList()
+        // Providers implement search(query, page) (paginated) OR the legacy search(query).
+        // Calling the one-arg form throws NotImplementedError in the base class, which made
+        // paginated-only providers (MovieBox, Goojara, ...) report "no streams". Mirror
+        // CloudStream: call search(query, 1) first, then fall back to quickSearch().
+        val results = runCatching { api.search(d.displayTitle, 1)?.items }
+            .getOrElse { t ->
+                Log.e("TmdbDetails", "${api.name}: search(query,1) failed: ${t.message}")
+                null
+            }?.takeIf { it.isNotEmpty() }
+            ?: runCatching { api.quickSearch(d.displayTitle) }
+                .getOrElse { t ->
+                    Log.e("TmdbDetails", "${api.name}: quickSearch failed: ${t.message}")
+                    null
+                } ?: emptyList()
+        Log.i("TmdbDetails", "${api.name}: search '${d.displayTitle}' -> ${results.size} results")
+        val match = bestSearchMatch(results, d.displayTitle, wantMovie)
+        Log.i("TmdbDetails", "${api.name}: best match = ${match?.url ?: "NONE"}")
+        if (match == null) return emptyList()
 
-        val response = api.load(match.url) ?: return emptyList()
+        val response = api.load(match.url)
+        Log.i("TmdbDetails", "${api.name}: load ${match.url} -> ${response?.javaClass?.simpleName ?: "null"}")
+        if (response == null) return emptyList()
         val dataUrl: String = when {
             response is TvSeriesLoadResponse && season != null && episodeNumber != null -> {
                 val episode = response.episodes.firstOrNull {
@@ -326,11 +346,13 @@ class TmdbDetailsActivity : AppCompatActivity() {
             response is MovieLoadResponse -> response.dataUrl
             else -> response.url
         }
+        Log.i("TmdbDetails", "${api.name}: dataUrl = ${dataUrl.take(160).ifBlank { "<blank>" }}")
         if (dataUrl.isBlank()) return emptyList()
 
         val links = mutableListOf<ExtractorLink>()
         val subs = mutableListOf<SubtitleFile>()
         val ok = api.loadLinks(dataUrl, isCasting = false, subtitleCallback = { subs.add(it) }, callback = { links.add(it) })
+        Log.i("TmdbDetails", "${api.name}: loadLinks ok=$ok links=${links.size} subs=${subs.size}")
         if (!ok || links.isEmpty()) return emptyList()
 
         val seen = HashSet<String>()

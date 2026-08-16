@@ -85,16 +85,7 @@ class SettingsLogActivity : AppCompatActivity() {
                             if (!PrefManager.getVal<Boolean>(PrefName.LoggingEnabled)) {
                                 toast("Enable Logging first")
                             } else {
-                                val logs = Logger.readLogcatLastMinutes(2)
-                                val truncated = if (logs.length > 500_000) {
-                                    "... (truncated, ${logs.length} chars total)\n\n" + logs.takeLast(500_000)
-                                } else logs
-                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_SUBJECT, "Logcat - Last 2 Minutes")
-                                    putExtra(Intent.EXTRA_TEXT, truncated)
-                                }
-                                startActivity(Intent.createChooser(shareIntent, "Share logs"))
+                                Logger.shareTextAsFile(context, Logger.readLogcatLastMinutes(2), "Logcat - Last 2 Minutes")
                             }
                         },
                     ),

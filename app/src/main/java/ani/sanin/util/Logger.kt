@@ -269,13 +269,37 @@ object Logger {
             snackString("No log file found")
             return
         }
-        val truncated = if (logs.length > 500_000) logs.takeLast(500_000) else logs
-        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, "General logs")
-            putExtra(Intent.EXTRA_TEXT, truncated)
+        shareTextAsFile(context, logs, "General logs")
+    }
+
+    /**
+     * Shares large log text as a file via FileProvider. Putting big text into
+     * Intent extras crashes with TransactionTooLargeException (binder limit).
+     */
+    fun shareTextAsFile(context: Context, text: String, subject: String) {
+        val dir = File(context.cacheDir, "shared_logs").apply { mkdirs() }
+        val file = File(dir, "sanin_logs_${System.currentTimeMillis()}.txt")
+        try {
+            file.writeText(text)
+            val uri = FileProvider.getUriForFile(context, "${BuildConfig.APPLICATION_ID}.provider", file)
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, subject)
+                putExtra(Intent.EXTRA_TEXT, subject)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(shareIntent, "Share logs"))
+        } catch (e: Exception) {
+            // Last resort: small snippet in the intent, well under the binder limit.
+            val snippet = text.takeLast(100_000)
+            val fallback = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_SUBJECT, subject)
+                putExtra(Intent.EXTRA_TEXT, snippet)
+            }
+            context.startActivity(Intent.createChooser(fallback, "Share logs"))
         }
-        context.startActivity(Intent.createChooser(shareIntent, "Share logs"))
     }
 
     fun clearLog() {
