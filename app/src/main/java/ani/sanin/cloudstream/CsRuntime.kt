@@ -44,6 +44,11 @@ object CsRuntime {
         if (!file.exists()) return false
 
         return runCatching {
+            // Android 8+ refuses to dex-load a writable file ("Writable dex file ... is not allowed"),
+            // so mirror CloudStream: make the plugin file read-only before creating the class loader.
+            if (!file.setReadOnly()) {
+                Log.e(TAG, "Failed to set read-only on ${file.name}")
+            }
             val loader = PathClassLoader(file.absolutePath, context.classLoader)
 
             val manifest: BasePlugin.Manifest =

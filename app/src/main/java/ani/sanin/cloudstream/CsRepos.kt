@@ -84,6 +84,8 @@ object CsRepos {
                 url = source.url,
                 repoUrl = repoUrl
             )
+            // A previously loaded plugin is made read-only for the dex loader; allow overwrite here.
+            installedFile(context, installed).setWritable(true)
             installedFile(context, installed).writeBytes(body)
             val current = PrefManager.getVal<List<String>>(PrefName.CloudStreamInstalledSources)
                 .filterNot {
