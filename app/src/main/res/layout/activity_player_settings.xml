@@ -818,7 +818,7 @@
                     android:fontFamily="@font/poppins_bold"
                     android:minHeight="64dp"
                     android:paddingHorizontal="32dp"
-                    android:text="@string/data_saver"
+                    android:text="@string/data_saver_video"
                     android:textAlignment="viewStart"
                     android:textColor="@color/bg_opp"
                     app:cornerRadius="0dp"
@@ -834,7 +834,7 @@
                     android:alpha="0.58"
                     android:fontFamily="@font/poppins_family"
                     android:paddingHorizontal="32dp"
-                    android:text="@string/data_saver_desc"
+                    android:text="@string/data_saver_video_desc"
                     android:textSize="14sp" />
 
                 <com.google.android.material.materialswitch.MaterialSwitch
