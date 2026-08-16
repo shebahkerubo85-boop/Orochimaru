@@ -16,6 +16,7 @@ import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Semaphore
 
 class CloudflareInterceptor(
     private val context: Context,
@@ -24,6 +25,9 @@ class CloudflareInterceptor(
 ) : WebViewInterceptor(context, defaultUserAgentProvider) {
 
     private val executor = ContextCompat.getMainExecutor(context)
+
+    /** Serializes Cloudflare challenge solves so at most one WebView exists at a time. */
+    private val webViewSolves = Semaphore(1)
 
     override fun shouldIntercept(response: Response): Boolean {
         if (response.request.url.host.contains("anilist.co")) return false
@@ -55,6 +59,19 @@ class CloudflareInterceptor(
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun resolveWithWebView(originalRequest: Request, oldCookie: Cookie?) {
+        // Never run more than one WebView challenge solve at a time: each WebView holds
+        // tens of MB (native + heap), so parallel plugin requests to Cloudflare-protected
+        // hosts could exhaust the heap on low-memory devices.
+        if (!webViewSolves.tryAcquire()) return
+        try {
+            resolveWithWebViewLocked(originalRequest, oldCookie)
+        } finally {
+            webViewSolves.release()
+        }
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun resolveWithWebViewLocked(originalRequest: Request, oldCookie: Cookie?) {
         // We need to lock this thread until the WebView finds the challenge solution url, because
         // OkHttp doesn't support asynchronous interceptors.
         val latch = CountDownLatch(1)

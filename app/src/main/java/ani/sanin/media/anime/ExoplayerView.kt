@@ -2027,9 +2027,13 @@ class ExoplayerView :
         }
 
         val httpClient =
-            okHttpClient
-                .newBuilder()
+            okhttp3.OkHttpClient.Builder()
                 .apply {
+                    // Share cookies (incl. cf_clearance solved by the plugin/Cloudflare flow),
+                    // but do NOT inherit the app client's CloudflareInterceptor/RetryInterceptor:
+                    // a 30s WebView challenge solve per media/segment request stalls playback
+                    // ("video never loads") and retrying media requests doubles the damage.
+                    cookieJar(okHttpClient.cookieJar())
                     ignoreAllSSLErrors()
                     followRedirects(true)
                     followSslRedirects(true)
@@ -2037,9 +2041,9 @@ class ExoplayerView :
                     connectionPool(
                         okhttp3.ConnectionPool(10, 5, java.util.concurrent.TimeUnit.MINUTES)
                     )
-                    connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-                    readTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
-                    writeTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+                    connectTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+                    readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                    writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
                 }.build()
         val httpDataSourceFactory =
             OkHttpDataSource.Factory(httpClient).apply {

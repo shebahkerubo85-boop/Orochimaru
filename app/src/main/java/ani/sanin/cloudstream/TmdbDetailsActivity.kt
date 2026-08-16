@@ -53,8 +53,10 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.SubtitleFile
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
 class TmdbDetailsActivity : AppCompatActivity() {
 
@@ -400,7 +402,11 @@ class TmdbDetailsActivity : AppCompatActivity() {
             )
             Log.i("TmdbDetails", "Trying provider ${api.name} for '${d.displayTitle}' (season=$season ep=$episodeNumber)")
             try {
-                val (streams, reason) = resolveFromApi(api, d, season, episodeNumber)
+                // A provider stuck in Cloudflare solving / slow HTML parsing must not hang
+                // playback forever; give it a budget and move on to the next provider.
+                val (streams, reason) = withTimeout(60_000) {
+                    resolveFromApi(api, d, season, episodeNumber)
+                }
                 Logger.log(
                     "TMDB_PLAY: ${api.name} returned ${streams.size} playable links " +
                         "reason=${if (reason.isNotBlank()) reason else "ok"}"
@@ -408,8 +414,13 @@ class TmdbDetailsActivity : AppCompatActivity() {
                 Log.i("TmdbDetails", "${api.name}: returned ${streams.size} playable links")
                 if (streams.isNotEmpty()) return StreamResult.Success(streams)
                 if (reason.isNotBlank()) failures += reason
+            } catch (t: TimeoutCancellationException) {
+                val detail = "${api.name}: timed out after 60s"
+                Logger.log(Log.ERROR, "TMDB_PLAY: provider ${api.name} timed out")
+                failures += detail
+            } catch (t: kotlinx.coroutines.CancellationException) {
+                throw t
             } catch (t: Throwable) {
-                if (t is kotlinx.coroutines.CancellationException) throw t
                 val detail = "${t::class.java.simpleName}${t.message?.let { ": $it" } ?: ""}"
                 Logger.log(Log.ERROR, "TMDB_PLAY: provider ${api.name} threw $detail")
                 Logger.log(t)
