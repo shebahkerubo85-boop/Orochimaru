@@ -2,6 +2,7 @@ package ani.sanin.connections.simkl
 
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import ani.sanin.logError
@@ -13,40 +14,87 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class Login : AppCompatActivity() {
+
+    companion object {
+        private const val TAG = "SimklLogin"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ThemeManager(this).applyTheme()
+
         val data: Uri? = intent?.data
-        if (data != null) {
-            val code = data.getQueryParameter("code")
-            if (code != null) {
-                snackString("Logging in to Simkl...")
-                lifecycleScope.launch {
-                    val token = withContext(Dispatchers.IO) {
-                        Simkl.exchangeCode(code)
-                    }
-                    if (token != null && token.accessToken != null) {
-                        Simkl.token = token.accessToken
-                        snackString("Fetching profile...")
-                        withContext(Dispatchers.IO) {
-                            Simkl.fetchUserData()
-                        }
-                        startMainActivity(this@Login)
-                    } else {
-                        snackString("Simkl login failed: no token")
-                        logError(Exception("Simkl login: token exchange returned null"), snackbar = false)
-                        startMainActivity(this@Login)
-                    }
-                }
-            } else {
-                snackString("Simkl login failed: no code in response")
-                logError(Exception("Simkl login: no code in $data"), snackbar = false)
-                startMainActivity(this)
-            }
-        } else {
+        Log.d(TAG, "onCreate: data=$data")
+
+        if (data == null) {
+            Log.e(TAG, "intent.data is null")
             snackString("Simkl login failed: no response URI")
             logError(Exception("Simkl login: intent.data is null"), snackbar = false)
             startMainActivity(this)
+            return
+        }
+
+        // Try query parameter first, then fragment for code
+        var code = data.getQueryParameter("code")
+        if (code == null) {
+            val fragment = data.encodedFragment ?: data.toString()
+            Log.d(TAG, "No query code, checking fragment: $fragment")
+            val match = Regex("""(?<=code=)[^&#]+""").find(fragment)
+            if (match != null) {
+                code = match.value
+            }
+        }
+
+        Log.d(TAG, "Extracted code: ${code?.take(10)}...")
+
+        if (code == null) {
+            Log.e(TAG, "No code in URI: $data")
+            snackString("Simkl login failed: no code in response")
+            logError(Exception("Simkl login: no code in $data"), snackbar = false)
+            startMainActivity(this)
+            return
+        }
+
+        snackString("Logging in to Simkl...")
+        lifecycleScope.launch {
+            try {
+                Log.d(TAG, "Exchanging code for token...")
+                val token = withContext(Dispatchers.IO) {
+                    Simkl.exchangeCode(code)
+                }
+
+                if (token == null) {
+                    Log.e(TAG, "exchangeCode returned null")
+                    snackString("Simkl login failed: token exchange returned null")
+                    startMainActivity(this@Login)
+                    return@launch
+                }
+
+                if (token.accessToken == null) {
+                    Log.e(TAG, "token.accessToken is null, token=$token")
+                    snackString("Simkl login failed: no access token in response")
+                    startMainActivity(this@Login)
+                    return@launch
+                }
+
+                Log.d(TAG, "Token received, setting token")
+                Simkl.token = token.accessToken
+
+                Log.d(TAG, "Fetching user data...")
+                val user = withContext(Dispatchers.IO) {
+                    Simkl.fetchUserData()
+                }
+
+                Log.d(TAG, "User data: name=${Simkl.username}, avatar=${Simkl.avatar?.take(50)}")
+
+                snackString("Logged in as ${Simkl.username ?: "Simkl user"}")
+                startMainActivity(this@Login)
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Login exception", e)
+                logError(e)
+                startMainActivity(this@Login)
+            }
         }
     }
 }

@@ -107,7 +107,7 @@
                     android:layout_marginEnd="20dp"
                     android:contentDescription="@string/anilist"
                     app:srcCompat="@drawable/ic_anilist"
-                    app:tint="?attr/colorPrimary" />
+                    tools:ignore="ImageContrastCheck" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -187,7 +187,7 @@
                 android:layout_marginEnd="16dp"
                 android:contentDescription="@string/myanimelist"
                 app:srcCompat="@drawable/ic_myanimelist"
-                app:tint="?attr/colorPrimary" />
+                tools:ignore="ImageContrastCheck" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -239,7 +239,7 @@
                 android:contentDescription="@string/account_help"
                 android:padding="16dp"
                 android:src="@drawable/ic_round_help_24"
-                app:tint="?attr/colorPrimary"/>
+                tools:ignore="ImageContrastCheck"/>
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/settingsMALAvatarContainer"
@@ -286,7 +286,7 @@
                     android:layout_marginEnd="20dp"
                     android:contentDescription="Simkl"
                     app:srcCompat="@drawable/ic_simkl"
-                    app:tint="?attr/colorPrimary" />
+                    tools:ignore="ImageContrastCheck" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -368,7 +368,7 @@
                     android:layout_marginEnd="20dp"
                     android:contentDescription="@string/discord"
                     app:srcCompat="@drawable/ic_discord"
-                    app:tint="?attr/colorPrimary" />
+                    tools:ignore="ImageContrastCheck" />
 
                 <TextView
                     android:layout_width="0dp"

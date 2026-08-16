@@ -153,26 +153,6 @@ class SettingsAccountActivity : AppCompatActivity() {
                             MAL.loginIntent(context)
                         }
                     }
-                // Simkl
-                settingsSimklLogin.isFocusable = true
-                if (Simkl.token != null) {
-                    settingsSimklLogin.setText(R.string.logout)
-                    settingsSimklLogin.setOnClickListener {
-                        Simkl.removeSavedToken()
-                        restartMainActivity.isEnabled = true
-                        reload()
-                    }
-                    settingsSimklUsername.visibility = View.VISIBLE
-                    settingsSimklUsername.text = Simkl.username
-                    settingsSimklAvatar.loadImage(Simkl.avatar)
-                } else {
-                    settingsSimklUsername.visibility = View.GONE
-                    settingsSimklAvatar.setImageResource(R.drawable.ic_round_person_24)
-                    settingsSimklLogin.setText(R.string.login)
-                    settingsSimklLogin.setOnClickListener {
-                        Simkl.loginIntent(this@SettingsAccountActivity)
-                    }
-                }
                 } else {
                     settingsAnilistAvatar.setImageResource(R.drawable.ic_round_person_24)
                     settingsAnilistUsername.visibility = View.GONE
@@ -221,7 +201,25 @@ class SettingsAccountActivity : AppCompatActivity() {
                     settingsMALUsername.visibility = View.GONE
                 }
 
-
+            // Simkl tracking
+            settingsSimklLogin.isFocusable = true
+            if (Simkl.token != null) {
+                settingsSimklLogin.setText(R.string.logout)
+                settingsSimklLogin.setOnClickListener {
+                    Simkl.removeSavedToken()
+                    restartMainActivity.isEnabled = true
+                    reload()
+                }
+                settingsSimklUsername.visibility = View.VISIBLE
+                settingsSimklUsername.text = Simkl.username
+                settingsSimklAvatar.loadImage(Simkl.avatar)
+            } else {
+                settingsSimklUsername.visibility = View.GONE
+                settingsSimklAvatar.setImageResource(R.drawable.ic_round_person_24)
+                settingsSimklLogin.setText(R.string.login)
+                settingsSimklLogin.setOnClickListener {
+                    Simkl.loginIntent(this@SettingsAccountActivity)
+                }
             }
             reload()
         }
