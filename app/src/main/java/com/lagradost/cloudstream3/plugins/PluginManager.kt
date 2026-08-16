@@ -16,8 +16,6 @@ object PluginManager {
         return File(context.filesDir, "cs_plugins/${apiName}_$version.cs3")
     }
 
-    fun getPlugins(): Map<String, BasePlugin> = plugins
-
     fun getPluginsOnline(): Array<PluginData> = emptyArray()
 
     suspend fun loadSinglePlugin(context: Context, apiName: String): Boolean = false

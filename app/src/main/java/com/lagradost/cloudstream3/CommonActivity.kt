@@ -19,8 +19,6 @@ object CommonActivity {
         activity = newActivity
     }
 
-    fun getActivity(): Activity? = activity
-
     private var currentToast: Toast? = null
 
     fun showToast(@StringRes message: Int, duration: Int? = null) {

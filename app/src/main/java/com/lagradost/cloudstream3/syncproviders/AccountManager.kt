@@ -7,8 +7,6 @@ abstract class AccountManager {
         const val NONE_ID: Int = -1
         val aniListApi = AniListApi()
 
-        fun getAniListApi(): AniListApi = aniListApi
-
         var cachedAccounts: MutableMap<String, Array<AuthData>> = mutableMapOf()
         var cachedAccountIds: MutableMap<String, Int> = mutableMapOf()
 
