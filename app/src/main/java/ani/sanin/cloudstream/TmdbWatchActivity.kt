@@ -33,6 +33,7 @@ import ani.sanin.util.customAlertDialog
 import android.widget.ImageButton
 import com.google.android.material.chip.Chip
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
@@ -83,7 +84,7 @@ class TmdbWatchActivity : AppCompatActivity() {
 
         mediaType = intent.getStringExtra(ARG_MEDIA_TYPE) ?: "movie"
         mediaId = intent.getIntExtra(ARG_MEDIA_ID, -1)
-        episodeStyle = (PrefManager.getNullableCustomVal("tmdb_style_$mediaId", 0, Int::class.java)
+        episodeStyle = (PrefManager.getNullableCustomVal("tmdb_style", 0, Int::class.java)
             ?: 0).coerceIn(0, 1)
         reversed = PrefManager.getNullableCustomVal("tmdb_reversed_$mediaId", false, Boolean::class.java)
             ?: false
@@ -159,6 +160,9 @@ class TmdbWatchActivity : AppCompatActivity() {
             buildHeader(d)
             buildAdapter()
             updateContinueCard()
+            // Always kick off the auto search as soon as the tab opens so the user
+            // sees "Searching : …" immediately instead of an idle Sources row.
+            autoSearchOnOpen()
         }
     }
 
@@ -174,6 +178,8 @@ class TmdbWatchActivity : AppCompatActivity() {
         val h = headerBinding
 
         // ── source chips: installed CS3 plugins only (Auto Search is NOT a chip) ──
+        // The first chip is pre-selected on open, mirroring the season chip behavior.
+        if (selectedSourceIndex == -1 && sources.isNotEmpty()) selectedSourceIndex = 0
         h.tmdbWatchSourceChips.removeAllViews()
         h.tmdbWatchSourceTitle.text = when {
             sources.isEmpty() -> getString(R.string.tmdb_watch_no_sources)
@@ -333,7 +339,7 @@ class TmdbWatchActivity : AppCompatActivity() {
     private fun applyStyle(style: Int, rev: Boolean) {
         episodeStyle = style.coerceIn(0, 1)
         reversed = rev
-        PrefManager.setCustomVal("tmdb_style_$mediaId", style)
+        PrefManager.setCustomVal("tmdb_style", style)
         PrefManager.setCustomVal("tmdb_reversed_$mediaId", rev)
         Logger.log("TMDB_WATCH: layout style=$style reversed=$rev")
         episodeAdapter.updateStyle(style)
@@ -366,7 +372,12 @@ class TmdbWatchActivity : AppCompatActivity() {
     }
 
     private fun onEpisodeClick(episode: TmdbEpisode) {
-        if (isResolving) return
+        // A user click always wins: cancel the on-open auto search if it is still
+        // running, but keep blocking while an explicit resolve is in flight.
+        if (isResolving && autoSearchJob?.isActive != true) return
+        autoSearchJob?.cancel()
+        autoSearchJob = null
+        isResolving = false
         val d = detail ?: return
         val season = if (mediaType == "tv") episode.seasonNumber.takeIf { it > 0 } ?: selectedSeason else null
         val ep = if (mediaType == "tv") episode.episodeNumber else null
@@ -374,34 +385,39 @@ class TmdbWatchActivity : AppCompatActivity() {
             "TMDB_WATCH: episode click '${d.displayTitle}' season=$season ep=$ep " +
                 "sourceIdx=$selectedSourceIndex (${currentSourceName()})"
         )
-        snackString(getString(R.string.tmdb_watch_loading, d.displayTitle))
         setSourceStatus(getString(R.string.tmdb_watch_searching, d.displayTitle))
+        // Open the server sheet FIRST with a "Fetching from …" row; the resolved
+        // links are dropped into the same sheet when they land, so the user sees
+        // progress instead of a bare snackbar.
+        val fetchingLabel = getString(R.string.tmdb_watch_fetching, currentSourceName())
+        val picker = SheetSourceSelector.newInstanceLoading(fetchingLabel)
+        picker.show(supportFragmentManager, "tmdbWatchServerSelector")
         isResolving = true
         lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) { resolve(season, ep) }
             isResolving = false
+            if (isFinishing || isDestroyed || supportFragmentManager.isStateSaved) {
+                Logger.log("TMDB_WATCH: discarding links, activity not showable")
+                return@launch
+            }
             when (result) {
                 is TmdbStreamResolver.StreamResult.Error -> {
                     setSourceStatus(getString(R.string.tmdb_watch_sources))
                     Logger.log(android.util.Log.ERROR, "TMDB_WATCH: failed: ${result.message}")
-                    snackString(result.message)
+                    picker.updateSources(listOf("─── ${result.message} ───"))
                 }
                 is TmdbStreamResolver.StreamResult.Success -> {
                     setSourceStatus(
                         "${if (selectedSourceIndex == -1) getString(R.string.found) else getString(R.string.selected)} : " +
                             "${result.matchName ?: d.displayTitle} from ${currentSourceName()}"
                     )
-                    if (isFinishing || isDestroyed || supportFragmentManager.isStateSaved) {
-                        Logger.log("TMDB_WATCH: discarding links, activity not showable")
-                        return@launch
-                    }
                     val sourceName = currentSourceName()
                     Logger.log(
                         "TMDB_WATCH: ${result.links.size} links via $sourceName: " +
                             result.links.mapIndexed { i, l -> "$i:${l.label}" }.joinToString(" | ")
                     )
                     val labels = ArrayList(result.links.map { "${it.label}  •  $sourceName" })
-                    val picker = SheetSourceSelector.newInstance(labels, onSelect = { idx ->
+                    picker.setOnSelect { idx ->
                         if (!isFinishing && !isDestroyed) {
                             val link = result.links[idx]
                             Logger.log(
@@ -417,14 +433,73 @@ class TmdbWatchActivity : AppCompatActivity() {
                                 mediaId
                             )
                         }
-                    })
-                    picker.show(supportFragmentManager, "tmdbWatchServerSelector")
+                    }
+                    picker.updateSources(labels)
+                }
+            }
+        }
+    }
+
+    /** Runs the auto search (all installed sources, in order) the moment the tab
+     *  opens, so "Searching : …" shows immediately; on success the checked source
+     *  chip moves to whichever plugin actually provided the streams. */
+    private fun autoSearchOnOpen() {
+        autoSearchJob?.cancel()
+        if (isResolving) return
+        val d = detail ?: return
+        val season = if (mediaType == "tv") selectedSeason else null
+        Logger.log("TMDB_WATCH: auto search on open for '${d.displayTitle}' (season=$season)")
+        setSourceStatus(getString(R.string.tmdb_watch_searching, d.displayTitle))
+        isResolving = true
+        autoSearchJob = lifecycleScope.launch {
+            val (source, result) = try {
+                withContext(Dispatchers.IO) {
+                    if (sources.isEmpty()) {
+                        null to TmdbStreamResolver.StreamResult.Error(getString(R.string.tmdb_watch_no_sources))
+                    } else {
+                        TmdbStreamResolver.resolveAuto(this@TmdbWatchActivity, sources, d, season, null)
+                    }
+                }
+            } finally {
+                // Only clear state if this coroutine is still the active auto
+                // search — a user click already nulled the job and started an
+                // explicit resolve, so its flag must not be clobbered here.
+                if (autoSearchJob == coroutineContext[Job]) {
+                    autoSearchJob = null
+                    isResolving = false
+                }
+            }
+            lastAutoSource = source
+            when (result) {
+                is TmdbStreamResolver.StreamResult.Error -> {
+                    setSourceStatus(getString(R.string.tmdb_watch_sources))
+                    Logger.log(android.util.Log.ERROR, "TMDB_WATCH: auto search failed: ${result.message}")
+                    snackString(result.message)
+                }
+                is TmdbStreamResolver.StreamResult.Success -> {
+                    val foundName = source?.name ?: currentSourceName()
+                    setSourceStatus(
+                        "${getString(R.string.found)} : ${result.matchName ?: d.displayTitle} from $foundName"
+                    )
+                    source?.let { src ->
+                        val idx = sources.indexOf(src)
+                        if (idx >= 0) {
+                            selectedSourceIndex = idx
+                            refreshChips(headerBinding.tmdbWatchSourceChips)
+                        }
+                    }
+                    Logger.log("TMDB_WATCH: auto search found ${result.links.size} links via $foundName")
+                    snackString("${result.links.size} links found via $foundName")
                 }
             }
         }
     }
 
     private var lastAutoSource: CsInstalledSource? = null
+
+    /** The auto search kicked off on tab open; cancelled the moment the user
+     *  explicitly picks an episode or presses refresh so it never blocks them. */
+    private var autoSearchJob: Job? = null
 
     private suspend fun resolve(season: Int?, ep: Int?): TmdbStreamResolver.StreamResult {
         val d = detail ?: return TmdbStreamResolver.StreamResult.Error("No title loaded")
@@ -447,7 +522,10 @@ class TmdbWatchActivity : AppCompatActivity() {
     }
 
     private fun refreshSelected() {
-        if (isResolving) return
+        if (isResolving && autoSearchJob?.isActive != true) return
+        autoSearchJob?.cancel()
+        autoSearchJob = null
+        isResolving = false
         val d = detail ?: return
         val season = if (mediaType == "tv") selectedSeason else null
         val ep = null

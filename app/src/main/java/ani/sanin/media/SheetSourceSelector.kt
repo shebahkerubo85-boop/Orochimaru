@@ -23,6 +23,8 @@ class SheetSourceSelector : DialogFragment() {
     private var sources: List<String> = emptyList()
     private var onSelect: ((Int) -> Unit)? = null
     private var onDismiss: (() -> Unit)? = null
+    private var adapter: RecyclerView.Adapter<RecyclerView.ViewHolder>? = null
+    private var pendingSources: List<String>? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,7 +60,7 @@ class SheetSourceSelector : DialogFragment() {
         binding.selectorMakeDefault.visibility = View.GONE
         binding.selectorRecyclerView.layoutManager = LinearLayoutManager(requireActivity())
         val focusColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorControlHighlight)
-        binding.selectorRecyclerView.adapter = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+        adapter = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
                 val tv = TextView(parent.context).apply {
                     layoutParams = ViewGroup.LayoutParams(
@@ -100,6 +102,29 @@ class SheetSourceSelector : DialogFragment() {
 
             override fun getItemCount() = sources.size
         }
+        binding.selectorRecyclerView.adapter = adapter
+        pendingSources?.let {
+            pendingSources = null
+            sources = it
+            adapter?.notifyDataSetChanged()
+        }
+    }
+
+    /** Replaces the shown entries in place — used to fill a "Fetching…" sheet with
+     *  the resolved links as soon as they arrive. Safe to call once the view is
+     *  gone (the update is skipped, the dialog is being dismissed). */
+    fun updateSources(newSources: List<String>) {
+        if (_binding == null) {
+            // View not inflated yet — stash and apply in onViewCreated.
+            pendingSources = newSources
+            return
+        }
+        sources = newSources
+        adapter?.notifyDataSetChanged()
+    }
+
+    fun setOnSelect(cb: (Int) -> Unit) {
+        onSelect = cb
     }
 
     override fun onDismiss(dialog: DialogInterface) {
@@ -123,6 +148,20 @@ class SheetSourceSelector : DialogFragment() {
             f.onDismiss = onDismiss
             f.arguments = Bundle().apply {
                 putStringArrayList("sources", sources)
+            }
+            return f
+        }
+
+        /** Opens the sheet with a single disabled "Fetching from …" row; call
+         *  [SheetSourceSelector.updateSources] once links are resolved. */
+        fun newInstanceLoading(
+            message: String,
+            onDismiss: (() -> Unit)? = null
+        ): SheetSourceSelector {
+            val f = SheetSourceSelector()
+            f.onDismiss = onDismiss
+            f.arguments = Bundle().apply {
+                putStringArrayList("sources", arrayListOf("─── $message ───"))
             }
             return f
         }

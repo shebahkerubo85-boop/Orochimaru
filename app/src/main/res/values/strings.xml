@@ -80,6 +80,7 @@
     <string name="tmdb_watch_notify_on">Notifications enabled</string>
     <string name="tmdb_watch_notify_off">Notifications disabled</string>
     <string name="tmdb_watch_no_sources">No CloudStream sources installed — add a repo in Extensions first.</string>
+    <string name="tmdb_watch_fetching">Fetching from %1$s</string>
     <string name="tmdb_watch_loading">Loading %s…</string>
     <string name="tmdb_watch_no_episodes">No episodes found</string>
     <string name="tmdb_watch_one_season">1 Season</string>
