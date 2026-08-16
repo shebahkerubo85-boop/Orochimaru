@@ -42,7 +42,7 @@ object TmdbStreamResolver {
             val headers: Map<String, String> = emptyMap()
         )
 
-        data class Success(val links: List<PlayableLink>) : StreamResult()
+        data class Success(val links: List<PlayableLink>, val matchName: String? = null) : StreamResult()
         data class Error(val message: String) : StreamResult()
     }
 
@@ -86,7 +86,7 @@ object TmdbStreamResolver {
             try {
                 // A provider stuck in Cloudflare solving / slow HTML parsing must not hang
                 // playback forever; give it a budget and move on to the next provider.
-                val (streams, reason) = withTimeout(60_000) {
+                val (streams, reason, matchName) = withTimeout(60_000) {
                     resolveFromApi(api, d, season, episodeNumber)
                 }
                 Logger.log(
@@ -94,7 +94,7 @@ object TmdbStreamResolver {
                         "reason=${if (reason.isNotBlank()) reason else "ok"}"
                 )
                 Log.i("TmdbDetails", "${api.name}: returned ${streams.size} playable links")
-                if (streams.isNotEmpty()) return StreamResult.Success(streams)
+                if (streams.isNotEmpty()) return StreamResult.Success(streams, matchName)
                 if (reason.isNotBlank()) failures += reason
             } catch (t: TimeoutCancellationException) {
                 val detail = "${api.name}: timed out after 60s"
@@ -116,7 +116,8 @@ object TmdbStreamResolver {
 
     private data class ApiResolve(
         val links: List<StreamResult.PlayableLink>,
-        val reason: String
+        val reason: String,
+        val matchName: String? = null
     )
 
     private suspend fun resolveFromApi(
@@ -229,7 +230,7 @@ object TmdbStreamResolver {
                 headers = link.headers
             )
         }
-        return ApiResolve(playable, "ok")
+        return ApiResolve(playable, "ok", match?.name)
     }
 
     fun bestSearchMatch(

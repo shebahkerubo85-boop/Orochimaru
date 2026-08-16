@@ -20,7 +20,9 @@ import ani.sanin.databinding.ActivityTmdbWatchBinding
 import ani.sanin.databinding.ItemEpisodeCompactBinding
 import ani.sanin.databinding.ItemEpisodeGridBinding
 import ani.sanin.databinding.ItemEpisodeListBinding
+import ani.sanin.databinding.ItemTmdbEpisodeBarBinding
 import ani.sanin.databinding.ItemTmdbWatchHeaderBinding
+import ani.sanin.databinding.DialogTmdbWatchOptionsBinding
 import ani.sanin.media.SheetSourceSelector
 import ani.sanin.loadImage
 import ani.sanin.settings.saving.PrefManager
@@ -29,6 +31,8 @@ import ani.sanin.snackString
 import ani.sanin.toast
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.Logger
+import ani.sanin.util.customAlertDialog
+import android.widget.ImageButton
 import com.google.android.material.chip.Chip
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -60,8 +64,11 @@ class TmdbWatchActivity : AppCompatActivity() {
     private var movieEpisodes: List<TmdbEpisode> = emptyList()
 
     private val sources by lazy { CsRepos.installed(this) }
-    private var selectedSourceIndex = 0 // 0 = Auto Search
-    private var episodeStyle = 0 // 0 grid, 1 list, 2 compact
+    // -1 = Auto Search (try every installed plugin in order, no chip selected)
+    private var selectedSourceIndex = -1
+    // 0 bars, 1 list, 2 grid, 3 compact (anime mode styles)
+    private var episodeStyle = 0
+    private var reversed = false
     private var isResolving = false
 
     private var prequel: TmdbMedia? = null
@@ -80,7 +87,9 @@ class TmdbWatchActivity : AppCompatActivity() {
         mediaId = intent.getIntExtra(ARG_MEDIA_ID, -1)
         episodeStyle = PrefManager.getNullableCustomVal("tmdb_style_$mediaId", 0, Int::class.java)
             ?: 0
-        Logger.log("TMDB_WATCH: opened mediaType=$mediaType mediaId=$mediaId")
+        reversed = PrefManager.getNullableCustomVal("tmdb_reversed_$mediaId", false, Boolean::class.java)
+            ?: false
+        Logger.log("TMDB_WATCH: opened mediaType=$mediaType mediaId=$mediaId style=$episodeStyle reversed=$reversed")
 
         binding.tmdbWatchBack.setOnClickListener { finish() }
         FocusEffectUtil.applyFocusListener(binding.tmdbWatchBack)
@@ -166,21 +175,29 @@ class TmdbWatchActivity : AppCompatActivity() {
     private fun buildHeader(d: TmdbDetail) {
         val h = headerBinding
 
-        // ── source chips: Auto Search + installed CS3 plugins ──
+        // ── source chips: installed CS3 plugins only (Auto Search is NOT a chip) ──
         h.tmdbWatchSourceChips.removeAllViews()
-        val chipNames = listOf(getString(R.string.tmdb_watch_auto_search)) +
-            sources.map { it.name }
-        chipNames.forEachIndexed { index, name ->
+        h.tmdbWatchSourceTitle.text = when {
+            sources.isEmpty() -> getString(R.string.tmdb_watch_no_sources)
+            selectedSourceIndex == -1 -> getString(R.string.tmdb_watch_auto_search)
+            else -> getString(R.string.tmdb_watch_sources)
+        }
+        sources.forEachIndexed { index, source ->
             val chip = LayoutInflater.from(this).inflate(R.layout.item_tmdb_chip, h.tmdbWatchSourceChips, false) as Chip
-            chip.text = name
+            chip.text = source.name
             chip.isCheckable = true
             chip.isClickable = true
             chip.isFocusable = true
             chip.tag = index
             if (index == selectedSourceIndex) chip.isChecked = true
             chip.setOnClickListener {
-                selectedSourceIndex = index
-                Logger.log("TMDB_WATCH: source chip -> '${chipNames[index]}' (idx $index)")
+                val nowChecked = chip.isChecked
+                selectedSourceIndex = if (nowChecked) index else -1
+                Logger.log(
+                    "TMDB_WATCH: source chip -> '${source.name}' (idx $index) " +
+                        "checked=$nowChecked (selectedSourceIndex=$selectedSourceIndex)"
+                )
+                setSourceStatus(getString(R.string.tmdb_watch_sources))
                 refreshChips(h.tmdbWatchSourceChips)
             }
             FocusEffectUtil.applyFocusListener(chip)
@@ -242,17 +259,7 @@ class TmdbWatchActivity : AppCompatActivity() {
         }
         FocusEffectUtil.applyFocusListener(h.tmdbWatchNotify)
 
-        h.tmdbWatchAppearance.setOnClickListener {
-            episodeStyle = (episodeStyle + 1) % 3
-            PrefManager.setCustomVal("tmdb_style_$mediaId", episodeStyle)
-            val label = when (episodeStyle) {
-                0 -> R.string.tmdb_watch_style_grid
-                1 -> R.string.tmdb_watch_style_list
-                else -> R.string.tmdb_watch_style_compact
-            }
-            toast(getString(label))
-            episodeAdapter.updateStyle(episodeStyle)
-        }
+        h.tmdbWatchAppearance.setOnClickListener { showOptionsDialog() }
         FocusEffectUtil.applyFocusListener(h.tmdbWatchAppearance)
 
         // ── continue watching ──
@@ -279,15 +286,83 @@ class TmdbWatchActivity : AppCompatActivity() {
         )
     }
 
+    private fun setSourceStatus(text: String) {
+        headerBinding.tmdbWatchSourceTitle.text = text
+        headerBinding.tmdbWatchSpinner.isVisible = text.startsWith("Searching")
+    }
+
+    private fun showOptionsDialog() {
+        val db = DialogTmdbWatchOptionsBinding.inflate(layoutInflater)
+        var run = false
+        var rev = reversed
+        var style = episodeStyle
+        fun styleLabel(s: Int) = when (s) {
+            0 -> R.string.tmdb_watch_style_bars
+            1 -> R.string.list
+            2 -> R.string.grid
+            else -> R.string.compact
+        }
+        db.tmdbLayoutText.setText(styleLabel(style))
+        db.tmdbSortText.text = getString(if (rev) R.string.tmdb_watch_down_to_up else R.string.tmdb_watch_up_to_down)
+        db.tmdbSortTop.rotation = if (rev) -90f else 90f
+        var selected = when (style) {
+            1 -> db.tmdbStyleList
+            2 -> db.tmdbStyleGrid
+            3 -> db.tmdbStyleCompact
+            else -> db.tmdbStyleBars
+        }
+        selected.alpha = 1f
+        fun select(it: ImageButton, s: Int) {
+            selected.alpha = 0.33f
+            selected = it
+            selected.alpha = 1f
+            style = s
+            db.tmdbLayoutText.setText(styleLabel(s))
+            run = true
+        }
+        db.tmdbStyleBars.setOnClickListener { select(db.tmdbStyleBars, 0) }
+        db.tmdbStyleList.setOnClickListener { select(db.tmdbStyleList, 1) }
+        db.tmdbStyleGrid.setOnClickListener { select(db.tmdbStyleGrid, 2) }
+        db.tmdbStyleCompact.setOnClickListener { select(db.tmdbStyleCompact, 3) }
+        db.tmdbSortTop.setOnClickListener {
+            rev = !rev
+            db.tmdbSortTop.rotation = if (rev) -90f else 90f
+            db.tmdbSortText.text = getString(if (rev) R.string.tmdb_watch_down_to_up else R.string.tmdb_watch_up_to_down)
+            run = true
+        }
+        customAlertDialog().apply {
+            setTitle(getString(R.string.tmdb_watch_options))
+            setCustomView(db.root)
+            setPosButton(R.string.ok) {
+                if (run) applyStyle(style, rev)
+            }
+            setNegButton(R.string.cancel)
+            show()
+        }
+    }
+
+    private fun applyStyle(style: Int, rev: Boolean) {
+        episodeStyle = style
+        reversed = rev
+        PrefManager.setCustomVal("tmdb_style_$mediaId", style)
+        PrefManager.setCustomVal("tmdb_reversed_$mediaId", rev)
+        Logger.log("TMDB_WATCH: layout style=$style reversed=$rev")
+        episodeAdapter.updateStyle(style)
+        episodeAdapter.submitEpisodes(episodesOrMovie())
+    }
+
+    private fun displayList(eps: List<TmdbEpisode>): List<TmdbEpisode> =
+        if (reversed) eps.reversed() else eps
+
     private fun episodesOrMovie(): List<TmdbEpisode> =
-        if (mediaType == "tv") episodes.take(EPISODE_CAP) else movieEpisodes
+        displayList(if (mediaType == "tv") episodes.take(EPISODE_CAP) else movieEpisodes)
 
     private fun loadEpisodesForSeason() {
         lifecycleScope.launch {
             val eps = Tmdb.episodes(mediaType, mediaId, selectedSeason)
             episodes = eps
             headerBinding.tmdbWatchEpisodeCount.text = "${eps.size} ${getString(R.string.episodes).trim()}"
-            episodeAdapter.submitEpisodes(eps.take(EPISODE_CAP))
+            episodeAdapter.submitEpisodes(displayList(eps.take(EPISODE_CAP)))
             updateContinueCard()
         }
     }
@@ -308,30 +383,30 @@ class TmdbWatchActivity : AppCompatActivity() {
         val ep = if (mediaType == "tv") episode.episodeNumber else null
         Logger.log(
             "TMDB_WATCH: episode click '${d.displayTitle}' season=$season ep=$ep " +
-                "sourceIdx=$selectedSourceIndex (${if (selectedSourceIndex == 0) "Auto Search" else sources.getOrNull(selectedSourceIndex - 1)?.name})"
+                "sourceIdx=$selectedSourceIndex (${currentSourceName()})"
         )
         snackString(getString(R.string.tmdb_watch_loading, d.displayTitle))
+        setSourceStatus(getString(R.string.tmdb_watch_searching, d.displayTitle))
         isResolving = true
-        headerBinding.tmdbWatchSpinner.isVisible = true
         lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) { resolve(season, ep) }
-            headerBinding.tmdbWatchSpinner.isVisible = false
             isResolving = false
             when (result) {
                 is TmdbStreamResolver.StreamResult.Error -> {
+                    setSourceStatus(getString(R.string.tmdb_watch_sources))
                     Logger.log(android.util.Log.ERROR, "TMDB_WATCH: failed: ${result.message}")
                     snackString(result.message)
                 }
                 is TmdbStreamResolver.StreamResult.Success -> {
+                    setSourceStatus(
+                        "${if (selectedSourceIndex == -1) getString(R.string.found) else getString(R.string.selected)} : " +
+                            "${result.matchName ?: d.displayTitle} from ${currentSourceName()}"
+                    )
                     if (isFinishing || isDestroyed || supportFragmentManager.isStateSaved) {
                         Logger.log("TMDB_WATCH: discarding links, activity not showable")
                         return@launch
                     }
-                    val sourceName = if (selectedSourceIndex == 0) {
-                        lastAutoSource?.name ?: "Auto"
-                    } else {
-                        sources.getOrNull(selectedSourceIndex - 1)?.name ?: "Auto"
-                    }
+                    val sourceName = currentSourceName()
                     Logger.log(
                         "TMDB_WATCH: ${result.links.size} links via $sourceName: " +
                             result.links.mapIndexed { i, l -> "$i:${l.label}" }.joinToString(" | ")
@@ -364,14 +439,22 @@ class TmdbWatchActivity : AppCompatActivity() {
 
     private suspend fun resolve(season: Int?, ep: Int?): TmdbStreamResolver.StreamResult {
         val d = detail ?: return TmdbStreamResolver.StreamResult.Error("No title loaded")
-        if (selectedSourceIndex == 0) {
+        if (selectedSourceIndex == -1) {
+            if (sources.isEmpty()) {
+                return TmdbStreamResolver.StreamResult.Error(getString(R.string.tmdb_watch_no_sources))
+            }
             val (source, result) = TmdbStreamResolver.resolveAuto(this, sources, d, season, ep)
             lastAutoSource = source
             return result
         }
-        val source = sources.getOrNull(selectedSourceIndex - 1)
+        val source = sources.getOrNull(selectedSourceIndex)
             ?: return TmdbStreamResolver.StreamResult.Error("Source not found")
         return TmdbStreamResolver.resolveStreams(this, source, d, season, ep)
+    }
+
+    private fun currentSourceName(): String = when {
+        selectedSourceIndex == -1 -> lastAutoSource?.name ?: getString(R.string.tmdb_watch_auto_search)
+        else -> sources.getOrNull(selectedSourceIndex)?.name ?: getString(R.string.tmdb_watch_auto_search)
     }
 
     private fun refreshSelected() {
@@ -381,21 +464,22 @@ class TmdbWatchActivity : AppCompatActivity() {
         val ep = null
         Logger.log("TMDB_WATCH: refresh pressed for '${d.displayTitle}' (sourceIdx=$selectedSourceIndex)")
         snackString(getString(R.string.tmdb_watch_loading, d.displayTitle))
+        setSourceStatus(getString(R.string.tmdb_watch_searching, d.displayTitle))
         isResolving = true
-        headerBinding.tmdbWatchSpinner.isVisible = true
         lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) { resolve(season, ep) }
-            headerBinding.tmdbWatchSpinner.isVisible = false
             isResolving = false
             when (result) {
-                is TmdbStreamResolver.StreamResult.Error -> snackString(result.message)
+                is TmdbStreamResolver.StreamResult.Error -> {
+                    setSourceStatus(getString(R.string.tmdb_watch_sources))
+                    snackString(result.message)
+                }
                 is TmdbStreamResolver.StreamResult.Success -> {
-                    val sourceName = if (selectedSourceIndex == 0) {
-                        lastAutoSource?.name ?: "Auto Search"
-                    } else {
-                        sources.getOrNull(selectedSourceIndex - 1)?.name ?: "Auto Search"
-                    }
-                    snackString("${result.links.size} links found via $sourceName")
+                    setSourceStatus(
+                        "${if (selectedSourceIndex == -1) getString(R.string.found) else getString(R.string.selected)} : " +
+                            "${result.matchName ?: d.displayTitle} from ${currentSourceName()}"
+                    )
+                    snackString("${result.links.size} links found via ${currentSourceName()}")
                 }
             }
         }
@@ -497,8 +581,9 @@ class TmdbWatchActivity : AppCompatActivity() {
             } else {
                 when (style) {
                     1 -> ListVH(ItemEpisodeListBinding.inflate(LayoutInflater.from(parent.context), parent, false))
-                    2 -> CompactVH(ItemEpisodeCompactBinding.inflate(LayoutInflater.from(parent.context), parent, false))
-                    else -> GridVH(ItemEpisodeGridBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+                    2 -> GridVH(ItemEpisodeGridBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+                    3 -> CompactVH(ItemEpisodeCompactBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+                    else -> BarsVH(ItemTmdbEpisodeBarBinding.inflate(LayoutInflater.from(parent.context), parent, false))
                 }
             }
         }
@@ -510,6 +595,14 @@ class TmdbWatchActivity : AppCompatActivity() {
             val date = ep.airDate.orEmpty()
             val image = Tmdb.imageUrl(ep.stillPath, 500)
             when (holder) {
+                is BarsVH -> {
+                    holder.binding.itemBarTitle.text = title
+                    holder.binding.itemBarMeta.text =
+                        holder.binding.root.context.getString(R.string.tmdb_watch_bar_meta, ep.episodeNumber)
+                    holder.binding.itemBarImage.loadImage(image)
+                    holder.binding.root.setOnClickListener { onClick(ep) }
+                    FocusEffectUtil.applyFocusListener(holder.binding.root)
+                }
                 is GridVH -> {
                     holder.binding.itemEpisodeTitle.text = title
                     holder.binding.itemEpisodeNumber.text = ep.episodeNumber.toString()
@@ -540,6 +633,7 @@ class TmdbWatchActivity : AppCompatActivity() {
         }
 
         class HeaderVH(itemView: View) : RecyclerView.ViewHolder(itemView)
+        class BarsVH(val binding: ItemTmdbEpisodeBarBinding) : RecyclerView.ViewHolder(binding.root)
         class GridVH(val binding: ItemEpisodeGridBinding) : RecyclerView.ViewHolder(binding.root)
         class ListVH(val binding: ItemEpisodeListBinding) : RecyclerView.ViewHolder(binding.root)
         class CompactVH(val binding: ItemEpisodeCompactBinding) : RecyclerView.ViewHolder(binding.root)
