@@ -3,17 +3,20 @@ package ani.sanin.cloudstream
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
-import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.ui.PlayerView
 import ani.sanin.databinding.ActivityTmdbPlayerBinding
+import ani.sanin.defaultHeaders
+import ani.sanin.okHttpClient
 import ani.sanin.snackString
 import ani.sanin.util.FocusEffectUtil
-import kotlinx.coroutines.launch
+import com.lagradost.nicehttp.ignoreAllSSLErrors
+import java.util.concurrent.TimeUnit
 
 class TmdbPlayerActivity : AppCompatActivity() {
 
@@ -34,6 +37,8 @@ class TmdbPlayerActivity : AppCompatActivity() {
 
         binding.tmdbPlayerBack.setOnClickListener { finish() }
         FocusEffectUtil.applyFocusListener(binding.tmdbPlayerBack)
+        binding.tmdbPlayerView.useController = true
+        binding.tmdbPlayerView.setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
 
         val url = intent.getStringExtra(EXTRA_URL)
         val title = intent.getStringExtra(EXTRA_TITLE)
@@ -46,34 +51,48 @@ class TmdbPlayerActivity : AppCompatActivity() {
             finish()
             return
         }
-        lifecycleScope.launch {
-            binding.tmdbPlayerProgress.isVisible = true
-            val requestProperties = HashMap<String, String>().apply {
-                putAll(headers)
-                if (!referer.isNullOrBlank()) put("Referer", referer)
-            }
-            val dataSourceFactory = DefaultHttpDataSource.Factory()
-                .setDefaultRequestProperties(requestProperties)
-            val p = ExoPlayer.Builder(this@TmdbPlayerActivity)
-                .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
-                .build().also {
-                    binding.tmdbPlayerView.player = it
-                }
-            player = p
-            p.addListener(object : Player.Listener {
-                override fun onPlaybackStateChanged(state: Int) {
-                    if (state == Player.STATE_READY) binding.tmdbPlayerProgress.isVisible = false
-                }
 
-                override fun onPlayerError(error: PlaybackException) {
-                    binding.tmdbPlayerProgress.isVisible = false
-                    snackString("Playback error: ${error.errorCodeName}")
-                }
-            })
-            p.setMediaItem(MediaItem.fromUri(url))
-            p.prepare()
-            p.playWhenReady = true
+        // Use the app's OkHttp client (app User-Agent, cloudflare/retry interceptors) like the
+        // anime player. Many stream hosts reset connections when they see ExoPlayer's default
+        // HttpURLConnection stack or a missing/browser-less User-Agent.
+        val requestProperties = HashMap<String, String>().apply {
+            putAll(defaultHeaders)
+            putAll(headers)
+            if (!referer.isNullOrBlank()) put("Referer", referer)
         }
+        val httpClient = okHttpClient.newBuilder()
+            .apply {
+                ignoreAllSSLErrors()
+                followRedirects(true)
+                followSslRedirects(true)
+                connectionPool(okhttp3.ConnectionPool(10, 5, TimeUnit.MINUTES))
+                connectTimeout(15, TimeUnit.SECONDS)
+                readTimeout(20, TimeUnit.SECONDS)
+                writeTimeout(20, TimeUnit.SECONDS)
+            }
+            .build()
+        val dataSourceFactory = OkHttpDataSource.Factory(httpClient)
+            .setDefaultRequestProperties(requestProperties)
+
+        val p = ExoPlayer.Builder(this)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+            .build().also {
+                binding.tmdbPlayerView.player = it
+            }
+        player = p
+        p.addListener(object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                binding.tmdbPlayerProgress.isVisible = state == Player.STATE_BUFFERING
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                binding.tmdbPlayerProgress.isVisible = false
+                snackString("Playback error: ${error.errorCodeName}")
+            }
+        })
+        p.setMediaItem(MediaItem.fromUri(url))
+        p.prepare()
+        p.playWhenReady = true
     }
 
     override fun onDestroy() {

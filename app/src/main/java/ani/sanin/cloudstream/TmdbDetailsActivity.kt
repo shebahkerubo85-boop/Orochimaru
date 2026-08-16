@@ -265,15 +265,16 @@ class TmdbDetailsActivity : AppCompatActivity() {
                     }
                     val labels = ArrayList(result.links.map { "${it.label}  •  ${source.name}" })
                     val picker = SheetSourceSelector.newInstance(labels, onSelect = { idx ->
-                        if (isFinishing || isDestroyed) return@onSelect
-                        val link = result.links[idx]
-                        startActivity(
-                            Intent(this@TmdbDetailsActivity, TmdbPlayerActivity::class.java)
-                                .putExtra(TmdbPlayerActivity.EXTRA_URL, link.url)
-                                .putExtra(TmdbPlayerActivity.EXTRA_TITLE, d.displayTitle)
-                                .putExtra(TmdbPlayerActivity.EXTRA_REFERER, link.referer)
-                                .putExtra(TmdbPlayerActivity.EXTRA_HEADERS, HashMap(link.headers))
-                        )
+                        if (!isFinishing && !isDestroyed) {
+                            val link = result.links[idx]
+                            startActivity(
+                                Intent(this@TmdbDetailsActivity, TmdbPlayerActivity::class.java)
+                                    .putExtra(TmdbPlayerActivity.EXTRA_URL, link.url)
+                                    .putExtra(TmdbPlayerActivity.EXTRA_TITLE, d.displayTitle)
+                                    .putExtra(TmdbPlayerActivity.EXTRA_REFERER, link.referer)
+                                    .putExtra(TmdbPlayerActivity.EXTRA_HEADERS, HashMap(link.headers))
+                            )
+                        }
                     })
                     picker.show(supportFragmentManager, "tmdbQualitySelector")
                 }
@@ -303,25 +304,34 @@ class TmdbDetailsActivity : AppCompatActivity() {
             val why = CsRuntime.lastError?.let { "\n$it" } ?: ""
             return StreamResult.Error("Failed to load ${source.name} — is it a .cs3 plugin?$why")
         }
+        val failures = mutableListOf<String>()
         for (api in apis) {
             Log.i("TmdbDetails", "Trying provider ${api.name} for '${d.displayTitle}' (season=$season ep=$episodeNumber)")
             try {
-                val streams = resolveFromApi(api, d, season, episodeNumber)
+                val (streams, reason) = resolveFromApi(api, d, season, episodeNumber)
                 Log.i("TmdbDetails", "${api.name}: returned ${streams.size} playable links")
                 if (streams.isNotEmpty()) return StreamResult.Success(streams)
+                if (reason.isNotBlank()) failures += reason
             } catch (t: Throwable) {
                 Log.e("TmdbDetails", "Provider ${api.name} failed", t)
+                failures += "${api.name}: ${t::class.java.simpleName} ${t.message}"
             }
         }
-        return StreamResult.Error("No playable streams found on ${source.name}")
+        val why = failures.lastOrNull()?.let { " — $it" } ?: ""
+        return StreamResult.Error("No playable streams found on ${source.name}$why")
     }
+
+    private data class ApiResolve(
+        val links: List<StreamResult.PlayableLink>,
+        val reason: String
+    )
 
     private suspend fun resolveFromApi(
         api: MainAPI,
         d: TmdbDetail,
         season: Int?,
         episodeNumber: Int?
-    ): List<StreamResult.PlayableLink> {
+    ): ApiResolve {
         val wantMovie = d.displayTitle.isNotBlank() && mediaType == "movie"
         // Providers implement search(query, page) (paginated) OR the legacy search(query).
         // Calling the one-arg form throws NotImplementedError in the base class, which made
@@ -329,43 +339,56 @@ class TmdbDetailsActivity : AppCompatActivity() {
         // CloudStream: call search(query, 1) first, then fall back to quickSearch().
         val results = runCatching { api.search(d.displayTitle, 1)?.items }
             .getOrElse { t ->
+                if (t is kotlinx.coroutines.CancellationException) throw t
                 Log.e("TmdbDetails", "${api.name}: search(query,1) failed: ${t.message}")
                 null
             }?.takeIf { it.isNotEmpty() }
             ?: runCatching { api.quickSearch(d.displayTitle) }
                 .getOrElse { t ->
+                    if (t is kotlinx.coroutines.CancellationException) throw t
                     Log.e("TmdbDetails", "${api.name}: quickSearch failed: ${t.message}")
                     null
                 } ?: emptyList()
         Log.i("TmdbDetails", "${api.name}: search '${d.displayTitle}' -> ${results.size} results")
         val match = bestSearchMatch(results, d.displayTitle, wantMovie)
         Log.i("TmdbDetails", "${api.name}: best match = ${match?.url ?: "NONE"}")
-        if (match == null) return emptyList()
+        if (match == null) {
+            return ApiResolve(emptyList(), "${api.name}: no search result matched '${d.displayTitle}' (${results.size} results)")
+        }
 
         val response = api.load(match.url)
         Log.i("TmdbDetails", "${api.name}: load ${match.url} -> ${response?.javaClass?.simpleName ?: "null"}")
-        if (response == null) return emptyList()
+        if (response == null) {
+            return ApiResolve(emptyList(), "${api.name}: load returned null for ${match.url}")
+        }
         val dataUrl: String = when {
             response is TvSeriesLoadResponse && season != null && episodeNumber != null -> {
                 val episode = response.episodes.firstOrNull {
                     it.episode == episodeNumber && (it.season == null || it.season == season)
                 } ?: response.episodes.firstOrNull { it.episode == episodeNumber }
-                episode?.data ?: return emptyList()
+                episode?.data ?: return ApiResolve(
+                    emptyList(),
+                    "${api.name}: episode $episodeNumber (season $season) not found in load response"
+                )
             }
             response is MovieLoadResponse -> response.dataUrl
             else -> response.url
         }
         Log.i("TmdbDetails", "${api.name}: dataUrl = ${dataUrl.take(160).ifBlank { "<blank>" }}")
-        if (dataUrl.isBlank()) return emptyList()
+        if (dataUrl.isBlank()) {
+            return ApiResolve(emptyList(), "${api.name}: blank dataUrl after load")
+        }
 
         val links = mutableListOf<ExtractorLink>()
         val subs = mutableListOf<SubtitleFile>()
         val ok = api.loadLinks(dataUrl, isCasting = false, subtitleCallback = { subs.add(it) }, callback = { links.add(it) })
         Log.i("TmdbDetails", "${api.name}: loadLinks ok=$ok links=${links.size} subs=${subs.size}")
-        if (!ok || links.isEmpty()) return emptyList()
+        if (!ok || links.isEmpty()) {
+            return ApiResolve(emptyList(), "${api.name}: loadLinks ok=$ok links=${links.size}")
+        }
 
         val seen = HashSet<String>()
-        return links.mapNotNull { link ->
+        val playable = links.mapNotNull { link ->
             val url = link.url
             if (url.isBlank() || !seen.add(url)) return@mapNotNull null
             val quality = Qualities.getStringByInt(link.quality).ifBlank { link.name }
@@ -376,6 +399,7 @@ class TmdbDetailsActivity : AppCompatActivity() {
                 headers = link.headers
             )
         }
+        return ApiResolve(playable, "ok")
     }
 
     private fun bestSearchMatch(
