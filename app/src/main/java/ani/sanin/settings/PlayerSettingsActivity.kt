@@ -258,6 +258,11 @@ class PlayerSettingsActivity :
             PrefManager.setVal(PrefName.AutoSkipFiller, isChecked)
         }
 
+        binding.playerSettingsDataSaver.isChecked = PrefManager.getVal(PrefName.DataSaver)
+        binding.playerSettingsDataSaver.setOnCheckedChangeListener { _, isChecked ->
+            PrefManager.setVal(PrefName.DataSaver, isChecked)
+        }
+
         // Update Progress
         binding.playerSettingsAskUpdateProgress.isChecked =
             PrefManager.getVal(PrefName.AskIndividualPlayer)

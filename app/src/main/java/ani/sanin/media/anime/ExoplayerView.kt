@@ -2033,7 +2033,7 @@ class ExoplayerView :
                     // but do NOT inherit the app client's CloudflareInterceptor/RetryInterceptor:
                     // a 30s WebView challenge solve per media/segment request stalls playback
                     // ("video never loads") and retrying media requests doubles the damage.
-                    cookieJar(okHttpClient.cookieJar())
+                    cookieJar(okHttpClient.cookieJar)
                     ignoreAllSSLErrors()
                     followRedirects(true)
                     followSslRedirects(true)
@@ -2198,6 +2198,11 @@ class ExoplayerView :
                 .setRendererDisabled(TRACK_TYPE_AUDIO, false)
                 .setRendererDisabled(TRACK_TYPE_TEXT, false)
                 .setMaxVideoSize(3840, 2160)
+        if (PrefManager.getVal(PrefName.DataSaver)) {
+            // Data Saver: force ExoPlayer to pick a variant below ~1.5 Mbps so movies
+            // keep playing on slow connections instead of demanding 10+ Mbps.
+            parameters.setMaxVideoBitrate(1_500_000)
+        }
         // .setOverrideForType(TrackSelectionOverride(trackSelector, TRACK_TYPE_VIDEO))
         val activeParser = (if (media.isAdult) HAnimeSources else AnimeSources)[media.selected?.sourceIndex ?: 0]
         if (activeParser.selectDub) {
