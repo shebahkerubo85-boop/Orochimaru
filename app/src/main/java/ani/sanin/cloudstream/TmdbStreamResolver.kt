@@ -120,6 +120,91 @@ object TmdbStreamResolver {
         return StreamResult.Error("No playable streams found on ${source.name}$why")
     }
 
+    /** Resolves links for a title already loaded from a plugin (home card ->
+     *  watch tab). Skips the title search entirely — the LoadResponse carries
+     *  the episode data, so the plugin's own URL is used verbatim. */
+    suspend fun resolvePluginStreams(
+        context: Context,
+        source: CsInstalledSource,
+        load: LoadResponse,
+        season: Int?,
+        episodeNumber: Int?
+    ): StreamResult {
+        val apis = CsRuntime.apisFor(context, source)
+        if (apis.isEmpty()) {
+            val why = CsRuntime.lastError?.let { "\n$it" } ?: ""
+            return StreamResult.Error("Failed to load ${source.name} — is it a .cs3 plugin?$why")
+        }
+        val api = apis.firstOrNull { it.name == load.apiName } ?: apis.firstOrNull()
+            ?: return StreamResult.Error("No provider registered in ${source.name}")
+        val dataUrl: String = when (load) {
+            is TvSeriesLoadResponse -> {
+                val episode = when {
+                    episodeNumber != null && season != null ->
+                        load.episodes.firstOrNull {
+                            it.episode == episodeNumber && (it.season == null || it.season == season)
+                        } ?: load.episodes.firstOrNull { it.episode == episodeNumber }
+                    episodeNumber != null -> load.episodes.firstOrNull { it.episode == episodeNumber }
+                    season != null -> load.episodes.firstOrNull { it.season == null || it.season == season }
+                    else -> load.episodes.firstOrNull()
+                }
+                if (episode == null) {
+                    return StreamResult.Error(
+                        "${source.name}: no episode found (season=$season ep=$episodeNumber) in load response"
+                    )
+                }
+                episode.data
+            }
+            is MovieLoadResponse -> load.dataUrl
+            else -> load.url
+        }
+        if (dataUrl.isBlank()) {
+            return StreamResult.Error("${source.name}: blank dataUrl after load")
+        }
+        Logger.log(
+            "TMDB_PLAY: ${api.name} plugin-direct loadLinks dataUrl=${dataUrl.take(120)} " +
+                "(season=$season ep=$episodeNumber)"
+        )
+        val links = mutableListOf<ExtractorLink>()
+        val subs = mutableListOf<SubtitleFile>()
+        val ok = try {
+            withTimeout(60_000) {
+                api.loadLinks(
+                    dataUrl,
+                    isCasting = false,
+                    subtitleCallback = { subs.add(it) },
+                    callback = { links.add(it) }
+                )
+            }
+        } catch (t: TimeoutCancellationException) {
+            return StreamResult.Error("${api.name}: timed out after 60s")
+        } catch (t: kotlinx.coroutines.CancellationException) {
+            throw t
+        } catch (t: Throwable) {
+            val detail = "${t::class.java.simpleName}${t.message?.let { ": $it" } ?: ""}"
+            Logger.log(Log.ERROR, "TMDB_PLAY: ${api.name} loadLinks threw $detail")
+            Logger.log(t)
+            return StreamResult.Error("${api.name}: $detail")
+        }
+        Logger.log("TMDB_PLAY: ${api.name} loadLinks ok=$ok links=${links.size} (plugin direct)")
+        if (!ok || links.isEmpty()) {
+            return StreamResult.Error("${api.name}: loadLinks ok=$ok links=${links.size}")
+        }
+        val seen = HashSet<String>()
+        val playable = links.mapNotNull { link ->
+            val url = link.url
+            if (url.isBlank() || !seen.add(url)) return@mapNotNull null
+            val quality = Qualities.getStringByInt(link.quality).ifBlank { link.name }
+            StreamResult.PlayableLink(
+                label = quality,
+                url = url,
+                referer = link.referer.takeIf { it.isNotBlank() },
+                headers = link.headers
+            )
+        }
+        return StreamResult.Success(playable, load.name)
+    }
+
     private data class ApiResolve(
         val links: List<StreamResult.PlayableLink>,
         val reason: String,
@@ -283,7 +368,8 @@ object TmdbStreamResolver {
         val mediaId: Int,
         val mediaType: String,
         val detail: TmdbDetail,
-        val source: CsInstalledSource
+        val source: CsInstalledSource,
+        val load: LoadResponse? = null
     )
 
     /** Per-plugin episode shells (extractors live on them, so re-launching the
@@ -399,6 +485,39 @@ object TmdbStreamResolver {
         return map
     }
 
+    /** Player episode shells straight from a plugin's per-season episodes —
+     *  used when the watch tab was opened from a plugin home card, so the rail
+     *  reflects the plugin's data (no TMDB lookups on a synthetic id). */
+    fun pluginEpisodeShells(
+        mediaId: Int,
+        seasonEpisodes: Map<Int, List<TmdbEpisode>>
+    ): Map<String, Episode> {
+        val map = linkedMapOf<String, Episode>()
+        seasonEpisodes.forEach { (season, eps) ->
+            eps.forEach { ep ->
+                map[episodeKey(season, ep.episodeNumber)] = tmdbEpisode(mediaId, season, ep)
+            }
+        }
+        return map
+    }
+
+    /** Single "episode" shell for a plugin movie (key "1", mirrors the TMDB
+     *  movie branch of [episodesFor]). */
+    fun pluginMovieShell(mediaId: Int, d: TmdbDetail): Map<String, Episode> =
+        linkedMapOf(
+            "1" to Episode(
+                number = "1",
+                title = d.displayTitle,
+                desc = d.overview,
+                thumb = Tmdb.imageUrl(d.backdropPath ?: d.posterPath, 780)?.let { FileUrl(it) },
+                date = d.releaseDate,
+                rating = d.voteAverage.takeIf { it > 0 }
+                    ?.let { String.format(java.util.Locale.US, "%.1f", it) },
+                selectedSubtitle = -1,
+                extra = mapOf("tmdbId" to mediaId.toString())
+            )
+        )
+
     /** Resolves (or reuses cached) links for a synthetic episode and fills its
      *  extractors so the player can build media. Returns false if nothing played. */
     suspend fun populateSyntheticEpisode(context: Context, media: Media, ep: Episode): Boolean =
@@ -409,9 +528,15 @@ object TmdbStreamResolver {
             val episodeNum = ep.extra?.get("episode")?.toIntOrNull()
             val cached = cachedLinks(session.mediaId, session.source.name, season, episodeNum)
             val result = cached
-                ?: (resolveStreams(context, session.source, session.detail, season, episodeNum)
-                    as? StreamResult.Success)
-                    ?.also { cacheLinks(session.mediaId, session.source.name, season, episodeNum, it) }
+                ?: if (session.load != null) {
+                    (resolvePluginStreams(context, session.source, session.load, season, episodeNum)
+                        as? StreamResult.Success)
+                        .also { if (it != null) cacheLinks(session.mediaId, session.source.name, season, episodeNum, it) }
+                } else {
+                    (resolveStreams(context, session.source, session.detail, season, episodeNum)
+                        as? StreamResult.Success)
+                        .also { if (it != null) cacheLinks(session.mediaId, session.source.name, season, episodeNum, it) }
+                }
                 ?: return@withContext false
             val extractors = buildExtractors(result.links)
             if (extractors.isEmpty()) return@withContext false
@@ -438,14 +563,16 @@ object TmdbStreamResolver {
         season: Int?,
         epNumber: Int?,
         links: List<StreamResult.PlayableLink>,
-        pickedLabel: String
+        pickedLabel: String,
+        episodesOverride: Map<String, Episode>? = null,
+        load: LoadResponse? = null
     ) {
         val id = syntheticId(mediaId)
-        sessions[id] = SyntheticSession(mediaId, mediaType, d, source)
+        sessions[id] = SyntheticSession(mediaId, mediaType, d, source, load)
         if (sessions.size > 24) {
             sessions.entries.take(sessions.size - 24).forEach { sessions.remove(it.key) }
         }
-        val episodes = episodesFor(mediaId, mediaType, d, source.name)
+        val episodes = episodesOverride ?: episodesFor(mediaId, mediaType, d, source.name)
         val currentKey = if (mediaType == "tv") {
             episodeKey(season ?: 1, epNumber ?: 1)
         } else "1"

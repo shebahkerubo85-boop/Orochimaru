@@ -667,30 +667,37 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showModePicker() {
+        val installed = CsRepos.installed(this)
+        // One dialog: Anime / Movie & TV, with the Movie & TV sources listed
+        // right below (TMDB is the default, installed plugins follow).
+        val options = ArrayList<String>().apply {
+            add("Anime")
+            add("Movie & TV")
+            add("─── Movie & TV sources ───")
+            add("TMDB")
+            installed.forEach { add(it.name) }
+        }
         val sheet = SheetSourceSelector.newInstance(
-            ArrayList(listOf("Anime", "Movie & TV")),
+            options,
             onSelect = { idx ->
-                if (idx == 0) setContentMode("anime") else showSourcePicker()
+                when (idx) {
+                    0 -> setContentMode("anime")
+                    1 -> setContentMode("movie_tv")
+                    3 -> {
+                        PrefManager.setVal(PrefName.ContentSource, "tmdb")
+                        setContentMode("movie_tv")
+                    }
+                    else -> {
+                        val plugin = installed.getOrNull(idx - 4)
+                        if (plugin != null) {
+                            PrefManager.setVal(PrefName.ContentSource, plugin.id)
+                            setContentMode("movie_tv")
+                        }
+                    }
+                }
             }
         )
         sheet.show(supportFragmentManager, "modePicker")
-    }
-
-    private fun showSourcePicker() {
-        val installed = CsRepos.installed(this)
-        val options = listOf("TMDB") + installed.map { it.name }
-        val sheet = SheetSourceSelector.newInstance(
-            ArrayList(options),
-            onSelect = { idx ->
-                if (idx == 0) {
-                    PrefManager.setVal(PrefName.ContentSource, "tmdb")
-                } else {
-                    PrefManager.setVal(PrefName.ContentSource, installed[idx - 1].id)
-                }
-                setContentMode("movie_tv")
-            }
-        )
-        sheet.show(supportFragmentManager, "sourcePicker")
     }
 
     private fun setContentMode(mode: String) {

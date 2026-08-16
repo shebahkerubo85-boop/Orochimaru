@@ -255,6 +255,9 @@ object Tmdb {
 
     fun imageUrl(path: String?, width: Int = 500): String? {
         if (path.isNullOrBlank()) return null
+        // Plugin (CloudStream) content hands us full image URLs — pass those
+        // through untouched; TMDB paths are always relative fragments.
+        if (path.startsWith("http://") || path.startsWith("https://")) return path
         return "$IMG/w$width$path"
     }
 

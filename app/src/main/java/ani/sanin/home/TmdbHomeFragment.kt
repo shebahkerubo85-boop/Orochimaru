@@ -20,8 +20,12 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
 import ani.sanin.bannerCardSizePx
+import ani.sanin.cloudstream.CsInstalledSource
+import ani.sanin.cloudstream.CsRepos
+import ani.sanin.cloudstream.CsRuntime
 import ani.sanin.cloudstream.TmdbCards
 import ani.sanin.cloudstream.TmdbDetailsActivity
+import ani.sanin.cloudstream.TmdbWatchActivity
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.tmdb.TmdbGenre
 import ani.sanin.connections.tmdb.TmdbMedia
@@ -33,8 +37,12 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.sizeBannerCard
 import ani.sanin.util.FocusEffectUtil
+import com.lagradost.cloudstream3.MainPageRequest
+import com.lagradost.cloudstream3.SearchResponse
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class TmdbHomeFragment : Fragment() {
 
@@ -88,6 +96,20 @@ class TmdbHomeFragment : Fragment() {
     }
 
     private fun load() {
+        val sourceId = PrefManager.getVal<String>(PrefName.ContentSource)
+        val plugin = if (sourceId == "tmdb") {
+            null
+        } else {
+            CsRepos.installed(requireContext()).firstOrNull { it.id == sourceId }
+        }
+        if (plugin != null) {
+            loadPluginHome(plugin)
+        } else {
+            loadTmdbHome()
+        }
+    }
+
+    private fun loadTmdbHome() {
         viewLifecycleOwner.lifecycleScope.launch {
             val trendingSeries = Tmdb.trending("tv", "week")
             val trendingMovies = Tmdb.trending("movie", "week")
@@ -108,6 +130,87 @@ class TmdbHomeFragment : Fragment() {
             addSection("Top Rated", topRated)
             startAutoAdvance()
         }
+    }
+
+    /** Movie & TV home driven by the selected CS3 plugin (CloudStream-style):
+     *  each provider's own main-page sections and cards, never TMDB's. */
+    private fun loadPluginHome(source: CsInstalledSource) {
+        binding.tmdbBannerFrame.isVisible = false
+        binding.tmdbHomeSections.removeAllViews()
+        viewLifecycleOwner.lifecycleScope.launch {
+            val apis = withContext(Dispatchers.IO) {
+                CsRuntime.apisFor(requireContext(), source)
+            }
+            if (apis.isEmpty()) {
+                addEmptyState(
+                    "Plugin '${source.name}' failed to load — check Settings → CloudStream."
+                )
+                return@launch
+            }
+            val requests = apis.flatMap { api ->
+                api.mainPage.filter { it.data.isNotBlank() }.map { api to it }
+            }
+            if (requests.isEmpty()) {
+                addEmptyState("Plugin '${source.name}' exposes no home sections.")
+                return@launch
+            }
+            for ((api, page) in requests) {
+                val resp = runCatching {
+                    withContext(Dispatchers.IO) {
+                        api.getMainPage(1, MainPageRequest(page.name, page.data, page.horizontalImages))
+                    }
+                }.getOrNull()
+                resp?.items?.forEach { list ->
+                    if (list.list.isNotEmpty()) addPluginSection(list.name, list.list, source)
+                }
+            }
+            if (binding.tmdbHomeSections.childCount == 0) {
+                addEmptyState("Plugin '${source.name}' returned no content.")
+            }
+        }
+    }
+
+    private fun addEmptyState(text: String) {
+        binding.tmdbHomeSections.addView(
+            TextView(requireContext()).apply {
+                this.text = text
+                setPadding(48, 24, 48, 24)
+                textSize = 15f
+                alpha = 0.7f
+                setTextColor(requireContext().getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            }
+        )
+    }
+
+    private fun addPluginSection(
+        title: String,
+        items: List<SearchResponse>,
+        source: CsInstalledSource
+    ) {
+        if (items.isEmpty()) return
+        val ctx = requireContext()
+        val header = TextView(ctx).apply {
+            text = title
+            setPadding(24, 20, 24, 8)
+            textSize = 16f
+            setTypeface(android.graphics.Typeface.DEFAULT_BOLD)
+            setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+        }
+        val list = RecyclerView(ctx).apply {
+            layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
+            adapter = PluginRowAdapter(items) { item ->
+                startActivity(
+                    Intent(requireContext(), TmdbWatchActivity::class.java)
+                        .putExtra(TmdbWatchActivity.ARG_PLUGIN_SOURCE, source.id)
+                        .putExtra(TmdbWatchActivity.ARG_PLUGIN_URL, item.url)
+                )
+            }
+            isNestedScrollingEnabled = false
+            overScrollMode = View.OVER_SCROLL_NEVER
+            setPadding(24, 0, 24, 0)
+        }
+        binding.tmdbHomeSections.addView(header)
+        binding.tmdbHomeSections.addView(list)
     }
 
     private fun addSection(title: String, items: List<TmdbMedia>) {
@@ -299,6 +402,50 @@ class TmdbHomeFragment : Fragment() {
             holder.binding.tmdbCardYear.text = item.year
             holder.binding.tmdbCardPoster.setOnClickListener { onClick(item) }
             FocusEffectUtil.applyFocusListener(holder.binding.tmdbCardPoster)
+        }
+
+        override fun getItemCount(): Int = items.size
+
+        class VH(val binding: ItemTmdbCardBinding) : RecyclerView.ViewHolder(binding.root)
+    }
+
+    /** Cards for plugin main-page rows — same layout and sizing as TMDB cards,
+     *  but images come straight from the plugin (posterUrl is a full URL). */
+    class PluginRowAdapter(
+        private val items: List<SearchResponse>,
+        private val onClick: (SearchResponse) -> Unit
+    ) : RecyclerView.Adapter<PluginRowAdapter.VH>() {
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+            val b = ItemTmdbCardBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+            return VH(b)
+        }
+
+        override fun onBindViewHolder(holder: VH, position: Int) {
+            val item = items[position]
+            val b = holder.binding
+            val landscape = TmdbCards.isLandscapeOrientation()
+            val size = TmdbCards.cardSize()
+            val (w, h) = if (landscape) {
+                (260f * size).toInt() to (148f * size).toInt()
+            } else {
+                (102f * size).toInt() to (154f * size).toInt()
+            }
+            b.tmdbCardPoster.updateLayoutParams<ViewGroup.LayoutParams> {
+                width = w
+                height = h
+            }
+            b.tmdbCard.radius = TmdbCards.roundness()
+            b.tmdbCardPoster.loadImage(item.posterUrl, if (landscape) 780 else 300)
+            b.tmdbCardTitle.text = item.name
+            b.tmdbCardTitle.isVisible = true
+            b.tmdbCardYear.text = ""
+            b.tmdbCardYear.isVisible = false
+            b.tmdbCardGradient.isVisible = false
+            b.tmdbCardLogo.isVisible = false
+            b.tmdbCardOverlayTitle.isVisible = false
+            b.tmdbCardPoster.setOnClickListener { onClick(item) }
+            FocusEffectUtil.applyFocusListener(b.tmdbCardPoster)
         }
 
         override fun getItemCount(): Int = items.size

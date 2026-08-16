@@ -57,6 +57,9 @@ class SheetSourceSelector : DialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        // The generic option list never fetches anything — the tomoe spinner is
+        // only meaningful inside SelectorDialogFragment's auto-select screen.
+        binding.selectorProgressBar.visibility = View.GONE
         binding.selectorMakeDefault.visibility = View.GONE
         binding.selectorRecyclerView.layoutManager = LinearLayoutManager(requireActivity())
         val focusColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorControlHighlight)

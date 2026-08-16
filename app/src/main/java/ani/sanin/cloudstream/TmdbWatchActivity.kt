@@ -14,6 +14,9 @@ import ani.sanin.R
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.tmdb.TmdbDetail
 import ani.sanin.connections.tmdb.TmdbEpisode
+import ani.sanin.connections.tmdb.TmdbGenre
+import ani.sanin.connections.tmdb.TmdbImage
+import ani.sanin.connections.tmdb.TmdbImages
 import ani.sanin.connections.tmdb.TmdbMedia
 import ani.sanin.connections.tmdb.TmdbSeason
 import ani.sanin.databinding.ActivityTmdbWatchBinding
@@ -24,6 +27,7 @@ import ani.sanin.databinding.DialogTmdbWatchOptionsBinding
 import ani.sanin.media.SheetSourceSelector
 import ani.sanin.loadImage
 import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import ani.sanin.themes.ThemeManager
 import ani.sanin.snackString
 import ani.sanin.toast
@@ -32,6 +36,9 @@ import ani.sanin.util.Logger
 import ani.sanin.util.customAlertDialog
 import android.widget.ImageButton
 import com.google.android.material.chip.Chip
+import com.lagradost.cloudstream3.LoadResponse
+import com.lagradost.cloudstream3.TvSeriesLoadResponse
+import ani.sanin.media.anime.Episode as AnimeEpisode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -48,6 +55,8 @@ class TmdbWatchActivity : AppCompatActivity() {
     companion object {
         const val ARG_MEDIA_TYPE = "mediaType"
         const val ARG_MEDIA_ID = "mediaId"
+        const val ARG_PLUGIN_SOURCE = "pluginSource"
+        const val ARG_PLUGIN_URL = "pluginUrl"
         private const val EPISODE_CAP = 24
     }
 
@@ -56,6 +65,10 @@ class TmdbWatchActivity : AppCompatActivity() {
 
     private var mediaType: String = "movie"
     private var mediaId: Int = -1
+    private var pluginSourceId: String? = null
+    private var pluginUrl: String? = null
+    private var pluginLoad: LoadResponse? = null
+    private val pluginEpisodes = mutableMapOf<Int, List<TmdbEpisode>>()
     private var detail: TmdbDetail? = null
     private var seasons: List<TmdbSeason> = emptyList()
     private var selectedSeason = 1
@@ -73,6 +86,8 @@ class TmdbWatchActivity : AppCompatActivity() {
     private var prequel: TmdbMedia? = null
     private var sequel: TmdbMedia? = null
 
+    private val pluginMode get() = pluginUrl != null
+
     private lateinit var episodeAdapter: EpisodeListAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -84,6 +99,11 @@ class TmdbWatchActivity : AppCompatActivity() {
 
         mediaType = intent.getStringExtra(ARG_MEDIA_TYPE) ?: "movie"
         mediaId = intent.getIntExtra(ARG_MEDIA_ID, -1)
+        pluginSourceId = intent.getStringExtra(ARG_PLUGIN_SOURCE)
+        pluginUrl = intent.getStringExtra(ARG_PLUGIN_URL)
+        // Plugin titles have no TMDB id — key everything (caches, continue
+        // watching, notify) off a stable hash of the plugin URL.
+        if (pluginUrl != null) mediaId = pluginUrl.hashCode()
         episodeStyle = (PrefManager.getNullableCustomVal("tmdb_style", 0, Int::class.java)
             ?: 0).coerceIn(0, 1)
         reversed = PrefManager.getNullableCustomVal("tmdb_reversed_$mediaId", false, Boolean::class.java)
@@ -119,6 +139,10 @@ class TmdbWatchActivity : AppCompatActivity() {
 
     private fun load() {
         lifecycleScope.launch {
+            if (pluginMode) {
+                loadPlugin()
+                return@launch
+            }
             val d = Tmdb.detail(mediaType, mediaId) ?: run {
                 snackString("Could not load details")
                 finish()
@@ -157,13 +181,163 @@ class TmdbWatchActivity : AppCompatActivity() {
                 loadCollectionParts(d)
             }
 
-            buildHeader(d)
+            buildHeader()
             buildAdapter()
             updateContinueCard()
             // Always kick off the auto search as soon as the tab opens so the user
             // sees "Searching : …" immediately instead of an idle Sources row.
             autoSearchOnOpen()
         }
+    }
+
+    /** Plugin-driven watch tab: loads the title straight from the selected
+     *  plugin (home card -> here), mapping the LoadResponse onto the same
+     *  TMDB-shaped data so the rest of the screen behaves identically. */
+    private suspend fun loadPlugin() {
+        val url = pluginUrl ?: return
+        val source = sources.firstOrNull { it.id == pluginSourceId } ?: run {
+            snackString("Plugin not installed anymore")
+            finish()
+            return
+        }
+        val api = withContext(Dispatchers.IO) {
+            CsRuntime.apisFor(this, source).firstOrNull()
+        } ?: run {
+            snackString("Could not load ${source.name}")
+            finish()
+            return
+        }
+        Logger.log("TMDB_WATCH: plugin mode, loading '$url' via ${source.name}")
+        val load = withContext(Dispatchers.IO) {
+            runCatching { api.load(url) }.getOrNull()
+        }
+        if (load == null) {
+            Logger.log(android.util.Log.ERROR, "TMDB_WATCH: plugin load returned null for $url")
+            snackString("Plugin returned nothing for this title")
+            finish()
+            return
+        }
+        pluginLoad = load
+        Logger.log(
+            "TMDB_WATCH: plugin load -> ${load.javaClass.simpleName} '${load.name}' " +
+                "(mediaId=$mediaId, api=${load.apiName})"
+        )
+
+        val poster = load.posterUrl
+        val backdrop = load.backgroundPosterUrl ?: load.posterUrl
+        val rating = load.score?.toFloat(10)?.toDouble() ?: 0.0
+        val genres = load.tags.orEmpty().map { TmdbGenre(0, it) }
+        val year = load.year?.toString()
+        val images = load.logoUrl?.let { TmdbImages(logos = listOf(TmdbImage(it))) }
+
+        if (load is TvSeriesLoadResponse) {
+            mediaType = "tv"
+            seasons = buildPluginSeasons(load)
+            selectedSeason = seasons.firstOrNull()?.seasonNumber ?: 1
+            pluginEpisodes.clear()
+            seasons.forEach { season ->
+                pluginEpisodes[season.seasonNumber] = load.episodes
+                    .filter { (it.season ?: 1) == season.seasonNumber }
+                    .map { toPluginEpisode(it) }
+            }
+            episodes = pluginEpisodes[selectedSeason].orEmpty()
+            detail = TmdbDetail(
+                id = mediaId,
+                name = load.name,
+                overview = load.plot,
+                voteAverage = rating,
+                backdropPath = backdrop,
+                posterPath = poster,
+                firstAirDate = year?.let { "$it-01-01" },
+                numberOfSeasons = seasons.size,
+                genres = genres,
+                images = images,
+                seasons = seasons
+            )
+        } else {
+            mediaType = "movie"
+            movieEpisodes = listOf(
+                TmdbEpisode(
+                    id = mediaId,
+                    name = load.name,
+                    episodeNumber = 1,
+                    seasonNumber = 1,
+                    stillPath = backdrop,
+                    airDate = year?.let { "$it-01-01" },
+                    voteAverage = rating
+                )
+            )
+            detail = TmdbDetail(
+                id = mediaId,
+                title = load.name,
+                overview = load.plot,
+                voteAverage = rating,
+                backdropPath = backdrop,
+                posterPath = poster,
+                releaseDate = year?.let { "$it-01-01" },
+                genres = genres,
+                images = images
+            )
+        }
+
+        val d = detail ?: return
+        val logo = Tmdb.logoUrl(d)
+        if (logo != null) {
+            binding.tmdbWatchLogo.isVisible = true
+            binding.tmdbWatchLogo.loadImage(logo)
+        } else {
+            binding.tmdbWatchTitle.isVisible = true
+            binding.tmdbWatchTitle.text = d.displayTitle
+        }
+        headerBinding = ItemTmdbWatchHeaderBinding.inflate(layoutInflater)
+        buildHeader()
+        buildAdapter()
+        updateContinueCard()
+        autoSearchOnOpen()
+    }
+
+    private fun buildPluginSeasons(load: TvSeriesLoadResponse): List<TmdbSeason> {
+        val numbers = load.episodes.mapNotNull { it.season }.distinct().sorted()
+            .ifEmpty { listOf(1) }
+        val names = load.seasonNames.orEmpty().associate { it.season to it.name }
+        return numbers.map { num ->
+            TmdbSeason(
+                id = num,
+                name = names[num],
+                seasonNumber = num,
+                episodeCount = load.episodes.count { (it.season ?: 1) == num }
+            )
+        }
+    }
+
+    private fun toPluginEpisode(ep: com.lagradost.cloudstream3.Episode): TmdbEpisode = TmdbEpisode(
+        id = ep.data.hashCode(),
+        name = ep.name,
+        episodeNumber = ep.episode ?: 0,
+        seasonNumber = ep.season ?: 1,
+        stillPath = ep.posterUrl,
+        airDate = formatEpochDate(ep.date),
+        voteAverage = ep.score?.toFloat(10)?.toDouble() ?: 0.0
+    )
+
+    private fun formatEpochDate(epoch: Long?): String? {
+        if (epoch == null || epoch <= 0L) return null
+        val cal = java.util.Calendar.getInstance().apply { timeInMillis = epoch }
+        return String.format(
+            java.util.Locale.US,
+            "%04d-%02d-%02d",
+            cal.get(java.util.Calendar.YEAR),
+            cal.get(java.util.Calendar.MONTH) + 1,
+            cal.get(java.util.Calendar.DAY_OF_MONTH)
+        )
+    }
+
+    private fun pluginShells(): Map<String, AnimeEpisode>? = if (!pluginMode) {
+        null
+    } else if (mediaType == "tv") {
+        TmdbStreamResolver.pluginEpisodeShells(mediaId, pluginEpisodes)
+    } else {
+        detail?.let { TmdbStreamResolver.pluginMovieShell(mediaId, it) }
     }
 
     private suspend fun loadCollectionParts(d: TmdbDetail) {
@@ -174,12 +348,14 @@ class TmdbWatchActivity : AppCompatActivity() {
         if (idx >= 0 && idx < parts.lastIndex) sequel = parts[idx + 1]
     }
 
-    private fun buildHeader(d: TmdbDetail) {
+    private fun buildHeader() {
         val h = headerBinding
 
         // ── source chips: installed CS3 plugins only (Auto Search is NOT a chip) ──
-        // The first chip is pre-selected on open, mirroring the season chip behavior.
-        if (selectedSourceIndex == -1 && sources.isNotEmpty()) selectedSourceIndex = 0
+        // The first chip is pre-selected on open, mirroring the season chip
+        // behavior — and it prefers the plugin chosen on the Movie & TV home
+        // (or the one the watch tab was opened from) over the first installed.
+        if (selectedSourceIndex == -1) selectedSourceIndex = defaultSourceIndex()
         h.tmdbWatchSourceChips.removeAllViews()
         h.tmdbWatchSourceTitle.text = when {
             sources.isEmpty() -> getString(R.string.tmdb_watch_no_sources)
@@ -248,13 +424,13 @@ class TmdbWatchActivity : AppCompatActivity() {
             }
         } else {
             // Movie: prequel / sequel
-            h.tmdbWatchMovieRow.isVisible = true
-            h.tmdbWatchPrequel.isVisible = prequel != null
+            h.tmdbWatchMovieRow.isVisible = !pluginMode
+            h.tmdbWatchPrequel.isVisible = !pluginMode && prequel != null
             h.tmdbWatchPrequel.setOnClickListener {
                 prequel?.let { openWatch(it.type, it.id) }
             }
             FocusEffectUtil.applyFocusListener(h.tmdbWatchPrequel)
-            h.tmdbWatchSequel.isVisible = sequel != null
+            h.tmdbWatchSequel.isVisible = !pluginMode && sequel != null
             h.tmdbWatchSequel.setOnClickListener {
                 sequel?.let { openWatch(it.type, it.id) }
             }
@@ -291,6 +467,18 @@ class TmdbWatchActivity : AppCompatActivity() {
                 chip.isChecked = chip.tag == if (group === headerBinding.tmdbWatchSeasonChips) selectedSeason else selectedSourceIndex
             }
         }
+    }
+
+    /** First chip on open: the plugin chosen at home if it's still installed,
+     *  otherwise the first installed plugin (or Auto Search if none). */
+    private fun defaultSourceIndex(): Int {
+        val preferredId = pluginSourceId
+            ?: PrefManager.getVal<String>(PrefName.ContentSource).takeIf { it != "tmdb" }
+        if (preferredId != null) {
+            val idx = sources.indexOfFirst { it.id == preferredId }
+            if (idx >= 0) return idx
+        }
+        return if (sources.isNotEmpty()) 0 else -1
     }
 
     private fun updateNotifyIcon() {
@@ -364,6 +552,13 @@ class TmdbWatchActivity : AppCompatActivity() {
         displayList(if (mediaType == "tv") episodes.take(EPISODE_CAP) else movieEpisodes)
 
     private fun loadEpisodesForSeason() {
+        if (pluginMode) {
+            episodes = pluginEpisodes[selectedSeason].orEmpty()
+            headerBinding.tmdbWatchEpisodeCount.text = "${episodes.size} ${getString(R.string.episodes).trim()}"
+            episodeAdapter.submitEpisodes(displayList(episodes.take(EPISODE_CAP)))
+            updateContinueCard()
+            return
+        }
         lifecycleScope.launch {
             val eps = Tmdb.episodes(mediaType, mediaId, selectedSeason)
             episodes = eps
@@ -425,7 +620,9 @@ class TmdbWatchActivity : AppCompatActivity() {
                             season,
                             ep,
                             result.links,
-                            link.label
+                            link.label,
+                            episodesOverride = pluginShells(),
+                            load = pluginLoad
                         )
                     }
                 }
@@ -500,6 +697,16 @@ class TmdbWatchActivity : AppCompatActivity() {
                 withContext(Dispatchers.IO) {
                     if (sources.isEmpty()) {
                         null to TmdbStreamResolver.StreamResult.Error(getString(R.string.tmdb_watch_no_sources))
+                    } else if (pluginMode) {
+                        val home = sources.firstOrNull { it.id == pluginSourceId }
+                        val load = pluginLoad
+                        if (home != null && load != null) {
+                            home to TmdbStreamResolver.resolvePluginStreams(
+                                this@TmdbWatchActivity, home, load, season, null
+                            )
+                        } else {
+                            null to TmdbStreamResolver.StreamResult.Error("Plugin data missing")
+                        }
                     } else {
                         TmdbStreamResolver.resolveAuto(this@TmdbWatchActivity, sources, d, season, null)
                     }
@@ -555,12 +762,27 @@ class TmdbWatchActivity : AppCompatActivity() {
             if (sources.isEmpty()) {
                 return TmdbStreamResolver.StreamResult.Error(getString(R.string.tmdb_watch_no_sources))
             }
+            if (pluginMode) {
+                // Auto search on a plugin title: resolve the home plugin directly
+                // (its LoadResponse is already in hand — no title search needed).
+                val home = sources.firstOrNull { it.id == pluginSourceId }
+                val load = pluginLoad
+                if (home != null && load != null) {
+                    val result = TmdbStreamResolver.resolvePluginStreams(this, home, load, season, ep)
+                    lastAutoSource = home
+                    return result
+                }
+            }
             val (source, result) = TmdbStreamResolver.resolveAuto(this, sources, d, season, ep)
             lastAutoSource = source
             return result
         }
         val source = sources.getOrNull(selectedSourceIndex)
             ?: return TmdbStreamResolver.StreamResult.Error("Source not found")
+        val load = pluginLoad
+        if (pluginMode && source.id == pluginSourceId && load != null) {
+            return TmdbStreamResolver.resolvePluginStreams(this, source, load, season, ep)
+        }
         return TmdbStreamResolver.resolveStreams(this, source, d, season, ep)
     }
 
