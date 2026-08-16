@@ -285,7 +285,7 @@
                     android:layout_marginStart="4dp"
                     android:layout_marginEnd="20dp"
                     android:contentDescription="Simkl"
-                    app:srcCompat="@drawable/ic_round_movie_filter_24"
+                    app:srcCompat="@drawable/ic_simkl"
                     app:tint="?attr/colorPrimary" />
 
                 <LinearLayout
