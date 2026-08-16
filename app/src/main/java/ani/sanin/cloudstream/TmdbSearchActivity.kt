@@ -146,6 +146,7 @@ class TmdbSearchActivity : AppCompatActivity() {
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             val item = items[position]
+            TmdbCards.applyCardStyle(holder.binding.tmdbCardPoster, holder.binding.tmdbCard)
             holder.binding.tmdbCardPoster.loadImage(Tmdb.imageUrl(item.posterPath, 300))
             holder.binding.tmdbCardTitle.text = item.displayTitle
             holder.binding.tmdbCardYear.text = item.year

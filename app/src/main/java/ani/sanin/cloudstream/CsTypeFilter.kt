@@ -20,7 +20,7 @@ object CsTypeFilter {
             "anime" -> t == "anime"
             "movie" -> t == "movie"
             "tv" -> t == "tv" || t == "series" || t.contains("series")
-            "live" -> t == "live"
+            "live" -> t.contains("live")
             "other" -> t !in listOf("anime", "movie", "tv", "series", "live")
             else -> true
         }

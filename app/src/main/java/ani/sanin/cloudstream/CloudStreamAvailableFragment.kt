@@ -63,10 +63,11 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
         viewLifecycleOwner.lifecycleScope.launch {
             repos = urls.map { url ->
                 val manifest = runCatching { CsRepos.fetchManifest(url) }.getOrNull()
+                val plugins = if (manifest != null) CsRepos.getRepoPlugins(url) else emptyList()
                 RepoUi(
                     name = manifest?.name ?: url.clean(),
                     url = url,
-                    count = manifest?.sources?.size ?: 0
+                    count = plugins.size
                 )
             }
             adapter.submitList(repos.filter { it.matches(query) })

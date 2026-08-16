@@ -34,6 +34,19 @@ object CsRepos {
         json.decodeFromString<CsRepoManifest>(body)
     }
 
+    suspend fun fetchPlugins(pluginListUrl: String): List<CsSource> = withContext(Dispatchers.IO) {
+        runCatching {
+            val request = Request.Builder().url(pluginListUrl).build()
+            val body = client.newCall(request).execute().use { it.body?.string().orEmpty() }
+            json.decodeFromString<List<CsSource>>(body)
+        }.getOrDefault(emptyList())
+    }
+
+    suspend fun getRepoPlugins(repoUrl: String): List<CsSource> {
+        val manifest = runCatching { fetchManifest(repoUrl) }.getOrNull() ?: return emptyList()
+        return manifest.pluginLists.flatMap { fetchPlugins(it) }
+    }
+
     fun baseUrl(repoUrl: String): String {
         val idx = repoUrl.lastIndexOf('/')
         return if (idx > 0) repoUrl.substring(0, idx + 1) else repoUrl
@@ -55,11 +68,11 @@ object CsRepos {
     }
 
     fun installedFile(context: Context, source: CsInstalledSource): File =
-        File(pluginsDir(context), "${source.id}_${source.version}.js")
+        File(pluginsDir(context), "${source.id}_${source.version}.cs3")
 
     suspend fun install(context: Context, repoUrl: String, source: CsSource): CsInstalledSource =
         withContext(Dispatchers.IO) {
-            val url = sourceUrl(repoUrl, source.file)
+            val url = sourceUrl(repoUrl, source.url)
             val request = Request.Builder().url(url).build()
             val body = client.newCall(request).execute().use { it.body?.bytes() ?: ByteArray(0) }
             val installed = CsInstalledSource(
@@ -68,7 +81,7 @@ object CsRepos {
                 version = source.version,
                 type = source.type,
                 lang = source.lang,
-                file = source.file,
+                url = source.url,
                 repoUrl = repoUrl
             )
             installedFile(context, installed).writeBytes(body)

@@ -1,34 +1,63 @@
 package ani.sanin.cloudstream
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-@Serializable
-data class CsSource(
-    val id: String,
-    val name: String,
-    val version: String = "1.0.0",
-    val type: String = "anime",
-    val lang: String = "en",
-    val file: String,
-    val nsfw: Boolean = false,
-    val logo: String? = null
-)
-
+/**
+ * Real CloudStream CS3 repo manifest (repo.json):
+ * {
+ *   "name": "Phisher Repo",
+ *   "iconUrl": "...",
+ *   "description": "...",
+ *   "manifestVersion": 1,
+ *   "pluginLists": ["https://.../plugins.json"]
+ * }
+ */
 @Serializable
 data class CsRepoManifest(
     val name: String,
     val description: String? = null,
-    val sources: List<CsSource> = emptyList()
+    @SerialName("iconUrl") val iconUrl: String? = null,
+    @SerialName("manifestVersion") val manifestVersion: Int = 1,
+    @SerialName("pluginLists") val pluginLists: List<String> = emptyList()
 )
+
+/**
+ * One entry from a CS3 plugin list (plugins.json) — a `.cs3` plugin.
+ */
+@Serializable
+data class CsSource(
+    val url: String,
+    val name: String,
+    val version: Int = 1,
+    @SerialName("internalName") val internalName: String? = null,
+    val status: Int = 1,
+    @SerialName("apiVersion") val apiVersion: Int = 1,
+    val authors: List<String> = emptyList(),
+    val description: String? = null,
+    @SerialName("tvTypes") val tvTypes: List<String> = emptyList(),
+    val language: String? = null,
+    @SerialName("iconUrl") val iconUrl: String? = null,
+    @SerialName("fileSize") val fileSize: Long? = null,
+    @SerialName("fileHash") val fileHash: String? = null,
+    @SerialName("jarUrl") val jarUrl: String? = null,
+    @SerialName("jarHash") val jarHash: String? = null,
+    @SerialName("repositoryUrl") val repositoryUrl: String? = null
+) {
+    val id: String get() = internalName ?: name
+    val type: String get() = tvTypes.firstOrNull() ?: "other"
+    val lang: String get() = language ?: "en"
+    val typeLabel: String get() = type.replaceFirstChar { it.uppercase() }
+}
 
 @Serializable
 data class CsInstalledSource(
     val id: String,
     val name: String,
-    val version: String,
+    val version: Int,
     val type: String,
     val lang: String,
-    val file: String,
+    val url: String,
     val repoUrl: String,
     val installedAt: Long = System.currentTimeMillis()
 )

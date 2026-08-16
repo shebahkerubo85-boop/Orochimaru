@@ -1,19 +1,29 @@
 package ani.sanin.home
 
 import android.content.Intent
+import android.content.res.Configuration
+import android.graphics.Gravity
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.view.isVisible
+import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import ani.sanin.R
+import ani.sanin.bannerCardSizePx
+import ani.sanin.cloudstream.TmdbCards
 import ani.sanin.cloudstream.TmdbDetailsActivity
 import ani.sanin.connections.tmdb.Tmdb
+import ani.sanin.connections.tmdb.TmdbGenre
 import ani.sanin.connections.tmdb.TmdbMedia
 import ani.sanin.databinding.FragmentTmdbHomeBinding
 import ani.sanin.databinding.ItemTmdbCardBinding
@@ -21,7 +31,9 @@ import ani.sanin.getThemeColor
 import ani.sanin.loadImage
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
+import ani.sanin.sizeBannerCard
 import ani.sanin.util.FocusEffectUtil
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class TmdbHomeFragment : Fragment() {
@@ -31,6 +43,8 @@ class TmdbHomeFragment : Fragment() {
     private val bannerItems = mutableListOf<TmdbMedia>()
     private var bannerIndex = 0
     private val bannerHandler = Handler(Looper.getMainLooper())
+    private var genreNames: Map<Int, String> = emptyMap()
+    private var logoJob: Job? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -47,7 +61,13 @@ class TmdbHomeFragment : Fragment() {
             bannerItems.getOrNull(bannerIndex)?.let { openDetails(it.type, it.id) }
         }
         FocusEffectUtil.applyFocusListener(binding.tmdbBannerFrame)
+        applyBannerLayout()
         load()
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (_binding != null) applyBannerLayout()
     }
 
     override fun onResume() {
@@ -63,6 +83,7 @@ class TmdbHomeFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         bannerHandler.removeCallbacksAndMessages(null)
+        logoJob?.cancel()
         _binding = null
     }
 
@@ -75,6 +96,7 @@ class TmdbHomeFragment : Fragment() {
             val popular = Tmdb.popular()
             val topRated = Tmdb.topRated()
             val trending = trendingSeries + trendingMovies
+            genreNames = Tmdb.genres().associate { it.id to it.name }
             bannerItems.clear()
             bannerItems.addAll(trending)
             if (trending.isNotEmpty()) showBanner(0)
@@ -113,13 +135,91 @@ class TmdbHomeFragment : Fragment() {
         val item = bannerItems.getOrNull(index) ?: return
         bannerIndex = index
         binding.tmdbBannerImage.loadImage(Tmdb.imageUrl(item.backdropPath, 780))
-        binding.tmdbBannerTitle.text = item.displayTitle
-        binding.tmdbBannerMeta.text = buildString {
+        val meta = buildString {
             if (item.voteAverage > 0) append("★ ").append(String.format("%.1f", item.voteAverage)).append("  •  ")
             if (item.year.isNotBlank()) append(item.year).append("  •  ")
             append(item.type.replaceFirstChar { it.uppercase() })
         }
-        binding.tmdbBannerSynopsis.text = item.overview?.takeIf { it.isNotBlank() } ?: ""
+        binding.tmdbBannerTitle.text = item.displayTitle
+        binding.tmdbBannerMeta.text = meta
+        binding.tmdbBannerSideMeta.text = meta
+        val synopsis = item.overview?.takeIf { it.isNotBlank() } ?: ""
+        binding.tmdbBannerSynopsis.text = synopsis
+        binding.tmdbBannerSideSynopsis.text = synopsis
+        binding.tmdbBannerSideSynopsis.isVisible = synopsis.isNotBlank()
+        val genreText = item.genreIds.take(3).mapNotNull { genreNames[it] }.joinToString("  •  ")
+        binding.tmdbBannerGenres.text = genreText
+        binding.tmdbBannerGenres.isVisible = genreText.isNotBlank()
+        populateSideChips(item)
+        loadBannerLogo(item)
+    }
+
+    private fun populateSideChips(item: TmdbMedia) {
+        val group = binding.tmdbBannerSideChips
+        group.removeAllViews()
+        item.genreIds.take(3).mapNotNull { genreNames[it] }.forEach { name ->
+            val chip = TextView(requireContext()).apply {
+                text = name
+                textSize = 12f
+                setTextColor(resources.getColor(R.color.cs_chip_text, null))
+                setBackgroundResource(R.drawable.tmdb_chip_bg)
+                setPadding(36, 10, 36, 10)
+            }
+            group.addView(chip)
+        }
+    }
+
+    private fun loadBannerLogo(item: TmdbMedia) {
+        logoJob?.cancel()
+        logoJob = viewLifecycleOwner.lifecycleScope.launch {
+            val detail = Tmdb.detail(item.type, item.id)
+            val logo = detail?.let { Tmdb.logoUrl(it) }
+            binding.tmdbBannerLogo.isVisible = logo != null
+            if (logo != null) binding.tmdbBannerLogo.loadImage(logo)
+        }
+    }
+
+    private fun applyBannerLayout() {
+        val ctx = requireContext()
+        val isLandscape = ctx.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val card = binding.tmdbBannerCard
+        val density = ctx.resources.displayMetrics.density
+
+        if (isLandscape) {
+            card.sizeBannerCard(0.65f)
+            val (cardW, cardH) = card.bannerCardSizePx(0.65f)
+            card.updateLayoutParams<FrameLayout.LayoutParams> {
+                gravity = Gravity.END or Gravity.TOP
+            }
+            val stripW = ctx.resources.displayMetrics.widthPixels - cardW
+            binding.tmdbBannerFade.isVisible = true
+            binding.tmdbBannerFade.updateLayoutParams<FrameLayout.LayoutParams> {
+                width = stripW
+                height = cardH
+                gravity = Gravity.START or Gravity.TOP
+            }
+            binding.tmdbBannerSide.isVisible = true
+            binding.tmdbBannerSide.updateLayoutParams<FrameLayout.LayoutParams> {
+                width = stripW + cardW / 4
+                gravity = Gravity.START or Gravity.CENTER_VERTICAL
+            }
+            binding.tmdbBannerSideSynopsis.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                width = (stripW - 48 * density + cardW / 4).toInt().coerceAtLeast(1)
+            }
+            binding.tmdbBannerLogo.maxWidth = (stripW - 48 * density).toInt().coerceAtLeast(1)
+            binding.tmdbBannerLogo.maxHeight = (cardH * 0.30f).toInt()
+            binding.tmdbBannerImage.scaleType = ImageView.ScaleType.FIT_CENTER
+            binding.tmdbBannerContent.isVisible = false
+        } else {
+            card.sizeBannerCard()
+            card.updateLayoutParams<FrameLayout.LayoutParams> {
+                gravity = Gravity.CENTER
+            }
+            binding.tmdbBannerFade.isVisible = false
+            binding.tmdbBannerSide.isVisible = false
+            binding.tmdbBannerContent.isVisible = true
+            binding.tmdbBannerImage.scaleType = ImageView.ScaleType.CENTER_CROP
+        }
     }
 
     private fun startAutoAdvance() {
@@ -154,6 +254,7 @@ class TmdbHomeFragment : Fragment() {
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             val item = items[position]
+            TmdbCards.applyCardStyle(holder.binding.tmdbCardPoster, holder.binding.tmdbCard)
             holder.binding.tmdbCardPoster.loadImage(Tmdb.imageUrl(item.posterPath, 300))
             holder.binding.tmdbCardTitle.text = item.displayTitle
             holder.binding.tmdbCardYear.text = item.year

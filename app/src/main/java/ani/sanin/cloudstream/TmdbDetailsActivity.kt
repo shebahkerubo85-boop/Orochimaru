@@ -240,13 +240,17 @@ class TmdbDetailsActivity : AppCompatActivity() {
     private fun playFromSource(source: CsInstalledSource, season: Int?, episodeNumber: Int?) {
         val d = detail ?: return
         lifecycleScope.launch {
-            val js = runCatching {
-                CsRepos.installedFile(this@TmdbDetailsActivity, source).readText()
-            }.getOrNull()
-            if (js.isNullOrBlank()) {
+            val file = CsRepos.installedFile(this@TmdbDetailsActivity, source)
+            val bytes = runCatching { file.readBytes() }.getOrNull()
+            if (bytes.isNullOrEmpty()) {
                 snackString("Source file missing: ${source.name}")
                 return@launch
             }
+            if (bytes.size >= 4 && bytes[0] == 'P'.code.toByte() && bytes[1] == 'K'.code.toByte()) {
+                snackString("${source.name} is a CloudStream .cs3 plugin, not a JS provider — it can't run yet")
+                return@launch
+            }
+            val js = String(bytes, Charsets.UTF_8)
             val matchUrl = runCatching {
                 val raw = CsEngine.call(source.id, "search", listOf(d.displayTitle), js) ?: return@runCatching null
                 val arr = JSONArray(raw)
@@ -436,6 +440,7 @@ class TmdbDetailsActivity : AppCompatActivity() {
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             val item = items[position]
+            TmdbCards.applyCardStyle(holder.binding.tmdbCardPoster, holder.binding.tmdbCard)
             holder.binding.tmdbCardPoster.loadImage(Tmdb.imageUrl(item.posterPath, 300))
             holder.binding.tmdbCardTitle.text = item.displayTitle
             holder.binding.tmdbCardYear.text = item.year

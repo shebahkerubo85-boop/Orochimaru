@@ -11,6 +11,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.chip.Chip
+import ani.sanin.cloudstream.TmdbCards
 import ani.sanin.cloudstream.TmdbDetailsActivity
 import ani.sanin.cloudstream.TmdbSearchActivity
 import ani.sanin.connections.tmdb.Tmdb
@@ -139,6 +140,7 @@ class TmdbDiscoveryFragment : Fragment() {
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             val item = items[position]
+            TmdbCards.applyCardStyle(holder.binding.tmdbCardPoster, holder.binding.tmdbCard)
             holder.binding.tmdbCardPoster.loadImage(Tmdb.imageUrl(item.posterPath, 300))
             holder.binding.tmdbCardTitle.text = item.displayTitle
             holder.binding.tmdbCardYear.text = item.year

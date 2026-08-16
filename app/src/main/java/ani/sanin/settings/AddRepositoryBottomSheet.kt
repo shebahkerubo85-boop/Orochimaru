@@ -28,6 +28,7 @@ import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
@@ -57,6 +58,7 @@ class RepoItem(
         return this
             .removePrefix("https://raw.githubusercontent.com/")
             .replace("index.min.json", "")
+            .replace("repo.json", "")
             .removeSuffix("/")
     }
 }
@@ -100,7 +102,7 @@ class AddRepositoryBottomSheet : DialogFragment() {
 
         dialog?.window?.let { TvKeyboardUtil.retainWindowFocus(it) }
         binding.repositoryInput.hint =
-            if (cloudStream) getString(R.string.anime_add_repository) + " (index.json)"
+            if (cloudStream) getString(R.string.anime_add_repository) + " (repo.json)"
             else getString(R.string.anime_add_repository)
         TvKeyboardUtil.setupTvInput(binding.repositoryInput)
 
@@ -152,23 +154,44 @@ class AddRepositoryBottomSheet : DialogFragment() {
     private fun acceptUrl(url: String) {
         val finalUrl = getRepoUrl(url)
         context?.let { context ->
-            addRepoWarning(context) {
-                onRepositoryAdded?.invoke(finalUrl, mediaType)
-                dismiss()
+            if (cloudStream) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    val manifest = runCatching { CsRepos.fetchManifest(finalUrl) }.getOrNull()
+                    withContext(Dispatchers.Main) {
+                        if (_binding == null || !isAdded) return@withContext
+                        if (manifest == null) {
+                            binding.repositoryInput.error = "No CloudStream repo found at this URL"
+                        } else {
+                            addRepoWarning(context) {
+                                onRepositoryAdded?.invoke(finalUrl, mediaType)
+                                dismiss()
+                            }
+                        }
+                    }
+                }
+            } else {
+                addRepoWarning(context) {
+                    onRepositoryAdded?.invoke(finalUrl, mediaType)
+                    dismiss()
+                }
             }
         }
     }
 
     private fun isValidUrl(input: String): String? {
-        val suffix = if (cloudStream) "index.json" else "index.min.json"
-        if (input.startsWith("http://") || input.startsWith("https://")) {
-            if (!input.removeSuffix("/").endsWith(suffix)) {
-                return "URL must end with $suffix"
+        var cleaned = input.trim()
+        if (cloudStream) {
+            cleaned = cleaned.replaceFirst("cloudstreamrepo://", "")
+                .replaceFirst(Regex("^https://cs\.repo/\??"), "")
+        }
+        if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
+            if (!cloudStream && !cleaned.removeSuffix("/").endsWith("index.min.json")) {
+                return "URL must end with index.min.json"
             }
             return null
         }
 
-        val parts = input.split("/")
+        val parts = cleaned.split("/")
         if (parts.size !in 2..3) {
             return "Must be a full URL or in format: username/repo[/branch]"
         }
@@ -187,19 +210,7 @@ class AddRepositoryBottomSheet : DialogFragment() {
         return null
     }
 
-    private fun getRepoUrl(input: String): String {
-        if (input.startsWith("http://") || input.startsWith("https://")) {
-            return input
-        }
-
-        val parts = input.split("/")
-        val username = parts[0]
-        val repo = parts[1]
-        val branch = if (parts.size == 3) parts[2] else if (cloudStream) "main" else "repo"
-        val suffix = if (cloudStream) "index.json" else "index.min.json"
-
-        return "https://raw.githubusercontent.com/$username/$repo/$branch/$suffix"
-    }
+    private fun getRepoUrl(input: String): String = normalizeRepoUrl(input, cloudStream)
 
     private fun onRepositoryRemoved(url: String, mediaType: MediaType) {
         onRepositoryRemoved?.invoke(url, mediaType)
@@ -231,7 +242,7 @@ class AddRepositoryBottomSheet : DialogFragment() {
             } else input
 
             if (cloudStream) {
-                CsRepos.addRepo(validLink)
+                CsRepos.addRepo(normalizeRepoUrl(validLink, true))
                 return
             }
             when (mediaType) {
@@ -265,6 +276,24 @@ class AddRepositoryBottomSheet : DialogFragment() {
                 }
                 else -> {}
             }
+        }
+
+        fun normalizeRepoUrl(input: String, cloudStream: Boolean): String {
+            var cleaned = input.trim()
+            if (cloudStream) {
+                cleaned = cleaned.replaceFirst("cloudstreamrepo://", "")
+                    .replaceFirst(Regex("^https://cs\.repo/\??"), "")
+            }
+            if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
+                return cleaned
+            }
+            val parts = cleaned.split("/")
+            if (parts.size !in 2..3) return cleaned
+            val username = parts[0]
+            val repo = parts[1]
+            val branch = if (parts.size == 3) parts[2] else if (cloudStream) "builds" else "repo"
+            val suffix = if (cloudStream) "repo.json" else "index.min.json"
+            return "https://raw.githubusercontent.com/$username/$repo/$branch/$suffix"
         }
 
         fun newInstance(

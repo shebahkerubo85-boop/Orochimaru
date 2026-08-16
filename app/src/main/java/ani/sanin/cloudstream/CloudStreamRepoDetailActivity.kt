@@ -63,7 +63,10 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
             }
             binding.csRepoTitle.text = result.name
             binding.csRepoRecyclerView.visibility = View.VISIBLE
-            refreshList(result.sources)
+            val plugins = CsRepos.getRepoPlugins(repoUrl)
+            binding.csRepoEmptyText.visibility = if (plugins.isEmpty()) View.VISIBLE else View.GONE
+            if (plugins.isEmpty()) binding.csRepoEmptyText.text = "No extensions found in this repo"
+            refreshList(plugins)
         }
     }
 
@@ -125,7 +128,7 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
             val item = getItem(position)
             holder.binding.sourceNameTextView.text = item.name
             holder.binding.sourceMetaTextView.text =
-                "v${item.version} • ${item.type.ifBlank { "unknown" }} • ${item.lang}"
+                "v${item.version} • ${item.typeLabel} • ${item.lang}"
             val installed = item.id in installedIdsProvider()
             holder.binding.sourceInstallImageView.setImageResource(
                 if (installed) R.drawable.ic_check else R.drawable.ic_download_24
