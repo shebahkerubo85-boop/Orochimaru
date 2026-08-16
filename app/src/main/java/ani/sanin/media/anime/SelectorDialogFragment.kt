@@ -152,11 +152,12 @@ class SelectorDialogFragment : DialogFragment() {
             media = m
             if (media != null && !loaded) {
                 loaded = true
+                val m = media
                 val providerName =
-                    if (media!!.id < 0) {
-                        ani.sanin.cloudstream.TmdbStreamResolver.syntheticSourceName(media.id)
+                    if (m != null && m.id < 0) {
+                        ani.sanin.cloudstream.TmdbStreamResolver.syntheticSourceName(m.id)
                     } else {
-                        model.watchSources?.get(media!!.selected?.sourceIndex ?: 0)?.name
+                        model.watchSources?.get(m?.selected?.sourceIndex ?: 0)?.name
                     }
                 binding.selectorProviderName.isVisible = providerName != null
                 binding.selectorProviderName.text = providerName ?: ""

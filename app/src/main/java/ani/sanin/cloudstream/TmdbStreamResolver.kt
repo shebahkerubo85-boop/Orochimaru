@@ -492,5 +492,4 @@ object TmdbStreamResolver {
         )
         context.startActivity(Intent(context, ExoplayerView::class.java))
     }
-
-
+}
