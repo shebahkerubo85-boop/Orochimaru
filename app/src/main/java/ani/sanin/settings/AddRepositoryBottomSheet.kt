@@ -182,7 +182,7 @@ class AddRepositoryBottomSheet : DialogFragment() {
         var cleaned = input.trim()
         if (cloudStream) {
             cleaned = cleaned.replaceFirst("cloudstreamrepo://", "")
-                .replaceFirst(Regex("^https://cs\.repo/\??"), "")
+                .replaceFirst(Regex("^https://cs\\.repo/\\??"), "")
         }
         if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
             if (!cloudStream && !cleaned.removeSuffix("/").endsWith("index.min.json")) {
@@ -282,7 +282,7 @@ class AddRepositoryBottomSheet : DialogFragment() {
             var cleaned = input.trim()
             if (cloudStream) {
                 cleaned = cleaned.replaceFirst("cloudstreamrepo://", "")
-                    .replaceFirst(Regex("^https://cs\.repo/\??"), "")
+                    .replaceFirst(Regex("^https://cs\\.repo/\\??"), "")
             }
             if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
                 return cleaned

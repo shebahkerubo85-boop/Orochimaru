@@ -242,7 +242,7 @@ class TmdbDetailsActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val file = CsRepos.installedFile(this@TmdbDetailsActivity, source)
             val bytes = runCatching { file.readBytes() }.getOrNull()
-            if (bytes.isNullOrEmpty()) {
+            if (bytes == null || bytes.isEmpty()) {
                 snackString("Source file missing: ${source.name}")
                 return@launch
             }

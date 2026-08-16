@@ -2,7 +2,7 @@ package ani.sanin.home
 
 import android.content.Intent
 import android.content.res.Configuration
-import android.graphics.Gravity
+import android.view.Gravity
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
