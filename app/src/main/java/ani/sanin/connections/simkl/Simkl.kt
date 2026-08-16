@@ -10,6 +10,7 @@ import ani.sanin.currContext
 import ani.sanin.openLinkInBrowser
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
+import ani.sanin.tryWith
 import ani.sanin.tryWithSuspend
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -43,11 +44,11 @@ object Simkl {
     }
 
     fun getSavedToken(): Boolean {
-        return tryWithSuspend(false) {
+        return tryWith(false) {
             val res = PrefManager.getNullableVal<SimklToken>(PrefName.SimklToken, null)
-                ?: return@tryWithSuspend false
+                ?: return@tryWith false
             if (res.isExpired()) {
-                val refreshed = refreshToken() ?: return@tryWithSuspend false
+                val refreshed = refreshToken() ?: return@tryWith false
                 token = refreshed.accessToken
             } else {
                 token = res.accessToken
@@ -67,11 +68,11 @@ object Simkl {
         PrefManager.removeVal(PrefName.SimklToken)
     }
 
-    private suspend fun refreshToken(): SimklToken? {
-        return tryWithSuspend {
+    private fun refreshToken(): SimklToken? {
+        return tryWith {
             val saved = PrefManager.getNullableVal<SimklToken>(PrefName.SimklToken, null)
-                ?: return@tryWithSuspend null
-            val refresh = saved.refreshToken ?: return@tryWithSuspend null
+                ?: return@tryWith null
+            val refresh = saved.refreshToken ?: return@tryWith null
             val body = json.encodeToString(
                 SimklTokenRequest.serializer(),
                 SimklTokenRequest(
@@ -88,7 +89,7 @@ object Simkl {
                 .post(body.toRequestBody("application/json".toMediaType()))
                 .build()
             val response = okHttpClient.newCall(request).execute()
-            val respBody = response.body?.string() ?: return@tryWithSuspend null
+            val respBody = response.body?.string() ?: return@tryWith null
             val token = json.decodeFromString(SimklToken.serializer(), respBody)
             saveToken(token)
             token
@@ -113,7 +114,7 @@ object Simkl {
                 .post(body.toRequestBody("application/json".toMediaType()))
                 .build()
             val response = okHttpClient.newCall(request).execute()
-            val respBody = response.body?.string() ?: return@tryWithSuspend null
+            val respBody = response.body?.string() ?: return@tryWith null
             val token = json.decodeFromString(SimklToken.serializer(), respBody)
             saveToken(token)
             token
@@ -221,7 +222,7 @@ object Simkl {
 
     /** Get continue watching (in progress) items from Simkl library */
     suspend fun getContinueWatching(): List<SimklWatchedItem> {
-        return tryWithSuspend(emptyList()) {
+        return tryWithSuspend {
             val t = token ?: return@tryWithSuspend emptyList()
             val request = Request.Builder()
                 .url("$BASE/sync/history")
@@ -231,8 +232,8 @@ object Simkl {
             val response = okHttpClient.newCall(request).execute()
             val body = response.body?.string() ?: return@tryWithSuspend emptyList()
             val history = json.decodeFromString(SimklHistory.serializer(), body)
-            history.movies.orEmpty() + history.shows.orEmpty()
-        } ?: emptyList()
+            (history.movies.orEmpty<SimklWatchedItem>()) + history.shows.orEmpty<SimklWatchedItem>()
+        } ?: emptyList<SimklWatchedItem>()
     }
 
     /** Get full library */

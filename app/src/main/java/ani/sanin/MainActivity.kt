@@ -37,9 +37,8 @@ import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.connections.LogoApi
 import ani.sanin.media.anime.ExoplayerView
 import ani.sanin.connections.anilist.Anilist
+import ani.sanin.connections.anilist.AnilistHomeViewModel
 import ani.sanin.connections.simkl.Simkl
-import ani.sanin.connections.anilist.Anilist
-import ani.sanin.connections.simkl.SimklHomeViewModel
 import ani.sanin.connections.mal.MAL
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.NavPillCustomizer
