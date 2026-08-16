@@ -1,6 +1,7 @@
 package ani.sanin.cloudstream
 
 import android.content.Intent
+import android.util.Log
 import android.content.res.Configuration
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -30,9 +31,17 @@ import ani.sanin.loadImage
 import ani.sanin.media.SheetSourceSelector
 import ani.sanin.snackString
 import ani.sanin.util.FocusEffectUtil
+import com.lagradost.cloudstream3.LoadResponse
+import com.lagradost.cloudstream3.MainAPI
+import com.lagradost.cloudstream3.MovieLoadResponse
+import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.TvSeriesLoadResponse
+import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.Qualities
+import com.lagradost.cloudstream3.SubtitleFile
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.json.JSONArray
-import org.json.JSONObject
+import kotlinx.coroutines.withContext
 
 class TmdbDetailsActivity : AppCompatActivity() {
 
@@ -239,85 +248,114 @@ class TmdbDetailsActivity : AppCompatActivity() {
 
     private fun playFromSource(source: CsInstalledSource, season: Int?, episodeNumber: Int?) {
         val d = detail ?: return
+        snackString("Loading ${source.name}…")
         lifecycleScope.launch {
-            val file = CsRepos.installedFile(this@TmdbDetailsActivity, source)
-            val bytes = runCatching { file.readBytes() }.getOrNull()
-            if (bytes == null || bytes.isEmpty()) {
-                snackString("Source file missing: ${source.name}")
-                return@launch
-            }
-            if (bytes.size >= 4 && bytes[0] == 'P'.code.toByte() && bytes[1] == 'K'.code.toByte()) {
-                snackString("${source.name} is a CloudStream .cs3 plugin, not a JS provider — it can't run yet")
-                return@launch
-            }
-            val js = String(bytes, Charsets.UTF_8)
-            val matchUrl = runCatching {
-                val raw = CsEngine.call(source.id, "search", listOf(d.displayTitle), js) ?: return@runCatching null
-                val arr = JSONArray(raw)
-                var best: JSONObject? = null
-                for (i in 0 until arr.length()) {
-                    val obj = arr.optJSONObject(i) ?: continue
-                    val title = obj.optString("title", "")
-                    if (title.isBlank()) continue
-                    if (best == null) best = obj
-                    if (looseMatch(title, d.displayTitle)) { best = obj; break }
+            val result = withContext(Dispatchers.IO) { resolveStreams(source, d, season, episodeNumber) }
+            when (result) {
+                is StreamResult.Error -> snackString(result.message)
+                is StreamResult.Success -> {
+                    val labels = ArrayList(result.links.map { "${it.label}  •  ${source.name}" })
+                    val picker = SheetSourceSelector.newInstance(labels, onSelect = { idx ->
+                        val link = result.links[idx]
+                        startActivity(
+                            Intent(this@TmdbDetailsActivity, TmdbPlayerActivity::class.java)
+                                .putExtra(TmdbPlayerActivity.EXTRA_URL, link.url)
+                                .putExtra(TmdbPlayerActivity.EXTRA_TITLE, d.displayTitle)
+                                .putExtra(TmdbPlayerActivity.EXTRA_REFERER, link.referer)
+                                .putExtra(TmdbPlayerActivity.EXTRA_HEADERS, HashMap(link.headers))
+                        )
+                    })
+                    picker.show(supportFragmentManager, "tmdbQualitySelector")
                 }
-                best?.optString("url", "")
-            }.getOrNull()
-            if (matchUrl.isNullOrBlank()) {
-                snackString("No match for '${d.displayTitle}' on ${source.name}")
-                return@launch
             }
-
-            val episodeUrl = if (season != null && episodeNumber != null) {
-                runCatching {
-                    val raw = CsEngine.call(source.id, "getEpisodes", listOf(matchUrl), js) ?: return@runCatching null
-                    val arr = JSONArray(raw)
-                    var ep: JSONObject? = null
-                    for (i in 0 until arr.length()) {
-                        val obj = arr.optJSONObject(i) ?: continue
-                        if (obj.optString("id", "") == "S${season}E$episodeNumber") { ep = obj; break }
-                    }
-                    ep?.optString("url", "")
-                }.getOrNull()
-            } else {
-                runCatching {
-                    val raw = CsEngine.call(source.id, "getDetail", listOf(matchUrl), js) ?: return@runCatching null
-                    val obj = JSONObject(raw)
-                    obj.optJSONArray("episodes")?.optJSONObject(0)?.optString("url", "")
-                }.getOrNull()
-            }
-            if (episodeUrl.isNullOrBlank()) {
-                snackString("No episode found on ${source.name}")
-                return@launch
-            }
-
-            val streams = runCatching {
-                val raw = CsEngine.call(source.id, "getVideoSources", listOf(episodeUrl), js)
-                    ?: return@runCatching emptyList()
-                val arr = JSONArray(raw)
-                (0 until arr.length()).mapNotNull { i ->
-                    val obj = arr.optJSONObject(i) ?: return@mapNotNull null
-                    val url = obj.optString("url", "")
-                    if (url.isBlank()) null
-                    else url to obj.optString("quality", "").ifBlank { "Stream ${i + 1}" }
-                }
-            }.getOrElse { emptyList() }
-
-            if (streams.isEmpty()) {
-                snackString("No playable streams found on ${source.name}")
-                return@launch
-            }
-            val labels = ArrayList(streams.map { "${it.second}  •  ${source.name}" })
-            val picker = SheetSourceSelector.newInstance(labels, onSelect = { idx ->
-                startActivity(
-                    Intent(this@TmdbDetailsActivity, TmdbPlayerActivity::class.java)
-                        .putExtra(TmdbPlayerActivity.EXTRA_URL, streams[idx].first)
-                        .putExtra(TmdbPlayerActivity.EXTRA_TITLE, d.displayTitle)
-                )
-            })
-            picker.show(supportFragmentManager, "tmdbQualitySelector")
         }
+    }
+
+    private sealed class StreamResult {
+        data class PlayableLink(
+            val label: String,
+            val url: String,
+            val referer: String? = null,
+            val headers: Map<String, String> = emptyMap()
+        )
+        data class Success(val links: List<PlayableLink>) : StreamResult()
+        data class Error(val message: String) : StreamResult()
+    }
+
+    private suspend fun resolveStreams(
+        source: CsInstalledSource,
+        d: TmdbDetail,
+        season: Int?,
+        episodeNumber: Int?
+    ): StreamResult {
+        val apis = CsRuntime.apisFor(this, source)
+        if (apis.isEmpty()) {
+            return StreamResult.Error("Failed to load ${source.name} — is it a .cs3 plugin?")
+        }
+        for (api in apis) {
+            try {
+                val streams = resolveFromApi(api, d, season, episodeNumber)
+                if (streams.isNotEmpty()) return StreamResult.Success(streams)
+            } catch (t: Throwable) {
+                Log.e("TmdbDetails", "Provider ${api.name} failed", t)
+            }
+        }
+        return StreamResult.Error("No playable streams found on ${source.name}")
+    }
+
+    private suspend fun resolveFromApi(
+        api: MainAPI,
+        d: TmdbDetail,
+        season: Int?,
+        episodeNumber: Int?
+    ): List<StreamResult.PlayableLink> {
+        val wantMovie = d.displayTitle.isNotBlank() && mediaType == "movie"
+        val results = api.search(d.displayTitle) ?: emptyList()
+        val match = bestSearchMatch(results, d.displayTitle, wantMovie) ?: return emptyList()
+
+        val response = api.load(match.url) ?: return emptyList()
+        val dataUrl: String = when {
+            response is TvSeriesLoadResponse && season != null && episodeNumber != null -> {
+                val episode = response.episodes.firstOrNull {
+                    it.episode == episodeNumber && (it.season == null || it.season == season)
+                } ?: response.episodes.firstOrNull { it.episode == episodeNumber }
+                episode?.data ?: return emptyList()
+            }
+            response is MovieLoadResponse -> response.dataUrl
+            else -> response.url
+        }
+        if (dataUrl.isBlank()) return emptyList()
+
+        val links = mutableListOf<ExtractorLink>()
+        val subs = mutableListOf<SubtitleFile>()
+        val ok = api.loadLinks(dataUrl, isCasting = false, subtitleCallback = { subs.add(it) }, callback = { links.add(it) })
+        if (!ok || links.isEmpty()) return emptyList()
+
+        val seen = HashSet<String>()
+        return links.mapNotNull { link ->
+            val url = link.url
+            if (url.isBlank() || !seen.add(url)) return@mapNotNull null
+            val quality = Qualities.getStringByInt(link.quality).ifBlank { link.name }
+            StreamResult.PlayableLink(
+                label = quality,
+                url = url,
+                referer = link.referer.takeIf { it.isNotBlank() },
+                headers = link.headers
+            )
+        }
+    }
+
+    private fun bestSearchMatch(
+        results: List<SearchResponse>,
+        title: String,
+        wantMovie: Boolean
+    ): SearchResponse? {
+        val exact = results.firstOrNull {
+            (!wantMovie || it.type?.isMovieType() == true) && looseMatch(it.name, title)
+        }
+        if (exact != null) return exact
+        return results.firstOrNull { (!wantMovie || it.type?.isMovieType() == true) }
+            ?: results.firstOrNull()
     }
 
     private fun looseMatch(a: String, b: String): Boolean {

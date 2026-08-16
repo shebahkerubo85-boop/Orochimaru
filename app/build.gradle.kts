@@ -174,6 +174,19 @@ dependencies {
     implementation(libs.bundles.okhttp)
     implementation(libs.okio)
 
+
+    // CloudStream .cs3 plugin runtime (vendored com.lagradost.cloudstream3 library)
+    implementation(libs.jackson.module.kotlin)
+    implementation(libs.kotlinx.atomicfu)
+    implementation(libs.kotlinx.datetime)
+    implementation(libs.kotlinx.io.core)
+    implementation(libs.ksoup)
+    implementation(libs.ktor.http)
+    implementation(libs.cryptography.core)
+    implementation(libs.cryptography.provider.optimal)
+    implementation(libs.newpipeextractor)
+    implementation(libs.rhino)
+
     // Archive support (local source)
     implementation(libs.libarchive)
     implementation(libs.xmlutil.core)

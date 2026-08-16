@@ -35,6 +35,19 @@
                 android:layout_height="wrap_content"
                 android:visibility="gone" />
 
+            <ImageView
+                android:id="@+id/tmdbCardLogo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|start"
+                android:adjustViewBounds="true"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="8dp"
+                android:scaleType="fitStart"
+                android:visibility="gone"
+                tools:ignore="ContentDescription" />
+
             <TextView
                 android:id="@+id/tmdbCardOverlayTitle"
                 android:layout_width="wrap_content"

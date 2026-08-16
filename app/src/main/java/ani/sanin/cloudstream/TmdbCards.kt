@@ -1,6 +1,7 @@
 package ani.sanin.cloudstream
 
 import android.graphics.Color
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.view.View
 import android.view.ViewGroup
@@ -12,8 +13,19 @@ import ani.sanin.databinding.ItemTmdbCardBinding
 import ani.sanin.loadImage
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.DataSource
+import com.bumptech.glide.load.engine.GlideException
+import com.bumptech.glide.request.RequestListener
+import com.bumptech.glide.request.target.Target
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 object TmdbCards {
+
+    private val logoScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun isLandscapeOrientation(): Boolean = PrefManager.getVal<Int>(PrefName.CardOrientation) == 0
 
@@ -30,7 +42,8 @@ object TmdbCards {
     /**
      * Applies the user's card settings (size, orientation, roundness) and the
      * Nuvio TV landscape design: landscape cards use the 16:9 backdrop, shown
-     * uncropped, with the title over a bottom gradient at the bottom-left.
+     * uncropped, with the title (or TMDB logo art when available) over a
+     * bottom gradient at the bottom-left.
      */
     fun applyCardStyle(binding: ItemTmdbCardBinding, item: TmdbMedia) {
         val landscape = isLandscapeOrientation()
@@ -54,10 +67,11 @@ object TmdbCards {
         binding.tmdbCardPoster.loadImage(image)
 
         val gradient = binding.tmdbCardGradient
+        val logo = binding.tmdbCardLogo
         val overlayTitle = binding.tmdbCardOverlayTitle
         gradient.isVisible = landscape
-        overlayTitle.isVisible = landscape
-        overlayTitle.text = item.displayTitle
+        logo.isVisible = landscape
+        overlayTitle.isVisible = false
         if (landscape) {
             gradient.updateLayoutParams<ViewGroup.LayoutParams> {
                 width = w
@@ -67,6 +81,49 @@ object TmdbCards {
                 width = w
             }
             setGradient(gradient)
+
+            overlayTitle.text = item.displayTitle
+            val token = "${item.type}:${item.id}"
+            if (logo.tag != token) {
+                logo.tag = token
+                Glide.with(logo.context).clear(logo)
+                logo.setImageDrawable(null)
+            }
+            logoScope.launch {
+                val url = runCatching { Tmdb.logoUrl(item.type, item.id) }.getOrNull()
+                val current = logo.tag
+                if (current != token) return@launch
+                binding.root.post {
+                    if (logo.tag != token) return@post
+                    if (url != null) {
+                        Glide.with(logo.context)
+                            .load(url)
+                            .override((w * 0.7f).toInt())
+                            .listener(object : RequestListener<Drawable> {
+                                override fun onLoadFailed(
+                                    e: GlideException?,
+                                    model: Any?,
+                                    target: Target<Drawable>?,
+                                    isFirstResource: Boolean
+                                ): Boolean {
+                                    overlayTitle.isVisible = true
+                                    return false
+                                }
+
+                                override fun onResourceReady(
+                                    resource: Drawable?,
+                                    model: Any?,
+                                    target: Target<Drawable>?,
+                                    dataSource: DataSource?,
+                                    isFirstResource: Boolean
+                                ): Boolean = false
+                            })
+                            .into(logo)
+                    } else {
+                        overlayTitle.isVisible = true
+                    }
+                }
+            }
         }
 
         binding.tmdbCardTitle.isVisible = !landscape

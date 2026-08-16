@@ -133,3 +133,40 @@
 
 -keep class com.github.aachartmodel.** { *; }
 -dontwarn com.github.aachartmodel.**
+
+
+#############################################
+# CloudStream .cs3 plugin runtime
+# Plugins are compiled dex archives that link against these class names
+# by reflection/classloader, so nothing here may be stripped or renamed.
+#############################################
+
+-keep class com.lagradost.** { *; }
+-dontwarn com.lagradost.**
+
+-keep class com.fasterxml.jackson.** { *; }
+-dontwarn com.fasterxml.jackson.**
+
+-keep class org.mozilla.javascript.** { *; }
+-dontwarn org.mozilla.javascript.**
+
+-keep class dev.whyoleg.cryptography.** { *; }
+-dontwarn dev.whyoleg.cryptography.**
+
+-keep class com.fleeksoft.ksoup.** { *; }
+-dontwarn com.fleeksoft.ksoup.**
+
+-keep class org.schabi.newpipe.** { *; }
+-dontwarn org.schabi.newpipe.**
+
+-keep class io.ktor.** { *; }
+-dontwarn io.ktor.**
+
+-keep class kotlinx.datetime.** { *; }
+-dontwarn kotlinx.datetime.**
+
+-keep class kotlinx.io.** { *; }
+-dontwarn kotlinx.io.**
+
+-keep class kotlinx.atomicfu.** { *; }
+-dontwarn kotlinx.atomicfu.**

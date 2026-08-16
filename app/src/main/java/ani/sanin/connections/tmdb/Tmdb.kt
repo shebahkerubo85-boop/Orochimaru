@@ -240,8 +240,17 @@ object Tmdb {
         return "$IMG/w$width$path"
     }
 
-    fun logoUrl(detail: TmdbDetail): String? {
-        val logos = detail.images?.logos.orEmpty().filter { !it.filePath.isNullOrBlank() }
+    fun logoUrl(detail: TmdbDetail): String? = pickLogo(detail.images)
+
+    /** Fetches the best logo for a card directly from the TMDB images endpoint. */
+    suspend fun logoUrl(mediaType: String, id: Int): String? {
+        val body = get("/$mediaType/$id/images", "include_image_language" to "en,null") ?: return null
+        val images = runCatching { json.decodeFromString<TmdbImages>(body) }.getOrNull() ?: return null
+        return pickLogo(images)
+    }
+
+    private fun pickLogo(images: TmdbImages?): String? {
+        val logos = images?.logos.orEmpty().filter { !it.filePath.isNullOrBlank() }
         val chosen = logos.minByOrNull { abs(it.filePath!!.hashCode()) } ?: return null
         return imageUrl(chosen.filePath, 780)
     }

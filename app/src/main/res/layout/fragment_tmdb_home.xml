@@ -123,36 +123,75 @@
                     android:textSize="26sp"
                     tools:text="Dune: Part Two" />
 
-                <TextView
-                    android:id="@+id/tmdbBannerMeta"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:fontFamily="@font/poppins_semi_bold"
-                    android:textColor="@color/bg_white"
-                    android:textSize="13sp"
-                    tools:text="★ 8.4  •  2024  •  Movie" />
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/tmdbBannerStatus"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/ic_banner_background"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="2dp"
+                        android:textColor="#FFFFFF"
+                        android:textSize="11sp"
+                        android:visibility="gone"
+                        tools:text="Released" />
+
+                    <View
+                        android:id="@+id/tmdbBannerStatusDivider"
+                        android:layout_width="1dp"
+                        android:layout_height="12dp"
+                        android:layout_marginHorizontal="8dp"
+                        android:background="#88FFFFFF"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/tmdbBannerRating"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_semi_bold"
+                        android:textColor="#FFDD44"
+                        android:textSize="13sp"
+                        tools:text="★ 8.4  •  2024  •  Movie" />
+
+                    <View
+                        android:id="@+id/tmdbBannerMetaDivider"
+                        android:layout_width="1dp"
+                        android:layout_height="12dp"
+                        android:layout_marginHorizontal="8dp"
+                        android:background="#88FFFFFF" />
+
+                    <TextView
+                        android:id="@+id/tmdbBannerGenres"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/poppins_semi_bold"
+                        android:maxLines="1"
+                        android:textColor="#CCFFFFFF"
+                        android:textSize="12sp"
+                        tools:text="Science Fiction • Adventure • Action" />
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/tmdbBannerSynopsis"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:fontFamily="@font/poppins_semi_bold"
+                    android:layout_marginTop="8dp"
+                    android:alpha="0.85"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/poppins"
+                    android:lineSpacingExtra="3sp"
                     android:maxLines="3"
-                    android:textColor="@color/bg_white"
+                    android:textColor="@android:color/white"
                     android:textSize="13sp"
                     tools:text="Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family." />
-
-                <TextView
-                    android:id="@+id/tmdbBannerGenres"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:fontFamily="@font/poppins_semi_bold"
-                    android:textColor="?attr/colorPrimary"
-                    android:textSize="12sp"
-                    tools:text="Science Fiction • Adventure • Action" />
             </LinearLayout>
         </FrameLayout>
 

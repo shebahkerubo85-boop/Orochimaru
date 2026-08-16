@@ -141,15 +141,19 @@ class TmdbHomeFragment : Fragment() {
             append(item.type.replaceFirstChar { it.uppercase() })
         }
         binding.tmdbBannerTitle.text = item.displayTitle
-        binding.tmdbBannerMeta.text = meta
         binding.tmdbBannerSideMeta.text = meta
+        binding.tmdbBannerRating.text = meta
         val synopsis = item.overview?.takeIf { it.isNotBlank() } ?: ""
         binding.tmdbBannerSynopsis.text = synopsis
+        binding.tmdbBannerSynopsis.isVisible = synopsis.isNotBlank()
         binding.tmdbBannerSideSynopsis.text = synopsis
         binding.tmdbBannerSideSynopsis.isVisible = synopsis.isNotBlank()
         val genreText = item.genreIds.take(3).mapNotNull { genreNames[it] }.joinToString("  •  ")
         binding.tmdbBannerGenres.text = genreText
         binding.tmdbBannerGenres.isVisible = genreText.isNotBlank()
+        binding.tmdbBannerStatus.isVisible = false
+        binding.tmdbBannerStatusDivider.isVisible = false
+        binding.tmdbBannerMetaDivider.isVisible = genreText.isNotBlank()
         populateSideChips(item)
         loadBannerLogo(item)
     }
@@ -180,7 +184,20 @@ class TmdbHomeFragment : Fragment() {
             portraitLogo.isVisible = logo != null
             binding.tmdbBannerTitle.isVisible = logo == null
             if (logo != null) portraitLogo.loadImage(logo)
+            val status = detail?.status?.let { statusLabel(it) }.orEmpty()
+            binding.tmdbBannerStatus.text = status
+            binding.tmdbBannerStatus.isVisible = status.isNotBlank()
+            binding.tmdbBannerStatusDivider.isVisible = status.isNotBlank()
         }
+    }
+
+    private fun statusLabel(status: String): String = when (status.lowercase()) {
+        "returning series", "returning" -> "Ongoing"
+        "released" -> "Released"
+        "planned" -> "Upcoming"
+        "in production" -> "In Production"
+        "ended", "canceled", "cancelled" -> "Completed"
+        else -> status
     }
 
     private fun applyBannerLayout() {
@@ -203,12 +220,14 @@ class TmdbHomeFragment : Fragment() {
                 gravity = Gravity.START or Gravity.TOP
             }
             binding.tmdbBannerFade.bringToFront()
+            binding.tmdbBannerFade.z = 10f
             binding.tmdbBannerSide.isVisible = true
             binding.tmdbBannerSide.updateLayoutParams<FrameLayout.LayoutParams> {
                 width = stripW + cardW / 4
                 gravity = Gravity.START or Gravity.CENTER_VERTICAL
             }
             binding.tmdbBannerSide.bringToFront()
+            binding.tmdbBannerSide.z = 11f
             binding.tmdbBannerSideSynopsis.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                 width = (stripW - 48 * density + cardW / 4).toInt().coerceAtLeast(1)
             }
