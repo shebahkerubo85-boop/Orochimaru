@@ -17,8 +17,6 @@ import ani.sanin.connections.tmdb.TmdbEpisode
 import ani.sanin.connections.tmdb.TmdbMedia
 import ani.sanin.connections.tmdb.TmdbSeason
 import ani.sanin.databinding.ActivityTmdbWatchBinding
-import ani.sanin.databinding.ItemEpisodeCompactBinding
-import ani.sanin.databinding.ItemEpisodeGridBinding
 import ani.sanin.databinding.ItemEpisodeListBinding
 import ani.sanin.databinding.ItemTmdbEpisodeBarBinding
 import ani.sanin.databinding.ItemTmdbWatchHeaderBinding
@@ -85,8 +83,8 @@ class TmdbWatchActivity : AppCompatActivity() {
 
         mediaType = intent.getStringExtra(ARG_MEDIA_TYPE) ?: "movie"
         mediaId = intent.getIntExtra(ARG_MEDIA_ID, -1)
-        episodeStyle = PrefManager.getNullableCustomVal("tmdb_style_$mediaId", 0, Int::class.java)
-            ?: 0
+        episodeStyle = (PrefManager.getNullableCustomVal("tmdb_style_$mediaId", 0, Int::class.java)
+            ?: 0).coerceIn(0, 1)
         reversed = PrefManager.getNullableCustomVal("tmdb_reversed_$mediaId", false, Boolean::class.java)
             ?: false
         Logger.log("TMDB_WATCH: opened mediaType=$mediaType mediaId=$mediaId style=$episodeStyle reversed=$reversed")
@@ -298,19 +296,12 @@ class TmdbWatchActivity : AppCompatActivity() {
         var style = episodeStyle
         fun styleLabel(s: Int) = when (s) {
             0 -> R.string.tmdb_watch_style_bars
-            1 -> R.string.list
-            2 -> R.string.grid
-            else -> R.string.compact
+            else -> R.string.list
         }
         db.tmdbLayoutText.setText(styleLabel(style))
         db.tmdbSortText.text = getString(if (rev) R.string.tmdb_watch_down_to_up else R.string.tmdb_watch_up_to_down)
         db.tmdbSortTop.rotation = if (rev) -90f else 90f
-        var selected = when (style) {
-            1 -> db.tmdbStyleList
-            2 -> db.tmdbStyleGrid
-            3 -> db.tmdbStyleCompact
-            else -> db.tmdbStyleBars
-        }
+        var selected = if (style == 0) db.tmdbStyleBars else db.tmdbStyleList
         selected.alpha = 1f
         fun select(it: ImageButton, s: Int) {
             selected.alpha = 0.33f
@@ -322,8 +313,6 @@ class TmdbWatchActivity : AppCompatActivity() {
         }
         db.tmdbStyleBars.setOnClickListener { select(db.tmdbStyleBars, 0) }
         db.tmdbStyleList.setOnClickListener { select(db.tmdbStyleList, 1) }
-        db.tmdbStyleGrid.setOnClickListener { select(db.tmdbStyleGrid, 2) }
-        db.tmdbStyleCompact.setOnClickListener { select(db.tmdbStyleCompact, 3) }
         db.tmdbSortTop.setOnClickListener {
             rev = !rev
             db.tmdbSortTop.rotation = if (rev) -90f else 90f
@@ -342,7 +331,7 @@ class TmdbWatchActivity : AppCompatActivity() {
     }
 
     private fun applyStyle(style: Int, rev: Boolean) {
-        episodeStyle = style
+        episodeStyle = style.coerceIn(0, 1)
         reversed = rev
         PrefManager.setCustomVal("tmdb_style_$mediaId", style)
         PrefManager.setCustomVal("tmdb_reversed_$mediaId", rev)
@@ -578,13 +567,10 @@ class TmdbWatchActivity : AppCompatActivity() {
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
             return if (viewType == 0) {
                 HeaderVH(header!!)
+            } else if (style == 1) {
+                ListVH(ItemEpisodeListBinding.inflate(LayoutInflater.from(parent.context), parent, false))
             } else {
-                when (style) {
-                    1 -> ListVH(ItemEpisodeListBinding.inflate(LayoutInflater.from(parent.context), parent, false))
-                    2 -> GridVH(ItemEpisodeGridBinding.inflate(LayoutInflater.from(parent.context), parent, false))
-                    3 -> CompactVH(ItemEpisodeCompactBinding.inflate(LayoutInflater.from(parent.context), parent, false))
-                    else -> BarsVH(ItemTmdbEpisodeBarBinding.inflate(LayoutInflater.from(parent.context), parent, false))
-                }
+                BarsVH(ItemTmdbEpisodeBarBinding.inflate(LayoutInflater.from(parent.context), parent, false))
             }
         }
 
@@ -603,28 +589,28 @@ class TmdbWatchActivity : AppCompatActivity() {
                     holder.binding.root.setOnClickListener { onClick(ep) }
                     FocusEffectUtil.applyFocusListener(holder.binding.root)
                 }
-                is GridVH -> {
-                    holder.binding.itemEpisodeTitle.text = title
-                    holder.binding.itemEpisodeNumber.text = ep.episodeNumber.toString()
-                    holder.binding.itemEpisodeDate.text = date
-                    holder.binding.itemEpisodeDate.isVisible = date.isNotBlank()
-                    holder.binding.itemMediaImage.loadImage(image)
-                    holder.binding.itemMediaProgressCont.isVisible = false
-                    holder.binding.root.setOnClickListener { onClick(ep) }
-                    FocusEffectUtil.applyFocusListener(holder.binding.root)
-                }
                 is ListVH -> {
                     holder.binding.itemEpisodeTitle.text = title
                     holder.binding.itemEpisodeNumber.text = ep.episodeNumber.toString()
                     holder.binding.itemEpisodeDate.text = date
                     holder.binding.itemEpisodeDate.isVisible = date.isNotBlank()
+                    val desc = ep.overview.orEmpty()
+                    holder.binding.itemEpisodeDesc.text = desc
+                    holder.binding.itemEpisodeDesc.isVisible = desc.isNotBlank()
+                    if (ep.voteAverage > 0) {
+                        holder.binding.itemEpisodeRating.isVisible = true
+                        holder.binding.itemEpisodeRating.text =
+                            "★ " + String.format("%.1f", ep.voteAverage)
+                    } else {
+                        holder.binding.itemEpisodeRating.isVisible = false
+                    }
                     holder.binding.itemMediaImage.loadImage(image)
                     holder.binding.itemMediaProgressCont.isVisible = false
-                    holder.binding.root.setOnClickListener { onClick(ep) }
-                    FocusEffectUtil.applyFocusListener(holder.binding.root)
-                }
-                is CompactVH -> {
-                    holder.binding.itemEpisodeNumber.text = ep.episodeNumber.toString()
+                    holder.binding.itemDownload.isVisible = false
+                    holder.binding.itemDownloadStatus.isVisible = false
+                    holder.binding.itemEpisodeViewed.isVisible = false
+                    holder.binding.itemEpisodeSparkle1.isVisible = false
+                    holder.binding.itemEpisodeSparkle2.isVisible = false
                     holder.binding.root.setOnClickListener { onClick(ep) }
                     FocusEffectUtil.applyFocusListener(holder.binding.root)
                 }
@@ -634,8 +620,6 @@ class TmdbWatchActivity : AppCompatActivity() {
 
         class HeaderVH(itemView: View) : RecyclerView.ViewHolder(itemView)
         class BarsVH(val binding: ItemTmdbEpisodeBarBinding) : RecyclerView.ViewHolder(binding.root)
-        class GridVH(val binding: ItemEpisodeGridBinding) : RecyclerView.ViewHolder(binding.root)
         class ListVH(val binding: ItemEpisodeListBinding) : RecyclerView.ViewHolder(binding.root)
-        class CompactVH(val binding: ItemEpisodeCompactBinding) : RecyclerView.ViewHolder(binding.root)
     }
 }

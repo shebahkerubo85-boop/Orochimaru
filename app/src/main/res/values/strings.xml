@@ -77,9 +77,7 @@
     <string name="tmdb_watch_up_to_down">Up to Down</string>
     <string name="tmdb_watch_down_to_up">Down to Up</string>
     <string name="tmdb_watch_style_bars">Episode view: Bars</string>
-    <string name="tmdb_watch_style_grid">Episode view: Grid</string>
     <string name="tmdb_watch_style_list">Episode view: List</string>
-    <string name="tmdb_watch_style_compact">Episode view: Compact</string>
     <string name="tmdb_watch_notify_on">Notifications enabled</string>
     <string name="tmdb_watch_notify_off">Notifications disabled</string>
     <string name="tmdb_watch_no_sources">No CloudStream sources installed — add a repo in Extensions first.</string>
