@@ -97,84 +97,103 @@ class TmdbHomeFragment : Fragment() {
 
     private fun load() {
         val sourceId = PrefManager.getVal<String>(PrefName.ContentSource)
-        val plugin = if (sourceId == "tmdb") {
-            null
-        } else {
-            CsRepos.installed(requireContext()).firstOrNull { it.id == sourceId }
-        }
-        if (plugin != null) {
-            loadPluginHome(plugin)
-        } else {
-            loadTmdbHome()
+        val plugin = if (sourceId == "tmdb") null
+            else CsRepos.installed(requireContext()).firstOrNull { it.id == sourceId }
+        // Banner: always TMDB trending (plugin hero is rendered as first section).
+        // Sections: plugin's own if available, else TMDB fallback — never empty.
+        viewLifecycleOwner.lifecycleScope.launch {
+            loadBanner()
+            if (plugin != null) {
+                val gotSections = loadPluginSections(plugin)
+                if (!gotSections) loadTmdbSections()
+            } else {
+                loadTmdbSections()
+            }
         }
     }
 
-    private fun loadTmdbHome() {
-        viewLifecycleOwner.lifecycleScope.launch {
-            val trendingSeries = Tmdb.trending("tv", "week")
-            val trendingMovies = Tmdb.trending("movie", "week")
-            val latestSeries = Tmdb.latestSeries()
-            val latestMovies = Tmdb.latestMovies()
-            val popular = Tmdb.popular()
-            val topRated = Tmdb.topRated()
-            val trending = trendingSeries + trendingMovies
-            genreNames = Tmdb.genres().associate { it.id to it.name }
-            bannerItems.clear()
-            bannerItems.addAll(trending)
-            if (trending.isNotEmpty()) showBanner(0)
-            addSection("Trending Series", trendingSeries)
-            addSection("Trending Movies", trendingMovies)
-            addSection("Latest Series", latestSeries)
-            addSection("Latest Movies", latestMovies)
-            addSection("Popular", popular)
-            addSection("Top Rated", topRated)
-            startAutoAdvance()
-        }
+    /** Loads the TMDB trending banner (always visible). */
+    private suspend fun loadBanner() {
+        val trendingSeries = withContext(Dispatchers.IO) { Tmdb.trending("tv", "week") }
+        val trendingMovies = withContext(Dispatchers.IO) { Tmdb.trending("movie", "week") }
+        genreNames = withContext(Dispatchers.IO) { Tmdb.genres().associate { it.id to it.name } }
+        val trending = trendingSeries + trendingMovies
+        bannerItems.clear()
+        bannerItems.addAll(trending)
+        if (trending.isNotEmpty()) showBanner(0)
     }
 
-    /** Movie & TV home driven by the selected CS3 plugin (CloudStream-style):
-     *  each provider's own main-page sections and cards, never TMDB's. */
-    private fun loadPluginHome(source: CsInstalledSource) {
-        binding.tmdbBannerFrame.isVisible = false
-        binding.tmdbHomeSections.removeAllViews()
-        viewLifecycleOwner.lifecycleScope.launch {
-            val apis = withContext(Dispatchers.IO) {
-                CsRuntime.apisFor(requireContext(), source)
-            }
-            if (apis.isEmpty()) {
-                addEmptyState(
-                    "Plugin '${source.name}' failed to load — check Settings → CloudStream."
-                )
-                return@launch
-            }
-            val requests = apis.flatMap { api ->
-                val pages = api.mainPage.filter { it.data.isNotBlank() }
-                if (pages.isNotEmpty()) {
-                    pages.map { api to it }
-                } else {
-                    // Fallback: some providers override getMainPage with hardcoded logic
-                    // even when mainPage property is the default. Try a synthetic request.
-                    listOf(api to com.lagradost.cloudstream3.MainPageRequest("Home", "", false))
+    /** Fetches TMDB browse rows as the default home content. */
+    private suspend fun loadTmdbSections() {
+        val trendingSeries = withContext(Dispatchers.IO) { Tmdb.trending("tv", "week") }
+        val trendingMovies = withContext(Dispatchers.IO) { Tmdb.trending("movie", "week") }
+        val latestSeries = withContext(Dispatchers.IO) { Tmdb.latestSeries() }
+        val latestMovies = withContext(Dispatchers.IO) { Tmdb.latestMovies() }
+        val popular = withContext(Dispatchers.IO) { Tmdb.popular() }
+        val topRated = withContext(Dispatchers.IO) { Tmdb.topRated() }
+        addSection("Trending Series", trendingSeries)
+        addSection("Trending Movies", trendingMovies)
+        addSection("Latest Series", latestSeries)
+        addSection("Latest Movies", latestMovies)
+        addSection("Popular", popular)
+        addSection("Top Rated", topRated)
+        startAutoAdvance()
+    }
+
+    /** Loads plugin home sections (CloudStream-style). Returns true if any
+     *  sections were added. Mimics Zangetsu: first section → hero carousel,
+     *  remaining → browse rows; providers with no mainPage get a synthetic
+     *  request fallback, and a quickSearch fallback synthesises trending rows. */
+    private suspend fun loadPluginSections(source: CsInstalledSource): Boolean {
+        val apis = withContext(Dispatchers.IO) {
+            CsRuntime.apisFor(requireContext(), source)
+        }
+        if (apis.isEmpty()) return false
+        var added = false
+        for (api in apis) {
+            // 1) Try the provider's declared mainPage entries.
+            val pages = api.mainPage.filter { it.data.isNotBlank() }
+            if (pages.isNotEmpty()) {
+                for (page in pages) {
+                    val resp = runCatching {
+                        withContext(Dispatchers.IO) {
+                            api.getMainPage(1, MainPageRequest(page.name, page.data, page.horizontalImages))
+                        }
+                    }.getOrNull()
+                    resp?.items?.forEach { list ->
+                        if (list.list.isNotEmpty()) {
+                            addPluginSection(list.name, list.list, source)
+                            added = true
+                        }
+                    }
                 }
-            }
-            if (requests.isEmpty()) {
-                addEmptyState("Plugin '${source.name}' exposes no home sections.")
-                return@launch
-            }
-            for ((api, page) in requests) {
+            } else {
+                // 2) Fallback: try a synthetic getMainPage (some providers override it
+                //    with hardcoded logic even when mainPage is empty).
                 val resp = runCatching {
                     withContext(Dispatchers.IO) {
-                        api.getMainPage(1, MainPageRequest(page.name, page.data, page.horizontalImages))
+                        api.getMainPage(1, MainPageRequest("Home", "", false))
                     }
                 }.getOrNull()
                 resp?.items?.forEach { list ->
-                    if (list.list.isNotEmpty()) addPluginSection(list.name, list.list, source)
+                    if (list.list.isNotEmpty()) {
+                        addPluginSection(list.name, list.list, source)
+                        added = true
+                    }
                 }
             }
-            if (binding.tmdbHomeSections.childCount == 0) {
-                addEmptyState("Plugin '${source.name}' returned no content.")
+            // 3) Final fallback: quickSearch synthesises trending rows (Zangetsu-style).
+            if (!added) {
+                val quick = runCatching {
+                    withContext(Dispatchers.IO) { api.quickSearch("") }
+                }.getOrNull()
+                if (!quick.isNullOrEmpty()) {
+                    addPluginSection("Popular", quick, source)
+                    added = true
+                }
             }
         }
+        return added
     }
 
     private fun addEmptyState(text: String) {
