@@ -223,10 +223,9 @@ class TmdbHomeFragment : Fragment() {
             binding.tmdbBannerFade.bringToFront()
             binding.tmdbBannerFade.z = 10f
             binding.tmdbBannerCardScrim.isVisible = true
-            binding.tmdbBannerCardScrim.updateLayoutParams<androidx.cardview.widget.CardView.LayoutParams> {
+            binding.tmdbBannerCardScrim.layoutParams = binding.tmdbBannerCardScrim.layoutParams.apply {
                 width = cardW / 2
                 height = cardH
-                gravity = Gravity.START or Gravity.TOP
             }
             binding.tmdbBannerSide.isVisible = true
             binding.tmdbBannerSide.updateLayoutParams<FrameLayout.LayoutParams> {
