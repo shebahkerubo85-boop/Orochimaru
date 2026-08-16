@@ -2482,10 +2482,16 @@ class ExoplayerView :
         applySubtitleStyles(customSubtitleView)
         setupSubFormatting(playerView)
 
-        // MediaSession disabled — Media3 1.8.0 crashes with
-        // IllegalArgumentException: Out of range for live/dynamic streams
-        // when position overflows Int in PlayerWrapper.createSessionPositionInfo.
-        // Re-enable when Media3 is upgraded to 1.9.x+.
+        try {
+            val rightNow = Calendar.getInstance()
+            mediaSession =
+                MediaSession
+                    .Builder(this, exoPlayer)
+                    .setId(rightNow.timeInMillis.toString())
+                    .build()
+        } catch (e: Exception) {
+            toast(e.toString())
+        }
 
         exoPlayer.addListener(this)
         exoPlayer.addAnalyticsListener(EventLogger())
