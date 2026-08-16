@@ -18,7 +18,7 @@ import ani.sanin.connections.tmdb.TmdbMedia
 import ani.sanin.connections.tmdb.TmdbSeason
 import ani.sanin.databinding.ActivityTmdbWatchBinding
 import ani.sanin.databinding.ItemEpisodeListBinding
-import ani.sanin.databinding.ItemTmdbEpisodeBarBinding
+import ani.sanin.databinding.ItemEpisodeGridBinding
 import ani.sanin.databinding.ItemTmdbWatchHeaderBinding
 import ani.sanin.databinding.DialogTmdbWatchOptionsBinding
 import ani.sanin.media.SheetSourceSelector
@@ -570,7 +570,7 @@ class TmdbWatchActivity : AppCompatActivity() {
             } else if (style == 1) {
                 ListVH(ItemEpisodeListBinding.inflate(LayoutInflater.from(parent.context), parent, false))
             } else {
-                BarsVH(ItemTmdbEpisodeBarBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+                GridVH(ItemEpisodeGridBinding.inflate(LayoutInflater.from(parent.context), parent, false))
             }
         }
 
@@ -581,11 +581,23 @@ class TmdbWatchActivity : AppCompatActivity() {
             val date = ep.airDate.orEmpty()
             val image = Tmdb.imageUrl(ep.stillPath, 500)
             when (holder) {
-                is BarsVH -> {
-                    holder.binding.itemBarTitle.text = title
-                    holder.binding.itemBarMeta.text =
-                        holder.binding.root.context.getString(R.string.tmdb_watch_bar_meta, ep.episodeNumber)
-                    holder.binding.itemBarImage.loadImage(image)
+                is GridVH -> {
+                    holder.binding.itemEpisodeTitle.text = title
+                    holder.binding.itemEpisodeNumber.text = ep.episodeNumber.toString()
+                    holder.binding.itemEpisodeDate.text = date
+                    holder.binding.itemEpisodeDate.isVisible = date.isNotBlank()
+                    if (ep.voteAverage > 0) {
+                        holder.binding.itemEpisodeRating.isVisible = true
+                        holder.binding.itemEpisodeRating.text =
+                            "★ " + String.format("%.1f", ep.voteAverage)
+                    } else {
+                        holder.binding.itemEpisodeRating.isVisible = false
+                    }
+                    holder.binding.itemMediaImage.loadImage(image)
+                    holder.binding.itemMediaProgressCont.isVisible = false
+                    holder.binding.itemEpisodeViewed.isVisible = false
+                    holder.binding.itemEpisodeSparkle1.isVisible = false
+                    holder.binding.itemEpisodeSparkle2.isVisible = false
                     holder.binding.root.setOnClickListener { onClick(ep) }
                     FocusEffectUtil.applyFocusListener(holder.binding.root)
                 }
@@ -619,7 +631,7 @@ class TmdbWatchActivity : AppCompatActivity() {
         }
 
         class HeaderVH(itemView: View) : RecyclerView.ViewHolder(itemView)
-        class BarsVH(val binding: ItemTmdbEpisodeBarBinding) : RecyclerView.ViewHolder(binding.root)
+        class GridVH(val binding: ItemEpisodeGridBinding) : RecyclerView.ViewHolder(binding.root)
         class ListVH(val binding: ItemEpisodeListBinding) : RecyclerView.ViewHolder(binding.root)
     }
 }

@@ -72,7 +72,6 @@
     <string name="tmdb_watch_continue">Continue Watching</string>
     <string name="tmdb_watch_auto_search">Auto Search</string>
     <string name="tmdb_watch_searching">Searching : %1$s</string>
-    <string name="tmdb_watch_bar_meta">Episode %1$d</string>
     <string name="tmdb_watch_options">Options</string>
     <string name="tmdb_watch_up_to_down">Up to Down</string>
     <string name="tmdb_watch_down_to_up">Down to Up</string>
