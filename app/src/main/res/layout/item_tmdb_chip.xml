@@ -13,4 +13,4 @@
     app:chipBackgroundColor="@color/tmdb_season_chip_bg"
     app:chipStrokeColor="@color/tmdb_season_chip_stroke"
     app:chipStrokeWidth="2dp"
-    app:chipTextColor="@color/tmdb_season_chip_text" />
+    android:textColor="@color/tmdb_season_chip_text" />
