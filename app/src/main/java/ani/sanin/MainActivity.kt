@@ -37,7 +37,9 @@ import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.connections.LogoApi
 import ani.sanin.media.anime.ExoplayerView
 import ani.sanin.connections.anilist.Anilist
-import ani.sanin.connections.anilist.AnilistHomeViewModel
+import ani.sanin.connections.simkl.Simkl
+import ani.sanin.connections.anilist.Anilist
+import ani.sanin.connections.simkl.SimklHomeViewModel
 import ani.sanin.connections.mal.MAL
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.NavPillCustomizer
@@ -376,6 +378,7 @@ class MainActivity : AppCompatActivity() {
             // Setup avatar and right rail drawer
             binding.mainAvatarContainer.visibility = View.VISIBLE
             Anilist.getSavedToken()
+            Simkl.getSavedToken()
             loadAvatar()
             binding.mainUserAvatarContainer.setOnClickListener {
                 if (!binding.mainDrawer.isDrawerOpen(Gravity.END)) {
@@ -858,7 +861,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadAvatar() {
-        binding.mainUserAvatar.loadImage(Anilist.avatar)
+        val isAnime = isAnimeMode()
+        val avatarUrl = if (isAnime) Anilist.avatar else Simkl.avatar
+        binding.mainUserAvatar.loadImage(avatarUrl)
         val showRedDot = PrefManager.getVal<Boolean>(PrefName.ShowNotificationRedDot)
         if (showRedDot == true) {
             binding.mainNotificationCount.isVisible = Anilist.unreadNotificationCount > 0
@@ -1102,10 +1107,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun populateRightRail() {
-        findViewById<ImageView>(R.id.rightRailAvatar).loadImage(Anilist.avatar)
-        findViewById<TextView>(R.id.rightRailUserName).text = Anilist.username ?: MAL.username ?: "User"
-        findViewById<TextView>(R.id.rightRailUserEmail).text = "AniList ID: ${Anilist.userid ?: "—"}"
-        findViewById<TextView>(R.id.rightRailEpisodesWatched).text = (Anilist.episodesWatched ?: 0).toString()
+        val isAnime = isAnimeMode()
+        val railAvatar = if (isAnime) Anilist.avatar else Simkl.avatar
+        val railName = if (isAnime) (Anilist.username ?: MAL.username) else Simkl.username
+        val railId = if (isAnime) "AniList ID: ${Anilist.userid ?: "—"}" else "Simkl: ${Simkl.userid ?: "—"}"
+        val railEps = if (isAnime) (Anilist.episodesWatched ?: 0) else 0
+        findViewById<ImageView>(R.id.rightRailAvatar).loadImage(railAvatar)
+        findViewById<TextView>(R.id.rightRailUserName).text = railName ?: "User"
+        findViewById<TextView>(R.id.rightRailUserEmail).text = railId
+        findViewById<TextView>(R.id.rightRailEpisodesWatched).text = railEps.toString()
     }
 
     private suspend fun trimCachePeriodically() {

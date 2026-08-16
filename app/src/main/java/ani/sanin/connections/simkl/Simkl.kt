@@ -1,0 +1,377 @@
+package ani.sanin.connections.simkl
+
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import ani.sanin.R
+import ani.sanin.client
+import ani.sanin.currContext
+import ani.sanin.openLinkInBrowser
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
+import ani.sanin.tryWithSuspend
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
+
+object Simkl {
+    const val clientId = "083331dcd6f5889dd0a1c6e650448061bc468d725b94957703c1442536d35b4f"
+    private const val REDIRECT_URI = "sanin://simkl"
+    private const val BASE = "https://api.simkl.com"
+
+    var token: String? = null
+    var username: String? = null
+    var avatar: String? = null
+    var userid: String? = null
+
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+    private val okHttpClient get() = Injekt.get<eu.kanade.tachiyomi.network.NetworkHelper>().client
+
+    fun loginIntent(context: Context) {
+        val url = "$BASE/oauth/authorize?client_id=$clientId&redirect_uri=$REDIRECT_URI&response_type=code"
+        try {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (_: ActivityNotFoundException) {
+            openLinkInBrowser(url)
+        }
+    }
+
+    fun getSavedToken(): Boolean {
+        return tryWithSuspend(false) {
+            val res = PrefManager.getNullableVal<SimklToken>(PrefName.SimklToken, null)
+                ?: return@tryWithSuspend false
+            if (res.isExpired()) {
+                val refreshed = refreshToken() ?: return@tryWithSuspend false
+                token = refreshed.accessToken
+            } else {
+                token = res.accessToken
+            }
+            username = PrefManager.getVal<String?>(PrefName.SimklUserName)
+            avatar = PrefManager.getVal<String?>(PrefName.SimklAvatar)
+            userid = PrefManager.getVal<String?>(PrefName.SimklUserId)
+            true
+        } ?: false
+    }
+
+    fun removeSavedToken() {
+        token = null
+        username = null
+        avatar = null
+        userid = null
+        PrefManager.removeVal(PrefName.SimklToken)
+    }
+
+    private suspend fun refreshToken(): SimklToken? {
+        return tryWithSuspend {
+            val saved = PrefManager.getNullableVal<SimklToken>(PrefName.SimklToken, null)
+                ?: return@tryWithSuspend null
+            val refresh = saved.refreshToken ?: return@tryWithSuspend null
+            val body = json.encodeToString(
+                SimklTokenRequest.serializer(),
+                SimklTokenRequest(
+                    clientId = clientId,
+                    clientSecret = "",
+                    redirectUri = REDIRECT_URI,
+                    code = "",
+                    grantType = "refresh_token",
+                    refreshToken = refresh
+                )
+            )
+            val request = Request.Builder()
+                .url("$BASE/oauth/token")
+                .post(body.toRequestBody("application/json".toMediaType()))
+                .build()
+            val response = okHttpClient.newCall(request).execute()
+            val respBody = response.body?.string() ?: return@tryWithSuspend null
+            val token = json.decodeFromString(SimklToken.serializer(), respBody)
+            saveToken(token)
+            token
+        }
+    }
+
+    suspend fun exchangeCode(code: String): SimklToken? {
+        return tryWithSuspend {
+            val body = json.encodeToString(
+                SimklTokenRequest.serializer(),
+                SimklTokenRequest(
+                    clientId = clientId,
+                    clientSecret = "",
+                    redirectUri = REDIRECT_URI,
+                    code = code,
+                    grantType = "authorization_code",
+                    refreshToken = null
+                )
+            )
+            val request = Request.Builder()
+                .url("$BASE/oauth/token")
+                .post(body.toRequestBody("application/json".toMediaType()))
+                .build()
+            val response = okHttpClient.newCall(request).execute()
+            val respBody = response.body?.string() ?: return@tryWithSuspend null
+            val token = json.decodeFromString(SimklToken.serializer(), respBody)
+            saveToken(token)
+            token
+        }
+    }
+
+    fun saveToken(res: SimklToken) {
+        PrefManager.setVal(PrefName.SimklToken, res)
+    }
+
+    /** Fetch user settings (profile info) after login */
+    suspend fun fetchUserData(): SimklUser? {
+        return tryWithSuspend {
+            val t = token ?: return@tryWithSuspend null
+            val request = Request.Builder()
+                .url("$BASE/users/settings")
+                .addHeader("Authorization", "Bearer $t")
+                .addHeader("simkl-api-key", clientId)
+                .build()
+            val response = okHttpClient.newCall(request).execute()
+            val body = response.body?.string() ?: return@tryWithSuspend null
+            val user = json.decodeFromString(SimklUser.serializer(), body)
+            username = user.user?.name
+            avatar = user.user?.avatar?.full
+            userid = user.user?.ids?.slug
+            PrefManager.setVal(PrefName.SimklUserName, username ?: "")
+            PrefManager.setVal(PrefName.SimklAvatar, avatar ?: "")
+            PrefManager.setVal(PrefName.SimklUserId, userid ?: "")
+            user
+        }
+    }
+
+    /** Scrobble: report watching progress */
+    suspend fun scrobbleStart(
+        type: String,
+        title: String,
+        year: Int?,
+        season: Int?,
+        episode: Int,
+        durationSec: Int
+    ) {
+        tryWithSuspend {
+            val t = token ?: return@tryWithSuspend
+            val item = ScrobbleItem(
+                show = ScrobbleShow(
+                    title = title,
+                    year = year,
+                    ids = null,
+                    seasons = listOf(
+                        ScrobbleSeason(
+                            number = season,
+                            episodes = listOf(
+                                ScrobbleEpisode(number = episode)
+                            )
+                        )
+                    )
+                )
+            )
+            val request = Request.Builder()
+                .url("$BASE/scrobble/start")
+                .addHeader("Authorization", "Bearer $t")
+                .addHeader("simkl-api-key", clientId)
+                .addHeader("Content-Type", "application/json")
+                .post(json.encodeToString(ScrobbleItem.serializer(), item).toRequestBody("application/json".toMediaType()))
+                .build()
+            okHttpClient.newCall(request).execute().use { }
+        }
+    }
+
+    suspend fun scrobbleStop(
+        type: String,
+        title: String,
+        year: Int?,
+        season: Int?,
+        episode: Int,
+        durationSec: Int
+    ) {
+        tryWithSuspend {
+            val t = token ?: return@tryWithSuspend
+            val item = ScrobbleItem(
+                show = ScrobbleShow(
+                    title = title,
+                    year = year,
+                    ids = null,
+                    seasons = listOf(
+                        ScrobbleSeason(
+                            number = season,
+                            episodes = listOf(
+                                ScrobbleEpisode(number = episode)
+                            )
+                        )
+                    )
+                )
+            )
+            val request = Request.Builder()
+                .url("$BASE/scrobble/stop")
+                .addHeader("Authorization", "Bearer $t")
+                .addHeader("simkl-api-key", clientId)
+                .addHeader("Content-Type", "application/json")
+                .post(json.encodeToString(ScrobbleItem.serializer(), item).toRequestBody("application/json".toMediaType()))
+                .build()
+            okHttpClient.newCall(request).execute().use { }
+        }
+    }
+
+    /** Get continue watching (in progress) items from Simkl library */
+    suspend fun getContinueWatching(): List<SimklWatchedItem> {
+        return tryWithSuspend(emptyList()) {
+            val t = token ?: return@tryWithSuspend emptyList()
+            val request = Request.Builder()
+                .url("$BASE/sync/history")
+                .addHeader("Authorization", "Bearer $t")
+                .addHeader("simkl-api-key", clientId)
+                .build()
+            val response = okHttpClient.newCall(request).execute()
+            val body = response.body?.string() ?: return@tryWithSuspend emptyList()
+            val history = json.decodeFromString(SimklHistory.serializer(), body)
+            history.movies.orEmpty() + history.shows.orEmpty()
+        } ?: emptyList()
+    }
+
+    /** Get full library */
+    suspend fun getLibrary(): SimklLibrary? {
+        return tryWithSuspend {
+            val t = token ?: return@tryWithSuspend null
+            val request = Request.Builder()
+                .url("$BASE/sync/all-items")
+                .addHeader("Authorization", "Bearer $t")
+                .addHeader("simkl-api-key", clientId)
+                .build()
+            val response = okHttpClient.newCall(request).execute()
+            val body = response.body?.string() ?: return@tryWithSuspend null
+            json.decodeFromString(SimklLibrary.serializer(), body)
+        }
+    }
+
+    // --- Data classes ---
+
+    @Serializable
+    data class SimklTokenRequest(
+        @SerialName("client_id") val clientId: String,
+        @SerialName("client_secret") val clientSecret: String,
+        @SerialName("redirect_uri") val redirectUri: String,
+        val code: String? = null,
+        @SerialName("grant_type") val grantType: String,
+        @SerialName("refresh_token") val refreshToken: String? = null
+    )
+
+    @Serializable
+    data class SimklToken(
+        @SerialName("access_token") val accessToken: String? = null,
+        @SerialName("refresh_token") val refreshToken: String? = null,
+        @SerialName("expires_in") val expiresIn: Long? = null,
+        @SerialName("token_type") val tokenType: String? = null,
+        @SerialName("created_at") val createdAt: Long? = null
+    ) : java.io.Serializable {
+        companion object {
+            private const val serialVersionUID = 1L
+        }
+        fun isExpired(): Boolean {
+            val created = createdAt ?: return true
+            val life = expiresIn ?: return true
+            return System.currentTimeMillis() / 1000 > created + life - 60
+        }
+    }
+
+    @Serializable
+    data class SimklUser(
+        val user: SimklUserInner? = null
+    )
+
+    @Serializable
+    data class SimklUserInner(
+        val name: String? = null,
+        val ids: SimklUserIds? = null,
+        val avatar: SimklAvatar? = null
+    )
+
+    @Serializable
+    data class SimklUserIds(
+        val slug: String? = null
+    )
+
+    @Serializable
+    data class SimklAvatar(
+        val full: String? = null,
+        val medium: String? = null
+    )
+
+    @Serializable
+    data class ScrobbleItem(
+        val show: ScrobbleShow? = null,
+        val movie: ScrobbleMovie? = null
+    )
+
+    @Serializable
+    data class ScrobbleShow(
+        val title: String? = null,
+        val year: Int? = null,
+        val ids: ScrobbleIds? = null,
+        val seasons: List<ScrobbleSeason>? = null
+    )
+
+    @Serializable
+    data class ScrobbleMovie(
+        val title: String? = null,
+        val year: Int? = null,
+        val ids: ScrobbleIds? = null
+    )
+
+    @Serializable
+    data class ScrobbleSeason(
+        val number: Int? = null,
+        val episodes: List<ScrobbleEpisode>? = null
+    )
+
+    @Serializable
+    data class ScrobbleEpisode(
+        val number: Int? = null
+    )
+
+    @Serializable
+    data class ScrobbleIds(
+        val simkl: Int? = null,
+        val tmdb: Int? = null,
+        val imdb: String? = null
+    )
+
+    @Serializable
+    data class SimklHistory(
+        val movies: List<SimklWatchedItem>? = null,
+        val shows: List<SimklWatchedItem>? = null
+    )
+
+    @Serializable
+    data class SimklWatchedItem(
+        val title: String? = null,
+        val year: Int? = null,
+        val poster: String? = null,
+        val ids: ScrobbleIds? = null,
+        val lastWatchedAt: Long? = null,
+        val lastWatchedEpisode: Int? = null,
+        val totalEpisodes: Int? = null,
+        val type: String? = null,
+        val season: Int? = null,
+        val episodes: List<SimklWatchedEpisode>? = null
+    )
+
+    @Serializable
+    data class SimklWatchedEpisode(
+        val number: Int? = null,
+        val aired: Int? = null,
+        val completed: Boolean? = null
+    )
+
+    @Serializable
+    data class SimklLibrary(
+        val movies: List<SimklWatchedItem>? = null,
+        val shows: List<SimklWatchedItem>? = null
+    )
+}

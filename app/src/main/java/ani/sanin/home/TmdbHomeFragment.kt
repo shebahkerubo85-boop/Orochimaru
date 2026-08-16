@@ -26,6 +26,7 @@ import ani.sanin.cloudstream.CsRuntime
 import ani.sanin.cloudstream.TmdbCards
 import ani.sanin.cloudstream.TmdbDetailsActivity
 import ani.sanin.cloudstream.TmdbWatchActivity
+import ani.sanin.connections.simkl.Simkl
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.tmdb.TmdbGenre
 import ani.sanin.connections.tmdb.TmdbMedia
@@ -103,6 +104,7 @@ class TmdbHomeFragment : Fragment() {
         // Sections: plugin's own if available, else TMDB fallback — never empty.
         viewLifecycleOwner.lifecycleScope.launch {
             loadBanner()
+            loadSimklContinueWatching()
             if (plugin != null) {
                 val gotSections = loadPluginSections(plugin)
                 if (!gotSections) loadTmdbSections()
@@ -194,6 +196,38 @@ class TmdbHomeFragment : Fragment() {
             }
         }
         return added
+    }
+
+    /** Loads Simkl "continue watching" items (TV/movie only, not anime). */
+    private suspend fun loadSimklContinueWatching() {
+        if (Simkl.token == null) return
+        val items = withContext(Dispatchers.IO) { Simkl.getContinueWatching() }
+        if (items.isEmpty()) return
+        val ctx = requireContext()
+        val header = TextView(ctx).apply {
+            text = "Continue Watching"
+            setPadding(24, 20, 24, 8)
+            textSize = 16f
+            setTypeface(android.graphics.Typeface.DEFAULT_BOLD)
+            setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+        }
+        val list = RecyclerView(ctx).apply {
+            layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
+            adapter = SimklContinueAdapter(items) { item ->
+                val title = item.title ?: return@SimklContinueAdapter
+                // Navigate to TMDB details via search
+                lifecycleScope.launch {
+                    val results = withContext(Dispatchers.IO) { Tmdb.search(title) }
+                    val match = results.firstOrNull()
+                    if (match != null) openDetails(match.type, match.id)
+                }
+            }
+            isNestedScrollingEnabled = false
+            overScrollMode = View.OVER_SCROLL_NEVER
+            setPadding(24, 0, 24, 0)
+        }
+        binding.tmdbHomeSections.addView(header)
+        binding.tmdbHomeSections.addView(list)
     }
 
     private fun addEmptyState(text: String) {
@@ -409,6 +443,49 @@ class TmdbHomeFragment : Fragment() {
                 .putExtra(TmdbDetailsActivity.ARG_MEDIA_TYPE, mediaType)
                 .putExtra(TmdbDetailsActivity.ARG_MEDIA_ID, id)
         )
+    }
+
+    /** Adapter for Simkl continue watching items. */
+    class SimklContinueAdapter(
+        private val items: List<Simkl.SimklWatchedItem>,
+        private val onClick: (Simkl.SimklWatchedItem) -> Unit
+    ) : RecyclerView.Adapter<SimklContinueAdapter.VH>() {
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+            val b = ItemTmdbCardBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+            return VH(b)
+        }
+
+        override fun onBindViewHolder(holder: VH, position: Int) {
+            val item = items[position]
+            val b = holder.binding
+            val landscape = TmdbCards.isLandscapeOrientation()
+            val size = TmdbCards.cardSize()
+            val (w, h) = if (landscape) {
+                (260f * size).toInt() to (148f * size).toInt()
+            } else {
+                (102f * size).toInt() to (154f * size).toInt()
+            }
+            b.tmdbCardPoster.updateLayoutParams<ViewGroup.LayoutParams> {
+                width = w
+                height = h
+            }
+            b.tmdbCard.radius = TmdbCards.roundness()
+            b.tmdbCardPoster.loadImage(item.poster?.replace("original", "w500"), 300)
+            b.tmdbCardTitle.text = item.title
+            b.tmdbCardTitle.isVisible = true
+            b.tmdbCardYear.text = item.year?.toString() ?: ""
+            b.tmdbCardYear.isVisible = item.year != null
+            b.tmdbCardGradient.isVisible = false
+            b.tmdbCardLogo.isVisible = false
+            b.tmdbCardOverlayTitle.isVisible = false
+            b.tmdbCardPoster.setOnClickListener { onClick(item) }
+            FocusEffectUtil.applyFocusListener(b.tmdbCardPoster)
+        }
+
+        override fun getItemCount(): Int = items.size
+
+        class VH(val binding: ItemTmdbCardBinding) : RecyclerView.ViewHolder(binding.root)
     }
 
     class TmdbRowAdapter(

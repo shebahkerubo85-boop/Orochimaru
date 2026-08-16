@@ -5,6 +5,7 @@ import ani.sanin.connections.PendingDeletion
 import ani.sanin.connections.PendingProgressUpdate
 import ani.sanin.connections.comments.AuthResponse
 import ani.sanin.connections.mal.MAL
+import ani.sanin.connections.simkl.Simkl
 import ani.sanin.media.SearchHistory
 import ani.sanin.notifications.comment.CommentStore
 import ani.sanin.notifications.subscription.SubscriptionStore
@@ -344,6 +345,10 @@ enum class PrefName(val data: Pref) {
     MALAvatar(Pref(Location.Protected, String::class, "")),
     MALCodeChallenge(Pref(Location.Protected, String::class, "")),
     MALToken(Pref(Location.Protected, MAL.ResponseToken::class, "")),
+    SimklToken(Pref(Location.Protected, Simkl.SimklToken::class, "")),
+    SimklUserName(Pref(Location.Protected, String::class, "")),
+    SimklAvatar(Pref(Location.Protected, String::class, "")),
+    SimklUserId(Pref(Location.Protected, String::class, "")),
     AppPassword(Pref(Location.Protected, String::class, "")),
     BiometricToken(Pref(Location.Protected, String::class, "")),
     OverridePassword(Pref(Location.Protected, Boolean::class, false)),

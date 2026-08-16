@@ -266,6 +266,23 @@
             </intent-filter>
         </activity>
         <activity
+            android:name=".connections.simkl.Login"
+            android:configChanges="orientation|screenSize|layoutDirection"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter android:label="Simkl Login for Sanin">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="simkl"
+                    android:scheme="sanin" />
+            </intent-filter>
+        </activity>
+        <activity
             android:name=".connections.discord.Login"
             android:configChanges="orientation|screenSize|layoutDirection"
             android:excludeFromRecents="true"

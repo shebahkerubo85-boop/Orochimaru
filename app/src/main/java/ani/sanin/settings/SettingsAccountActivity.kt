@@ -17,6 +17,7 @@ import ani.sanin.connections.auth.LoginDiagnostics
 import ani.sanin.connections.auth.QrLoginDialog
 
 import ani.sanin.connections.mal.MAL
+import ani.sanin.connections.simkl.Simkl
 import ani.sanin.databinding.ActivitySettingsAccountsBinding
 import ani.sanin.initActivity
 import ani.sanin.loadImage
@@ -81,7 +82,8 @@ class SettingsAccountActivity : AppCompatActivity() {
                 settingsMALAvatar.isFocusable = true
                 FocusEffectUtil.applyFocusListener(
                     settingsAnilistLogin, settingsAnilistAvatar, settingsAnilistTokenExpiry,
-                    settingsMALLogin, settingsMALAvatar
+                    settingsMALLogin, settingsMALAvatar,
+                    settingsSimklLogin, settingsSimklAvatar
                 )
                 if (Anilist.token != null) {
                     settingsAnilistLogin.setText(R.string.logout)
@@ -151,6 +153,26 @@ class SettingsAccountActivity : AppCompatActivity() {
                             MAL.loginIntent(context)
                         }
                     }
+                // Simkl
+                settingsSimklLogin.isFocusable = true
+                if (Simkl.token != null) {
+                    settingsSimklLogin.setText(R.string.logout)
+                    settingsSimklLogin.setOnClickListener {
+                        Simkl.removeSavedToken()
+                        restartMainActivity.isEnabled = true
+                        reload()
+                    }
+                    settingsSimklUsername.visibility = View.VISIBLE
+                    settingsSimklUsername.text = Simkl.username
+                    settingsSimklAvatar.loadImage(Simkl.avatar)
+                } else {
+                    settingsSimklUsername.visibility = View.GONE
+                    settingsSimklAvatar.setImageResource(R.drawable.ic_round_person_24)
+                    settingsSimklLogin.setText(R.string.login)
+                    settingsSimklLogin.setOnClickListener {
+                        Simkl.loginIntent(this@SettingsAccountActivity)
+                    }
+                }
                 } else {
                     settingsAnilistAvatar.setImageResource(R.drawable.ic_round_person_24)
                     settingsAnilistUsername.visibility = View.GONE
