@@ -2044,8 +2044,7 @@ class ExoplayerView :
 
         val streamCookie = video?.file?.headers?.get("Cookie")
         val streamHost = video?.file?.url?.let { url ->
-            runCatching { okhttp3.HttpUrl.Companion.toHttpUrlOrNull(url)?.host }
-                .getOrNull()
+            runCatching { java.net.URI(url).host }.getOrNull()
         }
         val httpClient =
             okhttp3.OkHttpClient.Builder()
