@@ -278,8 +278,8 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:host="simkl"
-                    android:scheme="sanin" />
+                    android:host="simkl-auth"
+                    android:scheme="ani.sanin" />
             </intent-filter>
         </activity>
         <activity

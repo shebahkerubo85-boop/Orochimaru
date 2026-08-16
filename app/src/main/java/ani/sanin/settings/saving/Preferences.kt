@@ -349,6 +349,7 @@ enum class PrefName(val data: Pref) {
     SimklUserName(Pref(Location.Protected, String::class, "")),
     SimklAvatar(Pref(Location.Protected, String::class, "")),
     SimklUserId(Pref(Location.Protected, String::class, "")),
+    SimklCodeVerifier(Pref(Location.Protected, String::class, "")),
     AppPassword(Pref(Location.Protected, String::class, "")),
     BiometricToken(Pref(Location.Protected, String::class, "")),
     OverridePassword(Pref(Location.Protected, Boolean::class, false)),

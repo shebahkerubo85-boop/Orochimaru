@@ -23,8 +23,9 @@ import uy.kohesive.injekt.api.get
 
 object Simkl {
     const val clientId = "083331dcd6f5889dd0a1c6e650448061bc468d725b94957703c1442536d35b4f"
-    private const val REDIRECT_URI = "sanin://simkl"
+    private const val REDIRECT_URI = "ani.sanin://simkl-auth"
     private const val BASE = "https://api.simkl.com"
+    private const val AUTH_URL = "https://simkl.com"
 
     var token: String? = null
     var username: String? = null
@@ -35,12 +36,20 @@ object Simkl {
     private val okHttpClient get() = Injekt.get<eu.kanade.tachiyomi.network.NetworkHelper>().client
 
     fun loginIntent(context: Context) {
-        val url = "$BASE/oauth/authorize?client_id=$clientId&redirect_uri=$REDIRECT_URI&response_type=code"
+        val codeVerifier = generateCodeVerifier()
+        PrefManager.setVal(PrefName.SimklCodeVerifier, codeVerifier)
+        val codeChallenge = codeVerifier  // Simkl uses plain code_challenge
+        val url = "$AUTH_URL/oauth/authorize?client_id=$clientId&redirect_uri=${Uri.encode(REDIRECT_URI)}&response_type=code&code_challenge=$codeChallenge&code_challenge_method=plain"
         try {
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         } catch (_: ActivityNotFoundException) {
             openLinkInBrowser(url)
         }
+    }
+
+    private fun generateCodeVerifier(): String {
+        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
+        return (1..128).map { chars.random() }.joinToString("")
     }
 
     fun getSavedToken(): Boolean {
@@ -98,6 +107,7 @@ object Simkl {
 
     suspend fun exchangeCode(code: String): SimklToken? {
         return tryWithSuspend {
+            val codeVerifier = PrefManager.getVal<String?>(PrefName.SimklCodeVerifier) ?: ""
             val body = json.encodeToString(
                 SimklTokenRequest.serializer(),
                 SimklTokenRequest(
@@ -106,7 +116,8 @@ object Simkl {
                     redirectUri = REDIRECT_URI,
                     code = code,
                     grantType = "authorization_code",
-                    refreshToken = null
+                    refreshToken = null,
+                    codeVerifier = codeVerifier
                 )
             )
             val request = Request.Builder()
@@ -260,7 +271,8 @@ object Simkl {
         @SerialName("redirect_uri") val redirectUri: String,
         val code: String? = null,
         @SerialName("grant_type") val grantType: String,
-        @SerialName("refresh_token") val refreshToken: String? = null
+        @SerialName("refresh_token") val refreshToken: String? = null,
+        @SerialName("code_verifier") val codeVerifier: String? = null
     )
 
     @Serializable
