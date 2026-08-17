@@ -45,7 +45,16 @@ class TmdbDiscoveryFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.tmdbDiscoveryGrid.layoutManager = GridLayoutManager(requireContext(), 3)
+                val dm = resources.displayMetrics
+        val screenWidthPx = dm.widthPixels
+        val density = dm.density
+        val landscape = TmdbCards.isLandscapeOrientation()
+        val size = TmdbCards.cardSize()
+        val cardWidthPx = ((if (landscape) 260f else 102f) * size * density).toInt()
+        val marginEndPx = (12 * density).toInt()
+        val paddingPx = (32 * density).toInt()
+        val cols = ((screenWidthPx - paddingPx) / (cardWidthPx + marginEndPx)).toInt().coerceAtLeast(2)
+        binding.tmdbDiscoveryGrid.layoutManager = GridLayoutManager(requireContext(), cols)
         binding.tmdbDiscoveryGrid.adapter = adapter
         binding.tmdbDiscoverySearch.setOnClickListener {
             startActivity(Intent(requireContext(), TmdbSearchActivity::class.java))

@@ -49,8 +49,16 @@ class SimklSectionFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         return RecyclerView(requireContext()).apply {
-            val screenWidth = resources.displayMetrics.run { widthPixels / density }
-            layoutManager = GridLayoutManager(requireContext(), (screenWidth / 120f).toInt().coerceAtLeast(2))
+            val dm = resources.displayMetrics
+            val screenWidthPx = dm.widthPixels
+            val density = dm.density
+            val landscape = TmdbCards.isLandscapeOrientation()
+            val size = TmdbCards.cardSize()
+            val cardWidthPx = ((if (landscape) 260f else 102f) * size * density).toInt()
+            val marginEndPx = (12 * density).toInt()
+            val paddingPx = (32 * density).toInt()
+            val cols = ((screenWidthPx - paddingPx) / (cardWidthPx + marginEndPx)).toInt().coerceAtLeast(2)
+            layoutManager = GridLayoutManager(requireContext(), cols)
             overScrollMode = View.OVER_SCROLL_NEVER
             clipToPadding = false
             setPadding(16, 8, 16, 16)

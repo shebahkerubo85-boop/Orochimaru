@@ -41,7 +41,9 @@ import ani.sanin.util.FocusEffectUtil
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.LiveSearchResponse
 import com.lagradost.cloudstream3.SearchResponse
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -73,7 +75,7 @@ class TmdbHomeFragment : Fragment() {
         }
         val type: String get() = when (this) {
             is Tmdb -> media.type
-            is Plugin -> "live"
+            is Plugin -> ""
         }
         val overview: String? get() = when (this) {
             is Tmdb -> media.overview
@@ -447,9 +449,13 @@ class TmdbHomeFragment : Fragment() {
             }
             is BannerItem.Plugin -> {
                 binding.tmdbBannerSideChips.removeAllViews()
-                logoJob?.cancel()
-                binding.tmdbBannerLogo.isVisible = false
-                binding.tmdbBannerPortraitLogo.isVisible = false
+                if (item.tmdbId != null && item.tmdbType != null) {
+                    loadBannerLogoByType(item.tmdbType, item.tmdbId)
+                } else {
+                    logoJob?.cancel()
+                    binding.tmdbBannerLogo.isVisible = false
+                    binding.tmdbBannerPortraitLogo.isVisible = false
+                }
             }
         }
     }
@@ -473,6 +479,24 @@ class TmdbHomeFragment : Fragment() {
         logoJob?.cancel()
         logoJob = viewLifecycleOwner.lifecycleScope.launch {
             val detail = Tmdb.detail(item.type, item.id)
+            val logo = detail?.let { Tmdb.logoUrl(it) }
+            binding.tmdbBannerLogo.isVisible = logo != null
+            if (logo != null) binding.tmdbBannerLogo.loadImage(logo)
+            val portraitLogo = binding.tmdbBannerPortraitLogo
+            portraitLogo.isVisible = logo != null
+            binding.tmdbBannerTitle.isVisible = logo == null
+            if (logo != null) portraitLogo.loadImage(logo)
+            val status = detail?.status?.let { statusLabel(it) }.orEmpty()
+            binding.tmdbBannerStatus.text = status
+            binding.tmdbBannerStatus.isVisible = status.isNotBlank()
+            binding.tmdbBannerStatusDivider.isVisible = status.isNotBlank()
+        }
+    }
+
+    private fun loadBannerLogoByType(type: String, id: Int) {
+        logoJob?.cancel()
+        logoJob = viewLifecycleOwner.lifecycleScope.launch {
+            val detail = Tmdb.detail(type, id)
             val logo = detail?.let { Tmdb.logoUrl(it) }
             binding.tmdbBannerLogo.isVisible = logo != null
             if (logo != null) binding.tmdbBannerLogo.loadImage(logo)

@@ -15,7 +15,9 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.connections.tmdb.Tmdb
-import ani.sanin.connections.tmdb.TmdbMedia
+import ani.sanin.cloudstream.TmdbCards
+import ani.sanin.connections.tmdb.Tmdb
+import ani.sanin.cloudstream.TmdbCardsMedia
 import ani.sanin.databinding.ActivityTmdbSearchBinding
 import ani.sanin.databinding.ItemTmdbCardBinding
 import ani.sanin.databinding.ItemTmdbHistoryBinding
@@ -43,7 +45,16 @@ class TmdbSearchActivity : AppCompatActivity() {
         binding = ActivityTmdbSearchBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.tmdbSearchGrid.layoutManager = GridLayoutManager(this, 3)
+                val dm = resources.displayMetrics
+        val screenWidthPx = dm.widthPixels
+        val density = dm.density
+        val landscape = TmdbCards.isLandscapeOrientation()
+        val size = TmdbCards.cardSize()
+        val cardWidthPx = ((if (landscape) 260f else 102f) * size * density).toInt()
+        val marginEndPx = (12 * density).toInt()
+        val paddingPx = (32 * density).toInt()
+        val cols = ((screenWidthPx - paddingPx) / (cardWidthPx + marginEndPx)).toInt().coerceAtLeast(2)
+        binding.tmdbSearchGrid.layoutManager = GridLayoutManager(this, cols)
         binding.tmdbSearchGrid.adapter = adapter
 
         binding.tmdbSearchBack.setOnClickListener { finish() }
@@ -198,6 +209,7 @@ class TmdbSearchActivity : AppCompatActivity() {
         private val onClick: (com.lagradost.cloudstream3.SearchResponse) -> Unit
     ) : RecyclerView.Adapter<PluginSearchAdapter.VH>() {
         private var items: List<com.lagradost.cloudstream3.SearchResponse> = emptyList()
+        private val cardScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
         fun submit(list: List<com.lagradost.cloudstream3.SearchResponse>) { items = list; notifyDataSetChanged() }
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
             val b = ItemTmdbCardBinding.inflate(LayoutInflater.from(parent.context), parent, false); return VH(b)
@@ -208,7 +220,10 @@ class TmdbSearchActivity : AppCompatActivity() {
             val (w, h) = if (landscape) (260f*size).toInt() to (148f*size).toInt() else (102f*size).toInt() to (154f*size).toInt()
             b.tmdbCardPoster.updateLayoutParams<ViewGroup.LayoutParams> { width = w; height = h }
             b.tmdbCard.radius = TmdbCards.roundness()
-            b.tmdbCardPoster.loadImage(item.posterUrl, if (landscape) 780 else 300)
+
+            // Reset before async loads
+            b.tmdbCardLogo.isVisible = false
+            b.tmdbCardOverlayTitle.isVisible = false
 
             val titlePos = PrefManager.getVal<Int>(PrefName.CardTitlePosition)
             if (landscape) {
@@ -219,21 +234,16 @@ class TmdbSearchActivity : AppCompatActivity() {
                         TmdbCards.setCardGradient(b.tmdbCardGradient)
                         b.tmdbCardOverlayTitle.isVisible = true
                         b.tmdbCardOverlayTitle.text = item.name
-                        b.tmdbCardLogo.isVisible = false
                         b.tmdbCardTitle.isVisible = false
                         b.tmdbCardYear.isVisible = false
                     }
                     2 -> {
                         b.tmdbCardGradient.isVisible = false
-                        b.tmdbCardOverlayTitle.isVisible = false
-                        b.tmdbCardLogo.isVisible = false
                         b.tmdbCardTitle.isVisible = false
                         b.tmdbCardYear.isVisible = false
                     }
                     else -> {
                         b.tmdbCardGradient.isVisible = false
-                        b.tmdbCardOverlayTitle.isVisible = false
-                        b.tmdbCardLogo.isVisible = false
                         b.tmdbCardTitle.isVisible = true
                         b.tmdbCardTitle.text = item.name
                         b.tmdbCardYear.isVisible = false
@@ -241,11 +251,34 @@ class TmdbSearchActivity : AppCompatActivity() {
                 }
             } else {
                 b.tmdbCardGradient.isVisible = false
-                b.tmdbCardOverlayTitle.isVisible = false
-                b.tmdbCardLogo.isVisible = false
                 b.tmdbCardTitle.isVisible = true
                 b.tmdbCardTitle.text = item.name
                 b.tmdbCardYear.isVisible = false
+            }
+
+            // Load poster first, then async TMDB backdrop + logo for landscape
+            if (landscape) {
+                b.tmdbCardPoster.loadImage(item.posterUrl, 780)
+                b.tmdbCardPoster.tag = item.name
+                cardScope.launch {
+                    val name = item.name ?: return@launch
+                    val results = runCatching { ani.sanin.connections.tmdb.Tmdb.search(name) }.getOrNull()
+                    val match = results?.firstOrNull() ?: return@launch
+                    val backdrop = match.backdropPath?.let { ani.sanin.connections.tmdb.Tmdb.imageUrl(it, 780) }
+                    val logoUrl = runCatching { ani.sanin.connections.tmdb.Tmdb.logoUrl(match.type, match.id) }.getOrNull()
+                    withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        if (holder.binding.tmdbCardPoster.tag != item.name) return@withContext
+                        if (!backdrop.isNullOrBlank()) b.tmdbCardPoster.loadImage(backdrop)
+                        if (!logoUrl.isNullOrBlank() && titlePos == 0) {
+                            b.tmdbCardLogo.isVisible = true
+                            b.tmdbCardLogo.loadImage(logoUrl)
+                            b.tmdbCardOverlayTitle.isVisible = false
+                            b.tmdbCardTitle.isVisible = false
+                        }
+                    }
+                }
+            } else {
+                b.tmdbCardPoster.loadImage(item.posterUrl, 300)
             }
 
             b.tmdbCardPoster.setOnClickListener { onClick(item) }
