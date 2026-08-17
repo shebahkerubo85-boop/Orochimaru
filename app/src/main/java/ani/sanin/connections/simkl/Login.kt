@@ -79,13 +79,23 @@ class Login : AppCompatActivity() {
 
                 Log.d(TAG, "Token received, setting token")
                 Simkl.token = token.accessToken
+                Log.d(TAG, "Simkl.token set: ${Simkl.token?.take(15)}...")
 
                 Log.d(TAG, "Fetching user data...")
                 val user = withContext(Dispatchers.IO) {
                     Simkl.fetchUserData()
                 }
 
-                Log.d(TAG, "User data: name=${Simkl.username}, avatar=${Simkl.avatar?.take(50)}")
+                Log.d(TAG, "fetchUserData returned: user=${user != null}")
+                Log.d(TAG, "Simkl state: name=${Simkl.username}, avatar=${Simkl.avatar?.take(80)} userid=${Simkl.userid}")
+
+                // If fetchUserData failed, try again (might be a timing issue)
+                if (Simkl.username == null || Simkl.username == "") {
+                    Log.d(TAG, "Username empty, retrying fetchUserData in 1s...")
+                    kotlinx.coroutines.delay(1000)
+                    withContext(Dispatchers.IO) { Simkl.fetchUserData() }
+                    Log.d(TAG, "Retry result: name=${Simkl.username}")
+                }
 
                 snackString("Logged in as ${Simkl.username ?: "Simkl user"}")
                 startMainActivity(this@Login)

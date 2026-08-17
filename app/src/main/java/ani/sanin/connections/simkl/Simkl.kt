@@ -53,10 +53,14 @@ object Simkl {
     }
 
     fun getSavedToken(): Boolean {
-        return tryWith(false) {
+        val result = tryWith(false) {
             val res = PrefManager.getNullableVal<SimklToken>(PrefName.SimklToken, null)
-                ?: return@tryWith false
+            if (res == null) {
+                ani.sanin.util.Logger.log("Simkl.getSavedToken: no token in prefs")
+                return@tryWith false
+            }
             if (res.isExpired()) {
+                ani.sanin.util.Logger.log("Simkl.getSavedToken: token expired, refreshing")
                 val refreshed = refreshToken() ?: return@tryWith false
                 token = refreshed.accessToken
             } else {
@@ -65,8 +69,11 @@ object Simkl {
             username = PrefManager.getVal<String?>(PrefName.SimklUserName)
             avatar = PrefManager.getVal<String?>(PrefName.SimklAvatar)
             userid = PrefManager.getVal<String?>(PrefName.SimklUserId)
+            ani.sanin.util.Logger.log("Simkl.getSavedToken: OK token=${token?.take(10)}... name=$username avatar=${avatar?.take(50)}")
             true
         } ?: false
+        if (!result) ani.sanin.util.Logger.log("Simkl.getSavedToken: FAILED")
+        return result
     }
 
     fun removeSavedToken() {
@@ -126,6 +133,8 @@ object Simkl {
                 .build()
             val response = okHttpClient.newCall(request).execute()
             val respBody = response.body?.string() ?: return@tryWithSuspend null
+            ani.sanin.util.Logger.log("Simkl.exchangeCode: HTTP ${response.code} body=${respBody.take(200)}")
+            if (response.code != 200) return@tryWithSuspend null
             val token = json.decodeFromString(SimklToken.serializer(), respBody)
             saveToken(token)
             token
@@ -138,23 +147,37 @@ object Simkl {
 
     /** Fetch user settings (profile info) after login */
     suspend fun fetchUserData(): SimklUser? {
-        return tryWithSuspend {
-            val t = token ?: return@tryWithSuspend null
+        val t = token
+        if (t == null) {
+            ani.sanin.logError(Exception("Simkl.fetchUserData: token is null"), snackbar = false)
+            return null
+        }
+        return try {
             val request = Request.Builder()
                 .url("$BASE/users/settings")
                 .addHeader("Authorization", "Bearer $t")
                 .addHeader("simkl-api-key", clientId)
                 .build()
             val response = okHttpClient.newCall(request).execute()
-            val body = response.body?.string() ?: return@tryWithSuspend null
+            val body = response.body?.string()
+            ani.sanin.util.Logger.log("Simkl.fetchUserData: HTTP ${response.code} body=${body?.take(200)}")
+            if (response.code != 200 || body == null) {
+                ani.sanin.logError(Exception("Simkl.fetchUserData: HTTP ${response.code}"), snackbar = false)
+                return null
+            }
             val user = json.decodeFromString(SimklUser.serializer(), body)
             username = user.user?.name
             avatar = user.user?.avatar?.full
             userid = user.user?.ids?.slug
+            ani.sanin.util.Logger.log("Simkl.fetchUserData: name=$username avatar=${avatar?.take(80)} userid=$userid")
             PrefManager.setVal(PrefName.SimklUserName, username ?: "")
             PrefManager.setVal(PrefName.SimklAvatar, avatar ?: "")
             PrefManager.setVal(PrefName.SimklUserId, userid ?: "")
             user
+        } catch (e: Exception) {
+            ani.sanin.logError(e, snackbar = false)
+            ani.sanin.util.Logger.log("Simkl.fetchUserData: exception ${e.message}")
+            null
         }
     }
 
