@@ -214,13 +214,13 @@ class TmdbHomeFragment : Fragment() {
         val list = RecyclerView(ctx).apply {
             layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
             adapter = SimklContinueAdapter(items) { item ->
-                val title = item.title ?: return@SimklContinueAdapter
-                // Navigate to TMDB details via search
-                lifecycleScope.launch {
-                    val results = withContext(Dispatchers.IO) { Tmdb.search(title) }
-                    val match = results.firstOrNull()
-                    if (match != null) openDetails(match.type, match.id)
-                }
+                val tmdbId = item.ids?.tmdb ?: return@SimklContinueAdapter
+                val mediaType = if (item.type == "movie") "movie" else "tv"
+                startActivity(
+                    Intent(requireContext(), ani.sanin.cloudstream.TmdbWatchActivity::class.java)
+                        .putExtra(ani.sanin.cloudstream.TmdbWatchActivity.ARG_MEDIA_TYPE, mediaType)
+                        .putExtra(ani.sanin.cloudstream.TmdbWatchActivity.ARG_MEDIA_ID, tmdbId)
+                )
             }
             isNestedScrollingEnabled = false
             overScrollMode = View.OVER_SCROLL_NEVER
