@@ -324,7 +324,7 @@ class TmdbHomeFragment : Fragment() {
         val ctx = requireContext()
         val header = TextView(ctx).apply {
             text = "Continue Watching"
-            setPadding(24, 20, 24, 8)
+            setPadding(24, 14, 24, 8)
             textSize = 16f
             setTypeface(android.graphics.Typeface.DEFAULT_BOLD)
             setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
@@ -369,7 +369,7 @@ class TmdbHomeFragment : Fragment() {
         val ctx = requireContext()
         val header = TextView(ctx).apply {
             text = title
-            setPadding(24, 20, 24, 8)
+            setPadding(24, 14, 24, 8)
             textSize = 16f
             setTypeface(android.graphics.Typeface.DEFAULT_BOLD)
             setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
@@ -396,7 +396,7 @@ class TmdbHomeFragment : Fragment() {
         val ctx = requireContext()
         val header = TextView(ctx).apply {
             text = title
-            setPadding(24, 20, 24, 8)
+            setPadding(24, 14, 24, 8)
             textSize = 16f
             setTypeface(android.graphics.Typeface.DEFAULT_BOLD)
             setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
