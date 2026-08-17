@@ -123,7 +123,7 @@ class SimklSectionFragment : Fragment() {
                 height = h
             }
             b.tmdbCard.radius = TmdbCards.roundness()
-            b.tmdbCardPoster.loadImage(Simkl.imageUrl(item.poster), 300)
+            b.tmdbCardPoster.loadImage(Simkl.imageUrl(item.poster, if (landscape) "w" else "m"))
             b.tmdbCardTitle.text = item.title
             b.tmdbCardTitle.isVisible = true
             b.tmdbCardYear.text = item.year?.toString() ?: ""
