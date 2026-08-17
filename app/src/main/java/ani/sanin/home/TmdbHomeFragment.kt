@@ -159,6 +159,7 @@ class TmdbHomeFragment : Fragment() {
                 CsRuntime.apisFor(requireContext(), plugin)
             }
             for (api in apis) {
+                // 1) Try provider's declared mainPage entries
                 val pages = api.mainPage.filter { it.data.isNotBlank() }
                 for (page in pages) {
                     val resp = runCatching {
@@ -172,6 +173,30 @@ class TmdbHomeFragment : Fragment() {
                         }
                     }
                     if (bannerItems.isNotEmpty()) break
+                }
+                // 2) Fallback: synthetic getMainPage
+                if (bannerItems.isEmpty()) {
+                    val resp = runCatching {
+                        withContext(Dispatchers.IO) {
+                            api.getMainPage(1, MainPageRequest("Home", "", false))
+                        }
+                    }.getOrNull()
+                    resp?.items?.forEach { list ->
+                        list.list.take(10).forEach { sr ->
+                            bannerItems.add(BannerItem.Plugin(sr, plugin.id))
+                        }
+                    }
+                }
+                // 3) Final fallback: quickSearch
+                if (bannerItems.isEmpty()) {
+                    val quick = runCatching {
+                        withContext(Dispatchers.IO) { api.quickSearch("") }
+                    }.getOrNull()
+                    if (!quick.isNullOrEmpty()) {
+                        quick.take(10).forEach { sr ->
+                            bannerItems.add(BannerItem.Plugin(sr, plugin.id))
+                        }
+                    }
                 }
                 if (bannerItems.isNotEmpty()) break
             }
