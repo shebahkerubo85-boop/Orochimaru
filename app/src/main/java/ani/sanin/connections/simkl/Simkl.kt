@@ -15,6 +15,10 @@ import ani.sanin.tryWithSuspend
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -169,7 +173,7 @@ object Simkl {
             }
             val user = json.decodeFromString(SimklUser.serializer(), body)
             username = user.user?.name
-            avatar = user.user?.avatar?.full
+            avatar = user.user?.avatarUrl
             userid = user.account?.id?.toString() ?: user.user?.ids?.slug
             ani.sanin.util.Logger.log("Simkl.fetchUserData: name=$username avatar=${avatar?.take(80)} userid=$userid")
             PrefManager.setVal(PrefName.SimklUserName, username ?: "")
@@ -394,8 +398,15 @@ object Simkl {
     data class SimklUserInner(
         val name: String? = null,
         val ids: SimklUserIds? = null,
-        val avatar: SimklAvatar? = null
-    )
+        val avatar: kotlinx.serialization.json.JsonElement? = null
+    ) {
+        val avatarUrl: String?
+            get() = when (avatar) {
+                is kotlinx.serialization.json.JsonPrimitive -> avatar.content
+                is kotlinx.serialization.json.JsonObject -> avatar["full"]?.jsonPrimitive?.content
+                else -> null
+            }
+    }
 
     @Serializable
     data class SimklUserIds(
