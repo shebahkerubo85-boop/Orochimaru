@@ -303,11 +303,11 @@ object Simkl {
                 ani.sanin.logError(Exception("Simkl.getLibrary: HTTP ${response.code}"), snackbar = false)
                 return null
             }
-            val obj = org.json.JSONObject(body)
-            val moviesArr = obj.optJSONObject("all")?.optJSONArray("movies")
-            val showsArr = obj.optJSONObject("all")?.optJSONArray("shows")
-            val movies = if (moviesArr != null) kotlinx.serialization.json.Json.decodeFromString<List<SimklWatchedItem>>(moviesArr.toString()) else emptyList()
-            val shows = if (showsArr != null) kotlinx.serialization.json.Json.decodeFromString<List<SimklWatchedItem>>(showsArr.toString()) else emptyList()
+            val root = org.json.JSONObject(body)
+            val moviesArr = root.optJSONObject("all")?.optJSONArray("movies")
+            val showsArr = root.optJSONObject("all")?.optJSONArray("shows")
+            val movies = if (moviesArr != null) json.decodeFromString<List<SimklWatchedItem>>(moviesArr.toString()) else emptyList()
+            val shows = if (showsArr != null) json.decodeFromString<List<SimklWatchedItem>>(showsArr.toString()) else emptyList()
             SimklLibrary(movies = movies, shows = shows)
         } catch (e: Exception) {
             ani.sanin.logError(e, snackbar = false)
@@ -331,9 +331,9 @@ object Simkl {
             val body = response.body?.string() ?: return emptyList()
             if (response.code != 200) return emptyList()
             ani.sanin.util.Logger.log("Simkl.getMovieLibrary: HTTP ${response.code} body=${body.take(200)}")
-            val json = org.json.JSONObject(body)
-            val movies = json.optJSONArray("movies") ?: return emptyList()
-            kotlinx.serialization.json.Json.decodeFromString<List<SimklWatchedItem>>(movies.toString())
+            val root = org.json.JSONObject(body)
+            val movies = root.optJSONArray("movies") ?: return emptyList()
+            json.decodeFromString<List<SimklWatchedItem>>(movies.toString())
         } catch (e: Exception) {
             ani.sanin.util.Logger.log("Simkl.getMovieLibrary: ${e.message}")
             emptyList()
@@ -355,9 +355,9 @@ object Simkl {
             val body = response.body?.string() ?: return emptyList()
             if (response.code != 200) return emptyList()
             ani.sanin.util.Logger.log("Simkl.getShowLibrary: HTTP ${response.code} body=${body.take(200)}")
-            val json = org.json.JSONObject(body)
-            val shows = json.optJSONArray("shows") ?: return emptyList()
-            kotlinx.serialization.json.Json.decodeFromString<List<SimklWatchedItem>>(shows.toString())
+            val root = org.json.JSONObject(body)
+            val shows = root.optJSONArray("shows") ?: return emptyList()
+            json.decodeFromString<List<SimklWatchedItem>>(shows.toString())
         } catch (e: Exception) {
             ani.sanin.util.Logger.log("Simkl.getShowLibrary: ${e.message}")
             emptyList()
