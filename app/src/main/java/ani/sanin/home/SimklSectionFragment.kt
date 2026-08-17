@@ -18,10 +18,15 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.cloudstream.TmdbCards
 import ani.sanin.cloudstream.TmdbDetailsActivity
 import ani.sanin.connections.simkl.Simkl
+import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.databinding.ItemTmdbCardBinding
 import ani.sanin.getThemeColor
 import ani.sanin.loadImage
 import ani.sanin.util.FocusEffectUtil
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SimklSectionFragment : Fragment() {
 
@@ -123,13 +128,13 @@ class SimklSectionFragment : Fragment() {
                 height = h
             }
             b.tmdbCard.radius = TmdbCards.roundness()
-            b.tmdbCardPoster.loadImage(Simkl.imageUrl(item.poster, if (landscape) "w" else "m"))
-            b.tmdbCardTitle.text = item.title
+
+            // Reset before async loads
             b.tmdbCardTitle.isVisible = true
+            b.tmdbCardTitle.text = item.title
             b.tmdbCardYear.text = item.year?.toString() ?: ""
             b.tmdbCardYear.isVisible = item.year != null
 
-            // Gradient overlay in landscape mode (obeys CardGradientIntensity slider)
             if (landscape) {
                 b.tmdbCardGradient.isVisible = true
                 setGradient(b.tmdbCardGradient)
@@ -142,11 +147,50 @@ class SimklSectionFragment : Fragment() {
                 b.tmdbCardLogo.isVisible = false
             }
 
+            // Load image + logo async (same pattern as anime library)
+            val tmdbId = item.ids?.tmdb
+            val mediaType = item.mediaType ?: "tv"
+            if (tmdbId != null) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    val detail = Tmdb.detail(mediaType, tmdbId)
+                    val backdropUrl = detail?.backdropPath?.let { Tmdb.imageUrl(it, 780) }
+                    val logoUrl = Tmdb.logoUrl(mediaType, tmdbId)
+
+                    withContext(Dispatchers.Main) {
+                        if (!holder.bindingEquals(item)) return@withContext
+
+                        // Image: landscape → backdrop, portrait → poster
+                        val imageUrl = if (landscape) {
+                            backdropUrl ?: Simkl.imageUrl(item.poster, "w")
+                        } else {
+                            Simkl.imageUrl(item.poster, "m")
+                        }
+                        b.tmdbCardPoster.loadImage(imageUrl)
+
+                        // Logo overlay in landscape mode
+                        if (landscape && !logoUrl.isNullOrBlank()) {
+                            b.tmdbCardLogo.isVisible = true
+                            b.tmdbCardLogo.loadImage(logoUrl)
+                            b.tmdbCardOverlayTitle.isVisible = false
+                            b.tmdbCardTitle.isVisible = false
+                        }
+                    }
+                }
+            } else {
+                // No TMDB ID — use Simkl poster
+                val imageUrl = if (landscape) {
+                    Simkl.imageUrl(item.poster, "w")
+                } else {
+                    Simkl.imageUrl(item.poster, "m")
+                }
+                b.tmdbCardPoster.loadImage(imageUrl)
+            }
+
             b.tmdbCardPoster.setOnClickListener { onClick(item) }
             FocusEffectUtil.applyFocusListener(b.tmdbCardPoster)
         }
 
-        override fun getItemCount(): Int = items.size
+        override fun getItemCount() = items.size
 
         private fun setGradient(view: View) {
             val intensity = PrefManager.getVal<Float>(PrefName.CardGradientIntensity)
@@ -165,6 +209,10 @@ class SimklSectionFragment : Fragment() {
                 intArrayOf(endColor, startColor)
             )
             view.background = gradient
+        }
+
+        private fun VH.bindingEquals(item: Simkl.SimklWatchedItem): Boolean {
+            return binding.tmdbCardTitle.text == item.title
         }
 
         class VH(val binding: ItemTmdbCardBinding) : RecyclerView.ViewHolder(binding.root)
