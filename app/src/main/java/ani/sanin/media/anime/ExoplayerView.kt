@@ -345,6 +345,7 @@ class ExoplayerView :
     private var currentWindow = 0
     private var playbackPosition: Long = 0
     private var episodeLength: Float = 0f
+    private var simklAddedToWatchlist = false
     private var isFullscreen: Int = 0
     private var isInitialized = false
     private var isPlayerPlaying = true
@@ -1526,6 +1527,7 @@ class ExoplayerView :
                 lastLoggedStampId = null
                 Logger.log("Player: episode change -> reset timestamps state for ep '${episodeArr[index]}'")
                 episodeLength = 0f
+                simklAddedToWatchlist = false
                 media.anime!!.selectedEpisode = episodeArr[index]
                 model.setMedia(media)
                 model.epChanged.postValue(false)
@@ -3383,9 +3385,25 @@ class ExoplayerView :
                 if (isPlaying) {
                     Logger.log("Simkl: scrobbleStart type=$type title=$title s=$season e=$episode")
                     Simkl.scrobbleStart(type, title, year, tmdbId, imdbId, season, episode)
+                    // Add to watchlist on first play so item appears in Simkl library immediately
+                    if (!simklAddedToWatchlist) {
+                        simklAddedToWatchlist = true
+                        Logger.log("Simkl: addToWatchlist type=$type tmdb=$tmdbId")
+                        Simkl.addToWatchlist(type, tmdbId, imdbId)
+                    }
                 } else {
                     Logger.log("Simkl: scrobbleStop type=$type title=$title s=$season e=$episode")
                     Simkl.scrobbleStop(type, title, year, tmdbId, imdbId, season, episode)
+                    // If near the end, mark as watched immediately on pause/stop
+                    val pos = exoPlayer.currentPosition
+                    val dur = exoPlayer.duration
+                    if (dur > 0 && pos.toFloat() / dur.toFloat() > PrefManager.getVal<Float>(PrefName.WatchPercentage)) {
+                        Logger.log("Simkl: addToHistory on scrobbleStop (pos=$pos/dur=$dur)")
+                        Simkl.addToHistory(type, title, year, tmdbId, imdbId, season, episode)
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            Refresh.all()
+                        }
+                    }
                 }
             }
         }

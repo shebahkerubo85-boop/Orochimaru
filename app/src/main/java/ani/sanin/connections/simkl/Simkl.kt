@@ -302,34 +302,16 @@ object Simkl {
     ) {
         tryWithSuspend {
             val t = token ?: return@tryWithSuspend
-            val ids = ScrobbleIds(tmdb = tmdbId, imdb = imdbId)
+            val now = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())
+            // Build the correct Simkl POST /sync/history format (flat ids, not nested show/movie)
             val body = if (type == "tv") {
-                val epList = if (episode != null) listOf(ScrobbleEpisode(number = episode)) else null
-                val seasonList = if (season != null || epList != null) listOf(
-                    ScrobbleSeason(number = season ?: 1, episodes = epList)
-                ) else null
-                json.encodeToString(
-                    SimklHistory.serializer(),
-                    SimklHistory(
-                        shows = listOf(
-                            SimklWatchedItem(
-                                show = SimklShowData(title = title, year = year, ids = ids),
-                                episodes = seasonList?.flatMap { it.episodes.orEmpty().map { ep -> SimklWatchedEpisode(number = ep.number) } }
-                            )
-                        )
-                    )
-                )
+                val epJson = if (episode != null) ","watched_at":"$now"" else ""
+                val seasonJson = if (season != null || episode != null) {
+                    ""","seasons":[{"number":${season ?: 1},"episodes":[{"number":${episode ?: 1}$epJson}]}]"""
+                } else ""
+                """{"shows":[{"ids":{"tmdb":${tmdbId ?: 0}${if (!imdbId.isNullOrBlank()) ","imdb":"$imdbId"" else ""}}$seasonJson}]}"""
             } else {
-                json.encodeToString(
-                    SimklHistory.serializer(),
-                    SimklHistory(
-                        movies = listOf(
-                            SimklWatchedItem(
-                                movie = SimklMovieData(title = title, year = year, ids = ids)
-                            )
-                        )
-                    )
-                )
+                """{"movies":[{"ids":{"tmdb":${tmdbId ?: 0}${if (!imdbId.isNullOrBlank()) ","imdb":"$imdbId"" else ""}},"watched_at":"$now"}]}"""
             }
             val request = Request.Builder()
                 .url("$BASE/sync/history")
@@ -339,7 +321,8 @@ object Simkl {
                 .post(body.toRequestBody("application/json".toMediaType()))
                 .build()
             val resp = okHttpClient.newCall(request).execute()
-            ani.sanin.util.Logger.log("Simkl.addToHistory: HTTP ${resp.code} type=$type title=$title s=${season}e=${episode} body=${body.take(200)}")
+            val respBody = resp.body?.string()?.take(300)
+            ani.sanin.util.Logger.log("Simkl.addToHistory: HTTP ${resp.code} type=$type title=$title s=${season}e=${episode} resp=$respBody")
         }
     }
 
@@ -354,33 +337,64 @@ object Simkl {
     ) {
         tryWithSuspend {
             val t = token ?: return@tryWithSuspend
-            val ids = ScrobbleIds(tmdb = tmdbId, imdb = imdbId)
-            val item = if (type == "tv") {
-                ScrobbleItem(
-                    show = ScrobbleShow(
-                        title = title,
-                        year = year,
-                        ids = ids
-                    )
-                )
+            // Use /sync/ratings or /sync/add-to-list for status changes
+            val body = if (type == "tv") {
+                """{"shows":[{"ids":{"tmdb":${tmdbId ?: 0}${if (!imdbId.isNullOrBlank()) ","imdb":"$imdbId"" else ""}},"user_status":"$status"}]}"""
             } else {
-                ScrobbleItem(
-                    movie = ScrobbleMovie(
-                        title = title,
-                        year = year,
-                        ids = ids
-                    )
-                )
+                """{"movies":[{"ids":{"tmdb":${tmdbId ?: 0}${if (!imdbId.isNullOrBlank()) ","imdb":"$imdbId"" else ""}},"user_status":"$status"}]}"""
             }
-            val request = Request.Builder()
-                .url("$BASE/sync/history")
-                .addHeader("Authorization", "Bearer $t")
-                .addHeader("simkl-api-key", clientId)
-                .addHeader("Content-Type", "application/json")
-                .post(json.encodeToString(ScrobbleItem.serializer(), item).toRequestBody("application/json".toMediaType()))
-                .build()
-            val resp = okHttpClient.newCall(request).execute()
-            ani.sanin.util.Logger.log("Simkl.setListStatus: HTTP ${resp.code} status=$status title=$title")
+            // Try /sync/add-to-list first (for adding with status)
+            var resp = okHttpClient.newCall(
+                Request.Builder()
+                    .url("$BASE/sync/add-to-list")
+                    .addHeader("Authorization", "Bearer $t")
+                    .addHeader("simkl-api-key", clientId)
+                    .addHeader("Content-Type", "application/json")
+                    .post(body.toRequestBody("application/json".toMediaType()))
+                    .build()
+            ).execute()
+            ani.sanin.util.Logger.log("Simkl.setListStatus: /sync/add-to-list HTTP ${resp.code} status=$status title=$title resp=${resp.body?.string()?.take(200)}")
+            // If that failed, also try /sync/history
+            if (resp.code !in 200..299) {
+                resp = okHttpClient.newCall(
+                    Request.Builder()
+                        .url("$BASE/sync/history")
+                        .addHeader("Authorization", "Bearer $t")
+                        .addHeader("simkl-api-key", clientId)
+                        .addHeader("Content-Type", "application/json")
+                        .post(body.toRequestBody("application/json".toMediaType()))
+                        .build()
+                ).execute()
+                ani.sanin.util.Logger.log("Simkl.setListStatus: /sync/history HTTP ${resp.code} status=$status title=$title resp=${resp.body?.string()?.take(200)}")
+            }
+        }
+    }
+
+
+    /** Add item to Simkl watchlist with "watching" status (called on first scrobble start). */
+    suspend fun addToWatchlist(
+        type: String,
+        tmdbId: Int? = null,
+        imdbId: String? = null
+    ) {
+        tryWithSuspend {
+            val t = token ?: return@tryWithSuspend
+            val body = if (type == "tv") {
+                """{"shows":[{"ids":{"tmdb":${tmdbId ?: 0}${if (!imdbId.isNullOrBlank()) ","imdb":"$imdbId"" else ""}},"user_status":"watching"}]}"""
+            } else {
+                """{"movies":[{"ids":{"tmdb":${tmdbId ?: 0}${if (!imdbId.isNullOrBlank()) ","imdb":"$imdbId"" else ""}},"user_status":"watching"}]}"""
+            }
+            val resp = okHttpClient.newCall(
+                Request.Builder()
+                    .url("$BASE/sync/add-to-list")
+                    .addHeader("Authorization", "Bearer $t")
+                    .addHeader("simkl-api-key", clientId)
+                    .addHeader("Content-Type", "application/json")
+                    .post(body.toRequestBody("application/json".toMediaType()))
+                    .build()
+            ).execute()
+            val respBody = resp.body?.string()?.take(200)
+            ani.sanin.util.Logger.log("Simkl.addToWatchlist: HTTP ${resp.code} type=$type tmdb=$tmdbId resp=$respBody")
         }
     }
 
