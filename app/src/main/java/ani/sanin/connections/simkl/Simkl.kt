@@ -470,7 +470,7 @@ object Simkl {
         val simkl: Int? = null,
         val tmdb: Int? = null,
         val imdb: String? = null
-    )
+) : java.io.Serializable
 
     @Serializable
     data class SimklHistory(
@@ -480,25 +480,53 @@ object Simkl {
 
     @Serializable
     data class SimklWatchedItem(
-        val title: String? = null,
-        val year: Int? = null,
-        val poster: String? = null,
-        val ids: ScrobbleIds? = null,
-        val lastWatchedAt: Long? = null,
-        val lastWatchedEpisode: Int? = null,
+        // Top-level fields from /sync/all-items response
+        val status: String? = null,
+        @SerialName("added_to_watchlist_at") val addedToWatchlistAt: String? = null,
+        @SerialName("last_watched_at") val lastWatchedAt: String? = null,
+        @SerialName("user_rated_at") val userRatedAt: String? = null,
+        @SerialName("user_rating") val userRating: Int? = null,
+        @SerialName("last_watched") val lastWatched: String? = null,
+        @SerialName("next_to_watch") val nextToWatch: String? = null,
+        @SerialName("last_watched_episode") val lastWatchedEpisode: Int? = null,
         val totalEpisodes: Int? = null,
         val type: String? = null,
         val season: Int? = null,
         val episodes: List<SimklWatchedEpisode>? = null,
-        @SerialName("watching_status") val status: String? = null
-    )
+        // Nested show/movie objects from API response
+        val show: SimklShowData? = null,
+        val movie: SimklMovieData? = null
+    ) : java.io.Serializable {
+        // Computed properties that flatten nested data for UI consumption
+        val title: String? get() = show?.title ?: movie?.title
+        val year: Int? get() = show?.year ?: movie?.year
+        val poster: String? get() = show?.poster ?: movie?.poster
+        val ids: ScrobbleIds? get() = show?.ids ?: movie?.ids
+        val mediaType: String? get() = if (show != null) "tv" else if (movie != null) "movie" else type
+    }
+
+    @Serializable
+    data class SimklShowData(
+        val title: String? = null,
+        val year: Int? = null,
+        val poster: String? = null,
+        val ids: ScrobbleIds? = null
+) : java.io.Serializable
+
+    @Serializable
+    data class SimklMovieData(
+        val title: String? = null,
+        val year: Int? = null,
+        val poster: String? = null,
+        val ids: ScrobbleIds? = null
+) : java.io.Serializable
 
     @Serializable
     data class SimklWatchedEpisode(
         val number: Int? = null,
         val aired: Int? = null,
         val completed: Boolean? = null
-    )
+) : java.io.Serializable
 
     @Serializable
     data class SimklLibrary(

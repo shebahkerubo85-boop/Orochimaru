@@ -37,6 +37,7 @@
     <string name="language_code" translatable="false">LANG</string>
 
     <string name="anime_list">Anime List</string>
+    <string name="simkl_library">Simkl Library</string>
     <string name="manga_list">Manga List</string>
 
     <string name="sad">X(</string>

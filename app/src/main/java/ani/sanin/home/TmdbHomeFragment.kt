@@ -274,7 +274,7 @@ class TmdbHomeFragment : Fragment() {
             layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
             adapter = SimklContinueAdapter(items) { item ->
                 val tmdbId = item.ids?.tmdb ?: return@SimklContinueAdapter
-                val mediaType = if (item.type == "movie") "movie" else "tv"
+                val mediaType = item.mediaType ?: "tv"
                 startActivity(
                     Intent(requireContext(), ani.sanin.cloudstream.TmdbWatchActivity::class.java)
                         .putExtra(ani.sanin.cloudstream.TmdbWatchActivity.ARG_MEDIA_TYPE, mediaType)
