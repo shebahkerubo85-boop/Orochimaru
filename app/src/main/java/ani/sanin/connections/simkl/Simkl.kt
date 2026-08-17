@@ -155,8 +155,10 @@ object Simkl {
         return try {
             val request = Request.Builder()
                 .url("$BASE/users/settings")
+                .post("".toRequestBody("application/json".toMediaType()))
                 .addHeader("Authorization", "Bearer $t")
                 .addHeader("simkl-api-key", clientId)
+                .addHeader("Content-Type", "application/json")
                 .build()
             val response = okHttpClient.newCall(request).execute()
             val body = response.body?.string()
@@ -168,7 +170,7 @@ object Simkl {
             val user = json.decodeFromString(SimklUser.serializer(), body)
             username = user.user?.name
             avatar = user.user?.avatar?.full
-            userid = user.user?.ids?.slug
+            userid = user.account?.id?.toString() ?: user.user?.ids?.slug
             ani.sanin.util.Logger.log("Simkl.fetchUserData: name=$username avatar=${avatar?.take(80)} userid=$userid")
             PrefManager.setVal(PrefName.SimklUserName, username ?: "")
             PrefManager.setVal(PrefName.SimklAvatar, avatar ?: "")
@@ -270,18 +272,79 @@ object Simkl {
         } ?: emptyList<SimklWatchedItem>()
     }
 
-    /** Get full library */
+    /** Get full library (movies + shows) */
     suspend fun getLibrary(): SimklLibrary? {
-        return tryWithSuspend {
-            val t = token ?: return@tryWithSuspend null
+        val t = token
+        if (t == null) {
+            ani.sanin.util.Logger.log("Simkl.getLibrary: token is null")
+            return null
+        }
+        return try {
             val request = Request.Builder()
                 .url("$BASE/sync/all-items")
+                .post("".toRequestBody("application/json".toMediaType()))
                 .addHeader("Authorization", "Bearer $t")
                 .addHeader("simkl-api-key", clientId)
+                .addHeader("Content-Type", "application/json")
                 .build()
             val response = okHttpClient.newCall(request).execute()
-            val body = response.body?.string() ?: return@tryWithSuspend null
+            val body = response.body?.string()
+            ani.sanin.util.Logger.log("Simkl.getLibrary: HTTP ${response.code} body=${body?.take(200)}")
+            if (response.code != 200 || body == null) {
+                ani.sanin.logError(Exception("Simkl.getLibrary: HTTP ${response.code}"), snackbar = false)
+                return null
+            }
             json.decodeFromString(SimklLibrary.serializer(), body)
+        } catch (e: Exception) {
+            ani.sanin.logError(e, snackbar = false)
+            ani.sanin.util.Logger.log("Simkl.getLibrary: exception ${e.message}")
+            null
+        }
+    }
+
+    /** Get movie library list */
+    suspend fun getMovieLibrary(): List<SimklWatchedItem> {
+        val t = token ?: return emptyList()
+        return try {
+            val request = Request.Builder()
+                .url("$BASE/sync/all-items/movies")
+                .post("".toRequestBody("application/json".toMediaType()))
+                .addHeader("Authorization", "Bearer $t")
+                .addHeader("simkl-api-key", clientId)
+                .addHeader("Content-Type", "application/json")
+                .build()
+            val response = okHttpClient.newCall(request).execute()
+            val body = response.body?.string() ?: return emptyList()
+            if (response.code != 200) return emptyList()
+            val json = org.json.JSONObject(body)
+            val movies = json.optJSONArray("movies") ?: return emptyList()
+            kotlinx.serialization.json.Json.decodeFromString<List<SimklWatchedItem>>(movies.toString())
+        } catch (e: Exception) {
+            ani.sanin.util.Logger.log("Simkl.getMovieLibrary: ${e.message}")
+            emptyList()
+        }
+    }
+
+    /** Get show library list */
+    suspend fun getShowLibrary(): List<SimklWatchedItem> {
+        val t = token ?: return emptyList()
+        return try {
+            val request = Request.Builder()
+                .url("$BASE/sync/all-items/shows")
+                .post("".toRequestBody("application/json".toMediaType()))
+                .addHeader("Authorization", "Bearer $t")
+                .addHeader("simkl-api-key", clientId)
+                .addHeader("Content-Type", "application/json")
+                .build()
+            val response = okHttpClient.newCall(request).execute()
+            val body = response.body?.string() ?: return emptyList()
+            if (response.code != 200) return emptyList()
+            val json = org.json.JSONObject(body)
+            val shows = json.optJSONArray("shows") ?: return emptyList()
+            kotlinx.serialization.json.Json.decodeFromString<List<SimklWatchedItem>>(shows.toString())
+        } catch (e: Exception) {
+            ani.sanin.util.Logger.log("Simkl.getShowLibrary: ${e.message}")
+            emptyList()
         }
     }
 
@@ -318,7 +381,13 @@ object Simkl {
 
     @Serializable
     data class SimklUser(
-        val user: SimklUserInner? = null
+        val user: SimklUserInner? = null,
+        val account: SimklAccount? = null
+    )
+
+    @Serializable
+    data class SimklAccount(
+        val id: Int? = null
     )
 
     @Serializable
