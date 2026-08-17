@@ -262,18 +262,35 @@ object Simkl {
 
     /** Get continue watching (in progress) items from Simkl library */
     suspend fun getContinueWatching(): List<SimklWatchedItem> {
-        return tryWithSuspend {
-            val t = token ?: return@tryWithSuspend emptyList()
+        val t = token
+        if (t == null) {
+            ani.sanin.util.Logger.log("Simkl.getContinueWatching: token is null")
+            return emptyList()
+        }
+        return try {
             val request = Request.Builder()
                 .url("$BASE/sync/history")
+                .post("".toRequestBody("application/json".toMediaType()))
                 .addHeader("Authorization", "Bearer $t")
                 .addHeader("simkl-api-key", clientId)
+                .addHeader("Content-Type", "application/json")
                 .build()
             val response = okHttpClient.newCall(request).execute()
-            val body = response.body?.string() ?: return@tryWithSuspend emptyList()
+            val body = response.body?.string()
+            ani.sanin.util.Logger.log("Simkl.getContinueWatching: HTTP ${response.code} body=${body?.take(200)}")
+            if (response.code != 200 || body == null) {
+                ani.sanin.logError(Exception("Simkl.getContinueWatching: HTTP ${response.code}"), snackbar = false)
+                return emptyList()
+            }
             val history = json.decodeFromString(SimklHistory.serializer(), body)
-            (history.movies.orEmpty<SimklWatchedItem>()) + history.shows.orEmpty<SimklWatchedItem>()
-        } ?: emptyList<SimklWatchedItem>()
+            val items = (history.movies.orEmpty<SimklWatchedItem>()) + history.shows.orEmpty<SimklWatchedItem>()
+            ani.sanin.util.Logger.log("Simkl.getContinueWatching: ${items.size} items")
+            items
+        } catch (e: Exception) {
+            ani.sanin.logError(e, snackbar = false)
+            ani.sanin.util.Logger.log("Simkl.getContinueWatching: exception ${e.message}")
+            emptyList()
+        }
     }
 
     /** Get full library (movies + shows) */
