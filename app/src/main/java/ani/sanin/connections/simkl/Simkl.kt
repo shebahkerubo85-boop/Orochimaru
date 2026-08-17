@@ -333,7 +333,10 @@ object Simkl {
             ani.sanin.util.Logger.log("Simkl.getMovieLibrary: HTTP ${response.code} body=${body.take(200)}")
             val root = org.json.JSONObject(body)
             val movies = root.optJSONArray("movies") ?: return emptyList()
-            json.decodeFromString<List<SimklWatchedItem>>(movies.toString())
+            ani.sanin.util.Logger.log("Simkl.getMovieLibrary: raw first item=${movies.optJSONObject(0)?.toString()?.take(300)}")
+            val parsed = json.decodeFromString<List<SimklWatchedItem>>(movies.toString())
+            ani.sanin.util.Logger.log("Simkl.getMovieLibrary: parsed ${parsed.size} items, first title=${parsed.firstOrNull()?.title} poster=${parsed.firstOrNull()?.poster?.take(50)} movie=${parsed.firstOrNull()?.movie != null}")
+            parsed
         } catch (e: Exception) {
             ani.sanin.util.Logger.log("Simkl.getMovieLibrary: ${e.message}")
             emptyList()
@@ -357,7 +360,10 @@ object Simkl {
             ani.sanin.util.Logger.log("Simkl.getShowLibrary: HTTP ${response.code} body=${body.take(200)}")
             val root = org.json.JSONObject(body)
             val shows = root.optJSONArray("shows") ?: return emptyList()
-            json.decodeFromString<List<SimklWatchedItem>>(shows.toString())
+            ani.sanin.util.Logger.log("Simkl.getShowLibrary: raw first item=${shows.optJSONObject(0)?.toString()?.take(300)}")
+            val parsed = json.decodeFromString<List<SimklWatchedItem>>(shows.toString())
+            ani.sanin.util.Logger.log("Simkl.getShowLibrary: parsed ${parsed.size} items, first title=${parsed.firstOrNull()?.title} poster=${parsed.firstOrNull()?.poster?.take(50)} show=${parsed.firstOrNull()?.show != null}")
+            parsed
         } catch (e: Exception) {
             ani.sanin.util.Logger.log("Simkl.getShowLibrary: ${e.message}")
             emptyList()
