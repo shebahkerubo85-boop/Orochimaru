@@ -357,6 +357,11 @@ class TmdbHomeFragment : Fragment() {
         val item = bannerItems.getOrNull(index) ?: return
         bannerIndex = index
         binding.tmdbBannerImage.loadImage(item.bannerUrl)
+        // Live stream posters are portrait - use fitCenter to show full image
+        binding.tmdbBannerImage.scaleType = when (item) {
+            is BannerItem.Plugin -> android.widget.ImageView.ScaleType.FIT_CENTER
+            else -> android.widget.ImageView.ScaleType.CENTER_CROP
+        }
         val meta = buildString {
             if (item is BannerItem.Tmdb && item.media.voteAverage > 0)
                 append("★ ").append(String.format("%.1f", item.media.voteAverage)).append("  •  ")
@@ -571,6 +576,10 @@ class TmdbHomeFragment : Fragment() {
             }
             b.tmdbCard.radius = TmdbCards.roundness()
             b.tmdbCardPoster.loadImage(item.posterUrl, if (landscape || isLive) 780 else 300)
+            // Live cards: fitCenter to show full poster without cropping
+            if (isLive) {
+                b.tmdbCardPoster.scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            }
             b.tmdbCardTitle.text = item.name
             b.tmdbCardTitle.isVisible = true
             b.tmdbCardYear.text = ""
