@@ -423,6 +423,9 @@ object TmdbStreamResolver {
     /** Plugin name backing a synthetic media id, shown in the server sheet. */
     fun syntheticSourceName(syntheticId: Int): String? = sessions[syntheticId]?.source?.name
 
+    /** Public accessor for the synthetic session (used by ExoplayerView for Simkl scrobble). */
+    fun sessionFor(syntheticId: Int): SyntheticSession? = sessions[syntheticId]
+
     /** Drops every cached server sheet for a title — used when the user switches
      *  plugins so stale links from the previous source are never shown. */
     fun invalidateLinks(mediaId: Int) {

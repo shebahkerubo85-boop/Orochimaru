@@ -119,6 +119,8 @@ import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.crashlytics.CrashlyticsInterface
 import ani.sanin.connections.mal.MAL
 import ani.sanin.connections.updateProgress
+import ani.sanin.connections.simkl.Simkl
+import ani.sanin.cloudstream.TmdbStreamResolver
 import ani.sanin.databinding.ActivityExoplayerBinding
 import ani.sanin.defaultHeaders
 import ani.sanin.dp
@@ -1773,17 +1775,15 @@ class ExoplayerView :
             } else {
                 false
             }
-        if (!incognito &&
-            showProgressDialog &&
-            Anilist.userid != null &&
-            if (media.isAdult) {
-                PrefManager.getVal(
-                    PrefName.UpdateForHPlayer,
-                )
-            } else {
-                true
-            }
-        ) {
+        // For TMDB content: show auto-update dialog for Simkl
+        val isTmdbContent = media.id < 0
+        val shouldShowDialog = if (isTmdbContent) {
+            !incognito && showProgressDialog && Simkl.token != null
+        } else {
+            !incognito && showProgressDialog && Anilist.userid != null &&
+                if (media.isAdult) PrefManager.getVal(PrefName.UpdateForHPlayer) else true
+        }
+        if (shouldShowDialog) {
             customAlertDialog().apply {
                 setTitle(getString(R.string.auto_update, media.userPreferredName))
                 setCancelable(false)
@@ -3365,6 +3365,29 @@ class ExoplayerView :
                 }
             }
         }
+        // Simkl scrobble for TMDB content (synthetic media with id < 0)
+        if (media.id < 0 && Simkl.token != null) {
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                val session = TmdbStreamResolver.sessionFor(media.id) ?: return@launch
+                val d = session.detail
+                val title = d.displayTitle
+                val year = d.year.toIntOrNull()
+                val tmdbId = d.id
+                val imdbId = d.externalIds?.imdbId
+                val epStr = media.anime?.selectedEpisode
+                val parts = epStr?.split("E") ?: emptyList()
+                val season = if (parts.size == 2) parts[0].removePrefix("S").toIntOrNull() else null
+                val episode = epStr?.substringAfter("E")?.toIntOrNull()
+                val type = if (session.mediaType == "tv") "tv" else "movie"
+                if (isPlaying) {
+                    Logger.log("Simkl: scrobbleStart type=$type title=$title s=$season e=$episode")
+                    Simkl.scrobbleStart(type, title, year, tmdbId, imdbId, season, episode)
+                } else {
+                    Logger.log("Simkl: scrobbleStop type=$type title=$title s=$season e=$episode")
+                    Simkl.scrobbleStop(type, title, year, tmdbId, imdbId, season, episode)
+                }
+            }
+        }
     }
 
     override fun onPositionDiscontinuity(
@@ -3945,9 +3968,41 @@ class ExoplayerView :
     }
 
     private fun updateAniProgress() {
-        // Synthetic TMDB streams use a negative id — never sync progress for them.
-        if (media.id < 0) return
         val incognito: Boolean = PrefManager.getVal(PrefName.Incognito)
+        
+        // TMDB content (synthetic id < 0): track on Simkl
+        if (media.id < 0) {
+            if (episodeLength <= 0f || incognito || Simkl.token == null) return
+            val currentPos = exoPlayer.currentPosition
+            val episodeEnd = currentPos / episodeLength > PrefManager.getVal<Float>(PrefName.WatchPercentage)
+            if (episodeEnd) {
+                val alreadyTracked = PrefManager.getCustomVal("${media.id}_simkl_tracked_${media.anime?.selectedEpisode}", false, Boolean::class.java) ?: false
+                if (!alreadyTracked) {
+                    PrefManager.setCustomVal("${media.id}_simkl_tracked_${media.anime?.selectedEpisode}", true)
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                        val session = TmdbStreamResolver.sessionFor(media.id) ?: return@launch
+                        val d = session.detail
+                        val title = d.displayTitle
+                        val year = d.year.toIntOrNull()
+                        val tmdbId = d.id
+                        val imdbId = d.externalIds?.imdbId
+                        val epStr = media.anime?.selectedEpisode
+                        val parts = epStr?.split("E") ?: emptyList()
+                        val season = if (parts.size == 2) parts[0].removePrefix("S").toIntOrNull() else null
+                        val episode = epStr?.substringAfter("E")?.toIntOrNull()
+                        val type = if (session.mediaType == "tv") "tv" else "movie"
+                        Logger.log("Simkl: addToHistory type=$type title=$title s=$season e=$episode")
+                        Simkl.addToHistory(type, title, year, tmdbId, imdbId, season, episode)
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            toast("${title} marked as watched on Simkl")
+                        }
+                    }
+                }
+            }
+            return
+        }
+        
+        // AniList tracking (original path for anime)
         if (episodeLength <= 0f) {
             maybeHandleSubscriptionAfterEpisodeCompletion(false, incognito)
             return

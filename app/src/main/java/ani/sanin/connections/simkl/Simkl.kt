@@ -194,27 +194,40 @@ object Simkl {
         type: String,
         title: String,
         year: Int?,
-        season: Int?,
-        episode: Int,
-        durationSec: Int
+        tmdbId: Int? = null,
+        imdbId: String? = null,
+        season: Int? = null,
+        episode: Int? = null,
+        durationSec: Int = 0
     ) {
         tryWithSuspend {
             val t = token ?: return@tryWithSuspend
-            val item = ScrobbleItem(
-                show = ScrobbleShow(
-                    title = title,
-                    year = year,
-                    ids = null,
-                    seasons = listOf(
-                        ScrobbleSeason(
-                            number = season,
-                            episodes = listOf(
-                                ScrobbleEpisode(number = episode)
+            val ids = ScrobbleIds(tmdb = tmdbId, imdb = imdbId)
+            val item = if (type == "tv") {
+                ScrobbleItem(
+                    show = ScrobbleShow(
+                        title = title,
+                        year = year,
+                        ids = ids,
+                        seasons = listOf(
+                            ScrobbleSeason(
+                                number = season ?: 1,
+                                episodes = listOf(
+                                    ScrobbleEpisode(number = episode ?: 1)
+                                )
                             )
                         )
                     )
                 )
-            )
+            } else {
+                ScrobbleItem(
+                    movie = ScrobbleMovie(
+                        title = title,
+                        year = year,
+                        ids = ids
+                    )
+                )
+            }
             val request = Request.Builder()
                 .url("$BASE/scrobble/start")
                 .addHeader("Authorization", "Bearer $t")
@@ -222,7 +235,8 @@ object Simkl {
                 .addHeader("Content-Type", "application/json")
                 .post(json.encodeToString(ScrobbleItem.serializer(), item).toRequestBody("application/json".toMediaType()))
                 .build()
-            okHttpClient.newCall(request).execute().use { }
+            val resp = okHttpClient.newCall(request).execute()
+            ani.sanin.util.Logger.log("Simkl.scrobbleStart: HTTP ${resp.code} type=$type title=$title")
         }
     }
 
@@ -230,27 +244,40 @@ object Simkl {
         type: String,
         title: String,
         year: Int?,
-        season: Int?,
-        episode: Int,
-        durationSec: Int
+        tmdbId: Int? = null,
+        imdbId: String? = null,
+        season: Int? = null,
+        episode: Int? = null,
+        durationSec: Int = 0
     ) {
         tryWithSuspend {
             val t = token ?: return@tryWithSuspend
-            val item = ScrobbleItem(
-                show = ScrobbleShow(
-                    title = title,
-                    year = year,
-                    ids = null,
-                    seasons = listOf(
-                        ScrobbleSeason(
-                            number = season,
-                            episodes = listOf(
-                                ScrobbleEpisode(number = episode)
+            val ids = ScrobbleIds(tmdb = tmdbId, imdb = imdbId)
+            val item = if (type == "tv") {
+                ScrobbleItem(
+                    show = ScrobbleShow(
+                        title = title,
+                        year = year,
+                        ids = ids,
+                        seasons = listOf(
+                            ScrobbleSeason(
+                                number = season ?: 1,
+                                episodes = listOf(
+                                    ScrobbleEpisode(number = episode ?: 1)
+                                )
                             )
                         )
                     )
                 )
-            )
+            } else {
+                ScrobbleItem(
+                    movie = ScrobbleMovie(
+                        title = title,
+                        year = year,
+                        ids = ids
+                    )
+                )
+            }
             val request = Request.Builder()
                 .url("$BASE/scrobble/stop")
                 .addHeader("Authorization", "Bearer $t")
@@ -258,11 +285,87 @@ object Simkl {
                 .addHeader("Content-Type", "application/json")
                 .post(json.encodeToString(ScrobbleItem.serializer(), item).toRequestBody("application/json".toMediaType()))
                 .build()
-            okHttpClient.newCall(request).execute().use { }
+            val resp = okHttpClient.newCall(request).execute()
+            ani.sanin.util.Logger.log("Simkl.scrobbleStop: HTTP ${resp.code} type=$type title=$title")
         }
     }
 
-    /** Get continue watching (in progress) items from Simkl library */
+    /** Mark episodes as watched on Simkl (adds to history + updates library status). */
+    suspend fun addToHistory(
+        type: String,
+        title: String,
+        year: Int?,
+        tmdbId: Int? = null,
+        imdbId: String? = null,
+        season: Int? = null,
+        episode: Int? = null
+    ) {
+        tryWithSuspend {
+            val t = token ?: return@tryWithSuspend
+            val ids = ScrobbleIds(tmdb = tmdbId, imdb = imdbId)
+            val body = if (type == "tv") {
+                val epList = if (episode != null) listOf(ScrobbleEpisode(number = episode)) else null
+                val seasonList = if (season != null || epList != null) listOf(
+                    ScrobbleSeason(number = season ?: 1, episodes = epList)
+                ) else null
+                json.encodeToString(
+                    SimklHistory.serializer(),
+                    SimklHistory(
+                        shows = listOf(
+                            SimklWatchedItem(
+                                show = SimklShowData(title = title, year = year, ids = ids),
+                                episodes = seasonList?.flatMap { it.episodes.orEmpty().map { ep -> SimklWatchedEpisode(number = ep.number) } }
+                            )
+                        )
+                    )
+                )
+            } else {
+                json.encodeToString(
+                    SimklHistory.serializer(),
+                    SimklHistory(
+                        movies = listOf(
+                            SimklWatchedItem(
+                                movie = SimklMovieData(title = title, year = year, ids = ids)
+                            )
+                        )
+                    )
+                )
+            }
+            val request = Request.Builder()
+                .url("$BASE/sync/history")
+                .addHeader("Authorization", "Bearer $t")
+                .addHeader("simkl-api-key", clientId)
+                .addHeader("Content-Type", "application/json")
+                .post(body.toRequestBody("application/json".toMediaType()))
+                .build()
+            val resp = okHttpClient.newCall(request).execute()
+            ani.sanin.util.Logger.log("Simkl.addToHistory: HTTP ${resp.code} type=$type title=$title s=${season}e=${episode}")
+        }
+    }
+
+    /** Get the user's list status for a specific show/movie from Simkl library. */
+    suspend fun getMediaStatus(
+        type: String,
+        tmdbId: Int? = null,
+        imdbId: String? = null
+    ): String? {
+        val t = token ?: return null
+        return try {
+            val items = if (type == "tv") getShowLibrary() else getMovieLibrary()
+            items.firstOrNull { item ->
+                val ids = item.ids
+                ids != null && (
+                    (tmdbId != null && ids.tmdb == tmdbId) ||
+                    (imdbId != null && ids.imdb == imdbId)
+                )
+            }?.status
+        } catch (e: Exception) {
+            ani.sanin.util.Logger.log("Simkl.getMediaStatus: ${e.message}")
+            null
+        }
+    }
+
+        /** Get continue watching (in progress) items from Simkl library */
     suspend fun getContinueWatching(): List<SimklWatchedItem> {
         val t = token
         if (t == null) {

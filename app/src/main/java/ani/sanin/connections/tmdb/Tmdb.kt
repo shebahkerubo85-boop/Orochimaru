@@ -141,7 +141,7 @@ object Tmdb {
         return "$BASE$path?$q"
     }
 
-    private suspend fun get(path: String, vararg query: Pair<String, String>): String? =
+    internal suspend fun get(path: String, vararg query: Pair<String, String>): String? =
         withContext(Dispatchers.IO) {
             runCatching {
                 val request = Request.Builder().url(url(path, *query)).build()

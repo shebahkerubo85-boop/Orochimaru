@@ -15,6 +15,10 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import ani.sanin.media.anime.Anime
+import ani.sanin.connections.tmdb.Tmdb
+import ani.sanin.connections.simkl.Simkl
+import java.util.concurrent.TimeUnit
+import ani.sanin.connections.tmdb.TmdbMedia
 
 class OtherDetailsViewModel : ViewModel() {
     private val character: MutableLiveData<Character> = MutableLiveData(null)
@@ -285,12 +289,96 @@ class OtherDetailsViewModel : ViewModel() {
     private val calendar: MutableLiveData<Map<String, MutableList<Media>>> = MutableLiveData(null)
     fun getCalendar(): LiveData<Map<String, MutableList<Media>>> = calendar
     suspend fun loadCalendar(showOnlyLibrary: Boolean = false) {
+        val isMovieMode = PrefManager.getVal<String>(PrefName.ContentMode) == "movie_tv"
+        if (isMovieMode) {
+            loadCalendarForMovieMode()
+            return
+        }
         val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
         if (rescueMode) {
             loadCalendarFromJikan(showOnlyLibrary)
         } else {
             loadCalendarFromAnilist(showOnlyLibrary)
         }
+    }
+
+    /** Load calendar for movie/TV mode from TMDB + Simkl. */
+    private suspend fun loadCalendarForMovieMode() {
+        val allMap = mutableMapOf<String, MutableList<Media>>()
+        val df = DateFormat.getDateInstance(DateFormat.FULL)
+        val tf = DateFormat.getTimeInstance(DateFormat.SHORT)
+
+        // Fetch Simkl library for status info
+        val simklShows = try { Simkl.getShowLibrary() } catch (_: Exception) { emptyList() }
+        val simklMovies = try { Simkl.getMovieLibrary() } catch (_: Exception) { emptyList() }
+        val simklIdMap = mutableMapOf<Int, String>() // tmdbId -> status
+        simklShows.filter { it.status != null }.forEach { item ->
+            item.ids?.tmdb?.let { simklIdMap[it] = item.status!! }
+        }
+        simklMovies.filter { it.status != null }.forEach { item ->
+            item.ids?.tmdb?.let { simklIdMap[it] = item.status!! }
+        }
+
+        // TMDB: TV airing today + on the air + upcoming movies
+        val tvAiring = try { Tmdb.get("/tv/airing_today") ?: "" } catch (_: Exception) { "" }
+        val tvOnAir = try { Tmdb.get("/tv/on_the_air") ?: "" } catch (_: Exception) { "" }
+        val movieUpcoming = try { Tmdb.get("/movie/upcoming") ?: "" } catch (_: Exception) { "" }
+
+        fun parseTmdbResults(jsonStr: String, mediaType: String): List<Triple<Int, String, String>> {
+            if (jsonStr.isBlank()) return emptyList()
+            return try {
+                val root = org.json.JSONObject(jsonStr)
+                val arr = root.optJSONArray("results") ?: return emptyList()
+                val results = mutableListOf<Triple<Int, String, String>>() // (id, title, airDate)
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    val id = obj.optInt("id", 0)
+                    val title = obj.optString("name", obj.optString("title", "Unknown"))
+                    val dateStr = if (mediaType == "tv") {
+                        obj.optString("first_air_date", "")
+                    } else {
+                        obj.optString("release_date", "")
+                    }
+                    if (dateStr.isNotBlank() && dateStr.length >= 10) {
+                        results.add(Triple(id, title, dateStr))
+                    }
+                }
+                results
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+
+        // Parse and group by date
+        val items = mutableListOf<Triple<Int, String, String>>() // (tmdbId, title, date)
+        items.addAll(parseTmdbResults(tvAiring, "tv"))
+        items.addAll(parseTmdbResults(tvOnAir, "tv"))
+        items.addAll(parseTmdbResults(movieUpcoming, "movie"))
+
+        for ((tmdbId, title, dateStr) in items) {
+            try {
+                val dateParts = dateStr.split("-")
+                if (dateParts.size < 3) continue
+                val cal = Calendar.getInstance()
+                cal.set(dateParts[0].toInt(), dateParts[1].toInt() - 1, dateParts[2].toInt(), 0, 0, 0)
+                val dateInfo = df.format(cal.time)
+                val media = Media(
+                    id = tmdbId,
+                    name = title,
+                    nameRomaji = title,
+                    userPreferredName = title,
+                    isAdult = false,
+                    anime = null,
+                    status = simklIdMap[tmdbId]
+                )
+                media.relation = title
+                allMap.getOrPut(dateInfo) { mutableListOf() }.add(media)
+            } catch (_: Exception) { }
+        }
+
+        cachedAllCalendarData = allMap
+        cachedLibraryCalendarData = allMap
+        calendar.postValue(allMap)
     }
 
     private suspend fun loadCalendarFromAnilist(showOnlyLibrary: Boolean) {

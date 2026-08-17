@@ -28,6 +28,7 @@ import ani.sanin.databinding.ItemTmdbCardBinding
 import ani.sanin.databinding.ItemTmdbCastBinding
 import ani.sanin.getThemeColor
 import ani.sanin.loadImage
+import ani.sanin.connections.simkl.Simkl
 import ani.sanin.snackString
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
@@ -78,6 +79,10 @@ class TmdbDetailsActivity : AppCompatActivity() {
         binding.tmdbDetailPlayCard.setOnClickListener { onPlayClick() }
         FocusEffectUtil.applyFocusListener(binding.tmdbDetailPlayCard)
 
+        // List editor button (Simkl)
+        binding.tmdbDetailListEditorCard.setOnClickListener { onListEditorClick() }
+        FocusEffectUtil.applyFocusListener(binding.tmdbDetailListEditorCard)
+
         load()
     }
 
@@ -110,6 +115,23 @@ class TmdbDetailsActivity : AppCompatActivity() {
             }
             binding.tmdbDetailStatus.text = statusLabel(d.status)
             binding.tmdbDetailSynopsis.text = d.overview?.takeIf { it.isNotBlank() } ?: "No synopsis available."
+            // Load Simkl list status for the editor button
+            if (Simkl.token != null) {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val status = Simkl.getMediaStatus(mediaType, tmdbId = d.id, imdbId = d.externalIds?.imdbId)
+                    withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        val statusLabel = when (status) {
+                            "watching" -> "Watching"
+                            "plantowatch" -> "Plan to Watch"
+                            "completed" -> "Completed"
+                            "dropped" -> "Dropped"
+                            "hold" -> "On Hold"
+                            else -> "Add to List"
+                        }
+                        binding.tmdbDetailListEditorText.text = statusLabel
+                    }
+                }
+            }
             d.genres.take(5).forEach { genre ->
                 val chip = TextView(this@TmdbDetailsActivity).apply {
                     text = genre.name
@@ -153,6 +175,32 @@ class TmdbDetailsActivity : AppCompatActivity() {
             i.putExtra(TmdbWatchActivity.ARG_PLUGIN_URL, pluginUrl)
         }
         startActivity(i)
+    }
+
+    private fun onListEditorClick() {
+        if (Simkl.token == null) {
+            snackString("Please login to Simkl")
+            return
+        }
+        val d = detail
+        if (d == null) { snackString("Loading…"); return }
+        lifecycleScope.launch {
+            val status = withContext(Dispatchers.IO) {
+                Simkl.getMediaStatus(mediaType, tmdbId = d.id, imdbId = d.externalIds?.imdbId)
+            }
+            val fm = supportFragmentManager
+            if (fm.findFragmentByTag("simklListEditor") == null) {
+                SimklListDialogFragment.newInstance(
+                    mediaType = mediaType,
+                    mediaId = d.id,
+                    title = d.displayTitle,
+                    year = d.year.toIntOrNull(),
+                    imdbId = d.externalIds?.imdbId,
+                    coverUrl = ani.sanin.connections.tmdb.Tmdb.imageUrl(d.posterPath, 500),
+                    currentStatus = status
+                ).show(fm, "simklListEditor")
+            }
+        }
     }
 
 
@@ -203,6 +251,8 @@ class TmdbDetailsActivity : AppCompatActivity() {
             FocusEffectUtil.applyFocusListener(chip)
         }
         binding.tmdbDetailPlayText.text = getString(if (load is TvSeriesLoadResponse) R.string.watch else R.string.play)
+        // Hide list editor for plugin mode (no TMDB ID)
+        binding.tmdbDetailListEditorCard.visibility = View.GONE
     }
 
     // ── cast / more like this ───────────────────────────────────────────────
