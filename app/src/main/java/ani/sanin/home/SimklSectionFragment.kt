@@ -15,7 +15,6 @@ import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
-import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.cloudstream.TmdbCards
 import ani.sanin.cloudstream.TmdbDetailsActivity
 import ani.sanin.connections.simkl.Simkl
@@ -124,7 +123,7 @@ class SimklSectionFragment : Fragment() {
                 height = h
             }
             b.tmdbCard.radius = TmdbCards.roundness()
-            b.tmdbCardPoster.loadImage(Tmdb.imageUrl(item.poster, 300), 300)
+            b.tmdbCardPoster.loadImage(Simkl.imageUrl(item.poster), 300)
             b.tmdbCardTitle.text = item.title
             b.tmdbCardTitle.isVisible = true
             b.tmdbCardYear.text = item.year?.toString() ?: ""

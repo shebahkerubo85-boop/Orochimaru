@@ -31,6 +31,14 @@ object Simkl {
     private const val BASE = "https://api.simkl.com"
     private const val AUTH_URL = "https://simkl.com"
 
+    private const val IMG_BASE = "https://simkl.in/posters"
+
+    fun imageUrl(path: String?, size: String = "m"): String? {
+        if (path.isNullOrBlank()) return null
+        if (path.startsWith("http://") || path.startsWith("https://")) return path
+        return "$IMG_BASE/${path}_$size.jpg"
+    }
+
     var token: String? = null
     var username: String? = null
     var avatar: String? = null

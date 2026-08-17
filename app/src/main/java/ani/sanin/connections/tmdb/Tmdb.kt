@@ -258,7 +258,8 @@ object Tmdb {
         // Plugin (CloudStream) content hands us full image URLs — pass those
         // through untouched; TMDB paths are always relative fragments.
         if (path.startsWith("http://") || path.startsWith("https://")) return path
-        return "$IMG/w$width$path"
+        val slash = if (path.startsWith("/")) "" else "/"
+        return "$IMG/w$width$slash$path"
     }
 
     fun logoUrl(detail: TmdbDetail): String? = pickLogo(detail.images)
