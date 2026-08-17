@@ -209,9 +209,45 @@ class TmdbSearchActivity : AppCompatActivity() {
             b.tmdbCardPoster.updateLayoutParams<ViewGroup.LayoutParams> { width = w; height = h }
             b.tmdbCard.radius = TmdbCards.roundness()
             b.tmdbCardPoster.loadImage(item.posterUrl, if (landscape) 780 else 300)
-            b.tmdbCardTitle.text = item.name; b.tmdbCardTitle.isVisible = true
-            b.tmdbCardYear.text = ""; b.tmdbCardYear.isVisible = false
-            b.tmdbCardGradient.isVisible = false; b.tmdbCardLogo.isVisible = false; b.tmdbCardOverlayTitle.isVisible = false
+
+            val titlePos = PrefManager.getVal<Int>(PrefName.CardTitlePosition)
+            if (landscape) {
+                when (titlePos) {
+                    0 -> {
+                        b.tmdbCardGradient.isVisible = true
+                        b.tmdbCardGradient.updateLayoutParams<ViewGroup.LayoutParams> { width = w; height = h }
+                        TmdbCards.setCardGradient(b.tmdbCardGradient)
+                        b.tmdbCardOverlayTitle.isVisible = true
+                        b.tmdbCardOverlayTitle.text = item.name
+                        b.tmdbCardLogo.isVisible = false
+                        b.tmdbCardTitle.isVisible = false
+                        b.tmdbCardYear.isVisible = false
+                    }
+                    2 -> {
+                        b.tmdbCardGradient.isVisible = false
+                        b.tmdbCardOverlayTitle.isVisible = false
+                        b.tmdbCardLogo.isVisible = false
+                        b.tmdbCardTitle.isVisible = false
+                        b.tmdbCardYear.isVisible = false
+                    }
+                    else -> {
+                        b.tmdbCardGradient.isVisible = false
+                        b.tmdbCardOverlayTitle.isVisible = false
+                        b.tmdbCardLogo.isVisible = false
+                        b.tmdbCardTitle.isVisible = true
+                        b.tmdbCardTitle.text = item.name
+                        b.tmdbCardYear.isVisible = false
+                    }
+                }
+            } else {
+                b.tmdbCardGradient.isVisible = false
+                b.tmdbCardOverlayTitle.isVisible = false
+                b.tmdbCardLogo.isVisible = false
+                b.tmdbCardTitle.isVisible = true
+                b.tmdbCardTitle.text = item.name
+                b.tmdbCardYear.isVisible = false
+            }
+
             b.tmdbCardPoster.setOnClickListener { onClick(item) }
             FocusEffectUtil.applyFocusListener(b.tmdbCardPoster)
         }
