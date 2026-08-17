@@ -57,7 +57,7 @@ class TmdbHomeFragment : Fragment() {
             is Tmdb -> media.displayTitle
             is Plugin -> response.name
         }
-        val imageUrl: String? get() = when (this) {
+        val bannerUrl: String? get() = when (this) {
             is Tmdb -> Tmdb.imageUrl(media.backdropPath, 780)
             is Plugin -> response.posterUrl
         }
@@ -356,7 +356,7 @@ class TmdbHomeFragment : Fragment() {
     private fun showBanner(index: Int) {
         val item = bannerItems.getOrNull(index) ?: return
         bannerIndex = index
-        binding.tmdbBannerImage.loadImage(item.imageUrl)
+        binding.tmdbBannerImage.loadImage(item.bannerUrl)
         val meta = buildString {
             if (item is BannerItem.Tmdb && item.media.voteAverage > 0)
                 append("★ ").append(String.format("%.1f", item.media.voteAverage)).append("  •  ")
