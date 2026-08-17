@@ -272,8 +272,8 @@ class TmdbHomeFragment : Fragment() {
         }
         val list = RecyclerView(ctx).apply {
             layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
-            adapter = SimklContinueAdapter(items) { item ->
-                val tmdbId = item.ids?.tmdb ?: return@SimklContinueAdapter
+            adapter = SimklContinueWatchingLandscapeAdapter(items) { item ->
+                val tmdbId = item.ids?.tmdb ?: return@SimklContinueWatchingLandscapeAdapter
                 val mediaType = item.mediaType ?: "tv"
                 startActivity(
                     Intent(requireContext(), ani.sanin.cloudstream.TmdbWatchActivity::class.java)
@@ -516,49 +516,6 @@ class TmdbHomeFragment : Fragment() {
                 .putExtra(TmdbDetailsActivity.ARG_MEDIA_TYPE, mediaType)
                 .putExtra(TmdbDetailsActivity.ARG_MEDIA_ID, id)
         )
-    }
-
-    /** Adapter for Simkl continue watching items. */
-    class SimklContinueAdapter(
-        private val items: List<Simkl.SimklWatchedItem>,
-        private val onClick: (Simkl.SimklWatchedItem) -> Unit
-    ) : RecyclerView.Adapter<SimklContinueAdapter.VH>() {
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-            val b = ItemTmdbCardBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-            return VH(b)
-        }
-
-        override fun onBindViewHolder(holder: VH, position: Int) {
-            val item = items[position]
-            val b = holder.binding
-            val landscape = TmdbCards.isLandscapeOrientation()
-            val size = TmdbCards.cardSize()
-            val (w, h) = if (landscape) {
-                (260f * size).toInt() to (148f * size).toInt()
-            } else {
-                (102f * size).toInt() to (154f * size).toInt()
-            }
-            b.tmdbCardPoster.updateLayoutParams<ViewGroup.LayoutParams> {
-                width = w
-                height = h
-            }
-            b.tmdbCard.radius = TmdbCards.roundness()
-            b.tmdbCardPoster.loadImage(item.poster?.replace("original", "w500"), 300)
-            b.tmdbCardTitle.text = item.title
-            b.tmdbCardTitle.isVisible = true
-            b.tmdbCardYear.text = item.year?.toString() ?: ""
-            b.tmdbCardYear.isVisible = item.year != null
-            b.tmdbCardGradient.isVisible = false
-            b.tmdbCardLogo.isVisible = false
-            b.tmdbCardOverlayTitle.isVisible = false
-            b.tmdbCardPoster.setOnClickListener { onClick(item) }
-            FocusEffectUtil.applyFocusListener(b.tmdbCardPoster)
-        }
-
-        override fun getItemCount(): Int = items.size
-
-        class VH(val binding: ItemTmdbCardBinding) : RecyclerView.ViewHolder(binding.root)
     }
 
     class TmdbRowAdapter(

@@ -1,6 +1,8 @@
 package ani.sanin.home
 
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -11,6 +13,8 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import ani.sanin.cloudstream.TmdbCards
 import ani.sanin.cloudstream.TmdbDetailsActivity
 import ani.sanin.connections.simkl.Simkl
@@ -124,14 +128,44 @@ class SimklSectionFragment : Fragment() {
             b.tmdbCardTitle.isVisible = true
             b.tmdbCardYear.text = item.year?.toString() ?: ""
             b.tmdbCardYear.isVisible = item.year != null
-            b.tmdbCardGradient.isVisible = false
-            b.tmdbCardLogo.isVisible = false
-            b.tmdbCardOverlayTitle.isVisible = false
+
+            // Gradient overlay in landscape mode (obeys CardGradientIntensity slider)
+            if (landscape) {
+                b.tmdbCardGradient.isVisible = true
+                setGradient(b.tmdbCardGradient)
+                b.tmdbCardOverlayTitle.isVisible = true
+                b.tmdbCardOverlayTitle.text = item.title
+                b.tmdbCardLogo.isVisible = false
+            } else {
+                b.tmdbCardGradient.isVisible = false
+                b.tmdbCardOverlayTitle.isVisible = false
+                b.tmdbCardLogo.isVisible = false
+            }
+
             b.tmdbCardPoster.setOnClickListener { onClick(item) }
             FocusEffectUtil.applyFocusListener(b.tmdbCardPoster)
         }
 
         override fun getItemCount(): Int = items.size
+
+        private fun setGradient(view: View) {
+            val intensity = PrefManager.getVal<Float>(PrefName.CardGradientIntensity)
+            if (intensity <= 0f) {
+                view.background = null
+                return
+            }
+            val endAlpha = 255
+            val startColor = Color.argb(0, 0, 0, 0)
+            val endColor = Color.argb(
+                (endAlpha * intensity).toInt().coerceIn(0, 255),
+                0, 0, 0
+            )
+            val gradient = GradientDrawable(
+                GradientDrawable.Orientation.BOTTOM_TOP,
+                intArrayOf(endColor, startColor)
+            )
+            view.background = gradient
+        }
 
         class VH(val binding: ItemTmdbCardBinding) : RecyclerView.ViewHolder(binding.root)
     }
