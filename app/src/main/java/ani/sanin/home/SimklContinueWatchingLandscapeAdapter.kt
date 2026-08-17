@@ -15,15 +15,15 @@ import ani.sanin.R
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.loadImage
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.util.FocusEffectUtil
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.imageview.ShapeableImageView
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SimklContinueWatchingLandscapeAdapter(
     private val items: List<Simkl.SimklWatchedItem>,
@@ -43,26 +43,60 @@ class SimklContinueWatchingLandscapeAdapter(
         holder.card.radius =
             PrefManager.getVal<Int>(PrefName.ContinueWatchingCardRoundness).toFloat()
 
-        // Load poster as landscape backdrop
-        val posterUrl = Tmdb.imageUrl(item.poster, 780)
-        if (!posterUrl.isNullOrBlank()) {
-            holder.image.loadImage(posterUrl, 780)
-        } else {
-            holder.image.setImageResource(R.drawable.ic_round_person_24)
-        }
-
-        // Logo art: Simkl doesn't have clearlogo, show overlay title instead
+        // Reset to defaults before async loads
         holder.clearlogo.visibility = View.GONE
-        holder.overlayTitle.visibility = View.VISIBLE
+        holder.overlayTitle.visibility = View.GONE
         holder.overlayTitle.text = item.title ?: ""
+
+        // Load TMDB backdrop + logo async (same pattern as anime CW)
+        val tmdbId = item.ids?.tmdb
+        val mediaType = item.mediaType ?: "tv"
+        if (tmdbId != null) {
+            CoroutineScope(Dispatchers.IO).launch {
+                // Fetch TMDB detail for backdrop
+                val detail = Tmdb.detail(mediaType, tmdbId)
+                val backdropUrl = detail?.backdropPath?.let { Tmdb.imageUrl(it, 780) }
+                // Fetch TMDB logo
+                val logoUrl = Tmdb.logoUrl(mediaType, tmdbId)
+
+                withContext(Dispatchers.Main) {
+                    // Banner image: backdrop first, then poster, then person SVG
+                    val imageUrl = backdropUrl ?: Tmdb.imageUrl(item.poster, 780)
+                    if (!imageUrl.isNullOrBlank()) {
+                        holder.image.loadImage(imageUrl)
+                    } else {
+                        holder.image.setImageResource(R.drawable.ic_round_person_24)
+                    }
+
+                    // Logo art: TMDB logo first, then overlay title
+                    if (!logoUrl.isNullOrBlank()) {
+                        holder.clearlogo.visibility = View.VISIBLE
+                        holder.clearlogo.loadImage(logoUrl)
+                        holder.overlayTitle.visibility = View.GONE
+                    } else {
+                        holder.clearlogo.visibility = View.GONE
+                        holder.overlayTitle.visibility = View.VISIBLE
+                    }
+                }
+            }
+        } else {
+            // No TMDB ID — just use poster
+            val posterUrl = Tmdb.imageUrl(item.poster, 780)
+            if (!posterUrl.isNullOrBlank()) {
+                holder.image.loadImage(posterUrl, 780)
+            } else {
+                holder.image.setImageResource(R.drawable.ic_round_person_24)
+            }
+            holder.overlayTitle.visibility = View.VISIBLE
+        }
 
         // Episode number badge
         val epStr = item.lastWatched
-        if (!epStr.isNullOrBlank()) {
+        if (epStr.isNullOrBlank()) {
+            holder.episodeNo.visibility = View.GONE
+        } else {
             holder.episodeNo.visibility = View.VISIBLE
             holder.episodeNo.text = epStr
-        } else {
-            holder.episodeNo.visibility = View.GONE
         }
 
         // Title below card
@@ -77,13 +111,8 @@ class SimklContinueWatchingLandscapeAdapter(
         }
         holder.subtitle.text = subtitle
 
-        // Time watched: Simkl doesn't track playback position
         holder.timeWatched.visibility = View.GONE
-
-        // Progress bar: hidden for Simkl (no episode count data)
         holder.progress.visibility = View.GONE
-
-        // Progress row below card
         holder.cwProgressRow.visibility = View.GONE
 
         // Ongoing badge
