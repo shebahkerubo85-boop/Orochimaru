@@ -261,25 +261,21 @@ object Simkl {
             ani.sanin.util.Logger.log("Simkl.getContinueWatching: token is null")
             return emptyList()
         }
+        // Derive continue watching from library data (same as AnymeX)
+        // /sync/history doesn't work reliably with GET via this client
         return try {
-            val request = Request.Builder()
-                .url("$BASE/sync/history")
-                .addHeader("Authorization", "Bearer $t")
-                .addHeader("simkl-api-key", clientId)
-                .build()
-            val response = okHttpClient.newCall(request).execute()
-            val body = response.body?.string()
-            ani.sanin.util.Logger.log("Simkl.getContinueWatching: HTTP ${response.code} body=${body?.take(300)}")
-            if (response.code != 200 || body == null) {
-                ani.sanin.logError(Exception("Simkl.getContinueWatching: HTTP ${response.code}"), snackbar = false)
-                return emptyList()
+            val movies = getMovieLibrary().filter {
+                !it.status.equals("completed", ignoreCase = true) &&
+                !it.status.equals("dropped", ignoreCase = true)
             }
-            val history = json.decodeFromString(SimklHistory.serializer(), body)
-            val items = (history.movies.orEmpty<SimklWatchedItem>()) + history.shows.orEmpty<SimklWatchedItem>()
-            ani.sanin.util.Logger.log("Simkl.getContinueWatching: ${items.size} items")
+            val shows = getShowLibrary().filter {
+                it.status.equals("current", ignoreCase = true) ||
+                it.status.equals("watching", ignoreCase = true)
+            }
+            val items = movies + shows
+            ani.sanin.util.Logger.log("Simkl.getContinueWatching: ${items.size} items (${movies.size} movies, ${shows.size} shows)")
             items
         } catch (e: Exception) {
-            ani.sanin.logError(e, snackbar = false)
             ani.sanin.util.Logger.log("Simkl.getContinueWatching: exception ${e.message}")
             emptyList()
         }
@@ -295,7 +291,7 @@ object Simkl {
         return try {
             val request = Request.Builder()
                 .url("$BASE/sync/all-items")
-                .post("".toRequestBody("application/json".toMediaType()))
+                .get()
                 .addHeader("Authorization", "Bearer $t")
                 .addHeader("simkl-api-key", clientId)
                 .addHeader("Content-Type", "application/json")
@@ -307,7 +303,12 @@ object Simkl {
                 ani.sanin.logError(Exception("Simkl.getLibrary: HTTP ${response.code}"), snackbar = false)
                 return null
             }
-            json.decodeFromString(SimklLibrary.serializer(), body)
+            val obj = org.json.JSONObject(body)
+            val moviesArr = obj.optJSONObject("all")?.optJSONArray("movies")
+            val showsArr = obj.optJSONObject("all")?.optJSONArray("shows")
+            val movies = if (moviesArr != null) kotlinx.serialization.json.Json.decodeFromString<List<SimklWatchedItem>>(moviesArr.toString()) else emptyList()
+            val shows = if (showsArr != null) kotlinx.serialization.json.Json.decodeFromString<List<SimklWatchedItem>>(showsArr.toString()) else emptyList()
+            SimklLibrary(movies = movies, shows = shows)
         } catch (e: Exception) {
             ani.sanin.logError(e, snackbar = false)
             ani.sanin.util.Logger.log("Simkl.getLibrary: exception ${e.message}")
@@ -321,7 +322,7 @@ object Simkl {
         return try {
             val request = Request.Builder()
                 .url("$BASE/sync/all-items/movies")
-                .post("".toRequestBody("application/json".toMediaType()))
+                .get()
                 .addHeader("Authorization", "Bearer $t")
                 .addHeader("simkl-api-key", clientId)
                 .addHeader("Content-Type", "application/json")
@@ -329,6 +330,7 @@ object Simkl {
             val response = okHttpClient.newCall(request).execute()
             val body = response.body?.string() ?: return emptyList()
             if (response.code != 200) return emptyList()
+            ani.sanin.util.Logger.log("Simkl.getMovieLibrary: HTTP ${response.code} body=${body.take(200)}")
             val json = org.json.JSONObject(body)
             val movies = json.optJSONArray("movies") ?: return emptyList()
             kotlinx.serialization.json.Json.decodeFromString<List<SimklWatchedItem>>(movies.toString())
@@ -344,7 +346,7 @@ object Simkl {
         return try {
             val request = Request.Builder()
                 .url("$BASE/sync/all-items/shows")
-                .post("".toRequestBody("application/json".toMediaType()))
+                .get()
                 .addHeader("Authorization", "Bearer $t")
                 .addHeader("simkl-api-key", clientId)
                 .addHeader("Content-Type", "application/json")
@@ -352,6 +354,7 @@ object Simkl {
             val response = okHttpClient.newCall(request).execute()
             val body = response.body?.string() ?: return emptyList()
             if (response.code != 200) return emptyList()
+            ani.sanin.util.Logger.log("Simkl.getShowLibrary: HTTP ${response.code} body=${body.take(200)}")
             val json = org.json.JSONObject(body)
             val shows = json.optJSONArray("shows") ?: return emptyList()
             kotlinx.serialization.json.Json.decodeFromString<List<SimklWatchedItem>>(shows.toString())
@@ -486,7 +489,8 @@ object Simkl {
         val totalEpisodes: Int? = null,
         val type: String? = null,
         val season: Int? = null,
-        val episodes: List<SimklWatchedEpisode>? = null
+        val episodes: List<SimklWatchedEpisode>? = null,
+        @SerialName("watching_status") val status: String? = null
     )
 
     @Serializable
