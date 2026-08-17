@@ -114,7 +114,10 @@ class BannerCarouselAdapter(
         if (!logoUrl.isNullOrBlank()) {
             holder.clearlogo.isVisible = true
             holder.title.isVisible = false
-            holder.clearlogo.loadImage(logoUrl)
+            com.bumptech.glide.Glide.with(holder.clearlogo.context)
+                .load(logoUrl)
+                .override(240, 64)
+                .into(holder.clearlogo)
         }
 
         // --- Format tag ---

@@ -99,7 +99,7 @@ object TmdbCards {
                             if (url != null) {
                                 Glide.with(logo.context)
                                     .load(url)
-                                    .override((w * 0.7f).toInt())
+                                    .override((w * 0.7f).toInt().coerceIn(60, 180), ((w * 0.7f).toInt().coerceIn(60, 180) * 0.4f).toInt())
                                     .listener(object : RequestListener<Drawable> {
                                         override fun onLoadFailed(
                                             e: GlideException?, model: Any?,

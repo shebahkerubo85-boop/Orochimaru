@@ -585,7 +585,7 @@ class TmdbHomeFragment : Fragment() {
             binding.tmdbBannerSideSynopsis.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                 width = (stripW - 48 * density + cardW / 4).toInt().coerceAtLeast(1)
             }
-            binding.tmdbBannerLogo.maxWidth = (stripW - 48 * density).toInt().coerceAtLeast(1)
+            binding.tmdbBannerLogo.maxWidth = (stripW - 48 * density).toInt().coerceAtLeast(100)
             binding.tmdbBannerLogo.maxHeight = (cardH * 0.30f).toInt()
             binding.tmdbBannerImage.scaleType = ImageView.ScaleType.FIT_CENTER
             binding.tmdbBannerContent.isVisible = false
@@ -599,7 +599,7 @@ class TmdbHomeFragment : Fragment() {
                 width = cardW
                 height = cardH
             }
-            binding.tmdbBannerPortraitLogo.maxWidth = (cardW - 48 * density).toInt().coerceAtLeast(1)
+            binding.tmdbBannerPortraitLogo.maxWidth = (cardW - 48 * density).toInt().coerceAtLeast(80)
             binding.tmdbBannerPortraitLogo.maxHeight = (cardH * 0.22f).toInt()
             binding.tmdbBannerFade.isVisible = false
             binding.tmdbBannerCardScrim.isVisible = false

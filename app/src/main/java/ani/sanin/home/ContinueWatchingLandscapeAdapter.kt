@@ -70,7 +70,10 @@ class ContinueWatchingLandscapeAdapter(
             val logoUrl = LogoApi.getLogoUrl(media.id)
             if (!logoUrl.isNullOrBlank()) {
                 holder.clearlogo.visibility = View.VISIBLE
-                holder.clearlogo.loadImage(logoUrl)
+                com.bumptech.glide.Glide.with(holder.clearlogo.context)
+                    .load(logoUrl)
+                    .override(140, 48)
+                    .into(holder.clearlogo)
                 holder.overlayTitle.visibility = View.GONE
             } else {
                 holder.clearlogo.visibility = View.GONE
