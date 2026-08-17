@@ -370,6 +370,8 @@ class TmdbHomeFragment : Fragment() {
         source: CsInstalledSource
     ) {
         if (items.isEmpty()) return
+        // Skip plugin CW — Simkl row handles this
+        if (title.contains("Continue Watching", ignoreCase = true)) return
         val ctx = requireContext()
         val header = TextView(ctx).apply {
             text = title
