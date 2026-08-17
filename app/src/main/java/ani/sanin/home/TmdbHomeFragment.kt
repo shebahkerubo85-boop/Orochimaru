@@ -154,7 +154,7 @@ class TmdbHomeFragment : Fragment() {
     private suspend fun loadBanner(plugin: CsInstalledSource? = null) {
         genreNames = withContext(Dispatchers.IO) { Tmdb.genres().associate { it.id to it.name } }
         bannerItems.clear()
-        if (plugin != null && plugin.type == "live") {
+        if (plugin != null) {
             val apis = withContext(Dispatchers.IO) {
                 CsRuntime.apisFor(requireContext(), plugin)
             }
