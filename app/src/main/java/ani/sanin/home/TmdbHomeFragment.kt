@@ -485,11 +485,23 @@ class TmdbHomeFragment : Fragment() {
             val detail = Tmdb.detail(item.type, item.id)
             val logo = detail?.let { Tmdb.logoUrl(it) }
             binding.tmdbBannerLogo.isVisible = logo != null
-            if (logo != null) binding.tmdbBannerLogo.loadImage(logo)
+            if (logo != null) {
+                val bannerW = binding.tmdbBannerLogo.maxWidth.coerceAtLeast(200)
+                com.bumptech.glide.Glide.with(binding.tmdbBannerLogo.context)
+                    .load(logo)
+                    .override(bannerW, (bannerW * 0.4f).toInt())
+                    .into(binding.tmdbBannerLogo)
+            }
             val portraitLogo = binding.tmdbBannerPortraitLogo
             portraitLogo.isVisible = logo != null
             binding.tmdbBannerTitle.isVisible = logo == null
-            if (logo != null) portraitLogo.loadImage(logo)
+            if (logo != null) {
+                val portraitW = portraitLogo.maxWidth.coerceAtLeast(120)
+                com.bumptech.glide.Glide.with(portraitLogo.context)
+                    .load(logo)
+                    .override(portraitW, (portraitW * 0.4f).toInt())
+                    .into(portraitLogo)
+            }
             val status = detail?.status?.let { statusLabel(it) }.orEmpty()
             binding.tmdbBannerStatus.text = status
             binding.tmdbBannerStatus.isVisible = status.isNotBlank()
@@ -503,11 +515,23 @@ class TmdbHomeFragment : Fragment() {
             val detail = Tmdb.detail(type, id)
             val logo = detail?.let { Tmdb.logoUrl(it) }
             binding.tmdbBannerLogo.isVisible = logo != null
-            if (logo != null) binding.tmdbBannerLogo.loadImage(logo)
+            if (logo != null) {
+                val bannerW = binding.tmdbBannerLogo.maxWidth.coerceAtLeast(200)
+                com.bumptech.glide.Glide.with(binding.tmdbBannerLogo.context)
+                    .load(logo)
+                    .override(bannerW, (bannerW * 0.4f).toInt())
+                    .into(binding.tmdbBannerLogo)
+            }
             val portraitLogo = binding.tmdbBannerPortraitLogo
             portraitLogo.isVisible = logo != null
             binding.tmdbBannerTitle.isVisible = logo == null
-            if (logo != null) portraitLogo.loadImage(logo)
+            if (logo != null) {
+                val portraitW = portraitLogo.maxWidth.coerceAtLeast(120)
+                com.bumptech.glide.Glide.with(portraitLogo.context)
+                    .load(logo)
+                    .override(portraitW, (portraitW * 0.4f).toInt())
+                    .into(portraitLogo)
+            }
             val status = detail?.status?.let { statusLabel(it) }.orEmpty()
             binding.tmdbBannerStatus.text = status
             binding.tmdbBannerStatus.isVisible = status.isNotBlank()
@@ -707,7 +731,11 @@ class TmdbHomeFragment : Fragment() {
                         if (!backdrop.isNullOrBlank()) b.tmdbCardPoster.loadImage(backdrop)
                         if (!logoUrl.isNullOrBlank() && titlePos == 0) {
                             b.tmdbCardLogo.isVisible = true
-                            b.tmdbCardLogo.loadImage(logoUrl)
+                            val logoW = (w * 0.7f).toInt().coerceIn(60, 180)
+                            com.bumptech.glide.Glide.with(b.tmdbCardLogo.context)
+                                .load(logoUrl)
+                                .override(logoW, (logoW * 0.4f).toInt())
+                                .into(b.tmdbCardLogo)
                             b.tmdbCardOverlayTitle.isVisible = false
                             b.tmdbCardTitle.isVisible = false
                         }

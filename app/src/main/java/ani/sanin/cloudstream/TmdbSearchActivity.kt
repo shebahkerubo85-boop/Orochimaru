@@ -270,7 +270,11 @@ class TmdbSearchActivity : AppCompatActivity() {
                         if (!backdrop.isNullOrBlank()) b.tmdbCardPoster.loadImage(backdrop)
                         if (!logoUrl.isNullOrBlank() && titlePos == 0) {
                             b.tmdbCardLogo.isVisible = true
-                            b.tmdbCardLogo.loadImage(logoUrl)
+                            val logoW = (w * 0.7f).toInt().coerceIn(60, 180)
+                            com.bumptech.glide.Glide.with(b.tmdbCardLogo.context)
+                                .load(logoUrl)
+                                .override(logoW, (logoW * 0.4f).toInt())
+                                .into(b.tmdbCardLogo)
                             b.tmdbCardOverlayTitle.isVisible = false
                             b.tmdbCardTitle.isVisible = false
                         }

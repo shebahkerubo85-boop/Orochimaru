@@ -67,7 +67,12 @@ class SimklContinueWatchingLandscapeAdapter(
 
                     if (!logoUrl.isNullOrBlank()) {
                         holder.clearlogo.visibility = View.VISIBLE
-                        holder.clearlogo.loadImage(logoUrl)
+                        // Constrain logo to 70% of image width (same as TmdbCards)
+                        val logoW = (holder.image.layoutParams.width * 0.7f).toInt().coerceIn(80, 200)
+                        com.bumptech.glide.Glide.with(holder.clearlogo.context)
+                            .load(logoUrl)
+                            .override(logoW, (logoW * 0.4f).toInt())
+                            .into(holder.clearlogo)
                         holder.overlayTitle.visibility = View.GONE
                         holder.title.isVisible = false
                     } else {

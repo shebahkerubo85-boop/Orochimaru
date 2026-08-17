@@ -178,7 +178,11 @@ class SimklSectionFragment : Fragment() {
                         // Logo overlay in landscape mode
                         if (landscape && !logoUrl.isNullOrBlank()) {
                             b.tmdbCardLogo.isVisible = true
-                            b.tmdbCardLogo.loadImage(logoUrl)
+                            val logoW = (b.tmdbCardPoster.layoutParams.width * 0.7f).toInt().coerceIn(60, 180)
+                            com.bumptech.glide.Glide.with(b.tmdbCardLogo.context)
+                                .load(logoUrl)
+                                .override(logoW, (logoW * 0.4f).toInt())
+                                .into(b.tmdbCardLogo)
                             b.tmdbCardOverlayTitle.isVisible = false
                             b.tmdbCardTitle.isVisible = false
                         }
