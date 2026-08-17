@@ -87,18 +87,40 @@ class TmdbLibraryFragment : Fragment() {
         }
 
         binding.tmdbLibFilter.setOnClickListener {
-            val statuses = listOf("All", "Watching", "Planning", "Paused", "Dropped", "Completed")
+            val statuses = listOf(
+                "All", "Completed Movies", "Completed TV", "Watching",
+                "Planning", "Paused", "Dropped", "Favourites"
+            )
             val popup = PopupMenu(requireContext(), it)
             statuses.forEach { popup.menu.add(it) }
             popup.setOnMenuItemClickListener { menuItem ->
-                val selectedStatus = menuItem.title.toString()
-                if (selectedStatus == "All") {
+                val selected = menuItem.title.toString()
+                if (selected == "All") {
                     showSections(allItems)
                 } else {
-                    val filtered = allItems.filter {
-                        it.status?.lowercase() == selectedStatus.lowercase()
+                    val filtered = when (selected) {
+                        "Completed Movies" -> allItems.filter {
+                            it.status?.lowercase() == "completed" && it.mediaType == "movie"
+                        }
+                        "Completed TV" -> allItems.filter {
+                            it.status?.lowercase() == "completed" && it.mediaType == "tv"
+                        }
+                        "Watching" -> allItems.filter {
+                            it.status?.lowercase() == "watching" || it.status?.lowercase() == "current"
+                        }
+                        "Planning" -> allItems.filter {
+                            it.status?.lowercase() == "plantowatch" || it.status?.lowercase() == "planning"
+                        }
+                        "Paused" -> allItems.filter {
+                            it.status?.lowercase() == "onhold" || it.status?.lowercase() == "paused"
+                        }
+                        "Dropped" -> allItems.filter {
+                            it.status?.lowercase() == "dropped"
+                        }
+                        "Favourites" -> allItems.filter { (it.userRating ?: 0) > 0 }
+                        else -> allItems
                     }
-                    showFilteredSections(filtered, selectedStatus)
+                    showFilteredSections(filtered, selected)
                 }
                 true
             }
@@ -139,6 +161,12 @@ class TmdbLibraryFragment : Fragment() {
 
         val sections = linkedMapOf<String, List<Simkl.SimklWatchedItem>>()
 
+        val completedMovies = items.filter {
+            it.status?.lowercase() == "completed" && it.mediaType == "movie"
+        }
+        val completedShows = items.filter {
+            it.status?.lowercase() == "completed" && it.mediaType == "tv"
+        }
         val watching = items.filter {
             it.status?.lowercase() == "watching" || it.status?.lowercase() == "current"
         }
@@ -149,13 +177,15 @@ class TmdbLibraryFragment : Fragment() {
             it.status?.lowercase() == "onhold" || it.status?.lowercase() == "paused"
         }
         val dropped = items.filter { it.status?.lowercase() == "dropped" }
-        val completed = items.filter { it.status?.lowercase() == "completed" }
+        val favourites = items.filter { (it.userRating ?: 0) > 0 }
 
+        if (completedMovies.isNotEmpty()) sections["Completed Movies (${completedMovies.size})"] = completedMovies
+        if (completedShows.isNotEmpty()) sections["Completed TV (${completedShows.size})"] = completedShows
         if (watching.isNotEmpty()) sections["Watching (${watching.size})"] = watching
         if (planning.isNotEmpty()) sections["Planning (${planning.size})"] = planning
         if (paused.isNotEmpty()) sections["Paused (${paused.size})"] = paused
         if (dropped.isNotEmpty()) sections["Dropped (${dropped.size})"] = dropped
-        if (completed.isNotEmpty()) sections["Completed (${completed.size})"] = completed
+        if (favourites.isNotEmpty()) sections["Favourites (${favourites.size})"] = favourites
         sections["All (${items.size})"] = items
 
         if (sections.isEmpty()) {
