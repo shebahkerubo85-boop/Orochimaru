@@ -196,9 +196,9 @@ class TmdbLibraryFragment : Fragment() {
         binding.tmdbLibTabLayout.isVisible = true
         binding.tmdbLibViewPager.isVisible = true
 
-        binding.tmdbLibTabLayout.addTab(
-            binding.tmdbLibTabLayout.newTab().text = "$title (${items.size})"
-        )
+        val tab = binding.tmdbLibTabLayout.newTab()
+        tab.text = "$title (${items.size})"
+        binding.tmdbLibTabLayout.addTab(tab)
 
         viewPagerAttached = true
         binding.tmdbLibViewPager.setCurrentItem(0, false)
