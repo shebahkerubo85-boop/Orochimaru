@@ -50,12 +50,12 @@
 
             <TextView
                 android:id="@+id/tmdbCardOverlayTitle"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom|start"
                 android:ellipsize="end"
                 android:fontFamily="@font/poppins_semi_bold"
-                android:maxLines="1"
+                android:maxLines="2"
                 android:paddingStart="10dp"
                 android:paddingEnd="10dp"
                 android:paddingBottom="8dp"

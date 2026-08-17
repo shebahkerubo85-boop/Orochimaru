@@ -118,6 +118,7 @@ import ani.sanin.circularReveal
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.crashlytics.CrashlyticsInterface
 import ani.sanin.connections.mal.MAL
+import ani.sanin.Refresh
 import ani.sanin.connections.updateProgress
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.cloudstream.TmdbStreamResolver
@@ -3995,6 +3996,7 @@ class ExoplayerView :
                         Simkl.addToHistory(type, title, year, tmdbId, imdbId, season, episode)
                         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                             toast("${title} marked as watched on Simkl")
+                            Refresh.all()
                         }
                     }
                 }

@@ -26,6 +26,7 @@ import ani.sanin.cloudstream.CsRuntime
 import ani.sanin.cloudstream.TmdbCards
 import ani.sanin.cloudstream.TmdbDetailsActivity
 import ani.sanin.cloudstream.TmdbWatchActivity
+import ani.sanin.Refresh
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.tmdb.TmdbGenre
@@ -132,6 +133,9 @@ class TmdbHomeFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         startAutoAdvance()
+        // Observe Refresh signals so CW/sections reload after scrobble or list edits
+        val live = Refresh.activity.getOrPut(requireActivity().hashCode()) { androidx.lifecycle.MutableLiveData(true) }
+        live.observe(viewLifecycleOwner) { if (it == true) { load(); live.postValue(false) } }
     }
 
     override fun onPause() {
@@ -632,6 +636,7 @@ class TmdbHomeFragment : Fragment() {
         private val onClick: (SearchResponse) -> Unit
     ) : RecyclerView.Adapter<PluginRowAdapter.VH>() {
 
+        private val cardScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
         private val titlePos: Int get() = PrefManager.getVal(PrefName.CardTitlePosition)
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -657,11 +662,15 @@ class TmdbHomeFragment : Fragment() {
             b.tmdbCard.radius = TmdbCards.roundness()
             b.tmdbCardPoster.loadImage(item.posterUrl, if (landscape || isLive) 780 else 300)
 
+            // Reset before async loads
+            b.tmdbCardLogo.isVisible = false
+            b.tmdbCardOverlayTitle.isVisible = false
+
             if (landscape) {
-                // Landscape cards respect CardTitlePosition (portrait always below)
+                b.tmdbCardPoster.loadImage(item.posterUrl, 780)
+                b.tmdbCardPoster.tag = item.name
                 when (titlePos) {
                     0 -> {
-                        // Overlay: gradient + title at bottom
                         b.tmdbCardGradient.isVisible = true
                         b.tmdbCardGradient.updateLayoutParams<ViewGroup.LayoutParams> {
                             width = w; height = h
@@ -669,29 +678,43 @@ class TmdbHomeFragment : Fragment() {
                         TmdbCards.setCardGradient(b.tmdbCardGradient)
                         b.tmdbCardOverlayTitle.isVisible = true
                         b.tmdbCardOverlayTitle.text = item.name
-                        b.tmdbCardLogo.isVisible = false
                         b.tmdbCardTitle.isVisible = false
                         b.tmdbCardYear.isVisible = false
                     }
                     2 -> {
-                        // Hidden: no title at all
                         b.tmdbCardGradient.isVisible = false
                         b.tmdbCardOverlayTitle.isVisible = false
-                        b.tmdbCardLogo.isVisible = false
                         b.tmdbCardTitle.isVisible = false
                         b.tmdbCardYear.isVisible = false
                     }
                     else -> {
-                        // Below card (default)
                         b.tmdbCardGradient.isVisible = false
                         b.tmdbCardOverlayTitle.isVisible = false
-                        b.tmdbCardLogo.isVisible = false
                         b.tmdbCardTitle.isVisible = true
                         b.tmdbCardTitle.text = item.name
                         b.tmdbCardYear.isVisible = false
                     }
                 }
+                // Async TMDB backdrop + logo for plugin items
+                cardScope.launch {
+                    val name = item.name ?: return@launch
+                    val results = runCatching { ani.sanin.connections.tmdb.Tmdb.search(name) }.getOrNull()
+                    val match = results?.firstOrNull() ?: return@launch
+                    val backdrop = match.backdropPath?.let { ani.sanin.connections.tmdb.Tmdb.imageUrl(it, 780) }
+                    val logoUrl = runCatching { ani.sanin.connections.tmdb.Tmdb.logoUrl(match.type, match.id) }.getOrNull()
+                    withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        if (holder.binding.tmdbCardPoster.tag != item.name) return@withContext
+                        if (!backdrop.isNullOrBlank()) b.tmdbCardPoster.loadImage(backdrop)
+                        if (!logoUrl.isNullOrBlank() && titlePos == 0) {
+                            b.tmdbCardLogo.isVisible = true
+                            b.tmdbCardLogo.loadImage(logoUrl)
+                            b.tmdbCardOverlayTitle.isVisible = false
+                            b.tmdbCardTitle.isVisible = false
+                        }
+                    }
+                }
             } else {
+                b.tmdbCardPoster.loadImage(item.posterUrl, 300)
                 // Portrait: always title below
                 b.tmdbCardGradient.isVisible = false
                 b.tmdbCardOverlayTitle.isVisible = false

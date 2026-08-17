@@ -15,6 +15,7 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import ani.sanin.R
+import ani.sanin.Refresh
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.databinding.FragmentTmdbLibraryBinding
 import ani.sanin.getThemeColor
@@ -66,6 +67,10 @@ class TmdbLibraryFragment : Fragment() {
 
         binding.tmdbLibProgressBar.visibility = View.VISIBLE
         loadLibrary()
+
+        // Observe Refresh signals so library reloads after list edits or scrobble
+        val live = Refresh.activity.getOrPut(requireActivity().hashCode()) { androidx.lifecycle.MutableLiveData(true) }
+        live.observe(viewLifecycleOwner) { if (it == true) { loadLibrary(); live.postValue(false) } }
 
         binding.tmdbLibSort.setOnClickListener {
             val popup = PopupMenu(requireContext(), it)

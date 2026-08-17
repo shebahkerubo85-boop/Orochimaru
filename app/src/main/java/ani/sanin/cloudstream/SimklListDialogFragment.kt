@@ -14,6 +14,7 @@ import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.lifecycleScope
 import ani.sanin.R
+import ani.sanin.Refresh
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.databinding.BottomSheetMediaListBinding
 import ani.sanin.getThemeColor

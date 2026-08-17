@@ -339,7 +339,7 @@ object Simkl {
                 .post(body.toRequestBody("application/json".toMediaType()))
                 .build()
             val resp = okHttpClient.newCall(request).execute()
-            ani.sanin.util.Logger.log("Simkl.addToHistory: HTTP ${resp.code} type=$type title=$title s=${season}e=${episode}")
+            ani.sanin.util.Logger.log("Simkl.addToHistory: HTTP ${resp.code} type=$type title=$title s=${season}e=${episode} body=${body.take(200)}")
         }
     }
 
