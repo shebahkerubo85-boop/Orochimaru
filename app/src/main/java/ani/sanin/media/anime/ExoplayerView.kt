@@ -3976,7 +3976,7 @@ class ExoplayerView :
             val currentPos = exoPlayer.currentPosition
             val episodeEnd = currentPos / episodeLength > PrefManager.getVal<Float>(PrefName.WatchPercentage)
             if (episodeEnd) {
-                val alreadyTracked = PrefManager.getCustomVal("${media.id}_simkl_tracked_${media.anime?.selectedEpisode}", false, Boolean::class.java) ?: false
+                val alreadyTracked = PrefManager.getCustomVal("${media.id}_simkl_tracked_${media.anime?.selectedEpisode}", false)
                 if (!alreadyTracked) {
                     PrefManager.setCustomVal("${media.id}_simkl_tracked_${media.anime?.selectedEpisode}", true)
                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {

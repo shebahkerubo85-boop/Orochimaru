@@ -85,7 +85,7 @@ class SimklListDialogFragment : DialogFragment() {
                 w.navigationBarColor = surfaceColor
             }
             WindowInsetsCompat.Type.navigationBars()
-            val controller = WindowInsetsControllerCompat(w, w.decorView)
+            val controller = androidx.core.view.WindowInsetsControllerCompat(w, w.decorView)
             controller.isAppearanceLightNavigationBars =
                 androidx.core.graphics.ColorUtils.calculateLuminance(surfaceColor) > 0.5
         }
@@ -141,7 +141,7 @@ class SimklListDialogFragment : DialogFragment() {
                 isCheckable = true
                 isClickable = true
                 isFocusable = true
-                setTextAppearance(com.google.android.material.R.style.TextAppearance.Material3.BodyMedium)
+                setTextAppearance(com.google.android.material.R.style.Widget_Material3_Chip_Filter)
                 if (simklStatuses[index] == selectedStatus) {
                     isChecked = true
                 }
@@ -150,13 +150,13 @@ class SimklListDialogFragment : DialogFragment() {
         }
 
         // Hide sections not relevant for Simkl
-        binding.mediaListScore.visibility = View.GONE
-        binding.mediaListScoreLabel.visibility = View.GONE
-        binding.mediaListProgress.visibility = View.GONE
-        binding.mediaListProgressLabel.visibility = View.GONE
-        binding.mediaListStartDate.visibility = View.GONE
-        binding.mediaListEndDate.visibility = View.GONE
-        binding.mediaListRewatchCount.visibility = View.GONE
+        binding.mediaListScoreLayout.visibility = View.GONE
+        binding.mediaListScoreLayout.visibility = View.GONE
+        binding.mediaListProgressLayout.visibility = View.GONE
+        binding.mediaListVolumeProgressLayout.visibility = View.GONE
+        binding.mediaListStartLayout.visibility = View.GONE
+        binding.mediaListEndLayout.visibility = View.GONE
+        binding.mediaListRepeatLayout.visibility = View.GONE
         binding.mediaListNotes.visibility = View.GONE
         binding.mediaListPrivate.visibility = View.GONE
         binding.mediaListShow.visibility = View.GONE
