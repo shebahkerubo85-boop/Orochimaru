@@ -343,7 +343,48 @@ object Simkl {
         }
     }
 
-    /** Get the user's list status for a specific show/movie from Simkl library. */
+    /** Set the list status (watching / plantowatch / completed / dropped / hold) for a show or movie. */
+    suspend fun setListStatus(
+        type: String,
+        title: String,
+        year: Int?,
+        tmdbId: Int? = null,
+        imdbId: String? = null,
+        status: String
+    ) {
+        tryWithSuspend {
+            val t = token ?: return@tryWithSuspend
+            val ids = ScrobbleIds(tmdb = tmdbId, imdb = imdbId)
+            val item = if (type == "tv") {
+                ScrobbleItem(
+                    show = ScrobbleShow(
+                        title = title,
+                        year = year,
+                        ids = ids
+                    )
+                )
+            } else {
+                ScrobbleItem(
+                    movie = ScrobbleMovie(
+                        title = title,
+                        year = year,
+                        ids = ids
+                    )
+                )
+            }
+            val request = Request.Builder()
+                .url("$BASE/sync/history")
+                .addHeader("Authorization", "Bearer $t")
+                .addHeader("simkl-api-key", clientId)
+                .addHeader("Content-Type", "application/json")
+                .post(json.encodeToString(ScrobbleItem.serializer(), item).toRequestBody("application/json".toMediaType()))
+                .build()
+            val resp = okHttpClient.newCall(request).execute()
+            ani.sanin.util.Logger.log("Simkl.setListStatus: HTTP ${resp.code} status=$status title=$title")
+        }
+    }
+
+        /** Get the user's list status for a specific show/movie from Simkl library. */
     suspend fun getMediaStatus(
         type: String,
         tmdbId: Int? = null,
