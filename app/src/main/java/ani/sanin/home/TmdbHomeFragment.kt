@@ -39,6 +39,7 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.sizeBannerCard
 import ani.sanin.util.FocusEffectUtil
 import com.lagradost.cloudstream3.MainPageRequest
+import com.lagradost.cloudstream3.LiveSearchResponse
 import com.lagradost.cloudstream3.SearchResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -47,9 +48,36 @@ import kotlinx.coroutines.withContext
 
 class TmdbHomeFragment : Fragment() {
 
+    /** Wrapper for banner items: either TMDB trending or plugin live items. */
+    sealed class BannerItem {
+        data class Tmdb(val media: TmdbMedia) : BannerItem()
+        data class Plugin(val response: SearchResponse, val sourceId: String) : BannerItem()
+
+        val title: String get() = when (this) {
+            is Tmdb -> media.displayTitle
+            is Plugin -> response.name
+        }
+        val imageUrl: String? get() = when (this) {
+            is Tmdb -> Tmdb.imageUrl(media.backdropPath, 780)
+            is Plugin -> response.posterUrl
+        }
+        val year: String get() = when (this) {
+            is Tmdb -> media.year
+            is Plugin -> ""
+        }
+        val type: String get() = when (this) {
+            is Tmdb -> media.type
+            is Plugin -> "live"
+        }
+        val overview: String? get() = when (this) {
+            is Tmdb -> media.overview
+            is Plugin -> null
+        }
+    }
+
     private var _binding: FragmentTmdbHomeBinding? = null
     private val binding get() = _binding!!
-    private val bannerItems = mutableListOf<TmdbMedia>()
+    private val bannerItems = mutableListOf<BannerItem>()
     private var bannerIndex = 0
     private val bannerHandler = Handler(Looper.getMainLooper())
     private var genreNames: Map<Int, String> = emptyMap()
@@ -67,7 +95,15 @@ class TmdbHomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.tmdbBannerFrame.setOnClickListener {
-            bannerItems.getOrNull(bannerIndex)?.let { openDetails(it.type, it.id) }
+            val item = bannerItems.getOrNull(bannerIndex) ?: return@setOnClickListener
+            when (item) {
+                is BannerItem.Tmdb -> openDetails(item.media.type, item.media.id)
+                is BannerItem.Plugin -> startActivity(
+                    Intent(requireContext(), TmdbDetailsActivity::class.java)
+                        .putExtra(TmdbDetailsActivity.ARG_PLUGIN_SOURCE, item.sourceId)
+                        .putExtra(TmdbDetailsActivity.ARG_PLUGIN_URL, item.response.url)
+                )
+            }
         }
         FocusEffectUtil.applyFocusListener(binding.tmdbBannerFrame)
         applyBannerLayout()
@@ -103,7 +139,7 @@ class TmdbHomeFragment : Fragment() {
         // Banner: always TMDB trending (plugin hero is rendered as first section).
         // Sections: plugin's own if available, else TMDB fallback — never empty.
         viewLifecycleOwner.lifecycleScope.launch {
-            loadBanner()
+            loadBanner(plugin)
             loadSimklContinueWatching()
             if (plugin != null) {
                 val gotSections = loadPluginSections(plugin)
@@ -114,15 +150,38 @@ class TmdbHomeFragment : Fragment() {
         }
     }
 
-    /** Loads the TMDB trending banner (always visible). */
-    private suspend fun loadBanner() {
-        val trendingSeries = withContext(Dispatchers.IO) { Tmdb.trending("tv", "week") }
-        val trendingMovies = withContext(Dispatchers.IO) { Tmdb.trending("movie", "week") }
+    /** Loads banner: plugin items for live sources, TMDB trending otherwise. */
+    private suspend fun loadBanner(plugin: CsInstalledSource? = null) {
         genreNames = withContext(Dispatchers.IO) { Tmdb.genres().associate { it.id to it.name } }
-        val trending = trendingSeries + trendingMovies
         bannerItems.clear()
-        bannerItems.addAll(trending)
-        if (trending.isNotEmpty()) showBanner(0)
+        if (plugin != null && plugin.type == "live") {
+            val apis = withContext(Dispatchers.IO) {
+                CsRuntime.apisFor(requireContext(), plugin)
+            }
+            for (api in apis) {
+                val pages = api.mainPage.filter { it.data.isNotBlank() }
+                for (page in pages) {
+                    val resp = runCatching {
+                        withContext(Dispatchers.IO) {
+                            api.getMainPage(1, MainPageRequest(page.name, page.data, page.horizontalImages))
+                        }
+                    }.getOrNull()
+                    resp?.items?.forEach { list ->
+                        list.list.take(10).forEach { sr ->
+                            bannerItems.add(BannerItem.Plugin(sr, plugin.id))
+                        }
+                    }
+                    if (bannerItems.isNotEmpty()) break
+                }
+                if (bannerItems.isNotEmpty()) break
+            }
+        } else {
+            val trendingSeries = withContext(Dispatchers.IO) { Tmdb.trending("tv", "week") }
+            val trendingMovies = withContext(Dispatchers.IO) { Tmdb.trending("movie", "week") }
+            bannerItems.addAll(trendingSeries.map { BannerItem.Tmdb(it) })
+            bannerItems.addAll(trendingMovies.map { BannerItem.Tmdb(it) })
+        }
+        if (bannerItems.isNotEmpty()) showBanner(0)
     }
 
     /** Fetches TMDB browse rows as the default home content. */
@@ -297,13 +356,14 @@ class TmdbHomeFragment : Fragment() {
     private fun showBanner(index: Int) {
         val item = bannerItems.getOrNull(index) ?: return
         bannerIndex = index
-        binding.tmdbBannerImage.loadImage(Tmdb.imageUrl(item.backdropPath, 780))
+        binding.tmdbBannerImage.loadImage(item.imageUrl)
         val meta = buildString {
-            if (item.voteAverage > 0) append("★ ").append(String.format("%.1f", item.voteAverage)).append("  •  ")
+            if (item is BannerItem.Tmdb && item.media.voteAverage > 0)
+                append("★ ").append(String.format("%.1f", item.media.voteAverage)).append("  •  ")
             if (item.year.isNotBlank()) append(item.year).append("  •  ")
             append(item.type.replaceFirstChar { it.uppercase() })
         }
-        binding.tmdbBannerTitle.text = item.displayTitle
+        binding.tmdbBannerTitle.text = item.title
         binding.tmdbBannerSideMeta.text = meta
         binding.tmdbBannerRating.text = meta
         val synopsis = item.overview?.takeIf { it.isNotBlank() } ?: ""
@@ -312,14 +372,27 @@ class TmdbHomeFragment : Fragment() {
         binding.tmdbBannerSynopsis.isVisible = !isPortrait && synopsis.isNotBlank()
         binding.tmdbBannerSideSynopsis.text = synopsis
         binding.tmdbBannerSideSynopsis.isVisible = synopsis.isNotBlank()
-        val genreText = item.genreIds.take(3).mapNotNull { genreNames[it] }.joinToString("  •  ")
+        val genreText = when (item) {
+            is BannerItem.Tmdb -> item.media.genreIds.take(3).mapNotNull { genreNames[it] }.joinToString("  •  ")
+            is BannerItem.Plugin -> ""
+        }
         binding.tmdbBannerGenres.text = genreText
         binding.tmdbBannerGenres.isVisible = genreText.isNotBlank()
         binding.tmdbBannerStatus.isVisible = false
         binding.tmdbBannerStatusDivider.isVisible = false
         binding.tmdbBannerMetaDivider.isVisible = genreText.isNotBlank()
-        populateSideChips(item)
-        loadBannerLogo(item)
+        when (item) {
+            is BannerItem.Tmdb -> {
+                populateSideChips(item.media)
+                loadBannerLogo(item.media)
+            }
+            is BannerItem.Plugin -> {
+                binding.tmdbBannerSideChips.removeAllViews()
+                logoJob?.cancel()
+                binding.tmdbBannerLogo.isVisible = false
+                binding.tmdbBannerPortraitLogo.isVisible = false
+            }
+        }
     }
 
     private fun populateSideChips(item: TmdbMedia) {
@@ -529,7 +602,8 @@ class TmdbHomeFragment : Fragment() {
             val b = holder.binding
             val landscape = TmdbCards.isLandscapeOrientation()
             val size = TmdbCards.cardSize()
-            val (w, h) = if (landscape) {
+            val isLive = item is LiveSearchResponse
+            val (w, h) = if (landscape || isLive) {
                 (260f * size).toInt() to (148f * size).toInt()
             } else {
                 (102f * size).toInt() to (154f * size).toInt()
@@ -539,7 +613,7 @@ class TmdbHomeFragment : Fragment() {
                 height = h
             }
             b.tmdbCard.radius = TmdbCards.roundness()
-            b.tmdbCardPoster.loadImage(item.posterUrl, if (landscape) 780 else 300)
+            b.tmdbCardPoster.loadImage(item.posterUrl, if (landscape || isLive) 780 else 300)
             b.tmdbCardTitle.text = item.name
             b.tmdbCardTitle.isVisible = true
             b.tmdbCardYear.text = ""
