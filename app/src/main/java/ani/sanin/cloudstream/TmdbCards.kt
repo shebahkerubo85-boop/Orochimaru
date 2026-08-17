@@ -69,68 +69,85 @@ object TmdbCards {
         val gradient = binding.tmdbCardGradient
         val logo = binding.tmdbCardLogo
         val overlayTitle = binding.tmdbCardOverlayTitle
-        gradient.isVisible = landscape
-        logo.isVisible = landscape
-        overlayTitle.isVisible = false
+
+        val titlePosition = PrefManager.getVal<Int>(PrefName.CardTitlePosition)
+
         if (landscape) {
-            gradient.updateLayoutParams<ViewGroup.LayoutParams> {
-                width = w
-                height = h
-            }
-            overlayTitle.updateLayoutParams<ViewGroup.LayoutParams> {
-                width = w
-            }
-            setGradient(gradient)
-
-            overlayTitle.text = item.displayTitle
-            val token = "${item.type}:${item.id}"
-            if (logo.tag != token) {
-                logo.tag = token
-                Glide.with(logo.context).clear(logo)
-                logo.setImageDrawable(null)
-            }
-            logoScope.launch {
-                val url = runCatching { Tmdb.logoUrl(item.type, item.id) }.getOrNull()
-                val current = logo.tag
-                if (current != token) return@launch
-                binding.root.post {
-                    if (logo.tag != token) return@post
-                    if (url != null) {
-                        Glide.with(logo.context)
-                            .load(url)
-                            .override((w * 0.7f).toInt())
-                            .listener(object : RequestListener<Drawable> {
-                                override fun onLoadFailed(
-                                    e: GlideException?,
-                                    model: Any?,
-                                    target: Target<Drawable>?,
-                                    isFirstResource: Boolean
-                                ): Boolean {
-                                    overlayTitle.isVisible = true
-                                    return false
-                                }
-
-                                override fun onResourceReady(
-                                    resource: Drawable?,
-                                    model: Any?,
-                                    target: Target<Drawable>?,
-                                    dataSource: DataSource?,
-                                    isFirstResource: Boolean
-                                ): Boolean = false
-                            })
-                            .into(logo)
-                    } else {
-                        overlayTitle.isVisible = true
+            // Landscape: respect CardTitlePosition setting
+            when (titlePosition) {
+                0 -> {
+                    // Overlay: gradient + logo/title at bottom (default landscape)
+                    gradient.isVisible = true
+                    gradient.updateLayoutParams<ViewGroup.LayoutParams> {
+                        width = w; height = h
+                    }
+                    overlayTitle.updateLayoutParams<ViewGroup.LayoutParams> { width = w }
+                    setCardGradient(gradient)
+                    overlayTitle.text = item.displayTitle
+                    val token = "${item.type}:${item.id}"
+                    if (logo.tag != token) {
+                        logo.tag = token
+                        Glide.with(logo.context).clear(logo)
+                        logo.setImageDrawable(null)
+                    }
+                    logoScope.launch {
+                        val url = runCatching { Tmdb.logoUrl(item.type, item.id) }.getOrNull()
+                        val current = logo.tag
+                        if (current != token) return@launch
+                        binding.root.post {
+                            if (logo.tag != token) return@post
+                            if (url != null) {
+                                Glide.with(logo.context)
+                                    .load(url)
+                                    .override((w * 0.7f).toInt())
+                                    .listener(object : RequestListener<Drawable> {
+                                        override fun onLoadFailed(
+                                            e: GlideException?, model: Any?,
+                                            target: Target<Drawable>?, isFirstResource: Boolean
+                                        ): Boolean { overlayTitle.isVisible = true; return false }
+                                        override fun onResourceReady(
+                                            resource: Drawable?, model: Any?,
+                                            target: Target<Drawable>?,
+                                            dataSource: DataSource?, isFirstResource: Boolean
+                                        ): Boolean = false
+                                    })
+                                    .into(logo)
+                            } else {
+                                overlayTitle.isVisible = true
+                            }
+                        }
                     }
                 }
+                2 -> {
+                    // Hidden: no title at all
+                    gradient.isVisible = false
+                    overlayTitle.isVisible = false
+                    logo.isVisible = false
+                }
+                else -> {
+                    // Below card (1 or any other): no gradient, title below
+                    gradient.isVisible = false
+                    overlayTitle.isVisible = false
+                    logo.isVisible = false
+                }
             }
+        } else {
+            // Portrait: always title below, no gradient
+            gradient.isVisible = false
+            overlayTitle.isVisible = false
+            logo.isVisible = false
         }
 
-        binding.tmdbCardTitle.isVisible = !landscape
-        binding.tmdbCardYear.isVisible = !landscape
+        val showTitleBelow = !landscape || titlePosition != 0 && titlePosition != 2
+        binding.tmdbCardTitle.isVisible = showTitleBelow
+        binding.tmdbCardTitle.text = item.displayTitle
+        binding.tmdbCardYear.isVisible = false
+        if (landscape && titlePosition == 0) {
+            logo.isVisible = true  // Will be updated by async logo fetch
+        }
     }
 
-    private fun setGradient(view: View) {
+    fun setCardGradient(view: View) {
         val intensity = PrefManager.getVal<Float>(PrefName.CardGradientIntensity)
         if (intensity <= 0f) {
             view.background = null

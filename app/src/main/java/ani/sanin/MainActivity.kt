@@ -707,6 +707,14 @@ class MainActivity : AppCompatActivity() {
         updateModeLabel()
         updateNavPillForMode()
         currentFragmentTag = null
+        // Force fragment replacement: setTab(0) won't emit if already on tab 0
+        // (StateFlow deduplicates), so directly replace the fragment.
+        if (supportFragmentManager.isStateSaved) return
+        val tag = tabFragments[0] ?: "home"
+        val fragment = getFragmentForTab(0)
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragmentContainer, fragment, tag)
+            .commit()
         navPillsViewModel.setTab(0)
         hideHomeNavRail()
     }

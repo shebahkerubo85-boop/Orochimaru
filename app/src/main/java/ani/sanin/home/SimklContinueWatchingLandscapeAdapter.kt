@@ -13,7 +13,12 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
 import ani.sanin.connections.simkl.Simkl
+import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.loadImage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.util.FocusEffectUtil

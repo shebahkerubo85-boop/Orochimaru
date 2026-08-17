@@ -51,7 +51,13 @@ class TmdbHomeFragment : Fragment() {
     /** Wrapper for banner items: either TMDB trending or plugin live items. */
     sealed class BannerItem {
         data class Tmdb(val media: TmdbMedia) : BannerItem()
-        data class Plugin(val response: SearchResponse, val sourceId: String) : BannerItem()
+        data class Plugin(
+            val response: SearchResponse,
+            val sourceId: String,
+            val backdropUrl: String? = null,
+            val tmdbId: Int? = null,
+            val tmdbType: String? = null
+        ) : BannerItem()
 
         val title: String get() = when (this) {
             is Tmdb -> media.displayTitle
@@ -59,7 +65,7 @@ class TmdbHomeFragment : Fragment() {
         }
         val bannerUrl: String? get() = when (this) {
             is Tmdb -> media.backdropPath?.let { "https://image.tmdb.org/t/p/w780\$it" }
-            is Plugin -> response.posterUrl
+            is Plugin -> backdropUrl ?: response.posterUrl
         }
         val year: String get() = when (this) {
             is Tmdb -> media.year
@@ -98,11 +104,17 @@ class TmdbHomeFragment : Fragment() {
             val item = bannerItems.getOrNull(bannerIndex) ?: return@setOnClickListener
             when (item) {
                 is BannerItem.Tmdb -> openDetails(item.media.type, item.media.id)
-                is BannerItem.Plugin -> startActivity(
-                    Intent(requireContext(), TmdbDetailsActivity::class.java)
-                        .putExtra(TmdbDetailsActivity.ARG_PLUGIN_SOURCE, item.sourceId)
-                        .putExtra(TmdbDetailsActivity.ARG_PLUGIN_URL, item.response.url)
-                )
+                is BannerItem.Plugin -> {
+                    if (item.tmdbId != null && item.tmdbType != null) {
+                        openDetails(item.tmdbType, item.tmdbId)
+                    } else {
+                        startActivity(
+                            Intent(requireContext(), TmdbDetailsActivity::class.java)
+                                .putExtra(TmdbDetailsActivity.ARG_PLUGIN_SOURCE, item.sourceId)
+                                .putExtra(TmdbDetailsActivity.ARG_PLUGIN_URL, item.response.url)
+                        )
+                    }
+                }
             }
         }
         FocusEffectUtil.applyFocusListener(binding.tmdbBannerFrame)
@@ -199,6 +211,26 @@ class TmdbHomeFragment : Fragment() {
                     }
                 }
                 if (bannerItems.isNotEmpty()) break
+            }
+            // Like anime mode: plugin = AniList (data), TMDB = AniZip (backdrop images)
+            // Fetch TMDB backdrop for each plugin item by name search
+            val itemsToLookup = bannerItems.filterIsInstance<BannerItem.Plugin>().take(10)
+            bannerItems.clear()
+            for (pluginItem in itemsToLookup) {
+                val tmdbResults = withContext(Dispatchers.IO) {
+                    runCatching { Tmdb.search(pluginItem.response.name) }.getOrNull()
+                }
+                val match = tmdbResults?.firstOrNull()
+                if (match != null) {
+                    val backdrop = match.backdropPath?.let { Tmdb.imageUrl(it, 780) }
+                    bannerItems.add(pluginItem.copy(
+                        backdropUrl = backdrop,
+                        tmdbId = match.id,
+                        tmdbType = match.type
+                    ))
+                } else {
+                    bannerItems.add(pluginItem)
+                }
             }
         } else {
             val trendingSeries = withContext(Dispatchers.IO) { Tmdb.trending("tv", "week") }
@@ -382,11 +414,8 @@ class TmdbHomeFragment : Fragment() {
         val item = bannerItems.getOrNull(index) ?: return
         bannerIndex = index
         binding.tmdbBannerImage.loadImage(item.bannerUrl)
-        // Live stream posters are portrait - use fitCenter to show full image
-        binding.tmdbBannerImage.scaleType = when (item) {
-            is BannerItem.Plugin -> android.widget.ImageView.ScaleType.FIT_CENTER
-            else -> android.widget.ImageView.ScaleType.CENTER_CROP
-        }
+        // Default centerCrop works for both TMDB backdrops and plugin TMDB-looked-up backdrops
+        binding.tmdbBannerImage.scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
         val meta = buildString {
             if (item is BannerItem.Tmdb && item.media.voteAverage > 0)
                 append("★ ").append(String.format("%.1f", item.media.voteAverage)).append("  •  ")
@@ -579,6 +608,8 @@ class TmdbHomeFragment : Fragment() {
         private val onClick: (SearchResponse) -> Unit
     ) : RecyclerView.Adapter<PluginRowAdapter.VH>() {
 
+        private val titlePos: Int get() = PrefManager.getVal(PrefName.CardTitlePosition)
+
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
             val b = ItemTmdbCardBinding.inflate(LayoutInflater.from(parent.context), parent, false)
             return VH(b)
@@ -601,17 +632,51 @@ class TmdbHomeFragment : Fragment() {
             }
             b.tmdbCard.radius = TmdbCards.roundness()
             b.tmdbCardPoster.loadImage(item.posterUrl, if (landscape || isLive) 780 else 300)
-            // Live cards: fitCenter to show full poster without cropping
-            if (isLive) {
-                b.tmdbCardPoster.scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+
+            if (landscape) {
+                // Landscape cards respect CardTitlePosition (portrait always below)
+                when (titlePos) {
+                    0 -> {
+                        // Overlay: gradient + title at bottom
+                        b.tmdbCardGradient.isVisible = true
+                        b.tmdbCardGradient.updateLayoutParams<ViewGroup.LayoutParams> {
+                            width = w; height = h
+                        }
+                        TmdbCards.setCardGradient(b.tmdbCardGradient)
+                        b.tmdbCardOverlayTitle.isVisible = true
+                        b.tmdbCardOverlayTitle.text = item.name
+                        b.tmdbCardLogo.isVisible = false
+                        b.tmdbCardTitle.isVisible = false
+                        b.tmdbCardYear.isVisible = false
+                    }
+                    2 -> {
+                        // Hidden: no title at all
+                        b.tmdbCardGradient.isVisible = false
+                        b.tmdbCardOverlayTitle.isVisible = false
+                        b.tmdbCardLogo.isVisible = false
+                        b.tmdbCardTitle.isVisible = false
+                        b.tmdbCardYear.isVisible = false
+                    }
+                    else -> {
+                        // Below card (default)
+                        b.tmdbCardGradient.isVisible = false
+                        b.tmdbCardOverlayTitle.isVisible = false
+                        b.tmdbCardLogo.isVisible = false
+                        b.tmdbCardTitle.isVisible = true
+                        b.tmdbCardTitle.text = item.name
+                        b.tmdbCardYear.isVisible = false
+                    }
+                }
+            } else {
+                // Portrait: always title below
+                b.tmdbCardGradient.isVisible = false
+                b.tmdbCardOverlayTitle.isVisible = false
+                b.tmdbCardLogo.isVisible = false
+                b.tmdbCardTitle.isVisible = true
+                b.tmdbCardTitle.text = item.name
+                b.tmdbCardYear.isVisible = false
             }
-            b.tmdbCardTitle.text = item.name
-            b.tmdbCardTitle.isVisible = true
-            b.tmdbCardYear.text = ""
-            b.tmdbCardYear.isVisible = false
-            b.tmdbCardGradient.isVisible = false
-            b.tmdbCardLogo.isVisible = false
-            b.tmdbCardOverlayTitle.isVisible = false
+
             b.tmdbCardPoster.setOnClickListener { onClick(item) }
             FocusEffectUtil.applyFocusListener(b.tmdbCardPoster)
         }
