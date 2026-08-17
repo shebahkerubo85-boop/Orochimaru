@@ -15,9 +15,8 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.connections.tmdb.Tmdb
+import ani.sanin.connections.tmdb.TmdbMedia
 import ani.sanin.cloudstream.TmdbCards
-import ani.sanin.connections.tmdb.Tmdb
-import ani.sanin.cloudstream.TmdbCardsMedia
 import ani.sanin.databinding.ActivityTmdbSearchBinding
 import ani.sanin.databinding.ItemTmdbCardBinding
 import ani.sanin.databinding.ItemTmdbHistoryBinding
