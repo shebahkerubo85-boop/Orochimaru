@@ -63,17 +63,11 @@ object Simkl {
                 ani.sanin.util.Logger.log("Simkl.getSavedToken: no token in prefs")
                 return@tryWith false
             }
-            if (res.isExpired()) {
-                ani.sanin.util.Logger.log("Simkl.getSavedToken: token expired, refreshing")
-                val refreshed = refreshToken() ?: return@tryWith false
-                token = refreshed.accessToken
-            } else {
-                token = res.accessToken
-            }
+            token = res.accessToken
             username = PrefManager.getVal<String?>(PrefName.SimklUserName)
             avatar = PrefManager.getVal<String?>(PrefName.SimklAvatar)
             userid = PrefManager.getVal<String?>(PrefName.SimklUserId)
-            ani.sanin.util.Logger.log("Simkl.getSavedToken: OK token=${token?.take(10)}... name=$username avatar=${avatar?.take(50)}")
+            ani.sanin.util.Logger.log("Simkl.getSavedToken: OK name=$username avatar=${avatar?.take(50)}")
             true
         } ?: false
         if (!result) ani.sanin.util.Logger.log("Simkl.getSavedToken: FAILED")
@@ -270,14 +264,12 @@ object Simkl {
         return try {
             val request = Request.Builder()
                 .url("$BASE/sync/history")
-                .post("".toRequestBody("application/json".toMediaType()))
                 .addHeader("Authorization", "Bearer $t")
                 .addHeader("simkl-api-key", clientId)
-                .addHeader("Content-Type", "application/json")
                 .build()
             val response = okHttpClient.newCall(request).execute()
             val body = response.body?.string()
-            ani.sanin.util.Logger.log("Simkl.getContinueWatching: HTTP ${response.code} body=${body?.take(200)}")
+            ani.sanin.util.Logger.log("Simkl.getContinueWatching: HTTP ${response.code} body=${body?.take(300)}")
             if (response.code != 200 || body == null) {
                 ani.sanin.logError(Exception("Simkl.getContinueWatching: HTTP ${response.code}"), snackbar = false)
                 return emptyList()
@@ -394,8 +386,10 @@ object Simkl {
             private const val serialVersionUID = 1L
         }
         fun isExpired(): Boolean {
-            val created = createdAt ?: return true
-            val life = expiresIn ?: return true
+            val created = createdAt
+            val life = expiresIn
+            // If createdAt is null (common with PKCE flow), trust the token
+            if (created == null || life == null) return false
             return System.currentTimeMillis() / 1000 > created + life - 60
         }
     }
