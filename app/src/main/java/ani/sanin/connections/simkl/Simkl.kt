@@ -303,15 +303,30 @@ object Simkl {
         tryWithSuspend {
             val t = token ?: return@tryWithSuspend
             val now = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())
-            // Build the correct Simkl POST /sync/history format (flat ids, not nested show/movie)
+            val idsObj = org.json.JSONObject().apply {
+                put("tmdb", tmdbId ?: 0)
+                if (!imdbId.isNullOrBlank()) put("imdb", imdbId)
+            }
             val body = if (type == "tv") {
-                val epJson = if (episode != null) ","watched_at":"$now"" else ""
-                val seasonJson = if (season != null || episode != null) {
-                    ""","seasons":[{"number":${season ?: 1},"episodes":[{"number":${episode ?: 1}$epJson}]}]"""
-                } else ""
-                """{"shows":[{"ids":{"tmdb":${tmdbId ?: 0}${if (!imdbId.isNullOrBlank()) ","imdb":"$imdbId"" else ""}}$seasonJson}]}"""
+                val epObj = org.json.JSONObject().apply {
+                    put("number", episode ?: 1)
+                    if (episode != null) put("watched_at", now)
+                }
+                val seasonObj = org.json.JSONObject().apply {
+                    put("number", season ?: 1)
+                    put("episodes", org.json.JSONArray().put(epObj))
+                }
+                val showObj = org.json.JSONObject().apply {
+                    put("ids", idsObj)
+                    if (season != null || episode != null) put("seasons", org.json.JSONArray().put(seasonObj))
+                }
+                org.json.JSONObject().put("shows", org.json.JSONArray().put(showObj)).toString()
             } else {
-                """{"movies":[{"ids":{"tmdb":${tmdbId ?: 0}${if (!imdbId.isNullOrBlank()) ","imdb":"$imdbId"" else ""}},"watched_at":"$now"}]}"""
+                val movieObj = org.json.JSONObject().apply {
+                    put("ids", idsObj)
+                    put("watched_at", now)
+                }
+                org.json.JSONObject().put("movies", org.json.JSONArray().put(movieObj)).toString()
             }
             val request = Request.Builder()
                 .url("$BASE/sync/history")
@@ -337,11 +352,22 @@ object Simkl {
     ) {
         tryWithSuspend {
             val t = token ?: return@tryWithSuspend
-            // Use /sync/ratings or /sync/add-to-list for status changes
+            val idsObj = org.json.JSONObject().apply {
+                put("tmdb", tmdbId ?: 0)
+                if (!imdbId.isNullOrBlank()) put("imdb", imdbId)
+            }
             val body = if (type == "tv") {
-                """{"shows":[{"ids":{"tmdb":${tmdbId ?: 0}${if (!imdbId.isNullOrBlank()) ","imdb":"$imdbId"" else ""}},"user_status":"$status"}]}"""
+                val item = org.json.JSONObject().apply {
+                    put("ids", idsObj)
+                    put("user_status", status)
+                }
+                org.json.JSONObject().put("shows", org.json.JSONArray().put(item)).toString()
             } else {
-                """{"movies":[{"ids":{"tmdb":${tmdbId ?: 0}${if (!imdbId.isNullOrBlank()) ","imdb":"$imdbId"" else ""}},"user_status":"$status"}]}"""
+                val item = org.json.JSONObject().apply {
+                    put("ids", idsObj)
+                    put("user_status", status)
+                }
+                org.json.JSONObject().put("movies", org.json.JSONArray().put(item)).toString()
             }
             // Try /sync/add-to-list first (for adding with status)
             var resp = okHttpClient.newCall(
@@ -379,10 +405,22 @@ object Simkl {
     ) {
         tryWithSuspend {
             val t = token ?: return@tryWithSuspend
+            val idsObj = org.json.JSONObject().apply {
+                put("tmdb", tmdbId ?: 0)
+                if (!imdbId.isNullOrBlank()) put("imdb", imdbId)
+            }
             val body = if (type == "tv") {
-                """{"shows":[{"ids":{"tmdb":${tmdbId ?: 0}${if (!imdbId.isNullOrBlank()) ","imdb":"$imdbId"" else ""}},"user_status":"watching"}]}"""
+                val item = org.json.JSONObject().apply {
+                    put("ids", idsObj)
+                    put("user_status", "watching")
+                }
+                org.json.JSONObject().put("shows", org.json.JSONArray().put(item)).toString()
             } else {
-                """{"movies":[{"ids":{"tmdb":${tmdbId ?: 0}${if (!imdbId.isNullOrBlank()) ","imdb":"$imdbId"" else ""}},"user_status":"watching"}]}"""
+                val item = org.json.JSONObject().apply {
+                    put("ids", idsObj)
+                    put("user_status", "watching")
+                }
+                org.json.JSONObject().put("movies", org.json.JSONArray().put(item)).toString()
             }
             val resp = okHttpClient.newCall(
                 Request.Builder()
