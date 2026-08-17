@@ -44,7 +44,7 @@ class SimklContinueWatchingLandscapeAdapter(
             PrefManager.getVal<Int>(PrefName.ContinueWatchingCardRoundness).toFloat()
 
         // Load poster as landscape backdrop
-        val posterUrl = item.poster?.replace("original", "w780")?.replace("w300", "w780")
+        val posterUrl = Tmdb.imageUrl(item.poster, 780)
         if (!posterUrl.isNullOrBlank()) {
             holder.image.loadImage(posterUrl, 780)
         } else {
