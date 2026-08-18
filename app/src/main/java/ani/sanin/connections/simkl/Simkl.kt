@@ -463,12 +463,12 @@ object Simkl {
         // /sync/history doesn't work reliably with GET via this client
         return try {
             val movies = getMovieLibrary().filter {
-                !it.status.equals("completed", ignoreCase = true) &&
-                !it.status.equals("dropped", ignoreCase = true)
+                val s = it.status?.lowercase()
+                s == "watching" || s == "current"
             }
             val shows = getShowLibrary().filter {
-                it.status.equals("current", ignoreCase = true) ||
-                it.status.equals("watching", ignoreCase = true)
+                val s = it.status?.lowercase()
+                s == "watching" || s == "current"
             }
             val items = movies + shows
             ani.sanin.util.Logger.log("Simkl.getContinueWatching: ${items.size} items (${movies.size} movies, ${shows.size} shows)")

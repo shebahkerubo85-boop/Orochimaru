@@ -198,6 +198,7 @@ class SimklListDialogFragment : DialogFragment() {
                     )
                 }
                 withContext(Dispatchers.Main) {
+                    Refresh.all()
                     snackString("List updated to: ${simklStatusLabels[simklStatuses.indexOf(selectedStatus)]}")
                     dismissAllowingStateLoss()
                 }
@@ -219,6 +220,7 @@ class SimklListDialogFragment : DialogFragment() {
                     )
                 }
                 withContext(Dispatchers.Main) {
+                    Refresh.all()
                     snackString("Removed from list")
                     dismissAllowingStateLoss()
                 }
