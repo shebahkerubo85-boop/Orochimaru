@@ -198,11 +198,12 @@ object Simkl {
         imdbId: String? = null,
         season: Int? = null,
         episode: Int? = null,
-        durationSec: Int = 0
+        durationSec: Int = 0,
+        anilistId: Int? = null
     ) {
         tryWithSuspend {
             val t = token ?: return@tryWithSuspend
-            val ids = ScrobbleIds(tmdb = tmdbId, imdb = imdbId)
+            val ids = ScrobbleIds(tmdb = tmdbId, imdb = imdbId, anilist = anilistId)
             val item = if (type == "tv") {
                 ScrobbleItem(
                     show = ScrobbleShow(
@@ -248,11 +249,12 @@ object Simkl {
         imdbId: String? = null,
         season: Int? = null,
         episode: Int? = null,
-        durationSec: Int = 0
+        durationSec: Int = 0,
+        anilistId: Int? = null
     ) {
         tryWithSuspend {
             val t = token ?: return@tryWithSuspend
-            val ids = ScrobbleIds(tmdb = tmdbId, imdb = imdbId)
+            val ids = ScrobbleIds(tmdb = tmdbId, imdb = imdbId, anilist = anilistId)
             val item = if (type == "tv") {
                 ScrobbleItem(
                     show = ScrobbleShow(
@@ -298,14 +300,16 @@ object Simkl {
         tmdbId: Int? = null,
         imdbId: String? = null,
         season: Int? = null,
-        episode: Int? = null
+        episode: Int? = null,
+        anilistId: Int? = null
     ) {
         tryWithSuspend {
             val t = token ?: return@tryWithSuspend
             val now = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())
             val idsObj = org.json.JSONObject().apply {
-                put("tmdb", tmdbId ?: 0)
+                if (tmdbId != null && tmdbId > 0) put("tmdb", tmdbId)
                 if (!imdbId.isNullOrBlank()) put("imdb", imdbId)
+                if (anilistId != null && anilistId > 0) put("anilist", anilistId)
             }
             val body = if (type == "tv") {
                 // AnymeX format: mark episodes 1..current as watched, no watched_at
@@ -346,13 +350,15 @@ object Simkl {
         year: Int?,
         tmdbId: Int? = null,
         imdbId: String? = null,
-        status: String
+        status: String,
+        anilistId: Int? = null
     ) {
         tryWithSuspend {
             val t = token ?: return@tryWithSuspend
             val idsObj = org.json.JSONObject().apply {
-                put("tmdb", tmdbId ?: 0)
+                if (tmdbId != null && tmdbId > 0) put("tmdb", tmdbId)
                 if (!imdbId.isNullOrBlank()) put("imdb", imdbId)
+                if (anilistId != null && anilistId > 0) put("anilist", anilistId)
             }
             // AnymeX uses "to" field (not "user_status")
             val body = if (type == "tv") {
@@ -387,13 +393,15 @@ object Simkl {
     suspend fun addToWatchlist(
         type: String,
         tmdbId: Int? = null,
-        imdbId: String? = null
+        imdbId: String? = null,
+        anilistId: Int? = null
     ) {
         tryWithSuspend {
             val t = token ?: return@tryWithSuspend
             val idsObj = org.json.JSONObject().apply {
-                put("tmdb", tmdbId ?: 0)
+                if (tmdbId != null && tmdbId > 0) put("tmdb", tmdbId)
                 if (!imdbId.isNullOrBlank()) put("imdb", imdbId)
+                if (anilistId != null && anilistId > 0) put("anilist", anilistId)
             }
             // AnymeX uses "to" field (not "user_status")
             val body = if (type == "tv") {
@@ -666,7 +674,8 @@ object Simkl {
     data class ScrobbleIds(
         val simkl: Int? = null,
         val tmdb: Int? = null,
-        val imdb: String? = null
+        val imdb: String? = null,
+        val anilist: Int? = null
 ) : java.io.Serializable
 
     @Serializable

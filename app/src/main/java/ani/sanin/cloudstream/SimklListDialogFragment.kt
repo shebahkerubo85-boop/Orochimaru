@@ -45,6 +45,7 @@ class SimklListDialogFragment : DialogFragment() {
         private const val ARG_YEAR = "year"
         private const val ARG_IMDB_ID = "imdbId"
         private const val ARG_COVER_URL = "coverUrl"
+        private const val ARG_BACKDROP_URL = "backdropUrl"
         private const val ARG_CURRENT_STATUS = "currentStatus"
 
         fun newInstance(
@@ -54,6 +55,7 @@ class SimklListDialogFragment : DialogFragment() {
             year: Int?,
             imdbId: String?,
             coverUrl: String?,
+            backdropUrl: String? = null,
             currentStatus: String?
         ): SimklListDialogFragment {
             return SimklListDialogFragment().apply {
@@ -64,6 +66,7 @@ class SimklListDialogFragment : DialogFragment() {
                     putInt(ARG_YEAR, year ?: 0)
                     putString(ARG_IMDB_ID, imdbId)
                     putString(ARG_COVER_URL, coverUrl)
+                    putString(ARG_BACKDROP_URL, backdropUrl)
                     putString(ARG_CURRENT_STATUS, currentStatus)
                 }
             }
@@ -122,9 +125,11 @@ class SimklListDialogFragment : DialogFragment() {
         binding.mediaListLayout.visibility = View.GONE
         binding.mediaListBannerContainer.visibility = View.VISIBLE
 
-        // Load banner
-        if (!coverUrl.isNullOrBlank()) {
-            binding.mediaListBanner.loadImage(coverUrl)
+        // Load banner — prefer backdrop (like anime mode uses banner ?: cover)
+        val backdropUrl = arguments?.getString(ARG_BACKDROP_URL)
+        val bannerUrl = backdropUrl ?: coverUrl
+        if (!bannerUrl.isNullOrBlank()) {
+            binding.mediaListBanner.loadImage(bannerUrl)
         }
 
         // Simkl statuses
@@ -142,7 +147,7 @@ class SimklListDialogFragment : DialogFragment() {
                 isCheckable = true
                 isClickable = true
                 isFocusable = true
-                setTextAppearance(com.google.android.material.R.style.Widget_Material3_Chip_Filter)
+                setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleSmall)
                 if (simklStatuses[index] == selectedStatus) {
                     isChecked = true
                 }

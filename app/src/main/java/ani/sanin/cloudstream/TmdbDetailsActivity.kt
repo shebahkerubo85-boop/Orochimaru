@@ -128,7 +128,7 @@ class TmdbDetailsActivity : AppCompatActivity() {
                             "hold" -> "On Hold"
                             else -> "Add to List"
                         }
-                        binding.tmdbDetailListEditorText.text = statusLabel
+                        binding.tmdbDetailListEditorCard.text = statusLabel
                     }
                 }
             }
@@ -190,6 +190,7 @@ class TmdbDetailsActivity : AppCompatActivity() {
             }
             val fm = supportFragmentManager
             if (fm.findFragmentByTag("simklListEditor") == null) {
+                val backdropUrl = ani.sanin.connections.tmdb.Tmdb.imageUrl(d.backdropPath, 780)
                 SimklListDialogFragment.newInstance(
                     mediaType = mediaType,
                     mediaId = d.id,
@@ -197,6 +198,7 @@ class TmdbDetailsActivity : AppCompatActivity() {
                     year = d.year.toIntOrNull(),
                     imdbId = d.externalIds?.imdbId,
                     coverUrl = ani.sanin.connections.tmdb.Tmdb.imageUrl(d.posterPath, 500),
+                    backdropUrl = backdropUrl,
                     currentStatus = status
                 ).show(fm, "simklListEditor")
             }
