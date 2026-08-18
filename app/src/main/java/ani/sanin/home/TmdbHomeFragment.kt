@@ -488,7 +488,7 @@ class TmdbHomeFragment : Fragment() {
             val logo = detail?.let { Tmdb.logoUrl(it) }
             binding.tmdbBannerLogo.isVisible = logo != null
             if (logo != null) {
-                val bannerW = binding.tmdbBannerLogo.maxWidth.coerceAtLeast(200)
+                val bannerW = binding.tmdbBannerLogo.maxWidth.coerceIn(200, 400)
                 com.bumptech.glide.Glide.with(binding.tmdbBannerLogo.context)
                     .load(logo)
                     .override(bannerW, (bannerW * 0.4f).toInt())
@@ -498,7 +498,7 @@ class TmdbHomeFragment : Fragment() {
             portraitLogo.isVisible = logo != null
             binding.tmdbBannerTitle.isVisible = logo == null
             if (logo != null) {
-                val portraitW = portraitLogo.maxWidth.coerceAtLeast(120)
+                val portraitW = portraitLogo.maxWidth.coerceIn(120, 240)
                 com.bumptech.glide.Glide.with(portraitLogo.context)
                     .load(logo)
                     .override(portraitW, (portraitW * 0.4f).toInt())
@@ -518,7 +518,7 @@ class TmdbHomeFragment : Fragment() {
             val logo = detail?.let { Tmdb.logoUrl(it) }
             binding.tmdbBannerLogo.isVisible = logo != null
             if (logo != null) {
-                val bannerW = binding.tmdbBannerLogo.maxWidth.coerceAtLeast(200)
+                val bannerW = binding.tmdbBannerLogo.maxWidth.coerceIn(200, 400)
                 com.bumptech.glide.Glide.with(binding.tmdbBannerLogo.context)
                     .load(logo)
                     .override(bannerW, (bannerW * 0.4f).toInt())
@@ -528,7 +528,7 @@ class TmdbHomeFragment : Fragment() {
             portraitLogo.isVisible = logo != null
             binding.tmdbBannerTitle.isVisible = logo == null
             if (logo != null) {
-                val portraitW = portraitLogo.maxWidth.coerceAtLeast(120)
+                val portraitW = portraitLogo.maxWidth.coerceIn(120, 240)
                 com.bumptech.glide.Glide.with(portraitLogo.context)
                     .load(logo)
                     .override(portraitW, (portraitW * 0.4f).toInt())
