@@ -84,6 +84,7 @@ class TmdbSearchActivity : AppCompatActivity() {
         }
         FocusEffectUtil.applyFocusListener(binding.tmdbSearchFilter)
 
+        buildPluginChips()
         showHistory()
     }
 

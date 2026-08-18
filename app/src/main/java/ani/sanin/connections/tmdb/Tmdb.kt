@@ -272,7 +272,7 @@ object Tmdb {
     }
 
     private fun pickLogo(images: TmdbImages?): String? {
-        val logos = images?.logos.orEmpty().filter { !it.filePath.isNullOrBlank() }
+        val logos = images?.logos.orEmpty().filter { !it.filePath.isNullOrBlank() && !it.filePath!!.endsWith(".svg", true) }
         val chosen = logos.minByOrNull { abs(it.filePath!!.hashCode()) } ?: return null
         return imageUrl(chosen.filePath, 780)
     }

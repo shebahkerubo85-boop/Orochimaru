@@ -46,6 +46,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -154,16 +155,50 @@ class TmdbHomeFragment : Fragment() {
         val sourceId = PrefManager.getVal<String>(PrefName.ContentSource)
         val plugin = if (sourceId == "tmdb") null
             else CsRepos.installed(requireContext()).firstOrNull { it.id == sourceId }
-        // Banner: always TMDB trending (plugin hero is rendered as first section).
-        // Sections: plugin's own if available, else TMDB fallback — never empty.
         viewLifecycleOwner.lifecycleScope.launch {
+            // Load banner (single view — adds immediately, no frame skip).
             loadBanner(plugin)
-            loadSimklContinueWatching()
-            if (plugin != null) {
-                val gotSections = loadPluginSections(plugin)
-                if (!gotSections) loadTmdbSections()
-            } else {
-                loadTmdbSections()
+            // Collect all section data concurrently (no views added yet).
+            val cwItems = if (Simkl.token != null) withContext(Dispatchers.IO) {
+                runCatching { Simkl.getContinueWatching() }.getOrNull() ?: emptyList()
+            } else emptyList()
+            val trendingSeries = async(Dispatchers.IO) { Tmdb.trending("tv", "week") }
+            val trendingMovies = async(Dispatchers.IO) { Tmdb.trending("movie", "week") }
+            val latestSeries = async(Dispatchers.IO) { Tmdb.latestSeries() }
+            val latestMovies = async(Dispatchers.IO) { Tmdb.latestMovies() }
+            val popular = async(Dispatchers.IO) { Tmdb.popular() }
+            val topRated = async(Dispatchers.IO) { Tmdb.topRated() }
+            // Defer all section view additions to next frame to prevent 40 skipped frames.
+            view?.post {
+                if (!isAdded) return@post
+                // Continue Watching
+                if (cwItems.isNotEmpty()) {
+                    val ctx = requireContext()
+                    binding.tmdbHomeSections.addView(TextView(ctx).apply {
+                        text = "Continue Watching"
+                        setPadding(24, 14, 24, 8); textSize = 16f
+                        setTypeface(android.graphics.Typeface.DEFAULT_BOLD)
+                        setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+                    })
+                    binding.tmdbHomeSections.addView(RecyclerView(ctx).apply {
+                        layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
+                        adapter = SimklContinueWatchingLandscapeAdapter(cwItems) { item ->
+                            val tmdbId = item.ids?.tmdb ?: return@SimklContinueWatchingLandscapeAdapter
+                            startActivity(Intent(requireContext(), ani.sanin.cloudstream.TmdbWatchActivity::class.java)
+                                .putExtra(ani.sanin.cloudstream.TmdbWatchActivity.ARG_MEDIA_TYPE, item.mediaType ?: "tv")
+                                .putExtra(ani.sanin.cloudstream.TmdbWatchActivity.ARG_MEDIA_ID, tmdbId))
+                        }
+                        isNestedScrollingEnabled = false; overScrollMode = View.OVER_SCROLL_NEVER; setPadding(24, 0, 24, 0)
+                    })
+                }
+                // TMDB sections (data collected via async above)
+                addSection("Trending Series", trendingSeries.await())
+                addSection("Trending Movies", trendingMovies.await())
+                addSection("Latest Series", latestSeries.await())
+                addSection("Latest Movies", latestMovies.await())
+                addSection("Popular", popular.await())
+                addSection("Top Rated", topRated.await())
+                startAutoAdvance()
             }
         }
     }
