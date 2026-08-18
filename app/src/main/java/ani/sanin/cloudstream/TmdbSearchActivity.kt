@@ -199,12 +199,27 @@ class TmdbSearchActivity : AppCompatActivity() {
                     if (results.isNotEmpty()) pluginNames.add(name)
                 }
                 binding.tmdbSearchProgress.isVisible = false
+                // Switch RecyclerView to plugin adapter + list layout
+                binding.tmdbSearchGrid.adapter = pluginAdapter
+                binding.tmdbSearchGrid.layoutManager = LinearLayoutManager(this@TmdbSearchActivity)
                 pluginAdapter.submit(allResults)
                 binding.tmdbSearchEmpty.isVisible = allResults.isEmpty()
                 if (allResults.isEmpty()) snackString("No results for '$query'")
             } else {
                 val results = Tmdb.search(query)
                 binding.tmdbSearchProgress.isVisible = false
+                // Ensure TMDB grid adapter + layout
+                binding.tmdbSearchGrid.adapter = adapter
+                val dm = resources.displayMetrics
+                val screenWidthPx = dm.widthPixels
+                val density = dm.density
+                val landscape = TmdbCards.isLandscapeOrientation()
+                val size = TmdbCards.cardSize()
+                val cardWidthPx = ((if (landscape) 260f else 102f) * size * density).toInt()
+                val marginEndPx = (12 * density).toInt()
+                val paddingPx = (32 * density).toInt()
+                val cols = ((screenWidthPx - paddingPx) / (cardWidthPx + marginEndPx)).toInt().coerceAtLeast(2)
+                binding.tmdbSearchGrid.layoutManager = GridLayoutManager(this@TmdbSearchActivity, cols)
                 adapter.submit(results)
                 binding.tmdbSearchEmpty.isVisible = results.isEmpty()
                 if (results.isEmpty()) snackString("No results for '$query'")
@@ -241,10 +256,21 @@ class TmdbSearchActivity : AppCompatActivity() {
     }
 
     private fun openPluginDetails(item: com.lagradost.cloudstream3.SearchResponse) {
-        val source = selectedPluginSource ?: return
+        // Find the installed source matching this result's API name
+        val apiName = item.apiName
+        val installed = CsRepos.installed(this)
+        var matchedSourceId: String? = null
+        for (source in installed) {
+            val apis = with(Dispatchers.IO) { CsRuntime.apisFor(this@TmdbSearchActivity, source) }
+            if (apis.any { it.name == apiName }) {
+                matchedSourceId = source.id
+                break
+            }
+        }
+        val sourceId = matchedSourceId ?: selectedPluginSource?.id ?: return
         startActivity(
             Intent(this, TmdbDetailsActivity::class.java)
-                .putExtra(TmdbDetailsActivity.ARG_PLUGIN_SOURCE, source.id)
+                .putExtra(TmdbDetailsActivity.ARG_PLUGIN_SOURCE, sourceId)
                 .putExtra(TmdbDetailsActivity.ARG_PLUGIN_URL, item.url)
         )
     }

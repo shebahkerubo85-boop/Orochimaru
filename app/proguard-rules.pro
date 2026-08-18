@@ -171,6 +171,6 @@
 -keep class kotlinx.atomicfu.** { *; }
 -dontwarn kotlinx.atomicfu.**
 
-# Fix R8 stripping JSONArray.put() return type
--keep class org.json.JSONArray { public org.json.JSONArray put(...); }
--keep class org.json.JSONObject { public org.json.JSONObject put(...); }
+# Keep org.json classes used for parsing API responses (system class on Android)
+-keep class org.json.** { *; }
+-dontwarn org.json.**

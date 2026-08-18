@@ -305,33 +305,33 @@ object Simkl {
     ) {
         tryWithSuspend {
             val t = token ?: return@tryWithSuspend
-            val now = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())
-            val idsObj = org.json.JSONObject().apply {
-                if (tmdbId != null && tmdbId > 0) put("tmdb", tmdbId)
-                if (!imdbId.isNullOrBlank()) put("imdb", imdbId)
-                if (anilistId != null && anilistId > 0) put("anilist", anilistId)
+            val idsObj = buildJsonObject {
+                if (tmdbId != null && tmdbId > 0) put("tmdb", JsonPrimitive(tmdbId))
+                if (!imdbId.isNullOrBlank()) put("imdb", JsonPrimitive(imdbId))
+                if (anilistId != null && anilistId > 0) put("anilist", JsonPrimitive(anilistId))
             }
+            // Query status BEFORE /sync/history (which resets it to "watching")
+            val prevStatus = if (type == "tv") getMediaStatus("tv", tmdbId, imdbId, anilistId) else null
+
             val body = if (type == "tv") {
                 val ep = episode ?: 1
-                val episodesArr = org.json.JSONArray()
-                for (i in 1..ep) {
-                    val epObj = org.json.JSONObject()
-                    epObj.put("number", i)
-                    episodesArr.put(epObj)
-                }
-                val seasonObj = org.json.JSONObject()
-                seasonObj.put("number", season ?: 1)
-                seasonObj.put("episodes", episodesArr)
-                val seasonsArr = org.json.JSONArray()
-                seasonsArr.put(seasonObj)
-                val showObj = org.json.JSONObject()
-                showObj.put("ids", idsObj)
-                showObj.put("seasons", seasonsArr)
-                val showsArr = org.json.JSONArray()
-                showsArr.put(showObj)
-                val result = org.json.JSONObject()
-                result.put("shows", showsArr)
-                result.toString()
+                buildJsonObject {
+                    put("shows", buildJsonArray {
+                        add(buildJsonObject {
+                            put("ids", idsObj)
+                            put("seasons", buildJsonArray {
+                                add(buildJsonObject {
+                                    put("number", JsonPrimitive(season ?: 1))
+                                    put("episodes", buildJsonArray {
+                                        for (i in 1..ep) {
+                                            add(buildJsonObject { put("number", JsonPrimitive(i)) })
+                                        }
+                                    })
+                                })
+                            })
+                        })
+                    })
+                }.toString()
             } else {
                 // AnymeX: movies skip /sync/history entirely; mark completed via add-to-list
                 setListStatus("movie", title, year, tmdbId, imdbId, "completed")
@@ -347,13 +347,10 @@ object Simkl {
             val resp = okHttpClient.newCall(request).execute()
             val respBody = resp.body?.string()?.take(300)
             ani.sanin.util.Logger.log("Simkl.addToHistory: HTTP ${resp.code} type=$type title=$title s=${season}e=${episode} resp=$respBody")
-            // /sync/history resets show status to "watching" — preserve existing status
-            if (type == "tv" && resp.code == 200) {
-                val prevStatus = getMediaStatus("tv", tmdbId, imdbId, anilistId)
-                if (prevStatus != null && prevStatus != "watching") {
-                    ani.sanin.util.Logger.log("Simkl.addToHistory: restoring status=$prevStatus for $title (was reset by /sync/history)")
-                    setListStatus("tv", title, year, tmdbId, imdbId, prevStatus, anilistId)
-                }
+            // /sync/history resets show status to "watching" — restore the pre-call status
+            if (type == "tv" && resp.code == 200 && prevStatus != null && prevStatus != "watching") {
+                ani.sanin.util.Logger.log("Simkl.addToHistory: restoring status=$prevStatus for $title (was reset by /sync/history)")
+                setListStatus("tv", title, year, tmdbId, imdbId, prevStatus, anilistId)
             }
         }
     }
@@ -370,20 +367,19 @@ object Simkl {
     ) {
         tryWithSuspend {
             val t = token ?: return@tryWithSuspend
-            val idsObj = org.json.JSONObject().apply {
-                if (tmdbId != null && tmdbId > 0) put("tmdb", tmdbId)
-                if (!imdbId.isNullOrBlank()) put("imdb", imdbId)
-                if (anilistId != null && anilistId > 0) put("anilist", anilistId)
+            val idsObj = buildJsonObject {
+                if (tmdbId != null && tmdbId > 0) put("tmdb", JsonPrimitive(tmdbId))
+                if (!imdbId.isNullOrBlank()) put("imdb", JsonPrimitive(imdbId))
+                if (anilistId != null && anilistId > 0) put("anilist", JsonPrimitive(anilistId))
             }
             // AnymeX uses "to" field (not "user_status")
-            val item = org.json.JSONObject().apply {
-                    put("ids", idsObj)
-                    put("to", status)
-                }
-            val arr = org.json.JSONArray()
-            arr.put(item)
-            val body = org.json.JSONObject().apply {
-                if (type == "tv") put("shows", arr) else put("movies", arr)
+            val body = buildJsonObject {
+                put(if (type == "tv") "shows" else "movies", buildJsonArray {
+                    add(buildJsonObject {
+                        put("ids", idsObj)
+                        put("to", JsonPrimitive(status))
+                    })
+                })
             }.toString()
             val resp = okHttpClient.newCall(
                 Request.Builder()
@@ -400,48 +396,45 @@ object Simkl {
             // For TV shows set to "completed", mark all episodes as watched via
             // /sync/history — Simkl ignores the status change without episode history.
             if (status == "completed" && type == "tv") {
-                // Query TMDB for actual episode counts per season
-                val seasonsArr = org.json.JSONArray()
-                try {
-                    val tmdbDetail = ani.sanin.connections.tmdb.Tmdb.detail("tv", tmdbId ?: 0)
-                    val numSeasons = tmdbDetail?.numberOfSeasons ?: 1
-                    for (s in 1..numSeasons) {
-                        val eps = try {
-                            ani.sanin.connections.tmdb.Tmdb.episodes("tv", tmdbId ?: 0, s)
-                        } catch (_: Exception) { emptyList() }
-                        if (eps.isEmpty()) continue
-                        val episodesArr = org.json.JSONArray()
-                        for (ep in eps) {
-                            val epObj = org.json.JSONObject()
-                            epObj.put("number", ep.episodeNumber)
-                            episodesArr.put(epObj)
+                val seasonsArr = buildJsonArray {
+                    try {
+                        val tmdbDetail = ani.sanin.connections.tmdb.Tmdb.detail("tv", tmdbId ?: 0)
+                        val numSeasons = tmdbDetail?.numberOfSeasons ?: 1
+                        for (s in 1..numSeasons) {
+                            val eps = try {
+                                ani.sanin.connections.tmdb.Tmdb.episodes("tv", tmdbId ?: 0, s)
+                            } catch (_: Exception) { emptyList() }
+                            if (eps.isEmpty()) continue
+                            add(buildJsonObject {
+                                put("number", JsonPrimitive(s))
+                                put("episodes", buildJsonArray {
+                                    for (ep in eps) {
+                                        add(buildJsonObject { put("number", JsonPrimitive(ep.episodeNumber)) })
+                                    }
+                                })
+                            })
                         }
-                        val seasonObj = org.json.JSONObject()
-                        seasonObj.put("number", s)
-                        seasonObj.put("episodes", episodesArr)
-                        seasonsArr.put(seasonObj)
+                    } catch (_: Exception) {
+                        // Fallback: mark season 1, episodes 1-99 (Simkl ignores non-existent)
+                        add(buildJsonObject {
+                            put("number", JsonPrimitive(1))
+                            put("episodes", buildJsonArray {
+                                for (i in 1..99) {
+                                    add(buildJsonObject { put("number", JsonPrimitive(i)) })
+                                }
+                            })
+                        })
                     }
-                } catch (_: Exception) {
-                    // Fallback: mark season 1, episodes 1-99 (Simkl ignores non-existent)
-                    val episodesArr = org.json.JSONArray()
-                    for (i in 1..99) {
-                        val epObj = org.json.JSONObject()
-                        epObj.put("number", i)
-                        episodesArr.put(epObj)
-                    }
-                    val seasonObj = org.json.JSONObject()
-                    seasonObj.put("number", 1)
-                    seasonObj.put("episodes", episodesArr)
-                    seasonsArr.put(seasonObj)
                 }
-                if (seasonsArr.length() > 0) {
-                    val histItem = org.json.JSONObject()
-                    histItem.put("ids", idsObj)
-                    histItem.put("seasons", seasonsArr)
-                    val histShowsArr = org.json.JSONArray()
-                    histShowsArr.put(histItem)
-                    val histBody = org.json.JSONObject()
-                    histBody.put("shows", histShowsArr)
+                if (seasonsArr.isNotEmpty()) {
+                    val histBody = buildJsonObject {
+                        put("shows", buildJsonArray {
+                            add(buildJsonObject {
+                                put("ids", idsObj)
+                                put("seasons", seasonsArr)
+                            })
+                        })
+                    }
                     val histResp = okHttpClient.newCall(
                         Request.Builder()
                             .url("$BASE/sync/history")
@@ -451,7 +444,7 @@ object Simkl {
                             .post(histBody.toString().toRequestBody("application/json".toMediaType()))
                             .build()
                     ).execute()
-                    ani.sanin.util.Logger.log("Simkl.setListStatus: history HTTP ${histResp.code} for completed tv (${seasonsArr.length()} seasons)")
+                    ani.sanin.util.Logger.log("Simkl.setListStatus: history HTTP ${histResp.code} for completed tv (${seasonsArr.size} seasons)")
                 }
             }
         }
@@ -467,20 +460,19 @@ object Simkl {
     ) {
         tryWithSuspend {
             val t = token ?: return@tryWithSuspend
-            val idsObj = org.json.JSONObject().apply {
-                if (tmdbId != null && tmdbId > 0) put("tmdb", tmdbId)
-                if (!imdbId.isNullOrBlank()) put("imdb", imdbId)
-                if (anilistId != null && anilistId > 0) put("anilist", anilistId)
+            val idsObj = buildJsonObject {
+                if (tmdbId != null && tmdbId > 0) put("tmdb", JsonPrimitive(tmdbId))
+                if (!imdbId.isNullOrBlank()) put("imdb", JsonPrimitive(imdbId))
+                if (anilistId != null && anilistId > 0) put("anilist", JsonPrimitive(anilistId))
             }
             // AnymeX uses "to" field (not "user_status")
-            val item = org.json.JSONObject().apply {
-                    put("ids", idsObj)
-                    put("to", "watching")
-                }
-            val arr = org.json.JSONArray()
-            arr.put(item)
-            val body = org.json.JSONObject().apply {
-                if (type == "tv") put("shows", arr) else put("movies", arr)
+            val body = buildJsonObject {
+                put(if (type == "tv") "shows" else "movies", buildJsonArray {
+                    add(buildJsonObject {
+                        put("ids", idsObj)
+                        put("to", JsonPrimitive("watching"))
+                    })
+                })
             }.toString()
             val resp = okHttpClient.newCall(
                 Request.Builder()
