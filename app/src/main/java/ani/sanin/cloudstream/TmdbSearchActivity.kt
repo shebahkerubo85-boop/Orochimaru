@@ -71,8 +71,9 @@ class TmdbSearchActivity : AppCompatActivity() {
 
         binding.tmdbSearchClearHistory.setOnClickListener {
             PrefManager.setVal(PrefName.TmdbSearchHistory, emptyList<String>())
+            binding.tmdbSearchResultLayout.isVisible = false
             buildPluginChips()
-        showHistory()
+            showHistory()
             snackString("Search history cleared")
         }
         FocusEffectUtil.applyFocusListener(binding.tmdbSearchClearHistory)
@@ -101,41 +102,67 @@ class TmdbSearchActivity : AppCompatActivity() {
         binding.tmdbSearchPluginScroll.isVisible = true
         val group = binding.tmdbSearchPluginChips
         group.removeAllViews()
-        // TMDB chip
+        // TMDB chip (default source)
         val tmdb = Chip(this).apply {
             text = "TMDB"; isCheckable = true; isClickable = true; isFocusable = true; tag = "tmdb"
-            isChecked = true
+            isCloseIconVisible = true
         }
-        tmdb.setOnClickListener { selectPluginSource(null) }
+        tmdb.setOnCheckedChangeListener { _, _ -> }
         FocusEffectUtil.applyFocusListener(tmdb)
         group.addView(tmdb)
+        // Plugin chips
         installed.forEach { source ->
             val chip = Chip(this).apply {
                 text = source.name; isCheckable = true; isClickable = true; isFocusable = true; tag = source.id
+                isCloseIconVisible = true
             }
-            chip.setOnClickListener {
-                val api = with(Dispatchers.IO) { CsRuntime.apisFor(this@TmdbSearchActivity, source).firstOrNull() }
-                selectedPluginSource = source
-                selectPluginSource(api)
-            }
+            chip.setOnCheckedChangeListener { _, _ -> }
             FocusEffectUtil.applyFocusListener(chip)
             group.addView(chip)
         }
     }
 
+    private fun getSelectedPlugins(): List<Pair<com.lagradost.cloudstream3.MainAPI, String>> {
+        val result = mutableListOf<Pair<com.lagradost.cloudstream3.MainAPI, String>>()
+        val group = binding.tmdbSearchPluginChips
+        for (i in 0 until group.childCount) {
+            val chip = group.getChildAt(i) as? Chip ?: continue
+            if (!chip.isChecked) continue
+            val tag = chip.tag?.toString() ?: continue
+            if (tag == "tmdb") continue  // TMDB is handled separately
+            val source = CsRepos.installed(this).firstOrNull { it.id == tag } ?: continue
+            val api = with(Dispatchers.IO) { CsRuntime.apisFor(this@TmdbSearchActivity, source).firstOrNull() }
+            if (api != null) result.add(api to source.name)
+        }
+        return result
+    }
+
     private fun selectPluginSource(api: com.lagradost.cloudstream3.MainAPI?) {
         selectedPluginApi = api
-        binding.tmdbSearchGrid.adapter = if (api != null) pluginAdapter else adapter
-        binding.tmdbSearchGrid.layoutManager = if (api != null)
-            androidx.recyclerview.widget.LinearLayoutManager(this)
-        else
-            androidx.recyclerview.widget.GridLayoutManager(this, 3)
+        val hasPlugins = api != null || getSelectedPlugins().isNotEmpty()
+        binding.tmdbSearchGrid.adapter = if (hasPlugins) pluginAdapter else adapter
+        binding.tmdbSearchGrid.layoutManager = if (hasPlugins)
+            LinearLayoutManager(this)
+        else {
+            val dm = resources.displayMetrics
+            val screenWidthPx = dm.widthPixels
+            val density = dm.density
+            val landscape = TmdbCards.isLandscapeOrientation()
+            val size = TmdbCards.cardSize()
+            val cardWidthPx = ((if (landscape) 260f else 102f) * size * density).toInt()
+            val marginEndPx = (12 * density).toInt()
+            val paddingPx = (32 * density).toInt()
+            val cols = ((screenWidthPx - paddingPx) / (cardWidthPx + marginEndPx)).toInt().coerceAtLeast(2)
+            GridLayoutManager(this, cols)
+        }
     }
 
     private fun showHistory() {
         val items = history()
+        binding.tmdbSearchHistoryLabel.isVisible = items.isNotEmpty()
         binding.tmdbSearchHistory.isVisible = items.isNotEmpty()
         binding.tmdbSearchGrid.isVisible = items.isEmpty()
+        binding.tmdbSearchEmpty.isVisible = false
         historyAdapter.submit(items)
         binding.tmdbSearchHistory.layoutManager = LinearLayoutManager(this)
         binding.tmdbSearchHistory.adapter = historyAdapter
@@ -143,20 +170,29 @@ class TmdbSearchActivity : AppCompatActivity() {
 
     private fun runSearch(query: String) {
         addHistory(query)
+        binding.tmdbSearchHistoryLabel.isVisible = false
         binding.tmdbSearchHistory.isVisible = false
         binding.tmdbSearchGrid.isVisible = true
+        binding.tmdbSearchResultLayout.isVisible = true
         binding.tmdbSearchProgress.isVisible = true
         binding.tmdbSearchEmpty.isVisible = false
         lifecycleScope.launch {
-            if (selectedPluginApi != null) {
-                val api = selectedPluginApi!!
-                val results = withContext(Dispatchers.IO) {
-                    runCatching { api.search(query, 1)?.items }.getOrNull() ?: emptyList()
+            val selectedPlugins = getSelectedPlugins()
+            if (selectedPlugins.isNotEmpty()) {
+                // Search all selected plugins in parallel, merge results
+                val allResults = mutableListOf<com.lagradost.cloudstream3.SearchResponse>()
+                val pluginNames = mutableListOf<String>()
+                for ((api, name) in selectedPlugins) {
+                    val results = withContext(Dispatchers.IO) {
+                        runCatching { api.search(query, 1)?.items }.getOrNull() ?: emptyList()
+                    }
+                    allResults.addAll(results)
+                    if (results.isNotEmpty()) pluginNames.add(name)
                 }
                 binding.tmdbSearchProgress.isVisible = false
-                pluginAdapter.submit(results)
-                binding.tmdbSearchEmpty.isVisible = results.isEmpty()
-                if (results.isEmpty()) snackString("No results for '$query' in ${api.name}")
+                pluginAdapter.submit(allResults)
+                binding.tmdbSearchEmpty.isVisible = allResults.isEmpty()
+                if (allResults.isEmpty()) snackString("No results for '$query'")
             } else {
                 val results = Tmdb.search(query)
                 binding.tmdbSearchProgress.isVisible = false
