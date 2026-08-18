@@ -308,25 +308,23 @@ object Simkl {
                 if (!imdbId.isNullOrBlank()) put("imdb", imdbId)
             }
             val body = if (type == "tv") {
-                val epObj = org.json.JSONObject().apply {
-                    put("number", episode ?: 1)
-                    if (episode != null) put("watched_at", now)
-                }
+                // AnymeX format: mark episodes 1..current as watched, no watched_at
+                val ep = episode ?: 1
+                val episodesArr = org.json.JSONArray()
+                for (i in 1..ep) episodesArr.put(org.json.JSONObject().put("number", i))
                 val seasonObj = org.json.JSONObject().apply {
                     put("number", season ?: 1)
-                    put("episodes", org.json.JSONArray().put(epObj))
+                    put("episodes", episodesArr)
                 }
                 val showObj = org.json.JSONObject().apply {
                     put("ids", idsObj)
-                    if (season != null || episode != null) put("seasons", org.json.JSONArray().put(seasonObj))
+                    put("seasons", org.json.JSONArray().put(seasonObj))
                 }
                 org.json.JSONObject().put("shows", org.json.JSONArray().put(showObj)).toString()
             } else {
-                val movieObj = org.json.JSONObject().apply {
-                    put("ids", idsObj)
-                    put("watched_at", now)
-                }
-                org.json.JSONObject().put("movies", org.json.JSONArray().put(movieObj)).toString()
+                // AnymeX: movies skip /sync/history entirely; mark completed via add-to-list
+                setListStatus("movie", title, year, tmdbId, imdbId, "completed")
+                return@tryWithSuspend
             }
             val request = Request.Builder()
                 .url("$BASE/sync/history")
@@ -356,21 +354,21 @@ object Simkl {
                 put("tmdb", tmdbId ?: 0)
                 if (!imdbId.isNullOrBlank()) put("imdb", imdbId)
             }
+            // AnymeX uses "to" field (not "user_status")
             val body = if (type == "tv") {
                 val item = org.json.JSONObject().apply {
                     put("ids", idsObj)
-                    put("user_status", status)
+                    put("to", status)
                 }
                 org.json.JSONObject().put("shows", org.json.JSONArray().put(item)).toString()
             } else {
                 val item = org.json.JSONObject().apply {
                     put("ids", idsObj)
-                    put("user_status", status)
+                    put("to", status)
                 }
                 org.json.JSONObject().put("movies", org.json.JSONArray().put(item)).toString()
             }
-            // Try /sync/add-to-list first (for adding with status)
-            var resp = okHttpClient.newCall(
+            val resp = okHttpClient.newCall(
                 Request.Builder()
                     .url("$BASE/sync/add-to-list")
                     .addHeader("Authorization", "Bearer $t")
@@ -379,20 +377,8 @@ object Simkl {
                     .post(body.toRequestBody("application/json".toMediaType()))
                     .build()
             ).execute()
-            ani.sanin.util.Logger.log("Simkl.setListStatus: /sync/add-to-list HTTP ${resp.code} status=$status title=$title resp=${resp.body?.string()?.take(200)}")
-            // If that failed, also try /sync/history
-            if (resp.code !in 200..299) {
-                resp = okHttpClient.newCall(
-                    Request.Builder()
-                        .url("$BASE/sync/history")
-                        .addHeader("Authorization", "Bearer $t")
-                        .addHeader("simkl-api-key", clientId)
-                        .addHeader("Content-Type", "application/json")
-                        .post(body.toRequestBody("application/json".toMediaType()))
-                        .build()
-                ).execute()
-                ani.sanin.util.Logger.log("Simkl.setListStatus: /sync/history HTTP ${resp.code} status=$status title=$title resp=${resp.body?.string()?.take(200)}")
-            }
+            val respBody = resp.body?.string()?.take(200)
+            ani.sanin.util.Logger.log("Simkl.setListStatus: HTTP ${resp.code} status=$status title=$title resp=$respBody")
         }
     }
 
@@ -409,16 +395,17 @@ object Simkl {
                 put("tmdb", tmdbId ?: 0)
                 if (!imdbId.isNullOrBlank()) put("imdb", imdbId)
             }
+            // AnymeX uses "to" field (not "user_status")
             val body = if (type == "tv") {
                 val item = org.json.JSONObject().apply {
                     put("ids", idsObj)
-                    put("user_status", "watching")
+                    put("to", "watching")
                 }
                 org.json.JSONObject().put("shows", org.json.JSONArray().put(item)).toString()
             } else {
                 val item = org.json.JSONObject().apply {
                     put("ids", idsObj)
-                    put("user_status", "watching")
+                    put("to", "watching")
                 }
                 org.json.JSONObject().put("movies", org.json.JSONArray().put(item)).toString()
             }
