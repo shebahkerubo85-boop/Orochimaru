@@ -168,6 +168,13 @@ class TmdbHomeFragment : Fragment() {
             val latestMovies = async(Dispatchers.IO) { Tmdb.latestMovies() }
             val popular = async(Dispatchers.IO) { Tmdb.popular() }
             val topRated = async(Dispatchers.IO) { Tmdb.topRated() }
+            // Resolve all deferred data before post{} (await is a suspend fn).
+            val resolvedTrendingSeries = trendingSeries.await()
+            val resolvedTrendingMovies = trendingMovies.await()
+            val resolvedLatestSeries = latestSeries.await()
+            val resolvedLatestMovies = latestMovies.await()
+            val resolvedPopular = popular.await()
+            val resolvedTopRated = topRated.await()
             // Defer all section view additions to next frame to prevent 40 skipped frames.
             view?.post {
                 if (!isAdded) return@post
@@ -191,13 +198,13 @@ class TmdbHomeFragment : Fragment() {
                         isNestedScrollingEnabled = false; overScrollMode = View.OVER_SCROLL_NEVER; setPadding(24, 0, 24, 0)
                     })
                 }
-                // TMDB sections (data collected via async above)
-                addSection("Trending Series", trendingSeries.await())
-                addSection("Trending Movies", trendingMovies.await())
-                addSection("Latest Series", latestSeries.await())
-                addSection("Latest Movies", latestMovies.await())
-                addSection("Popular", popular.await())
-                addSection("Top Rated", topRated.await())
+                // TMDB sections
+                addSection("Trending Series", resolvedTrendingSeries)
+                addSection("Trending Movies", resolvedTrendingMovies)
+                addSection("Latest Series", resolvedLatestSeries)
+                addSection("Latest Movies", resolvedLatestMovies)
+                addSection("Popular", resolvedPopular)
+                addSection("Top Rated", resolvedTopRated)
                 startAutoAdvance()
             }
         }
