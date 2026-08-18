@@ -388,6 +388,39 @@ object Simkl {
             ).execute()
             val respBody = resp.body?.string()?.take(200)
             ani.sanin.util.Logger.log("Simkl.setListStatus: HTTP ${resp.code} status=$status title=$title resp=$respBody")
+
+            // For TV shows set to "completed", also mark all episodes as watched via
+            // /sync/history — Simkl ignores the status change without episode history.
+            if (status == "completed" && type == "tv") {
+                val episodesArr = org.json.JSONArray()
+                for (i in 1..999) {
+                    val epObj = org.json.JSONObject()
+                    epObj.put("number", i)
+                    episodesArr.put(epObj)
+                }
+                val seasonObj = org.json.JSONObject()
+                seasonObj.put("number", 1)
+                seasonObj.put("episodes", episodesArr)
+                val seasonsArr = org.json.JSONArray()
+                seasonsArr.put(seasonObj)
+                val histItem = org.json.JSONObject()
+                histItem.put("ids", idsObj)
+                histItem.put("seasons", seasonsArr)
+                val histShowsArr = org.json.JSONArray()
+                histShowsArr.put(histItem)
+                val histBody = org.json.JSONObject()
+                histBody.put("shows", histShowsArr)
+                val histResp = okHttpClient.newCall(
+                    Request.Builder()
+                        .url("$BASE/sync/history")
+                        .addHeader("Authorization", "Bearer $t")
+                        .addHeader("simkl-api-key", clientId)
+                        .addHeader("Content-Type", "application/json")
+                        .post(histBody.toString().toRequestBody("application/json".toMediaType()))
+                        .build()
+                ).execute()
+                ani.sanin.util.Logger.log("Simkl.setListStatus: history HTTP ${histResp.code} for completed tv")
+            }
         }
     }
 
