@@ -3388,9 +3388,19 @@ class ExoplayerView :
                         Logger.log("Simkl: scrobbleStart type=$type title=$title s=$season e=$episode")
                         Simkl.scrobbleStart(type, title, year, tmdbId, imdbId, season, episode)
                         if (!simklAddedToWatchlist) {
-                            simklAddedToWatchlist = true
-                            Logger.log("Simkl: addToWatchlist type=$type tmdb=$tmdbId")
-                            Simkl.addToWatchlist(type, tmdbId, imdbId)
+                            val currentStatus = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                Simkl.getMediaStatus(type, tmdbId = tmdbId, imdbId = imdbId)
+                            }
+                            if (currentStatus != "completed" && currentStatus != "dropped") {
+                                simklAddedToWatchlist = true
+                                Logger.log("Simkl: addToWatchlist type=$type tmdb=$tmdbId (was $currentStatus)")
+                                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                    Simkl.addToWatchlist(type, tmdbId, imdbId)
+                                }
+                            } else {
+                                simklAddedToWatchlist = true
+                                Logger.log("Simkl: skipping addToWatchlist, already $currentStatus")
+                            }
                         }
                     } else {
                         Logger.log("Simkl: scrobbleStop type=$type title=$title s=$season e=$episode")
@@ -3414,9 +3424,19 @@ class ExoplayerView :
                         Logger.log("Simkl: scrobbleStart(anilist) type=$type title=$title anilist=$anilistId s=$season e=$episode")
                         Simkl.scrobbleStart(type, title, null, anilistId = anilistId, season = season, episode = episode)
                         if (!simklAddedToWatchlist) {
-                            simklAddedToWatchlist = true
-                            Logger.log("Simkl: addToWatchlist(anilist) type=$type anilist=$anilistId")
-                            Simkl.addToWatchlist(type, anilistId = anilistId)
+                            val currentStatus = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                Simkl.getMediaStatus(type, anilistId = anilistId)
+                            }
+                            if (currentStatus != "completed" && currentStatus != "dropped") {
+                                simklAddedToWatchlist = true
+                                Logger.log("Simkl: addToWatchlist(anilist) type=$type anilist=$anilistId (was $currentStatus)")
+                                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                    Simkl.addToWatchlist(type, anilistId = anilistId)
+                                }
+                            } else {
+                                simklAddedToWatchlist = true
+                                Logger.log("Simkl: skipping addToWatchlist(anilist), already $currentStatus")
+                            }
                         }
                     } else {
                         Logger.log("Simkl: scrobbleStop(anilist) type=$type title=$title anilist=$anilistId s=$season e=$episode")

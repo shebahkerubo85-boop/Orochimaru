@@ -434,7 +434,8 @@ object Simkl {
     suspend fun getMediaStatus(
         type: String,
         tmdbId: Int? = null,
-        imdbId: String? = null
+        imdbId: String? = null,
+        anilistId: Int? = null
     ): String? {
         val t = token ?: return null
         return try {
@@ -443,7 +444,8 @@ object Simkl {
                 val ids = item.ids
                 ids != null && (
                     (tmdbId != null && ids.tmdb == tmdbId) ||
-                    (imdbId != null && ids.imdb == imdbId)
+                    (imdbId != null && ids.imdb == imdbId) ||
+                    (anilistId != null && ids.anilist == anilistId)
                 )
             }?.status
         } catch (e: Exception) {
@@ -470,7 +472,9 @@ object Simkl {
                 val s = it.status?.lowercase()
                 s == "watching" || s == "current"
             }
-            val items = movies + shows
+            val items = (movies + shows).sortedByDescending {
+                it.lastWatchedAt ?: ""
+            }
             ani.sanin.util.Logger.log("Simkl.getContinueWatching: ${items.size} items (${movies.size} movies, ${shows.size} shows)")
             items
         } catch (e: Exception) {
