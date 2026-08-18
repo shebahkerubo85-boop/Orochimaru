@@ -389,37 +389,62 @@ object Simkl {
             val respBody = resp.body?.string()?.take(200)
             ani.sanin.util.Logger.log("Simkl.setListStatus: HTTP ${resp.code} status=$status title=$title resp=$respBody")
 
-            // For TV shows set to "completed", also mark all episodes as watched via
+            // For TV shows set to "completed", mark all episodes as watched via
             // /sync/history — Simkl ignores the status change without episode history.
             if (status == "completed" && type == "tv") {
-                val episodesArr = org.json.JSONArray()
-                for (i in 1..999) {
-                    val epObj = org.json.JSONObject()
-                    epObj.put("number", i)
-                    episodesArr.put(epObj)
-                }
-                val seasonObj = org.json.JSONObject()
-                seasonObj.put("number", 1)
-                seasonObj.put("episodes", episodesArr)
+                // Query TMDB for actual episode counts per season
                 val seasonsArr = org.json.JSONArray()
-                seasonsArr.put(seasonObj)
-                val histItem = org.json.JSONObject()
-                histItem.put("ids", idsObj)
-                histItem.put("seasons", seasonsArr)
-                val histShowsArr = org.json.JSONArray()
-                histShowsArr.put(histItem)
-                val histBody = org.json.JSONObject()
-                histBody.put("shows", histShowsArr)
-                val histResp = okHttpClient.newCall(
-                    Request.Builder()
-                        .url("$BASE/sync/history")
-                        .addHeader("Authorization", "Bearer $t")
-                        .addHeader("simkl-api-key", clientId)
-                        .addHeader("Content-Type", "application/json")
-                        .post(histBody.toString().toRequestBody("application/json".toMediaType()))
-                        .build()
-                ).execute()
-                ani.sanin.util.Logger.log("Simkl.setListStatus: history HTTP ${histResp.code} for completed tv")
+                try {
+                    val tmdbDetail = ani.sanin.connections.tmdb.Tmdb.detail("tv", tmdbId ?: 0)
+                    val numSeasons = tmdbDetail?.numberOfSeasons ?: 1
+                    for (s in 1..numSeasons) {
+                        val eps = try {
+                            ani.sanin.connections.tmdb.Tmdb.episodes("tv", tmdbId ?: 0, s)
+                        } catch (_: Exception) { emptyList() }
+                        if (eps.isEmpty()) continue
+                        val episodesArr = org.json.JSONArray()
+                        for (ep in eps) {
+                            val epObj = org.json.JSONObject()
+                            epObj.put("number", ep.episodeNumber)
+                            episodesArr.put(epObj)
+                        }
+                        val seasonObj = org.json.JSONObject()
+                        seasonObj.put("number", s)
+                        seasonObj.put("episodes", episodesArr)
+                        seasonsArr.put(seasonObj)
+                    }
+                } catch (_: Exception) {
+                    // Fallback: mark season 1, episodes 1-99 (Simkl ignores non-existent)
+                    val episodesArr = org.json.JSONArray()
+                    for (i in 1..99) {
+                        val epObj = org.json.JSONObject()
+                        epObj.put("number", i)
+                        episodesArr.put(epObj)
+                    }
+                    val seasonObj = org.json.JSONObject()
+                    seasonObj.put("number", 1)
+                    seasonObj.put("episodes", episodesArr)
+                    seasonsArr.put(seasonObj)
+                }
+                if (seasonsArr.length() > 0) {
+                    val histItem = org.json.JSONObject()
+                    histItem.put("ids", idsObj)
+                    histItem.put("seasons", seasonsArr)
+                    val histShowsArr = org.json.JSONArray()
+                    histShowsArr.put(histItem)
+                    val histBody = org.json.JSONObject()
+                    histBody.put("shows", histShowsArr)
+                    val histResp = okHttpClient.newCall(
+                        Request.Builder()
+                            .url("$BASE/sync/history")
+                            .addHeader("Authorization", "Bearer $t")
+                            .addHeader("simkl-api-key", clientId)
+                            .addHeader("Content-Type", "application/json")
+                            .post(histBody.toString().toRequestBody("application/json".toMediaType()))
+                            .build()
+                    ).execute()
+                    ani.sanin.util.Logger.log("Simkl.setListStatus: history HTTP ${histResp.code} for completed tv (${seasonsArr.length()} seasons)")
+                }
             }
         }
     }
