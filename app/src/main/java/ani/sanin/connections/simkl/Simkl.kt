@@ -347,6 +347,14 @@ object Simkl {
             val resp = okHttpClient.newCall(request).execute()
             val respBody = resp.body?.string()?.take(300)
             ani.sanin.util.Logger.log("Simkl.addToHistory: HTTP ${resp.code} type=$type title=$title s=${season}e=${episode} resp=$respBody")
+            // /sync/history resets show status to "watching" — preserve existing status
+            if (type == "tv" && resp.code == 200) {
+                val prevStatus = getMediaStatus("tv", tmdbId, imdbId, anilistId)
+                if (prevStatus != null && prevStatus != "watching") {
+                    ani.sanin.util.Logger.log("Simkl.addToHistory: restoring status=$prevStatus for $title (was reset by /sync/history)")
+                    setListStatus("tv", title, year, tmdbId, imdbId, prevStatus, anilistId)
+                }
+            }
         }
     }
 

@@ -185,7 +185,15 @@ class TmdbSearchActivity : AppCompatActivity() {
                 val pluginNames = mutableListOf<String>()
                 for ((api, name) in selectedPlugins) {
                     val results = withContext(Dispatchers.IO) {
-                        runCatching { api.search(query, 1)?.items }.getOrNull() ?: emptyList()
+                        runCatching {
+                            android.util.Log.i("TmdbSearch", "Searching '$query' on $name (${api.javaClass.simpleName})")
+                            val response = api.search(query, 1)
+                            android.util.Log.i("TmdbSearch", "$name returned ${response?.items?.size ?: 0} items")
+                            response?.items
+                        }.getOrElse { e ->
+                            android.util.Log.e("TmdbSearch", "$name search failed: ${e.message}", e)
+                            null
+                        } ?: emptyList()
                     }
                     allResults.addAll(results)
                     if (results.isNotEmpty()) pluginNames.add(name)
