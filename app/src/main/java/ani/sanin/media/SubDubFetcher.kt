@@ -17,7 +17,7 @@ object SubDubFetcher {
     suspend fun fetchSubDubCounts(anilistId: Int, episode: Int = 1): Pair<Int, Int> {
         return withContext(Dispatchers.IO) {
             try {
-                val url = "https://reanime.to/api/flix/\$anilistId/\$episode"
+                val url = "https://reanime.to/api/flix/$anilistId/$episode"
                 val request = Request.Builder()
                     .url(url)
                     .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36")
@@ -49,10 +49,10 @@ object SubDubFetcher {
                     }
                 }
 
-                Logger.log("SubDubFetcher: anilist=\$anilistId sub=\$subCount dub=\$dubCount")
+                Logger.log("SubDubFetcher: anilist=$anilistId sub=$subCount dub=$dubCount")
                 Pair(subCount, dubCount)
             } catch (e: Exception) {
-                Logger.log("SubDubFetcher error: \${e.message}")
+                Logger.log("SubDubFetcher error: ${e.message}")
                 Pair(0, 0)
             }
         }
