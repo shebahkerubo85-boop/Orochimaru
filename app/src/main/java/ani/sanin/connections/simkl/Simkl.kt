@@ -312,19 +312,26 @@ object Simkl {
                 if (anilistId != null && anilistId > 0) put("anilist", anilistId)
             }
             val body = if (type == "tv") {
-                // AnymeX format: mark episodes 1..current as watched, no watched_at
                 val ep = episode ?: 1
                 val episodesArr = org.json.JSONArray()
-                for (i in 1..ep) episodesArr.put(org.json.JSONObject().put("number", i))
-                val seasonObj = org.json.JSONObject().apply {
-                    put("number", season ?: 1)
-                    put("episodes", episodesArr)
+                for (i in 1..ep) {
+                    val epObj = org.json.JSONObject()
+                    epObj.put("number", i)
+                    episodesArr.put(epObj)
                 }
-                val showObj = org.json.JSONObject().apply {
-                    put("ids", idsObj)
-                    put("seasons", org.json.JSONArray().put(seasonObj))
-                }
-                org.json.JSONObject().put("shows", org.json.JSONArray().put(showObj)).toString()
+                val seasonObj = org.json.JSONObject()
+                seasonObj.put("number", season ?: 1)
+                seasonObj.put("episodes", episodesArr)
+                val seasonsArr = org.json.JSONArray()
+                seasonsArr.put(seasonObj)
+                val showObj = org.json.JSONObject()
+                showObj.put("ids", idsObj)
+                showObj.put("seasons", seasonsArr)
+                val showsArr = org.json.JSONArray()
+                showsArr.put(showObj)
+                val result = org.json.JSONObject()
+                result.put("shows", showsArr)
+                result.toString()
             } else {
                 // AnymeX: movies skip /sync/history entirely; mark completed via add-to-list
                 setListStatus("movie", title, year, tmdbId, imdbId, "completed")
@@ -361,19 +368,15 @@ object Simkl {
                 if (anilistId != null && anilistId > 0) put("anilist", anilistId)
             }
             // AnymeX uses "to" field (not "user_status")
-            val body = if (type == "tv") {
-                val item = org.json.JSONObject().apply {
+            val item = org.json.JSONObject().apply {
                     put("ids", idsObj)
                     put("to", status)
                 }
-                org.json.JSONObject().put("shows", org.json.JSONArray().put(item)).toString()
-            } else {
-                val item = org.json.JSONObject().apply {
-                    put("ids", idsObj)
-                    put("to", status)
-                }
-                org.json.JSONObject().put("movies", org.json.JSONArray().put(item)).toString()
-            }
+            val arr = org.json.JSONArray()
+            arr.put(item)
+            val body = org.json.JSONObject().apply {
+                if (type == "tv") put("shows", arr) else put("movies", arr)
+            }.toString()
             val resp = okHttpClient.newCall(
                 Request.Builder()
                     .url("$BASE/sync/add-to-list")
@@ -404,19 +407,15 @@ object Simkl {
                 if (anilistId != null && anilistId > 0) put("anilist", anilistId)
             }
             // AnymeX uses "to" field (not "user_status")
-            val body = if (type == "tv") {
-                val item = org.json.JSONObject().apply {
+            val item = org.json.JSONObject().apply {
                     put("ids", idsObj)
                     put("to", "watching")
                 }
-                org.json.JSONObject().put("shows", org.json.JSONArray().put(item)).toString()
-            } else {
-                val item = org.json.JSONObject().apply {
-                    put("ids", idsObj)
-                    put("to", "watching")
-                }
-                org.json.JSONObject().put("movies", org.json.JSONArray().put(item)).toString()
-            }
+            val arr = org.json.JSONArray()
+            arr.put(item)
+            val body = org.json.JSONObject().apply {
+                if (type == "tv") put("shows", arr) else put("movies", arr)
+            }.toString()
             val resp = okHttpClient.newCall(
                 Request.Builder()
                     .url("$BASE/sync/add-to-list")
