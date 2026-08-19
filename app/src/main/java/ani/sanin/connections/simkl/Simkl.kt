@@ -431,26 +431,33 @@ object Simkl {
                 }
             }
 
-            // Now set the status via /sync/add-to-list (after history so "completed" sticks)
-            val body = buildJsonObject {
-                put(if (type == "tv") "shows" else "movies", buildJsonArray {
-                    add(buildJsonObject {
-                        put("ids", idsObj)
-                        put("to", JsonPrimitive(status))
+            // For "completed" TV shows, /sync/history with all episodes is sufficient —
+            // Simkl auto-sets "completed" when all episodes are watched. Calling
+            // /sync/add-to-list with "completed" would override it back to "watching"
+            // since the API doesn't accept "completed" as a valid "to" value.
+            if (!(status == "completed" && type == "tv")) {
+                val body = buildJsonObject {
+                    put(if (type == "tv") "shows" else "movies", buildJsonArray {
+                        add(buildJsonObject {
+                            put("ids", idsObj)
+                            put("to", JsonPrimitive(status))
+                        })
                     })
-                })
-            }.toString()
-            val resp = okHttpClient.newCall(
-                Request.Builder()
-                    .url("$BASE/sync/add-to-list")
-                    .addHeader("Authorization", "Bearer $t")
-                    .addHeader("simkl-api-key", clientId)
-                    .addHeader("Content-Type", "application/json")
-                    .post(body.toRequestBody("application/json".toMediaType()))
-                    .build()
-            ).execute()
-            val respBody = resp.body?.string()?.take(200)
-            ani.sanin.util.Logger.log("Simkl.setListStatus: HTTP ${resp.code} status=$status title=$title resp=$respBody")
+                }.toString()
+                val resp = okHttpClient.newCall(
+                    Request.Builder()
+                        .url("$BASE/sync/add-to-list")
+                        .addHeader("Authorization", "Bearer $t")
+                        .addHeader("simkl-api-key", clientId)
+                        .addHeader("Content-Type", "application/json")
+                        .post(body.toRequestBody("application/json".toMediaType()))
+                        .build()
+                ).execute()
+                val respBody = resp.body?.string()?.take(200)
+                ani.sanin.util.Logger.log("Simkl.setListStatus: HTTP ${resp.code} status=$status title=$title resp=$respBody")
+            } else {
+                ani.sanin.util.Logger.log("Simkl.setListStatus: skipped add-to-list for completed tv (history sufficient)")
+            }
         }
     }
 
