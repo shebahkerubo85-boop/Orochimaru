@@ -447,6 +447,27 @@ object Simkl {
                             .build()
                     ).execute()
                     ani.sanin.util.Logger.log("Simkl.setListStatus: history HTTP ${histResp.code} for completed tv (${seasonsArr.size} seasons)")
+                    // /sync/history resets status to "watching" — re-apply completed
+                    if (histResp.code == 200) {
+                        val reapplyBody = buildJsonObject {
+                            put("shows", buildJsonArray {
+                                add(buildJsonObject {
+                                    put("ids", idsObj)
+                                    put("to", JsonPrimitive("completed"))
+                                })
+                            })
+                        }
+                        val reapplyResp = okHttpClient.newCall(
+                            Request.Builder()
+                                .url("$BASE/sync/add-to-list")
+                                .addHeader("Authorization", "Bearer $t")
+                                .addHeader("simkl-api-key", clientId)
+                                .addHeader("Content-Type", "application/json")
+                                .post(reapplyBody.toString().toRequestBody("application/json".toMediaType()))
+                                .build()
+                        ).execute()
+                        ani.sanin.util.Logger.log("Simkl.setListStatus: re-apply completed HTTP ${reapplyResp.code}")
+                    }
                 }
             }
         }
