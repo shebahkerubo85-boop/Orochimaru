@@ -377,7 +377,7 @@ object Simkl {
             }
 
             if (status == "completed" && type == "tv" && !skipHistory) {
-                // 1. Set status via /sync/add-to-list FIRST (before history resets it)
+                // 1. Set status via /sync/add-to-list FIRST
                 val listBody = buildJsonObject {
                     put("shows", buildJsonArray {
                         add(buildJsonObject {
@@ -448,7 +448,6 @@ object Simkl {
                     ani.sanin.util.Logger.log("Simkl.setListStatus: history HTTP ${histResp.code} for completed tv (${seasonsArr.size} seasons)")
                 }
             } else {
-                // For non-completed or movies, just set status via /sync/add-to-list
                 val listBody = buildJsonObject {
                     put(if (type == "tv") "shows" else "movies", buildJsonArray {
                         add(buildJsonObject {
@@ -471,7 +470,6 @@ object Simkl {
             }
         }
     }
-
 
     /** Add item to Simkl watchlist with "watching" status (called on first scrobble start). */
     suspend fun addToWatchlist(
