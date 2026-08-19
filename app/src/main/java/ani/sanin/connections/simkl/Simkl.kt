@@ -308,7 +308,7 @@ object Simkl {
         tryWithSuspend {
             val t = token ?: return@tryWithSuspend
             val idsObj = buildJsonObject {
-                if (tmdbId != null && tmdbId > 0) put("tmdb", JsonPrimitive(tmdbId))
+                if (tmdbId != null && tmdbId > 0) put("tmdb", JsonPrimitive(tmdbId.toString()))
                 if (!imdbId.isNullOrBlank()) put("imdb", JsonPrimitive(imdbId))
                 if (anilistId != null && anilistId > 0) put("anilist", JsonPrimitive(anilistId))
             }
@@ -350,7 +350,7 @@ object Simkl {
             val respBody = resp.body?.string()?.take(300)
             ani.sanin.util.Logger.log("Simkl.addToHistory: HTTP ${resp.code} type=$type title=$title s=${season}e=${episode} resp=$respBody")
             // /sync/history resets show status to "watching" — restore the pre-call status
-            if (type == "tv" && resp.code == 200 && prevStatus != null && prevStatus != "watching") {
+            if (type == "tv" && (resp.code == 200 || resp.code == 201) && prevStatus != null && prevStatus != "watching") {
                 ani.sanin.util.Logger.log("Simkl.addToHistory: restoring status=$prevStatus for $title (was reset by /sync/history)")
                 setListStatus("tv", title, year, tmdbId, imdbId, prevStatus, anilistId, skipHistory = true)
             }
@@ -371,7 +371,7 @@ object Simkl {
         tryWithSuspend {
             val t = token ?: return@tryWithSuspend
             val idsObj = buildJsonObject {
-                if (tmdbId != null && tmdbId > 0) put("tmdb", JsonPrimitive(tmdbId))
+                if (tmdbId != null && tmdbId > 0) put("tmdb", JsonPrimitive(tmdbId.toString()))
                 if (!imdbId.isNullOrBlank()) put("imdb", JsonPrimitive(imdbId))
                 if (anilistId != null && anilistId > 0) put("anilist", JsonPrimitive(anilistId))
             }
@@ -431,12 +431,12 @@ object Simkl {
                 }
             }
 
-            // Set status via /sync/add-to-list — "to" must be at the TOP level
-            // per Simkl API spec (not inside each show object)
+            // Set status via /sync/add-to-list — "to" goes INSIDE each show/movie object
+            // (AnymeX pattern; top-level "to" is silently ignored by the API)
             val listBody = buildJsonObject {
-                put("to", JsonPrimitive(status))
                 put(if (type == "tv") "shows" else "movies", buildJsonArray {
                     add(buildJsonObject {
+                        put("to", JsonPrimitive(status))
                         put("ids", idsObj)
                     })
                 })
@@ -466,14 +466,14 @@ object Simkl {
         tryWithSuspend {
             val t = token ?: return@tryWithSuspend
             val idsObj = buildJsonObject {
-                if (tmdbId != null && tmdbId > 0) put("tmdb", JsonPrimitive(tmdbId))
+                if (tmdbId != null && tmdbId > 0) put("tmdb", JsonPrimitive(tmdbId.toString()))
                 if (!imdbId.isNullOrBlank()) put("imdb", JsonPrimitive(imdbId))
                 if (anilistId != null && anilistId > 0) put("anilist", JsonPrimitive(anilistId))
             }
             val body = buildJsonObject {
-                put("to", JsonPrimitive("watching"))
                 put(if (type == "tv") "shows" else "movies", buildJsonArray {
                     add(buildJsonObject {
+                        put("to", JsonPrimitive("watching"))
                         put("ids", idsObj)
                     })
                 })

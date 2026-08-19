@@ -117,7 +117,7 @@ class TmdbLibraryFragment : Fragment() {
                             it.status?.lowercase() == "plantowatch" || it.status?.lowercase() == "planning"
                         }
                         "Paused" -> allItems.filter {
-                            it.status?.lowercase() == "onhold" || it.status?.lowercase() == "paused"
+                            it.status?.lowercase() == "hold" || it.status?.lowercase() == "onhold" || it.status?.lowercase() == "paused"
                         }
                         "Dropped" -> allItems.filter {
                             it.status?.lowercase() == "dropped"
@@ -179,7 +179,7 @@ class TmdbLibraryFragment : Fragment() {
             it.status?.lowercase() == "plantowatch" || it.status?.lowercase() == "planning"
         }
         val paused = items.filter {
-            it.status?.lowercase() == "onhold" || it.status?.lowercase() == "paused"
+            it.status?.lowercase() == "hold" || it.status?.lowercase() == "onhold" || it.status?.lowercase() == "paused"
         }
         val dropped = items.filter { it.status?.lowercase() == "dropped" }
         val favourites = items.filter { (it.userRating ?: 0) > 0 }

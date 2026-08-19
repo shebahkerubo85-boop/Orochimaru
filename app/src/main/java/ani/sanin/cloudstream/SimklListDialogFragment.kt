@@ -106,6 +106,8 @@ class SimklListDialogFragment : DialogFragment() {
         return binding.root
     }
 
+    private var isSaving = false
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         binding.mediaListContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             bottomMargin += navBarHeight
@@ -185,6 +187,9 @@ class SimklListDialogFragment : DialogFragment() {
 
         // Save button
         binding.mediaListSave.setOnClickListener {
+            if (isSaving) return@setOnClickListener
+            isSaving = true
+            binding.mediaListSave.isEnabled = false
             lifecycleScope.launch {
                 withContext(Dispatchers.IO) {
                     Logger.log("SimklListDialog: saving status=$selectedStatus for '$title' (tmdb=$mediaId)")
