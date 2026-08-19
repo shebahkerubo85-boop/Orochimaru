@@ -431,33 +431,27 @@ object Simkl {
                 }
             }
 
-            // For "completed" TV shows, /sync/history with all episodes is sufficient —
-            // Simkl auto-sets "completed" when all episodes are watched. Calling
-            // /sync/add-to-list with "completed" would override it back to "watching"
-            // since the API doesn't accept "completed" as a valid "to" value.
-            if (!(status == "completed" && type == "tv")) {
-                val body = buildJsonObject {
-                    put(if (type == "tv") "shows" else "movies", buildJsonArray {
-                        add(buildJsonObject {
-                            put("ids", idsObj)
-                            put("to", JsonPrimitive(status))
-                        })
+            // Set status via /sync/add-to-list — "to" must be at the TOP level
+            // per Simkl API spec (not inside each show object)
+            val listBody = buildJsonObject {
+                put("to", JsonPrimitive(status))
+                put(if (type == "tv") "shows" else "movies", buildJsonArray {
+                    add(buildJsonObject {
+                        put("ids", idsObj)
                     })
-                }.toString()
-                val resp = okHttpClient.newCall(
-                    Request.Builder()
-                        .url("$BASE/sync/add-to-list")
-                        .addHeader("Authorization", "Bearer $t")
-                        .addHeader("simkl-api-key", clientId)
-                        .addHeader("Content-Type", "application/json")
-                        .post(body.toRequestBody("application/json".toMediaType()))
-                        .build()
-                ).execute()
-                val respBody = resp.body?.string()?.take(200)
-                ani.sanin.util.Logger.log("Simkl.setListStatus: HTTP ${resp.code} status=$status title=$title resp=$respBody")
-            } else {
-                ani.sanin.util.Logger.log("Simkl.setListStatus: skipped add-to-list for completed tv (history sufficient)")
-            }
+                })
+            }.toString()
+            val resp = okHttpClient.newCall(
+                Request.Builder()
+                    .url("$BASE/sync/add-to-list")
+                    .addHeader("Authorization", "Bearer $t")
+                    .addHeader("simkl-api-key", clientId)
+                    .addHeader("Content-Type", "application/json")
+                    .post(listBody.toRequestBody("application/json".toMediaType()))
+                    .build()
+            ).execute()
+            val respBody = resp.body?.string()?.take(200)
+            ani.sanin.util.Logger.log("Simkl.setListStatus: HTTP ${resp.code} status=$status title=$title resp=$respBody")
         }
     }
 
@@ -476,12 +470,11 @@ object Simkl {
                 if (!imdbId.isNullOrBlank()) put("imdb", JsonPrimitive(imdbId))
                 if (anilistId != null && anilistId > 0) put("anilist", JsonPrimitive(anilistId))
             }
-            // AnymeX uses "to" field (not "user_status")
             val body = buildJsonObject {
+                put("to", JsonPrimitive("watching"))
                 put(if (type == "tv") "shows" else "movies", buildJsonArray {
                     add(buildJsonObject {
                         put("ids", idsObj)
-                        put("to", JsonPrimitive("watching"))
                     })
                 })
             }.toString()
