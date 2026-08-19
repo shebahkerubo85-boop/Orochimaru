@@ -135,7 +135,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         val ctx = binding.root.context
         val density = ctx.resources.displayMetrics.density
         val topGap = if (ctx.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
-            (108 * density).toInt() else (48 * density).toInt()
+            (108 * density).toInt() else (60 * density).toInt()
         binding.animeSeasons.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             topMargin = topGap
         }
