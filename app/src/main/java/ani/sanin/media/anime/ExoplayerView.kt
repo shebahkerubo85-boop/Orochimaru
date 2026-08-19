@@ -3370,6 +3370,9 @@ class ExoplayerView :
         }
         // Simkl scrobble for TMDB content (id < 0) AND anime content (id > 0, AniList)
         if (Simkl.token != null) {
+            // Capture player position on the main thread before switching to IO
+            val playerCurrentPosition = if (::exoPlayer.isInitialized) exoPlayer.currentPosition else 0L
+            val playerDuration = if (::exoPlayer.isInitialized) exoPlayer.duration else 0L
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                 val epStr = media.anime?.selectedEpisode
                 val parts = epStr?.split("E") ?: emptyList()
@@ -3405,8 +3408,8 @@ class ExoplayerView :
                     } else {
                         Logger.log("Simkl: scrobbleStop type=$type title=$title s=$season e=$episode")
                         Simkl.scrobbleStop(type, title, year, tmdbId, imdbId, season, episode)
-                        val pos = exoPlayer.currentPosition
-                        val dur = exoPlayer.duration
+                        val pos = playerCurrentPosition
+                        val dur = playerDuration
                         if (dur > 0 && pos.toFloat() / dur.toFloat() > PrefManager.getVal<Float>(PrefName.WatchPercentage)) {
                             Logger.log("Simkl: addToHistory on scrobbleStop (pos=$pos/dur=$dur)")
                             Simkl.addToHistory(type, title, year, tmdbId, imdbId, season, episode)
@@ -3441,8 +3444,8 @@ class ExoplayerView :
                     } else {
                         Logger.log("Simkl: scrobbleStop(anilist) type=$type title=$title anilist=$anilistId s=$season e=$episode")
                         Simkl.scrobbleStop(type, title, null, anilistId = anilistId, season = season, episode = episode)
-                        val pos = exoPlayer.currentPosition
-                        val dur = exoPlayer.duration
+                        val pos = playerCurrentPosition
+                        val dur = playerDuration
                         if (dur > 0 && pos.toFloat() / dur.toFloat() > PrefManager.getVal<Float>(PrefName.WatchPercentage)) {
                             Logger.log("Simkl: addToHistory(anilist) type=$type anilist=$anilistId")
                             Simkl.addToHistory(type, title, null, anilistId = anilistId, season = season, episode = episode)
