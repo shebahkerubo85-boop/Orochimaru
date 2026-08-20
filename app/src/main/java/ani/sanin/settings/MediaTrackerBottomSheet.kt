@@ -9,6 +9,7 @@ import ani.sanin.R
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.mal.MAL
 import ani.sanin.connections.simkl.Simkl
+import ani.sanin.cloudstream.CsRepos
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
