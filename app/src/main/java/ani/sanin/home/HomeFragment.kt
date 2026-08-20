@@ -73,6 +73,7 @@ import ani.sanin.snackString
 import ani.sanin.bannerCardSizePx
 import ani.sanin.sizeBannerCard
 import ani.sanin.statusBarHeight
+import ani.sanin.settings.saving.PrefManager
 import ani.sanin.tryWithSuspend
 import ani.sanin.util.Logger
 import ani.sanin.util.customAlertDialog
@@ -152,7 +153,7 @@ class HomeFragment : Fragment() {
                     binding.homeUserBgNoKen.visibility = View.GONE
                     binding.homeNavigatingBannerContainer.visibility = View.VISIBLE
                     binding.homeNavigatingBannerContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                        topMargin = statusBarHeight
+                        topMargin = if (PrefManager.getVal(PrefName.BannerStatusBarMargin)) statusBarHeight else 0
                     }
                 } else {
                     binding.homeBannerCardWrap.visibility = View.GONE
@@ -203,9 +204,9 @@ class HomeFragment : Fragment() {
         binding.homeContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             bottomMargin = navBarHeight
         }
-        binding.homeUserBg.updateLayoutParams { height += statusBarHeight }
-        binding.homeUserBgNoKen.updateLayoutParams { height += statusBarHeight }
-        binding.homeTopContainer.updatePadding(top = statusBarHeight)
+        binding.homeUserBg.updateLayoutParams { height += if (PrefManager.getVal(PrefName.BannerStatusBarMargin)) statusBarHeight else 0 }
+        binding.homeUserBgNoKen.updateLayoutParams { height += if (PrefManager.getVal(PrefName.BannerStatusBarMargin)) statusBarHeight else 0 }
+        binding.homeTopContainer.updatePadding(top = if (PrefManager.getVal(PrefName.BannerStatusBarMargin)) statusBarHeight else 0)
 
         view.viewTreeObserver.addOnGlobalFocusChangeListener { _, newFocus ->
             if (_binding == null || newFocus == null) return@addOnGlobalFocusChangeListener
@@ -233,14 +234,14 @@ class HomeFragment : Fragment() {
         }
 
         val duration = if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.HomeAnimations)) (PrefManager.getVal<Float>(PrefName.AnimationSpeed) * 200).toLong() else 0L
-        var height = statusBarHeight
+        var height = if (PrefManager.getVal(PrefName.BannerStatusBarMargin)) statusBarHeight else 0
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             val displayCutout = activity?.window?.decorView?.rootWindowInsets?.displayCutout
             if (displayCutout != null) {
                 if (displayCutout.boundingRects.size > 0) {
                     height =
                         max(
-                            statusBarHeight,
+                            if (PrefManager.getVal(PrefName.BannerStatusBarMargin)) statusBarHeight else 0,
                             min(
                                 displayCutout.boundingRects[0].width(),
                                 displayCutout.boundingRects[0].height()
@@ -766,7 +767,7 @@ class HomeFragment : Fragment() {
     private fun setupBannerCarousel() {
         applyHomeBannerLandscapeMode()
         binding.homeBannerCardWrap.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-            topMargin = statusBarHeight
+            topMargin = if (PrefManager.getVal(PrefName.BannerStatusBarMargin)) statusBarHeight else 0
         }
         val rv = binding.homeBannerCarousel
         rv.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
@@ -1012,10 +1013,10 @@ class HomeFragment : Fragment() {
             applyHomeBannerLandscapeMode()
             applyHomeBannerFocusChain()
             binding.homeBannerCardWrap.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                topMargin = statusBarHeight
+                topMargin = if (PrefManager.getVal(PrefName.BannerStatusBarMargin)) statusBarHeight else 0
             }
             binding.homeNavigatingBannerContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                topMargin = statusBarHeight
+                topMargin = if (PrefManager.getVal(PrefName.BannerStatusBarMargin)) statusBarHeight else 0
             }
         }
     }
@@ -1160,7 +1161,7 @@ class HomeFragment : Fragment() {
         fade.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             width = stripW
             height = cardH
-            topMargin = statusBarHeight
+            topMargin = if (PrefManager.getVal(PrefName.BannerStatusBarMargin)) statusBarHeight else 0
         }
         fade.bringToFront()
         overlay.bringToFront()

@@ -82,6 +82,11 @@ class SettingsExtrasActivity : AppCompatActivity() {
 
             extrasImmersive.isChecked = PrefManager.getVal(PrefName.ImmersiveMode)
             extrasImmersive.setOnCheckedChangeListener { _, isChecked ->
+
+            extrasBannerMargin.isChecked = PrefManager.getVal(PrefName.BannerStatusBarMargin)
+            extrasBannerMargin.setOnCheckedChangeListener { _, isChecked ->
+                PrefManager.setVal(PrefName.BannerStatusBarMargin, isChecked)
+            }
                 PrefManager.setVal(PrefName.ImmersiveMode, isChecked)
                 restartApp()
             }

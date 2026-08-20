@@ -99,6 +99,7 @@ enum class PrefName(val data: Pref) {
     BlurRadius(Pref(Location.UI, Float::class, 2f)),
     BlurSampling(Pref(Location.UI, Float::class, 2f)),
     ImmersiveMode(Pref(Location.UI, Boolean::class, false)),
+    BannerStatusBarMargin(Pref(Location.UI, Boolean::class, true)),
     SmallView(Pref(Location.UI, Boolean::class, true)),
     DefaultStartUpTab(Pref(Location.UI, Int::class, 0)),
     HomeLayout(
