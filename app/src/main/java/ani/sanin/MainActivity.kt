@@ -64,7 +64,6 @@ import ani.sanin.profile.ProfileActivity
 import ani.sanin.profile.activity.FeedActivity
 import ani.sanin.profile.notification.NotificationActivity
 import ani.sanin.settings.AddRepositoryBottomSheet
-import ani.sanin.settings.MediaTrackerBottomSheet
 import ani.sanin.settings.ExtensionsActivity
 import ani.sanin.settings.FirstTimeProviderDialog
 import ani.sanin.settings.saving.PrefManager
@@ -404,6 +403,10 @@ class MainActivity : AppCompatActivity() {
             binding.mainUserAvatarContainer.nextFocusLeftId = R.id.mainCalendarContainer
             binding.mainUserAvatarContainer.nextFocusRightId = R.id.mainCalendarContainer
 
+            // Mode dropdown (far left): Anime / Movie & TV source
+            binding.mainModeContainer.visibility = View.VISIBLE
+            binding.mainModeCard.setOnClickListener { showModePicker() }
+            FocusEffectUtil.applyFocusListener(binding.mainModeCard)
             updateModeLabel()
             updateNavPillForMode()
 
@@ -697,11 +700,6 @@ class MainActivity : AppCompatActivity() {
             }
         )
         sheet.show(supportFragmentManager, "modePicker")
-    }
-
-    private fun showMediaTrackerBottomSheet() {
-        val bottomSheet = MediaTrackerBottomSheet()
-        bottomSheet.show(supportFragmentManager, "mediaTracker")
     }
 
     private fun setContentMode(mode: String) {
@@ -1092,10 +1090,6 @@ class MainActivity : AppCompatActivity() {
                 true
             } else false
         }
-        
-        // Media & tracker button
-        findViewById<View>(R.id.rightRailMediaTracker).setOnClickListener { showMediaTrackerBottomSheet() }
-        
         FocusEffectUtil.applyFocusListener(findViewById(R.id.rightRailAvatarCard))
 
         binding.mainDrawer.addDrawerListener(object : DrawerLayout.DrawerListener {
