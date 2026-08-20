@@ -404,10 +404,6 @@ class MainActivity : AppCompatActivity() {
             binding.mainUserAvatarContainer.nextFocusLeftId = R.id.mainCalendarContainer
             binding.mainUserAvatarContainer.nextFocusRightId = R.id.mainCalendarContainer
 
-            // Mode dropdown (far left): Anime / Movie & TV source
-            binding.mainModeContainer.visibility = View.VISIBLE
-            binding.mainModeCard.setOnClickListener { showModePicker() }
-            FocusEffectUtil.applyFocusListener(binding.mainModeCard)
             updateModeLabel()
             updateNavPillForMode()
 

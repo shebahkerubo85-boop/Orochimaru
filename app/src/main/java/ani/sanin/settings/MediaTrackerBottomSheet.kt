@@ -15,37 +15,10 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
 class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
 
-    var selectedMediaType: Int = 0
-    var selectedTracker: Int = 0
-
     private var _view: View? = null
 
-    private val sheetMediaAnimeSection: View
-        get() = _view!!.findViewById(R.id.sheetMediaAnimeSection)
-
-    private val sheetMovieTVSection: View
-        get() = _view!!.findViewById(R.id.sheetMovieTVSection)
-
-    private val sheetMediaTrackerIcon: ImageView
-        get() = _view!!.findViewById(R.id.sheetMediaTrackerIcon)
-
-    private val sheetMediaTrackerName: TextView
-        get() = _view!!.findViewById(R.id.sheetMediaTrackerName)
-
-    private val sheetMediaAniListCheckbox: CheckBox
-        get() = _view!!.findViewById(R.id.sheetMediaAniListCheckbox)
-
-    private val sheetMediaMALCheckbox: CheckBox
-        get() = _view!!.findViewById(R.id.sheetMediaMALCheckbox)
-
-    private val sheetMovieTVSimklCheckbox: CheckBox
-        get() = _view!!.findViewById(R.id.sheetMovieTVSimklCheckbox)
-
-    private val sheetMovieTVPluginSpinner: Spinner
-        get() = _view!!.findViewById(R.id.sheetMovieTVPluginSpinner)
-
-    private val sheetLoginGuard: View
-        get() = _view!!.findViewById(R.id.sheetLoginGuard)
+    private var selectedMediaType: Int = 0
+    private var selectedTracker: Int = 0
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -61,75 +34,101 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun setupUI() {
-        sheetMediaAnimeSection.visibility = if (selectedMediaType == 0) View.VISIBLE else View.GONE
-        sheetMovieTVSection.visibility = if (selectedMediaType == 1) View.VISIBLE else View.GONE
+        val animeButton = _view!!.findViewById<View>(R.id.sheetAnimeButton)
+        val movieButton = _view!!.findViewById<View>(R.id.sheetMovieButton)
+        val animeExpanded = _view!!.findViewById<View>(R.id.sheetAnimeExpanded)
+        val movieExpanded = _view!!.findViewById<View>(R.id.sheetMovieExpanded)
+        val animeArrow = _view!!.findViewById<ImageView>(R.id.sheetAnimeArrow)
+        val movieArrow = _view!!.findViewById<ImageView>(R.id.sheetMovieArrow)
 
-        sheetMediaAniListCheckbox.setOnCheckedChangeListener { _, isChecked ->
+        val aniListCheck = _view!!.findViewById<CheckBox>(R.id.sheetAnimeAniListCheck)
+        val malCheck = _view!!.findViewById<CheckBox>(R.id.sheetAnimeMALCheck)
+        val simklCheck = _view!!.findViewById<CheckBox>(R.id.sheetMovieSimklCheck)
+        val pluginSpinner = _view!!.findViewById<Spinner>(R.id.sheetMoviePluginSpinner)
+
+        // Set initial expand state
+        animeExpanded.visibility = View.GONE
+        movieExpanded.visibility = View.GONE
+        animeArrow.rotation = 0f
+        movieArrow.rotation = 0f
+
+        // Anime button toggle
+        animeButton.setOnClickListener {
+            val isVisible = animeExpanded.visibility == View.VISIBLE
+            animeExpanded.visibility = if (isVisible) View.GONE else View.VISIBLE
+            animeArrow.animate().rotation(if (isVisible) 0f else 180f).setDuration(200).start()
+            if (!isVisible) {
+                selectedMediaType = 0
+                saveState()
+            }
+        }
+
+        // Movie button toggle
+        movieButton.setOnClickListener {
+            val isVisible = movieExpanded.visibility == View.VISIBLE
+            movieExpanded.visibility = if (isVisible) View.GONE else View.VISIBLE
+            movieArrow.animate().rotation(if (isVisible) 0f else 180f).setDuration(200).start()
+            if (!isVisible) {
+                selectedMediaType = 1
+                saveState()
+            }
+        }
+
+        // Anime tracker checkboxes (radio behavior)
+        aniListCheck.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
-                sheetMediaMALCheckbox.isChecked = false
+                malCheck.isChecked = false
                 selectedTracker = 0
                 saveState()
-                updateTrackerDisplay()
             }
         }
 
-        sheetMediaMALCheckbox.setOnCheckedChangeListener { _, isChecked ->
+        malCheck.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
-                sheetMediaAniListCheckbox.isChecked = false
+                aniListCheck.isChecked = false
                 selectedTracker = 1
                 saveState()
-                updateTrackerDisplay()
             }
         }
 
-        sheetMovieTVSimklCheckbox.setOnCheckedChangeListener { _, isChecked ->
+        // Movie tracker - Simkl is default
+        simklCheck.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
                 selectedTracker = 2
                 saveState()
-                updateTrackerDisplay()
             }
         }
 
+        // Plugin spinner
         val adapter = ArrayAdapter.createFromResource(
             requireContext(),
             R.array.plugin_names,
             android.R.layout.simple_spinner_item
         )
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        sheetMovieTVPluginSpinner.adapter = adapter
-        sheetMovieTVPluginSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+        pluginSpinner.adapter = adapter
+        pluginSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, index: Int, id: Long) {
                 PrefManager.setVal(PrefName.ContentSource, parent?.getItemAtPosition(index).toString().lowercase())
             }
             override fun onNothingSelected(parent: AdapterView<*>) {}
         }
 
-        updateTrackerDisplay()
-    }
-
-    private fun updateTrackerDisplay() {
-        val trackerName = when (selectedTracker) {
-            0 -> requireContext().getString(R.string.anilist)
-            1 -> "MyAnimeList"
-            2 -> "Simkl"
-            else -> "AniList"
+        // Restore UI state
+        if (selectedMediaType == 0) {
+            animeExpanded.visibility = View.VISIBLE
+            animeArrow.rotation = 180f
+        } else {
+            movieExpanded.visibility = View.VISIBLE
+            movieArrow.rotation = 180f
         }
-        sheetMediaTrackerName.text = trackerName
 
-        val iconRes = when (selectedTracker) {
-            0 -> R.drawable.ic_anilist
-            2 -> R.drawable.ic_simkl
-            else -> R.drawable.ic_anilist
+        // Restore tracker state
+        when (selectedTracker) {
+            0 -> aniListCheck.isChecked = true
+            1 -> malCheck.isChecked = true
+            2 -> simklCheck.isChecked = true
         }
-        sheetMediaTrackerIcon.setImageResource(iconRes)
-
-        val isLoggedIn = when (selectedTracker) {
-            0 -> Anilist.getSavedToken()
-            1 -> !MAL.username.isNullOrEmpty()
-            2 -> !Simkl.token.isNullOrEmpty()
-            else -> false
-        }
-        sheetLoginGuard.visibility = if (!isLoggedIn) View.VISIBLE else View.GONE
     }
 
     private fun loadState() {
