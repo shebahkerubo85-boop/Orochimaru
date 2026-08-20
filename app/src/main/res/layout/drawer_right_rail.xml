@@ -246,6 +246,7 @@
         </LinearLayout>
     </ScrollView>
 
+
     <TextView
         android:id="@+id/rightRailClearCache"
         android:layout_width="match_parent"
@@ -257,7 +258,6 @@
         android:gravity="center_vertical"
         android:nextFocusUp="@+id/rightRailProviders"
         android:nextFocusDown="@+id/rightRailMediaTracker"
-        android:nextFocusDown="@id/rightRailLogout"
         android:paddingStart="24dp"
         android:paddingEnd="24dp"
         android:text="Clear Cache"
@@ -267,8 +267,6 @@
         app:drawableTint="#FFB74D" />
 
     <TextView
-        android:id="@+id/rightRailLogout"
-            <TextView
         android:id="@+id/rightRailMediaTracker"
         android:layout_width="match_parent"
         android:layout_height="56dp"
@@ -278,8 +276,8 @@
         android:fontFamily="@font/poppins_bold"
         android:focusable="true"
         android:gravity="center_vertical"
-        android:nextFocusDown="@id/rightRailLogout"
-        android:nextFocusUp="@id/rightRailClearCache"
+        android:nextFocusUp="@+id/rightRailClearCache"
+        android:nextFocusDown="@+id/rightRailLogout"
         android:paddingStart="24dp"
         android:paddingEnd="24dp"
         android:text="Media & tracker"
@@ -288,14 +286,16 @@
         app:drawableStartCompat="@drawable/ic_round_play_arrow_24"
         app:drawableTint="#FF5252" />
 
-android:layout_width="match_parent"
+    <TextView
+        android:id="@+id/rightRailLogout"
+        android:layout_width="match_parent"
         android:layout_height="56dp"
         android:background="?attr/selectableItemBackground"
         android:drawablePadding="16dp"
         android:fontFamily="@font/poppins_bold"
         android:focusable="true"
         android:gravity="center_vertical"
-        android:nextFocusUp="@+id/rightRailClearCache"
+        android:nextFocusUp="@+id/rightRailMediaTracker"
         android:paddingStart="24dp"
         android:paddingEnd="24dp"
         android:text="Log Out"
