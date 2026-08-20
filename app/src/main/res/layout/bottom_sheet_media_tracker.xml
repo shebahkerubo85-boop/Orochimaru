@@ -23,42 +23,23 @@
         android:layout_height="1dp"
         android:background="?android:attr/listDivider" />
 
-    <!-- Anime button container -->
+    <!-- Anime button (left aligned, nothing expanded initially) -->
     <LinearLayout
         android:id="@+id/sheetAnimeButton"
         android:layout_width="match_parent"
-        android:layout_height="80dp"
+        android:layout_height="44dp"
         android:background="?attr/selectableItemBackground"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingStart="16dp"
         android:paddingEnd="16dp">
 
-        <LinearLayout
-            android:id="@+id/sheetAnimeIconContainer"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginEnd="12dp"
-            android:background="?attr/colorSurface"
-            android:gravity="center"
-            android:orientation="vertical">
-
-            <ImageView
-                android:id="@+id/sheetAnimeTrackerIcon"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:scaleType="centerCrop"
-                android:contentDescription="@string/empty" />
-
-            <TextView
-                android:id="@+id/sheetAnimeTrackerName"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/poppins"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="10sp"
-                android:text="AniList" />
-        </LinearLayout>
+        <ImageView
+            android:id="@+id/sheetAnimeIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_anilist"
+            android:contentDescription="@string/empty" />
 
         <TextView
             android:layout_width="0dp"
@@ -67,139 +48,26 @@
             android:fontFamily="@font/poppins_bold"
             android:text="Anime"
             android:textColor="?attr/colorOnSurface"
-            android:textSize="18sp" />
-
-        <ImageView
-            android:id="@+id/sheetAnimeArrow"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/ic_round_keyboard_arrow_down_24"
-            android:contentDescription="@string/empty" />
+            android:textSize="14sp" />
     </LinearLayout>
 
-    <!-- Anime expanded section -->
-    <LinearLayout
-        android:id="@+id/sheetAnimeExpanded"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone">
-
-        <!-- Tracker header -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:paddingStart="16dp"
-            android:paddingTop="8dp"
-            android:paddingBottom="4dp"
-            android:fontFamily="@font/poppins_bold"
-            android:text="Tracker"
-            android:textColor="?attr/colorPrimary"
-            android:textSize="12sp" />
-
-        <!-- AniList row -->
-        <LinearLayout
-            android:id="@+id/sheetAnimeAniList"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:gravity="center"
-            android:orientation="horizontal"
-            android:paddingStart="32dp"
-            android:paddingEnd="16dp">
-
-            <CheckBox
-                android:id="@+id/sheetAnimeAniListCheck"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:buttonTint="?attr/colorPrimary" />
-
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_marginStart="8dp"
-                android:src="@drawable/ic_anilist"
-                android:contentDescription="@string/empty" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:fontFamily="@font/poppins"
-                android:text="AniList"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="14sp" />
-        </LinearLayout>
-
-        <!-- MAL row -->
-        <LinearLayout
-            android:id="@+id/sheetAnimeMAL"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:gravity="center"
-            android:orientation="horizontal"
-            android:paddingStart="32dp"
-            android:paddingEnd="16dp">
-
-            <CheckBox
-                android:id="@+id/sheetAnimeMALCheck"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:buttonTint="?attr/colorPrimary" />
-
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_marginStart="8dp"
-                android:src="@drawable/ic_myanimelist"
-                android:contentDescription="@string/empty" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:fontFamily="@font/poppins"
-                android:text="MyAnimeList"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="14sp" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <!-- Movie/TV button container -->
+    <!-- Movie/TV button (left aligned, nothing expanded initially) -->
     <LinearLayout
         android:id="@+id/sheetMovieButton"
         android:layout_width="match_parent"
-        android:layout_height="80dp"
+        android:layout_height="44dp"
         android:background="?attr/selectableItemBackground"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingStart="16dp"
         android:paddingEnd="16dp">
 
-        <LinearLayout
-            android:id="@+id/sheetMovieIconContainer"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginEnd="12dp"
-            android:background="?attr/colorSurface"
-            android:gravity="center"
-            android:orientation="vertical">
-
-            <ImageView
-                android:id="@+id/sheetMovieTrackerIcon"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:scaleType="centerCrop"
-                android:contentDescription="@string/empty" />
-
-            <TextView
-                android:id="@+id/sheetMovieTrackerName"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/poppins"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="10sp"
-                android:text="Simkl" />
-        </LinearLayout>
+        <ImageView
+            android:id="@+id/sheetMovieIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_simkl"
+            android:contentDescription="@string/empty" />
 
         <TextView
             android:layout_width="0dp"
@@ -208,45 +76,96 @@
             android:fontFamily="@font/poppins_bold"
             android:text="Movie / TV"
             android:textColor="?attr/colorOnSurface"
-            android:textSize="18sp" />
-
-        <ImageView
-            android:id="@+id/sheetMovieArrow"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/ic_round_keyboard_arrow_down_24"
-            android:contentDescription="@string/empty" />
+            android:textSize="14sp" />
     </LinearLayout>
 
-    <!-- Movie/TV expanded section -->
+    <!-- Expanded Anime section (hidden initially) -->
+    <LinearLayout
+        android:id="@+id/sheetAnimeExpanded"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:paddingStart="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/poppins_bold"
+            android:text="AniList"
+            android:textColor="?attr/colorPrimary"
+            android:textSize="12sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingTop="4dp">
+
+            <CheckBox
+                android:id="@+id/sheetAnimeAniListCheck"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:buttonTint="?attr/colorPrimary" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:fontFamily="@font/poppins"
+                android:text="AniList"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingTop="4dp">
+
+            <CheckBox
+                android:id="@+id/sheetAnimeMALCheck"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:buttonTint="?attr/colorPrimary" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:fontFamily="@font/poppins"
+                android:text="MyAnimeList"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Expanded Movie/TV section (hidden initially, simkl pre-checked) -->
     <LinearLayout
         android:id="@+id/sheetMovieExpanded"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:visibility="gone">
+        android:visibility="gone"
+        android:paddingStart="16dp">
 
-        <!-- Tracker header -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingStart="16dp"
-            android:paddingTop="8dp"
-            android:paddingBottom="4dp"
             android:fontFamily="@font/poppins_bold"
             android:text="Tracker"
             android:textColor="?attr/colorPrimary"
             android:textSize="12sp" />
 
-        <!-- Simkl row -->
         <LinearLayout
-            android:id="@+id/sheetMovieSimkl"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
+            android:layout_height="wrap_content"
             android:gravity="center"
             android:orientation="horizontal"
-            android:paddingStart="32dp"
-            android:paddingEnd="16dp">
+            android:paddingTop="4dp">
 
             <CheckBox
                 android:id="@+id/sheetMovieSimklCheck"
@@ -255,13 +174,6 @@
                 android:buttonTint="?attr/colorPrimary"
                 android:checked="true" />
 
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_marginStart="8dp"
-                android:src="@drawable/ic_simkl"
-                android:contentDescription="@string/empty" />
-
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -269,12 +181,11 @@
                 android:fontFamily="@font/poppins"
                 android:text="Simkl"
                 android:textColor="?attr/colorOnSurface"
-                android:textSize="14sp" />
+                android:textSize="12sp" />
         </LinearLayout>
 
         <!-- Plugin dropdown -->
         <LinearLayout
-            android:id="@+id/sheetMoviePluginRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
@@ -295,7 +206,7 @@
             <Spinner
                 android:id="@+id/sheetMoviePluginSpinner"
                 android:layout_width="0dp"
-                android:layout_height="40dp"
+                android:layout_height="36dp"
                 android:layout_marginStart="8dp"
                 android:layout_weight="1"
                 android:entries="@array/plugin_names"
