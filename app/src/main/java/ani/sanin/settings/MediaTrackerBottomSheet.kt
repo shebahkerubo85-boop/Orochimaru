@@ -102,12 +102,11 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
 
         // Plugin spinner
         val installedPlugins = CsRepos.installed(requireContext()).map { it.name }
-        val adapter = ArrayAdapter.createFromResource(
+        val adapter = ArrayAdapter(
             requireContext(),
             android.R.layout.simple_spinner_item,
-            android.R.layout.simple_spinner_dropdown_item
+            installedPlugins
         )
-        adapter.addAll(installedPlugins)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         pluginSpinner.adapter = adapter
         pluginSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
