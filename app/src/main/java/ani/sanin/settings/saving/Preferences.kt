@@ -48,6 +48,8 @@ enum class PrefName(val data: Pref) {
     TmdbApiKey(Pref(Location.General, String::class, "3075f2db53ed0690a350d3559ac9cd8c")),
     TmdbSearchHistory(Pref(Location.General, List::class, listOf<String>())),
     ContentSource(Pref(Location.General, String::class, "tmdb")),
+    SelectedMediaType(Pref(Location.General, Int::class, 0)),  // 0=anime, 1=movie
+    SelectedTracker(Pref(Location.Protected, Int::class, 0)),  // 0=AniList, 1=MAL, 2=Simkl
 
     AnimeSourcesOrder(Pref(Location.General, List::class, listOf<String>())),
     EnabledProviders(Pref(Location.General, Set::class, setOf<String>())),

@@ -700,7 +700,15 @@ class MainActivity : AppCompatActivity() {
             }
         )
         sheet.show(supportFragmentManager, "modePicker")
-    }
+                }
+            }
+        )
+
+        // Media & tracker bottom sheet
+        private fun showMediaTrackerBottomSheet() {
+            val bottomSheet = MediaTrackerBottomSheet()
+            bottomSheet.show(supportFragmentManager, "mediaTracker")
+        }
 
     private fun setContentMode(mode: String) {
         PrefManager.setVal(PrefName.ContentMode, mode)
@@ -1090,6 +1098,10 @@ class MainActivity : AppCompatActivity() {
                 true
             } else false
         }
+        
+        // Media & tracker button
+        findViewById<View>(R.id.rightRailMediaTracker).setOnClickListener { showMediaTrackerBottomSheet() }
+        
         FocusEffectUtil.applyFocusListener(findViewById(R.id.rightRailAvatarCard))
 
         binding.mainDrawer.addDrawerListener(object : DrawerLayout.DrawerListener {
