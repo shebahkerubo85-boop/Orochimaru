@@ -113,7 +113,7 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
         pluginSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, index: Int, id: Long) {
                 val selected = adapter.getItem(index)
-                PrefManager.setVal(PrefName.ContentSource, selected?.toString().lowercase() ?: "")
+                PrefManager.setVal(PrefName.ContentSource, selected?.toString()?.lowercase() ?: "")
             }
             override fun onNothingSelected(parent: AdapterView<*>) {}
         }
