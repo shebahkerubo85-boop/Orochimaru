@@ -280,7 +280,7 @@
         android:nextFocusDown="@+id/rightRailLogout"
         android:paddingStart="24dp"
         android:paddingEnd="24dp"
-        android:text="Media & tracker"
+        android:text="Media &amp; tracker"
         android:textColor="#FF5252"
         android:textSize="15sp"
         app:drawableStartCompat="@drawable/ic_round_play_arrow_24"
