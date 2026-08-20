@@ -95,7 +95,7 @@ class MediaTrackerBottomSheet : Fragment() {
             R.array.plugin_names,
             android.R.layout.simple_spinner_item
         )
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_view)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         sheetMovieTVPluginSpinner.adapter = adapter
         sheetMovieTVPluginSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, index: Int, id: Long) {
@@ -133,9 +133,8 @@ class MediaTrackerBottomSheet : Fragment() {
     }
 
     private fun loadState() {
-        val prefManager = PrefManager(requireContext())
-        selectedMediaType = prefManager.getVal(PrefName.SelectedMediaType)
-        selectedTracker = prefManager.getVal(PrefName.SelectedTracker)
+        selectedMediaType = PrefManager.getVal<Int>(PrefName.SelectedMediaType)
+        selectedTracker = PrefManager.getVal<Int>(PrefName.SelectedTracker)
     }
 
     private fun saveState() {

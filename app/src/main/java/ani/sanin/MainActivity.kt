@@ -64,6 +64,7 @@ import ani.sanin.profile.ProfileActivity
 import ani.sanin.profile.activity.FeedActivity
 import ani.sanin.profile.notification.NotificationActivity
 import ani.sanin.settings.AddRepositoryBottomSheet
+import ani.sanin.settings.MediaTrackerBottomSheet
 import ani.sanin.settings.ExtensionsActivity
 import ani.sanin.settings.FirstTimeProviderDialog
 import ani.sanin.settings.saving.PrefManager
