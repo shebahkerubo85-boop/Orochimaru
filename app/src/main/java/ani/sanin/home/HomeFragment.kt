@@ -73,7 +73,6 @@ import ani.sanin.snackString
 import ani.sanin.bannerCardSizePx
 import ani.sanin.sizeBannerCard
 import ani.sanin.statusBarHeight
-import ani.sanin.settings.saving.PrefManager
 import ani.sanin.tryWithSuspend
 import ani.sanin.util.Logger
 import ani.sanin.util.customAlertDialog
