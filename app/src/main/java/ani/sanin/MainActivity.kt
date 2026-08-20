@@ -700,18 +700,12 @@ class MainActivity : AppCompatActivity() {
             }
         )
         sheet.show(supportFragmentManager, "modePicker")
-                }
-            }
-        )
-
-        // Media & tracker bottom sheet
-        private fun showMediaTrackerBottomSheet() {
-            val bottomSheet = MediaTrackerBottomSheet()
-            bottomSheet.show(supportFragmentManager, "mediaTracker")
-        }
+    private fun showMediaTrackerBottomSheet() {
+        val bottomSheet = MediaTrackerBottomSheet()
+        bottomSheet.show(supportFragmentManager, "mediaTracker")
+    }
 
     private fun setContentMode(mode: String) {
-        PrefManager.setVal(PrefName.ContentMode, mode)
         updateModeLabel()
         updateNavPillForMode()
         currentFragmentTag = null
