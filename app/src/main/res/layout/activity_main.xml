@@ -207,7 +207,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:gravity="center"
-            android:paddingTop="6dp"
+            android:paddingTop="0dp"
             android:paddingBottom="6dp">
 
                 <ImageButton
