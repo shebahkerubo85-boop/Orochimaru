@@ -11,9 +11,9 @@ import ani.sanin.connections.mal.MAL
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
-import androidx.fragment.app.Fragment
+import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
-class MediaTrackerBottomSheet : Fragment() {
+class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
 
     var selectedMediaType: Int = 0
     var selectedTracker: Int = 0
