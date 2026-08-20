@@ -44,8 +44,6 @@ import java.io.Serializable
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 
 class MediaAdaptor(
@@ -136,60 +134,8 @@ class MediaAdaptor(
 
     private var logoJobs = mutableMapOf<Int, Job>()
     private var backdropJobs = mutableMapOf<Int, Job>()
-    private var subDubJobs = mutableMapOf<Int, Job>()
 
-    private fun bindSubDubBadges(
-        container: View,
-        subBadge: View,
-        dubBadge: View,
-        subCount: TextView,
-        dubCount: TextView,
-        media: Media,
-        position: Int
-    ) {
-        if (media.anime == null) {
-            container.visibility = View.GONE
-            return
-        }
-        if (media.subCount > 0 || media.dubCount > 0) {
-            applySubDubBadgeData(container, subBadge, dubBadge, subCount, dubCount, media)
-            return
-        }
-        subDubJobs[position]?.cancel()
-        subDubJobs[position] = activity.lifecycleScope.launch {
-            val (sub, dub) = SubDubFetcher.fetchSubDubCounts(media.id)
-            if (sub > 0 || dub > 0) {
-                media.subCount = sub
-                media.dubCount = dub
-                applySubDubBadgeData(container, subBadge, dubBadge, subCount, dubCount, media)
-            } else {
-                container.visibility = View.GONE
-            }
-        }
-    }
 
-    private fun applySubDubBadgeData(
-        container: View,
-        subBadge: View,
-        dubBadge: View,
-        subCountView: TextView,
-        dubCountView: TextView,
-        media: Media
-    ) {
-        if (media.subCount > 0) {
-            subBadge.visibility = View.VISIBLE
-            subCountView.text = media.subCount.toString()
-        } else {
-            subBadge.visibility = View.GONE
-        }
-        if (media.dubCount > 0) {
-            dubBadge.visibility = View.VISIBLE
-            dubCountView.text = media.dubCount.toString()
-        } else {
-            dubBadge.visibility = View.GONE
-        }
-        container.visibility = if (media.subCount > 0 || media.dubCount > 0) View.VISIBLE else View.GONE
-    }
 
     private fun bindLogo(
         clearlogo: ImageView,
@@ -257,15 +203,7 @@ class MediaAdaptor(
                     } else {
                         b.itemCompactProgressContainer.visibility = View.GONE
                     }
-                    bindSubDubBadges(
-                        b.itemCompactSubDubContainer,
-                        b.itemSubBadge,
-                        b.itemDubBadge,
-                        b.itemSubCount,
-                        b.itemDubCount,
-                        media,
-                        position
-                    )
+
                 }
             }
 
@@ -638,15 +576,7 @@ class MediaAdaptor(
             } else {
                 b.itemCompactProgressContainer.visibility = View.GONE
             }
-            bindSubDubBadges(
-                b.itemCompactSubDubContainer,
-                b.itemSubBadge,
-                b.itemDubBadge,
-                b.itemSubCount,
-                b.itemDubCount,
-                media,
-                position
-            )
+
         }
     }
 

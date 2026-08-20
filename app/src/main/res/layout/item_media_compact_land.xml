@@ -146,77 +146,7 @@
         tools:text="Title"
         tools:visibility="visible" />
 
-    <LinearLayout
-        android:id="@+id/itemCompactSubDubContainer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:layout_marginEnd="8dp"
-        android:orientation="horizontal"
-        android:visibility="gone"
-        tools:visibility="visible">
 
-        <LinearLayout
-            android:id="@+id/itemSubBadge"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_sub_badge"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingStart="3dp"
-            android:paddingEnd="4dp"
-            android:visibility="gone"
-            tools:visibility="visible">
-
-            <ImageView
-                android:layout_width="10dp"
-                android:layout_height="10dp"
-                android:importantForAccessibility="no"
-                android:src="@drawable/ic_sub_badge" />
-
-            <TextView
-                android:id="@+id/itemSubCount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="2dp"
-                android:textColor="#4CAF50"
-                android:textSize="10sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <View
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
-
-        <LinearLayout
-            android:id="@+id/itemDubBadge"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_dub_badge"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingStart="3dp"
-            android:paddingEnd="4dp"
-            android:visibility="gone"
-            tools:visibility="visible">
-
-            <ImageView
-                android:layout_width="10dp"
-                android:layout_height="10dp"
-                android:importantForAccessibility="no"
-                android:src="@drawable/ic_dub_badge" />
-
-            <TextView
-                android:id="@+id/itemDubCount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="2dp"
-                android:textColor="#2196F3"
-                android:textSize="10sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/itemCompactProgressContainer"
