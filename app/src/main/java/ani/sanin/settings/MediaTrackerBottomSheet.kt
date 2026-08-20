@@ -6,20 +6,19 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.*
 import ani.sanin.R
+import ani.sanin.cloudstream.CsRepos
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.mal.MAL
 import ani.sanin.connections.simkl.Simkl
-import ani.sanin.cloudstream.CsRepos
+import ani.sanin.loadImage
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
+import ani.sanin.MainActivity
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
 class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
 
     private var _view: View? = null
-
-    private var selectedMediaType: Int = 0
-    private var selectedTracker: Int = 0
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -30,118 +29,189 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        loadState()
         setupUI()
     }
 
     private fun setupUI() {
-        val animeButton = _view!!.findViewById<View>(R.id.sheetAnimeButton)
-        val movieButton = _view!!.findViewById<View>(R.id.sheetMovieButton)
-        val animeExpanded = _view!!.findViewById<View>(R.id.sheetAnimeExpanded)
-        val movieExpanded = _view!!.findViewById<View>(R.id.sheetMovieExpanded)
-        val animeArrow = _view!!.findViewById<ImageView>(R.id.sheetAnimeArrow)
-        val movieArrow = _view!!.findViewById<ImageView>(R.id.sheetMovieArrow)
+        val v = _view!!
+        val animeButton = v.findViewById<View>(R.id.sheetAnimeButton)
+        val movieButton = v.findViewById<View>(R.id.sheetMovieButton)
+        val animeExpanded = v.findViewById<View>(R.id.sheetAnimeExpanded)
+        val movieExpanded = v.findViewById<View>(R.id.sheetMovieExpanded)
+        val animeArrow = v.findViewById<ImageView>(R.id.sheetAnimeArrow)
+        val movieArrow = v.findViewById<ImageView>(R.id.sheetMovieArrow)
+        val aniListCheck = v.findViewById<CheckBox>(R.id.sheetAnimeAniListCheck)
+        val malCheck = v.findViewById<CheckBox>(R.id.sheetAnimeMALCheck)
+        val simklCheck = v.findViewById<CheckBox>(R.id.sheetMovieSimklCheck)
+        val pluginSpinner = v.findViewById<Spinner>(R.id.sheetMoviePluginSpinner)
 
-        val aniListCheck = _view!!.findViewById<CheckBox>(R.id.sheetAnimeAniListCheck)
-        val malCheck = _view!!.findViewById<CheckBox>(R.id.sheetAnimeMALCheck)
-        val simklCheck = _view!!.findViewById<CheckBox>(R.id.sheetMovieSimklCheck)
-        val pluginSpinner = _view!!.findViewById<Spinner>(R.id.sheetMoviePluginSpinner)
+        // Card banner/scrim/profile/tracker icon views
+        val animeBanner = v.findViewById<ImageView>(R.id.sheetAnimeBanner)
+        val animeScrim = v.findViewById<View>(R.id.sheetAnimeScrim)
+        val animeProfilePic = v.findViewById<ImageView>(R.id.sheetAnimeProfilePic)
+        val animeTrackerIcon = v.findViewById<ImageView>(R.id.sheetAnimeTrackerIcon)
+        val movieBanner = v.findViewById<ImageView>(R.id.sheetMovieBanner)
+        val movieScrim = v.findViewById<View>(R.id.sheetMovieScrim)
+        val movieProfilePic = v.findViewById<ImageView>(R.id.sheetMovieProfilePic)
+        val movieTrackerIcon = v.findViewById<ImageView>(R.id.sheetMovieTrackerIcon)
 
-        // Set initial expand state
         animeExpanded.visibility = View.GONE
         movieExpanded.visibility = View.GONE
-        animeArrow.rotation = 0f
-        movieArrow.rotation = 0f
 
-        // Anime button toggle
+        // --- Anime button card styling ---
+        val savedTracker = PrefManager.getVal<Int>(PrefName.SelectedTracker)
+        val savedType = PrefManager.getVal<Int>(PrefName.SelectedMediaType)
+
+        // Anime card: show profile if AniList (0) or MAL (1) is logged in
+        if (savedType == 0 && savedTracker == 0 && Anilist.token != null) {
+            // AniList logged in
+            val bannerUrl = Anilist.bg ?: Anilist.avatar
+            if (bannerUrl != null) {
+                animeBanner.loadImage(bannerUrl)
+                animeBanner.visibility = View.VISIBLE
+                animeScrim.visibility = View.VISIBLE
+            }
+            if (Anilist.avatar != null) {
+                animeProfilePic.loadImage(Anilist.avatar)
+                animeProfilePic.visibility = View.VISIBLE
+            }
+            animeTrackerIcon.setImageResource(R.drawable.ic_anilist)
+            animeTrackerIcon.visibility = View.VISIBLE
+        } else if (savedType == 0 && savedTracker == 1 && MAL.token != null) {
+            // MAL logged in — use avatar as banner too (MAL has no bg)
+            val bannerUrl = MAL.avatar
+            if (bannerUrl != null) {
+                animeBanner.loadImage(bannerUrl)
+                animeBanner.visibility = View.VISIBLE
+                animeScrim.visibility = View.VISIBLE
+            }
+            if (MAL.avatar != null) {
+                animeProfilePic.loadImage(MAL.avatar)
+                animeProfilePic.visibility = View.VISIBLE
+            }
+            animeTrackerIcon.setImageResource(R.drawable.ic_myanimelist)
+            animeTrackerIcon.visibility = View.VISIBLE
+        }
+
+        // --- Movie card styling: Simkl ---
+        if (savedType == 1 && savedTracker == 2 && Simkl.token != null) {
+            val bannerUrl = Simkl.avatar
+            if (bannerUrl != null) {
+                movieBanner.loadImage(bannerUrl)
+                movieBanner.visibility = View.VISIBLE
+                movieScrim.visibility = View.VISIBLE
+            }
+            if (Simkl.avatar != null) {
+                movieProfilePic.loadImage(Simkl.avatar)
+                movieProfilePic.visibility = View.VISIBLE
+            }
+            movieTrackerIcon.setImageResource(R.drawable.ic_simkl)
+            movieTrackerIcon.visibility = View.VISIBLE
+        }
+
+        // --- Expand/collapse logic ---
         animeButton.setOnClickListener {
             val isVisible = animeExpanded.visibility == View.VISIBLE
-            animeExpanded.visibility = if (isVisible) View.GONE else View.VISIBLE
-            animeArrow.animate().rotation(if (isVisible) 0f else 180f).setDuration(200).start()
-            if (!isVisible) {
-                selectedMediaType = 0
-                saveState()
+            if (isVisible) collapseSection(animeExpanded, animeArrow)
+            else {
+                expandSection(animeExpanded, animeArrow)
+                collapseSection(movieExpanded, movieArrow)
             }
         }
 
-        // Movie button toggle
         movieButton.setOnClickListener {
             val isVisible = movieExpanded.visibility == View.VISIBLE
-            movieExpanded.visibility = if (isVisible) View.GONE else View.VISIBLE
-            movieArrow.animate().rotation(if (isVisible) 0f else 180f).setDuration(200).start()
-            if (!isVisible) {
-                selectedMediaType = 1
-                saveState()
+            if (isVisible) collapseSection(movieExpanded, movieArrow)
+            else {
+                expandSection(movieExpanded, movieArrow)
+                collapseSection(animeExpanded, animeArrow)
             }
         }
 
-        // Anime tracker checkboxes (radio behavior)
-        aniListCheck.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
+        // --- Tracker checkboxes → instant mode switch ---
+        aniListCheck.setOnClickListener {
+            if (aniListCheck.isChecked) {
                 malCheck.isChecked = false
-                selectedTracker = 0
-                saveState()
+                PrefManager.setVal(PrefName.SelectedMediaType, 0)
+                PrefManager.setVal(PrefName.SelectedTracker, 0)
+                (activity as? MainActivity)?.setContentMode("anime")
+                collapseSection(animeExpanded, animeArrow)
             }
         }
 
-        malCheck.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
+        malCheck.setOnClickListener {
+            if (malCheck.isChecked) {
                 aniListCheck.isChecked = false
-                selectedTracker = 1
-                saveState()
+                PrefManager.setVal(PrefName.SelectedMediaType, 0)
+                PrefManager.setVal(PrefName.SelectedTracker, 1)
+                (activity as? MainActivity)?.setContentMode("anime")
+                collapseSection(animeExpanded, animeArrow)
             }
         }
 
-        // Movie tracker - Simkl is default
-        simklCheck.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-                selectedTracker = 2
-                saveState()
+        simklCheck.setOnClickListener {
+            if (simklCheck.isChecked) {
+                PrefManager.setVal(PrefName.SelectedMediaType, 1)
+                PrefManager.setVal(PrefName.SelectedTracker, 2)
+                (activity as? MainActivity)?.setContentMode("movie_tv")
+                collapseSection(movieExpanded, movieArrow)
             }
         }
 
-        // Plugin spinner
-        val installedPlugins = CsRepos.installed(requireContext()).map { it.name }
+        // --- Plugin spinner ---
+        val installedSources = CsRepos.installed(requireContext())
+        val pluginNames = mutableListOf("TMDB")
+        val pluginIds = mutableListOf("tmdb")
+        installedSources.forEach { src ->
+            pluginNames.add(src.name)
+            pluginIds.add(src.id)
+        }
         val adapter = ArrayAdapter(
             requireContext(),
             android.R.layout.simple_spinner_item,
-            installedPlugins
+            pluginNames
         )
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         pluginSpinner.adapter = adapter
+
+        var suppressSpinner = true
         pluginSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, index: Int, id: Long) {
-                val selected = adapter.getItem(index)
-                PrefManager.setVal(PrefName.ContentSource, selected?.toString()?.lowercase() ?: "")
+                PrefManager.setVal(PrefName.ContentSource, pluginIds[index])
+                if (!suppressSpinner) {
+                    (activity as? MainActivity)?.setContentMode("movie_tv")
+                }
             }
             override fun onNothingSelected(parent: AdapterView<*>) {}
         }
 
-        // Restore UI state
-        if (selectedMediaType == 0) {
-            animeExpanded.visibility = View.VISIBLE
-            animeArrow.rotation = 180f
-        } else {
-            movieExpanded.visibility = View.VISIBLE
-            movieArrow.rotation = 180f
-        }
+        val savedSource = PrefManager.getVal<String>(PrefName.ContentSource)
+        val restoreIdx = pluginIds.indexOfFirst { it.equals(savedSource, ignoreCase = true) }
+        if (restoreIdx >= 0) pluginSpinner.setSelection(restoreIdx)
+        pluginSpinner.post { suppressSpinner = false }
 
-        // Restore tracker state
-        when (selectedTracker) {
+        // --- Restore expand state ---
+        when (savedTracker) {
             0 -> aniListCheck.isChecked = true
             1 -> malCheck.isChecked = true
             2 -> simklCheck.isChecked = true
         }
+
+        if (savedType == 0 && (savedTracker == 0 || savedTracker == 1)) {
+            expandSection(animeExpanded, animeArrow)
+        } else if (savedType == 1 && savedTracker == 2) {
+            expandSection(movieExpanded, movieArrow)
+        }
     }
 
-    private fun loadState() {
-        selectedMediaType = PrefManager.getVal<Int>(PrefName.SelectedMediaType)
-        selectedTracker = PrefManager.getVal<Int>(PrefName.SelectedTracker)
+    private fun expandSection(section: View, arrow: ImageView) {
+        section.visibility = View.VISIBLE
+        arrow.animate().rotation(180f).setDuration(200).start()
     }
 
-    private fun saveState() {
-        PrefManager.setVal(PrefName.SelectedMediaType, selectedMediaType)
-        PrefManager.setVal(PrefName.SelectedTracker, selectedTracker)
+    private fun collapseSection(section: View, arrow: ImageView) {
+        section.visibility = View.GONE
+        arrow.animate().rotation(0f).setDuration(200).start()
     }
 
     override fun onDestroyView() {

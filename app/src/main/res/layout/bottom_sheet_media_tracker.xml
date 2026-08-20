@@ -22,33 +22,75 @@
         android:layout_height="1dp"
         android:background="?android:attr/listDivider" />
 
-    <!-- Anime button -->
-    <LinearLayout
+    <!-- Anime card button -->
+    <com.google.android.material.card.MaterialCardView
         android:id="@+id/sheetAnimeButton"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:background="?attr/selectableItemBackground"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp">
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:fontFamily="@font/poppins_bold"
-            android:text="Anime"
-            android:textColor="?attr/colorOnSurface"
-            android:textSize="16sp" />
+        android:layout_height="64dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginEnd="12dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="@android:color/transparent">
 
         <ImageView
-            android:id="@+id/sheetAnimeArrow"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/ic_round_keyboard_arrow_down_24"
-            android:contentDescription="@string/empty" />
-    </LinearLayout>
+            android:id="@+id/sheetAnimeBanner"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:visibility="gone" />
+
+        <View
+            android:id="@+id/sheetAnimeScrim"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="?attr/colorSurface"
+            android:alpha="0.75"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="64dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingEnd="12dp">
+
+            <ImageView
+                android:id="@+id/sheetAnimeProfilePic"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginEnd="16dp"
+                android:visibility="gone"
+                android:contentDescription="@string/empty" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="@font/poppins_bold"
+                android:text="Anime"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="16sp" />
+
+            <ImageView
+                android:id="@+id/sheetAnimeTrackerIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginStart="8dp"
+                android:visibility="gone"
+                android:contentDescription="@string/empty" />
+
+            <ImageView
+                android:id="@+id/sheetAnimeArrow"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_round_keyboard_arrow_down_24"
+                android:contentDescription="@string/empty" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
     <!-- Anime expanded section -->
     <LinearLayout
@@ -58,11 +100,10 @@
         android:orientation="vertical"
         android:visibility="gone">
 
-        <!-- Tracker header -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingStart="16dp"
+            android:paddingStart="28dp"
             android:paddingTop="8dp"
             android:paddingBottom="4dp"
             android:fontFamily="@font/poppins_bold"
@@ -70,14 +111,13 @@
             android:textColor="?attr/colorPrimary"
             android:textSize="12sp" />
 
-        <!-- AniList row -->
         <LinearLayout
             android:id="@+id/sheetAnimeAniList"
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:gravity="center"
             android:orientation="horizontal"
-            android:paddingStart="32dp"
+            android:paddingStart="28dp"
             android:paddingEnd="16dp">
 
             <CheckBox
@@ -103,14 +143,13 @@
                 android:textSize="14sp" />
         </LinearLayout>
 
-        <!-- MAL row -->
         <LinearLayout
             android:id="@+id/sheetAnimeMAL"
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:gravity="center"
             android:orientation="horizontal"
-            android:paddingStart="32dp"
+            android:paddingStart="28dp"
             android:paddingEnd="16dp">
 
             <CheckBox
@@ -137,33 +176,75 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Movie/TV button -->
-    <LinearLayout
+    <!-- Movie/TV card button -->
+    <com.google.android.material.card.MaterialCardView
         android:id="@+id/sheetMovieButton"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:background="?attr/selectableItemBackground"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp">
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:fontFamily="@font/poppins_bold"
-            android:text="Movie / TV"
-            android:textColor="?attr/colorOnSurface"
-            android:textSize="16sp" />
+        android:layout_height="64dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="12dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="@android:color/transparent">
 
         <ImageView
-            android:id="@+id/sheetMovieArrow"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/ic_round_keyboard_arrow_down_24"
-            android:contentDescription="@string/empty" />
-    </LinearLayout>
+            android:id="@+id/sheetMovieBanner"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:visibility="gone" />
+
+        <View
+            android:id="@+id/sheetMovieScrim"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="?attr/colorSurface"
+            android:alpha="0.75"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="64dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingEnd="12dp">
+
+            <ImageView
+                android:id="@+id/sheetMovieProfilePic"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginEnd="16dp"
+                android:visibility="gone"
+                android:contentDescription="@string/empty" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="@font/poppins_bold"
+                android:text="Movie / TV"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="16sp" />
+
+            <ImageView
+                android:id="@+id/sheetMovieTrackerIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginStart="8dp"
+                android:visibility="gone"
+                android:contentDescription="@string/empty" />
+
+            <ImageView
+                android:id="@+id/sheetMovieArrow"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_round_keyboard_arrow_down_24"
+                android:contentDescription="@string/empty" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
     <!-- Movie/TV expanded section -->
     <LinearLayout
@@ -173,11 +254,10 @@
         android:orientation="vertical"
         android:visibility="gone">
 
-        <!-- Tracker header -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingStart="16dp"
+            android:paddingStart="28dp"
             android:paddingTop="8dp"
             android:paddingBottom="4dp"
             android:fontFamily="@font/poppins_bold"
@@ -185,22 +265,20 @@
             android:textColor="?attr/colorPrimary"
             android:textSize="12sp" />
 
-        <!-- Simkl row -->
         <LinearLayout
             android:id="@+id/sheetMovieSimkl"
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:gravity="center"
             android:orientation="horizontal"
-            android:paddingStart="32dp"
+            android:paddingStart="28dp"
             android:paddingEnd="16dp">
 
             <CheckBox
                 android:id="@+id/sheetMovieSimklCheck"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:buttonTint="?attr/colorPrimary"
-                android:checked="true" />
+                android:buttonTint="?attr/colorPrimary" />
 
             <ImageView
                 android:layout_width="24dp"
@@ -219,14 +297,13 @@
                 android:textSize="14sp" />
         </LinearLayout>
 
-        <!-- Plugin dropdown -->
         <LinearLayout
             android:id="@+id/sheetMoviePluginRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingStart="32dp"
+            android:paddingStart="28dp"
             android:paddingEnd="16dp"
             android:paddingTop="4dp"
             android:paddingBottom="4dp">
@@ -245,7 +322,6 @@
                 android:layout_height="40dp"
                 android:layout_marginStart="8dp"
                 android:layout_weight="1"
-                android:entries="@array/plugin_names"
                 android:spinnerMode="dropdown" />
         </LinearLayout>
     </LinearLayout>
