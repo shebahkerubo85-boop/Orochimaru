@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/sheetRoot"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="?attr/colorSurface"
@@ -22,16 +23,42 @@
         android:layout_height="1dp"
         android:background="?android:attr/listDivider" />
 
-    <!-- Anime button -->
+    <!-- Anime button container -->
     <LinearLayout
         android:id="@+id/sheetAnimeButton"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="80dp"
         android:background="?attr/selectableItemBackground"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingStart="16dp"
         android:paddingEnd="16dp">
+
+        <LinearLayout
+            android:id="@+id/sheetAnimeIconContainer"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="12dp"
+            android:background="?attr/colorSurface"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/sheetAnimeTrackerIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:scaleType="centerCrop"
+                android:contentDescription="@string/empty" />
+
+            <TextView
+                android:id="@+id/sheetAnimeTrackerName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="10sp"
+                android:text="AniList" />
+        </LinearLayout>
 
         <TextView
             android:layout_width="0dp"
@@ -40,7 +67,7 @@
             android:fontFamily="@font/poppins_bold"
             android:text="Anime"
             android:textColor="?attr/colorOnSurface"
-            android:textSize="16sp" />
+            android:textSize="18sp" />
 
         <ImageView
             android:id="@+id/sheetAnimeArrow"
@@ -137,16 +164,42 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Movie/TV button -->
+    <!-- Movie/TV button container -->
     <LinearLayout
         android:id="@+id/sheetMovieButton"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="80dp"
         android:background="?attr/selectableItemBackground"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingStart="16dp"
         android:paddingEnd="16dp">
+
+        <LinearLayout
+            android:id="@+id/sheetMovieIconContainer"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="12dp"
+            android:background="?attr/colorSurface"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/sheetMovieTrackerIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:scaleType="centerCrop"
+                android:contentDescription="@string/empty" />
+
+            <TextView
+                android:id="@+id/sheetMovieTrackerName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="10sp"
+                android:text="Simkl" />
+        </LinearLayout>
 
         <TextView
             android:layout_width="0dp"
@@ -155,7 +208,7 @@
             android:fontFamily="@font/poppins_bold"
             android:text="Movie / TV"
             android:textColor="?attr/colorOnSurface"
-            android:textSize="16sp" />
+            android:textSize="18sp" />
 
         <ImageView
             android:id="@+id/sheetMovieArrow"
