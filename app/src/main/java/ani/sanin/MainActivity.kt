@@ -55,7 +55,6 @@ import ani.sanin.home.LibraryFragment
 import ani.sanin.home.TmdbDiscoveryFragment
 import ani.sanin.home.TmdbHomeFragment
 import ani.sanin.home.TmdbLibraryFragment
-import ani.sanin.media.SheetSourceSelector
 import ani.sanin.home.NoInternet
 import ani.sanin.media.MediaDetailsActivity
 import ani.sanin.notifications.TaskScheduler
@@ -665,46 +664,12 @@ class MainActivity : AppCompatActivity() {
         updateHomeNavIconTints()
     }
 
-    private fun showModePicker() {
-        val installed = CsRepos.installed(this)
-        // One dialog: Anime / Movie & TV, with the Movie & TV sources listed
-        // right below (TMDB is the default, installed plugins follow).
-        val options = ArrayList<String>().apply {
-            add("Anime")
-            add("Movie & TV")
-            add("─── Movie & TV sources ───")
-            add("TMDB")
-            installed.forEach { add(it.name) }
-        }
-        val sheet = SheetSourceSelector.newInstance(
-            options,
-            onSelect = { idx ->
-                when (idx) {
-                    0 -> setContentMode("anime")
-                    1 -> setContentMode("movie_tv")
-                    3 -> {
-                        PrefManager.setVal(PrefName.ContentSource, "tmdb")
-                        setContentMode("movie_tv")
-                    }
-                    else -> {
-                        val plugin = installed.getOrNull(idx - 4)
-                        if (plugin != null) {
-                            PrefManager.setVal(PrefName.ContentSource, plugin.id)
-                            setContentMode("movie_tv")
-                        }
-                    }
-                }
-            }
-        )
-        sheet.show(supportFragmentManager, "modePicker")
-    }
-
     private fun showMediaTrackerBottomSheet() {
         val bottomSheet = MediaTrackerBottomSheet()
         bottomSheet.show(supportFragmentManager, "mediaTracker")
     }
 
-    private fun setContentMode(mode: String) {
+    internal fun setContentMode(mode: String) {
         PrefManager.setVal(PrefName.ContentMode, mode)
         updateModeLabel()
         updateNavPillForMode()
