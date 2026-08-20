@@ -100,16 +100,19 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
         }
 
         // Plugin spinner
+        val installedPlugins = CsRepos.installed(requireContext()).map { it.name }
         val adapter = ArrayAdapter.createFromResource(
             requireContext(),
-            R.array.plugin_names,
-            android.R.layout.simple_spinner_item
+            android.R.layout.simple_spinner_item,
+            android.R.layout.simple_spinner_dropdown_item
         )
+        adapter.addAll(installedPlugins)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         pluginSpinner.adapter = adapter
         pluginSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, index: Int, id: Long) {
-                PrefManager.setVal(PrefName.ContentSource, parent?.getItemAtPosition(index).toString().lowercase())
+                val selected = adapter.getItem(index)
+                PrefManager.setVal(PrefName.ContentSource, selected?.toString().lowercase() ?: "")
             }
             override fun onNothingSelected(parent: AdapterView<*>) {}
         }
