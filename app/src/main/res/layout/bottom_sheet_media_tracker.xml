@@ -35,6 +35,15 @@
         android:paddingEnd="16dp">
 
         <ImageView
+            android:id="@+id/sheetAnimeArrow"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_round_keyboard_arrow_down_24"
+            android:contentDescription="@string/empty"
+            android:layout_marginStart="8dp"
+            android:layout_gravity="center_vertical"/>
+
+        <ImageView
             android:id="@+id/sheetAnimeIcon"
             android:layout_width="24dp"
             android:layout_height="24dp"
@@ -61,6 +70,15 @@
         android:orientation="horizontal"
         android:paddingStart="16dp"
         android:paddingEnd="16dp">
+
+        <ImageView
+            android:id="@+id/sheetMovieArrow"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_round_keyboard_arrow_down_24"
+            android:contentDescription="@string/empty"
+            android:layout_marginStart="8dp"
+            android:layout_gravity="center_vertical"/>
 
         <ImageView
             android:id="@+id/sheetMovieIcon"
