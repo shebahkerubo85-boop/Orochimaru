@@ -63,6 +63,7 @@ class SubtitleRailController(
     data class RailItem(
         val label: CharSequence,
         val isHeader: Boolean = false,
+        val isCollapsible: Boolean = false,
         val isStatus: Boolean = false,
         val isToggle: Boolean = false,
         val badge: String? = null,
@@ -76,6 +77,8 @@ class SubtitleRailController(
     private val rows = mutableListOf<RailItem>()
     private val adapter = RailAdapter()
     private val attemptedServers = mutableSetOf<String>()
+    private var crossServerExpanded = false
+    private var crossServerEpisodeId: String? = null
     private var searchingOnline = false
     private var languageFilter: String? = null
 
@@ -134,11 +137,31 @@ class SubtitleRailController(
         }
     }
 
+    private fun toggleCrossServer() {
+        crossServerExpanded = !crossServerExpanded
+        rebuild()
+        val headerIndex = rows.indexOfFirst { it.isHeader && it.isCollapsible }
+        if (headerIndex >= 0) {
+            recycler.post {
+                recycler.scrollToPosition(headerIndex)
+                recycler.post {
+                    val holder = recycler.findViewHolderForAdapterPosition(headerIndex)
+                    holder?.itemView?.requestFocus()
+                }
+            }
+        }
+    }
+
     private fun rebuild() {
         val media = model.getMedia().value ?: return
         val episode = media.anime?.episodes?.get(media.anime.selectedEpisode) ?: return
         val prefKey = "subLang_${media.id}"
         val episodeId = "${media.id}-${episode.number}"
+
+        if (crossServerEpisodeId != episodeId) {
+            crossServerEpisodeId = episodeId
+            crossServerExpanded = false
+        }
 
         rows.clear()
 
@@ -165,7 +188,7 @@ class SubtitleRailController(
         // 3. Current server subtitles
         val currentExtractor = episode.extractors?.find { it.server.name == episode.selectedExtractor }
         if (currentExtractor != null && currentExtractor.subtitles.isNotEmpty()) {
-            rows.add(RailItem("Current Server — ${currentExtractor.server.name}", isHeader = true))
+            rows.add(RailItem("Current Server", isHeader = true))
             currentExtractor.subtitles.forEachIndexed { index, sub ->
                 rows.add(
                     RailItem(
@@ -182,24 +205,33 @@ class SubtitleRailController(
         // 4. Other servers (fetch subtitles on demand)
         val otherExtractors = episode.extractors.orEmpty().filter { it.server.name != episode.selectedExtractor }
         if (otherExtractors.isNotEmpty()) {
-            rows.add(RailItem("Other Servers", isHeader = true))
-            otherExtractors.forEach { ex ->
-                if (ex.subtitles.isNotEmpty()) {
-                    ex.subtitles.forEach { sub ->
-                        rows.add(
-                            RailItem(
-                                label = languageLabel(sub.language),
-                                badge = serverAbbrev(ex.server.name),
-                                language = sub.language,
-                                selectedKey = "Online:${sub.file.url}",
-                                onClick = { selectRemoteSub(media, episode, prefKey, ex, sub) },
+            rows.add(
+                RailItem(
+                    label = "Cross Server",
+                    isHeader = true,
+                    isCollapsible = true,
+                    onClick = { toggleCrossServer() },
+                )
+            )
+            if (crossServerExpanded) {
+                otherExtractors.forEach { ex ->
+                    if (ex.subtitles.isNotEmpty()) {
+                        ex.subtitles.forEach { sub ->
+                            rows.add(
+                                RailItem(
+                                    label = languageLabel(sub.language),
+                                    badge = serverAbbrev(ex.server.name),
+                                    language = sub.language,
+                                    selectedKey = "Online:${sub.file.url}",
+                                    onClick = { selectRemoteSub(media, episode, prefKey, ex, sub) },
+                                )
                             )
-                        )
+                        }
+                    } else if ("${episode.number}|${ex.server.name}" !in attemptedServers) {
+                        rows.add(RailItem("Loading ${ex.server.name}…", isStatus = true))
+                        attemptedServers.add("${episode.number}|${ex.server.name}")
+                        fetchOtherServer(ex)
                     }
-                } else if ("${episode.number}|${ex.server.name}" !in attemptedServers) {
-                    rows.add(RailItem("Loading ${ex.server.name}…", isStatus = true))
-                    attemptedServers.add("${episode.number}|${ex.server.name}")
-                    fetchOtherServer(ex)
                 }
             }
         }
@@ -535,6 +567,20 @@ class SubtitleRailController(
             val enabled = item.isToggle || subtitlesEnabled
             val primary = PrefManager.getVal<Int>(PrefName.PrimaryColor)
             val grey = 0xFF808080.toInt()
+
+            if (item.isHeader) {
+                binding.root.setCardBackgroundColor(Color.TRANSPARENT)
+                binding.root.isClickable = item.onClick != null
+                binding.root.isFocusable = item.onClick != null
+                binding.root.setOnClickListener { item.onClick?.invoke() }
+                binding.subtitleTitle.text = item.label
+                binding.subtitleTitle.setTextColor(primary)
+                binding.subtitleTitle.textSize = 12f
+                binding.subtitleGlobe.visibility = View.GONE
+                binding.subtitleBadge.visibility = View.GONE
+                binding.subtitleToggle.visibility = View.GONE
+                return
+            }
 
             binding.subtitleTitle.text = item.label
             binding.subtitleTitle.setTextColor(if (enabled) Color.WHITE else grey)
