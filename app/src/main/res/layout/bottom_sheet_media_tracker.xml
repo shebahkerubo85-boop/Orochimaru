@@ -22,7 +22,7 @@
         android:layout_height="1dp"
         android:background="?android:attr/listDivider" />
 
-    <!-- Anime card button -->
+    <!-- Fixed height anime card button - container stays same size -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/sheetAnimeButton"
         android:layout_width="match_parent"
@@ -47,6 +47,14 @@
             android:layout_height="match_parent"
             android:background="?attr/colorSurface"
             android:alpha="0.75"
+            android:visibility="gone" />
+
+        <!-- Dimmed overlay for text visibility on banner -->
+        <View
+            android:id="@+id/sheetAnimeBannerOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/banner_overlay"
             android:visibility="gone" />
 
         <LinearLayout
@@ -92,11 +100,11 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Anime expanded section -->
+    <!-- Anime expanded section - fixed height, content scrolls if needed -->
     <LinearLayout
         android:id="@+id/sheetAnimeExpanded"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="120dp"
         android:orientation="vertical"
         android:visibility="gone">
 
@@ -114,7 +122,7 @@
         <LinearLayout
             android:id="@+id/sheetAnimeAniList"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
+            android:layout_height="wrap_content"
             android:gravity="center"
             android:orientation="horizontal"
             android:paddingStart="28dp"
@@ -146,7 +154,7 @@
         <LinearLayout
             android:id="@+id/sheetAnimeMAL"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
+            android:layout_height="wrap_content"
             android:gravity="center"
             android:orientation="horizontal"
             android:paddingStart="28dp"
@@ -170,13 +178,43 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:fontFamily="@font/poppins"
-                android:text="MyAnimeList"
+                android:text="MAL"
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="14sp" />
         </LinearLayout>
+
+        <!-- Plugin dropdown -->
+        <LinearLayout
+            android:id="@+id/sheetAnimePluginRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="28dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins"
+                android:text="Plugin:"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="12sp" />
+
+            <Spinner
+                android:id="@+id/sheetAnimePluginSpinner"
+                android:layout_width="0dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:spinnerMode="dropdown" />
+        </LinearLayout>
+
     </LinearLayout>
 
-    <!-- Movie/TV card button -->
+    <!-- Movie/TV card button - fixed height -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/sheetMovieButton"
         android:layout_width="match_parent"
@@ -201,6 +239,14 @@
             android:layout_height="match_parent"
             android:background="?attr/colorSurface"
             android:alpha="0.75"
+            android:visibility="gone" />
+
+        <!-- Dimmed overlay for text visibility on banner -->
+        <View
+            android:id="@+id/sheetMovieBannerOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/banner_overlay"
             android:visibility="gone" />
 
         <LinearLayout
@@ -246,11 +292,11 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Movie/TV expanded section -->
+    <!-- Movie/TV expanded section - fixed height -->
     <LinearLayout
         android:id="@+id/sheetMovieExpanded"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="120dp"
         android:orientation="vertical"
         android:visibility="gone">
 
@@ -268,7 +314,7 @@
         <LinearLayout
             android:id="@+id/sheetMovieSimkl"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
+            android:layout_height="wrap_content"
             android:gravity="center"
             android:orientation="horizontal"
             android:paddingStart="28dp"
@@ -319,11 +365,12 @@
             <Spinner
                 android:id="@+id/sheetMoviePluginSpinner"
                 android:layout_width="0dp"
-                android:layout_height="40dp"
+                android:layout_height="36dp"
                 android:layout_marginStart="8dp"
                 android:layout_weight="1"
                 android:spinnerMode="dropdown" />
         </LinearLayout>
+
     </LinearLayout>
 
 </LinearLayout>

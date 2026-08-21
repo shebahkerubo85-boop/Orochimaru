@@ -1,6 +1,7 @@
 package ani.sanin.settings
 
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,6 +12,7 @@ import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.mal.MAL
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.loadImage
+import ani.sanin.util.FocusEffectUtil
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.MainActivity
@@ -57,6 +59,35 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
 
         animeExpanded.visibility = View.GONE
         movieExpanded.visibility = View.GONE
+
+        fun updateCollapsedFocusChain() {
+            animeButton.nextFocusUpId = View.NO_ID
+            animeButton.nextFocusDownId = movieButton.id
+            movieButton.nextFocusUpId = animeButton.id
+            movieButton.nextFocusDownId = View.NO_ID
+        }
+
+        fun updateAnimeExpandedFocusChain() {
+            animeButton.nextFocusUpId = View.NO_ID
+            animeButton.nextFocusDownId = aniListCheck.id
+            aniListCheck.nextFocusUpId = animeButton.id
+            aniListCheck.nextFocusDownId = malCheck.id
+            malCheck.nextFocusUpId = animeButton.id
+            malCheck.nextFocusDownId = View.NO_ID
+            movieButton.nextFocusUpId = View.NO_ID
+            movieButton.nextFocusDownId = View.NO_ID
+        }
+
+        fun updateMovieExpandedFocusChain() {
+            movieButton.nextFocusUpId = View.NO_ID
+            movieButton.nextFocusDownId = simklCheck.id
+            simklCheck.nextFocusUpId = movieButton.id
+            simklCheck.nextFocusDownId = pluginSpinner.id
+            pluginSpinner.nextFocusUpId = simklCheck.id
+            pluginSpinner.nextFocusDownId = View.NO_ID
+            animeButton.nextFocusUpId = View.NO_ID
+            animeButton.nextFocusDownId = View.NO_ID
+        }
 
         // --- Anime button card styling ---
         val savedTracker = PrefManager.getVal<Int>(PrefName.SelectedTracker)
@@ -112,20 +143,106 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
         // --- Expand/collapse logic ---
         animeButton.setOnClickListener {
             val isVisible = animeExpanded.visibility == View.VISIBLE
-            if (isVisible) collapseSection(animeExpanded, animeArrow)
+            if (isVisible) {
+                collapseSection(animeExpanded, animeArrow)
+                updateCollapsedFocusChain()
+            }
             else {
                 expandSection(animeExpanded, animeArrow)
                 collapseSection(movieExpanded, movieArrow)
+                updateAnimeExpandedFocusChain()
+                aniListCheck.requestFocus()
             }
         }
 
         movieButton.setOnClickListener {
             val isVisible = movieExpanded.visibility == View.VISIBLE
-            if (isVisible) collapseSection(movieExpanded, movieArrow)
+            if (isVisible) {
+                collapseSection(movieExpanded, movieArrow)
+                updateCollapsedFocusChain()
+            }
             else {
                 expandSection(movieExpanded, movieArrow)
                 collapseSection(animeExpanded, animeArrow)
+                updateMovieExpandedFocusChain()
+                simklCheck.requestFocus()
             }
+        }
+
+        animeButton.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN &&
+                keyCode == KeyEvent.KEYCODE_DPAD_DOWN &&
+                animeExpanded.visibility == View.VISIBLE
+            ) {
+                aniListCheck.requestFocus()
+                true
+            } else {
+                false
+            }
+        }
+
+        movieButton.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN &&
+                keyCode == KeyEvent.KEYCODE_DPAD_DOWN &&
+                movieExpanded.visibility == View.VISIBLE
+            ) {
+                simklCheck.requestFocus()
+                true
+            } else {
+                false
+            }
+        }
+
+        aniListCheck.setOnKeyListener { _, keyCode, event ->
+            when {
+                event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_UP -> {
+                    collapseSection(animeExpanded, animeArrow)
+                    updateCollapsedFocusChain()
+                    animeButton.requestFocus()
+                    true
+                }
+                event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    malCheck.requestFocus()
+                    true
+                }
+                else -> false
+            }
+        }
+
+        malCheck.setOnKeyListener { _, keyCode, event ->
+            when {
+                event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_UP -> {
+                    collapseSection(animeExpanded, animeArrow)
+                    updateCollapsedFocusChain()
+                    animeButton.requestFocus()
+                    true
+                }
+                else -> false
+            }
+        }
+
+        simklCheck.setOnKeyListener { _, keyCode, event ->
+            when {
+                event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_UP -> {
+                    collapseSection(movieExpanded, movieArrow)
+                    updateCollapsedFocusChain()
+                    movieButton.requestFocus()
+                    true
+                }
+                event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    pluginSpinner.requestFocus()
+                    true
+                }
+                else -> false
+            }
+        }
+
+        pluginSpinner.isFocusable = true
+        pluginSpinner.isFocusableInTouchMode = false
+        FocusEffectUtil.applyFocusListener(pluginSpinner)
+        pluginSpinner.setOnKeyListener { _, keyCode, event ->
+            event.action == KeyEvent.ACTION_DOWN &&
+                keyCode == KeyEvent.KEYCODE_DPAD_UP && simklCheck.requestFocus().let { true }
         }
 
         // --- Tracker checkboxes → instant mode switch ---
@@ -136,6 +253,8 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
                 PrefManager.setVal(PrefName.SelectedTracker, 0)
                 (activity as? MainActivity)?.setContentMode("anime")
                 collapseSection(animeExpanded, animeArrow)
+                updateCollapsedFocusChain()
+                animeButton.requestFocus()
             }
         }
 
@@ -146,6 +265,8 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
                 PrefManager.setVal(PrefName.SelectedTracker, 1)
                 (activity as? MainActivity)?.setContentMode("anime")
                 collapseSection(animeExpanded, animeArrow)
+                updateCollapsedFocusChain()
+                animeButton.requestFocus()
             }
         }
 
@@ -155,6 +276,8 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
                 PrefManager.setVal(PrefName.SelectedTracker, 2)
                 (activity as? MainActivity)?.setContentMode("movie_tv")
                 collapseSection(movieExpanded, movieArrow)
+                updateCollapsedFocusChain()
+                movieButton.requestFocus()
             }
         }
 
@@ -199,9 +322,20 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
 
         if (savedType == 0 && (savedTracker == 0 || savedTracker == 1)) {
             expandSection(animeExpanded, animeArrow)
+            updateAnimeExpandedFocusChain()
         } else if (savedType == 1 && savedTracker == 2) {
             expandSection(movieExpanded, movieArrow)
+            updateMovieExpandedFocusChain()
+        } else {
+            updateCollapsedFocusChain()
         }
+
+        FocusEffectUtil.applyFocusListener(animeButton)
+        FocusEffectUtil.applyFocusListener(movieButton)
+        FocusEffectUtil.applyFocusListener(aniListCheck)
+        FocusEffectUtil.applyFocusListener(malCheck)
+        FocusEffectUtil.applyFocusListener(simklCheck)
+        animeButton.post { animeButton.requestFocus() }
     }
 
     private fun expandSection(section: View, arrow: ImageView) {
