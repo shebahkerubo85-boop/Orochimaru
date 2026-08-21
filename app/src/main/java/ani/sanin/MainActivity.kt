@@ -240,53 +240,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        val rescueModeLiveData = PrefManager.getLiveVal(PrefName.RescueMode, false).asLiveBool()
-        rescueModeLiveData.observe(this) {
-            if (it) {
-                syncRescueIconMargin(PrefManager.getVal(PrefName.Incognito))
-                if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.MiscUiAnimations)) {
-                    val slideDownAnim = ObjectAnimator.ofFloat(
-                        binding.rescueModeIcon,
-                        View.TRANSLATION_Y,
-                        -(200f + statusBarHeight),
-                        0f
-                    )
-                    slideDownAnim.duration = 200
-                    slideDownAnim.start()
-                } else {
-                    binding.rescueModeIcon.translationY = 0f
-                }
-                binding.rescueModeIcon.visibility = View.VISIBLE
-            } else {
-                if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.MiscUiAnimations)) {
-                    val slideUpAnim = ObjectAnimator.ofFloat(
-                        binding.rescueModeIcon,
-                        View.TRANSLATION_Y,
-                        0f,
-                        -(200f + statusBarHeight)
-                    )
-                    slideUpAnim.duration = 200
-                    slideUpAnim.start()
-                    //wait for animation to finish
-                    Handler(Looper.getMainLooper()).postDelayed(
-                        { binding.rescueModeIcon.visibility = View.GONE },
-                        200
-                    )
-                } else {
-                    binding.rescueModeIcon.visibility = View.GONE
-                    binding.rescueModeIcon.translationY = -(200f + statusBarHeight)
-                }
-            }
-        }
-        binding.rescueModeIcon.setOnClickListener {
-            PrefManager.setVal(PrefName.RescueMode, false)
-            val intent = Intent(this, MainActivity::class.java)
-            intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
-            startActivity(intent)
-            overridePendingTransition(0, 0)
-            finish()
-            overridePendingTransition(0, 0)
-        }
         incognitoNotification(this)
 
         var doubleBackToExitPressedOnce = false

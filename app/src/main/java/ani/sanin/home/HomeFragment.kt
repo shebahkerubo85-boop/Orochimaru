@@ -540,8 +540,7 @@ class HomeFragment : Fragment() {
                 val alOnlySections = listOf(
                     binding.homeFavAnimeContainer,
                 )
-                binding.homeRescueModeBanner.visibility =
-                    if (inRescueMode) View.VISIBLE else View.GONE
+                binding.homeRescueModeBanner.visibility = View.GONE
                 if (inRescueMode) {
                     alOnlySections.forEach { it.visibility = View.GONE }
 
@@ -600,6 +599,9 @@ class HomeFragment : Fragment() {
                                     setMessage(R.string.rescue_mode_prompt_message)
                                     setPosButton(R.string.rescue_mode_enable) {
                                         PrefManager.setVal(PrefName.RescueMode, true)
+                                        PrefManager.setVal(PrefName.SelectedMediaType, 0)
+                                        PrefManager.setVal(PrefName.SelectedTracker, 1)
+                                        PrefManager.setVal(PrefName.ContentMode, "anime")
                                         Anilist.anilistDisabledSignal = false
                                         val intent = Intent(requireContext(), MainActivity::class.java)
                                         intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)

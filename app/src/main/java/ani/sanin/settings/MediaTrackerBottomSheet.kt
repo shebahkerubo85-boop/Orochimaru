@@ -256,6 +256,7 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
                 malCheck.isChecked = false
                 PrefManager.setVal(PrefName.SelectedMediaType, 0)
                 PrefManager.setVal(PrefName.SelectedTracker, 0)
+                PrefManager.setVal(PrefName.RescueMode, false)
                 (activity as? MainActivity)?.setContentMode("anime")
                 collapseSection(animeExpanded, animeArrow)
                 updateCollapsedFocusChain()
