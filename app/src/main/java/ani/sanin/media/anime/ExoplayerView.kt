@@ -213,6 +213,7 @@ import ani.sanin.connections.comments.Comment
 import ani.sanin.connections.comments.CommentsAPI
 import ani.sanin.connections.subtitles.StremioSubtitles
 import ani.sanin.connections.subtitles.StremioSub
+import ani.sanin.connections.subtitles.OpenSubtitles
 import ani.sanin.media.comments.CommentZoomDialog
 import ani.sanin.media.comments.parseGifCommentContent
 import ani.sanin.loadImage
@@ -3001,8 +3002,24 @@ class ExoplayerView :
         // Download subtitle content first, then apply
         lifecycleScope.launch(Dispatchers.IO) {
             try {
+                // Lazily resolve OpenSubtitles placeholder URLs
+                val actualUrl = if (subtitle.url.startsWith(OpenSubtitles.URL_PREFIX)) {
+                    val fileId = subtitle.url.removePrefix(OpenSubtitles.URL_PREFIX).toIntOrNull()
+                    if (fileId != null) {
+                        android.util.Log.d("ExoplayerView", "applyOnlineSubtitle: Resolving OpenSubtitles fileId=$fileId")
+                        OpenSubtitles.getDownloadUrl(fileId)
+                    } else null
+                } else {
+                    subtitle.url
+                }
+                if (actualUrl == null) {
+                    withContext(Dispatchers.Main) {
+                        snackString("Failed to get OpenSubtitles download link")
+                    }
+                    return@launch
+                }
                 val resolvedUrl = resolveSubtitleUrl(
-                    subtitle.url,
+                    actualUrl,
                     *baseUrls.ifEmpty { listOfNotNull(video?.file?.url) }.toTypedArray()
                 )
                 android.util.Log.d("ExoplayerView", "applyOnlineSubtitle: Downloading subtitle from $resolvedUrl")

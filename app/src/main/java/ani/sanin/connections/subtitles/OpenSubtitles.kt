@@ -17,25 +17,23 @@ import okhttp3.RequestBody.Companion.toRequestBody
 object OpenSubtitles {
 
     private const val BASE_URL = "https://api.opensubtitles.com/api/v1"
-    private const val USER_AGENT = "Sanin v3.2.2"
-    private const val API_KEY = "sMaSHqhfU08qaUehns7TOLJbbEg8O3D4"
+    private const val USER_AGENT = "Cloudstream3 v0.2"
+    private const val API_KEY = "uyBLgFD17MgrYmA0gSXoKllMJBelOYj2"
+    private const val MAX_RESULTS = 12
+
+    const val URL_PREFIX = "opensubtitles://"
 
     suspend fun search(imdbId: String, season: Int, episode: Int, queryText: String? = null): List<StremioSub> {
         return withContext(Dispatchers.IO) {
             try {
-                val languages = PrefManager.getVal<Set<String>>(PrefName.OnlineSubtitleLanguages)
-                    .joinToString(",") { it.take(2).lowercase() }
-
+                val cleanImdb = imdbId.removePrefix("tt")
                 val urls = mutableListOf<String>()
-                urls.add("$BASE_URL/subtitles?imdb_id=$imdbId&languages=$languages&type=episode&season_number=$season&episode_number=$episode")
+                urls.add("$BASE_URL/subtitles?imdb_id=$cleanImdb&episode_number=$episode")
+                if (season > 1) {
+                    urls.add("$BASE_URL/subtitles?imdb_id=$cleanImdb&season_number=$season&episode_number=$episode")
+                }
                 if (!queryText.isNullOrBlank()) {
-                    // imdb_id searches come back empty for many shows, so also try a text
-                    // query (same trick as Dantotsu) to surface release-named subtitles.
-                    val queryUrl = buildString {
-                        append("$BASE_URL/subtitles?query=${URLEncoder.encode(queryText, "UTF-8")}&languages=$languages")
-                        if (episode > 0) append("&episode_number=$episode")
-                    }
-                    urls.add(queryUrl)
+                    urls.add("$BASE_URL/subtitles?query=${URLEncoder.encode(queryText, "UTF-8")}&episode_number=$episode")
                 }
 
                 val results = mutableListOf<StremioSub>()
@@ -45,37 +43,41 @@ object OpenSubtitles {
 
                         val request = Request.Builder()
                             .url(url)
-                            .header("Api-Key", API_KEY)
-                            .header("User-Agent", USER_AGENT)
-                            .header("Content-Type", "application/json")
+                            .addHeader("Api-Key", API_KEY)
+                            .addHeader("User-Agent", USER_AGENT)
+                            .addHeader("Accept", "application/json")
                             .build()
 
                         val response = okHttpClient.newCall(request).execute()
                         if (!response.isSuccessful) {
-                            Logger.log("OpenSubtitles: Search failed HTTP ${response.code} for $url")
+                            Logger.log("OpenSubtitles: Search failed HTTP ${response.code}")
                             continue
                         }
 
                         val body = response.body?.string() ?: continue
                         val searchResult = Mapper.json.decodeFromString<OpenSubtitlesSearchResponse>(body)
 
-                        val mapped = searchResult.data.mapNotNull { item ->
+                        for (item in searchResult.data.take(MAX_RESULTS)) {
                             try {
-                                val file = item.attributes.files.firstOrNull() ?: return@mapNotNull null
-                                val downloadUrl = downloadSubtitle(file.fileId, API_KEY) ?: return@mapNotNull null
-                                val fileName = file.fileName ?: item.attributes.release ?: item.attributes.language
-                                Logger.log("OpenSubtitles: Got link for file ${file.fileId} → $downloadUrl")
+                                val file = item.attributes.files.firstOrNull() ?: continue
+                                val fileId = file.fileId
+                                val fileName = file.fileName ?: item.attributes.release ?: "OpenSubtitles"
+                                val lang = item.attributes.language
+                                val isHi = item.attributes.hearingImpaired == true
 
-                                StremioSub(
-                                    id = item.id,
-                                    url = downloadUrl,
-                                    lang = item.attributes.language,
-                                    label = fileName,
-                                    source = "opensubtitles"
+                                Logger.log("OpenSubtitles: Found file $fileId ($fileName)")
+
+                                results.add(
+                                    StremioSub(
+                                        id = "${URL_PREFIX}${fileId}",
+                                        url = "${URL_PREFIX}${fileId}",
+                                        lang = lang,
+                                        label = if (isHi) "$fileName (HI)" else fileName,
+                                        source = "opensubtitles"
+                                    )
                                 )
-                            } catch (_: Exception) { null }
+                            } catch (_: Exception) {}
                         }
-                        results.addAll(mapped.take(12))
                         if (results.isNotEmpty()) break
                     } catch (e: Exception) {
                         Logger.log("OpenSubtitles: url failed $url -> ${e.message}")
@@ -89,30 +91,28 @@ object OpenSubtitles {
         }
     }
 
-    private fun downloadSubtitle(fileId: Int, apiKey: String): String? {
-        return try {
-            val json = Mapper.json.encodeToString(DownloadRequest(fileId))
-            val requestBody = json.toRequestBody("application/json".toMediaType())
-
-            val request = Request.Builder()
-                .url("$BASE_URL/download")
-                .header("Api-Key", apiKey)
-                .header("User-Agent", USER_AGENT)
-                .post(requestBody)
-                .build()
-
-            val response = okHttpClient.newCall(request).execute()
-            if (!response.isSuccessful) {
-                Logger.log("OpenSubtitles: Download failed HTTP ${response.code} for file $fileId")
-                return null
+    suspend fun getDownloadUrl(fileId: Int): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val bodyStr = """{"file_id":$fileId}"""
+                val req = Request.Builder()
+                    .url("$BASE_URL/download")
+                    .addHeader("Api-Key", API_KEY)
+                    .addHeader("User-Agent", USER_AGENT)
+                    .addHeader("Content-Type", "application/json; charset=utf-8")
+                    .addHeader("Accept", "application/json")
+                    .post(bodyStr.toRequestBody("application/json; charset=utf-8".toMediaType()))
+                    .build()
+                val resp = okHttpClient.newCall(req).execute()
+                if (resp.isSuccessful && resp.body != null) {
+                    val json = resp.body!!.string()
+                    val parsed = Mapper.json.decodeFromString<DownloadResponse>(json)
+                    parsed.link
+                } else null
+            } catch (e: Exception) {
+                Logger.log("OpenSubtitles: Download error - ${e.message}")
+                null
             }
-
-            val body = response.body?.string() ?: return null
-            val downloadResult = Mapper.json.decodeFromString<DownloadResponse>(body)
-            downloadResult.link
-        } catch (e: Exception) {
-            Logger.log("OpenSubtitles: Download error - ${e.message}")
-            null
         }
     }
 }
@@ -132,7 +132,8 @@ data class OpenSubtitlesItem(
 data class OpenSubtitlesAttributes(
     val language: String,
     val release: String? = null,
-    val files: List<OpenSubtitlesFile> = emptyList()
+    val files: List<OpenSubtitlesFile> = emptyList(),
+    @SerialName("hearing_impaired") val hearingImpaired: Boolean? = null
 )
 
 @Serializable
