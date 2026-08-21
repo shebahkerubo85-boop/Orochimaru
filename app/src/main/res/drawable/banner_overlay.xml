@@ -2,13 +2,15 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Dark dimming background -->
     <item>
-        <color android/color="#A6000000"/> <!-- 65% black -->
+        <color android:color="#A6000000"/>
     </item>
     <!-- Optional: gradient for better text readability -->
     <item>
-        <gradient
-            android:startColor="#00000000"
-            android:endColor="#66000000"
-            android:angle="270"/>
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="#00000000"
+                android:endColor="#66000000"
+                android:angle="270" />
+        </shape>
     </item>
 </layer-list>
