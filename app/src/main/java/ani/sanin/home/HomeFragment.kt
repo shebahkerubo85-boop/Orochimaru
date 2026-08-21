@@ -151,9 +151,6 @@ class HomeFragment : Fragment() {
                     binding.homeUserBg.visibility = View.GONE
                     binding.homeUserBgNoKen.visibility = View.GONE
                     binding.homeNavigatingBannerContainer.visibility = View.VISIBLE
-                    binding.homeNavigatingBannerContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                        topMargin = statusBarHeight
-                    }
                 } else {
                     binding.homeBannerCardWrap.visibility = View.GONE
                     binding.homeUserBg.visibility = View.GONE
@@ -203,9 +200,6 @@ class HomeFragment : Fragment() {
         binding.homeContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             bottomMargin = navBarHeight
         }
-        binding.homeUserBg.updateLayoutParams { height += statusBarHeight }
-        binding.homeUserBgNoKen.updateLayoutParams { height += statusBarHeight }
-        binding.homeTopContainer.updatePadding(top = statusBarHeight)
 
         view.viewTreeObserver.addOnGlobalFocusChangeListener { _, newFocus ->
             if (_binding == null || newFocus == null) return@addOnGlobalFocusChangeListener
@@ -767,9 +761,6 @@ class HomeFragment : Fragment() {
 
     private fun setupBannerCarousel() {
         applyHomeBannerLandscapeMode()
-        binding.homeBannerCardWrap.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-            topMargin = statusBarHeight
-        }
         val rv = binding.homeBannerCarousel
         rv.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
         rv.isFocusable = true
@@ -1013,12 +1004,6 @@ class HomeFragment : Fragment() {
         if (_binding != null) {
             applyHomeBannerLandscapeMode()
             applyHomeBannerFocusChain()
-            binding.homeBannerCardWrap.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                topMargin = statusBarHeight
-            }
-            binding.homeNavigatingBannerContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                topMargin = statusBarHeight
-            }
         }
     }
 
@@ -1162,7 +1147,6 @@ class HomeFragment : Fragment() {
         fade.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             width = stripW
             height = cardH
-            topMargin = statusBarHeight
         }
         fade.bringToFront()
         overlay.bringToFront()

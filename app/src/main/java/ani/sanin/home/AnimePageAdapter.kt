@@ -45,7 +45,6 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.bannerCardSizePx
 import ani.sanin.sizeBannerCard
-import ani.sanin.statusBarHeight
 import ani.sanin.util.FocusEffectUtil
 import com.google.android.material.card.MaterialCardView
 import kotlinx.coroutines.CoroutineScope
@@ -77,7 +76,6 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         applyTrendingBannerMode()
         trendingBinding.trendingViewPager.overScrollMode = RecyclerView.OVER_SCROLL_NEVER
 
-        trendingBinding.titleContainer.updatePadding(top = statusBarHeight)
         applySeasonSelectorSpacing()
 
         if (PrefManager.getVal(PrefName.SmallView)) trendingBinding.trendingContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
@@ -116,7 +114,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
 
     fun updateHeight() {
         trendingBinding.trendingContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-            topMargin = statusBarHeight
+            topMargin = 0
         }
     }
 
@@ -124,7 +122,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         if (::trendingBinding.isInitialized) {
             trendingBinding.trendingCard.sizeBannerCard(0.65f)
             trendingBinding.trendingContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                topMargin = statusBarHeight
+                topMargin = 0
             }
             applyTrendingBannerMode()
             applySeasonSelectorSpacing()
