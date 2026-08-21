@@ -33,7 +33,7 @@
         app:cardCornerRadius="16dp"
         app:cardElevation="0dp"
         app:cardBackgroundColor="@android:color/transparent"
-        app:strokeColor="?android:attr/listDivider"
+        app:strokeColor="?attr/colorOutline"
         app:strokeWidth="1dp">
 
         <ImageView
@@ -229,7 +229,7 @@
         app:cardCornerRadius="16dp"
         app:cardElevation="0dp"
         app:cardBackgroundColor="@android:color/transparent"
-        app:strokeColor="?android:attr/listDivider"
+        app:strokeColor="?attr/colorOutline"
         app:strokeWidth="1dp">
 
         <ImageView
