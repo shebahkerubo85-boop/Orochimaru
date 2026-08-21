@@ -480,8 +480,9 @@ class SubtitleRailController(
 
     private fun sourceAbbrev(source: String): String = when (source.lowercase()) {
         "wyzie", "wy" -> "WY"
-        "stremio", "st", "online" -> "ST"
-        "opensubtitles", "op" -> "OP"
+        "opensubtitles", "op", "open" -> "OP"
+        "stremio", "st" -> "ST"
+        "opensubtitles" -> "OP"
         "subsource", "ss" -> "SS"
         else -> source.take(2).uppercase()
     }
