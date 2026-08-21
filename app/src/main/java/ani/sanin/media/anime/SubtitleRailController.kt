@@ -36,6 +36,7 @@ import ani.sanin.toast
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.Logger
 import ani.sanin.util.customAlertDialog
+import com.google.android.material.color.MaterialColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -567,6 +568,10 @@ class SubtitleRailController(
             val enabled = item.isToggle || subtitlesEnabled
             val primary = PrefManager.getVal<Int>(PrefName.PrimaryColor)
             val grey = 0xFF808080.toInt()
+            val themePrimary = MaterialColors.getColor(
+                binding.root,
+                com.google.android.material.R.attr.colorPrimary
+            )
 
             if (item.isHeader) {
                 binding.root.setCardBackgroundColor(Color.TRANSPARENT)
@@ -574,7 +579,7 @@ class SubtitleRailController(
                 binding.root.isFocusable = item.onClick != null
                 binding.root.setOnClickListener { item.onClick?.invoke() }
                 binding.subtitleTitle.text = item.label
-                binding.subtitleTitle.setTextColor(primary)
+                binding.subtitleTitle.setTextColor(themePrimary)
                 binding.subtitleTitle.textSize = 12f
                 binding.subtitleGlobe.visibility = View.GONE
                 binding.subtitleBadge.visibility = View.GONE
@@ -598,10 +603,10 @@ class SubtitleRailController(
             }
 
             // Globe icon replaces the old "[ONLINE]" text prefix
-            binding.subtitleGlobe.visibility = if (item.globe) View.VISIBLE else View.GONE
+                binding.subtitleGlobe.visibility = if (item.globe) View.VISIBLE else View.GONE
             if (item.globe) {
                 binding.subtitleGlobe.imageTintList =
-                    ColorStateList.valueOf(if (enabled) primary else grey)
+                    ColorStateList.valueOf(if (enabled) themePrimary else grey)
             }
 
             // Source badge in primary color
