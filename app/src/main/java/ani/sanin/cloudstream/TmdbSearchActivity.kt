@@ -1,6 +1,7 @@
 package ani.sanin.cloudstream
 
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -14,6 +15,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.color.MaterialColors
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.tmdb.TmdbMedia
 import ani.sanin.cloudstream.TmdbCards
@@ -108,6 +110,7 @@ class TmdbSearchActivity : AppCompatActivity() {
             text = "TMDB"; isCheckable = true; isClickable = true; isFocusable = true; tag = "tmdb"
             isCloseIconVisible = true
         }
+        stylePluginChip(tmdb)
         tmdb.setOnCheckedChangeListener { _, _ -> }
         FocusEffectUtil.applyFocusListener(tmdb)
         group.addView(tmdb)
@@ -117,10 +120,43 @@ class TmdbSearchActivity : AppCompatActivity() {
                 text = source.name; isCheckable = true; isClickable = true; isFocusable = true; tag = source.id
                 isCloseIconVisible = true
             }
+            stylePluginChip(chip)
             chip.setOnCheckedChangeListener { _, _ -> }
             FocusEffectUtil.applyFocusListener(chip)
             group.addView(chip)
         }
+    }
+
+    private fun stylePluginChip(chip: Chip) {
+        val surfaceColor = MaterialColors.getColor(
+            chip,
+            com.google.android.material.R.attr.colorSurface
+        )
+        val onSurfaceColor = MaterialColors.getColor(
+            chip,
+            com.google.android.material.R.attr.colorOnSurface
+        )
+        val primaryColor = MaterialColors.getColor(
+            chip,
+            com.google.android.material.R.attr.colorPrimary
+        )
+        val outlineColor = MaterialColors.getColor(
+            chip,
+            com.google.android.material.R.attr.colorOutline
+        )
+
+        chip.chipBackgroundColor = ColorStateList.valueOf(surfaceColor)
+        chip.setTextColor(onSurfaceColor)
+        chip.checkedIconTint = ColorStateList.valueOf(primaryColor)
+        chip.closeIconTint = ColorStateList.valueOf(onSurfaceColor)
+        chip.chipStrokeWidth = resources.displayMetrics.density
+        chip.chipStrokeColor = ColorStateList(
+            arrayOf(
+                intArrayOf(android.R.attr.state_checked),
+                intArrayOf()
+            ),
+            intArrayOf(primaryColor, outlineColor)
+        )
     }
 
     private fun getSelectedPlugins(): List<Pair<com.lagradost.cloudstream3.MainAPI, String>> {
