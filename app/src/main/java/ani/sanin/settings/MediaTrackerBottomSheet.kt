@@ -248,6 +248,11 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
         // --- Tracker checkboxes → instant mode switch ---
         aniListCheck.setOnClickListener {
             if (aniListCheck.isChecked) {
+                if (Anilist.token == null) {
+                    aniListCheck.isChecked = false
+                    ani.sanin.toast("Login to AniList first")
+                    return@setOnClickListener
+                }
                 malCheck.isChecked = false
                 PrefManager.setVal(PrefName.SelectedMediaType, 0)
                 PrefManager.setVal(PrefName.SelectedTracker, 0)
@@ -260,6 +265,11 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
 
         malCheck.setOnClickListener {
             if (malCheck.isChecked) {
+                if (MAL.token == null) {
+                    malCheck.isChecked = false
+                    ani.sanin.toast("Login to My Anime List first")
+                    return@setOnClickListener
+                }
                 aniListCheck.isChecked = false
                 PrefManager.setVal(PrefName.SelectedMediaType, 0)
                 PrefManager.setVal(PrefName.SelectedTracker, 1)
@@ -272,6 +282,11 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
 
         simklCheck.setOnClickListener {
             if (simklCheck.isChecked) {
+                if (Simkl.token == null) {
+                    simklCheck.isChecked = false
+                    ani.sanin.toast("Login to Simkl first")
+                    return@setOnClickListener
+                }
                 PrefManager.setVal(PrefName.SelectedMediaType, 1)
                 PrefManager.setVal(PrefName.SelectedTracker, 2)
                 (activity as? MainActivity)?.setContentMode("movie_tv")
@@ -313,22 +328,14 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
         if (restoreIdx >= 0) pluginSpinner.setSelection(restoreIdx)
         pluginSpinner.post { suppressSpinner = false }
 
-        // --- Restore expand state ---
+        // --- Restore checkbox state (but always start collapsed) ---
         when (savedTracker) {
             0 -> aniListCheck.isChecked = true
             1 -> malCheck.isChecked = true
             2 -> simklCheck.isChecked = true
         }
 
-        if (savedType == 0 && (savedTracker == 0 || savedTracker == 1)) {
-            expandSection(animeExpanded, animeArrow)
-            updateAnimeExpandedFocusChain()
-        } else if (savedType == 1 && savedTracker == 2) {
-            expandSection(movieExpanded, movieArrow)
-            updateMovieExpandedFocusChain()
-        } else {
-            updateCollapsedFocusChain()
-        }
+        updateCollapsedFocusChain()
 
         FocusEffectUtil.applyFocusListener(animeButton)
         FocusEffectUtil.applyFocusListener(movieButton)

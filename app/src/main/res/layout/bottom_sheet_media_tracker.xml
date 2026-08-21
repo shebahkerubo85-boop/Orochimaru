@@ -32,7 +32,9 @@
         android:layout_marginEnd="12dp"
         app:cardCornerRadius="16dp"
         app:cardElevation="0dp"
-        app:cardBackgroundColor="@android:color/transparent">
+        app:cardBackgroundColor="@android:color/transparent"
+        app:strokeColor="?android:attr/listDivider"
+        app:strokeWidth="1dp">
 
         <ImageView
             android:id="@+id/sheetAnimeBanner"
@@ -123,7 +125,7 @@
             android:id="@+id/sheetAnimeAniList"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center"
+            android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingStart="28dp"
             android:paddingEnd="16dp">
@@ -132,6 +134,7 @@
                 android:id="@+id/sheetAnimeAniListCheck"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                style="@style/Widget.Material3.CompoundButton.CheckBox"
                 android:buttonTint="?attr/colorPrimary" />
 
             <ImageView
@@ -155,7 +158,7 @@
             android:id="@+id/sheetAnimeMAL"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center"
+            android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingStart="28dp"
             android:paddingEnd="16dp">
@@ -164,6 +167,7 @@
                 android:id="@+id/sheetAnimeMALCheck"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                style="@style/Widget.Material3.CompoundButton.CheckBox"
                 android:buttonTint="?attr/colorPrimary" />
 
             <ImageView
@@ -178,7 +182,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:fontFamily="@font/poppins"
-                android:text="MAL"
+                android:text="My Anime List"
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="14sp" />
         </LinearLayout>
@@ -224,7 +228,9 @@
         android:layout_marginEnd="12dp"
         app:cardCornerRadius="16dp"
         app:cardElevation="0dp"
-        app:cardBackgroundColor="@android:color/transparent">
+        app:cardBackgroundColor="@android:color/transparent"
+        app:strokeColor="?android:attr/listDivider"
+        app:strokeWidth="1dp">
 
         <ImageView
             android:id="@+id/sheetMovieBanner"
@@ -315,7 +321,7 @@
             android:id="@+id/sheetMovieSimkl"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center"
+            android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingStart="28dp"
             android:paddingEnd="16dp">
@@ -324,6 +330,7 @@
                 android:id="@+id/sheetMovieSimklCheck"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                style="@style/Widget.Material3.CompoundButton.CheckBox"
                 android:buttonTint="?attr/colorPrimary" />
 
             <ImageView
