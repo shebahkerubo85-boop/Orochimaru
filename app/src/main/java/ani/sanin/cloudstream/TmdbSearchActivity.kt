@@ -31,6 +31,7 @@ import com.google.android.material.chip.Chip
 import ani.sanin.loadImage
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
+import ani.sanin.themes.ThemeManager
 
 class TmdbSearchActivity : AppCompatActivity() {
 
@@ -43,6 +44,7 @@ class TmdbSearchActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ThemeManager(this).applyTheme()
         binding = ActivityTmdbSearchBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
