@@ -104,10 +104,10 @@ data class TmdbVideo(
 )
 
 @Serializable
-private data class TmdbVideoPage(val results: List<TmdbVideo> = emptyList())
+data class TmdbVideoPage(val results: List<TmdbVideo> = emptyList())
 
 @Serializable
-private data class TmdbKeywordPage(val keywords: List<TmdbKeyword> = emptyList())
+data class TmdbKeywordPage(val keywords: List<TmdbKeyword> = emptyList())
 
 @Serializable
 data class TmdbExternalIds(

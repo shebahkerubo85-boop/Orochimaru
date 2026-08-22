@@ -98,7 +98,10 @@ class TmdbDetailsActivity : AppCompatActivity() {
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
     private fun load() {
-        if (pluginMode) { loadPlugin(); return }
+        if (pluginMode) {
+            loadPlugin()
+            return
+        }
         lifecycleScope.launch {
             val d = Tmdb.detail(mediaType, mediaId) ?: run {
                 snackString("Could not load details"); return@launch
@@ -199,6 +202,29 @@ class TmdbDetailsActivity : AppCompatActivity() {
 
 // __PART2__
 
+    private fun loadPlugin() {
+        binding.mediaInfoProgressBar.visibility = View.GONE
+        binding.mediaInfoContainer.visibility = View.VISIBLE
+        binding.mediaInfoTitle.text = intent.getStringExtra("title") ?: "Play"
+        binding.mediaInfoTitle.visibility = View.VISIBLE
+        binding.mediaInfoLogo.visibility = View.GONE
+        binding.mediaInfoMeanScore.text = "—"
+        binding.mediaInfoStatus.text = "—"
+        listOf(
+            binding.mediaInfoGenreContainer,
+            binding.mediaInfoExternalLinksContainer,
+            binding.mediaInfoTagsContainer,
+            binding.mediaInfoCastTitle,
+            binding.mediaInfoCastRecycler,
+            binding.mediaInfoRecommendTitle,
+            binding.mediaInfoRecommendRecycler,
+            binding.tmdbDetailRelationChips
+        ).forEach { it.visibility = View.GONE }
+        binding.mediaInfoReleasedRow.visibility = View.GONE
+        binding.mediaInfoProgressRow.visibility = View.GONE
+        binding.mediaInfoNextRow.visibility = View.GONE
+    }
+
     private fun loadGenres(d: TmdbDetail) {
         val genres = d.genres
         if (genres.isNullOrEmpty()) {
@@ -209,7 +235,7 @@ class TmdbDetailsActivity : AppCompatActivity() {
         val host = ActivityGenreBinding.inflate(layoutInflater)
         host.mediaInfoGenresProgressBar.visibility = View.GONE
         host.mediaInfoGenresRecyclerView.layoutManager =
-            GridLayoutManager(this, (width / 95.dpToPx()).coerceAtLeast(3))
+            GridLayoutManager(this, (resources.displayMetrics.widthPixels / 95.dpToPx()).coerceAtLeast(3))
         val items = genres.map { GenreBanner(it.id, it.name, null) }
         val adapter = GenreBannerAdapter(items)
         host.mediaInfoGenresRecyclerView.adapter = adapter
@@ -434,13 +460,12 @@ class TmdbDetailsActivity : AppCompatActivity() {
 // __PART4__
 
     private fun onPlayClick() {
-        val d = detail ?: return
+        val d = detail
         if (pluginMode) {
-            val intent = Intent(this, PlayerActivity::class.java).apply {
-                putExtra(PlayerActivity.ARG_PLUGIN_SOURCE, pluginSourceId)
-                putExtra(PlayerActivity.ARG_PLUGIN_URL, pluginUrl)
-                putExtra(PlayerActivity.ARG_TITLE, d.displayTitle)
-                putExtra(PlayerActivity.ARG_POSTER, Tmdb.imageUrl(d.posterPath, 342))
+            val intent = Intent(this, TmdbPlayerActivity::class.java).apply {
+                putExtra(TmdbPlayerActivity.EXTRA_URL, pluginUrl)
+                putExtra(TmdbPlayerActivity.EXTRA_TITLE, d?.displayTitle ?: intent.getStringExtra("title") ?: "Play")
+                putExtra(TmdbPlayerActivity.EXTRA_REFERER, "")
             }
             startActivity(intent)
             return
@@ -484,8 +509,10 @@ class TmdbDetailsActivity : AppCompatActivity() {
         type: String, tmdbId: Int, imdbId: String?
     ): Pair<Int, Int>? = withContext(Dispatchers.IO) {
         val items = if (type == "tv") Simkl.getShowLibrary() else Simkl.getMovieLibrary()
-        val item = items.firstOrNull { it.ids != null && (it.ids.tmdb == tmdbId || (!imdbId.isNullOrBlank() && it.ids.imdb == imdbId)) }
-            ?: return@withContext null
+        val item = items.firstOrNull {
+            val ids = it.ids
+            ids != null && (ids.tmdb == tmdbId || (!imdbId.isNullOrBlank() && ids.imdb == imdbId))
+        } ?: return@withContext null
         val w = item.lastWatchedEpisode ?: 0
         val y = item.totalEpisodes ?: 0
         if (w == 0 && y == 0) null else Pair(w, y)
