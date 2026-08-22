@@ -345,7 +345,7 @@ class OtherDetailsViewModel : ViewModel() {
         val allMap = LinkedHashMap<String, MutableList<Media>>()
         val seenIds = mutableSetOf<Int>()
 
-        fun addEntry(dayKey: String, tmdbId: Int, title: String, posterPath: String?, relation: String) {
+        fun addEntry(dayKey: String, tmdbId: Int, title: String, posterPath: String?, relation: String, type: String) {
             if (!seenIds.add(tmdbId)) return
             val media = Media(
                 id = tmdbId,
@@ -358,6 +358,7 @@ class OtherDetailsViewModel : ViewModel() {
                 banner = Tmdb.imageUrl(posterPath, 780),
                 status = simklIdMap[tmdbId]
             )
+            media.tmdbType = type
             media.relation = relation
             allMap.getOrPut(dayKey) { mutableListOf() }.add(media)
         }
@@ -384,7 +385,7 @@ class OtherDetailsViewModel : ViewModel() {
                 )
             } catch (_: Exception) { null }
             parseResults(body ?: "").forEach { entry ->
-                addEntry(label, entry[0] as Int, entry[1] as String, entry[2] as String?, "New episode")
+                addEntry(label, entry[0] as Int, entry[1] as String, entry[2] as String?, "New episode", "tv")
             }
         }
 
@@ -393,7 +394,7 @@ class OtherDetailsViewModel : ViewModel() {
         parseResults(upcomingBody ?: "").forEach { entry ->
             val dateIso = entry[3] as String? ?: return@forEach
             weekDays.firstOrNull { it.first == dateIso }?.let { (_, label) ->
-                addEntry(label, entry[0] as Int, entry[1] as String, entry[2] as String?, "Movie release")
+                addEntry(label, entry[0] as Int, entry[1] as String, entry[2] as String?, "Movie release", "movie")
             }
         }
 

@@ -607,6 +607,16 @@ class MediaAdaptor(
         if ((mediaList?.size ?: 0) > position && position != -1) {
             val media = mediaList?.get(position)
             if (bitmap != null) MediaSingleton.bitmap = bitmap
+            if (media?.tmdbType != null) {
+                ContextCompat.startActivity(
+                    activity,
+                    Intent(activity, ani.sanin.cloudstream.TmdbDetailsActivity::class.java)
+                        .putExtra(ani.sanin.cloudstream.TmdbDetailsActivity.ARG_MEDIA_TYPE, media.tmdbType)
+                        .putExtra(ani.sanin.cloudstream.TmdbDetailsActivity.ARG_MEDIA_ID, media.id),
+                    null
+                )
+                return
+            }
             ContextCompat.startActivity(
                 activity,
                 Intent(activity, MediaDetailsActivity::class.java).putExtra(
