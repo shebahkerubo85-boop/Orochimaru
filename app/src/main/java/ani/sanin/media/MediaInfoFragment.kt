@@ -318,7 +318,7 @@ class MediaInfoFragment : Fragment() {
                     }
                     syncMediaFavStateIfNeeded()
                 } else {
-                    binding.mediaInfoFav.visibility = View.GONE
+                    binding.mediaInfoFav.visibility = View.VISIBLE
                 }
 
                 // Share button
@@ -331,6 +331,11 @@ class MediaInfoFragment : Fragment() {
                 binding.mediaInfoShare.setOnLongClickListener {
                     openLinkInBrowser(media.shareLink)
                     true
+                }
+
+                // Comment button -> comments tab
+                binding.mediaInfoComment.setOnClickListener {
+                    (requireActivity() as? MediaDetailsActivity)?.commentTabOpener?.invoke()
                 }
 
                 FocusEffectUtil.applyFocusListener(
@@ -357,47 +362,32 @@ class MediaInfoFragment : Fragment() {
                 }
                 binding.mediaInfoMeanScore.text =
                     media.meanScore?.let { (it / 10.0).toString() } ?: "??"
-                binding.mediaInfoStatusDetail.text = media.status
-                binding.mediaInfoFormat.text = media.format
-                binding.mediaInfoSource.text = media.source
-                binding.mediaInfoStart.text = media.startDate?.toString() ?: "??"
-                binding.mediaInfoEnd.text = media.endDate?.toString() ?: "??"
-                binding.mediaInfoPopularity.text = media.popularity.toString()
-                binding.mediaInfoFavorites.text = media.favourites.toString()
+                binding.mediaInfoFormat.text = media.format ?: "—"
+                binding.mediaInfoSource.text = media.source ?: "—"
+                binding.mediaInfoStudio.text = "—"
+                binding.mediaInfoAuthor.text = "—"
                 if (media.anime != null) {
-                    val episodeDuration = media.anime.episodeDuration
-                    binding.mediaInfoDuration.text = when {
-                        episodeDuration != null -> {
-                            val hours = episodeDuration / 60
-                            val minutes = episodeDuration % 60
-                            buildString {
-                                if (hours > 0) {
-                                    append("$hours hour")
-                                    if (hours > 1) append("s")
-                                }
-                                if (minutes > 0) {
-                                    if (hours > 0) append(", ")
-                                    append("$minutes min")
-                                    if (minutes > 1) append("s")
-                                }
-                            }
-                        }
-                        else -> "??"
-                    }
-                    binding.mediaInfoDurationContainer.visibility = View.VISIBLE
-                    binding.mediaInfoSeasonContainer.visibility = View.VISIBLE
-                    val seasonInfo =
-                        "${(media.anime.season ?: "??")} ${(media.anime.seasonYear ?: "??")}"
-                    binding.mediaInfoSeason.text = seasonInfo
                     if (media.anime.mainStudio != null) {
-                        binding.mediaInfoStudioContainer.visibility = View.VISIBLE
                         binding.mediaInfoStudio.text = media.anime.mainStudio!!.name
-                        binding.mediaInfoStudioContainer.setOnClickListener {
+                        binding.mediaInfoStudio.setOnClickListener {
                             ContextCompat.startActivity(
                                 requireActivity(),
                                 Intent(requireContext(), StudioActivity::class.java).putExtra(
                                     "studio",
                                     media.anime.mainStudio!! as Serializable
+                                ),
+                                null
+                            )
+                        }
+                    }
+                    if (media.anime.author != null) {
+                        binding.mediaInfoAuthor.text = media.anime.author!!.name
+                        binding.mediaInfoAuthor.setOnClickListener {
+                            ContextCompat.startActivity(
+                                requireActivity(),
+                                Intent(requireContext(), AuthorActivity::class.java).putExtra(
+                                    "author",
+                                    media.anime.author!! as Serializable
                                 ),
                                 null
                             )
@@ -435,26 +425,6 @@ class MediaInfoFragment : Fragment() {
                             }
                         }
                     }
-                    if (media.anime.author != null) {
-                        binding.mediaInfoAuthorContainer.visibility = View.VISIBLE
-                        binding.mediaInfoAuthor.text = media.anime.author!!.name
-                        binding.mediaInfoAuthorContainer.setOnClickListener {
-                            ContextCompat.startActivity(
-                                requireActivity(),
-                                Intent(requireContext(), AuthorActivity::class.java).putExtra(
-                                    "author",
-                                    media.anime.author!! as Serializable
-                                ),
-                                null
-                            )
-                        }
-                    }
-                    binding.mediaInfoTotalTitle.setText(R.string.total_eps)
-                    val infoTotal = if (media.anime.nextAiringEpisode != null)
-                        "${media.anime.nextAiringEpisode} | ${media.anime.totalEpisodes ?: "~"}"
-                    else
-                        (media.anime.totalEpisodes ?: "~").toString()
-                    binding.mediaInfoTotalDetail.text = infoTotal
                 }
 
                 val parent = _binding?.mediaInfoContainer!!
