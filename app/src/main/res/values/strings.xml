@@ -217,8 +217,6 @@
     <string name="trailer">Trailer</string>
     <string name="opening">Opening</string>
     <string name="ending">Ending</string>
-    <string name="prequel">Prequel</string>
-    <string name="sequel">Sequel</string>
 
     <string name="anilist_settings">Anilist Settings</string>
     <string name="extension_settings">Extensions</string>
