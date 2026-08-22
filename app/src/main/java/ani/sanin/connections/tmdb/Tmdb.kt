@@ -169,13 +169,15 @@ object Tmdb {
         sort: String? = null,
         year: Int? = null,
         keywords: String? = null,
-        page: Int = 1
+        page: Int = 1,
+        extra: List<Pair<String, String>> = emptyList()
     ): List<TmdbMedia> {
         val query = mutableListOf("page" to page.toString())
         genres?.let { query.add("with_genres" to it) }
         sort?.let { query.add("sort_by" to it) }
         year?.let { query.add("year" to it.toString()) }
         keywords?.let { query.add("with_keywords" to it) }
+        query.addAll(extra)
         val body = get("/discover/$mediaType", *query.toTypedArray()) ?: return emptyList()
         return runCatching { json.decodeFromString<TmdbPage<TmdbMedia>>(body).results }
             .getOrDefault(emptyList())
@@ -201,11 +203,25 @@ object Tmdb {
         return movies + shows
     }
 
+    /** Today as "yyyy-MM-dd" — ceiling so "latest" never includes unreleased entries. */
+    private fun todayIso(): String =
+        java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+            .format(java.util.Date())
+
     suspend fun latestMovies(page: Int = 1): List<TmdbMedia> =
-        discover(sort = "primary_release_date.desc", page = page)
+        discover(
+            sort = "primary_release_date.desc",
+            page = page,
+            extra = listOf("primary_release_date.lte" to todayIso())
+        )
 
     suspend fun latestSeries(page: Int = 1): List<TmdbMedia> =
-        discover("tv", sort = "first_air_date.desc", page = page)
+        discover(
+            "tv",
+            sort = "first_air_date.desc",
+            page = page,
+            extra = listOf("first_air_date.lte" to todayIso())
+        )
 
     suspend fun searchKeywords(query: String): List<TmdbKeyword> {
         val body = get("/search/keyword", "query" to query) ?: return emptyList()

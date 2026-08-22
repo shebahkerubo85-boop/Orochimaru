@@ -92,6 +92,7 @@ class TmdbHomeFragment : Fragment() {
     private val bannerHandler = Handler(Looper.getMainLooper())
     private var genreNames: Map<Int, String> = emptyMap()
     private var logoJob: Job? = null
+    private var loadJob: Job? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -155,7 +156,9 @@ class TmdbHomeFragment : Fragment() {
         val sourceId = PrefManager.getVal<String>(PrefName.ContentSource)
         val plugin = if (sourceId == "tmdb") null
             else CsRepos.installed(requireContext()).firstOrNull { it.id == sourceId }
-        viewLifecycleOwner.lifecycleScope.launch {
+        loadJob?.cancel()
+        binding.tmdbHomeSections.removeAllViews()
+        loadJob = viewLifecycleOwner.lifecycleScope.launch {
             // Load banner (single view — adds immediately, no frame skip).
             loadBanner(plugin)
             // Try plugin home sections first; fall back to TMDB if plugin has none.
