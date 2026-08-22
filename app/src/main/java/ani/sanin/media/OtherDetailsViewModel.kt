@@ -329,15 +329,14 @@ class OtherDetailsViewModel : ViewModel() {
                     if (id == 0) return@mapNotNull null
                     val title = obj.optString("name", obj.optString("title", "")).ifBlank { null }
                         ?: return@mapNotNull null
+                    val rawDate = obj.optString("air_date", "")
+                        .ifBlank { obj.optString("first_air_date", "") }
+                        .ifBlank { obj.optString("release_date", "") }
                     listOf(
                         id,
                         title,
                         obj.optString("poster_path", "").ifBlank { null },
-                        obj.optString("air_date", "").ifBlank {
-                            obj.optString("first_air_date", "").ifBlank {
-                                obj.optString("release_date", "").ifBlank { null }
-                            }
-                        }.takeIf { it.length >= 10 }?.substring(0, 10)
+                        rawDate.takeIf { it.length >= 10 }?.substring(0, 10)
                     )
                 }
             }.getOrDefault(emptyList())
@@ -367,11 +366,6 @@ class OtherDetailsViewModel : ViewModel() {
             set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
         }
-        fun dayKey(offset: Int): Pair<String, String> {
-            val day = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, offset) }
-            return dayFmt.format(day.time) to df.format(day.time)
-        }
-
         fun dayKey(offset: Int): Pair<String, String> {
             val day = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, offset) }
             return dayFmt.format(day.time) to df.format(day.time)
