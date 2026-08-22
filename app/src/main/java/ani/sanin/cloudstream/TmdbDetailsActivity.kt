@@ -460,17 +460,13 @@ class TmdbDetailsActivity : AppCompatActivity() {
 // __PART4__
 
     private fun onPlayClick() {
-        val d = detail
-        if (pluginMode) {
-            val intent = Intent(this, TmdbPlayerActivity::class.java).apply {
-                putExtra(TmdbPlayerActivity.EXTRA_URL, pluginUrl)
-                putExtra(TmdbPlayerActivity.EXTRA_TITLE, d?.displayTitle ?: intent.getStringExtra("title") ?: "Play")
-                putExtra(TmdbPlayerActivity.EXTRA_REFERER, "")
-            }
-            startActivity(intent)
-            return
+        val intent = Intent(this, TmdbWatchActivity::class.java).apply {
+            putExtra(TmdbWatchActivity.ARG_MEDIA_TYPE, mediaType)
+            putExtra(TmdbWatchActivity.ARG_MEDIA_ID, mediaId)
+            pluginSourceId?.let { putExtra(TmdbWatchActivity.ARG_PLUGIN_SOURCE, it) }
+            pluginUrl?.let { putExtra(TmdbWatchActivity.ARG_PLUGIN_URL, it) }
         }
-        snackString("Playback requires a provider source")
+        startActivity(intent)
     }
 
     private fun onListEditorClick() {
