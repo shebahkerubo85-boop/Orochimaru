@@ -358,8 +358,36 @@ class TmdbDetailsActivity : AppCompatActivity() {
         val bind = ItemTitleTrailerBinding.inflate(layoutInflater)
         val wv = bind.mediaInfoTrailer
         wv.settings.javaScriptEnabled = true
+        wv.settings.domStorageEnabled = true
+        wv.settings.databaseEnabled = true
+        wv.settings.useWideViewPort = true
+        wv.settings.loadWithOverviewMode = true
+        wv.settings.mediaPlaybackRequiresUserGesture = false
         wv.settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+        wv.settings.userAgentString = null
         wv.webChromeClient = MyChrome()
+        wv.addJavascriptInterface(object {
+            @android.webkit.JavascriptInterface
+            fun loadVideo() {
+                val trailerHtml = """
+                    <!DOCTYPE html><html><head>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <style>*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+                    html,body{width:100%;height:100%;background:#000;overflow:hidden;}
+                    iframe{width:100%;height:100%;border:none;display:block;}</style>
+                    </head><body>
+                    <iframe src="https://www.youtube-nocookie.com/embed/$key?autoplay=1&rel=0&modestbranding=1&controls=1&fs=0"
+                    allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" frameborder="0"></iframe>
+                    </body></html>
+                """.trimIndent()
+                runOnUiThread {
+                    wv.loadDataWithBaseURL(
+                        "https://www.youtube-nocookie.com",
+                        trailerHtml, "text/html", "utf-8", null
+                    )
+                }
+            }
+        }, "Android")
         wv.loadDataWithBaseURL(
             "https://www.youtube-nocookie.com",
             placeholderHtml(key), "text/html", "utf-8", null
@@ -367,13 +395,21 @@ class TmdbDetailsActivity : AppCompatActivity() {
         binding.mediaInfoTrailerHost.addView(bind.root)
     }
 
-    private fun placeholderHtml(key: String): String = """
-        <!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
-        <style>*{margin:0;padding:0}html,body{width:100%;height:100%;background:#000;overflow:hidden}
-        iframe{width:100%;height:100%;border:none}</style></head><body>
-        <iframe src="https://www.youtube-nocookie.com/embed/$key?rel=0&modestbranding=1"
-        allow="accelerometer;autoplay;encrypted-media;gyroscope;picture-in-picture"
-        frameborder="0" allowfullscreen></iframe></body></html>
+    private fun placeholderHtml(trailerId: String): String = """
+        <!DOCTYPE html><html><head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;}
+        body,html{width:100%;height:100%;background:#000;overflow:hidden;}
+        .thumbnail-container{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#000;}
+        .thumbnail{width:100%;height:100%;object-fit:contain;}
+        .play-button{position:absolute;width:68px;height:48px;background:rgba(255,0,0,0.8);border-radius:12px;display:flex;align-items:center;justify-content:center;transition:transform 0.2s;}
+        .thumbnail-container:active .play-button{transform:scale(0.95);}
+        .play-icon{width:0;height:0;border-left:20px solid white;border-top:12px solid transparent;border-bottom:12px solid transparent;margin-left:4px;}</style>
+        </head><body>
+        <div class="thumbnail-container" onclick="Android.loadVideo()">
+        <img class="thumbnail" src="https://img.youtube.com/vi/$trailerId/maxresdefault.jpg"
+             onerror="this.src='https://img.youtube.com/vi/$trailerId/hqdefault.jpg'" alt="Trailer">
+        <div class="play-button"><div class="play-icon"></div></div></div></body></html>
     """.trimIndent()
 
     private fun loadTags(d: TmdbDetail) {

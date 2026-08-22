@@ -40,9 +40,15 @@ class Login : AppCompatActivity() {
                             "client_id" to clientId,
                             "code" to code,
                             "code_verifier" to codeChallenge,
+                            "redirect_uri" to "sanin://mal",
                             "grant_type" to "authorization_code"
                         )
                     ).parsed<MAL.ResponseToken>()
+                    if (!res.isValid) {
+                        throw Exception(
+                            "MAL: ${res.error ?: res.errorDescription ?: "login failed (invalid token response)"}"
+                        )
+                    }
                     saveResponse(res)
                     MAL.token = res.accessToken
                     snackString(getString(R.string.getting_user_data))

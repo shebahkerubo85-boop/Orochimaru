@@ -693,8 +693,8 @@
 
                         <FrameLayout
                             android:id="@+id/mediaInfoTrailerHost"
-                            android:layout_width="170dp"
-                            android:layout_height="150dp" />
+                            android:layout_width="match_parent"
+                            android:layout_height="200dp" />
 
                         <LinearLayout
                             android:id="@+id/mediaInfoOpEdContainer"
@@ -712,137 +712,171 @@
                         android:layout_marginTop="12dp"
                         android:orientation="vertical" />
 
-                    <TextView
-                        android:id="@+id/mediaInfoCastTitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:layout_marginStart="12dp"
-                        android:fontFamily="@font/poppins_bold"
-                        android:text="@string/cast"
-                        android:textSize="16sp"
-                        android:textColor="?attr/colorPrimary" />
+            </LinearLayout>
 
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/mediaInfoCastRecycler"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:orientation="horizontal"
-                        android:scrollbars="none" />
+            <LinearLayout
+                android:id="@+id/tmdbDetailPrequelSequel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="24dp"
+                android:layout_marginTop="16dp"
+                android:orientation="horizontal"
+                android:visibility="gone">
 
-                    <TextView
-                        android:id="@+id/mediaInfoRecommendTitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:layout_marginStart="12dp"
-                        android:fontFamily="@font/poppins_bold"
-                        android:text="@string/more_like_this"
-                        android:textSize="16sp"
-                        android:textColor="?attr/colorPrimary" />
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/tmdbDetailPrequel"
+                    android:layout_width="0dp"
+                    android:layout_height="72dp"
+                    android:layout_margin="8dp"
+                    android:layout_weight="1"
+                    android:visibility="gone"
+                    app:cardCornerRadius="16dp"
+                    app:cardBackgroundColor="@android:color/transparent">
 
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/mediaInfoRecommendRecycler"
+                    <ImageView
+                        android:id="@+id/tmdbDetailPrequelBanner"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:orientation="horizontal"
-                        android:scrollbars="none" />
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        tools:ignore="ContentDescription" />
 
-                    <HorizontalScrollView
+                    <View
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:scrollbars="none">
+                        android:layout_height="match_parent"
+                        android:alpha="0.75"
+                        android:background="@color/bg_black" />
 
-                        <LinearLayout
-                            android:id="@+id/tmdbDetailRelationChips"
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tmdbDetailPrequelTitle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:orientation="horizontal" />
-                    </HorizontalScrollView>
+                            android:layout_gravity="center"
+                            android:fontFamily="@font/poppins_bold"
+                            android:text="@string/prequel"
+                            android:textAllCaps="true"
+                            android:textColor="@color/bg_white"
+                            android:textSize="16sp" />
 
-                    <LinearLayout
-                        android:id="@+id/tmdbDetailSections"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:orientation="vertical" />
-
-                    <LinearLayout
-                        android:id="@+id/tmdbDetailPrequelSequel"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:orientation="horizontal"
-                        android:visibility="gone">
-
-                        <LinearLayout
-                            android:id="@+id/tmdbDetailPrequel"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginEnd="8dp"
-                            android:background="@drawable/bg_info_container"
-                            android:orientation="vertical"
-                            android:padding="8dp">
-
-                            <ImageView
-                                android:id="@+id/tmdbDetailPrequelBanner"
-                                android:layout_width="match_parent"
-                                android:layout_height="90dp"
-                                android:background="@color/bg_black"
-                                android:scaleType="centerCrop"
-                                tools:ignore="ContentDescription" />
-
-                            <TextView
-                                android:id="@+id/tmdbDetailPrequelTitle"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="6dp"
-                                android:ellipsize="end"
-                                android:fontFamily="@font/poppins_bold"
-                                android:gravity="center"
-                                android:maxLines="1"
-                                android:text="@string/prequel"
-                                android:textColor="@android:color/white"
-                                android:textSize="13sp" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:id="@+id/tmdbDetailSequel"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:background="@drawable/bg_info_container"
-                            android:orientation="vertical"
-                            android:padding="8dp">
-
-                            <ImageView
-                                android:id="@+id/tmdbDetailSequelBanner"
-                                android:layout_width="match_parent"
-                                android:layout_height="90dp"
-                                android:background="@color/bg_black"
-                                android:scaleType="centerCrop"
-                                tools:ignore="ContentDescription" />
-
-                            <TextView
-                                android:id="@+id/tmdbDetailSequelTitle"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="6dp"
-                                android:ellipsize="end"
-                                android:fontFamily="@font/poppins_bold"
-                                android:gravity="center"
-                                android:maxLines="1"
-                                android:text="@string/sequel"
-                                android:textColor="@android:color/white"
-                                android:textSize="13sp" />
-                        </LinearLayout>
+                        <View
+                            android:layout_width="64dp"
+                            android:layout_height="2dp"
+                            android:layout_gravity="center"
+                            android:background="?attr/colorSecondary" />
                     </LinearLayout>
-                </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/tmdbDetailSequel"
+                    android:layout_width="0dp"
+                    android:layout_height="72dp"
+                    android:layout_margin="8dp"
+                    android:layout_weight="1"
+                    android:visibility="gone"
+                    app:cardCornerRadius="16dp"
+                    app:cardBackgroundColor="@android:color/transparent">
+
+                    <ImageView
+                        android:id="@+id/tmdbDetailSequelBanner"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="centerCrop"
+                        tools:ignore="ContentDescription" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:alpha="0.75"
+                        android:background="@color/bg_black" />
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tmdbDetailSequelTitle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:fontFamily="@font/poppins_bold"
+                            android:text="@string/sequel"
+                            android:textAllCaps="true"
+                            android:textColor="@color/bg_white"
+                            android:textSize="16sp" />
+
+                        <View
+                            android:layout_width="64dp"
+                            android:layout_height="2dp"
+                            android:layout_gravity="center"
+                            android:background="?attr/colorPrimary" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
+
+            <TextView
+                android:id="@+id/mediaInfoCastTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginStart="12dp"
+                android:fontFamily="@font/poppins_bold"
+                android:text="@string/cast"
+                android:textSize="16sp"
+                android:textColor="?attr/colorPrimary" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/mediaInfoCastRecycler"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal"
+                android:scrollbars="none" />
+
+            <TextView
+                android:id="@+id/mediaInfoRecommendTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginStart="12dp"
+                android:fontFamily="@font/poppins_bold"
+                android:text="@string/more_like_this"
+                android:textSize="16sp"
+                android:textColor="?attr/colorPrimary" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/mediaInfoRecommendRecycler"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal"
+                android:scrollbars="none" />
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/tmdbDetailRelationChips"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+
+            <LinearLayout
+                android:id="@+id/tmdbDetailSections"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="vertical" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </FrameLayout>
