@@ -13,6 +13,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebChromeClient
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
@@ -144,6 +145,13 @@ class MediaInfoFragment : Fragment() {
                 infoTimer = null
                 binding.mediaInfoGenreContainer.removeAllViews()
                 binding.mediaInfoExternalLinksContainer.removeAllViews()
+                binding.mediaInfoSynonymsContainer.removeAllViews()
+                binding.mediaInfoTrailerHost.removeAllViews()
+                binding.mediaInfoOpEdContainer.removeAllViews()
+                binding.mediaInfoTagsContainer.removeAllViews()
+                binding.mediaInfoOpEdContainer.visibility = View.VISIBLE
+                binding.mediaInfoTagsContainer.visibility = View.VISIBLE
+                binding.mediaInfoFinalContainer.minimumHeight = 0
 
                 binding.mediaInfoProgressBar.visibility = View.GONE
                 binding.mediaInfoContainer.visibility = View.VISIBLE
@@ -454,7 +462,7 @@ class MediaInfoFragment : Fragment() {
                         chip.setOnLongClickListener { copyToClipboard(media.synonyms[position]);true }
                         bind.itemChipGroup.addView(chip)
                     }
-                    parent.addView(bind.root)
+                    binding.mediaInfoSynonymsContainer.addView(bind.root)
                 }
                 if (!media.users.isNullOrEmpty() && !offline) {
                     val users: ArrayList<User> = media.users ?: arrayListOf()
@@ -544,6 +552,28 @@ class MediaInfoFragment : Fragment() {
                         addJavascriptInterface(object {
                             @android.webkit.JavascriptInterface
                             fun loadVideo() {
+                                try {
+                                    binding.mediaInfoOpEdContainer.visibility = View.GONE
+                                    binding.mediaInfoTagsContainer.visibility = View.GONE
+                                    bind.mediaInfoTrailerText.visibility = View.GONE
+                                    binding.mediaInfoFinalContainer.minimumHeight =
+                                        (resources.displayMetrics.heightPixels * 0.5).toInt()
+                                    binding.mediaInfoTrailerRow.layoutParams =
+                                        LinearLayout.LayoutParams(
+                                            LinearLayout.LayoutParams.MATCH_PARENT,
+                                            LinearLayout.LayoutParams.MATCH_PARENT
+                                        )
+                                    binding.mediaInfoTrailerHost.layoutParams =
+                                        LinearLayout.LayoutParams(
+                                            LinearLayout.LayoutParams.MATCH_PARENT,
+                                            LinearLayout.LayoutParams.MATCH_PARENT
+                                        )
+                                    bind.root.layoutParams = ViewGroup.LayoutParams(
+                                        ViewGroup.LayoutParams.MATCH_PARENT,
+                                        ViewGroup.LayoutParams.MATCH_PARENT
+                                    )
+                                } catch (_: Exception) {
+                                }
                                 val trailerHtml = """
                                     <!DOCTYPE html>
                                     <html><head>
@@ -566,7 +596,7 @@ class MediaInfoFragment : Fragment() {
                         loadDataWithBaseURL("https://www.youtube-nocookie.com", placeholderHtml(trailerId), "text/html", "utf-8", null)
                     }
                     bind.root.tag = "dynamic_view"
-                    parent.addView(bind.root)
+                    binding.mediaInfoTrailerHost.addView(bind.root)
                 }
 
                 if (media.anime != null && (media.anime.op.isNotEmpty() || media.anime.ed.isNotEmpty()) && !offline) {
@@ -595,7 +625,7 @@ class MediaInfoFragment : Fragment() {
                             itemTitle.setText(R.string.opening)
                             makeText(itemText, media.anime.op)
                             root.tag = "dynamic_view"
-                            parent.addView(root)
+                            binding.mediaInfoOpEdContainer.addView(root)
                         }
                     }
                     if (media.anime.ed.isNotEmpty()) {
@@ -603,7 +633,7 @@ class MediaInfoFragment : Fragment() {
                             itemTitle.setText(R.string.ending)
                             makeText(itemText, media.anime.ed)
                             root.tag = "dynamic_view"
-                            parent.addView(root)
+                            binding.mediaInfoOpEdContainer.addView(root)
                         }
                     }
                 }
@@ -647,7 +677,7 @@ class MediaInfoFragment : Fragment() {
                         chip.setOnLongClickListener { copyToClipboard(media.tags[position]);true }
                         bind.itemChipGroup.addView(chip)
                     }
-                    parent.addView(bind.root)
+                    binding.mediaInfoTagsContainer.addView(bind.root)
                 }
 
                 if (!media.externalLinks.isNullOrEmpty() && !offline) {
