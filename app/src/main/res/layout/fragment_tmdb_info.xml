@@ -712,64 +712,6 @@
                         android:layout_marginTop="12dp"
                         android:orientation="vertical" />
 
-                    <TextView
-                        android:id="@+id/mediaInfoCastTitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:layout_marginStart="12dp"
-                        android:fontFamily="@font/poppins_bold"
-                        android:text="@string/cast"
-                        android:textSize="16sp"
-                        android:textColor="?attr/colorPrimary" />
-
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/mediaInfoCastRecycler"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:orientation="horizontal"
-                        android:scrollbars="none" />
-
-                    <TextView
-                        android:id="@+id/mediaInfoRecommendTitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:layout_marginStart="12dp"
-                        android:fontFamily="@font/poppins_bold"
-                        android:text="@string/more_like_this"
-                        android:textSize="16sp"
-                        android:textColor="?attr/colorPrimary" />
-
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/mediaInfoRecommendRecycler"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:orientation="horizontal"
-                        android:scrollbars="none" />
-
-                    <HorizontalScrollView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:scrollbars="none">
-
-                        <LinearLayout
-                            android:id="@+id/tmdbDetailRelationChips"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal" />
-                    </HorizontalScrollView>
-
-                    <LinearLayout
-                        android:id="@+id/tmdbDetailSections"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:orientation="vertical" />
-
                     <LinearLayout
                         android:id="@+id/tmdbDetailPrequelSequel"
                         android:layout_width="match_parent"
@@ -841,6 +783,65 @@
                                 android:textSize="13sp" />
                         </LinearLayout>
                     </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/mediaInfoCastTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginStart="12dp"
+                        android:fontFamily="@font/poppins_bold"
+                        android:text="@string/cast"
+                        android:textSize="16sp"
+                        android:textColor="?attr/colorPrimary" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/mediaInfoCastRecycler"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:orientation="horizontal"
+                        android:scrollbars="none" />
+
+                    <TextView
+                        android:id="@+id/mediaInfoRecommendTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginStart="12dp"
+                        android:fontFamily="@font/poppins_bold"
+                        android:text="@string/more_like_this"
+                        android:textSize="16sp"
+                        android:textColor="?attr/colorPrimary" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/mediaInfoRecommendRecycler"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:orientation="horizontal"
+                        android:scrollbars="none" />
+
+                    <HorizontalScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:scrollbars="none">
+
+                        <LinearLayout
+                            android:id="@+id/tmdbDetailRelationChips"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal" />
+                    </HorizontalScrollView>
+
+                    <LinearLayout
+                        android:id="@+id/tmdbDetailSections"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="vertical" />
+
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>
