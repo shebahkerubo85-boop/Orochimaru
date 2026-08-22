@@ -66,6 +66,7 @@ data class Media(
     var status: String? = null,
     var format: String? = null,
     var source: String? = null,
+    var tmdbType: String? = null,
     var countryOfOrigin: String? = null,
     var meanScore: Int? = null,
     var genres: ArrayList<String> = arrayListOf(),
