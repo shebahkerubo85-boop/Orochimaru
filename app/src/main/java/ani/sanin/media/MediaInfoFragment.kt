@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.CountDownTimer
 import android.text.SpannableStringBuilder
 import android.view.LayoutInflater
 import android.view.View
@@ -42,7 +43,6 @@ import ani.sanin.databinding.ItemTitleChipgroupBinding
 import ani.sanin.databinding.ItemTitleRecyclerBinding
 import ani.sanin.databinding.ItemTitleTextBinding
 import ani.sanin.databinding.ItemTitleTrailerBinding
-import ani.sanin.displayTimer
 import ani.sanin.isOnline
 import ani.sanin.loadImage
 import ani.sanin.getThemeColor
@@ -70,6 +70,7 @@ class MediaInfoFragment : Fragment() {
     private val binding get() = _binding!!
     private var loaded = false
     private var type = "ANIME"
+    private var infoTimer: CountDownTimer? = null
     private val genreModel: GenresViewModel by activityViewModels()
 
     override fun onCreateView(
@@ -139,6 +140,8 @@ class MediaInfoFragment : Fragment() {
         model.getMedia().observe(viewLifecycleOwner) { media ->
             if (media != null) {
                 loaded = true
+                infoTimer?.cancel()
+                infoTimer = null
 
                 binding.mediaInfoProgressBar.visibility = View.GONE
                 binding.mediaInfoContainer.visibility = View.VISIBLE
@@ -160,7 +163,6 @@ class MediaInfoFragment : Fragment() {
                     copyToClipboard(media.userPreferredName ?: media.name ?: "")
                     true
                 }
-
                 // Status
                 binding.mediaInfoStatus.text = media.status ?: ""
 
@@ -189,7 +191,6 @@ class MediaInfoFragment : Fragment() {
                     val userStatus =
                         if (media.userStatus != null) statusStrings[statuses.indexOf(media.userStatus).coerceAtLeast(0)] else statusStrings[0]
                     if (media.userStatus != null) {
-                        binding.mediaInfoTotal.visibility = View.VISIBLE
                         binding.mediaInfoAddToList.text = userStatus
                     } else {
                         binding.mediaInfoAddToList.setText(R.string.add_list)
@@ -217,33 +218,31 @@ class MediaInfoFragment : Fragment() {
                     true
                 }
 
-                // Total progress
-                fun updateTotal() {
-                    val text = SpannableStringBuilder().apply {
-                        val white = requireActivity().getThemeColor(com.google.android.material.R.attr.colorOnBackground)
-                        if (media.userStatus != null) {
-                            append(if (media.anime != null) getString(R.string.watched_num) else getString(R.string.read_num))
-                            val colorSecondary = requireActivity().getThemeColor(com.google.android.material.R.attr.colorSecondary)
-                            bold { color(colorSecondary) { append("${media.userProgress}") } }
-                            append(
-                                if (media.anime != null) getString(R.string.episodes_out_of) else getString(R.string.chapters_out_of)
-                            )
-                        } else {
-                            append(
-                                if (media.anime != null) getString(R.string.episodes_total_of) else getString(R.string.chapters_total_of)
-                            )
-                        }
-                        if (media.anime != null) {
-                            if (media.anime!!.nextAiringEpisode != null) {
-                                bold { color(white) { append("${media.anime!!.nextAiringEpisode}") } }
-                                append(" / ")
-                            }
-                            bold { color(white) { append("${media.anime!!.totalEpisodes ?: "??"}") } }
-                        }
+                // Container 1 quick info (reuses existing sanin media fields)
+                fun updateQuickInfo() {
+                    val totalEps = media.anime?.totalEpisodes
+                    val nextEp = media.anime?.nextAiringEpisode
+                    val released = if (nextEp != null) (nextEp - 1).coerceAtLeast(0) else (totalEps ?: 0)
+                    val total = totalEps ?: released
+                    val watched = media.userProgress ?: 0
+
+                    binding.mediaInfoReleased.text = "$released of $total"
+
+                    val primary = requireActivity().getThemeColor(com.google.android.material.R.attr.colorPrimary)
+                    binding.mediaInfoWatchProgress.text = SpannableStringBuilder().apply {
+                        bold { color(primary) { append("$watched") } }
+                        append(" of $released")
                     }
-                    binding.mediaInfoTotal.text = text
+
+                    if (nextEp != null) {
+                        binding.mediaInfoNextEpisode.text = "Episode $nextEp"
+                        startAiringTimer(media)
+                    } else {
+                        binding.mediaInfoNextEpisode.text = media.status ?: "—"
+                        binding.mediaInfoNextTimer.visibility = View.GONE
+                    }
                 }
-                updateTotal()
+                updateQuickInfo()
 
                 // Mapping button (local media)
                 if (media.format?.startsWith("LOCAL") == true) {
@@ -450,7 +449,6 @@ class MediaInfoFragment : Fragment() {
                     binding.mediaInfoTotalDetail.text = infoTotal
                 }
 
-                displayTimer(media, binding.mediaInfoContainer)
                 val parent = _binding?.mediaInfoContainer!!
                 for (i in parent.childCount - 1 downTo 0) {
                     val child = parent.getChildAt(i)
@@ -786,7 +784,35 @@ class MediaInfoFragment : Fragment() {
     }
 
     override fun onDestroy() {
+        infoTimer?.cancel()
+        infoTimer = null
         super.onDestroy()
+    }
+
+    private fun startAiringTimer(media: Media) {
+        val nextTime = media.anime?.nextAiringEpisodeTime ?: return
+        val millisUntil = nextTime * 1000 - System.currentTimeMillis()
+        if (millisUntil <= 0) {
+            binding.mediaInfoNextTimer.text = getString(R.string.time_format, 0, 0, 0, 0)
+            return
+        }
+        binding.mediaInfoNextTimer.visibility = View.VISIBLE
+        infoTimer = object : CountDownTimer(millisUntil, 1000) {
+            override fun onTick(millis: Long) {
+                val a = millis / 1000
+                binding.mediaInfoNextTimer.text = getString(
+                    R.string.time_format,
+                    a / 86400,
+                    a % 86400 / 3600,
+                    a % 86400 % 3600 / 60,
+                    a % 86400 % 3600 % 60
+                )
+            }
+
+            override fun onFinish() {
+                binding.mediaInfoNextTimer.text = getString(R.string.time_format, 0, 0, 0, 0)
+            }
+        }.start()
     }
 
     private fun placeholderHtml(trailerId: String): String = """
