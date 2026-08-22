@@ -4,6 +4,7 @@ import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.res.ColorStateList
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.view.GestureDetector
@@ -112,10 +113,13 @@ class MediaDetailsActivity : AppCompatActivity() {
         val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
         hasComments = PrefManager.getVal<Int>(PrefName.CommentsEnabled) == 1 && !rescueMode
 
-        // Load full-screen banner background (portrait mediaBg or landscape mediaBanner)
+        // Load full-screen banner background.
+        // Portrait: use the AniList poster (media.cover) — leave landscape on the
+        // wide backdrop (media.banner + AniZip backdrop override).
         val bannerBrightness = PrefManager.getVal<Float>(PrefName.BannerBrightness)
+        val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
         if (bannerBrightness > 0f) {
-            val fallbackUrl = media.banner ?: media.cover
+            val fallbackUrl = if (isPortrait) media.cover ?: media.banner else media.banner ?: media.cover
             binding.mediaBg?.loadImage(fallbackUrl)
             binding.mediaBg?.alpha = bannerBrightness
             binding.mediaBgGradient?.alpha = bannerBrightness
@@ -123,12 +127,14 @@ class MediaDetailsActivity : AppCompatActivity() {
             binding.mediaBanner?.alpha = bannerBrightness
             binding.mediaBannerNoKen?.loadImage(fallbackUrl)
             binding.mediaBannerNoKen?.alpha = bannerBrightness
-            lifecycleScope.launch {
-                val tmdbUrl = AniZip.getBackdropUrl(media.id)
-                if (tmdbUrl != null) {
-                    binding.mediaBg?.loadImage(tmdbUrl)
-                    binding.mediaBanner?.loadImage(tmdbUrl)
-                    binding.mediaBannerNoKen?.loadImage(tmdbUrl)
+            if (!isPortrait) {
+                lifecycleScope.launch {
+                    val tmdbUrl = AniZip.getBackdropUrl(media.id)
+                    if (tmdbUrl != null) {
+                        binding.mediaBg?.loadImage(tmdbUrl)
+                        binding.mediaBanner?.loadImage(tmdbUrl)
+                        binding.mediaBannerNoKen?.loadImage(tmdbUrl)
+                    }
                 }
             }
         } else {
