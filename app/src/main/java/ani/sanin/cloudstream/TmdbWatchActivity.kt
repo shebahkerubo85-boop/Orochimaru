@@ -397,7 +397,7 @@ class TmdbWatchActivity : AppCompatActivity() {
 
         // ── season area ──
         if (mediaType == "tv") {
-            if (seasons.size > 1) {
+            if (seasons.isNotEmpty()) {
                 h.tmdbWatchSeasonScroll.isVisible = true
                 h.tmdbWatchSingleSeason.isVisible = false
                 h.tmdbWatchSeasonChips.removeAllViews()

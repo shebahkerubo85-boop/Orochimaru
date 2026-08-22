@@ -30,10 +30,9 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:ellipsize="marquee"
+            android:ellipsize="end"
             android:fontFamily="@font/poppins_bold"
-            android:marqueeRepeatLimit="marquee_forever"
-            android:singleLine="true"
+            android:maxLines="1"
             android:text="@string/tmdb_watch_sources"
             android:textColor="?attr/colorOnSurface" />
 
