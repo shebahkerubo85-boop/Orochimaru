@@ -56,9 +56,15 @@ object MAL {
                 data = mapOf(
                     "client_id" to clientId,
                     "grant_type" to "refresh_token",
-                    "refresh_token" to token.refreshToken
+                    "refresh_token" to (token.refreshToken ?: ""),
+                    "redirect_uri" to "sanin://mal"
                 )
             ).parsed<ResponseToken>()
+            if (!res.isValid) {
+                throw Exception(
+                    "MAL: ${res.error ?: res.errorDescription ?: "returned an invalid token response"}"
+                )
+            }
             saveResponse(res)
             return@tryWithSuspend res
         }
@@ -70,9 +76,11 @@ object MAL {
             var res: ResponseToken =
                 PrefManager.getNullableVal<ResponseToken>(PrefName.MALToken, null)
                     ?: return@tryWithSuspend false
-            if (System.currentTimeMillis() > res.expiresIn)
+            if (System.currentTimeMillis() > (res.expiresIn ?: 0L))
                 res = refreshToken()
                     ?: throw Exception(currContext()?.getString(R.string.refreshing_token_failed))
+            if (res.accessToken.isNullOrBlank())
+                return@tryWithSuspend false
             token = res.accessToken
             username = PrefManager.getVal(PrefName.MALUserName, null as String?)
             avatar = PrefManager.getVal(PrefName.MALAvatar, null as String?)
@@ -91,17 +99,21 @@ object MAL {
     }
 
     fun saveResponse(res: ResponseToken) {
-        res.expiresIn += System.currentTimeMillis()
+        res.expiresIn = (res.expiresIn ?: 0L) + System.currentTimeMillis()
         PrefManager.setVal(PrefName.MALToken, res)
     }
 
     @Serializable
     data class ResponseToken(
-        @SerialName("token_type") val tokenType: String,
-        @SerialName("expires_in") var expiresIn: Long,
-        @SerialName("access_token") val accessToken: String,
-        @SerialName("refresh_token") val refreshToken: String,
+        @SerialName("token_type") val tokenType: String? = null,
+        @SerialName("expires_in") var expiresIn: Long? = null,
+        @SerialName("access_token") val accessToken: String? = null,
+        @SerialName("refresh_token") val refreshToken: String? = null,
+        @SerialName("error") val error: String? = null,
+        @SerialName("error_description") val errorDescription: String? = null,
     ) : java.io.Serializable {
+        val isValid: Boolean
+            get() = !accessToken.isNullOrBlank() && error.isNullOrBlank()
         companion object {
             private const val serialVersionUID = 1L
         }
