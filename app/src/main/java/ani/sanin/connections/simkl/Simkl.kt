@@ -507,6 +507,36 @@ object Simkl {
         }
     }
 
+        /** Remove an item from the user's Simkl list. */
+    suspend fun removeFromList(
+        type: String,
+        tmdbId: Int? = null,
+        imdbId: String? = null,
+        anilistId: Int? = null
+    ) {
+        tryWithSuspend {
+            val t = token ?: return@tryWithSuspend
+            val idsObj = buildJsonObject {
+                if (tmdbId != null && tmdbId > 0) put("tmdb", JsonPrimitive(tmdbId.toString()))
+                if (!imdbId.isNullOrBlank()) put("imdb", JsonPrimitive(imdbId))
+                if (anilistId != null && anilistId > 0) put("anilist", JsonPrimitive(anilistId))
+            }
+            val body = buildJsonObject {
+                put(if (type == "tv") "shows" else "movies", buildJsonArray { add(idsObj) })
+            }.toString()
+            val resp = okHttpClient.newCall(
+                Request.Builder()
+                    .url("$BASE/sync/remove-from-list")
+                    .addHeader("Authorization", "Bearer $t")
+                    .addHeader("simkl-api-key", clientId)
+                    .addHeader("Content-Type", "application/json")
+                    .post(body.toRequestBody("application/json".toMediaType()))
+                    .build()
+            ).execute()
+            ani.sanin.util.Logger.log("Simkl.removeFromList: HTTP ${resp.code} type=$type tmdb=$tmdbId")
+        }
+    }
+
         /** Get the user's list status for a specific show/movie from Simkl library. */
     suspend fun getMediaStatus(
         type: String,

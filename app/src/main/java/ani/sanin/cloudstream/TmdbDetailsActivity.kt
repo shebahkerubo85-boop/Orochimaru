@@ -84,7 +84,7 @@ class TmdbDetailsActivity : AppCompatActivity() {
         FocusEffectUtil.applyFocusListener(shell.tmdbDetailBack)
         binding.tmdbDetailPlayCard.setOnClickListener { onPlayClick() }
         FocusEffectUtil.applyFocusListener(binding.tmdbDetailPlayCard)
-        binding.mediaInfoAddToList.setOnClickListener { onListEditorClick() }
+        binding.mediaInfoAddToList.setOnClickListener { detail?.let { openListEditor(it) } }
         FocusEffectUtil.applyFocusListener(binding.mediaInfoAddToList)
 
         load()
@@ -163,7 +163,7 @@ class TmdbDetailsActivity : AppCompatActivity() {
                 binding.mediaInfoNextRow.visibility = View.GONE
             }
 
-            lifecycleScope.launch { updateListEditorLabel(d) }
+            lifecycleScope.launch { refreshListLabel(d) }
 
             loadGenres(d)
             binding.mediaInfoDescription.text =
@@ -522,36 +522,36 @@ class TmdbDetailsActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
-    private fun onListEditorClick() {
-        val d = detail ?: return
+    private fun refreshListLabel(d: TmdbDetail) {
         lifecycleScope.launch(Dispatchers.IO) {
-            val current = Simkl.getMediaStatus(mediaType, d.id, d.externalIds?.imdbId) ?: "plantowatch"
-            val next = when (current.lowercase()) {
-                "watching" -> "completed"
-                "completed" -> "plantowatch"
-                else -> "watching"
-            }
-            Simkl.setListStatus(
-                type = mediaType,
-                title = d.displayTitle,
-                year = d.releaseDate?.take(4)?.toIntOrNull(),
-                tmdbId = d.id,
-                imdbId = d.externalIds?.imdbId,
-                status = next
-            )
-            withContext(Dispatchers.Main) {
-                snackString("Marked as $next")
-                updateListEditorLabel(d)
-            }
+            val st = runCatching {
+                Simkl.getMediaStatus(mediaType, d.id, d.externalIds?.imdbId)
+            }.getOrNull()
+            withContext(Dispatchers.Main) { updateListButtonLabel(st) }
         }
     }
 
-    private suspend fun updateListEditorLabel(d: TmdbDetail) {
-        val st = Simkl.getMediaStatus(mediaType, d.id, d.externalIds?.imdbId)
-        val label = st?.replaceFirstChar { it.uppercase() } ?: "Add to List"
-        withContext(Dispatchers.Main) {
-            binding.mediaInfoAddToList.text = label
-        }
+    private fun updateListButtonLabel(simklStatus: String?) {
+        val labels = resources.getStringArray(R.array.status_anime)
+        binding.mediaInfoAddToList.text =
+            if (simklStatus == null) getString(R.string.add_to_list)
+            else labels[TmdbListDialogFragment.simklStatusToIndex(simklStatus)]
+    }
+
+    private fun openListEditor(d: TmdbDetail) {
+        val ids = d.externalIds
+        val frag = TmdbListDialogFragment.newInstance(
+            type = mediaType,
+            tmdbId = d.id,
+            imdbId = ids?.imdbId,
+            anilistId = null,
+            title = d.displayTitle,
+            year = d.releaseDate?.take(4)?.toIntOrNull(),
+            cover = Tmdb.imageUrl(d.backdropPath, 780) ?: Tmdb.imageUrl(d.posterPath, 342),
+            totalEpisodes = if (mediaType == "tv") d.numberOfEpisodes else null
+        )
+        frag.onSaved = { refreshListLabel(d) }
+        frag.show(supportFragmentManager, "tmdbList")
     }
 
     private suspend fun simklProgress(
