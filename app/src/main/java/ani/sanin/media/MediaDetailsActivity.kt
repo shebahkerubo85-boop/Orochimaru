@@ -562,15 +562,15 @@ class MediaDetailsActivity : AppCompatActivity() {
             val next = pills[(i + 1) % pills.size]
             v.isFocusable = !bottom
             if (bottom) {
-                v.nextFocusLeft = prev.id
-                v.nextFocusRight = next.id
-                v.nextFocusUp = View.NO_ID
-                v.nextFocusDown = View.NO_ID
+                v.nextFocusLeftId = prev.id
+                v.nextFocusRightId = next.id
+                v.nextFocusUpId = View.NO_ID
+                v.nextFocusDownId = View.NO_ID
             } else {
-                v.nextFocusUp = prev.id
-                v.nextFocusDown = next.id
-                v.nextFocusLeft = View.NO_ID
-                v.nextFocusRight = View.NO_ID
+                v.nextFocusUpId = prev.id
+                v.nextFocusDownId = next.id
+                v.nextFocusLeftId = View.NO_ID
+                v.nextFocusRightId = View.NO_ID
             }
         }
         frame.post { updateMediaNavPillIndicator() }
