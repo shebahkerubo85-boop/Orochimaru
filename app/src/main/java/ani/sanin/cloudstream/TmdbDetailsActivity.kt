@@ -452,7 +452,7 @@ class TmdbDetailsActivity : AppCompatActivity() {
                         Tmdb.imageUrl(pre.backdropPath, 780) ?: Tmdb.imageUrl(pre.posterPath, 342)
                     )
                     binding.tmdbDetailPrequelTitle.text = pre.displayTitle
-                    binding.tmdbDetailPrequel.setOnClickListener { openDetails(pre.id, pre.mediaType) }
+                    binding.tmdbDetailPrequel.setOnClickListener { openDetails(pre.id, pre.mediaType ?: "movie") }
                 } else binding.tmdbDetailPrequel.visibility = View.GONE
                 if (seq != null) {
                     binding.tmdbDetailSequel.visibility = View.VISIBLE
@@ -460,7 +460,7 @@ class TmdbDetailsActivity : AppCompatActivity() {
                         Tmdb.imageUrl(seq.backdropPath, 780) ?: Tmdb.imageUrl(seq.posterPath, 342)
                     )
                     binding.tmdbDetailSequelTitle.text = seq.displayTitle
-                    binding.tmdbDetailSequel.setOnClickListener { openDetails(seq.id, seq.mediaType) }
+                    binding.tmdbDetailSequel.setOnClickListener { openDetails(seq.id, seq.mediaType ?: "movie") }
                 } else binding.tmdbDetailSequel.visibility = View.GONE
             }
         }

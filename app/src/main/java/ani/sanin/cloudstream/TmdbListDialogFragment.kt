@@ -11,6 +11,7 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.WindowCompat
+import androidx.core.view.updateLayoutParams
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.lifecycleScope
@@ -142,9 +143,9 @@ class TmdbListDialogFragment : DialogFragment() {
 
         binding.mediaListSave.setOnClickListener {
             val checkedId = binding.mediaListStatusGroup.checkedChipId
-            val label = if (checkedId != -1)
+            val label = (if (checkedId != -1)
                 binding.mediaListStatusGroup.findViewById<Chip>(checkedId)?.text?.toString()
-            else statusStrings[0]
+            else statusStrings[0]) ?: statusStrings[0]
             val idx = statusStrings.indexOf(label).coerceAtLeast(0)
             val simklStatus = SIMKL_STATUS_BY_INDEX[idx]
             scope.launch(Dispatchers.IO) {
