@@ -100,6 +100,14 @@
                     android:visibility="gone"
                     tools:visibility="visible" />
 
+                <!-- Synonyms chips (moved up, between title and container 1) -->
+                <LinearLayout
+                    android:id="@+id/mediaInfoSynonymsContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="vertical" />
+
                 <!-- Container 1: quick info card (semi-transparent dark grey, no glass) -->
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -549,7 +557,6 @@
                     </LinearLayout>
                 </LinearLayout>
 
-
                 <TextView
                     android:id="@+id/mediaNextChapterPredictionText"
                     android:layout_width="match_parent"
@@ -645,6 +652,44 @@
                         android:fontFamily="@font/poppins_bold"
                         android:textColor="@android:color/white"
                         tools:targetApi="m" />
+                </LinearLayout>
+
+                <!-- Final container: trailer (small, top-left) + opening/ending (beside) + tags (scrollable below) -->
+                <LinearLayout
+                    android:id="@+id/mediaInfoFinalContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:background="@drawable/bg_info_container"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <LinearLayout
+                        android:id="@+id/mediaInfoTrailerRow"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <FrameLayout
+                            android:id="@+id/mediaInfoTrailerHost"
+                            android:layout_width="170dp"
+                            android:layout_height="wrap_content" />
+
+                        <LinearLayout
+                            android:id="@+id/mediaInfoOpEdContainer"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/mediaInfoTagsContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="vertical" />
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>
