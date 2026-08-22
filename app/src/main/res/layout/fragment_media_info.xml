@@ -353,25 +353,60 @@
                         tools:ignore="ContentDescription" />
                 </LinearLayout>
 
-                <TextView
-                    android:id="@+id/mediaInfoDescriptionText"
+                <!-- Container 2: genres + synopsis + external links (semi-transparent dark grey, no glass) -->
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
-                    android:fontFamily="@font/poppins_bold"
-                    android:text="@string/description"
-                    android:textColor="@android:color/white"
-                    android:textSize="16sp" />
+                    android:background="@drawable/bg_info_container"
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                <TextView
-                    android:id="@+id/mediaInfoDescription"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:ellipsize="end"
-                    android:maxLines="5"
-                    android:padding="8dp"
-                    android:text="@string/description"
-                    android:textColor="@android:color/white" />
+                    <LinearLayout
+                        android:id="@+id/mediaInfoGenreContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+
+                    <TextView
+                        android:id="@+id/mediaInfoDescriptionText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:fontFamily="@font/poppins_bold"
+                        android:text="@string/description"
+                        android:textColor="?attr/colorPrimary"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/mediaInfoDescription"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="5"
+                        android:paddingTop="8dp"
+                        android:text="@string/description"
+                        android:textColor="@android:color/white" />
+
+                    <TextView
+                        android:id="@+id/mediaInfoShowMore"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:fontFamily="@font/poppins_bold"
+                        android:text="@string/show_more"
+                        android:textColor="?attr/colorPrimary"
+                        android:textSize="13sp"
+                        android:visibility="gone" />
+
+                    <LinearLayout
+                        android:id="@+id/mediaInfoExternalLinksContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+                </LinearLayout>
 
                 <TableLayout
                     android:layout_width="match_parent"
