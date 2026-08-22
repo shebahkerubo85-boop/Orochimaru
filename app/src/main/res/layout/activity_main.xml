@@ -257,8 +257,19 @@
                     android:focusable="true"
                     android:nextFocusUp="@id/homeNavDiscovery"
                     android:nextFocusDown="@id/homeNavHome" />
-            </LinearLayout>
+                </LinearLayout>
         </FrameLayout>
+
+        <androidx.compose.ui.platform.ComposeView
+            android:id="@+id/homeNavBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="12dp"
+            android:elevation="10dp"
+            android:translationZ="10dp"
+            android:clipToOutline="true"
+            android:visibility="gone" />
 
         <androidx.cardview.widget.CardView
             android:id="@+id/incognito"

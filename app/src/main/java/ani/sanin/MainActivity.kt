@@ -26,6 +26,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.doOnAttach
 import androidx.core.view.isVisible
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.runtime.mutableStateOf
 import com.bumptech.glide.Glide
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.documentfile.provider.DocumentFile
@@ -74,7 +76,10 @@ import ani.sanin.settings.saving.internal.PreferenceKeystore
 import ani.sanin.settings.saving.internal.PreferencePackager
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.TvKeyboardUtil
+import ani.sanin.ui.components.NavigationPills
 import ani.sanin.ui.components.NavigationPillsViewModel
+import ani.sanin.ui.components.attachNavScrollCollapse
+import ani.sanin.ui.components.findFirstScrollable
 import ani.sanin.ui.splash.SaninLandscapeSplash
 import ani.sanin.ui.splash.SaninPortraitSplash
 import ani.sanin.util.AudioHelper
@@ -100,6 +105,8 @@ class MainActivity : AppCompatActivity() {
     private val scope = lifecycleScope
     private var load = false
     lateinit var navPillsViewModel: NavigationPillsViewModel
+    private val homeNavCollapsed = mutableStateOf(false)
+    private var homeScrollListener: RecyclerView.OnScrollListener? = null
     private var currentFragmentTag: String? = null
 
     private val tabFragments = mapOf(
@@ -129,6 +136,7 @@ class MainActivity : AppCompatActivity() {
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragmentContainer, fragment, tag)
             .commit()
+        binding.fragmentContainer.post { attachHomeScrollCollapse() }
     }
 
 
@@ -654,6 +662,44 @@ class MainActivity : AppCompatActivity() {
         updateSideRailGlass()
         binding.homeNavRail.post { updateSideRail() }
         updateNavPillFocusChains()
+        attachHomeScrollCollapse()
+    }
+
+    private fun useBottomNav(): Boolean {
+        val isTv = (resources.configuration.uiMode and Configuration.UI_MODE_TYPE_TELEVISION) != 0
+        val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+        return isPortrait && !isTv
+    }
+
+    private fun setupBottomNavBar() {
+        if (::navPillsViewModel.isInitialized && binding.homeNavBar.childCount == 0) {
+            binding.homeNavBar.setViewCompositionStrategy(
+                ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
+            )
+            binding.homeNavBar.setContent {
+                NavigationPills(
+                    viewModel = navPillsViewModel,
+                    vertical = false,
+                    collapsed = homeNavCollapsed.value,
+                )
+            }
+        }
+    }
+
+    private fun attachHomeScrollCollapse() {
+        val scroll = binding.fragmentContainer.findFirstScrollable() ?: return
+        if (scroll is RecyclerView) {
+            homeScrollListener?.let { scroll.removeOnScrollListener(it) }
+            homeScrollListener = object : RecyclerView.OnScrollListener() {
+                override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
+                    homeNavCollapsed.value =
+                        rv.computeVerticalScrollOffset() > (12 * resources.displayMetrics.density).toInt()
+                }
+            }
+            scroll.addOnScrollListener(homeScrollListener!!)
+        } else {
+            attachNavScrollCollapse(scroll) { homeNavCollapsed.value = it }
+        }
     }
 
     private fun updateSideRail() {
@@ -666,15 +712,22 @@ class MainActivity : AppCompatActivity() {
         } else {
             show = PrefManager.getVal<Boolean>(PrefName.SideRailPersist)
         }
-        if (show && ::navPillsViewModel.isInitialized) {
+        val bottomNav = useBottomNav()
+        if (bottomNav) {
+            setupBottomNavBar()
+            binding.homeNavRail.visibility = View.GONE
+            binding.homeNavBar.visibility = View.VISIBLE
+        } else if (show && ::navPillsViewModel.isInitialized) {
             binding.homeNavRail.visibility = View.VISIBLE
             binding.homeNavRail.translationX = 0f
             binding.homeNavRail.scaleY = 1f
             binding.homeNavRail.alpha = 1f
             updateHomeNavIconTints()
             setHomeNavPillsFocusable(false)
+            binding.homeNavBar.visibility = View.GONE
         } else {
             binding.homeNavRail.visibility = View.GONE
+            binding.homeNavBar.visibility = View.GONE
         }
     }
 
@@ -866,6 +919,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showHomeNavRail() {
+        if (useBottomNav()) return
         if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.NavRailAnimations)) {
             binding.homeNavRail.apply {
                 visibility = View.VISIBLE

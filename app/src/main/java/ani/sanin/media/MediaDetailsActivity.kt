@@ -8,6 +8,7 @@ import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.view.GestureDetector
+import android.view.Gravity
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
@@ -23,6 +24,8 @@ import androidx.appcompat.widget.AppCompatImageButton
 import androidx.core.content.ContextCompat
 import androidx.core.view.doOnLayout
 import androidx.core.view.isVisible
+import ani.sanin.ui.components.attachNavScrollCollapse
+import ani.sanin.ui.components.findFirstScrollable
 import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.lifecycleScope
@@ -72,6 +75,8 @@ class MediaDetailsActivity : AppCompatActivity() {
     private lateinit var commentsFragment: CommentsFragment
     private var commentsAdded = false
     var commentTabOpener: (() -> Unit)? = null
+    private var mediaNavCollapsed = false
+    private var mediaNavExpandedThickness = -1
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -275,6 +280,9 @@ class MediaDetailsActivity : AppCompatActivity() {
         fun selectTab(idx: Int, animate: Boolean = true) {
             selected = idx
             updateMediaNavIconTints(selected)
+            popNavPill(idx)
+            updateMediaNavPillIndicator()
+            setMediaNavCollapsed(false)
             val container = binding.mediaTabContent
             val parent = container?.parent as? View
             parent?.layoutParams = (parent?.layoutParams as? ViewGroup.MarginLayoutParams)?.apply {
@@ -311,6 +319,7 @@ class MediaDetailsActivity : AppCompatActivity() {
             val sel = model.loadSelected(media, isDownload)
             sel.window = idx
             model.saveSelected(media.id, sel)
+            attachMediaNavScrollCollapse()
         }
 
         navInfo?.setOnClickListener { selectTab(0); hideNavPills() }
@@ -331,6 +340,7 @@ class MediaDetailsActivity : AppCompatActivity() {
             defaultTab = 1
         }
         if (intent.getStringExtra("FRAGMENT_TO_LOAD") != null && hasComments) defaultTab = 2
+        applyMediaNavPillPlacement()
         selectTab(defaultTab, animate = false)
 
         // Gesture for double-tap on banner bg
@@ -390,6 +400,7 @@ class MediaDetailsActivity : AppCompatActivity() {
             }
         }
         binding.navPillBg?.live = PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.LiveSideRail)
+        applyMediaNavPillPlacement()
         if (PrefManager.getVal<Boolean>(PrefName.SideRailPersist)) {
             showNavPills()
         }
@@ -482,7 +493,7 @@ class MediaDetailsActivity : AppCompatActivity() {
     }
 
     fun hideNavPills() {
-        if (PrefManager.getVal<Boolean>(PrefName.SideRailPersist)) return
+        if (useBottomNav() || PrefManager.getVal<Boolean>(PrefName.SideRailPersist)) return
         binding.mediaNavPills?.visibility = View.GONE
         val focusTarget = binding.mediaTabContent
             ?: if (selected == 0) binding.mediaInfoFragmentContainer else binding.mediaRightPanel
@@ -511,6 +522,112 @@ class MediaDetailsActivity : AppCompatActivity() {
         } else {
             binding.navPillInfo?.requestFocus()
         }
+    }
+
+    private fun useBottomNav(): Boolean {
+        val isTv = (resources.configuration.uiMode and Configuration.UI_MODE_TYPE_TELEVISION) != 0
+        val portrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+        return portrait && !isTv
+    }
+
+    private fun applyMediaNavPillPlacement() {
+        val frame = binding.mediaNavPills ?: return
+        val container = binding.navPillContainer ?: return
+        val bottom = useBottomNav()
+        val density = resources.displayMetrics.density
+        val lp = frame.layoutParams as? FrameLayout.LayoutParams ?: return
+        if (bottom) {
+            lp.width = ViewGroup.LayoutParams.MATCH_PARENT
+            lp.height = ViewGroup.LayoutParams.WRAP_CONTENT
+            lp.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            lp.marginStart = 0
+            container.orientation = LinearLayout.HORIZONTAL
+            frame.visibility = View.VISIBLE
+        } else {
+            lp.width = (44 * density).toInt()
+            lp.height = ViewGroup.LayoutParams.WRAP_CONTENT
+            lp.gravity = Gravity.START or Gravity.CENTER_VERTICAL
+            lp.marginStart = (8 * density).toInt()
+            container.orientation = LinearLayout.VERTICAL
+        }
+        frame.layoutParams = lp
+        frame.post { mediaNavExpandedThickness = if (useBottomNav()) frame.height else frame.width }
+        val pills = listOfNotNull(
+            binding.navPillInfo?.takeIf { it.visibility == View.VISIBLE },
+            binding.navPillWatch?.takeIf { it.visibility == View.VISIBLE },
+            binding.navPillComments?.takeIf { it.visibility == View.VISIBLE }
+        )
+        pills.forEachIndexed { i, v ->
+            val prev = pills[(i - 1 + pills.size) % pills.size]
+            val next = pills[(i + 1) % pills.size]
+            v.isFocusable = !bottom
+            if (bottom) {
+                v.nextFocusLeft = prev.id
+                v.nextFocusRight = next.id
+                v.nextFocusUp = View.NO_ID
+                v.nextFocusDown = View.NO_ID
+            } else {
+                v.nextFocusUp = prev.id
+                v.nextFocusDown = next.id
+                v.nextFocusLeft = View.NO_ID
+                v.nextFocusRight = View.NO_ID
+            }
+        }
+        frame.post { updateMediaNavPillIndicator() }
+    }
+
+    private fun updateMediaNavPillIndicator() {
+        val frame = binding.mediaNavPills ?: return
+        val container = binding.navPillContainer ?: return
+        val indicator = binding.navPillIndicator ?: return
+        if (selected < 0 || selected >= container.childCount) return
+        val pill = container.getChildAt(selected) ?: return
+        val w = pill.width
+        val h = pill.height
+        if (w <= 0 || h <= 0) {
+            frame.post { updateMediaNavPillIndicator() }
+            return
+        }
+        indicator.layoutParams = (indicator.layoutParams as ViewGroup.LayoutParams).also { it.width = w; it.height = h }
+        indicator.requestLayout()
+        val x = pill.x + (pill.width - w) / 2f
+        val y = pill.y + (pill.height - h) / 2f
+        indicator.animate().translationX(x).translationY(y).setDuration(250).start()
+    }
+
+    private fun popNavPill(index: Int) {
+        val container = binding.navPillContainer ?: return
+        if (index < 0 || index >= container.childCount) return
+        val pill = container.getChildAt(index) ?: return
+        pill.pivotX = pill.width / 2f
+        pill.pivotY = pill.height / 2f
+        pill.animate().scaleX(1.12f).scaleY(1.12f).setDuration(120)
+            .withEndAction { pill.animate().scaleX(1f).scaleY(1f).setDuration(160).start() }
+    }
+
+    private fun setMediaNavCollapsed(c: Boolean) {
+        if (mediaNavCollapsed == c) return
+        mediaNavCollapsed = c
+        val frame = binding.mediaNavPills ?: return
+        val container = binding.navPillContainer ?: return
+        val bottom = useBottomNav()
+        val thin = (3 * resources.displayMetrics.density).toInt()
+        val lp = frame.layoutParams as FrameLayout.LayoutParams
+        if (bottom) {
+            lp.height = if (c) thin else ViewGroup.LayoutParams.WRAP_CONTENT
+        } else {
+            lp.width = if (c) thin else if (mediaNavExpandedThickness > 0) mediaNavExpandedThickness else ViewGroup.LayoutParams.WRAP_CONTENT
+        }
+        frame.layoutParams = lp
+        container.alpha = if (c) 0f else 1f
+        binding.navPillIndicator?.alpha = if (c) 0f else 1f
+    }
+
+    private fun attachMediaNavScrollCollapse() {
+        val info = binding.mediaInfoFragmentContainer?.findFirstScrollable()
+        val tab = binding.mediaTabContent?.findFirstScrollable()
+        attachNavScrollCollapse(info) { setMediaNavCollapsed(it) }
+        attachNavScrollCollapse(tab) { setMediaNavCollapsed(it) }
     }
 
     companion object {

@@ -87,7 +87,17 @@
             android:clickable="false"
             android:importantForAccessibility="no" />
 
+        <View
+            android:id="@+id/navPillIndicator"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_gravity="start|top"
+            android:background="@drawable/bg_nav_pill_indicator"
+            android:focusable="false"
+            android:importantForAccessibility="no" />
+
         <LinearLayout
+            android:id="@+id/navPillContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"

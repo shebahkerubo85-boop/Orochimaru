@@ -30,6 +30,8 @@ import ani.sanin.connections.anilist.api.Notification
 import ani.sanin.databinding.ActivityNotificationBinding
 import ani.sanin.initActivity
 import ani.sanin.media.MediaDetailsActivity
+import ani.sanin.ui.components.attachNavScrollCollapse
+import ani.sanin.ui.components.findFirstScrollable
 import ani.sanin.notifications.comment.CommentStore
 import ani.sanin.notifications.subscription.SubscriptionStore
 import ani.sanin.profile.ProfileActivity
@@ -56,6 +58,8 @@ enum class TabType { USER, MEDIA, SUBSCRIPTION, COMMENT, ONE }
 class NotificationActivity : AppCompatActivity() {
     lateinit var binding: ActivityNotificationBinding
     private var selected = 0
+    private var notifNavCollapsed = false
+    private var notifNavExpandedThickness = -1
     private val CommentsEnabled = PrefManager.getVal<Int>(PrefName.CommentsEnabled) == 1
     private var userCount = 0
     private var mediaCount = 0
@@ -151,6 +155,7 @@ class NotificationActivity : AppCompatActivity() {
         } else {
             binding.notificationNavRail.visibility = View.GONE
         }
+        applyNotificationNavPlacement()
     }
 
     private fun tomoe(sizeDp: Float, speed: Float, rot: Float, grav: Int): LottieAnimationView {
@@ -191,6 +196,7 @@ class NotificationActivity : AppCompatActivity() {
                     if (shouldLoadMore()) loadMore()
                 }
             })
+            attachNavScrollCollapse(this) { setNotifNavCollapsed(it) }
         }
         tabSwipeRefresh.addView(tabRecycler)
 
@@ -247,6 +253,8 @@ class NotificationActivity : AppCompatActivity() {
 
     private fun selectTab(idx: Int) {
         selected = idx
+        popNotificationNavPill(idx)
+        updateNotificationNavIndicator()
         val state = tabStates[idx]
         if (getOne != -1 || !state.loaded) {
             loadTab(idx, force = true)
@@ -480,6 +488,10 @@ class NotificationActivity : AppCompatActivity() {
     }
 
     private fun showNotificationNavRail() {
+        if (useBottomNav()) {
+            binding.notificationNavRail.visibility = View.VISIBLE
+            return
+        }
         binding.notificationNavRail.apply {
             visibility = View.VISIBLE
             pivotY = 0f; translationX = -60f * resources.displayMetrics.density
@@ -508,7 +520,7 @@ class NotificationActivity : AppCompatActivity() {
     }
 
     private fun hideNotificationNavRail() {
-        if (PrefManager.getVal<Boolean>(PrefName.SideRailPersist)) return
+        if (useBottomNav() || PrefManager.getVal<Boolean>(PrefName.SideRailPersist)) return
         binding.notificationNavRail.visibility = View.GONE
         tabRecycler.requestFocus()
     }
@@ -519,6 +531,106 @@ class NotificationActivity : AppCompatActivity() {
             btn.imageTintList = ColorStateList.valueOf(customColor)
             btn.alpha = 1f
         }
+    }
+
+    private fun useBottomNav(): Boolean {
+        val isTv = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_TYPE_TELEVISION) != 0
+        val portrait = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT
+        return portrait && !isTv
+    }
+
+    private fun applyNotificationNavPlacement() {
+        val frame = binding.notificationNavRail
+        val container = binding.notificationNavContainer
+        val bottom = useBottomNav()
+        val density = resources.displayMetrics.density
+        val lp = frame.layoutParams as? FrameLayout.LayoutParams ?: return
+        if (bottom) {
+            lp.width = ViewGroup.LayoutParams.MATCH_PARENT
+            lp.height = ViewGroup.LayoutParams.WRAP_CONTENT
+            lp.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            lp.marginStart = 0
+            container.orientation = LinearLayout.HORIZONTAL
+            frame.visibility = View.VISIBLE
+        } else {
+            lp.width = (44 * density).toInt()
+            lp.height = ViewGroup.LayoutParams.WRAP_CONTENT
+            lp.gravity = Gravity.START or Gravity.CENTER_VERTICAL
+            lp.marginStart = 0
+            container.orientation = LinearLayout.VERTICAL
+        }
+        frame.layoutParams = lp
+        frame.post { notifNavExpandedThickness = if (useBottomNav()) frame.height else frame.width }
+        val pills = listOfNotNull(
+            binding.notificationNavUser?.takeIf { it.visibility == View.VISIBLE },
+            binding.notificationNavMedia?.takeIf { it.visibility == View.VISIBLE },
+            binding.notificationNavSubs?.takeIf { it.visibility == View.VISIBLE },
+            binding.notificationNavComment?.takeIf { it.visibility == View.VISIBLE }
+        )
+        pills.forEachIndexed { i, v ->
+            val prev = pills[(i - 1 + pills.size) % pills.size]
+            val next = pills[(i + 1) % pills.size]
+            v.isFocusable = !bottom
+            if (bottom) {
+                v.nextFocusLeft = prev.id
+                v.nextFocusRight = next.id
+                v.nextFocusUp = View.NO_ID
+                v.nextFocusDown = View.NO_ID
+            } else {
+                v.nextFocusUp = prev.id
+                v.nextFocusDown = next.id
+                v.nextFocusLeft = View.NO_ID
+                v.nextFocusRight = View.NO_ID
+            }
+        }
+        frame.post { updateNotificationNavIndicator() }
+    }
+
+    private fun updateNotificationNavIndicator() {
+        val frame = binding.notificationNavRail
+        val container = binding.notificationNavContainer
+        val indicator = binding.notificationNavIndicator
+        if (selected < 0 || selected >= container.childCount) return
+        val pill = container.getChildAt(selected) ?: return
+        val w = pill.width
+        val h = pill.height
+        if (w <= 0 || h <= 0) {
+            frame.post { updateNotificationNavIndicator() }
+            return
+        }
+        indicator.layoutParams = (indicator.layoutParams as ViewGroup.LayoutParams).also { it.width = w; it.height = h }
+        indicator.requestLayout()
+        val x = pill.x + (pill.width - w) / 2f
+        val y = pill.y + (pill.height - h) / 2f
+        indicator.animate().translationX(x).translationY(y).setDuration(250).start()
+    }
+
+    private fun popNotificationNavPill(index: Int) {
+        val container = binding.notificationNavContainer
+        if (index < 0 || index >= container.childCount) return
+        val pill = container.getChildAt(index) ?: return
+        pill.pivotX = pill.width / 2f
+        pill.pivotY = pill.height / 2f
+        pill.animate().scaleX(1.12f).scaleY(1.12f).setDuration(120)
+            .withEndAction { pill.animate().scaleX(1f).scaleY(1f).setDuration(160).start() }
+    }
+
+    private fun setNotifNavCollapsed(c: Boolean) {
+        if (notifNavCollapsed == c) return
+        notifNavCollapsed = c
+        val frame = binding.notificationNavRail
+        val container = binding.notificationNavContainer
+        val bottom = useBottomNav()
+        val thin = (3 * resources.displayMetrics.density).toInt()
+        val lp = frame.layoutParams as FrameLayout.LayoutParams
+        if (bottom) {
+            lp.height = if (c) thin else ViewGroup.LayoutParams.WRAP_CONTENT
+        } else {
+            lp.width = if (c) thin else if (notifNavExpandedThickness > 0) notifNavExpandedThickness else ViewGroup.LayoutParams.WRAP_CONTENT
+        }
+        frame.layoutParams = lp
+        container.alpha = if (c) 0f else 1f
+        binding.notificationNavIndicator?.alpha = if (c) 0f else 1f
     }
 
     private fun updateCounts() {
@@ -539,6 +651,7 @@ class NotificationActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         updateCounts()
+        applyNotificationNavPlacement()
         if (PrefManager.getVal<Boolean>(PrefName.SideRailPersist))
             binding.notificationNavRail.visibility = View.VISIBLE
     }
