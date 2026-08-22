@@ -1,42 +1,50 @@
 package ani.sanin.cloudstream
 
 import android.content.Intent
+import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
+import android.text.SpannableString
+import android.text.style.ForegroundColorSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.WebChromeClient
+import android.webkit.WebSettings
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.tmdb.TmdbCast
 import ani.sanin.connections.tmdb.TmdbDetail
-import ani.sanin.connections.tmdb.TmdbGenre
-import ani.sanin.connections.tmdb.TmdbImage
-import ani.sanin.connections.tmdb.TmdbImages
 import ani.sanin.connections.tmdb.TmdbMedia
-import ani.sanin.settings.saving.PrefName
-import com.lagradost.cloudstream3.LoadResponse
-import com.lagradost.cloudstream3.TvSeriesLoadResponse
+import ani.sanin.connections.simkl.Simkl
 import ani.sanin.databinding.ActivityTmdbDetailsBinding
+import ani.sanin.databinding.FragmentTmdbInfoBinding
+import ani.sanin.databinding.ActivityGenreBinding
+import ani.sanin.databinding.ItemTitleTrailerBinding
 import ani.sanin.databinding.ItemTmdbCardBinding
 import ani.sanin.databinding.ItemTmdbCastBinding
+import ani.sanin.databinding.ItemGenreBinding
+import ani.sanin.databinding.ItemChipBinding
+import ani.sanin.databinding.ItemTitleChipgroupBinding
 import ani.sanin.getThemeColor
 import ani.sanin.loadImage
-import ani.sanin.connections.simkl.Simkl
 import ani.sanin.snackString
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.Logger
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.google.android.material.card.MaterialCardView
 import com.lagradost.cloudstream3.CommonActivity
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class TmdbDetailsActivity : AppCompatActivity() {
 
@@ -47,41 +55,37 @@ class TmdbDetailsActivity : AppCompatActivity() {
         const val ARG_PLUGIN_URL = "pluginUrl"
     }
 
-    private lateinit var binding: ActivityTmdbDetailsBinding
+    private lateinit var shell: ActivityTmdbDetailsBinding
+    private lateinit var binding: FragmentTmdbInfoBinding
     private var mediaType: String = "movie"
     private var mediaId: Int = -1
     private var pluginSourceId: String? = null
     private var pluginUrl: String? = null
-    private var pluginLoad: LoadResponse? = null
     private val pluginMode get() = pluginUrl != null
     private var detail: TmdbDetail? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Apply the user's actual theme (OLED black, accent colors, ...) instead of the
-        // manifest default (Material3 baseline purple in night mode).
         ThemeManager(this).applyTheme()
-        // Plugins use CommonActivity.getActivity() for toasts/browser launches.
         CommonActivity.setActivityInstance(this)
-        binding = ActivityTmdbDetailsBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+
+        shell = ActivityTmdbDetailsBinding.inflate(layoutInflater)
+        binding = FragmentTmdbInfoBinding.inflate(layoutInflater)
+        shell.tmdbDetailFragmentContainer.addView(binding.root)
+        setContentView(shell.root)
 
         mediaType = intent.getStringExtra(ARG_MEDIA_TYPE) ?: "movie"
         mediaId = intent.getIntExtra(ARG_MEDIA_ID, -1)
         pluginSourceId = intent.getStringExtra(ARG_PLUGIN_SOURCE)
         pluginUrl = intent.getStringExtra(ARG_PLUGIN_URL)
-        Logger.log(
-            "TMDB_DETAILS: opened mediaType=$mediaType mediaId=$mediaId"
-        )
+        Logger.log("TMDB_DETAILS: opened mediaType=$mediaType mediaId=$mediaId")
 
-        binding.tmdbDetailBack.setOnClickListener { finish() }
-        FocusEffectUtil.applyFocusListener(binding.tmdbDetailBack)
+        shell.tmdbDetailBack.setOnClickListener { finish() }
+        FocusEffectUtil.applyFocusListener(shell.tmdbDetailBack)
         binding.tmdbDetailPlayCard.setOnClickListener { onPlayClick() }
         FocusEffectUtil.applyFocusListener(binding.tmdbDetailPlayCard)
-
-        // List editor button (Simkl)
-        binding.tmdbDetailListEditorCard.setOnClickListener { onListEditorClick() }
-        FocusEffectUtil.applyFocusListener(binding.tmdbDetailListEditorCard)
+        binding.mediaInfoAddToList.setOnClickListener { onListEditorClick() }
+        FocusEffectUtil.applyFocusListener(binding.mediaInfoAddToList)
 
         load()
     }
@@ -91,64 +95,82 @@ class TmdbDetailsActivity : AppCompatActivity() {
         CommonActivity.setActivityInstance(this)
     }
 
+    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
     private fun load() {
+        if (pluginMode) { loadPlugin(); return }
         lifecycleScope.launch {
-            if (pluginMode) {
-                loadPlugin()
-                return@launch
-            }
             val d = Tmdb.detail(mediaType, mediaId) ?: run {
-                snackString("Could not load details")
-                return@launch
+                snackString("Could not load details"); return@launch
             }
             detail = d
-            binding.tmdbDetailBackdrop.loadImage(Tmdb.imageUrl(d.backdropPath ?: d.posterPath, 780))
+            binding.mediaInfoProgressBar.visibility = View.GONE
+            binding.mediaInfoContainer.visibility = View.VISIBLE
+
+            val isPortrait = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT
+            val bg = if (isPortrait)
+                Tmdb.imageUrl(d.posterPath, 780) ?: Tmdb.imageUrl(d.backdropPath, 780)
+            else
+                Tmdb.imageUrl(d.backdropPath, 1280) ?: Tmdb.imageUrl(d.posterPath, 780)
+            bg?.let { shell.tmdbDetailBackdrop.loadImage(it) }
+
             val logo = Tmdb.logoUrl(d)
             if (logo != null) {
-                binding.tmdbDetailLogo.loadImage(logo)
+                binding.mediaInfoLogo.loadImage(logo)
+                binding.mediaInfoLogo.visibility = View.VISIBLE
+                binding.mediaInfoTitle.visibility = View.GONE
             } else {
-                binding.tmdbDetailLogo.visibility = View.GONE
+                binding.mediaInfoTitle.text = d.displayTitle
+                binding.mediaInfoTitle.visibility = View.VISIBLE
+                binding.mediaInfoLogo.visibility = View.GONE
             }
-            binding.tmdbDetailRating.text = buildString {
-                if (d.voteAverage > 0) append("★ ").append(String.format("%.1f", d.voteAverage)).append("  •  ")
-                if (d.year.isNotBlank()) append(d.year)
+
+            val scoreTxt = if (d.voteAverage > 0) "★ " + String.format("%.1f", d.voteAverage) else "—"
+            val scoreSpan = SpannableString(scoreTxt)
+            if (d.voteAverage > 0) {
+                scoreSpan.setSpan(
+                    ForegroundColorSpan(Color.parseColor("#FFD700")),
+                    0, 1, SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
             }
-            binding.tmdbDetailStatus.text = statusLabel(d.status)
-            binding.tmdbDetailSynopsis.text = d.overview?.takeIf { it.isNotBlank() } ?: "No synopsis available."
-            // Load Simkl list status for the editor button
-            if (Simkl.token != null) {
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    val status = Simkl.getMediaStatus(mediaType, tmdbId = d.id, imdbId = d.externalIds?.imdbId)
-                    withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        val statusLabel = when (status) {
-                            "watching" -> "Watching"
-                            "plantowatch" -> "Plan to Watch"
-                            "completed" -> "Completed"
-                            "dropped" -> "Dropped"
-                            "hold" -> "On Hold"
-                            else -> "Add to List"
-                        }
-                        binding.tmdbDetailListEditorCard.text = statusLabel
-                    }
+            binding.mediaInfoMeanScore.text = scoreSpan
+            binding.mediaInfoStatus.text = statusLabel(d.status)
+            binding.mediaInfoStatus.setTextColor(tmdbStatusColor(d.status))
+
+            if (mediaType == "tv" && d.numberOfEpisodes > 0) {
+                val total = d.numberOfEpisodes
+                binding.mediaInfoReleased.text = total.toString() + " of " + total.toString()
+                lifecycleScope.launch {
+                    val prog = simklProgress(mediaType, d.id, d.externalIds?.imdbId)
+                    val w = prog?.first ?: 0
+                    val totalEps = (prog?.second ?: total).coerceAtLeast(total)
+                    val span = SpannableString(w.toString() + " of " + totalEps.toString())
+                    val len = w.toString().length
+                    if (len > 0) span.setSpan(
+                        ForegroundColorSpan(getThemeColor(com.google.android.material.R.attr.colorPrimary)),
+                        0, len, SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                    binding.mediaInfoWatchProgress.text = span
+                    val next = if (w < totalEps) w + 1 else 0
+                    binding.mediaInfoNextEpisode.text = if (next > 0) "Ep " + next else "—"
                 }
+            } else {
+                binding.mediaInfoReleasedRow.visibility = View.GONE
+                binding.mediaInfoProgressRow.visibility = View.GONE
+                binding.mediaInfoNextRow.visibility = View.GONE
             }
-            d.genres.take(5).forEach { genre ->
-                val chip = TextView(this@TmdbDetailsActivity).apply {
-                    text = genre.name
-                    setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurface))
-                    setBackgroundResource(R.drawable.tmdb_chip_bg)
-                    textSize = 12f
-                    setPadding(36, 12, 36, 12)
-                    isFocusable = true
-                }
-                val lp = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { marginEnd = 20 }
-                binding.tmdbDetailGenreChips.addView(chip, lp)
-                FocusEffectUtil.applyFocusListener(chip)
-            }
-            binding.tmdbDetailPlayText.text = getString(if (mediaType == "tv") R.string.watch else R.string.play)
+
+            lifecycleScope.launch { updateListEditorLabel(d) }
+
+            loadGenres(d)
+            binding.mediaInfoDescription.text =
+                d.overview?.takeIf { it.isNotBlank() } ?: getString(R.string.no_description_available)
+            setupShowMore()
+            loadExternalLinks(d)
+            setupMetaRow(d)
+            loadTrailer(d)
+            loadTags(d)
+            loadRelations(d)
             buildCastSection(d)
             buildMoreLikeSection(d)
         }
@@ -163,191 +185,348 @@ class TmdbDetailsActivity : AppCompatActivity() {
         else -> status ?: ""
     }
 
-    // ── playback flow ───────────────────────────────────────────────────────
-
-    /** The play button is the gate to the movie/tv watch tab. */
-    private fun onPlayClick() {
-        val i = Intent(this, TmdbWatchActivity::class.java)
-            .putExtra(TmdbWatchActivity.ARG_MEDIA_TYPE, mediaType)
-            .putExtra(TmdbWatchActivity.ARG_MEDIA_ID, mediaId)
-        if (pluginMode) {
-            i.putExtra(TmdbWatchActivity.ARG_PLUGIN_SOURCE, pluginSourceId)
-            i.putExtra(TmdbWatchActivity.ARG_PLUGIN_URL, pluginUrl)
+    private fun tmdbStatusColor(status: String?): Int {
+        val s = status?.lowercase() ?: ""
+        return when {
+            s.contains("returning") -> Color.parseColor("#76FF03")
+            s.contains("planned") || s.contains("in production") || s.contains("upcoming") ->
+                Color.parseColor("#00E5FF")
+            s.contains("released") || s.contains("ended") || s.contains("cancel") ->
+                Color.parseColor("#F44336")
+            else -> Color.WHITE
         }
-        startActivity(i)
     }
 
-    private fun onListEditorClick() {
-        if (Simkl.token == null) {
-            snackString("Please login to Simkl")
+// __PART2__
+
+    private fun loadGenres(d: TmdbDetail) {
+        val genres = d.genres
+        if (genres.isNullOrEmpty()) {
+            binding.mediaInfoGenreContainer.visibility = View.GONE
             return
         }
-        val d = detail
-        if (d == null) { snackString("Loading…"); return }
-        lifecycleScope.launch {
-            val status = withContext(Dispatchers.IO) {
-                Simkl.getMediaStatus(mediaType, tmdbId = d.id, imdbId = d.externalIds?.imdbId)
-            }
-            val fm = supportFragmentManager
-            if (fm.findFragmentByTag("simklListEditor") == null) {
-                val backdropUrl = ani.sanin.connections.tmdb.Tmdb.imageUrl(d.backdropPath, 780)
-                SimklListDialogFragment.newInstance(
-                    mediaType = mediaType,
-                    mediaId = d.id,
-                    title = d.displayTitle,
-                    year = d.year.toIntOrNull(),
-                    imdbId = d.externalIds?.imdbId,
-                    coverUrl = ani.sanin.connections.tmdb.Tmdb.imageUrl(d.posterPath, 500),
-                    backdropUrl = backdropUrl,
-                    currentStatus = status
-                ).show(fm, "simklListEditor")
+        binding.mediaInfoGenreContainer.visibility = View.VISIBLE
+        val host = ActivityGenreBinding.inflate(layoutInflater)
+        host.mediaInfoGenresProgressBar.visibility = View.GONE
+        host.mediaInfoGenresRecyclerView.layoutManager =
+            GridLayoutManager(this, (width / 95.dpToPx()).coerceAtLeast(3))
+        val items = genres.map { GenreBanner(it.id, it.name, null) }
+        val adapter = GenreBannerAdapter(items)
+        host.mediaInfoGenresRecyclerView.adapter = adapter
+        binding.mediaInfoGenreContainer.addView(host.root)
+        lifecycleScope.launch(Dispatchers.IO) {
+            val banners = items.map { Tmdb.genreBannerUrl(it.id) }
+            val updated = items.mapIndexed { i, g -> g.copy(bannerUrl = banners[i]) }
+            withContext(Dispatchers.Main) { adapter.submitList(updated) }
+        }
+    }
+
+    private fun Int.dpToPx(): Int = (this * resources.displayMetrics.density).toInt()
+
+    data class GenreBanner(val id: Int, val name: String, val bannerUrl: String?)
+
+    class GenreBannerAdapter(private var items: List<GenreBanner>) :
+        RecyclerView.Adapter<GenreBannerAdapter.VH>() {
+        class VH(val b: ItemGenreBinding) : RecyclerView.ViewHolder(b.root)
+        override fun onCreateViewHolder(p: ViewGroup, v: Int): VH =
+            VH(ItemGenreBinding.inflate(LayoutInflater.from(p.context), p, false))
+        override fun getItemCount() = items.size
+        fun submitList(list: List<GenreBanner>) {
+            items = list
+            notifyDataSetChanged()
+        }
+        override fun onBindViewHolder(h: VH, i: Int) {
+            val g = items[i]
+            h.b.genreTitle.text = g.name
+            h.b.genreImage.loadImage(g.bannerUrl)
+        }
+    }
+
+    private fun setupShowMore() {
+        binding.mediaInfoShowMore.visibility = View.GONE
+        binding.mediaInfoDescription.post {
+            val lineHeight = binding.mediaInfoDescription.lineHeight
+            val visibleMax = (dp(210) / lineHeight).coerceAtLeast(3)
+            if (binding.mediaInfoDescription.lineCount > visibleMax) {
+                binding.mediaInfoDescription.maxLines = visibleMax
+                binding.mediaInfoShowMore.visibility = View.VISIBLE
+                binding.mediaInfoShowMore.setOnClickListener {
+                    val expanded = binding.mediaInfoDescription.maxLines == Int.MAX_VALUE
+                    if (expanded) {
+                        binding.mediaInfoDescription.maxLines = visibleMax
+                        binding.mediaInfoShowMore.text = getString(R.string.show_more)
+                    } else {
+                        binding.mediaInfoDescription.maxLines = Int.MAX_VALUE
+                        binding.mediaInfoShowMore.text = getString(R.string.show_less)
+                    }
+                }
             }
         }
     }
 
-
-    /** Plugin-driven details: loads the title straight from a CloudStream plugin. */
-    private suspend fun loadPlugin() {
-        val url = pluginUrl ?: return
-        val sources = ani.sanin.cloudstream.CsRepos.installed(this)
-        val source = sources.firstOrNull { it.id == pluginSourceId } ?: run {
-            snackString("Plugin not installed"); finish(); return
-        }
-        val api = withContext(Dispatchers.IO) {
-            ani.sanin.cloudstream.CsRuntime.apisFor(this@TmdbDetailsActivity, source).firstOrNull()
-        } ?: run { snackString("Could not load ${source.name}"); finish(); return }
-        Logger.log("TMDB_DETAILS: plugin mode, loading '$url' via ${source.name}")
-        val load = withContext(Dispatchers.IO) { runCatching { api.load(url) }.getOrNull() }
-        if (load == null) {
-            snackString("Plugin returned nothing"); finish(); return
-        }
-        pluginLoad = load
-        val poster = load.posterUrl
-        val backdrop = load.backgroundPosterUrl ?: load.posterUrl
-        val rating = load.score?.toFloat(10)?.toDouble() ?: 0.0
-        val genres = load.tags.orEmpty().map { ani.sanin.connections.tmdb.TmdbGenre(0, it) }
-        val year = load.year?.toString()
-        val images = load.logoUrl?.let { TmdbImages(logos = listOf(TmdbImage(it))) }
-        detail = TmdbDetail(
-            id = mediaId, name = load.name, overview = load.plot,
-            voteAverage = rating, backdropPath = backdrop, posterPath = poster,
-            firstAirDate = year?.let { "$it-01-01" }, genres = genres, images = images
-        )
-        val d = detail ?: return
-        binding.tmdbDetailBackdrop.loadImage(backdrop)
-        val logo = load.logoUrl
-        if (logo != null) binding.tmdbDetailLogo.loadImage(logo) else binding.tmdbDetailLogo.visibility = View.GONE
-        binding.tmdbDetailRating.text = buildString {
-            if (d.voteAverage > 0) append("★ ").append(String.format("%.1f", d.voteAverage)).append("  •  ")
-            if (d.year.isNotBlank()) append(d.year)
-        }
-        binding.tmdbDetailStatus.text = ""
-        binding.tmdbDetailSynopsis.text = d.overview?.takeIf { it.isNotBlank() } ?: "No synopsis available."
-        d.genres.take(5).forEach { genre ->
-            val chip = TextView(this@TmdbDetailsActivity).apply {
-                text = genre.name; setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurface))
-                setBackgroundResource(R.drawable.tmdb_chip_bg); textSize = 12f; setPadding(36, 12, 36, 12); isFocusable = true
-            }
-            val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginEnd = 20 }
-            binding.tmdbDetailGenreChips.addView(chip, lp)
+    private fun loadExternalLinks(d: TmdbDetail) {
+        val links = mutableListOf<Pair<String, String>>()
+        d.externalIds?.imdbId?.let { links.add("IMDb" to "https://www.imdb.com/title/$it/") }
+        d.externalIds?.facebookId?.let { links.add("Facebook" to "https://www.facebook.com/$it") }
+        d.externalIds?.instagramId?.let { links.add("Instagram" to "https://www.instagram.com/$it") }
+        d.externalIds?.twitterId?.let { links.add("Twitter" to "https://twitter.com/$it") }
+        if (links.isEmpty()) return
+        val bind = ItemTitleChipgroupBinding.inflate(layoutInflater)
+        bind.itemTitle.setText(R.string.external_links)
+        links.forEach { (site, url) ->
+            val chip = ItemChipBinding.inflate(layoutInflater, bind.itemChipGroup, false).root
+            chip.text = site
+            chip.setOnClickListener { openUrl(url) }
             FocusEffectUtil.applyFocusListener(chip)
+            bind.itemChipGroup.addView(chip)
         }
-        binding.tmdbDetailPlayText.text = getString(if (load is TvSeriesLoadResponse) R.string.watch else R.string.play)
-        // Hide list editor for plugin mode (no TMDB ID)
-        binding.tmdbDetailListEditorCard.visibility = View.GONE
+        binding.mediaInfoExternalLinksContainer.addView(bind.root)
     }
 
-    // ── cast / more like this ───────────────────────────────────────────────
+    private fun setupMetaRow(d: TmdbDetail) {
+        binding.mediaInfoSource.text = "TMDB"
+        binding.mediaInfoFormat.text = if (mediaType == "tv") "TV" else "Movie"
+        val studio = d.productionCompanies.firstOrNull()?.name
+        binding.mediaInfoStudio.text = studio ?: "—"
+        if (studio != null) binding.mediaInfoStudio.setOnClickListener {
+            openUrl("https://www.themoviedb.org/$mediaType/${d.id}")
+        }
+        binding.mediaInfoAuthor.text = "—"
+        binding.mediaInfoShare.setOnClickListener { shareMovie() }
+        binding.mediaInfoFav.setOnClickListener { snackString("Favorite not available") }
+        binding.mediaInfoComment.setOnClickListener { snackString("Comments not available") }
+        FocusEffectUtil.applyFocusListener(
+            binding.mediaInfoAddToList, binding.mediaInfoFav,
+            binding.mediaInfoShare, binding.mediaInfoComment
+        )
+    }
+
+// __PART3__
+
+    private fun openUrl(url: String) {
+        if (url.isBlank()) return
+        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    }
+
+    private fun shareMovie() {
+        val d = detail ?: return
+        val url = "https://www.themoviedb.org/$mediaType/${d.id}"
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"; putExtra(Intent.EXTRA_TEXT, url)
+        }
+        startActivity(Intent.createChooser(send, "Share"))
+    }
+
+    private fun loadTrailer(d: TmdbDetail) {
+        val key = d.videos?.results?.firstOrNull { it.site.equals("YouTube", true) }?.key
+        if (key == null) return
+        val bind = ItemTitleTrailerBinding.inflate(layoutInflater)
+        val wv = bind.mediaInfoTrailer
+        wv.settings.javaScriptEnabled = true
+        wv.settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+        wv.webChromeClient = MyChrome()
+        wv.loadDataWithBaseURL(
+            "https://www.youtube-nocookie.com",
+            placeholderHtml(key), "text/html", "utf-8", null
+        )
+        binding.mediaInfoTrailerHost.addView(bind.root)
+    }
+
+    private fun placeholderHtml(key: String): String = """
+        <!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
+        <style>*{margin:0;padding:0}html,body{width:100%;height:100%;background:#000;overflow:hidden}
+        iframe{width:100%;height:100%;border:none}</style></head><body>
+        <iframe src="https://www.youtube-nocookie.com/embed/$key?rel=0&modestbranding=1"
+        allow="accelerometer;autoplay;encrypted-media;gyroscope;picture-in-picture"
+        frameborder="0" allowfullscreen></iframe></body></html>
+    """.trimIndent()
+
+    private fun loadTags(d: TmdbDetail) {
+        val tags = d.keywords?.keywords?.map { it.name } ?: emptyList()
+        if (tags.isEmpty()) return
+        val bind = ItemTitleChipgroupBinding.inflate(layoutInflater)
+        bind.itemTitle.setText(R.string.tags)
+        tags.forEach { tag ->
+            val chip = ItemChipBinding.inflate(layoutInflater, bind.itemChipGroup, false).root
+            chip.text = tag
+            chip.setOnClickListener {
+                val intent = Intent(this, TmdbSearchActivity::class.java)
+                intent.putExtra("query", tag)
+                startActivity(intent)
+            }
+            FocusEffectUtil.applyFocusListener(chip)
+            bind.itemChipGroup.addView(chip)
+        }
+        binding.mediaInfoTagsContainer.addView(bind.root)
+    }
+
+    private fun loadRelations(d: TmdbDetail) {
+        val collectionId = d.collection?.id
+        if (collectionId == null) {
+            binding.tmdbDetailRelationChips.visibility = View.GONE
+            return
+        }
+        binding.tmdbDetailRelationChips.visibility = View.VISIBLE
+        binding.tmdbDetailRelationChips.removeAllViews()
+        lifecycleScope.launch(Dispatchers.IO) {
+            val parts = Tmdb.collection(collectionId)
+            withContext(Dispatchers.Main) {
+                parts.forEach { part ->
+                    val iv = ImageView(this@TmdbDetailsActivity).apply {
+                        layoutParams = LinearLayout.LayoutParams(dp(140), dp(200)).apply {
+                            marginEnd = dp(8)
+                        }
+                        scaleType = ImageView.ScaleType.CENTER_CROP
+                        loadImage(Tmdb.imageUrl(part.posterPath, 342))
+                        contentDescription = part.displayTitle
+                        setOnClickListener {
+                            val intent =
+                                Intent(this@TmdbDetailsActivity, TmdbDetailsActivity::class.java)
+                            intent.putExtra(ARG_MEDIA_TYPE, if (part.mediaType == "tv") "tv" else "movie")
+                            intent.putExtra(ARG_MEDIA_ID, part.id)
+                            startActivity(intent)
+                        }
+                        FocusEffectUtil.applyFocusListener(this)
+                    }
+                    binding.tmdbDetailRelationChips.addView(iv)
+                }
+            }
+        }
+    }
 
     private fun buildCastSection(d: TmdbDetail) {
-        val cast = d.credits?.cast.orEmpty().take(20)
-        if (cast.isEmpty()) return
-        val ctx = this
-        val section = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
-        section.addView(sectionHeader("Cast"))
-        val list = RecyclerView(ctx).apply {
-            layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
-            adapter = CastAdapter(cast)
-            isNestedScrollingEnabled = false
-            setPadding(24, 8, 24, 8)
+        val cast = d.credits?.cast?.take(20) ?: emptyList()
+        if (cast.isEmpty()) {
+            binding.mediaInfoCastTitle.visibility = View.GONE
+            binding.mediaInfoCastRecycler.visibility = View.GONE
+            return
         }
-        section.addView(list)
-        binding.tmdbDetailSections.addView(section)
+        binding.mediaInfoCastTitle.visibility = View.VISIBLE
+        binding.mediaInfoCastRecycler.visibility = View.VISIBLE
+        binding.mediaInfoCastRecycler.layoutManager =
+            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        binding.mediaInfoCastRecycler.adapter = CastAdapter(cast) {}
     }
 
     private fun buildMoreLikeSection(d: TmdbDetail) {
-        val recs = d.recommendations?.results.orEmpty().take(20)
-        if (recs.isEmpty()) return
-        val ctx = this
-        val section = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
-        section.addView(sectionHeader("More Like This"))
-        val list = RecyclerView(ctx).apply {
-            layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
-            adapter = MoreLikeAdapter(recs) { media ->
-                startActivity(
-                    Intent(this@TmdbDetailsActivity, TmdbDetailsActivity::class.java)
-                        .putExtra(ARG_MEDIA_TYPE, media.type)
-                        .putExtra(ARG_MEDIA_ID, media.id)
-                )
+        lifecycleScope.launch(Dispatchers.IO) {
+            val recs = d.recommendations?.results ?: emptyList()
+            withContext(Dispatchers.Main) {
+                if (recs.isEmpty()) {
+                    binding.mediaInfoRecommendTitle.visibility = View.GONE
+                    binding.mediaInfoRecommendRecycler.visibility = View.GONE
+                    return@withContext
+                }
+                binding.mediaInfoRecommendTitle.visibility = View.VISIBLE
+                binding.mediaInfoRecommendRecycler.visibility = View.VISIBLE
+                binding.mediaInfoRecommendRecycler.layoutManager =
+                    LinearLayoutManager(this@TmdbDetailsActivity, LinearLayoutManager.HORIZONTAL, false)
+                binding.mediaInfoRecommendRecycler.adapter = MoreLikeAdapter(recs) { m ->
+                    val intent = Intent(this@TmdbDetailsActivity, TmdbDetailsActivity::class.java)
+                    intent.putExtra(ARG_MEDIA_TYPE, m.mediaType)
+                    intent.putExtra(ARG_MEDIA_ID, m.id)
+                    startActivity(intent)
+                }
             }
-            isNestedScrollingEnabled = false
-            setPadding(24, 8, 24, 8)
         }
-        section.addView(list)
-        binding.tmdbDetailSections.addView(section)
     }
 
-    private fun sectionHeader(title: String): TextView = TextView(this).apply {
-        text = title
-        setPadding(4, 24, 4, 4)
-        textSize = 17f
-        typeface = android.graphics.Typeface.DEFAULT_BOLD
-        setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+// __PART4__
+
+    private fun onPlayClick() {
+        val d = detail ?: return
+        if (pluginMode) {
+            val intent = Intent(this, PlayerActivity::class.java).apply {
+                putExtra(PlayerActivity.ARG_PLUGIN_SOURCE, pluginSourceId)
+                putExtra(PlayerActivity.ARG_PLUGIN_URL, pluginUrl)
+                putExtra(PlayerActivity.ARG_TITLE, d.displayTitle)
+                putExtra(PlayerActivity.ARG_POSTER, Tmdb.imageUrl(d.posterPath, 342))
+            }
+            startActivity(intent)
+            return
+        }
+        snackString("Playback requires a provider source")
+    }
+
+    private fun onListEditorClick() {
+        val d = detail ?: return
+        lifecycleScope.launch(Dispatchers.IO) {
+            val current = Simkl.getMediaStatus(mediaType, d.id, d.externalIds?.imdbId) ?: "plantowatch"
+            val next = when (current.lowercase()) {
+                "watching" -> "completed"
+                "completed" -> "plantowatch"
+                else -> "watching"
+            }
+            Simkl.setListStatus(
+                type = mediaType,
+                title = d.displayTitle,
+                year = d.releaseDate?.take(4)?.toIntOrNull(),
+                tmdbId = d.id,
+                imdbId = d.externalIds?.imdbId,
+                status = next
+            )
+            withContext(Dispatchers.Main) {
+                snackString("Marked as $next")
+                updateListEditorLabel(d)
+            }
+        }
+    }
+
+    private suspend fun updateListEditorLabel(d: TmdbDetail) {
+        val st = Simkl.getMediaStatus(mediaType, d.id, d.externalIds?.imdbId)
+        val label = st?.replaceFirstChar { it.uppercase() } ?: "Add to List"
+        withContext(Dispatchers.Main) {
+            binding.mediaInfoAddToList.text = label
+        }
+    }
+
+    private suspend fun simklProgress(
+        type: String, tmdbId: Int, imdbId: String?
+    ): Pair<Int, Int>? = withContext(Dispatchers.IO) {
+        val items = if (type == "tv") Simkl.getShowLibrary() else Simkl.getMovieLibrary()
+        val item = items.firstOrNull { it.ids != null && (it.ids.tmdb == tmdbId || (!imdbId.isNullOrBlank() && it.ids.imdb == imdbId)) }
+            ?: return@withContext null
+        val w = item.lastWatchedEpisode ?: 0
+        val y = item.totalEpisodes ?: 0
+        if (w == 0 && y == 0) null else Pair(w, y)
     }
 
     class CastAdapter(
-        private val items: List<TmdbCast>
+        private val items: List<TmdbCast>,
+        private val onClick: (TmdbCast) -> Unit
     ) : RecyclerView.Adapter<CastAdapter.VH>() {
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-            val b = ItemTmdbCastBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-            return VH(b)
+        class VH(val b: ItemTmdbCastBinding) : RecyclerView.ViewHolder(b.root)
+        override fun onCreateViewHolder(p: ViewGroup, v: Int): VH =
+            VH(ItemTmdbCastBinding.inflate(LayoutInflater.from(p.context), p, false))
+        override fun getItemCount() = items.size
+        override fun onBindViewHolder(h: VH, i: Int) {
+            val c = items[i]
+            h.b.tmdbCastImage.loadImage(Tmdb.imageUrl(c.profilePath, 185))
+            h.b.tmdbCastName.text = c.name
+            h.b.tmdbCastRole.text = c.character
+            h.b.root.setOnClickListener { onClick(c) }
         }
-
-        override fun onBindViewHolder(holder: VH, position: Int) {
-            val item = items[position]
-            holder.binding.tmdbCastImage.loadImage(Tmdb.imageUrl(item.profilePath, 200))
-            holder.binding.tmdbCastName.text = item.name
-            holder.binding.tmdbCastRole.text = item.character ?: ""
-            FocusEffectUtil.applyFocusListener(holder.binding.tmdbCastImage)
-        }
-
-        override fun getItemCount(): Int = items.size
-
-        class VH(val binding: ItemTmdbCastBinding) : RecyclerView.ViewHolder(binding.root)
     }
 
     class MoreLikeAdapter(
         private val items: List<TmdbMedia>,
         private val onClick: (TmdbMedia) -> Unit
     ) : RecyclerView.Adapter<MoreLikeAdapter.VH>() {
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-            val b = ItemTmdbCardBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-            return VH(b)
+        class VH(val b: ItemTmdbCardBinding) : RecyclerView.ViewHolder(b.root)
+        override fun onCreateViewHolder(p: ViewGroup, v: Int): VH =
+            VH(ItemTmdbCardBinding.inflate(LayoutInflater.from(p.context), p, false))
+        override fun getItemCount() = items.size
+        override fun onBindViewHolder(h: VH, i: Int) {
+            val m = items[i]
+            h.b.tmdbCardPoster.loadImage(Tmdb.imageUrl(m.posterPath, 342))
+            h.b.tmdbCardTitle.text = m.displayTitle
+            h.b.root.contentDescription = m.displayTitle
+            h.b.root.setOnClickListener { onClick(m) }
         }
+    }
 
-        override fun onBindViewHolder(holder: VH, position: Int) {
-            val item = items[position]
-            TmdbCards.applyCardStyle(holder.binding, item)
-            holder.binding.tmdbCardTitle.text = item.displayTitle
-            holder.binding.tmdbCardYear.text = item.year
-            holder.binding.tmdbCardPoster.setOnClickListener { onClick(item) }
-            FocusEffectUtil.applyFocusListener(holder.binding.tmdbCardPoster)
-        }
-
-        override fun getItemCount(): Int = items.size
-
-        class VH(val binding: ItemTmdbCardBinding) : RecyclerView.ViewHolder(binding.root)
+    class MyChrome : WebChromeClient() {
+        override fun onShowCustomView(view: View?, callback: CustomViewCallback?) = Unit
+        override fun onHideCustomView() = Unit
     }
 }

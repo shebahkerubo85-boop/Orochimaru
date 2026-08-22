@@ -208,6 +208,8 @@
     <string name="list_only">List Only</string>
     <string name="tag">Tag</string>
     <string name="tags">Tags</string>
+    <string name="cast">Cast</string>
+    <string name="more_like_this">More Like This</string>
     <string name="synonyms">Synonyms</string>
     <string name="trailer">Trailer</string>
     <string name="opening">Opening</string>

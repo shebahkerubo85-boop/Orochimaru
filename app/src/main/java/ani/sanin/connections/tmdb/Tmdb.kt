@@ -48,11 +48,16 @@ data class TmdbDetail(
     @SerialName("release_date") val releaseDate: String? = null,
     @SerialName("first_air_date") val firstAirDate: String? = null,
     @SerialName("number_of_seasons") val numberOfSeasons: Int = 0,
-    val genres: List<TmdbGenre> = emptyList(),
-    val images: TmdbImages? = null,
+    @SerialName("number_of_episodes") val numberOfEpisodes: Int = 0,
+        val genres: List<TmdbGenre> = emptyList(),
+        @SerialName("production_companies") val productionCompanies: List<TmdbCompany> = emptyList(),
+        @SerialName("networks") val networks: List<TmdbCompany> = emptyList(),
+        val images: TmdbImages? = null,
     @SerialName("external_ids") val externalIds: TmdbExternalIds? = null,
     val credits: TmdbCredits? = null,
     val recommendations: TmdbPage<TmdbMedia>? = null,
+    @SerialName("videos") val videos: TmdbVideoPage? = null,
+    @SerialName("keywords") val keywords: TmdbKeywordPage? = null,
     val seasons: List<TmdbSeason> = emptyList(),
     @SerialName("belongs_to_collection") val collection: TmdbCollection? = null
 ) {
@@ -84,10 +89,39 @@ data class TmdbGenre(val id: Int, val name: String)
 data class TmdbKeyword(val id: Int, val name: String)
 
 @Serializable
-data class TmdbExternalIds(@SerialName("imdb_id") val imdbId: String? = null)
+data class TmdbCompany(
+    val id: Int = 0,
+    val name: String? = null,
+    @SerialName("logo_path") val logoPath: String? = null
+)
 
 @Serializable
-data class TmdbCredits(val cast: List<TmdbCast> = emptyList())
+data class TmdbVideo(
+    @SerialName("key") val key: String? = null,
+    val name: String? = null,
+    val site: String? = null,
+    val type: String? = null
+)
+
+@Serializable
+private data class TmdbVideoPage(val results: List<TmdbVideo> = emptyList())
+
+@Serializable
+private data class TmdbKeywordPage(val keywords: List<TmdbKeyword> = emptyList())
+
+@Serializable
+data class TmdbExternalIds(
+    @SerialName("imdb_id") val imdbId: String? = null,
+    @SerialName("facebook_id") val facebookId: String? = null,
+    @SerialName("instagram_id") val instagramId: String? = null,
+    @SerialName("twitter_id") val twitterId: String? = null
+)
+
+@Serializable
+data class TmdbCredits(
+    val cast: List<TmdbCast> = emptyList(),
+    val crew: List<TmdbCrew> = emptyList()
+)
 
 @Serializable
 data class TmdbCast(
@@ -96,6 +130,15 @@ data class TmdbCast(
     val character: String? = null,
     @SerialName("profile_path") val profilePath: String? = null,
     val order: Int = 0
+)
+
+@Serializable
+data class TmdbCrew(
+    val id: Int,
+    val name: String,
+    val job: String? = null,
+    val department: String? = null,
+    @SerialName("profile_path") val profilePath: String? = null
 )
 
 @Serializable
@@ -242,7 +285,7 @@ object Tmdb {
     suspend fun detail(mediaType: String, id: Int): TmdbDetail? {
         val body = get(
             "/$mediaType/$id",
-            "append_to_response" to "images,external_ids,credits,recommendations"
+            "append_to_response" to "images,external_ids,credits,recommendations,videos,keywords"
         ) ?: return null
         return runCatching { json.decodeFromString<TmdbDetail>(body) }.getOrNull()
     }
@@ -266,6 +309,19 @@ object Tmdb {
             json.decodeFromString<TmdbCollection>(body).parts
                 .sortedBy { it.releaseDate }
         }.getOrDefault(emptyList())
+    }
+
+    /** Best backdrop/poster for a genre, via a one-off discover call. */
+    suspend fun genreBannerUrl(genreId: Int): String? {
+        val res = discover(
+            mediaType = "movie",
+            genres = genreId.toString(),
+            sort = "popularity.desc",
+            page = 1
+        )
+        return res.firstNotNullOfOrNull {
+            imageUrl(it.backdropPath, 780) ?: imageUrl(it.posterPath, 342)
+        }
     }
 
 
