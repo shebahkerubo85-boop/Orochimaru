@@ -142,6 +142,8 @@ class MediaInfoFragment : Fragment() {
                 loaded = true
                 infoTimer?.cancel()
                 infoTimer = null
+                binding.mediaInfoGenreContainer.removeAllViews()
+                binding.mediaInfoExternalLinksContainer.removeAllViews()
 
                 binding.mediaInfoProgressBar.visibility = View.GONE
                 binding.mediaInfoContainer.visibility = View.VISIBLE
@@ -173,14 +175,20 @@ class MediaInfoFragment : Fragment() {
                 )
                 val infoDesc = if (desc.toString() != "null") desc else getString(R.string.no_description_available)
                 binding.mediaInfoDescription.text = infoDesc
-                binding.mediaInfoDescription.setOnClickListener {
+                binding.mediaInfoShowMore.setOnClickListener {
                     if (binding.mediaInfoDescription.maxLines == 5) {
                         ObjectAnimator.ofInt(binding.mediaInfoDescription, "maxLines", 100)
                             .setDuration(950).start()
+                        binding.mediaInfoShowMore.setText(R.string.show_less)
                     } else {
                         ObjectAnimator.ofInt(binding.mediaInfoDescription, "maxLines", 5)
                             .setDuration(400).start()
+                        binding.mediaInfoShowMore.setText(R.string.show_more)
                     }
+                }
+                binding.mediaInfoDescription.post {
+                    binding.mediaInfoShowMore.visibility =
+                        if (binding.mediaInfoDescription.lineCount > 5) View.VISIBLE else View.GONE
                 }
 
                 // Add to List
@@ -635,7 +643,7 @@ class MediaInfoFragment : Fragment() {
                     bind.root.tag = "dynamic_view"
                     val adapter = GenreAdapter(type)
                     bind.mediaInfoGenresRecyclerView.adapter = adapter
-                    bind.mediaInfoGenresRecyclerView.layoutManager = GridLayoutManager(requireActivity(), (screenWidth / 156f).toInt())
+                    bind.mediaInfoGenresRecyclerView.layoutManager = GridLayoutManager(requireActivity(), (screenWidth / 130f).toInt().coerceAtLeast(2))
                     if (!offline) {
                         genreModel.doneListener = { MainScope().launch { bind.mediaInfoGenresProgressBar.visibility = View.GONE } }
                         if (genreModel.genres != null) {
@@ -648,7 +656,7 @@ class MediaInfoFragment : Fragment() {
                         bind.mediaInfoGenresProgressBar.visibility = View.GONE
                         media.genres.forEach { adapter.addGenre(Pair(it, "")) }
                     }
-                    parent.addView(bind.root)
+                    binding.mediaInfoGenreContainer.addView(bind.root)
                 }
 
                 if (media.tags.isNotEmpty() && !offline) {
@@ -684,7 +692,7 @@ class MediaInfoFragment : Fragment() {
                         bind.itemChipGroup.addView(chip)
                     }
                     bind.root.tag = "dynamic_view"
-                    parent.addView(bind.root)
+                    binding.mediaInfoExternalLinksContainer.addView(bind.root)
                 }
 
                 if ((!media.relations.isNullOrEmpty() || media.sequel != null || media.prequel != null) && !offline) {

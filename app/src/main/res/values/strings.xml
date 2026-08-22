@@ -171,6 +171,8 @@
     <string name="external_links">External Links</string>
     <string name="genres">Genres</string>
     <string name="description">Synopsis</string>
+    <string name="show_more">Show more</string>
+    <string name="show_less">Show less</string>
     <string name="characters">Characters</string>
     <string name="relations">Relations</string>
     <string name="staff">Staff</string>
