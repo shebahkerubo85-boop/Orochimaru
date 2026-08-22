@@ -306,7 +306,7 @@
                                 android:insetTop="0dp"
                                 android:insetBottom="0dp"
                                 android:marqueeRepeatLimit="marquee_forever"
-                                android:minWidth="120dp"
+                                android:minWidth="0dp"
                                 android:padding="4dp"
                                 android:singleLine="true"
                                 android:text="@string/add_list"

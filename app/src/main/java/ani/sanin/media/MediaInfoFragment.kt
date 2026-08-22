@@ -161,9 +161,20 @@ class MediaInfoFragment : Fragment() {
                 binding.mediaInfoContainer.visibility = View.VISIBLE
 
                 // Portrait: stack OP/ED below the trailer. Landscape keeps them beside it.
+                val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
                 binding.mediaInfoTrailerRow.orientation =
-                    if (resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT)
-                        LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+                    if (isPortrait) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+                // The OP/ED container was weight=1/width=0dp in the horizontal row;
+                // in vertical mode it must fill width or it collapses to 0 and disappears.
+                val opEdLp = binding.mediaInfoOpEdContainer.layoutParams as LinearLayout.LayoutParams
+                if (isPortrait) {
+                    opEdLp.width = LinearLayout.LayoutParams.MATCH_PARENT
+                    opEdLp.weight = 0f
+                } else {
+                    opEdLp.width = 0
+                    opEdLp.weight = 1f
+                }
+                binding.mediaInfoOpEdContainer.layoutParams = opEdLp
 
                 // Swap meta row: icons on the left, square info card on the right.
                 (binding.mediaInfoMetaSquare.parent as? ViewGroup)?.let { row ->
@@ -214,15 +225,14 @@ class MediaInfoFragment : Fragment() {
                 val infoDesc = if (desc.toString() != "null") desc else getString(R.string.no_description_available)
                 binding.mediaInfoDescription.text = infoDesc
                 binding.mediaInfoShowMore.setOnClickListener {
-                    if (binding.mediaInfoDescription.maxLines == 5) {
-                        ObjectAnimator.ofInt(binding.mediaInfoDescription, "maxLines", 100)
-                            .setDuration(950).start()
-                        binding.mediaInfoShowMore.setText(R.string.show_less)
-                    } else {
-                        ObjectAnimator.ofInt(binding.mediaInfoDescription, "maxLines", 5)
-                            .setDuration(400).start()
+                    if (binding.mediaInfoDescription.maxLines > 5) {
+                        binding.mediaInfoDescription.maxLines = 5
                         binding.mediaInfoShowMore.setText(R.string.show_more)
+                    } else {
+                        binding.mediaInfoDescription.maxLines = Int.MAX_VALUE
+                        binding.mediaInfoShowMore.setText(R.string.show_less)
                     }
+                    binding.mediaInfoDescription.requestLayout()
                 }
                 binding.mediaInfoDescription.post {
                     val tv = binding.mediaInfoDescription
