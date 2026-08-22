@@ -55,6 +55,7 @@ data class TmdbDetail(
         val images: TmdbImages? = null,
     @SerialName("external_ids") val externalIds: TmdbExternalIds? = null,
     val credits: TmdbCredits? = null,
+    @SerialName("created_by") val createdBy: List<TmdbCreatedBy> = emptyList(),
     val recommendations: TmdbPage<TmdbMedia>? = null,
     @SerialName("videos") val videos: TmdbVideoPage? = null,
     @SerialName("keywords") val keywords: TmdbKeywordPage? = null,
@@ -138,6 +139,13 @@ data class TmdbCrew(
     val name: String,
     val job: String? = null,
     val department: String? = null,
+    @SerialName("profile_path") val profilePath: String? = null
+)
+
+@Serializable
+data class TmdbCreatedBy(
+    val id: Int,
+    val name: String? = null,
     @SerialName("profile_path") val profilePath: String? = null
 )
 

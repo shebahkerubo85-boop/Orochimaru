@@ -210,6 +210,8 @@
     <string name="tags">Tags</string>
     <string name="cast">Cast</string>
     <string name="more_like_this">More Like This</string>
+    <string name="prequel">Prequel</string>
+    <string name="sequel">Sequel</string>
     <string name="synonyms">Synonyms</string>
     <string name="trailer">Trailer</string>
     <string name="opening">Opening</string>

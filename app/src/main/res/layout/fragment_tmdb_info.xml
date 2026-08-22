@@ -419,6 +419,49 @@
                     android:orientation="horizontal">
 
                     <LinearLayout
+                        android:id="@+id/mediaInfoMetaIcons"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/bg_info_container"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="8dp">
+
+                        <ImageView
+                            android:id="@+id/mediaInfoFav"
+                            android:layout_width="30dp"
+                            android:layout_height="30dp"
+                            android:focusable="true"
+                            android:padding="3dp"
+                            app:srcCompat="@drawable/ic_round_favorite_border_24"
+                            app:tint="@android:color/white"
+                            tools:ignore="ContentDescription" />
+
+                        <ImageView
+                            android:id="@+id/mediaInfoShare"
+                            android:layout_width="30dp"
+                            android:layout_height="30dp"
+                            android:layout_marginTop="4dp"
+                            android:focusable="true"
+                            android:padding="3dp"
+                            app:srcCompat="@drawable/ic_round_share_24"
+                            app:tint="@android:color/white"
+                            tools:ignore="ContentDescription" />
+
+                        <ImageView
+                            android:id="@+id/mediaInfoComment"
+                            android:layout_width="30dp"
+                            android:layout_height="30dp"
+                            android:layout_marginTop="4dp"
+                            android:focusable="true"
+                            android:padding="3dp"
+                            app:srcCompat="@drawable/ic_round_comment_24"
+                            app:tint="@android:color/white"
+                            tools:ignore="ContentDescription" />
+                    </LinearLayout>
+
+
+<LinearLayout
                         android:id="@+id/mediaInfoMetaSquare"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -440,6 +483,7 @@
                                 android:orientation="vertical">
 
                                 <TextView
+                                    android:id="@+id/mediaInfoAuthorLabel"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:alpha="0.6"
@@ -531,48 +575,6 @@
                                     tools:text="TV" />
                             </LinearLayout>
                         </LinearLayout>
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:id="@+id/mediaInfoMetaIcons"
-                        android:layout_width="wrap_content"
-                        android:layout_height="match_parent"
-                        android:background="@drawable/bg_info_container"
-                        android:gravity="center"
-                        android:orientation="vertical"
-                        android:padding="8dp">
-
-                        <ImageView
-                            android:id="@+id/mediaInfoFav"
-                            android:layout_width="30dp"
-                            android:layout_height="30dp"
-                            android:focusable="true"
-                            android:padding="3dp"
-                            app:srcCompat="@drawable/ic_round_favorite_border_24"
-                            app:tint="@android:color/white"
-                            tools:ignore="ContentDescription" />
-
-                        <ImageView
-                            android:id="@+id/mediaInfoShare"
-                            android:layout_width="30dp"
-                            android:layout_height="30dp"
-                            android:layout_marginTop="4dp"
-                            android:focusable="true"
-                            android:padding="3dp"
-                            app:srcCompat="@drawable/ic_round_share_24"
-                            app:tint="@android:color/white"
-                            tools:ignore="ContentDescription" />
-
-                        <ImageView
-                            android:id="@+id/mediaInfoComment"
-                            android:layout_width="30dp"
-                            android:layout_height="30dp"
-                            android:layout_marginTop="4dp"
-                            android:focusable="true"
-                            android:padding="3dp"
-                            app:srcCompat="@drawable/ic_round_comment_24"
-                            app:tint="@android:color/white"
-                            tools:ignore="ContentDescription" />
                     </LinearLayout>
                 </LinearLayout>
 
@@ -692,7 +694,7 @@
                         <FrameLayout
                             android:id="@+id/mediaInfoTrailerHost"
                             android:layout_width="170dp"
-                            android:layout_height="wrap_content" />
+                            android:layout_height="150dp" />
 
                         <LinearLayout
                             android:id="@+id/mediaInfoOpEdContainer"
@@ -767,6 +769,78 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
                         android:orientation="vertical" />
+
+                    <LinearLayout
+                        android:id="@+id/tmdbDetailPrequelSequel"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
+
+                        <LinearLayout
+                            android:id="@+id/tmdbDetailPrequel"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="8dp"
+                            android:background="@drawable/bg_info_container"
+                            android:orientation="vertical"
+                            android:padding="8dp">
+
+                            <ImageView
+                                android:id="@+id/tmdbDetailPrequelBanner"
+                                android:layout_width="match_parent"
+                                android:layout_height="90dp"
+                                android:background="@color/bg_black"
+                                android:scaleType="centerCrop"
+                                tools:ignore="ContentDescription" />
+
+                            <TextView
+                                android:id="@+id/tmdbDetailPrequelTitle"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp"
+                                android:ellipsize="end"
+                                android:fontFamily="@font/poppins_bold"
+                                android:gravity="center"
+                                android:maxLines="1"
+                                android:text="@string/prequel"
+                                android:textColor="@android:color/white"
+                                android:textSize="13sp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/tmdbDetailSequel"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:background="@drawable/bg_info_container"
+                            android:orientation="vertical"
+                            android:padding="8dp">
+
+                            <ImageView
+                                android:id="@+id/tmdbDetailSequelBanner"
+                                android:layout_width="match_parent"
+                                android:layout_height="90dp"
+                                android:background="@color/bg_black"
+                                android:scaleType="centerCrop"
+                                tools:ignore="ContentDescription" />
+
+                            <TextView
+                                android:id="@+id/tmdbDetailSequelTitle"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp"
+                                android:ellipsize="end"
+                                android:fontFamily="@font/poppins_bold"
+                                android:gravity="center"
+                                android:maxLines="1"
+                                android:text="@string/sequel"
+                                android:textColor="@android:color/white"
+                                android:textSize="13sp" />
+                        </LinearLayout>
+                    </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>

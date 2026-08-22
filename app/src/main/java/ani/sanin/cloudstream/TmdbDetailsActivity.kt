@@ -174,6 +174,7 @@ class TmdbDetailsActivity : AppCompatActivity() {
             loadTrailer(d)
             loadTags(d)
             loadRelations(d)
+            loadPrequelSequel(d)
             buildCastSection(d)
             buildMoreLikeSection(d)
         }
@@ -317,7 +318,15 @@ class TmdbDetailsActivity : AppCompatActivity() {
         if (studio != null) binding.mediaInfoStudio.setOnClickListener {
             openUrl("https://www.themoviedb.org/$mediaType/${d.id}")
         }
-        binding.mediaInfoAuthor.text = "—"
+        val creator = d.createdBy.firstOrNull()?.name
+        val director = d.credits?.crew?.firstOrNull { it.job.equals("Director", true) }?.name
+        val (authorLabel, authorName) = when {
+            creator != null -> "AUTHOR" to creator
+            director != null -> "DIRECTOR" to director
+            else -> "AUTHOR" to "—"
+        }
+        binding.mediaInfoAuthorLabel.text = authorLabel
+        binding.mediaInfoAuthor.text = authorName
         binding.mediaInfoShare.setOnClickListener { shareMovie() }
         binding.mediaInfoFav.setOnClickListener { snackString("Favorite not available") }
         binding.mediaInfoComment.setOnClickListener { snackString("Comments not available") }
@@ -418,6 +427,50 @@ class TmdbDetailsActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun loadPrequelSequel(d: TmdbDetail) {
+        val colId = d.collection?.id
+        if (colId == null) {
+            binding.tmdbDetailPrequelSequel.visibility = View.GONE
+            return
+        }
+        lifecycleScope.launch(Dispatchers.IO) {
+            val parts = Tmdb.collection(colId)
+            val idx = parts.indexOfFirst { it.id == d.id }
+            val pre = if (idx > 0) parts[idx - 1] else null
+            val seq = if (idx in 0 until parts.lastIndex) parts[idx + 1] else null
+            withContext(Dispatchers.Main) {
+                if (pre == null && seq == null) {
+                    binding.tmdbDetailPrequelSequel.visibility = View.GONE
+                    return@withContext
+                }
+                binding.tmdbDetailPrequelSequel.visibility = View.VISIBLE
+                if (pre != null) {
+                    binding.tmdbDetailPrequel.visibility = View.VISIBLE
+                    binding.tmdbDetailPrequelBanner.loadImage(
+                        Tmdb.imageUrl(pre.backdropPath, 780) ?: Tmdb.imageUrl(pre.posterPath, 342)
+                    )
+                    binding.tmdbDetailPrequelTitle.text = pre.displayTitle
+                    binding.tmdbDetailPrequel.setOnClickListener { openDetails(pre.id, pre.mediaType) }
+                } else binding.tmdbDetailPrequel.visibility = View.GONE
+                if (seq != null) {
+                    binding.tmdbDetailSequel.visibility = View.VISIBLE
+                    binding.tmdbDetailSequelBanner.loadImage(
+                        Tmdb.imageUrl(seq.backdropPath, 780) ?: Tmdb.imageUrl(seq.posterPath, 342)
+                    )
+                    binding.tmdbDetailSequelTitle.text = seq.displayTitle
+                    binding.tmdbDetailSequel.setOnClickListener { openDetails(seq.id, seq.mediaType) }
+                } else binding.tmdbDetailSequel.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun openDetails(id: Int, type: String) {
+        val intent = Intent(this, TmdbDetailsActivity::class.java)
+        intent.putExtra(ARG_MEDIA_TYPE, if (type == "tv") "tv" else "movie")
+        intent.putExtra(ARG_MEDIA_ID, id)
+        startActivity(intent)
     }
 
     private fun buildCastSection(d: TmdbDetail) {
