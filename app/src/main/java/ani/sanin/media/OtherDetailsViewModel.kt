@@ -302,11 +302,10 @@ class OtherDetailsViewModel : ViewModel() {
         }
     }
 
-    /** Load calendar for movie/TV mode from TMDB + Simkl. */
+    /** Load calendar for movie/TV mode: real per-day airing schedule + this week's movie releases. */
     private suspend fun loadCalendarForMovieMode() {
-        val allMap = mutableMapOf<String, MutableList<Media>>()
         val df = DateFormat.getDateInstance(DateFormat.FULL)
-        val tf = DateFormat.getTimeInstance(DateFormat.SHORT)
+        val dayFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
         // Fetch Simkl library for status info
         val simklShows = try { Simkl.getShowLibrary() } catch (_: Exception) { emptyList() }
@@ -319,61 +318,89 @@ class OtherDetailsViewModel : ViewModel() {
             item.ids?.tmdb?.let { simklIdMap[it] = item.status!! }
         }
 
-        // TMDB: TV airing today + on the air + upcoming movies
-        val tvAiring = try { Tmdb.get("/tv/airing_today") ?: "" } catch (_: Exception) { "" }
-        val tvOnAir = try { Tmdb.get("/tv/on_the_air") ?: "" } catch (_: Exception) { "" }
-        val movieUpcoming = try { Tmdb.get("/movie/upcoming") ?: "" } catch (_: Exception) { "" }
-
-        fun parseTmdbResults(jsonStr: String, mediaType: String): List<Triple<Int, String, String>> {
+        // (tmdbId, title, posterPath, date "yyyy-MM-dd" when applicable)
+        fun parseResults(jsonStr: String): List<List<Any?>> {
             if (jsonStr.isBlank()) return emptyList()
-            return try {
-                val root = org.json.JSONObject(jsonStr)
-                val arr = root.optJSONArray("results") ?: return emptyList()
-                val results = mutableListOf<Triple<Int, String, String>>() // (id, title, airDate)
-                for (i in 0 until arr.length()) {
+            return runCatching {
+                val arr = org.json.JSONObject(jsonStr).optJSONArray("results") ?: return emptyList()
+                (0 until arr.length()).mapNotNull { i ->
                     val obj = arr.getJSONObject(i)
                     val id = obj.optInt("id", 0)
-                    val title = obj.optString("name", obj.optString("title", "Unknown"))
-                    val dateStr = if (mediaType == "tv") {
-                        obj.optString("first_air_date", "")
-                    } else {
-                        obj.optString("release_date", "")
-                    }
-                    if (dateStr.isNotBlank() && dateStr.length >= 10) {
-                        results.add(Triple(id, title, dateStr))
-                    }
+                    if (id == 0) return@mapNotNull null
+                    val title = obj.optString("name", obj.optString("title", "")).ifBlank { null }
+                        ?: return@mapNotNull null
+                    listOf(
+                        id,
+                        title,
+                        obj.optString("poster_path", "").ifBlank { null },
+                        obj.optString("air_date", "").ifBlank {
+                            obj.optString("first_air_date", "").ifBlank {
+                                obj.optString("release_date", "").ifBlank { null }
+                            }
+                        }.takeIf { it.length >= 10 }?.substring(0, 10)
+                    )
                 }
-                results
-            } catch (_: Exception) {
-                emptyList()
+            }.getOrDefault(emptyList())
+        }
+
+        val allMap = LinkedHashMap<String, MutableList<Media>>()
+        val seenIds = mutableSetOf<Int>()
+
+        fun addEntry(dayKey: String, tmdbId: Int, title: String, posterPath: String?, relation: String) {
+            if (!seenIds.add(tmdbId)) return
+            val media = Media(
+                id = tmdbId,
+                name = title,
+                nameRomaji = title,
+                userPreferredName = title,
+                isAdult = false,
+                anime = null,
+                cover = Tmdb.imageUrl(posterPath, 300),
+                banner = Tmdb.imageUrl(posterPath, 780),
+                status = simklIdMap[tmdbId]
+            )
+            media.relation = relation
+            allMap.getOrPut(dayKey) { mutableListOf() }.add(media)
+        }
+
+        val today = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }
+        fun dayKey(offset: Int): Pair<String, String> {
+            val day = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, offset) }
+            return dayFmt.format(day.time) to df.format(day.time)
+        }
+
+        fun dayKey(offset: Int): Pair<String, String> {
+            val day = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, offset) }
+            return dayFmt.format(day.time) to df.format(day.time)
+        }
+        val weekDays = (0..6).map { dayKey(it) }
+
+        // TV: one /discover/tv call per day → shows that actually have an episode airing that day
+        for ((iso, label) in weekDays) {
+            val body = try {
+                Tmdb.get(
+                    "/discover/tv",
+                    "air_date.gte" to iso,
+                    "air_date.lte" to iso,
+                    "sort_by" to "popularity.desc",
+                    "include_empty" to "false"
+                )
+            } catch (_: Exception) { null }
+            parseResults(body ?: "").forEach { entry ->
+                addEntry(label, entry[0] as Int, entry[1] as String, entry[2] as String?, "New episode")
             }
         }
 
-        // Parse and group by date
-        val items = mutableListOf<Triple<Int, String, String>>() // (tmdbId, title, date)
-        items.addAll(parseTmdbResults(tvAiring, "tv"))
-        items.addAll(parseTmdbResults(tvOnAir, "tv"))
-        items.addAll(parseTmdbResults(movieUpcoming, "movie"))
-
-        for ((tmdbId, title, dateStr) in items) {
-            try {
-                val dateParts = dateStr.split("-")
-                if (dateParts.size < 3) continue
-                val cal = Calendar.getInstance()
-                cal.set(dateParts[0].toInt(), dateParts[1].toInt() - 1, dateParts[2].toInt(), 0, 0, 0)
-                val dateInfo = df.format(cal.time)
-                val media = Media(
-                    id = tmdbId,
-                    name = title,
-                    nameRomaji = title,
-                    userPreferredName = title,
-                    isAdult = false,
-                    anime = null,
-                    status = simklIdMap[tmdbId]
-                )
-                media.relation = title
-                allMap.getOrPut(dateInfo) { mutableListOf() }.add(media)
-            } catch (_: Exception) { }
+        // Movies releasing within the same week
+        val upcomingBody = try { Tmdb.get("/movie/upcoming") } catch (_: Exception) { null }
+        parseResults(upcomingBody ?: "").forEach { entry ->
+            val dateIso = entry[3] as String? ?: return@forEach
+            weekDays.firstOrNull { it.first == dateIso }?.let { (_, label) ->
+                addEntry(label, entry[0] as Int, entry[1] as String, entry[2] as String?, "Movie release")
+            }
         }
 
         cachedAllCalendarData = allMap
