@@ -320,9 +320,9 @@ class TmdbWatchActivity : AppCompatActivity() {
         voteAverage = ep.score?.toFloat(10)?.toDouble() ?: 0.0
     )
 
-    private fun formatEpochDate(epoch: Long?): String? {
-        if (epoch == null || epoch <= 0L) return null
-        val cal = java.util.Calendar.getInstance().apply { timeInMillis = epoch }
+    private fun formatEpochDate(epoch: String?): String? {
+        if (epoch == null || epoch.isBlank()) return null
+        try { val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US); val cal = java.util.GregorianCalendar(); cal.timeInMillis = sdf.parse(epoch)?.timeInMillis } catch (_: Exception) { return null }
         return String.format(
             java.util.Locale.US,
             "%04d-%02d-%02d",
