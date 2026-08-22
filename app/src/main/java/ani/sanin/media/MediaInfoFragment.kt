@@ -3,6 +3,10 @@ package ani.sanin.media
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.res.Configuration
+import android.graphics.Color
+import android.text.SpannableString
+import android.text.style.ForegroundColorSpan
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -156,6 +160,19 @@ class MediaInfoFragment : Fragment() {
                 binding.mediaInfoProgressBar.visibility = View.GONE
                 binding.mediaInfoContainer.visibility = View.VISIBLE
 
+                // Portrait: stack OP/ED below the trailer. Landscape keeps them beside it.
+                binding.mediaInfoTrailerRow.orientation =
+                    if (resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT)
+                        LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+
+                // Swap meta row: icons on the left, square info card on the right.
+                (binding.mediaInfoMetaSquare.parent as? ViewGroup)?.let { row ->
+                    if (row.indexOfChild(binding.mediaInfoMetaIcons) != 0) {
+                        row.removeView(binding.mediaInfoMetaIcons)
+                        row.addView(binding.mediaInfoMetaIcons, 0)
+                    }
+                }
+
                 // Logo art / Title fallback
                 binding.mediaInfoLogo.visibility = View.GONE
                 binding.mediaInfoTitle.visibility = View.GONE
@@ -175,6 +192,19 @@ class MediaInfoFragment : Fragment() {
                 }
                 // Status
                 binding.mediaInfoStatus.text = media.status ?: ""
+                val statusColor = when {
+                    media.status?.equals("RELEASING", true) == true
+                            || media.status == getString(R.string.status_releasing) ->
+                        Color.parseColor("#76FF03") // lime green
+                    media.status?.equals("FINISHED", true) == true
+                            || media.status == getString(R.string.status_finished) ->
+                        Color.parseColor("#F44336") // red
+                    media.status?.equals("NOT_YET_RELEASED", true) == true
+                            || media.status == getString(R.string.status_not_yet_released) ->
+                        Color.parseColor("#00E5FF") // cyan
+                    else -> Color.WHITE
+                }
+                binding.mediaInfoStatus.setTextColor(statusColor)
 
                 // Description (right after status, before everything else)
                 val desc = HtmlCompat.fromHtml(
@@ -195,8 +225,17 @@ class MediaInfoFragment : Fragment() {
                     }
                 }
                 binding.mediaInfoDescription.post {
-                    binding.mediaInfoShowMore.visibility =
-                        if (binding.mediaInfoDescription.lineCount > 5) View.VISIBLE else View.GONE
+                    val tv = binding.mediaInfoDescription
+                    val oldMax = tv.maxLines
+                    tv.maxLines = Int.MAX_VALUE
+                    tv.requestLayout()
+                    tv.post {
+                        val fullLines = tv.lineCount
+                        tv.maxLines = oldMax
+                        tv.requestLayout()
+                        binding.mediaInfoShowMore.visibility =
+                            if (fullLines > 5) View.VISIBLE else View.GONE
+                    }
                 }
 
                 // Add to List
@@ -368,8 +407,13 @@ class MediaInfoFragment : Fragment() {
                     copyToClipboard(media.nameRomaji)
                     true
                 }
-                binding.mediaInfoMeanScore.text =
-                    media.meanScore?.let { (it / 10.0).toString() } ?: "??"
+                val scoreVal = media.meanScore?.let { (it / 10.0).toString() } ?: "??"
+                val scoreSpan = SpannableString("★ $scoreVal")
+                scoreSpan.setSpan(
+                    ForegroundColorSpan(Color.parseColor("#FFD700")),
+                    0, 1, SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                binding.mediaInfoMeanScore.text = scoreSpan
                 binding.mediaInfoFormat.text = media.format ?: "—"
                 binding.mediaInfoSource.text = media.source ?: "—"
                 binding.mediaInfoStudio.text = "—"
@@ -643,7 +687,7 @@ class MediaInfoFragment : Fragment() {
                     bind.root.tag = "dynamic_view"
                     val adapter = GenreAdapter(type)
                     bind.mediaInfoGenresRecyclerView.adapter = adapter
-                    bind.mediaInfoGenresRecyclerView.layoutManager = GridLayoutManager(requireActivity(), (screenWidth / 130f).toInt().coerceAtLeast(2))
+                    bind.mediaInfoGenresRecyclerView.layoutManager = GridLayoutManager(requireActivity(), (screenWidth / 95f).toInt().coerceAtLeast(3))
                     if (!offline) {
                         genreModel.doneListener = { MainScope().launch { bind.mediaInfoGenresProgressBar.visibility = View.GONE } }
                         if (genreModel.genres != null) {

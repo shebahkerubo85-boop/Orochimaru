@@ -300,19 +300,19 @@
                                 android:id="@+id/mediaInfoAddToList"
                                 style="@style/Widget.Material3.Button.OutlinedButton"
                                 android:layout_width="wrap_content"
-                                android:layout_height="40dp"
+                                android:layout_height="34dp"
                                 android:ellipsize="marquee"
                                 android:fontFamily="@font/poppins_bold"
                                 android:insetTop="0dp"
                                 android:insetBottom="0dp"
                                 android:marqueeRepeatLimit="marquee_forever"
-                                android:minWidth="140dp"
-                                android:padding="6dp"
+                                android:minWidth="120dp"
+                                android:padding="4dp"
                                 android:singleLine="true"
                                 android:text="@string/add_list"
                                 android:textAllCaps="true"
                                 android:textColor="@android:color/white"
-                                android:textSize="13sp"
+                                android:textSize="12sp"
                                 android:textStyle="bold"
                                 app:cornerRadius="16dp"
                                 app:strokeColor="@android:color/white" />
@@ -402,9 +402,11 @@
                     android:orientation="horizontal">
 
                     <LinearLayout
+                        android:id="@+id/mediaInfoMetaSquare"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
+                        android:layout_marginStart="12dp"
                         android:background="@drawable/bg_info_container"
                         android:orientation="vertical"
                         android:padding="12dp">
@@ -515,9 +517,9 @@
                     </LinearLayout>
 
                     <LinearLayout
+                        android:id="@+id/mediaInfoMetaIcons"
                         android:layout_width="wrap_content"
                         android:layout_height="match_parent"
-                        android:layout_marginStart="12dp"
                         android:background="@drawable/bg_info_container"
                         android:gravity="center"
                         android:orientation="vertical"
@@ -525,32 +527,32 @@
 
                         <ImageView
                             android:id="@+id/mediaInfoFav"
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
+                            android:layout_width="30dp"
+                            android:layout_height="30dp"
                             android:focusable="true"
-                            android:padding="6dp"
+                            android:padding="3dp"
                             app:srcCompat="@drawable/ic_round_favorite_border_24"
                             app:tint="@android:color/white"
                             tools:ignore="ContentDescription" />
 
                         <ImageView
                             android:id="@+id/mediaInfoShare"
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:layout_marginTop="8dp"
+                            android:layout_width="30dp"
+                            android:layout_height="30dp"
+                            android:layout_marginTop="4dp"
                             android:focusable="true"
-                            android:padding="6dp"
+                            android:padding="3dp"
                             app:srcCompat="@drawable/ic_round_share_24"
                             app:tint="@android:color/white"
                             tools:ignore="ContentDescription" />
 
                         <ImageView
                             android:id="@+id/mediaInfoComment"
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:layout_marginTop="8dp"
+                            android:layout_width="30dp"
+                            android:layout_height="30dp"
+                            android:layout_marginTop="4dp"
                             android:focusable="true"
-                            android:padding="6dp"
+                            android:padding="3dp"
                             app:srcCompat="@drawable/ic_round_comment_24"
                             app:tint="@android:color/white"
                             tools:ignore="ContentDescription" />
