@@ -6,7 +6,6 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -34,7 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focusable
+import androidx.compose.foundation.focusable
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -45,6 +44,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -295,13 +295,14 @@ fun NavigationPill(
     inactiveTint: Color = Color.White.copy(alpha = 0.7f),
     onMeasure: (x: Float, y: Float, w: Float, h: Float) -> Unit = { _, _, _, _ -> }
 ) {
-    val transition = updateTransition(targetState = isActive, label = "pillPop_$index")
-    val popScale by transition.animateFloat(
-        transitionSpec = {
-            spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow)
-        },
+    val popScale by animateFloatAsState(
+        targetValue = if (isActive) 1.12f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
         label = "pillPopScale_$index"
-    ) { selected -> if (selected) 1.12f else 1f }
+    )
 
     val pillSize by animateDpAsState(
         targetValue = if (isExpanded) 88.dp else 48.dp,
