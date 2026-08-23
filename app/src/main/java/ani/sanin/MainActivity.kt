@@ -75,6 +75,7 @@ import ani.sanin.settings.saving.internal.PreferencePackager
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.TvKeyboardUtil
 import ani.sanin.ui.components.NavigationPillsViewModel
+import ani.sanin.ui.components.NavPillAnimator
 import ani.sanin.ui.splash.SaninLandscapeSplash
 import ani.sanin.ui.splash.SaninPortraitSplash
 import ani.sanin.util.AudioHelper
@@ -100,6 +101,7 @@ class MainActivity : AppCompatActivity() {
     private val scope = lifecycleScope
     private var load = false
     lateinit var navPillsViewModel: NavigationPillsViewModel
+    private var navPillAnimator: NavPillAnimator? = null
     private var currentFragmentTag: String? = null
 
     private val tabFragments = mapOf(
@@ -825,9 +827,11 @@ class MainActivity : AppCompatActivity() {
         val isMonochrome = PrefManager.getVal<String>(PrefName.Theme).contains("MONOCHROME", ignoreCase = true)
         val isDarkMode = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
         val navFocusColor = if (isMonochrome && isDarkMode) android.graphics.Color.WHITE else if (isMonochrome) android.graphics.Color.BLACK else null
+        navPillAnimator = NavPillAnimator(binding.homeNavRail, pills)
         pills.forEachIndexed { index, pill ->
             pill.setOnClickListener {
                 navPillsViewModel.setTab(index)
+                navPillAnimator?.select(index)
                 hideHomeNavRail()
             }
             FocusEffectUtil.applyFocusListener(pill, borderColor = navFocusColor)
@@ -835,6 +839,12 @@ class MainActivity : AppCompatActivity() {
 
         updateNavPillFocusChains()
         NavPillCustomizer.applyToPillList(binding.homeNavRail.getChildAt(1) as LinearLayout)
+
+        navPillsViewModel.currentTab.observe(this) { tab ->
+            if (binding.homeNavRail.visibility == View.VISIBLE) {
+                navPillAnimator?.select(tab)
+            }
+        }
     }
 
     private fun updateNavPillFocusChains() {

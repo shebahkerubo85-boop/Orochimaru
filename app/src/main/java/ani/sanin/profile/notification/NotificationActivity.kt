@@ -42,6 +42,7 @@ import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.GlassComponent
 import ani.sanin.util.GlassEffectManager
 import ani.sanin.util.NavPillCustomizer
+import ani.sanin.ui.components.NavPillAnimator
 import com.airbnb.lottie.LottieAnimationView
 import com.xwray.groupie.GroupieAdapter
 import kotlinx.coroutines.CoroutineScope
@@ -131,6 +132,7 @@ class NotificationActivity : AppCompatActivity() {
         if (getOne != -1) navButtons.forEach { it.visibility = View.GONE }
 
         updateCounts()
+        val navAnimator = NavPillAnimator(binding.notificationNavRail, navButtons)
         navButtons.forEach { btn ->
             btn.setOnClickListener {
                 val idx = navButtons.indexOf(btn)
@@ -138,6 +140,7 @@ class NotificationActivity : AppCompatActivity() {
                     selected = idx
                     selectTab(selected)
                     updateNavTints(navButtons, selected)
+                    navAnimator.select(selected)
                 }
             }
             FocusEffectUtil.applyFocusListener(btn)
@@ -146,6 +149,7 @@ class NotificationActivity : AppCompatActivity() {
 
         selectTab(selected)
         updateNavTints(navButtons, selected)
+        navAnimator.select(selected)
         if (PrefManager.getVal<Boolean>(PrefName.SideRailPersist)) {
             showNotificationNavRail()
         } else {

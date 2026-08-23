@@ -51,6 +51,7 @@ import ani.sanin.util.GlassComponent
 import ani.sanin.util.GlassEffectManager
 import ani.sanin.util.LauncherWrapper
 import ani.sanin.util.NavPillCustomizer
+import ani.sanin.ui.components.NavPillAnimator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -492,11 +493,18 @@ class MediaDetailsActivity : AppCompatActivity() {
     private fun updateMediaNavIconTints(selectedIdx: Int) {
         val customColor = NavPillCustomizer.getIconColor()
         val pills = listOfNotNull(binding.navPillInfo, binding.navPillWatch, binding.navPillComments)
+        mediaNavAnimator = NavPillAnimator(binding.mediaNavPills, pills)
         pills.forEachIndexed { i, pill ->
             pill.imageTintList = ColorStateList.valueOf(customColor)
             pill.alpha = 1f
+            pill.setOnClickListener {
+                selected = pills.indexOf(pill)
+                mediaNavAnimator?.select(selected)
+            }
         }
     }
+
+    private var mediaNavAnimator: NavPillAnimator? = null
 
     fun focusNavPillForSelectedTab() {
         val targetId = when (selected) {
