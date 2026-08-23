@@ -30,6 +30,7 @@ class GlassEffectDrawable(
 ) : Drawable() {
 
     private val targetRef = WeakReference(targetView)
+    private var originalBackground: Drawable? = null
     private var captureRootRef: WeakReference<View>? = null
     private var backdropCache: Bitmap? = null
     private var blurCache: Bitmap? = null
@@ -367,6 +368,12 @@ class GlassEffectDrawable(
             try {
                 target.viewTreeObserver.removeOnGlobalLayoutListener(layoutListener)
             } catch (_: Exception) {}
+            // Restore whatever background existed before glass was applied so the
+            // underlying clay/shape background (e.g. bg_clay_pill) survives alongside glass.
+            if (target.background === this) {
+                target.background = originalBackground
+            }
+            originalBackground = null
         }
         invalidateCache()
     }
@@ -479,7 +486,9 @@ class GlassEffectDrawable(
                 tintColor = tintColor,
                 refreshOnLayout = true
             )
+            val original = view.background
             view.background = drawable
+            drawable.originalBackground = original
             return drawable
         }
     }
