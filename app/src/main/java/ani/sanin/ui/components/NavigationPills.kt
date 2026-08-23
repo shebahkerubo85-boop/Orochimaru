@@ -242,10 +242,12 @@ fun NavigationPills(
                         activeTint = activeTint,
                         inactiveTint = inactiveTint,
                         onMeasure = { x, y, w, h ->
-                            measuredX[index] = x
-                            measuredY[index] = y
-                            measuredW[index] = w
-                            measuredH[index] = h
+                            view.post {
+                                measuredX[index] = x
+                                measuredY[index] = y
+                                measuredW[index] = w
+                                measuredH[index] = h
+                            }
                         }
                     )
                 }
@@ -269,10 +271,12 @@ fun NavigationPills(
                         activeTint = activeTint,
                         inactiveTint = inactiveTint,
                         onMeasure = { x, y, w, h ->
-                            measuredX[index] = x
-                            measuredY[index] = y
-                            measuredW[index] = w
-                            measuredH[index] = h
+                            view.post {
+                                measuredX[index] = x
+                                measuredY[index] = y
+                                measuredW[index] = w
+                                measuredH[index] = h
+                            }
                         }
                     )
                 }
