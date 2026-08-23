@@ -201,6 +201,9 @@ class MediaInfoFragment : Fragment() {
                     copyToClipboard(media.userPreferredName ?: media.name ?: "")
                     true
                 }
+                binding.mediaInfoPlayCard.setOnClickListener {
+                    (requireActivity() as? MediaDetailsActivity)?.watchTabOpener?.invoke()
+                }
                 // Status
                 binding.mediaInfoStatus.text = media.status ?: ""
                 val statusColor = when {

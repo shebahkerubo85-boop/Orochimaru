@@ -34,6 +34,7 @@
     <color name="literally_just_green">#00FF00</color>
     <color name="chip">#a3a2a2</color>
     <color name="grey_nav">#F9EDEDED</color>
+    <color name="sheet_border">#FF000000</color>
     <color name="CustomColor1">#93DB00</color>
     <color name="CustomColor2">#68AF86</color>
     <color name="CustomColor3">#0096AE</color>

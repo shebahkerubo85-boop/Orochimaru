@@ -73,6 +73,7 @@ class MediaDetailsActivity : AppCompatActivity() {
     private lateinit var commentsFragment: CommentsFragment
     private var commentsAdded = false
     var commentTabOpener: (() -> Unit)? = null
+    var watchTabOpener: (() -> Unit)? = null
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -325,6 +326,7 @@ class MediaDetailsActivity : AppCompatActivity() {
             navComments?.setOnClickListener { selectTab(2); hideNavPills() }
         }
         commentTabOpener = { selectTab(2) }
+        watchTabOpener = { selectTab(1) }
 
 
 

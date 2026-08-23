@@ -32,7 +32,9 @@
         android:layout_marginEnd="12dp"
         app:cardCornerRadius="16dp"
         app:cardElevation="0dp"
-        app:cardBackgroundColor="@android:color/transparent">
+        app:cardBackgroundColor="@android:color/transparent"
+        app:strokeColor="@color/sheet_border"
+        app:strokeWidth="1dp">
 
         <ImageView
             android:id="@+id/sheetAnimeBanner"
@@ -226,7 +228,9 @@
         android:layout_marginEnd="12dp"
         app:cardCornerRadius="16dp"
         app:cardElevation="0dp"
-        app:cardBackgroundColor="@android:color/transparent">
+        app:cardBackgroundColor="@android:color/transparent"
+        app:strokeColor="@color/sheet_border"
+        app:strokeWidth="1dp">
 
         <ImageView
             android:id="@+id/sheetMovieBanner"
