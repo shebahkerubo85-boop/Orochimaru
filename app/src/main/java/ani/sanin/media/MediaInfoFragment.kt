@@ -603,46 +603,92 @@ class MediaInfoFragment : Fragment() {
                         isSoundEffectsEnabled = true
                         webChromeClient = MyChrome()
                         val trailerId = media.trailer!!
+                        var expanded = false
+                        fun expandTrailer() {
+                            expanded = true
+                            binding.mediaInfoOpEdContainer.visibility = View.GONE
+                            bind.mediaInfoTrailerText.visibility = View.GONE
+                            val w = resources.displayMetrics.widthPixels
+                            binding.mediaInfoFinalContainer.minimumHeight = 0
+                            binding.mediaInfoTrailerRow.orientation = LinearLayout.VERTICAL
+                            binding.mediaInfoTrailerRow.layoutParams =
+                                LinearLayout.LayoutParams(
+                                    LinearLayout.LayoutParams.MATCH_PARENT,
+                                    LinearLayout.LayoutParams.WRAP_CONTENT
+                                )
+                            binding.mediaInfoTrailerHost.layoutParams =
+                                LinearLayout.LayoutParams(
+                                    LinearLayout.LayoutParams.MATCH_PARENT,
+                                    (w * 9f / 16f).toInt()
+                                )
+                        }
+                        fun shrinkTrailer() {
+                            expanded = false
+                            binding.mediaInfoOpEdContainer.visibility = View.VISIBLE
+                            bind.mediaInfoTrailerText.visibility = View.VISIBLE
+                            binding.mediaInfoFinalContainer.minimumHeight = 0
+                            val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+                            binding.mediaInfoTrailerRow.orientation =
+                                if (isPortrait) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+                            val opEdLp = binding.mediaInfoOpEdContainer.layoutParams as LinearLayout.LayoutParams
+                            if (isPortrait) {
+                                opEdLp.width = LinearLayout.LayoutParams.MATCH_PARENT
+                                opEdLp.weight = 0f
+                            } else {
+                                opEdLp.width = 0
+                                opEdLp.weight = 1f
+                            }
+                            binding.mediaInfoOpEdContainer.layoutParams = opEdLp
+                            binding.mediaInfoTrailerRow.layoutParams =
+                                LinearLayout.LayoutParams(
+                                    LinearLayout.LayoutParams.MATCH_PARENT,
+                                    LinearLayout.LayoutParams.WRAP_CONTENT
+                                )
+                            binding.mediaInfoTrailerHost.layoutParams =
+                                LinearLayout.LayoutParams(
+                                    if (isPortrait) LinearLayout.LayoutParams.MATCH_PARENT else 0,
+                                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                                    if (isPortrait) 0f else 1f
+                                )
+                        }
                         addJavascriptInterface(object {
                             @android.webkit.JavascriptInterface
                             fun loadVideo() {
-                                try {
-                                    binding.mediaInfoOpEdContainer.visibility = View.GONE
-                                    binding.mediaInfoTagsContainer.visibility = View.GONE
-                                    bind.mediaInfoTrailerText.visibility = View.GONE
-                                    binding.mediaInfoFinalContainer.minimumHeight =
-                                        (resources.displayMetrics.heightPixels * 0.5).toInt()
-                                    binding.mediaInfoTrailerRow.layoutParams =
-                                        LinearLayout.LayoutParams(
-                                            LinearLayout.LayoutParams.MATCH_PARENT,
-                                            LinearLayout.LayoutParams.MATCH_PARENT
-                                        )
-                                    binding.mediaInfoTrailerHost.layoutParams =
-                                        LinearLayout.LayoutParams(
-                                            LinearLayout.LayoutParams.MATCH_PARENT,
-                                            LinearLayout.LayoutParams.MATCH_PARENT
-                                        )
-                                    bind.root.layoutParams = ViewGroup.LayoutParams(
-                                        ViewGroup.LayoutParams.MATCH_PARENT,
-                                        ViewGroup.LayoutParams.MATCH_PARENT
-                                    )
-                                } catch (_: Exception) {
-                                }
-                                val trailerHtml = """
-                                    <!DOCTYPE html>
-                                    <html><head>
-                                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                                        <style>*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-                                        html,body{width:100%;height:100%;background:#000;overflow:hidden;}
-                                        iframe{width:100%;height:100%;border:none;display:block;}</style>
-                                    </head><body>
-                                        <iframe src="https://www.youtube-nocookie.com/embed/$trailerId?autoplay=1&rel=0&modestbranding=1&controls=1&fs=0"
-                                        allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" frameborder="0"></iframe>
-                                    </body></html>
-                                """.trimIndent()
                                 context.let {
                                     (it as? android.app.Activity)?.runOnUiThread {
+                                        expandTrailer()
+                                        val trailerHtml = """
+                                            <!DOCTYPE html>
+                                            <html><head>
+                                                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                                                <style>*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+                                                html,body{width:100%;height:100%;background:#000;overflow:hidden;}
+                                                iframe{width:100%;height:100%;border:none;display:block;}</style>
+                                            </head><body>
+                                                <iframe id="ytplayer" src="https://www.youtube-nocookie.com/embed/$trailerId?autoplay=1&rel=0&modestbranding=1&controls=1&fs=0&enablejsapi=1"
+                                                allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" frameborder="0"></iframe>
+                                                <script>
+                                                window.addEventListener('message', function(e) {
+                                                    try {
+                                                        var d = JSON.parse(e.data);
+                                                        if (d.event === 'onStateChange' && (d.info === 2 || d.info === 0)) {
+                                                            Android.pauseVideo();
+                                                        }
+                                                    } catch(ex) {}
+                                                });
+                                                </script>
+                                            </body></html>
+                                        """.trimIndent()
                                         loadDataWithBaseURL("https://www.youtube-nocookie.com", trailerHtml, "text/html", "utf-8", null)
+                                    }
+                                }
+                            }
+                            @android.webkit.JavascriptInterface
+                            fun pauseVideo() {
+                                if (!expanded) return
+                                context.let {
+                                    (it as? android.app.Activity)?.runOnUiThread {
+                                        shrinkTrailer()
                                     }
                                 }
                             }
