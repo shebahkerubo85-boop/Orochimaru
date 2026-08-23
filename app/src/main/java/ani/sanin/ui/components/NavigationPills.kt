@@ -295,14 +295,14 @@ fun NavigationPill(
     inactiveTint: Color = Color.White.copy(alpha = 0.7f),
     onMeasure: (x: Float, y: Float, w: Float, h: Float) -> Unit = { _, _, _, _ -> }
 ) {
-    val popScale by animateFloatAsState(
+    val popScale = animateFloatAsState(
         targetValue = if (isActive) 1.12f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMediumLow
         ),
         label = "pillPopScale_$index"
-    )
+    ).value
 
     val pillSize by animateDpAsState(
         targetValue = if (isExpanded) 88.dp else 48.dp,
