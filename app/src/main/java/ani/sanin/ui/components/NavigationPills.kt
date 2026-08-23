@@ -314,7 +314,7 @@ fun NavigationPill(
         modifier = Modifier
             .then(if (vertical) Modifier.fillMaxWidth() else Modifier.width(pillSize))
             .then(if (vertical) Modifier.height(pillSize) else Modifier.fillMaxHeight())
-            .graphicsLayer { scaleX = popScale; scaleY = popScale }
+            .graphicsLayer(scaleX = popScale, scaleY = popScale)
             .clip(RoundedCornerShape(50))
             .onGloballyPositioned { coordinates ->
                 val pos = coordinates.positionInParent()

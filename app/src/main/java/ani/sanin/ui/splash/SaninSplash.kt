@@ -506,19 +506,10 @@ private fun ShineLayer(
         ),
         contentDescription = null,
         modifier = modifier
-            .graphicsLayer {
-                /*
-                 * CRITICAL:
-                 * No scale transformation.
-                 *
-                 * The PNG remains exactly the same size.
-                 */
-
-                alpha = intensity
-
-                compositingStrategy =
-                    CompositingStrategy.Offscreen
-            }
+            .graphicsLayer(
+                alpha = intensity,
+                compositingStrategy = CompositingStrategy.Offscreen
+            )
             .drawWithContent {
 
                 drawContent()
