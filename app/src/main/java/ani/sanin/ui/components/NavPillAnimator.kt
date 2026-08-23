@@ -1,14 +1,13 @@
 package ani.sanin.ui.components
 
+import android.animation.AnimatorSet
+import android.animation.ValueAnimator
+import android.graphics.drawable.GradientDrawable
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageButton
-import android.graphics.drawable.GradientDrawable
-import androidx.dynamicanimation.animation.DynamicAnimation
-import androidx.dynamicanimation.animation.FloatValueHolder
-import androidx.dynamicanimation.animation.SpringAnimation
-import androidx.dynamicanimation.animation.SpringForce
+import android.view.animation.OvershootInterpolator
 
 class NavPillAnimator(
     private val container: ViewGroup,
@@ -16,25 +15,25 @@ class NavPillAnimator(
 ) {
     private var indicator: View? = null
     private var selectedIndex = -1
-    private var offsetXAnim: SpringAnimation? = null
-    private var widthAnim: SpringAnimation? = null
+    private var currentAnim: AnimatorSet? = null
 
     fun attach() {
         if (indicator != null) return
-        val insertIndex = if (container.getChildAt(0)?.id == View.NO_ID ||
-            container.getChildAt(0)?.alpha == 1f && container.childCount > 1) 1 else 0
+        val density = container.context.resources.displayMetrics.density
+        val size = (44 * density).toInt()
+        val radius = 22 * density
 
         indicator = View(container.context).apply {
-            layoutParams = FrameLayout.LayoutParams(0, 0)
+            layoutParams = FrameLayout.LayoutParams(size, size)
             alpha = 0f
-            val radius = 22 * container.context.resources.displayMetrics.density
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 cornerRadius = radius
                 setColor(0x28FFFFFF)
             }
         }
-        container.addView(indicator, insertIndex.coerceAtMost(container.childCount))
+        val insertIndex = (container.childCount - 1).coerceAtLeast(0)
+        container.addView(indicator, insertIndex)
     }
 
     fun select(index: Int) {
@@ -47,18 +46,13 @@ class NavPillAnimator(
             val pillLoc = IntArray(2).also { target.getLocationOnScreen(it) }
             val x = pillLoc[0] - containerLoc[0]
             val y = pillLoc[1] - containerLoc[1]
-            val w = target.width
-            val h = target.height
-
-            ind.layoutParams = (ind.layoutParams as FrameLayout.LayoutParams).also {
-                it.width = w; it.height = h; it.setMargins(x, y, 0, 0)
-            }
 
             if (selectedIndex < 0) {
-                ind.requestLayout()
+                ind.translationX = x.toFloat()
+                ind.translationY = y.toFloat()
                 ind.alpha = 1f
             } else {
-                animateTo(x, y, w, h)
+                animateIndicator(ind, x.toFloat(), y.toFloat())
             }
             selectedIndex = index
         }
@@ -66,65 +60,35 @@ class NavPillAnimator(
         animateIcon(index)
     }
 
-    private fun animateTo(x: Int, y: Int, w: Int, h: Int) {
-        val ind = indicator ?: return
-        val lp = ind.layoutParams as FrameLayout.LayoutParams
+    private fun animateIndicator(ind: View, targetX: Float, targetY: Float) {
+        currentAnim?.cancel()
 
-        offsetXAnim?.cancel()
-        widthAnim?.cancel()
+        val xAnim = ValueAnimator.ofFloat(ind.translationX, targetX).apply {
+            duration = 350
+            interpolator = OvershootInterpolator(0.8f)
+            addUpdateListener { ind.translationX = it.animatedValue as Float }
+        }
+        val yAnim = ValueAnimator.ofFloat(ind.translationY, targetY).apply {
+            duration = 350
+            interpolator = OvershootInterpolator(0.8f)
+            addUpdateListener { ind.translationY = it.animatedValue as Float }
+        }
 
-        offsetXAnim = SpringAnimation(FloatValueHolder(lp.leftMargin.toFloat()))
-            .setSpring(
-                SpringForce().setDampingRatio(SpringForce.DAMPING_RATIO_NO_BOUNCY)
-                    .setStiffness(150f)
-            )
-            .addUpdateListener { _, value, _ ->
-                lp.leftMargin = Math.round(value); ind.requestLayout()
-            }
-        offsetXAnim?.animateToFinalPosition(x.toFloat())
-
-        SpringAnimation(FloatValueHolder(lp.topMargin.toFloat()))
-            .setSpring(
-                SpringForce().setDampingRatio(SpringForce.DAMPING_RATIO_NO_BOUNCY)
-                    .setStiffness(150f)
-            )
-            .addUpdateListener { _, value, _ ->
-                lp.topMargin = Math.round(value); ind.requestLayout()
-            }
-            .start()
-
-        widthAnim = SpringAnimation(FloatValueHolder(lp.width.toFloat()))
-            .setSpring(
-                SpringForce().setDampingRatio(SpringForce.DAMPING_RATIO_NO_BOUNCY)
-                    .setStiffness(150f)
-            )
-            .addUpdateListener { _, value, _ ->
-                lp.width = Math.round(value); ind.requestLayout()
-            }
-        widthAnim?.animateToFinalPosition(w.toFloat())
-
-        SpringAnimation(FloatValueHolder(lp.height.toFloat()))
-            .setSpring(
-                SpringForce().setDampingRatio(SpringForce.DAMPING_RATIO_NO_BOUNCY)
-                    .setStiffness(150f)
-            )
-            .addUpdateListener { _, value, _ ->
-                lp.height = Math.round(value); ind.requestLayout()
-            }
-            .start()
+        currentAnim = AnimatorSet().apply {
+            playTogether(xAnim, yAnim)
+            start()
+        }
     }
 
     private fun animateIcon(selectedIdx: Int) {
         pills.forEachIndexed { i, pill ->
-            val spring = SpringForce()
-                .setDampingRatio(SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY)
-                .setStiffness(150f)
-            val scale = if (i == selectedIdx) 1.12f else 1f
-
-            SpringAnimation(pill, DynamicAnimation.SCALE_X)
-                .setSpring(spring).animateToFinalPosition(scale)
-            SpringAnimation(pill, DynamicAnimation.SCALE_Y)
-                .setSpring(spring).animateToFinalPosition(scale)
+            val targetScale = if (i == selectedIdx) 1.12f else 1f
+            pill.animate()
+                .scaleX(targetScale)
+                .scaleY(targetScale)
+                .setDuration(300)
+                .setInterpolator(OvershootInterpolator(1.5f))
+                .start()
         }
     }
 }

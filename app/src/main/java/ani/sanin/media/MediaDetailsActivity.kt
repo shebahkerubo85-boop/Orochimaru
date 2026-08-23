@@ -192,8 +192,8 @@ class MediaDetailsActivity : AppCompatActivity() {
         )
         binding.navPillBg?.doOnLayout { updateMediaNavIconTints(selected) }
         binding.mediaNavPills?.let { frame ->
-            if (frame.childCount > 1 && frame.getChildAt(1) is LinearLayout) {
-                NavPillCustomizer.applyToPillList(frame.getChildAt(1) as LinearLayout)
+            frame.findViewWithTag<LinearLayout>("pill_list")?.let {
+                NavPillCustomizer.applyToPillList(it)
             }
         }
 

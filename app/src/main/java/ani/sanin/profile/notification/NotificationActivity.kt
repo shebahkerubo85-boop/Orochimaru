@@ -104,8 +104,8 @@ class NotificationActivity : AppCompatActivity() {
         binding.notificationNavRail.elevation = 10f
         binding.notificationNavRail.clipToOutline = true
         binding.notificationNavRail.let { frame ->
-            if (frame.childCount > 1 && frame.getChildAt(1) is LinearLayout) {
-                NavPillCustomizer.applyToPillList(frame.getChildAt(1) as LinearLayout)
+            frame.findViewWithTag<LinearLayout>("pill_list")?.let {
+                NavPillCustomizer.applyToPillList(it)
             }
         }
 

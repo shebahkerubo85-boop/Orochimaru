@@ -34,15 +34,25 @@ object NavPillCustomizer {
         val iconPaddingPx = (computeIconPadding(width, iconSize) * density).toInt()
         val spacingPx = (spacing * density).toInt()
 
-        pillList.setPadding(pillList.paddingLeft, spacingPx, pillList.paddingRight, spacingPx)
+        val isHorizontal = pillList.orientation == LinearLayout.HORIZONTAL
+        if (isHorizontal) {
+            pillList.setPadding(spacingPx, pillList.paddingTop, spacingPx, pillList.paddingBottom)
+        } else {
+            pillList.setPadding(pillList.paddingLeft, spacingPx, pillList.paddingRight, spacingPx)
+        }
 
         val iconTint = ColorStateList.valueOf(iconColor)
         for (i in 0 until pillList.childCount) {
             val child = pillList.getChildAt(i)
             if (child is ImageButton) {
                 val lp = child.layoutParams
-                lp.width = pillWidthPx
-                lp.height = pillHeightPx
+                if (isHorizontal) {
+                    lp.width = pillHeightPx
+                    lp.height = pillHeightPx
+                } else {
+                    lp.width = pillWidthPx
+                    lp.height = pillHeightPx
+                }
                 child.layoutParams = lp
                 child.setPadding(iconPaddingPx, iconPaddingPx, iconPaddingPx, iconPaddingPx)
                 child.imageTintList = iconTint

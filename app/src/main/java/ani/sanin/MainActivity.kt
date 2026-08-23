@@ -838,7 +838,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         updateNavPillFocusChains()
-        NavPillCustomizer.applyToPillList(binding.homeNavRail.getChildAt(1) as LinearLayout)
+        val pillList = binding.homeNavRail.findViewWithTag<LinearLayout>("pill_list")
+            ?: binding.homeNavRail.getChildAt(1) as? LinearLayout
+        pillList?.let { NavPillCustomizer.applyToPillList(it) }
 
         lifecycleScope.launch {
             navPillsViewModel.currentTab.collect { tab ->
