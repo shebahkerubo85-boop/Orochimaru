@@ -319,11 +319,11 @@ class MediaDetailsActivity : AppCompatActivity() {
             model.saveSelected(media.id, sel)
         }
 
-        navInfo?.setOnClickListener { selectTab(0); hideNavPills() }
-        navWatch?.setOnClickListener { selectTab(1); hideNavPills() }
+        navInfo?.setOnClickListener { selectTab(0); mediaNavAnimator?.select(0); hideNavPills() }
+        navWatch?.setOnClickListener { selectTab(1); mediaNavAnimator?.select(1); hideNavPills() }
         navComments?.visibility = if (hasComments) View.VISIBLE else View.GONE
         if (hasComments) {
-            navComments?.setOnClickListener { selectTab(2); hideNavPills() }
+            navComments?.setOnClickListener { selectTab(2); mediaNavAnimator?.select(2); hideNavPills() }
         }
         commentTabOpener = { selectTab(2) }
         watchTabOpener = { selectTab(1) }
@@ -499,14 +499,12 @@ class MediaDetailsActivity : AppCompatActivity() {
     private fun updateMediaNavIconTints(selectedIdx: Int) {
         val customColor = NavPillCustomizer.getIconColor()
         val pills = listOfNotNull(binding.navPillInfo, binding.navPillWatch, binding.navPillComments)
-        mediaNavAnimator = NavPillAnimator(binding.mediaNavPills, pills)
+        if (mediaNavAnimator == null) {
+            mediaNavAnimator = NavPillAnimator(binding.mediaNavPills, pills)
+        }
         pills.forEachIndexed { i, pill ->
             pill.imageTintList = ColorStateList.valueOf(customColor)
             pill.alpha = 1f
-            pill.setOnClickListener {
-                selected = pills.indexOf(pill)
-                mediaNavAnimator?.select(selected)
-            }
         }
     }
 

@@ -238,11 +238,13 @@ class MediaInfoFragment : Fragment() {
                     binding.mediaInfoDescription.requestLayout()
                 }
                 binding.mediaInfoDescription.post {
+                    if (_binding == null) return@post
                     val tv = binding.mediaInfoDescription
                     val oldMax = tv.maxLines
                     tv.maxLines = Int.MAX_VALUE
                     tv.requestLayout()
                     tv.post {
+                        if (_binding == null) return@post
                         val fullLines = tv.lineCount
                         tv.maxLines = oldMax
                         tv.requestLayout()
