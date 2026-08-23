@@ -91,9 +91,15 @@ class NotificationActivity : AppCompatActivity() {
             topMargin = statusBarHeight
         }
         binding.notificationNavRailBg.live = PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.LiveSideRail)
-        binding.notificationNavRailBg.setGlassEnabled(
-            GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)
-        )
+        if (GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)) {
+            GlassEffectManager.applyGlass(
+                binding.notificationNavRail,
+                GlassComponent.NavPills,
+                28f
+            )
+        } else {
+            GlassEffectManager.removeGlass(binding.notificationNavRail)
+        }
         FocusEffectUtil.applyFocusListener(binding.notificationBack)
         val cornerPx = NavPillCustomizer.getCornerRadiusDp() * resources.displayMetrics.density
         binding.notificationNavRail.outlineProvider = object : android.view.ViewOutlineProvider() {

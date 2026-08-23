@@ -650,6 +650,16 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         loadAvatar()
         binding.homeNavRailBg.live = PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.LiveSideRail)
+        if (GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)) {
+            GlassEffectManager.applyGlass(
+                binding.homeNavRail,
+                GlassComponent.NavPills,
+                NavPillCustomizer.getCornerRadiusDp().toFloat()
+            )
+        } else {
+            GlassEffectManager.removeGlass(binding.homeNavRail)
+        }
+
         binding.homeNavRailBg.setGlassEnabled(
             GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)
         )

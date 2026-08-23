@@ -82,7 +82,7 @@ class NavPillAnimator(
 
     private fun animateIcon(selectedIdx: Int) {
         pills.forEachIndexed { i, pill ->
-            val targetScale = if (i == selectedIdx) 1.12f else 1f
+            val targetScale = if (i == selectedIdx) 1.18f else 1f
             pill.animate()
                 .scaleX(targetScale)
                 .scaleY(targetScale)

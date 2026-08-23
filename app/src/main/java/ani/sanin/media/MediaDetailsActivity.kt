@@ -187,9 +187,13 @@ class MediaDetailsActivity : AppCompatActivity() {
         allNav.forEach { FocusEffectUtil.applyFocusListener(it, borderColor = navFocusColor) }
 
         binding.navPillBg?.live = PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.LiveSideRail)
-        binding.navPillBg?.setGlassEnabled(
-            GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)
-        )
+        if (GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)) {
+            binding.mediaNavPills?.let { frame ->
+                GlassEffectManager.applyGlass(frame, GlassComponent.NavPills, 28f)
+            }
+        } else {
+            binding.mediaNavPills?.let { frame -> GlassEffectManager.removeGlass(frame) }
+        }
         binding.navPillBg?.doOnLayout { updateMediaNavIconTints(selected) }
         binding.mediaNavPills?.let { frame ->
             frame.findViewWithTag<LinearLayout>("pill_list")?.let {
