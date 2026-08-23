@@ -29,7 +29,7 @@ fun Modifier.glowFocusEffect(isFocused: Boolean): Modifier {
         label = "glowScale"
     ).value
     return this
-        .graphicsLayer { scaleX = scale; scaleY = scale }
+        .graphicsLayer(scaleX = scale, scaleY = scale)
         .then(
             if (isFocused) Modifier.border(2.dp, IcyBlueBorder, RoundedCornerShape(50))
             else Modifier
@@ -43,7 +43,7 @@ fun Modifier.scaleFocusEffect(isFocused: Boolean): Modifier {
         animationSpec = FocusSpringSpec,
         label = "scaleAnim"
     ).value
-    return this.graphicsLayer { scaleX = scale; scaleY = scale }
+    return this.graphicsLayer(scaleX = scale, scaleY = scale)
 }
 
 @Composable
@@ -66,7 +66,7 @@ fun Modifier.pulseFocusEffect(isFocused: Boolean): Modifier {
         animationSpec = SpringSpec,
         label = "pulse"
     ).value
-    return this.graphicsLayer { scaleX = scale; scaleY = scale }
+    return this.graphicsLayer(scaleX = scale, scaleY = scale)
 }
 
 @Composable
@@ -89,7 +89,7 @@ fun Modifier.breatheFocusEffect(isFocused: Boolean): Modifier {
         animationSpec = BreatheSpec,
         label = "breathe"
     ).value
-    return this.graphicsLayer { scaleX = scale; scaleY = scale }
+    return this.graphicsLayer(scaleX = scale, scaleY = scale)
 }
 
 @Composable
@@ -114,7 +114,7 @@ fun Modifier.pulseGlowFocusEffect(isFocused: Boolean): Modifier {
     ).value
     val glowAlpha = ((scale - 1.0f) / 0.08f * 0.5f + 0.5f).coerceIn(0.3f, 1.0f)
     return this
-        .graphicsLayer { scaleX = scale; scaleY = scale }
+        .graphicsLayer(scaleX = scale, scaleY = scale)
         .then(
             if (isFocused) Modifier.border(2.dp, IcyBlueBorder.copy(alpha = glowAlpha), RoundedCornerShape(50))
             else Modifier

@@ -16,7 +16,7 @@ val gitCommitHash = providers.exec {
 
 android {
     namespace = "ani.sanin"
-    compileSdk = 36
+    compileSdk = 37
 
     signingConfigs {
         create("release") {
