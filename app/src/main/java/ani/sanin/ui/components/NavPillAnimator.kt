@@ -1,13 +1,11 @@
 package ani.sanin.ui.components
 
-import android.animation.AnimatorSet
 import android.animation.ValueAnimator
-import android.graphics.drawable.GradientDrawable
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageButton
-import android.view.animation.OvershootInterpolator
+import android.graphics.drawable.GradientDrawable
 
 class NavPillAnimator(
     private val container: ViewGroup,
@@ -15,7 +13,7 @@ class NavPillAnimator(
 ) {
     private var indicator: View? = null
     private var selectedIndex = -1
-    private var currentAnim: AnimatorSet? = null
+    private var currentAnim: android.animation.AnimatorSet? = null
 
     fun attach() {
         if (indicator != null) return
@@ -45,14 +43,17 @@ class NavPillAnimator(
             val containerLoc = IntArray(2).also { container.getLocationOnScreen(it) }
             val pillLoc = IntArray(2).also { target.getLocationOnScreen(it) }
             val x = pillLoc[0] - containerLoc[0]
-            val y = pillLoc[1] - containerLoc[1]
+            // ← CENTER VERTICALLY: pill center minus indicator radius
+            val pillCenterY = pillLoc[1].toFloat() + (target.height / 2f)
+            val indY = pillCenterY - (size / 2f)
+            val y = indY
 
             if (selectedIndex < 0) {
                 ind.translationX = x.toFloat()
                 ind.translationY = y.toFloat()
                 ind.alpha = 1f
             } else {
-                animateIndicator(ind, x.toFloat(), y.toFloat())
+                animateIndicator(ind, x.toFloat(), y)
             }
             selectedIndex = index
         }
@@ -65,16 +66,16 @@ class NavPillAnimator(
 
         val xAnim = ValueAnimator.ofFloat(ind.translationX, targetX).apply {
             duration = 350
-            interpolator = OvershootInterpolator(0.8f)
+            interpolator = android.view.animation.OvershootInterpolator(0.8f)
             addUpdateListener { ind.translationX = it.animatedValue as Float }
         }
         val yAnim = ValueAnimator.ofFloat(ind.translationY, targetY).apply {
             duration = 350
-            interpolator = OvershootInterpolator(0.8f)
+            interpolator = android.view.animation.OvershootInterpolator(0.8f)
             addUpdateListener { ind.translationY = it.animatedValue as Float }
         }
 
-        currentAnim = AnimatorSet().apply {
+        currentAnim = android.animation.AnimatorSet().apply {
             playTogether(xAnim, yAnim)
             start()
         }
@@ -87,7 +88,7 @@ class NavPillAnimator(
                 .scaleX(targetScale)
                 .scaleY(targetScale)
                 .setDuration(300)
-                .setInterpolator(OvershootInterpolator(1.5f))
+                .setInterpolator(android.view.animation.OvershootInterpolator(1.5f))
                 .start()
         }
     }
