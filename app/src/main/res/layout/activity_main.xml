@@ -189,6 +189,7 @@
         android:layout_marginBottom="16dp"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
+        android:background="@drawable/bg_clay_pill"
         android:elevation="10dp"
         android:translationZ="10dp"
         android:focusable="true"
@@ -198,8 +199,8 @@
 
         <ani.sanin.ui.components.SnakeNavRailView
             android:id="@+id/homeNavRailBg"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:focusable="false"
             android:clickable="false"
             android:importantForAccessibility="no" />
