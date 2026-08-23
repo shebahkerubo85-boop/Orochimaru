@@ -840,9 +840,11 @@ class MainActivity : AppCompatActivity() {
         updateNavPillFocusChains()
         NavPillCustomizer.applyToPillList(binding.homeNavRail.getChildAt(1) as LinearLayout)
 
-        navPillsViewModel.currentTab.observe(this) { tab ->
-            if (binding.homeNavRail.visibility == View.VISIBLE) {
-                navPillAnimator?.select(tab)
+        lifecycleScope.launch {
+            navPillsViewModel.currentTab.collect { tab ->
+                if (binding.homeNavRail.visibility == View.VISIBLE) {
+                    navPillAnimator?.select(tab)
+                }
             }
         }
     }

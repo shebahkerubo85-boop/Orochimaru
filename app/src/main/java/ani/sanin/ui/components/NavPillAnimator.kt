@@ -76,7 +76,7 @@ class NavPillAnimator(
         offsetXAnim = SpringAnimation(FloatValueHolder(lp.leftMargin.toFloat()))
             .setSpring(
                 SpringForce().setDampingRatio(SpringForce.DAMPING_RATIO_NO_BOUNCY)
-                    .setStiffness(SpringForce.STIFFNESS_MEDIUM_LOW)
+                    .setStiffness(150f)
             )
             .addUpdateListener { _, value, _ ->
                 lp.leftMargin = Math.round(value); ind.requestLayout()
@@ -86,7 +86,7 @@ class NavPillAnimator(
         SpringAnimation(FloatValueHolder(lp.topMargin.toFloat()))
             .setSpring(
                 SpringForce().setDampingRatio(SpringForce.DAMPING_RATIO_NO_BOUNCY)
-                    .setStiffness(SpringForce.STIFFNESS_MEDIUM_LOW)
+                    .setStiffness(150f)
             )
             .addUpdateListener { _, value, _ ->
                 lp.topMargin = Math.round(value); ind.requestLayout()
@@ -96,7 +96,7 @@ class NavPillAnimator(
         widthAnim = SpringAnimation(FloatValueHolder(lp.width.toFloat()))
             .setSpring(
                 SpringForce().setDampingRatio(SpringForce.DAMPING_RATIO_NO_BOUNCY)
-                    .setStiffness(SpringForce.STIFFNESS_MEDIUM_LOW)
+                    .setStiffness(150f)
             )
             .addUpdateListener { _, value, _ ->
                 lp.width = Math.round(value); ind.requestLayout()
@@ -106,7 +106,7 @@ class NavPillAnimator(
         SpringAnimation(FloatValueHolder(lp.height.toFloat()))
             .setSpring(
                 SpringForce().setDampingRatio(SpringForce.DAMPING_RATIO_NO_BOUNCY)
-                    .setStiffness(SpringForce.STIFFNESS_MEDIUM_LOW)
+                    .setStiffness(150f)
             )
             .addUpdateListener { _, value, _ ->
                 lp.height = Math.round(value); ind.requestLayout()
@@ -118,7 +118,7 @@ class NavPillAnimator(
         pills.forEachIndexed { i, pill ->
             val spring = SpringForce()
                 .setDampingRatio(SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY)
-                .setStiffness(SpringForce.STIFFNESS_MEDIUM_LOW)
+                .setStiffness(150f)
             val scale = if (i == selectedIdx) 1.12f else 1f
 
             SpringAnimation(pill, DynamicAnimation.SCALE_X)
