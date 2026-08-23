@@ -20,7 +20,7 @@ class NavPillAnimator(
         if (indicator != null) return
         val density = container.context.resources.displayMetrics.density
         indicatorSize = (44 * density).toInt()
-        val radius = indicatorSize / 2
+        val radius = indicatorSize / 2f
 
         indicator = View(container.context).apply {
             layoutParams = FrameLayout.LayoutParams(indicatorSize, indicatorSize)
