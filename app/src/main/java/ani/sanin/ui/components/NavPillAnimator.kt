@@ -14,15 +14,16 @@ class NavPillAnimator(
     private var indicator: View? = null
     private var selectedIndex = -1
     private var currentAnim: android.animation.AnimatorSet? = null
+    private var indicatorSize = 0
 
     fun attach() {
         if (indicator != null) return
         val density = container.context.resources.displayMetrics.density
-        val size = (44 * density).toInt()
-        val radius = 22 * density
+        indicatorSize = (44 * density).toInt()
+        val radius = indicatorSize / 2
 
         indicator = View(container.context).apply {
-            layoutParams = FrameLayout.LayoutParams(size, size)
+            layoutParams = FrameLayout.LayoutParams(indicatorSize, indicatorSize)
             alpha = 0f
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
@@ -45,7 +46,7 @@ class NavPillAnimator(
             val x = pillLoc[0] - containerLoc[0]
             // ← CENTER VERTICALLY: pill center minus indicator radius
             val pillCenterY = pillLoc[1].toFloat() + (target.height / 2f)
-            val indY = pillCenterY - (size / 2f)
+            val indY = pillCenterY - (indicatorSize / 2f)
             val y = indY
 
             if (selectedIndex < 0) {
