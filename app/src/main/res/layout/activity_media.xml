@@ -70,7 +70,9 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="8dp"
+        android:layout_marginBottom="16dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
         android:elevation="10dp"
         android:translationZ="10dp"
         android:focusable="true"
@@ -103,9 +105,7 @@
                 android:src="@drawable/ic_round_info_24"
                 android:scaleType="fitCenter"
                 android:background="@android:color/transparent"
-                android:focusable="true"
-                android:nextFocusLeft="@id/navPillComments"
-                android:nextFocusRight="@id/navPillWatch" />
+                                android:focusable="false" />
 
             <ImageButton
                 android:id="@+id/navPillWatch"
@@ -115,9 +115,7 @@
                 android:src="@drawable/ic_round_movie_filter_24"
                 android:scaleType="fitCenter"
                 android:background="@android:color/transparent"
-                android:focusable="true"
-                android:nextFocusLeft="@id/navPillInfo"
-                android:nextFocusRight="@id/navPillComments" />
+                                android:focusable="false" />
 
             <ImageButton
                 android:id="@+id/navPillComments"
@@ -128,8 +126,7 @@
                 android:scaleType="fitCenter"
                 android:background="@android:color/transparent"
                 android:visibility="gone"
-                android:focusable="true"
-                android:nextFocusLeft="@id/navPillWatch" />
+                                android:focusable="false" />
         </LinearLayout>
     </FrameLayout>
 

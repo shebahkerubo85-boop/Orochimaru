@@ -186,7 +186,9 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="8dp"
+        android:layout_marginBottom="16dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
         android:elevation="10dp"
         android:translationZ="10dp"
         android:focusable="true"
@@ -218,9 +220,7 @@
                     android:src="@drawable/ic_round_home_24"
                     android:scaleType="fitCenter"
                     android:background="@android:color/transparent"
-                    android:focusable="true"
-                    android:nextFocusLeft="@id/homeNavLibrary"
-                    android:nextFocusRight="@id/homeNavDiscovery" />
+                    android:focusable="false" />
 
                 <ImageButton
                     android:id="@+id/homeNavAnime"
@@ -230,8 +230,7 @@
                     android:src="@drawable/ic_round_movie_filter_24"
                     android:scaleType="fitCenter"
                     android:background="@android:color/transparent"
-                    android:focusable="true"
-                    android:nextFocusRight="@id/homeNavAnime" />
+                    android:focusable="false" />
 
                 <ImageButton
                     android:id="@+id/homeNavDiscovery"
@@ -241,9 +240,7 @@
                     android:src="@drawable/ic_round_explore_24"
                     android:scaleType="fitCenter"
                     android:background="@android:color/transparent"
-                    android:focusable="true"
-                    android:nextFocusLeft="@id/homeNavHome"
-                    android:nextFocusRight="@id/homeNavLibrary" />
+                    android:focusable="false" />
 
                 <ImageButton
                     android:id="@+id/homeNavLibrary"
@@ -253,8 +250,7 @@
                     android:src="@drawable/ic_round_library_books_24"
                     android:scaleType="fitCenter"
                     android:background="@android:color/transparent"
-                    android:focusable="true"
-                    android:nextFocusLeft="@id/homeNavDiscovery" />
+                    android:focusable="false" />
             </LinearLayout>
         </FrameLayout>
 
