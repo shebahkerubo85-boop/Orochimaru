@@ -67,10 +67,10 @@
 
     <FrameLayout
         android:id="@+id/mediaNavPills"
-        android:layout_width="44dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="start|center_vertical"
-        android:layout_marginStart="8dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="8dp"
         android:elevation="10dp"
         android:translationZ="10dp"
         android:focusable="true"
@@ -90,10 +90,10 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
+            android:orientation="horizontal"
             android:gravity="center"
-            android:paddingTop="6dp"
-            android:paddingBottom="6dp">
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp">
 
             <ImageButton
                 android:id="@+id/navPillInfo"
@@ -104,8 +104,8 @@
                 android:scaleType="fitCenter"
                 android:background="@android:color/transparent"
                 android:focusable="true"
-                android:nextFocusUp="@id/navPillComments"
-                android:nextFocusDown="@id/navPillWatch" />
+                android:nextFocusLeft="@id/navPillComments"
+                android:nextFocusRight="@id/navPillWatch" />
 
             <ImageButton
                 android:id="@+id/navPillWatch"
@@ -116,8 +116,8 @@
                 android:scaleType="fitCenter"
                 android:background="@android:color/transparent"
                 android:focusable="true"
-                android:nextFocusUp="@id/navPillInfo"
-                android:nextFocusDown="@id/navPillComments" />
+                android:nextFocusLeft="@id/navPillInfo"
+                android:nextFocusRight="@id/navPillComments" />
 
             <ImageButton
                 android:id="@+id/navPillComments"
@@ -129,8 +129,7 @@
                 android:background="@android:color/transparent"
                 android:visibility="gone"
                 android:focusable="true"
-                android:nextFocusUp="@id/navPillWatch"
-                android:nextFocusDown="@id/navPillInfo" />
+                android:nextFocusLeft="@id/navPillWatch" />
         </LinearLayout>
     </FrameLayout>
 

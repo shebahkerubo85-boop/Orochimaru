@@ -183,10 +183,10 @@
 
     <FrameLayout
         android:id="@+id/homeNavRail"
-        android:layout_width="wrap_content"
+        android:layout_width="44dp"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="8dp"
+        android:layout_gravity="start|center_vertical"
+        android:layout_marginStart="8dp"
         android:elevation="10dp"
         android:translationZ="10dp"
         android:focusable="true"
@@ -205,10 +205,10 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:gravity="center"
-            android:paddingStart="6dp"
-            android:paddingEnd="6dp">
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp">
 
                 <ImageButton
                     android:id="@+id/homeNavHome"
@@ -219,8 +219,8 @@
                     android:scaleType="fitCenter"
                     android:background="@android:color/transparent"
                     android:focusable="true"
-                    android:nextFocusLeft="@id/homeNavLibrary"
-                    android:nextFocusRight="@id/homeNavDiscovery" />
+                    android:nextFocusUp="@id/homeNavLibrary"
+                    android:nextFocusDown="@id/homeNavAnime" />
 
                 <ImageButton
                     android:id="@+id/homeNavAnime"
@@ -231,7 +231,8 @@
                     android:scaleType="fitCenter"
                     android:background="@android:color/transparent"
                     android:focusable="true"
-                    android:nextFocusRight="@id/homeNavAnime" />
+                    android:nextFocusUp="@id/homeNavHome"
+                    android:nextFocusDown="@id/homeNavDiscovery" />
 
                 <ImageButton
                     android:id="@+id/homeNavDiscovery"
@@ -242,8 +243,8 @@
                     android:scaleType="fitCenter"
                     android:background="@android:color/transparent"
                     android:focusable="true"
-                    android:nextFocusLeft="@id/homeNavHome"
-                    android:nextFocusRight="@id/homeNavLibrary" />
+                    android:nextFocusUp="@id/homeNavAnime"
+                    android:nextFocusDown="@id/homeNavLibrary" />
 
                 <ImageButton
                     android:id="@+id/homeNavLibrary"
@@ -254,7 +255,8 @@
                     android:scaleType="fitCenter"
                     android:background="@android:color/transparent"
                     android:focusable="true"
-                    android:nextFocusLeft="@id/homeNavDiscovery" />
+                    android:nextFocusUp="@id/homeNavDiscovery"
+                    android:nextFocusDown="@id/homeNavHome" />
             </LinearLayout>
         </FrameLayout>
 
