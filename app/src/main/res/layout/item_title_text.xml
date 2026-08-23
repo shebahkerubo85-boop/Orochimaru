@@ -15,7 +15,7 @@
         android:fontFamily="@font/poppins_bold"
         android:text="@string/opening"
         android:textColor="?attr/colorPrimary"
-        android:textSize="13sp" />
+        android:textSize="11sp" />
 
     <TextView
         android:id="@+id/itemText"
@@ -28,5 +28,5 @@
         android:fontFamily="@font/poppins_family"
         android:maxLines="4"
         android:textColor="@android:color/white"
-        android:textSize="13sp" />
+        android:textSize="10sp" />
 </LinearLayout>
