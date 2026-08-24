@@ -15,7 +15,7 @@ class ReanimeProvider : NativeAnimeParser() {
     override val name = "Reanime"
     override val saveName = "reanime"
 
-    override fun isDubAvailableSeparately(sourceLang: Int?): Boolean = false
+    override fun isDubAvailableSeparately(sourceLang: Int?): Boolean = true
 
     override val defaultBaseUrl = "https://reanime.to"
 
@@ -48,6 +48,7 @@ class ReanimeProvider : NativeAnimeParser() {
                         ?: return@mapNotNull null
                     val animeId = (item["anime_id"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null
                     val anilistId = (item["anilist_id"] as? JsonPrimitive)?.contentOrNull
+                        ?.takeIf { it.toIntOrNull() > 0 }
                     val covers = item["cover_image"] as? JsonObject
                     val poster = (covers?.get("extra_large") as? JsonPrimitive)?.contentOrNull
                         ?: (covers?.get("large") as? JsonPrimitive)?.contentOrNull
@@ -58,10 +59,10 @@ class ReanimeProvider : NativeAnimeParser() {
                         link = animeId,
                         coverUrl = FileUrl(poster ?: defaultImage),
                         total = total,
-                        extra = mutableMapOf(
-                            "anilistId" to (anilistId ?: animeId.substringAfterLast('-')),
-                            "slug" to animeId
-                        )
+                        extra = buildMap {
+                            put("slug", animeId)
+                            anilistId?.let { put("anilistId", it) }
+                        },
                     )
                 }
             } catch (e: Exception) {
@@ -73,7 +74,18 @@ class ReanimeProvider : NativeAnimeParser() {
 
     override suspend fun autoSearch(mediaObj: Media): ShowResponse? {
         val saved = loadSavedShowResponse(mediaObj.id)
-        if (saved != null) return saved
+        if (saved != null) {
+            val savedAnilistId = saved.extra?.get("anilistId")
+            val savedEpisodes = loadEpisodes(
+                saved.link,
+                saved.extra,
+                saved.sAnime ?: SAnime.create().apply { url = saved.link }
+            )
+            if (savedEpisodes.isNotEmpty() && !savedAnilistId.isNullOrBlank() && savedAnilistId.toIntOrNull() > 0) {
+                return saved
+            }
+            Logger.log("Reanime discarding invalid saved selection: id=${savedAnilistId ?: "missing"}")
+        }
         setUserText("Searching Reanime: ${mediaObj.mainName()}")
         return searchWithFallback(mediaObj.mainName()).firstOrNull()
             ?: searchWithFallback(mediaObj.nameRomaji).firstOrNull()
@@ -116,18 +128,22 @@ class ReanimeProvider : NativeAnimeParser() {
     ): List<VideoServer> {
         val anilistId = extra?.get("anilistId")
         val episodeNumber = episodeLink.toIntOrNull()
-        if (anilistId.isNullOrBlank() || episodeNumber == null) return emptyList()
+        if (anilistId.isNullOrBlank() || anilistId.toIntOrNull() <= 0 || episodeNumber == null) return emptyList()
         return withContext(Dispatchers.IO) {
             try {
                 val body = get("$baseUrl/api/flix/$anilistId/$episodeNumber?v=1")
                 val obj = Mapper.json.parseToJsonElement(body) as? JsonObject ?: return@withContext emptyList()
                 val servers = obj["servers"] as? JsonArray ?: return@withContext emptyList()
+                val languages = if (selectDub) listOf("sub", "dub") else listOf("sub")
                 servers.mapNotNull { serverElement ->
                     val server = serverElement as? JsonObject ?: return@mapNotNull null
                     val url = (server["dataLink"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null
                     val name = (server["serverName"] as? JsonPrimitive)?.contentOrNull ?: "Reanime"
                     val languageType = (server["dataType"] as? JsonPrimitive)?.contentOrNull
-                    VideoServer("$name (${languageType?.uppercase() ?: "SUB"})", url)
+                    if (languageType !in languages) return@mapNotNull null
+                    val resolved = StreamResolvers.flixCloud(url).firstOrNull()
+                        ?: return@mapNotNull null
+                    videoServer("$name · ${languageType?.uppercase() ?: "SUB"}", resolved)
                 }.distinctBy { it.embed.url }
             } catch (e: Exception) {
                 Logger.log("Reanime loadVideoServers error: ${e.message}")
@@ -136,21 +152,18 @@ class ReanimeProvider : NativeAnimeParser() {
         }
     }
 
-    private fun buildServer(name: String, streamUrl: String, obj: JsonObject): VideoServer {
-        val extraData = mutableMapOf<String, String>()
-        val subs = obj["subtitles"] as? JsonArray
-        if (subs != null && subs.isNotEmpty()) {
-            val subJson = subs.mapNotNull { sub ->
-                val subObj = sub as? JsonObject ?: return@mapNotNull null
-                val url = (subObj["url"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null
-                val lang = (subObj["lang"] as? JsonPrimitive)?.contentOrNull ?: "Unknown"
-                val code = language(lang)
-                "{\"url\":\"${url.replace("\"", "\\\"")}\",\"language\":\"$code\",\"type\":\"vtt\"}"
-            }
-            if (subJson.isNotEmpty()) extraData["subtitles"] = "[${subJson.joinToString(",")}]"
+    private fun videoServer(name: String, resolved: ResolvedStream): VideoServer {
+        val extraData = mutableMapOf<String, String>("format" to resolved.format.name)
+        resolved.quality?.let { extraData["quality"] = it.toString() }
+        if (resolved.subtitles.isNotEmpty()) {
+            extraData["subtitles"] = JsonArray(resolved.subtitles.map { subtitle ->
+                buildJsonObject {
+                    put("url", subtitle.file.url)
+                    put("language", language(subtitle.language))
+                    put("type", subtitle.type.name.lowercase())
+                }
+            }).toString()
         }
-        obj["intro"]?.let { if (it is JsonObject || it is JsonPrimitive) extraData["intro"] = it.toString() }
-        obj["outro"]?.let { if (it is JsonObject || it is JsonPrimitive) extraData["outro"] = it.toString() }
-        return VideoServer(name, streamUrl, extraData)
+        return VideoServer(name, ani.sanin.FileUrl(resolved.url, resolved.headers), extraData)
     }
 }

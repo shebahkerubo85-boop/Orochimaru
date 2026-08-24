@@ -179,7 +179,7 @@ class GogoAnimeProvider : NativeAnimeParser() {
                 val servers = mutableListOf<VideoServer>()
                 val seen = mutableSetOf<String>()
 
-                val languages = if (selectDub) listOf("SUB", "DUB") else listOf("SUB")
+                val wantedLanguage = if (selectDub) "DUB" else "SUB"
                 val serverBlockRegex = Regex(
                     """<div class="type" data-type="([^"]+)">(.*?)</div>""",
                     setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
@@ -191,7 +191,7 @@ class GogoAnimeProvider : NativeAnimeParser() {
 
                 serverBlockRegex.findAll(body).forEach { block ->
                     val blockLanguage = block.groupValues[1].uppercase()
-                    if (blockLanguage !in languages) return@forEach
+                    if (blockLanguage != wantedLanguage) return@forEach
                     itemRegex.findAll(block.groupValues[2]).forEach { item ->
                         val playerUrl = attr(item.value, "data-src")
                             .ifBlank { item.groupValues[1].replace("&amp;", "&") }

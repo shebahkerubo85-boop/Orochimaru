@@ -22,28 +22,33 @@ class NativeVideoExtractor(override val server: VideoServer) : VideoExtractor() 
             if (!ref.isNullOrBlank()) headers = mapOf("Referer" to ref)
         }
 
-        val videos = mutableListOf(
-            Video(
-                quality = null,
-                format = VideoType.M3U8,
-                file = FileUrl(url, headers),
-                size = null
-            )
-        )
-
         if (url.contains(".m3u8", ignoreCase = true)) {
             val parsed = parseHlsMaster(url, headers)
-            videos.addAll(parsed)
+            val videos = if (parsed.isNotEmpty()) {
+                parsed
+            } else {
+                listOf(Video(null, VideoType.M3U8, FileUrl(url, headers)))
+            }
+            return VideoContainer(videos, parseSubtitles(server.extraData?.get("subtitles")), timestamps = parseTimestamps(extraData))
         } else if (url.contains(".mpd", ignoreCase = true)) {
-            // DASH — single entry is fine
+            val videos = listOf(
+                Video(
+                    extraData?.get("quality")?.toIntOrNull(),
+                    VideoType.DASH,
+                    FileUrl(url, headers),
+                )
+            )
+            return VideoContainer(videos, parseSubtitles(server.extraData?.get("subtitles")), timestamps = parseTimestamps(extraData))
         } else {
-            // Container format — single entry is fine
+            val videos = listOf(
+                Video(
+                    extraData?.get("quality")?.toIntOrNull(),
+                    VideoType.CONTAINER,
+                    FileUrl(url, headers),
+                )
+            )
+            return VideoContainer(videos, parseSubtitles(server.extraData?.get("subtitles")), timestamps = parseTimestamps(extraData))
         }
-
-        val subtitles = parseSubtitles(server.extraData?.get("subtitles"))
-        val timestamps = parseTimestamps(server.extraData)
-
-        return VideoContainer(videos, subtitles, timestamps = timestamps)
     }
 
     private fun parseTimestamps(extraData: Map<String, String>?): List<TimeStamp> {
