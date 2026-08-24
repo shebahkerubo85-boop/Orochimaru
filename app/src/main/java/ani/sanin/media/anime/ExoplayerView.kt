@@ -556,6 +556,19 @@ class ExoplayerView :
         playerView = findViewById(R.id.player_view)
 
         exoPlay = playerView.findViewById(androidx.media3.ui.R.id.exo_play)
+        val wrapInContainer = PrefManager.getVal(PrefName.WrapButtonsInContainer)
+        val groupBg = if (wrapInContainer) {
+            androidx.core.content.ContextCompat.getDrawable(
+                this, R.drawable.bg_player_control_group
+            )
+        } else null
+        listOf(
+            R.id.exo_bottom_left_group,
+            R.id.exo_bottom_right_group,
+            R.id.exo_top_right_group,
+        ).forEach { id ->
+            playerView.findViewById<View>(id)?.background = groupBg
+        }
         exoSource = playerView.findViewById(R.id.exo_source)
         exoSettings = playerView.findViewById(R.id.exo_settings)
         exoSubtitle = playerView.findViewById(R.id.exo_sub)

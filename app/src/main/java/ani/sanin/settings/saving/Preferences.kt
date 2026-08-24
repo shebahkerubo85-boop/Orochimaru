@@ -215,6 +215,9 @@ enum class PrefName(val data: Pref) {
     GlassEffectSurfaceTint(Pref(Location.UI, Int::class, Color.parseColor("#000000"))),
     GlassEffectTextColor(Pref(Location.UI, Int::class, Color.WHITE)),
 
+    // Player
+    WrapButtonsInContainer(Pref(Location.UI, Boolean::class, true)),
+
     //Home
     HomeBannerMode(Pref(Location.UI, Int::class, 2)),
     HeroCardImage(Pref(Location.UI, Boolean::class, false)),

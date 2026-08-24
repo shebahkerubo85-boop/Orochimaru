@@ -208,6 +208,11 @@ class PlayerSettingsActivity :
         }
 
         // Time Stamp
+        binding.playerSettingsWrapButtonsContainer.isChecked =
+            PrefManager.getVal(PrefName.WrapButtonsInContainer)
+        binding.playerSettingsWrapButtonsContainer.setOnCheckedChangeListener { _, isChecked ->
+            PrefManager.setVal(PrefName.WrapButtonsInContainer, isChecked)
+        }
         binding.playerSettingsTimeStamps.isChecked = PrefManager.getVal(PrefName.TimeStampsEnabled)
         binding.playerSettingsTimeStamps.setOnCheckedChangeListener { _, isChecked ->
             PrefManager.setVal(PrefName.TimeStampsEnabled, isChecked)
