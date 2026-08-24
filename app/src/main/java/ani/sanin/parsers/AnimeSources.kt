@@ -23,6 +23,7 @@ object AnimeSources : WatchSources() {
             AnimeAV1Provider(),
             AnimeJLProvider(),
             GogoAnimeProvider(),
+            ReanimeProvider()
         )
     }
 
