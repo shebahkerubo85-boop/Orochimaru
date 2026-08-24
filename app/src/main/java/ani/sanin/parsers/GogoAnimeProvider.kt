@@ -30,7 +30,7 @@ class GogoAnimeProvider : NativeAnimeParser() {
         return withContext(Dispatchers.IO) {
             try {
                 val encoded = java.net.URLEncoder.encode(query.trim(), "utf-8")
-                val body = get("$baseUrl/search.html?keyword=$encoded")
+                val body = get("$baseUrl/?s=$encoded", "$baseUrl/")
                 parseSearchResults(body)
             } catch (e: Exception) {
                 Logger.log("Gogoanime search error: ${e.message}")
@@ -45,29 +45,28 @@ class GogoAnimeProvider : NativeAnimeParser() {
      */
     private fun parseSearchResults(html: String): List<ShowResponse> {
         val results = mutableListOf<ShowResponse>()
-        // Match <a href=".../category/SLUG" ... title="TITLE" or >TITLE<
+        // Match series entries; episode pages and sidebar category links are not show records.
         val regex = Regex(
-            """<a\s+href="(?:https?://[^"]*)?/category/([^"/"]+)/?"[^>]*>""",
-            RegexOption.IGNORE_CASE
+            """<a\s+href="(?:https?://[^"]*)?/series/([^"/"]+)/?"([^>]*)>(.*?)</a>""",
+            setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
         )
-        val titleRegex = Regex("""title="([^"]+)" """)
         val seen = mutableSetOf<String>()
 
         regex.findAll(html).forEach { match ->
             val slug = match.groupValues[1].trim()
             if (slug.isBlank() || !seen.add(slug)) return@forEach
 
-            // Try to find the title in the surrounding context (look back ~200 chars)
-            val ctxStart = (match.range.first - 200).coerceAtLeast(0)
-            val ctx = html.substring(ctxStart, match.range.last + 200)
-            val titleMatch = titleRegex.find(ctx) ?: titleRegex.find(ctx.replace("\n", " "))
-            val title = titleMatch?.groupValues[1]?.trim()
+            val attributes = match.groupValues[2]
+            val innerText = match.groupValues[3].replace(Regex("<[^>]+>"), " ")
+            val title = Regex("""title=["']([^"']+)["']""", RegexOption.IGNORE_CASE)
+                .find(attributes)?.groupValues?.get(1)?.trim()?.takeIf { it.isNotEmpty() }
+                ?: decodeEntities(innerText).trim().takeIf { it.isNotEmpty() }
                 ?: slug.replace("-", " ").replaceFirstChar { it.uppercase() }
 
             results.add(ShowResponse(
                 name = title,
                 link = slug,
-                coverUrl = FileUrl(""),
+                coverUrl = FileUrl(defaultImage),
             ))
         }
         return results.take(20)
@@ -84,7 +83,7 @@ class GogoAnimeProvider : NativeAnimeParser() {
         val directSlug = mediaObj.mainName().trim().lowercase().replace(Regex("[^a-z0-9\\s]"), "").replace(Regex("\\s+"), "-")
         if (directSlug.isNotBlank()) {
             try {
-                val catBody = withContext(Dispatchers.IO) { get("$baseUrl/category/$directSlug") }
+                val catBody = withContext(Dispatchers.IO) { get("$baseUrl/series/$directSlug") }
                 if (catBody.contains("episode", ignoreCase = true)) {
                     val resp = ShowResponse(
                         name = mediaObj.mainName(),
@@ -111,7 +110,7 @@ class GogoAnimeProvider : NativeAnimeParser() {
         if (animeLink.isBlank()) return emptyList()
         return withContext(Dispatchers.IO) {
             try {
-                val body = get("$baseUrl/category/$animeLink")
+                val body = get("$baseUrl/series/$animeLink")
                 val epRegex = Regex(
                     """href="(?:https?://[^"]*?)?$animeLink-episode-(\d+)(?:-([^"]*))?/?"""",
                     RegexOption.IGNORE_CASE

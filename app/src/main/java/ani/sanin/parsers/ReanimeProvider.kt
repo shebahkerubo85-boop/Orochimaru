@@ -25,26 +25,47 @@ class ReanimeProvider : NativeAnimeParser() {
         return withContext(Dispatchers.IO) {
             try {
                 val encoded = java.net.URLEncoder.encode(query.trim(), "utf-8")
-                val jsonStr = get("$baseUrl/api/v1/anime/search?q=$encoded")
+                val jsonStr = get("$baseUrl/api/v1/search?limit=20&q=$encoded")
+                parseSearchResponse(jsonStr)
+            } catch (e: Exception) {
+                Logger.log("Reanime search error: ${e.message}")
+                emptyList()
+            }
+        }
+    }
+
+    private suspend fun parseSearchResponse(jsonStr: String): List<ShowResponse> {
+        return withContext(Dispatchers.IO) {
+            try {
                 val obj = Mapper.json.parseToJsonElement(jsonStr) as? JsonObject ?: return@withContext emptyList()
-                val data = obj["data"] as? JsonArray ?: return@withContext emptyList()
+                val data = obj["results"] as? JsonArray ?: return@withContext emptyList()
                 data.mapNotNull { el ->
                     val item = el as? JsonObject ?: return@mapNotNull null
-                    val title = (item["title"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null
+                    val titles = item["title"] as? JsonObject ?: return@mapNotNull null
+                    val title = (titles["english"] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+                        ?: (titles["romaji"] as? JsonPrimitive)?.contentOrNull
+                        ?: (titles["native"] as? JsonPrimitive)?.contentOrNull
+                        ?: return@mapNotNull null
                     val animeId = (item["anime_id"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null
-                    val slug = (item["slug"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null
-                    val poster = (item["thumbnail"] as? JsonPrimitive)?.contentOrNull
+                    val anilistId = (item["anilist_id"] as? JsonPrimitive)?.contentOrNull
+                    val covers = item["cover_image"] as? JsonObject
+                    val poster = (covers?.get("extra_large") as? JsonPrimitive)?.contentOrNull
+                        ?: (covers?.get("large") as? JsonPrimitive)?.contentOrNull
+                        ?: (covers?.get("medium") as? JsonPrimitive)?.contentOrNull
                     val total = (item["episodes"] as? JsonPrimitive)?.intOrNull
                     ShowResponse(
                         name = title,
-                        link = animeId ?: slug,
+                        link = animeId,
                         coverUrl = FileUrl(poster ?: defaultImage),
                         total = total,
-                        extra = mutableMapOf("slug" to slug)
+                        extra = mutableMapOf(
+                            "anilistId" to (anilistId ?: animeId.substringAfterLast('-')),
+                            "slug" to animeId
+                        )
                     )
                 }
             } catch (e: Exception) {
-                Logger.log("Reanime search error: ${e.message}")
+                Logger.log("Reanime parseSearchResponse error: ${e.message}")
                 emptyList()
             }
         }
@@ -93,22 +114,21 @@ class ReanimeProvider : NativeAnimeParser() {
         extra: Map<String, String>?,
         sEpisode: SEpisode
     ): List<VideoServer> {
-        // episodeLink may already carry play_url from /api/flix
-        val playUrl = episodeLink.takeIf { it.startsWith("http") } ?: return emptyList()
+        val anilistId = extra?.get("anilistId")
+        val episodeNumber = episodeLink.toIntOrNull()
+        if (anilistId.isNullOrBlank() || episodeNumber == null) return emptyList()
         return withContext(Dispatchers.IO) {
             try {
-                val encoded = java.net.URLEncoder.encode(playUrl, "utf-8")
-                val body = get("$baseUrl/api/flix${episodeLink}?v=1")
+                val body = get("$baseUrl/api/flix/$anilistId/$episodeNumber?v=1")
                 val obj = Mapper.json.parseToJsonElement(body) as? JsonObject ?: return@withContext emptyList()
-                
-                val servers = mutableListOf<VideoServer>()
-                // flixcloud embed format: https://flixcloud.cc/e/{access_id}?v=1
-                val directUrl = (obj["url"] as? JsonPrimitive)?.contentOrNull
-                    ?: (obj["file"] as? JsonPrimitive)?.contentOrNull
-                if (!directUrl.isNullOrBlank()) {
-                    servers.add(buildServer("Reanime", directUrl, obj))
-                }
-                servers.distinctBy { it.embed.url }
+                val servers = obj["servers"] as? JsonArray ?: return@withContext emptyList()
+                servers.mapNotNull { serverElement ->
+                    val server = serverElement as? JsonObject ?: return@mapNotNull null
+                    val url = (server["dataLink"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null
+                    val name = (server["serverName"] as? JsonPrimitive)?.contentOrNull ?: "Reanime"
+                    val languageType = (server["dataType"] as? JsonPrimitive)?.contentOrNull
+                    VideoServer("$name (${languageType?.uppercase() ?: "SUB"})", url)
+                }.distinctBy { it.embed.url }
             } catch (e: Exception) {
                 Logger.log("Reanime loadVideoServers error: ${e.message}")
                 emptyList()
