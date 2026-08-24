@@ -14,7 +14,8 @@ class ReanimeProvider : NativeAnimeParser() {
 
     override val name = "Reanime"
     override val saveName = "reanime"
-    override val isDubAvailableSeparately: Boolean? = null
+
+    override suspend fun isDubAvailableSeparately(sourceLang: Int?): Boolean = false
 
     override val defaultBaseUrl = "https://reanime.to"
 
