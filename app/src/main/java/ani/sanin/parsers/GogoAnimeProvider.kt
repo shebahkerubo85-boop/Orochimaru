@@ -5,6 +5,7 @@ import ani.sanin.media.Media
 import ani.sanin.util.Logger
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
+import me.xdrop.fuzzywuzzy.FuzzySearch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -76,19 +77,29 @@ class GogoAnimeProvider : NativeAnimeParser() {
 
     override suspend fun autoSearch(mediaObj: Media): ShowResponse? {
         val saved = loadSavedShowResponse(mediaObj.id)
-        if (saved != null) return saved
+        if (saved != null) {
+            val savedEpisodes = loadEpisodes(
+                saved.link,
+                saved.extra,
+                saved.sAnime ?: SAnime.create().apply { url = saved.link }
+            )
+            if (savedEpisodes.isNotEmpty()) return saved
+            Logger.log("Gogoanime discarding invalid saved link: ${saved.link}")
+        }
+
         setUserText("Searching Gogoanime: ${mediaObj.mainName()}")
 
-        // Try the direct slug first — gogoanime uses lowercase-hyphenated titles.
-        val directSlug = mediaObj.mainName().trim().lowercase().replace(Regex("[^a-z0-9\\s]"), "").replace(Regex("\\s+"), "-")
+        val directSlug = mediaObj.mainName().trim().lowercase()
+            .replace(Regex("[^a-z0-9\\s]"), "")
+            .replace(Regex("\\s+"), "-")
         if (directSlug.isNotBlank()) {
             try {
-                val catBody = withContext(Dispatchers.IO) { get("$baseUrl/series/$directSlug") }
-                if (catBody.contains("episode", ignoreCase = true)) {
+                val body = withContext(Dispatchers.IO) { get("$baseUrl/series/$directSlug") }
+                if (parseEpisodes(body, directSlug).isNotEmpty()) {
                     val resp = ShowResponse(
                         name = mediaObj.mainName(),
                         link = directSlug,
-                        coverUrl = FileUrl(""),
+                        coverUrl = FileUrl(defaultImage),
                     )
                     saveShowResponse(mediaObj.id, resp)
                     return resp
@@ -96,11 +107,19 @@ class GogoAnimeProvider : NativeAnimeParser() {
             } catch (_: Exception) {}
         }
 
-        return searchWithFallback(mediaObj.mainName()).firstOrNull()
-            ?: searchWithFallback(mediaObj.nameRomaji).firstOrNull()
+        val candidates = searchWithFallback(mediaObj.mainName()) +
+            searchWithFallback(mediaObj.nameRomaji)
+        val best = candidates
+            .distinctBy { it.link }
+            .maxByOrNull { show ->
+                FuzzySearch.ratio(
+                    show.name.lowercase(),
+                    mediaObj.mainName().lowercase()
+                )
+            }
+        if (best != null) saveShowResponse(mediaObj.id, best)
+        return best
     }
-
-    // ── Episodes ─────────────────────────────────────────────────────────────
 
     override suspend fun loadEpisodes(
         animeLink: String,
@@ -110,33 +129,40 @@ class GogoAnimeProvider : NativeAnimeParser() {
         if (animeLink.isBlank()) return emptyList()
         return withContext(Dispatchers.IO) {
             try {
-                val body = get("$baseUrl/series/$animeLink")
-                val epRegex = Regex(
-                    """href="(?:https?://[^"]*?)?$animeLink-episode-(\d+)(?:-([^"]*))?/?"""",
-                    RegexOption.IGNORE_CASE
-                )
-                val episodes = mutableListOf<Episode>()
-                val seen = mutableSetOf<Int>()
-                epRegex.findAll(body).forEach { m ->
-                    val num = m.groupValues[1].toIntOrNull() ?: return@forEach
-                    if (!seen.add(num)) return@forEach
-                    val suffix = m.groupValues[2].orEmpty()
-                    val isDub = suffix.contains("dub", ignoreCase = true) ||
-                        body.substring(m.range).take(200).contains("dub", ignoreCase = true)
-                    episodes.add(Episode(
-                        number = num.toString(),
-                        link = "$baseUrl/$animeLink-episode-$num${if (isDub) "-english-dubbed" else "-english-subbed"}/",
-                        title = "Episode $num${if (isDub) " (Dub)" else ""}",
-                        extra = extra
-                    ))
-                }
-                episodes.sortBy { it.number.toIntOrNull() ?: 0 }
-                episodes
+                parseEpisodes(get("$baseUrl/series/$animeLink"), animeLink, extra)
             } catch (e: Exception) {
                 Logger.log("Gogoanime loadEpisodes error: ${e.message}")
                 emptyList()
             }
         }
+    }
+
+    private fun parseEpisodes(
+        body: String,
+        animeLink: String,
+        extra: Map<String, String>? = null
+    ): List<Episode> {
+        val epRegex = Regex(
+            """href="(?:https?://[^"]*?)?$animeLink-episode-(\d+)(?:-([^"]*))?/?"""",
+            RegexOption.IGNORE_CASE
+        )
+        val episodes = mutableListOf<Episode>()
+        val seen = mutableSetOf<Int>()
+        epRegex.findAll(body).forEach { match ->
+            val number = match.groupValues[1].toIntOrNull() ?: return@forEach
+            if (!seen.add(number)) return@forEach
+            val suffix = match.groupValues[2].orEmpty()
+            val isDub = suffix.contains("dub", ignoreCase = true) ||
+                body.substring(match.range).take(200).contains("dub", ignoreCase = true)
+            episodes.add(Episode(
+                number = number.toString(),
+                link = "$baseUrl/$animeLink-episode-$number${if (isDub) "-english-dubbed" else "-english-subbed"}/",
+                title = "Episode $number${if (isDub) " (Dub)" else ""}",
+                extra = extra
+            ))
+        }
+        episodes.sortBy { it.number.toIntOrNull() ?: 0 }
+        return episodes
     }
 
     // ── Video servers ────────────────────────────────────────────────────────
