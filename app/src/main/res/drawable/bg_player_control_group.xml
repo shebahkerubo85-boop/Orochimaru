@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Frosted control-group capsule (Zangetsu-style): translucent dark fill,
+     rounded, hairline light border. Wrap-content so it expands/contracts as
+     buttons are shown/hidden. Non-focusable container carries this backdrop;
+     the buttons themselves stay transparent + focusable. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#59000000" />
+    <corners android:radius="24dp" />
+    <stroke
+        android:width="1dp"
+        android:color="#14FFFFFF" />
+</shape>
