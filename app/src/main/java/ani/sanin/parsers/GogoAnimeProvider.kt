@@ -200,7 +200,7 @@ class GogoAnimeProvider : NativeAnimeParser() {
                         val siteLabel = decodeEntities(item.groupValues[2].replace(Regex("<[^>]+>"), "")).trim()
                             .ifBlank { "Server ${servers.size + 1}" }
 
-                        StreamResolvers.gogoPlayer(playerUrl, episodeLink, siteLabel, wantedLanguage)
+                        StreamResolvers.gogoPlayer(playerUrl, episodeLink, siteLabel, if (selectDub) "DUB" else "SUB")
                             .forEach { resolved ->
                                 if (seen.add("${resolved.stream.url}:${resolved.name}")) {
                                     servers.add(videoServer(resolved))

@@ -1,5 +1,22 @@
 package ani.sanin.parsers
 
+import ani.sanin.FileUrl
+import ani.sanin.Mapper
+import ani.sanin.okHttpClient
+import ani.sanin.util.Logger
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.*
+import okhttp3.Request
+import java.io.IOException
+import java.security.MessageDigest
+import java.util.Base64
+import javax.crypto.Cipher
+import javax.crypto.SecretKeyFactory
+import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.PBEKeySpec
+import javax.crypto.spec.SecretKeySpec
+
 private suspend fun resolveGet(
     url: String,
     referer: String?,
@@ -273,7 +290,7 @@ internal object StreamResolvers {
                 file = ani.sanin.FileUrl(url, mapOf("Referer" to embedUrl)),
                 type = type,
             )
-        }
+        }.toList()
     }
 
     private fun streamFormat(url: String, declaredType: String?): VideoType = when {

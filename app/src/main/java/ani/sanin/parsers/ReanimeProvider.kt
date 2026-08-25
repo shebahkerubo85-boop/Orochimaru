@@ -48,7 +48,7 @@ class ReanimeProvider : NativeAnimeParser() {
                         ?: return@mapNotNull null
                     val animeId = (item["anime_id"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null
                     val anilistId = (item["anilist_id"] as? JsonPrimitive)?.contentOrNull
-                        ?.takeIf { it.toIntOrNull() > 0 }
+                        ?.takeIf { (it.toIntOrNull() ?: 0) > 0 }
                     val covers = item["cover_image"] as? JsonObject
                     val poster = (covers?.get("extra_large") as? JsonPrimitive)?.contentOrNull
                         ?: (covers?.get("large") as? JsonPrimitive)?.contentOrNull
@@ -59,8 +59,7 @@ class ReanimeProvider : NativeAnimeParser() {
                         link = animeId,
                         coverUrl = FileUrl(poster ?: defaultImage),
                         total = total,
-                        extra = buildMap {
-                            put("slug", animeId)
+                        extra = mutableMapOf("slug" to animeId).apply {
                             anilistId?.let { put("anilistId", it) }
                         },
                     )
@@ -81,7 +80,7 @@ class ReanimeProvider : NativeAnimeParser() {
                 saved.extra,
                 saved.sAnime ?: SAnime.create().apply { url = saved.link }
             )
-            if (savedEpisodes.isNotEmpty() && !savedAnilistId.isNullOrBlank() && savedAnilistId.toIntOrNull() > 0) {
+            if (savedEpisodes.isNotEmpty() && !savedAnilistId.isNullOrBlank() && (savedAnilistId.toIntOrNull() ?: 0) > 0) {
                 return saved
             }
             Logger.log("Reanime discarding invalid saved selection: id=${savedAnilistId ?: "missing"}")
@@ -128,7 +127,7 @@ class ReanimeProvider : NativeAnimeParser() {
     ): List<VideoServer> {
         val anilistId = extra?.get("anilistId")
         val episodeNumber = episodeLink.toIntOrNull()
-        if (anilistId.isNullOrBlank() || anilistId.toIntOrNull() <= 0 || episodeNumber == null) return emptyList()
+        if (anilistId.isNullOrBlank() || (anilistId.toIntOrNull() ?: 0) <= 0 || episodeNumber == null) return emptyList()
         return withContext(Dispatchers.IO) {
             try {
                 val body = get("$baseUrl/api/flix/$anilistId/$episodeNumber?v=1")
@@ -143,7 +142,7 @@ class ReanimeProvider : NativeAnimeParser() {
                     if (languageType !in languages) return@mapNotNull null
                     val resolved = StreamResolvers.flixCloud(url).firstOrNull()
                         ?: return@mapNotNull null
-                    videoServer("$name · ${languageType?.uppercase() ?: "SUB"}", resolved)
+                    videoServer("$name · ${languageType?.uppercase() ?: "SUB"}", resolved.stream)
                 }.distinctBy { it.embed.url }
             } catch (e: Exception) {
                 Logger.log("Reanime loadVideoServers error: ${e.message}")
