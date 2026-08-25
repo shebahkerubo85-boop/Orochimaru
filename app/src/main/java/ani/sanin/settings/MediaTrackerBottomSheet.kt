@@ -364,10 +364,17 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
         val isTv = (resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK) == Configuration.UI_MODE_TYPE_TELEVISION
         val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         if (isTv || isLandscape) {
-            val behavior = BottomSheetBehavior.from(requireView().parent as View)
+            dialog?.window?.let { window ->
+                window.setLayout(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            }
+            val sheet = requireView().parent as? View ?: return
+            val behavior = BottomSheetBehavior.from(sheet)
             behavior.isFitToContents = false
             behavior.skipCollapsed = true
-            behavior.maxHeight = resources.displayMetrics.heightPixels
+            behavior.maxHeight = android.content.res.Resources.getSystem().displayMetrics.heightPixels
             behavior.state = BottomSheetBehavior.STATE_EXPANDED
         }
     }
