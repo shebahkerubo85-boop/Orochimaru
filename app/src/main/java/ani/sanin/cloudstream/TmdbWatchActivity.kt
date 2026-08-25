@@ -351,6 +351,80 @@ class TmdbWatchActivity : AppCompatActivity() {
     private fun buildHeader() {
         val h = headerBinding
 
+        // ── source chips: installed CS3 plugins only (Auto Search is NOT a chip) ──
+        if (selectedSourceIndex == -1) selectedSourceIndex = defaultSourceIndex()
+        h.tmdbWatchSourceChips.removeAllViews()
+        h.tmdbWatchSourceTitle.text = when {
+            sources.isEmpty() -> getString(R.string.tmdb_watch_no_sources)
+            selectedSourceIndex == -1 -> getString(R.string.tmdb_watch_auto_search)
+            else -> getString(R.string.tmdb_watch_sources)
+        }
+        sources.forEachIndexed { index, source ->
+            val chip = LayoutInflater.from(this).inflate(R.layout.item_tmdb_chip, h.tmdbWatchSourceChips, false) as Chip
+            chip.text = source.name
+            chip.isCheckable = true
+            chip.isClickable = true
+            chip.isFocusable = true
+            chip.tag = index
+            if (index == selectedSourceIndex) chip.isChecked = true
+            chip.setOnClickListener {
+                val nowChecked = chip.isChecked
+                selectedSourceIndex = if (nowChecked) index else -1
+                lastAutoSource = null
+                TmdbStreamResolver.invalidateLinks(mediaId)
+                resolveJob?.cancel()
+                resolveJob = null
+                isResolving = false
+                setSourceStatus(getString(R.string.tmdb_watch_sources))
+                refreshChips(h.tmdbWatchSourceChips)
+                episodeAdapter.submitEpisodes(episodesOrMovie())
+                if (nowChecked) refreshSelected() else autoSearchOnOpen()
+            }
+            FocusEffectUtil.applyFocusListener(chip)
+            h.tmdbWatchSourceChips.addView(chip)
+        }
+
+        // ── season area ──
+        if (mediaType == "tv") {
+            if (seasons.isNotEmpty()) {
+                h.tmdbWatchSeasonScroll.isVisible = true
+                h.tmdbWatchSingleSeason.isVisible = false
+                h.tmdbWatchSeasonChips.removeAllViews()
+                seasons.forEach { season ->
+                    val chip = LayoutInflater.from(this).inflate(R.layout.item_tmdb_chip, h.tmdbWatchSeasonChips, false) as Chip
+                    chip.text = "Season ${season.seasonNumber}"
+                    chip.isCheckable = true
+                    chip.isClickable = true
+                    chip.isFocusable = true
+                    chip.tag = season.seasonNumber
+                    if (season.seasonNumber == selectedSeason) chip.isChecked = true
+                    chip.setOnClickListener {
+                        selectedSeason = season.seasonNumber
+                        refreshChips(h.tmdbWatchSeasonChips)
+                        loadEpisodesForSeason()
+                    }
+                    FocusEffectUtil.applyFocusListener(chip)
+                    h.tmdbWatchSeasonChips.addView(chip)
+                }
+            } else {
+                h.tmdbWatchSeasonScroll.isVisible = false
+                h.tmdbWatchSingleSeason.isVisible = true
+                h.tmdbWatchSingleSeason.text = getString(R.string.tmdb_watch_one_season)
+            }
+        } else {
+            h.tmdbWatchMovieRow.isVisible = !pluginMode
+            h.tmdbWatchPrequel.isVisible = !pluginMode && prequel != null
+            h.tmdbWatchPrequel.setOnClickListener {
+                prequel?.let { openWatch(it.type, it.id) }
+            }
+            FocusEffectUtil.applyFocusListener(h.tmdbWatchPrequel)
+            h.tmdbWatchSequel.isVisible = !pluginMode && sequel != null
+            h.tmdbWatchSequel.setOnClickListener {
+                sequel?.let { openWatch(it.type, it.id) }
+            }
+            FocusEffectUtil.applyFocusListener(h.tmdbWatchSequel)
+        }
+
         // ── refresh / notification / appearance ──
         h.tmdbWatchRefresh.setOnClickListener { refreshSelected() }
         FocusEffectUtil.applyFocusListener(h.tmdbWatchRefresh)
@@ -653,6 +727,7 @@ class TmdbWatchActivity : AppCompatActivity() {
                             selectedSourceIndex = idx
                         }
                     }
+                    refreshChips(headerBinding.tmdbWatchSourceChips)
                     Logger.log("TMDB_WATCH: auto search found ${result.links.size} links via $foundName")
                     snackString("${result.links.size} links found via $foundName")
                 }
