@@ -9,33 +9,29 @@
     android:focusable="true"
     tools:context=".cloudstream.TmdbWatchActivity">
 
-    <androidx.cardview.widget.CardView
-        android:id="@+id/tmdbWatchBackCard"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        android:focusable="true"
-        app:cardBackgroundColor="@color/nav_bg_inv"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="0dp">
+    <!-- Background image (blurred poster, same as anime mode) -->
+    <ImageView
+        android:id="@+id/mediaBg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:importantForAccessibility="no"
+        tools:ignore="ContentDescription" />
 
-        <ImageButton
-            android:id="@+id/tmdbWatchBack"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="@color/nav_bg_inv"
-            android:focusable="true"
-            android:padding="14dp"
-            android:src="@drawable/ic_round_arrow_back_ios_new_24"
-            app:tint="?attr/colorOnBackground"
-            tools:ignore="ContentDescription" />
-    </androidx.cardview.widget.CardView>
+    <!-- Dark gradient overlay (same as anime mode) -->
+    <View
+        android:id="@+id/mediaBgGradient"
+        android:layout_width="320dp"
+        android:layout_height="match_parent"
+        android:background="@drawable/gradient_rtl_dark"
+        android:importantForAccessibility="no" />
 
+    <!-- Logo art (same position as anime mode mediaWatchLogo) -->
     <ImageView
         android:id="@+id/tmdbWatchLogo"
         android:layout_width="wrap_content"
         android:layout_height="80dp"
-        android:layout_gravity="top|start"
+        android:layout_gravity="start"
         android:layout_marginStart="24dp"
         android:layout_marginTop="120dp"
         android:adjustViewBounds="true"
@@ -44,11 +40,12 @@
         tools:ignore="ContentDescription"
         tools:visibility="visible" />
 
+    <!-- Title (same position as anime mode mediaWatchTitle) -->
     <TextView
         android:id="@+id/tmdbWatchTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="top|start"
+        android:layout_gravity="start"
         android:layout_marginStart="24dp"
         android:layout_marginTop="130dp"
         android:fontFamily="@font/poppins_bold"
@@ -57,39 +54,67 @@
         android:visibility="gone"
         tools:visibility="visible" />
 
+    <!-- Episode RecyclerView (same structure as anime mode mediaSourceRecycler) -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/tmdbWatchRecycler"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:clipToPadding="false"
-        android:descendantFocusability="afterDescendants"
         android:focusable="false"
-        android:paddingStart="24dp"
+        android:descendantFocusability="afterDescendants"
+        android:clipToPadding="false"
         android:paddingTop="300dp"
+        android:paddingStart="24dp"
         android:paddingEnd="24dp"
-        android:paddingBottom="128dp" />
+        android:paddingBottom="128dp"
+        tools:listitem="@layout/item_episode_grid" />
 
+    <!-- Close button (same position/style as anime mode mediaClose) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/tmdbWatchBackCard"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_gravity="end"
+        android:layout_margin="16dp"
+        android:focusable="true"
+        android:nextFocusDown="@+id/tmdbWatchRecycler"
+        android:translationZ="7dp"
+        app:cardBackgroundColor="@color/nav_bg"
+        app:cardCornerRadius="16dp">
+
+        <ImageButton
+            android:id="@+id/tmdbWatchBack"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@android:color/transparent"
+            android:focusable="true"
+            android:padding="6dp"
+            android:src="@drawable/ic_round_close_24"
+            app:tint="?attr/colorOnBackground"
+            tools:ignore="ContentDescription" />
+    </androidx.cardview.widget.CardView>
+
+    <!-- Scroll-to-top (same as anime mode ScrollTop) -->
     <androidx.cardview.widget.CardView
         android:id="@+id/tmdbWatchScrollTop"
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:layout_gravity="bottom|center_horizontal"
-        android:backgroundTint="?attr/colorPrimary"
+        android:layout_marginBottom="64dp"
         android:focusable="true"
-        android:translationZ="8dp"
-        app:cardBackgroundColor="?attr/colorPrimary"
+        android:focusableInTouchMode="false"
+        android:nextFocusDown="@id/tmdbWatchScrollTop"
+        android:visibility="gone"
+        app:cardBackgroundColor="#FF333333"
         app:cardCornerRadius="24dp"
-        app:cardElevation="8dp"
-        android:visibility="gone">
+        app:contentPadding="12dp">
 
-        <ImageButton
+        <ImageView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="@android:color/transparent"
-            android:focusable="true"
-            android:padding="12dp"
-            android:src="@drawable/ic_round_keyboard_arrow_up_24"
-            app:tint="@color/bg_white"
+            android:rotation="90"
+            app:srcCompat="@drawable/ic_round_arrow_back_ios_new_24"
+            app:tint="@android:color/white"
             tools:ignore="ContentDescription" />
     </androidx.cardview.widget.CardView>
+
 </FrameLayout>
