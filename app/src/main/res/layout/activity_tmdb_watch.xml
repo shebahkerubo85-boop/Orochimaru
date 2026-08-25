@@ -65,6 +65,7 @@
         android:descendantFocusability="afterDescendants"
         android:focusable="false"
         android:paddingStart="24dp"
+        android:paddingTop="300dp"
         android:paddingEnd="24dp"
         android:paddingBottom="128dp" />
 
