@@ -404,7 +404,10 @@ class TmdbWatchActivity : AppCompatActivity() {
     }
 
     private fun setSourceStatus(text: String) {
-        headerBinding.tmdbWatchSourceTitle.text = text
+        // Pad with invisible braille blanks so the title always fills its
+        // weight and the refresh/notification buttons stay at the far right.
+        val filler = "⠀".repeat(120)
+        headerBinding.tmdbWatchSourceTitle.text = text + filler
         headerBinding.tmdbWatchSpinner.isVisible = text.startsWith("Searching")
     }
 
