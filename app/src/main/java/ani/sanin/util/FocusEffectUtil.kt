@@ -126,7 +126,17 @@ object FocusEffectUtil {
         val borderWidthPx = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP, borderDp, v.resources.displayMetrics
         ).toInt()
-        val cardRadius = if (v is androidx.cardview.widget.CardView) v.radius else 0f
+        var cardRadius = if (v is androidx.cardview.widget.CardView) v.radius else 0f
+        if (cardRadius == 0f) {
+            var parent = v.parent
+            while (parent is View) {
+                if (parent is androidx.cardview.widget.CardView) {
+                    cardRadius = parent.radius
+                    break
+                }
+                parent = (parent as? View)?.parent
+            }
+        }
         val defaultRadius = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP, 8f, v.resources.displayMetrics
         ).toInt()

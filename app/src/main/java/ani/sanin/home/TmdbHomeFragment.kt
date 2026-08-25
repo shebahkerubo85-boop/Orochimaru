@@ -122,7 +122,6 @@ class TmdbHomeFragment : Fragment() {
                 }
             }
         }
-        FocusEffectUtil.applyFocusListener(binding.tmdbBannerFrame)
         applyBannerLayout()
         load()
     }
