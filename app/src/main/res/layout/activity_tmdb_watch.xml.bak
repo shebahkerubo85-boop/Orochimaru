@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_black"
+    android:descendantFocusability="afterDescendants"
+    android:focusable="true"
+    tools:context=".cloudstream.TmdbWatchActivity">
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/tmdbWatchBackCard"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:focusable="true"
+        app:cardBackgroundColor="@color/nav_bg_inv"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp">
+
+        <ImageButton
+            android:id="@+id/tmdbWatchBack"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@color/nav_bg_inv"
+            android:focusable="true"
+            android:padding="14dp"
+            android:src="@drawable/ic_round_arrow_back_ios_new_24"
+            app:tint="?attr/colorOnBackground"
+            tools:ignore="ContentDescription" />
+    </androidx.cardview.widget.CardView>
+
+    <ImageView
+        android:id="@+id/tmdbWatchLogo"
+        android:layout_width="wrap_content"
+        android:layout_height="80dp"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="120dp"
+        android:adjustViewBounds="true"
+        android:scaleType="fitStart"
+        android:visibility="gone"
+        tools:ignore="ContentDescription"
+        tools:visibility="visible" />
+
+    <TextView
+        android:id="@+id/tmdbWatchTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="130dp"
+        android:fontFamily="@font/poppins_bold"
+        android:textColor="@android:color/white"
+        android:textSize="24sp"
+        android:visibility="gone"
+        tools:visibility="visible" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/tmdbWatchRecycler"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:descendantFocusability="afterDescendants"
+        android:focusable="false"
+        android:paddingStart="24dp"
+        android:paddingTop="300dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="128dp" />
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/tmdbWatchScrollTop"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:backgroundTint="?attr/colorPrimary"
+        android:focusable="true"
+        android:translationZ="8dp"
+        app:cardBackgroundColor="?attr/colorPrimary"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="8dp"
+        android:visibility="gone">
+
+        <ImageButton
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@android:color/transparent"
+            android:focusable="true"
+            android:padding="12dp"
+            android:src="@drawable/ic_round_keyboard_arrow_up_24"
+            app:tint="@color/bg_white"
+            tools:ignore="ContentDescription" />
+    </androidx.cardview.widget.CardView>
+</FrameLayout>

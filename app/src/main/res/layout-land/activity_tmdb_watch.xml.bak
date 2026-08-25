@@ -4,10 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg_black"
-    android:descendantFocusability="afterDescendants"
-    android:focusable="true"
-    tools:context=".cloudstream.TmdbWatchActivity">
+    android:fitsSystemWindows="false">
 
     <ImageView
         android:id="@+id/mediaBg"
