@@ -439,8 +439,14 @@ open class BottomSheetDialogFragment :
                 controller.hide(WindowInsetsCompat.Type.statusBars())
             }
 
-            if (resources.configuration.orientation != Configuration.ORIENTATION_PORTRAIT) {
+            val isTv = (resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK) == Configuration.UI_MODE_TYPE_TELEVISION
+            if (isTv || resources.configuration.orientation != Configuration.ORIENTATION_PORTRAIT) {
                 val behavior = BottomSheetBehavior.from(requireView().parent as View)
+                if (isTv) {
+                    behavior.isFitToContents = false
+                    behavior.maxHeight = resources.displayMetrics.heightPixels
+                    behavior.skipCollapsed = true
+                }
                 behavior.state = BottomSheetBehavior.STATE_EXPANDED
             }
 
