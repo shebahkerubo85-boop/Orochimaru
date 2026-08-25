@@ -366,7 +366,6 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
         if (isTv || isLandscape) {
             val sheet = requireView().parent as? View ?: return
             val behavior = BottomSheetBehavior.from(sheet)
-            behavior.isFitToContents = true
             behavior.skipCollapsed = true
             behavior.state = BottomSheetBehavior.STATE_EXPANDED
         }
