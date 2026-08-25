@@ -9,218 +9,87 @@
     android:focusable="true"
     tools:context=".cloudstream.TmdbWatchActivity">
 
-    <ImageView
-        android:id="@+id/mediaBg"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:importantForAccessibility="no"
-        tools:ignore="ContentDescription" />
-
-    <View
-        android:id="@+id/mediaBgGradient"
-        android:layout_width="320dp"
-        android:layout_height="match_parent"
-        android:background="@drawable/gradient_rtl_dark"
-        android:importantForAccessibility="no" />
-
-    <com.flaviofaria.kenburnsview.KenBurnsView
-        android:id="@+id/mediaBanner"
-        android:layout_width="match_parent"
-        android:layout_height="288dp"
-        android:scaleType="centerCrop"
-        android:visibility="gone"
-        tools:ignore="ContentDescription,ImageContrastCheck" />
-
-    <ImageView
-        android:id="@+id/mediaBannerNoKen"
-        android:layout_width="match_parent"
-        android:layout_height="288dp"
-        android:scaleType="centerCrop"
-        android:visibility="gone"
-        tools:ignore="ContentDescription,ImageContrastCheck" />
-
-    <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/mediaAppBar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:visibility="gone" />
-
-    <FrameLayout
-        android:id="@+id/mediaInfoFragmentContainer"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:clipChildren="false"
-        android:clipToPadding="false" />
-
-    <LinearLayout
-        android:id="@+id/mediaRightPanel"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_gravity="end"
-        android:orientation="vertical">
-
-        <FrameLayout
-            android:id="@+id/mediaTabContent"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_marginTop="0dp"
-            android:layout_weight="1"
-            android:clipChildren="false"
-            android:clipToPadding="false">
-
-            <View
-                android:id="@+id/mediaRightBg"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="#CC000000" />
-
-            <androidx.viewpager2.widget.ViewPager2
-                android:id="@+id/mediaViewPager"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:nextFocusUp="@+id/mediaNavPills"
-                android:nestedScrollingEnabled="false"
-                tools:ignore="SpeakableTextPresentCheck" />
-        </FrameLayout>
-    </LinearLayout>
-
-    <FrameLayout
-        android:id="@+id/fragmentExtensionsContainer"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:paddingTop="16dp"
-        android:visibility="gone" />
-
     <androidx.cardview.widget.CardView
-        android:id="@+id/mediaCover"
+        android:id="@+id/tmdbWatchBackCard"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:translationZ="5dp"
-        android:visibility="gone"
+        android:layout_margin="16dp"
+        android:focusable="true"
+        app:cardBackgroundColor="@color/nav_bg_inv"
         app:cardCornerRadius="16dp"
-        app:cardElevation="16dp">
+        app:cardElevation="0dp">
 
-        <com.google.android.material.imageview.ShapeableImageView
-            android:id="@+id/mediaCoverImage"
-            android:layout_width="108dp"
-            android:layout_height="160dp"
-            android:scaleType="centerCrop"
-            app:shapeAppearanceOverlay="@style/roundedImageView"
-            tools:ignore="ContentDescription,ImageContrastCheck" />
+        <ImageButton
+            android:id="@+id/tmdbWatchBack"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@color/nav_bg_inv"
+            android:focusable="true"
+            android:padding="14dp"
+            android:src="@drawable/ic_round_arrow_back_ios_new_24"
+            app:tint="?attr/colorOnBackground"
+            tools:ignore="ContentDescription" />
     </androidx.cardview.widget.CardView>
 
-    <FrameLayout
-        android:id="@+id/mediaNavPills"
-        android:layout_width="44dp"
-        android:layout_height="wrap_content"
-        android:layout_gravity="start|center_vertical"
-        android:layout_marginStart="8dp"
-        android:elevation="10dp"
-        android:translationZ="10dp"
-        android:focusable="true"
-        android:focusableInTouchMode="false"
-        android:descendantFocusability="afterDescendants"
+    <ImageView
+        android:id="@+id/tmdbWatchLogo"
+        android:layout_width="wrap_content"
+        android:layout_height="80dp"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="120dp"
+        android:adjustViewBounds="true"
+        android:scaleType="fitStart"
         android:visibility="gone"
-        android:clipToOutline="true">
+        tools:ignore="ContentDescription"
+        tools:visibility="visible" />
 
-        <ani.sanin.ui.components.SnakeNavRailView
-            android:id="@+id/navPillBg"
+    <TextView
+        android:id="@+id/tmdbWatchTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="130dp"
+        android:fontFamily="@font/poppins_bold"
+        android:textColor="@android:color/white"
+        android:textSize="24sp"
+        android:visibility="gone"
+        tools:visibility="visible" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/tmdbWatchRecycler"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:descendantFocusability="afterDescendants"
+        android:focusable="false"
+        android:paddingStart="24dp"
+        android:paddingTop="300dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="128dp" />
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/tmdbWatchScrollTop"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:backgroundTint="?attr/colorPrimary"
+        android:focusable="true"
+        android:translationZ="8dp"
+        app:cardBackgroundColor="?attr/colorPrimary"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="8dp"
+        android:visibility="gone">
+
+        <ImageButton
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:focusable="false"
-            android:clickable="false"
-            android:importantForAccessibility="no" />
-
-        <LinearLayout
-       android:background="@drawable/bg_clay_pill"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:paddingTop="6dp"
-            android:paddingBottom="6dp">
-
-            <ImageButton
-                android:id="@+id/navPillInfo"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:padding="12dp"
-                android:src="@drawable/ic_round_info_24"
-                android:scaleType="fitCenter"
-                android:background="@android:color/transparent"
-                android:focusable="true"
-                android:nextFocusUp="@id/navPillComments"
-                android:nextFocusDown="@id/navPillWatch" />
-
-            <ImageButton
-                android:id="@+id/navPillWatch"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:padding="12dp"
-                android:src="@drawable/ic_round_movie_filter_24"
-                android:scaleType="fitCenter"
-                android:background="@android:color/transparent"
-                android:focusable="true"
-                android:nextFocusUp="@id/navPillInfo"
-                android:nextFocusDown="@id/navPillComments" />
-
-            <ImageButton
-                android:id="@+id/navPillComments"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:padding="12dp"
-                android:src="@drawable/ic_round_comment_24"
-                android:scaleType="fitCenter"
-                android:background="@android:color/transparent"
-                android:visibility="gone"
-                android:focusable="true"
-                android:nextFocusUp="@id/navPillWatch"
-                android:nextFocusDown="@id/navPillInfo" />
-        </LinearLayout>
-    </FrameLayout>
-
-    <androidx.cardview.widget.CardView
-        android:id="@+id/incognito"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:layout_gravity="start"
-        android:layout_margin="16dp"
-        android:translationZ="7dp"
-        android:visibility="gone"
-        app:cardBackgroundColor="@color/bg_opp"
-        app:cardCornerRadius="16dp">
-
-        <androidx.constraintlayout.utils.widget.ImageFilterView
-            android:id="@+id/incognitoImage"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_gravity="center"
-            android:src="@drawable/ic_incognito_24"
-            app:tint="@color/bg"
+            android:background="@android:color/transparent"
+            android:focusable="true"
+            android:padding="12dp"
+            android:src="@drawable/ic_round_keyboard_arrow_up_24"
+            app:tint="@color/bg_white"
             tools:ignore="ContentDescription" />
     </androidx.cardview.widget.CardView>
-
-    <androidx.cardview.widget.CardView
-        android:id="@+id/mediaClose"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:layout_gravity="end"
-        android:layout_margin="16dp"
-        android:focusable="true"
-        android:nextFocusDown="@+id/mediaNavPills"
-        android:translationZ="7dp"
-        app:cardBackgroundColor="@color/nav_bg"
-        app:cardCornerRadius="16dp">
-
-        <androidx.constraintlayout.utils.widget.ImageFilterView
-            android:id="@+id/mediaCloseImage"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_gravity="center"
-            android:src="@drawable/ic_round_close_24"
-            tools:ignore="ContentDescription" />
-    </androidx.cardview.widget.CardView>
-
-
 </FrameLayout>
