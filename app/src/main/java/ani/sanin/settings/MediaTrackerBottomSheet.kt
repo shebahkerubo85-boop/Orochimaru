@@ -6,6 +6,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
+import android.content.res.Configuration
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import ani.sanin.R
 import ani.sanin.cloudstream.CsRepos
 import ani.sanin.connections.anilist.Anilist
@@ -354,6 +356,20 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
     private fun collapseSection(section: View, arrow: ImageView) {
         section.visibility = View.GONE
         arrow.animate().rotation(0f).setDuration(200).start()
+    }
+
+
+    override fun onStart() {
+        super.onStart()
+        val isTv = (resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK) == Configuration.UI_MODE_TYPE_TELEVISION
+        val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        if (isTv || isLandscape) {
+            val behavior = BottomSheetBehavior.from(requireView().parent as View)
+            behavior.isFitToContents = false
+            behavior.skipCollapsed = true
+            behavior.maxHeight = resources.displayMetrics.heightPixels
+            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+        }
     }
 
     override fun onDestroyView() {
