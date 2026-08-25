@@ -2,7 +2,7 @@
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="wrap_content"
     android:fillViewport="true"
     android:background="?attr/colorSurface"
     android:paddingBottom="24dp">
@@ -44,14 +44,14 @@
         <ImageView
             android:id="@+id/sheetAnimeBanner"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:scaleType="centerCrop"
             android:visibility="gone" />
 
         <View
             android:id="@+id/sheetAnimeScrim"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:background="?attr/colorSurface"
             android:alpha="0.75"
             android:visibility="gone" />
@@ -60,7 +60,7 @@
         <View
             android:id="@+id/sheetAnimeBannerOverlay"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:background="@drawable/banner_overlay"
             android:visibility="gone" />
 
@@ -240,14 +240,14 @@
         <ImageView
             android:id="@+id/sheetMovieBanner"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:scaleType="centerCrop"
             android:visibility="gone" />
 
         <View
             android:id="@+id/sheetMovieScrim"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:background="?attr/colorSurface"
             android:alpha="0.75"
             android:visibility="gone" />
@@ -256,7 +256,7 @@
         <View
             android:id="@+id/sheetMovieBannerOverlay"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:background="@drawable/banner_overlay"
             android:visibility="gone" />
 
