@@ -19,6 +19,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.addCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.annotation.OptIn
 import androidx.appcompat.app.AppCompatActivity
@@ -97,6 +98,9 @@ import java.io.Serializable
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ -> /* result handled by system */ }
     private lateinit var incognitoLiveData: SharedPreferenceBooleanLiveData
     private val scope = lifecycleScope
     private var load = false
@@ -142,6 +146,12 @@ class MainActivity : AppCompatActivity() {
         LogoApi.init(this)
 
         super.onCreate(savedInstanceState)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            !hasNotificationPermission(this)
+        ) {
+            notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
 
         window.setBackgroundDrawableResource(
             if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
