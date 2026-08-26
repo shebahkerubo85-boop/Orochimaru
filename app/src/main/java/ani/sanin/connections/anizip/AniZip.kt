@@ -53,7 +53,6 @@ object AniZip {
     suspend fun getPosterUrl(anilistId: Int): String? {
         return getImages(anilistId).posterUrl
     }
-}
 
     /**
      * Try AniZip first; if it has no backdrop, search TMDB by [title] and
@@ -73,3 +72,4 @@ object AniZip {
             null
         }
     }
+}
