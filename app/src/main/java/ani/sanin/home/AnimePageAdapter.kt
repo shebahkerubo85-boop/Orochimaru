@@ -430,7 +430,18 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
 
         scope.launch(Dispatchers.IO) {
             val allImages = AniZip.getImagesBatch(media.map { it.id })
-            val backdrops = allImages.mapValues { it.value.backdropUrl }
+            val backdrops = mutableMapOf<Int, String?>()
+            for (m in media) {
+                val aUrl = allImages[m.id]?.backdropUrl
+                if (!aUrl.isNullOrBlank()) {
+                    backdrops[m.id] = aUrl
+                } else {
+                    backdrops[m.id] = try {
+                        val results = ani.sanin.connections.tmdb.Tmdb.search(m.nameRomaji)
+                        results.firstOrNull()?.backdropPath?.let { ani.sanin.connections.tmdb.Tmdb.imageUrl(it, 1280) }
+                    } catch (_: Exception) { null }
+                }
+            }
             val logos = allImages.mapValues { it.value.logoUrl }
             withContext(Dispatchers.Main) {
                 trendingLogos = logos

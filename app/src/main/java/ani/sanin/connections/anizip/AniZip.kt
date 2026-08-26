@@ -54,3 +54,22 @@ object AniZip {
         return getImages(anilistId).posterUrl
     }
 }
+
+    /**
+     * Try AniZip first; if it has no backdrop, search TMDB by [title] and
+     * return the first TV/movie backdrop URL. Returns null only when both fail.
+     */
+    suspend fun getBackdropUrlWithTmdbFallback(
+        anilistId: Int,
+        title: String?
+    ): String? {
+        val anizip = getBackdropUrl(anilistId)
+        if (!anizip.isNullOrBlank()) return anizip
+        if (title.isNullOrBlank()) return null
+        return try {
+            val results = ani.sanin.connections.tmdb.Tmdb.search(title)
+            results.firstOrNull()?.backdropPath?.let { ani.sanin.connections.tmdb.Tmdb.imageUrl(it, 1280) }
+        } catch (_: Exception) {
+            null
+        }
+    }

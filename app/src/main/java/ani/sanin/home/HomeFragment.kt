@@ -773,7 +773,18 @@ class HomeFragment : Fragment() {
                 homeBannerItems = items
                 lifecycleScope.launch(Dispatchers.IO) {
                     val allImages = AniZip.getImagesBatch(items.map { it.id })
-                    val urls = allImages.mapValues { it.value.backdropUrl }
+                    val urls = mutableMapOf<Int, String?>()
+                    for (m in items) {
+                        val aUrl = allImages[m.id]?.backdropUrl
+                        if (!aUrl.isNullOrBlank()) {
+                            urls[m.id] = aUrl
+                        } else {
+                            urls[m.id] = try {
+                                val results = ani.sanin.connections.tmdb.Tmdb.search(m.nameRomaji)
+                                results.firstOrNull()?.backdropPath?.let { ani.sanin.connections.tmdb.Tmdb.imageUrl(it, 1280) }
+                            } catch (_: Exception) { null }
+                        }
+                    }
                     val logos = allImages.mapValues { it.value.logoUrl }
                     withContext(Dispatchers.Main) {
                         bannerCarouselAdapter = BannerCarouselAdapter(
@@ -919,7 +930,7 @@ class HomeFragment : Fragment() {
         val back = if (navBannerSlotA) b.navBannerBgB else b.navBannerBgA
 
         lifecycleScope.launch(Dispatchers.IO) {
-            val anizipUrl = AniZip.getBackdropUrl(media.id)
+            val anizipUrl = AniZip.getBackdropUrlWithTmdbFallback(media.id, media.nameRomaji)
             val bannerUrl = anizipUrl ?: media.banner ?: media.cover ?: return@launch
             withContext(Dispatchers.Main) {
                 if (_binding == null || navBannerCurrentMediaId != media.id) return@withContext

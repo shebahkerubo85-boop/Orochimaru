@@ -51,7 +51,7 @@ class ContinueWatchingLandscapeAdapter(
                 ep?.let { media.anime?.episodes?.get(it)?.thumb?.url }
             } else null
             if (imageUrl.isNullOrBlank()) {
-                val anizipUrl = AniZip.getBackdropUrl(media.id) ?: media.cover
+                val anizipUrl = AniZip.getBackdropUrlWithTmdbFallback(media.id, media.nameRomaji) ?: media.cover
                 withContext(Dispatchers.Main) {
                     if (!anizipUrl.isNullOrBlank()) {
                         holder.image.loadImage(anizipUrl)

@@ -132,7 +132,7 @@ class MediaDetailsActivity : AppCompatActivity() {
             binding.mediaBannerNoKen?.alpha = bannerBrightness
             if (!isPortrait) {
                 lifecycleScope.launch {
-                    val tmdbUrl = AniZip.getBackdropUrl(media.id)
+                    val tmdbUrl = AniZip.getBackdropUrlWithTmdbFallback(media.id, media.nameRomaji)
                     if (tmdbUrl != null) {
                         binding.mediaBg?.loadImage(tmdbUrl)
                         binding.mediaBanner?.loadImage(tmdbUrl)
