@@ -293,6 +293,7 @@ object Tmdb {
     suspend fun detail(mediaType: String, id: Int): TmdbDetail? {
         val body = get(
             "/$mediaType/$id",
+            "language" to "en-US",
             "append_to_response" to "images,external_ids,credits,recommendations,videos,keywords"
         ) ?: return null
         return runCatching { json.decodeFromString<TmdbDetail>(body) }.getOrNull()
@@ -304,7 +305,7 @@ object Tmdb {
     }
 
     suspend fun episodes(mediaType: String, id: Int, season: Int): List<TmdbEpisode> {
-        val body = get("/$mediaType/$id/season/$season") ?: return emptyList()
+        val body = get("/$mediaType/$id/season/$season", "language" to "en-US") ?: return emptyList()
         return runCatching {
             json.decodeFromString<TmdbSeasonDetail>(body).episodes
         }.getOrDefault(emptyList())
