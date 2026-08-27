@@ -352,8 +352,6 @@ class TmdbWatchActivity : AppCompatActivity() {
     private fun buildHeader() {
         val h = headerBinding
 
-        h.tmdbWatchSourceTitle.singleLine = true
-
         // ── source chips: installed CS3 plugins only (Auto Search is NOT a chip) ──
         if (selectedSourceIndex == -1) selectedSourceIndex = defaultSourceIndex()
         h.tmdbWatchSourceChips.removeAllViews()
