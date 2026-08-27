@@ -24,6 +24,7 @@ import ani.sanin.databinding.ItemTmdbCardBinding
 import ani.sanin.databinding.ItemTmdbHistoryBinding
 import ani.sanin.snackString
 import ani.sanin.util.FocusEffectUtil
+import ani.sanin.util.TvKeyboardUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -62,6 +63,17 @@ class TmdbSearchActivity : AppCompatActivity() {
 
         binding.tmdbSearchBack.setOnClickListener { finish() }
         FocusEffectUtil.applyFocusListener(binding.tmdbSearchBack)
+
+        binding.tmdbSearchInput.post {
+            when (TvKeyboardUtil.keyboardMode()) {
+                0 -> TvKeyboardUtil.setupSystemKeyboard(binding.tmdbSearchInput)
+                1 -> TvKeyboardUtil.setupEditTextWithToggle(
+                    binding.tmdbSearchInput, binding.tmdbSearchKeyboardToggle
+                )
+                2 -> TvKeyboardUtil.setupEditTextForAlwaysVisible(binding.tmdbSearchInput)
+            }
+        }
+        FocusEffectUtil.applyFocusListener(binding.tmdbSearchKeyboardToggle)
 
         binding.tmdbSearchInput.setOnEditorActionListener { _, actionId, event ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH ||

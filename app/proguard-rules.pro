@@ -191,3 +191,15 @@
 # Keep org.json classes used for parsing API responses (system class on Android)
 -keep class org.json.** { *; }
 -dontwarn org.json.**
+
+#############################################
+# AppCompat dialogs used by CloudStream plugin settings
+# Plugin settings screens (com.cncverse.*, etc.) call AlertDialog.Builder
+# methods (setMessage, setTitle, setPositiveButton, ...) that the host app
+# doesn't use and R8 would otherwise strip, crashing with NoSuchMethodError.
+#############################################
+
+-keep class androidx.appcompat.app.AlertDialog { *; }
+-keep class androidx.appcompat.app.AlertDialog$Builder { *; }
+-keep class androidx.appcompat.app.AlertDialog$Builder$* { *; }
+-dontwarn androidx.appcompat.app.AlertDialog
