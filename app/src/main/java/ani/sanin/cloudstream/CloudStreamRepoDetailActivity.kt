@@ -30,7 +30,7 @@ import java.util.Locale
 class CloudStreamRepoDetailActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityCsRepoDetailBinding
-    private val adapter = SourceAdapter(::onInstallClick, ::onSettingsClick) { installedIds }
+    private val adapter = SourceAdapter(::onInstallClick, ::onSettingsClick, { repoUrl }) { installedIds }
     private var installedIds: Set<String> = emptySet()
     private var repoUrl: String = ""
 
@@ -125,10 +125,11 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
         .replace("index.json", "")
         .removeSuffix("/")
 
-    inner class SourceAdapter(
+    class SourceAdapter(
         private val onInstall: (CsSource) -> Unit,
         private val onSettings: (CsSource) -> Unit,
-        private val installedIdsProvider: () -> Set<String>
+        private val installedIdsProvider: () -> Set<String>,
+        private val repoUrlProvider: () -> String
     ) : ListAdapter<CsSource, SourceAdapter.VH>(CloudStreamRepoDetailActivity.DIFF) {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -146,7 +147,7 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
             val skipIcons = PrefManager.getVal<Boolean>(PrefName.SkipExtensionIcons)
             if (!skipIcons) {
                 val iconUrl = item.iconUrl?.let {
-                    if (it.startsWith("http")) it else CsRepos.sourceUrl(this@CloudStreamRepoDetailActivity.repoUrl, it)
+                    if (it.startsWith("http")) it else CsRepos.sourceUrl(repoUrlProvider(), it)
                 }
                 SvgImageLoader.load(
                     holder.binding.sourceIconImageView,

@@ -3,6 +3,7 @@ package ani.sanin.others.svg
 import android.graphics.drawable.PictureDrawable
 import android.widget.ImageView
 import com.bumptech.glide.Glide
+import com.bumptech.glide.request.RequestOptions
 
 /**
  * Loads a CloudStream repo/plugin logo into an [ImageView]. Routes `.svg`
@@ -17,17 +18,15 @@ object SvgImageLoader {
             imageView.setImageResource(error)
             return
         }
+        val context = imageView.context
         if (url.contains(".svg", ignoreCase = true)) {
-            val context = imageView.context
-            val placeholderDrawable = context.getDrawable(placeholder)
-            val errorDrawable = context.getDrawable(error)
+            val requestOptions = RequestOptions()
+            context.getDrawable(placeholder)?.let { requestOptions.placeholder(it) }
+            context.getDrawable(error)?.let { requestOptions.error(it) }
             Glide.with(imageView)
                 .as(PictureDrawable::class.java)
                 .load(url)
-                .apply {
-                    placeholderDrawable?.let { placeholder(it) }
-                    errorDrawable?.let { error(it) }
-                }
+                .apply(requestOptions)
                 .into(imageView)
         } else {
             Glide.with(imageView)
