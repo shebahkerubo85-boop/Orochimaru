@@ -108,6 +108,7 @@ class App : Application() {
             animeExtensionManager = Injekt.get()
             launch {
                 animeExtensionManager.findAvailableExtensions()
+                ani.sanin.notifications.PluginUpdateChecker.checkAndNotify(this@App)
             }
             Logger.log("Anime Extensions: ${animeExtensionManager.installedExtensionsFlow.first()}")
             AnimeSources.init(animeExtensionManager.installedExtensionsFlow)
