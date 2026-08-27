@@ -112,4 +112,11 @@ object CsRepos {
             }
         )
     }
+
+    fun saveOrder(ordered: List<CsInstalledSource>) {
+        PrefManager.setVal(
+            PrefName.CloudStreamInstalledSources,
+            ordered.map { json.encodeToString(it) }
+        )
+    }
 }
