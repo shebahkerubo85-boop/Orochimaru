@@ -11,6 +11,7 @@ groupie = "2.10.1"
 nextlib = "0.8.4"
 ass = "0.4.0"
 compose-bom = "2025.06.00"
+androidsvg = "1.4"
 jackson = "2.13.1"
 atomicfu = "0.33.0"
 datetime = "0.8.0"
@@ -79,6 +80,7 @@ glide = { module = "com.github.bumptech.glide:glide", version.ref = "glide" }
 glide-ksp = { module = "com.github.bumptech.glide:ksp", version.ref = "glide" }
 glide-okhttp = { module = "com.github.bumptech.glide:okhttp3-integration", version.ref = "glide" }
 glide-transform = "jp.wasabeef:glide-transformations:4.3.0"
+androidsvg-aar = { module = "com.caverock:androidsvg-aar", version.ref = "androidsvg" }
 
 # Media3 / Exo
 media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "exo" }

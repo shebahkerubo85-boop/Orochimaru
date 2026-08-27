@@ -59,5 +59,6 @@ data class CsInstalledSource(
     val lang: String,
     val url: String,
     val repoUrl: String,
+    val iconUrl: String? = null,
     val installedAt: Long = System.currentTimeMillis()
 )

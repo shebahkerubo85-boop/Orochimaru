@@ -6,17 +6,19 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
+import ani.sanin.others.svg.SvgImageLoader
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import ani.sanin.databinding.ActivityCsRepoDetailBinding
 import ani.sanin.databinding.ItemCsSourceBinding
 import ani.sanin.initActivity
-import ani.sanin.settings.saving.PrefManager
-import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.themes.ThemeManager
@@ -28,8 +30,9 @@ import java.util.Locale
 class CloudStreamRepoDetailActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityCsRepoDetailBinding
-    private val adapter = SourceAdapter(::onInstallClick) { installedIds }
+    private val adapter = SourceAdapter(::onInstallClick, ::onSettingsClick) { installedIds }
     private var installedIds: Set<String> = emptySet()
+    private var repoUrl: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,6 +45,7 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
             finish()
             return
         }
+        this.repoUrl = repoUrl
 
         binding.csRepoBack.setOnClickListener { finish() }
         FocusEffectUtil.applyFocusListener(binding.csRepoBack)
@@ -86,6 +90,13 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
         adapter.submitList(filtered)
     }
 
+    private fun onSettingsClick(source: CsSource) {
+        val installed = CsRepos.installed(this).find { it.id == source.id } ?: return
+        val openSettings = CsRuntime.openSettingsFor(this, installed) ?: return
+        runCatching { openSettings(this) }
+            .onFailure { Toast.makeText(this, "Failed to open settings: ${it.message}", Toast.LENGTH_SHORT).show() }
+    }
+
     private fun onInstallClick(source: CsSource) {
         if (source.id in installedIds) {
             Toast.makeText(this, "${source.name} is already installed", Toast.LENGTH_SHORT).show()
@@ -116,6 +127,7 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
 
     class SourceAdapter(
         private val onInstall: (CsSource) -> Unit,
+        private val onSettings: (CsSource) -> Unit,
         private val installedIdsProvider: () -> Set<String>
     ) : ListAdapter<CsSource, SourceAdapter.VH>(CloudStreamRepoDetailActivity.DIFF) {
 
@@ -130,11 +142,34 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
             holder.binding.sourceMetaTextView.text =
                 "v${item.version} • ${item.typeLabel} • ${item.lang}"
             val installed = item.id in installedIdsProvider()
+
+            val skipIcons = PrefManager.getVal<Boolean>(PrefName.SkipExtensionIcons)
+            if (!skipIcons) {
+                val iconUrl = item.iconUrl?.let {
+                    if (it.startsWith("http")) it else CsRepos.sourceUrl(this@CloudStreamRepoDetailActivity.repoUrl, it)
+                }
+                SvgImageLoader.load(
+                    holder.binding.sourceIconImageView,
+                    iconUrl,
+                    R.drawable.ic_extension,
+                    R.drawable.ic_extension
+                )
+            }
+
             holder.binding.sourceInstallImageView.setImageResource(
                 if (installed) R.drawable.ic_check else R.drawable.ic_download_24
             )
             holder.binding.sourceInstallImageView.contentDescription = if (installed) "Installed" else "Install"
             holder.binding.sourceInstallImageView.setOnClickListener { onInstall(item) }
+
+            val settingsVisible = installed
+            holder.binding.sourceSettingsImageView.isVisible = settingsVisible
+            holder.binding.sourceSettingsImageView.contentDescription = "Settings"
+            holder.binding.sourceSettingsImageView.setOnClickListener { onSettings(item) }
+            if (settingsVisible) {
+                FocusEffectUtil.applyFocusListener(holder.binding.sourceSettingsImageView)
+            }
+
             FocusEffectUtil.applyFocusListener(holder.itemView)
             FocusEffectUtil.applyFocusListener(holder.binding.sourceInstallImageView)
         }

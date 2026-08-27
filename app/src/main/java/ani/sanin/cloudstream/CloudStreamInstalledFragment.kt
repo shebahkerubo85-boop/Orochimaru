@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -22,7 +23,10 @@ class CloudStreamInstalledFragment : Fragment(), SearchQueryHandler {
     private var _binding: FragmentExtensionsBinding? = null
     private val binding get() = _binding!!
 
-    private val adapter = InstalledAdapter { source -> confirmDelete(source) }
+    private val adapter = InstalledAdapter(
+        onDelete = { source -> confirmDelete(source) },
+        onSettings = { source -> openSettings(source) }
+    )
     private var installed: List<CsInstalledSource> = emptyList()
     private var query = ""
 
@@ -45,6 +49,15 @@ class CloudStreamInstalledFragment : Fragment(), SearchQueryHandler {
     private fun load() {
         installed = CsRepos.installed(requireContext())
         adapter.submitList(installed.filter { it.matches(query) })
+    }
+
+    private fun openSettings(source: CsInstalledSource) {
+        val openSettings = CsRuntime.openSettingsFor(requireContext(), source) ?: run {
+            Toast.makeText(requireContext(), "No settings available for ${source.name}", Toast.LENGTH_SHORT).show()
+            return
+        }
+        runCatching { openSettings(requireContext()) }
+            .onFailure { Toast.makeText(requireContext(), "Failed to open settings: ${it.message}", Toast.LENGTH_SHORT).show() }
     }
 
     private fun confirmDelete(source: CsInstalledSource) {
@@ -82,7 +95,8 @@ class CloudStreamInstalledFragment : Fragment(), SearchQueryHandler {
     }
 
     class InstalledAdapter(
-        private val onDelete: (CsInstalledSource) -> Unit
+        private val onDelete: (CsInstalledSource) -> Unit,
+        private val onSettings: (CsInstalledSource) -> Unit
     ) : ListAdapter<CsInstalledSource, InstalledAdapter.VH>(DIFF) {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -94,9 +108,26 @@ class CloudStreamInstalledFragment : Fragment(), SearchQueryHandler {
             val item = getItem(position)
             holder.binding.sourceNameTextView.text = item.name
             holder.binding.sourceMetaTextView.text = "v${item.version} • ${item.type} • ${item.lang}"
+
+            val skipIcons = PrefManager.getVal<Boolean>(PrefName.SkipExtensionIcons)
+            if (!skipIcons) {
+                SvgImageLoader.load(
+                    holder.binding.sourceIconImageView,
+                    item.iconUrl,
+                    ani.sanin.R.drawable.ic_extension,
+                    ani.sanin.R.drawable.ic_extension
+                )
+            }
+
             holder.binding.sourceInstallImageView.setImageResource(ani.sanin.R.drawable.ic_delete)
             holder.binding.sourceInstallImageView.contentDescription = "Delete"
             holder.binding.sourceInstallImageView.setOnClickListener { onDelete(item) }
+
+            holder.binding.sourceSettingsImageView.isVisible = true
+            holder.binding.sourceSettingsImageView.contentDescription = "Settings"
+            holder.binding.sourceSettingsImageView.setOnClickListener { onSettings(item) }
+            FocusEffectUtil.applyFocusListener(holder.binding.sourceSettingsImageView)
+
             FocusEffectUtil.applyFocusListener(holder.itemView)
             FocusEffectUtil.applyFocusListener(holder.binding.sourceInstallImageView)
         }

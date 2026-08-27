@@ -2,7 +2,10 @@ package ani.sanin.others
 
 import android.annotation.SuppressLint
 import android.content.Context
+import com.caverock.androidsvg.PictureDrawable
 import ani.sanin.okHttpClient
+import ani.sanin.others.svg.SvgDecoder
+import ani.sanin.others.svg.SvgDrawableTranscoder
 import com.bumptech.glide.Glide
 import com.bumptech.glide.GlideBuilder
 import com.bumptech.glide.Registry
@@ -12,6 +15,7 @@ import com.bumptech.glide.load.engine.cache.InternalCacheDiskCacheFactory
 import com.bumptech.glide.load.engine.cache.LruResourceCache
 import com.bumptech.glide.load.model.GlideUrl
 import com.bumptech.glide.module.AppGlideModule
+import com.caverock.androidsvg.SVG
 import java.io.InputStream
 
 
@@ -33,6 +37,16 @@ class SaninGlideApp : AppGlideModule() {
             GlideUrl::class.java,
             InputStream::class.java,
             OkHttpUrlLoader.Factory(okHttpClient)
+        )
+        registry.append(
+            InputStream::class.java,
+            SVG::class.java,
+            SvgDecoder()
+        )
+        registry.register(
+            SVG::class.java,
+            PictureDrawable::class.java,
+            SvgDrawableTranscoder()
         )
         super.registerComponents(context, glide, registry)
     }

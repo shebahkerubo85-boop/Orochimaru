@@ -114,6 +114,18 @@ object CsRuntime {
 
     fun isLoaded(sourceId: String): Boolean = plugins.containsKey(sourceId)
 
+    /** Returns the loaded plugin's custom-settings callback, if any. */
+    fun openSettingsFor(context: Context, source: CsInstalledSource): ((android.content.Context) -> Unit)? {
+        if (!plugins.containsKey(source.id)) {
+            if (!load(context, source)) return null
+        }
+        val plugin = plugins[source.id]
+        if (plugin is com.lagradost.cloudstream3.plugins.Plugin) {
+            return plugin.openSettings
+        }
+        return null
+    }
+
     @Synchronized
     fun unload(sourceId: String) {
         plugins.remove(sourceId)?.let { plugin ->

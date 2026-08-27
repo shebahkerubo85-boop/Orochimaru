@@ -189,6 +189,7 @@ dependencies {
     implementation(libs.cryptography.provider.optimal)
     implementation(libs.newpipeextractor)
     implementation(libs.rhino)
+    implementation(libs.androidsvg.aar)
 
     // Archive support (local source)
     implementation(libs.libarchive)

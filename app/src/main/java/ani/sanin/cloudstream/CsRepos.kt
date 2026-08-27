@@ -75,6 +75,9 @@ object CsRepos {
             val url = sourceUrl(repoUrl, source.url)
             val request = Request.Builder().url(url).build()
             val body = client.newCall(request).execute().use { it.body?.bytes() ?: ByteArray(0) }
+            val iconUrl = source.iconUrl?.let {
+                if (it.startsWith("http")) it else sourceUrl(repoUrl, it)
+            }
             val installed = CsInstalledSource(
                 id = source.id,
                 name = source.name,
@@ -82,7 +85,8 @@ object CsRepos {
                 type = source.type,
                 lang = source.lang,
                 url = source.url,
-                repoUrl = repoUrl
+                repoUrl = repoUrl,
+                iconUrl = iconUrl
             )
             // A previously loaded plugin is made read-only for the dex loader; allow overwrite here.
             installedFile(context, installed).setWritable(true)

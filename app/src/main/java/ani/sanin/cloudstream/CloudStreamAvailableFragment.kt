@@ -14,6 +14,9 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
 import ani.sanin.copyToClipboard
+import ani.sanin.others.svg.SvgImageLoader
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import ani.sanin.databinding.FragmentExtensionsBinding
 import ani.sanin.databinding.ItemRepoBinding
 import ani.sanin.settings.SearchQueryHandler
@@ -22,7 +25,7 @@ import ani.sanin.util.customAlertDialog
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-data class RepoUi(val name: String, val url: String, val count: Int) {
+data class RepoUi(val name: String, val url: String, val count: Int, val iconUrl: String? = null) {
     fun matches(q: String): Boolean {
         if (q.isBlank()) return true
         return name.lowercase(Locale.ROOT).contains(q.lowercase(Locale.ROOT)) ||
@@ -64,10 +67,14 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
             repos = urls.map { url ->
                 val manifest = runCatching { CsRepos.fetchManifest(url) }.getOrNull()
                 val plugins = if (manifest != null) CsRepos.getRepoPlugins(url) else emptyList()
+                val iconUrl = manifest?.iconUrl?.let {
+                    if (it.startsWith("http")) it else CsRepos.sourceUrl(url, it)
+                }
                 RepoUi(
                     name = manifest?.name ?: url.clean(),
                     url = url,
-                    count = plugins.size
+                    count = plugins.size,
+                    iconUrl = iconUrl
                 )
             }
             adapter.submitList(repos.filter { it.matches(query) })
@@ -124,6 +131,15 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             val item = getItem(position)
+            val skipIcons = PrefManager.getVal<Boolean>(PrefName.SkipExtensionIcons)
+            if (!skipIcons) {
+                SvgImageLoader.load(
+                    holder.binding.repoIconImageView,
+                    item.iconUrl,
+                    ani.sanin.R.drawable.ic_extension,
+                    ani.sanin.R.drawable.ic_extension
+                )
+            }
             holder.binding.repoNameTextView.text = item.name
             holder.binding.repoNameTextView.isFocusable = true
             FocusEffectUtil.applyFocusListener(holder.binding.repoNameTextView)
