@@ -23,17 +23,11 @@ object SvgImageLoader {
             val requestOptions = RequestOptions()
             context.getDrawable(placeholder)?.let { requestOptions.placeholder(it) }
             context.getDrawable(error)?.let { requestOptions.error(it) }
-            Glide.with(imageView)
-                .as(PictureDrawable::class.java)
-                .load(url)
-                .apply(requestOptions)
-                .into(imageView)
+            val request = Glide.with(imageView).as(PictureDrawable::class.java).load(url)
+            request.apply(requestOptions)
+            request.into(imageView)
         } else {
-            Glide.with(imageView)
-                .load(url)
-                .placeholder(placeholder)
-                .error(error)
-                .into(imageView)
+            Glide.with(imageView).load(url).placeholder(placeholder).error(error).into(imageView)
         }
     }
 }

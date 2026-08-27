@@ -30,7 +30,7 @@ import java.util.Locale
 class CloudStreamRepoDetailActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityCsRepoDetailBinding
-    private val adapter = SourceAdapter(::onInstallClick, ::onSettingsClick, { repoUrl }) { installedIds }
+    private val adapter = SourceAdapter(::onInstallClick, ::onSettingsClick, { installedIds }) { repoUrl }
     private var installedIds: Set<String> = emptySet()
     private var repoUrl: String = ""
 
