@@ -34,6 +34,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.util.UnstableApi
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.connections.LogoApi
 import ani.sanin.media.anime.ExoplayerView
@@ -558,8 +559,18 @@ class MainActivity : AppCompatActivity() {
                             while (p != null) {
                                 if (p is RecyclerView) {
                                     val lm = p.layoutManager
-                                    if (lm != null && lm.canScrollHorizontally()) {
-                                        val holder = p.findContainingViewHolder(focus)
+                                    val holder = p.findContainingViewHolder(focus)
+                                    if (lm is GridLayoutManager) {
+                                        // Vertical grid: allow DPAD-left to move to the previous
+                                        // card unless we are already in the first column (far left).
+                                        val pos = holder?.bindingAdapterPosition ?: RecyclerView.NO_POSITION
+                                        val span = lm.spanCount
+                                        if (lm.orientation == GridLayoutManager.VERTICAL && pos != RecyclerView.NO_POSITION && span > 1) {
+                                            inHorizontalRv = pos % span != 0
+                                        } else if (lm.canScrollHorizontally()) {
+                                            inHorizontalRv = pos > 0 || p.canScrollHorizontally(-1)
+                                        }
+                                    } else if (lm != null && lm.canScrollHorizontally()) {
                                         if (holder != null && holder.bindingAdapterPosition > 0) {
                                             inHorizontalRv = true
                                         } else if (p.canScrollHorizontally(-1)) {

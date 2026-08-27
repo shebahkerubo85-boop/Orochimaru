@@ -6,6 +6,7 @@ import android.view.Gravity
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -123,12 +124,122 @@ class TmdbHomeFragment : Fragment() {
             }
         }
         applyBannerLayout()
+        setupWatchNowBtn()
+        setupBannerFrame()
         load()
+        applyTmdbBannerFocusChain()
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         if (_binding != null) applyBannerLayout()
+    }
+
+    private fun applyTmdbBannerFocusChain() {
+        val b = _binding ?: return
+        val watchBtn = b.tmdbBannerWatchBtn
+        val cal = activity?.findViewById<View>(R.id.mainCalendarContainer)
+        val avatar = activity?.findViewById<View>(R.id.mainUserAvatarContainer)
+
+        // Up from banner / watch-now -> top-right icons; down from icons -> watch-now.
+        b.tmdbBannerFrame.nextFocusUpId = R.id.mainCalendarContainer
+        watchBtn.nextFocusUpId = R.id.mainCalendarContainer
+        cal?.nextFocusDownId = watchBtn.id
+        avatar?.nextFocusDownId = watchBtn.id
+
+        // Down from watch-now -> first card of the first section (default focus search).
+        watchBtn.nextFocusDownId = View.NO_ID
+
+        // Once rows are laid out, make the first card of each row lead back up to watch-now.
+        binding.tmdbHomeSections.post {
+            if (_binding == null) return@post
+            var first = true
+            for (i in 0 until b.tmdbHomeSections.childCount) {
+                val child = b.tmdbHomeSections.getChildAt(i)
+                if (child !is RecyclerView) continue
+                for (j in 0 until child.childCount) {
+                    val card = child.getChildAt(j)
+                    val target = card.findViewById<View>(R.id.tmdbCardPoster) ?: card
+                    if (first) {
+                        watchBtn.nextFocusDownId = target.id
+                        target.nextFocusUpId = watchBtn.id
+                        first = false
+                    }
+                }
+            }
+        }
+    }
+
+    private fun setupBannerFrame() {
+        val frame = binding.tmdbBannerFrame
+        frame.isFocusable = true
+        frame.isFocusableInTouchMode = false
+        frame.setOnKeyListener { _, keyCode, event ->
+            if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+            when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                    frame.performClick()
+                    true
+                }
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    moveBanner(keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
+                    true
+                }
+                else -> false
+            }
+        }
+        FocusEffectUtil.applyFocusListener(frame)
+    }
+
+    private fun setupWatchNowBtn() {
+        val b = _binding ?: return
+        val btn = b.tmdbBannerWatchBtn
+        btn.setOnClickListener { openCurrentBanner() }
+        btn.setOnKeyListener { _, keyCode, event ->
+            if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+            when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                    openCurrentBanner()
+                    true
+                }
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    moveBanner(keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
+                    true
+                }
+                else -> false
+            }
+        }
+        FocusEffectUtil.applyFocusListener(btn)
+    }
+
+    private fun openCurrentBanner() {
+        val item = bannerItems.getOrNull(bannerIndex) ?: return
+        when (item) {
+            is BannerItem.Tmdb -> {
+                startActivity(
+                    Intent(requireContext(), TmdbWatchActivity::class.java)
+                        .putExtra(TmdbWatchActivity.ARG_MEDIA_TYPE, item.media.type)
+                        .putExtra(TmdbWatchActivity.ARG_MEDIA_ID, item.media.id)
+                )
+            }
+            is BannerItem.Plugin -> {
+                if (item.tmdbId != null && item.tmdbType != null) {
+                    openDetails(item.tmdbType, item.tmdbId)
+                } else {
+                    startActivity(
+                        Intent(requireContext(), TmdbDetailsActivity::class.java)
+                            .putExtra(TmdbDetailsActivity.ARG_PLUGIN_SOURCE, item.sourceId)
+                            .putExtra(TmdbDetailsActivity.ARG_PLUGIN_URL, item.response.url)
+                    )
+                }
+            }
+        }
+    }
+
+    private fun moveBanner(forward: Boolean) {
+        if (bannerItems.size < 2) return
+        val next = (bannerIndex + (if (forward) 1 else -1) + bannerItems.size) % bannerItems.size
+        showBanner(next)
     }
 
     override fun onResume() {
@@ -265,6 +376,7 @@ class TmdbHomeFragment : Fragment() {
         addSection("Popular", popular)
         addSection("Top Rated", topRated)
         startAutoAdvance()
+        applyTmdbBannerFocusChain()
     }
 
     /** Loads plugin home sections (CloudStream-style). Returns true if any
@@ -419,6 +531,7 @@ class TmdbHomeFragment : Fragment() {
         }
         binding.tmdbHomeSections.addView(header)
         binding.tmdbHomeSections.addView(list)
+        applyTmdbBannerFocusChain()
     }
 
     private fun showBanner(index: Int) {

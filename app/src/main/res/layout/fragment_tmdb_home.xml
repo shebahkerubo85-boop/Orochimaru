@@ -103,6 +103,7 @@
                     android:textSize="13sp"
                     android:visibility="gone"
                     tools:text="Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family." />
+
             </LinearLayout>
 
             <LinearLayout
@@ -203,8 +204,24 @@
                     android:textColor="@android:color/white"
                     android:textSize="13sp"
                     tools:text="Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family." />
+
             </LinearLayout>
         </FrameLayout>
+
+        <TextView
+            android:id="@+id/tmdbBannerWatchBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/tag_chip_bg"
+            android:clickable="true"
+            android:focusable="true"
+            android:focusableInTouchMode="false"
+            android:gravity="center"
+            android:paddingHorizontal="20dp"
+            android:paddingVertical="8dp"
+            android:text="@string/watch_now"
+            android:textColor="@color/bg_white"
+            android:textSize="13sp" />
 
         <LinearLayout
             android:id="@+id/tmdbHomeSections"
