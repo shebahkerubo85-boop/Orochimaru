@@ -122,6 +122,7 @@ class App : Application() {
             val scheduler = TaskScheduler.create(this@App, useAlarmManager)
             try {
                 scheduler.scheduleAllTasks(this@App)
+                TaskScheduler.scheduleSingleWork(this@App)
             } catch (e: IllegalStateException) {
                 Logger.log("Failed to schedule tasks")
                 Logger.log(e)

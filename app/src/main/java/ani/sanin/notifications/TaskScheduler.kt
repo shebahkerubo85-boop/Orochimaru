@@ -47,24 +47,34 @@ interface TaskScheduler {
 
         fun scheduleSingleWork(context: Context) {
             val workManager = androidx.work.WorkManager.getInstance(context)
-            workManager.enqueueUniqueWork(
-                CommentNotificationWorker.WORK_NAME + "_single",
-                androidx.work.ExistingWorkPolicy.REPLACE,
-                androidx.work.OneTimeWorkRequest.Builder(CommentNotificationWorker::class.java)
-                    .build()
-            )
-            workManager.enqueueUniqueWork(
-                AnilistNotificationWorker.WORK_NAME + "_single",
-                androidx.work.ExistingWorkPolicy.REPLACE,
-                androidx.work.OneTimeWorkRequest.Builder(AnilistNotificationWorker::class.java)
-                    .build()
-            )
-            workManager.enqueueUniqueWork(
-                SubscriptionNotificationWorker.WORK_NAME + "_single",
-                androidx.work.ExistingWorkPolicy.REPLACE,
-                androidx.work.OneTimeWorkRequest.Builder(SubscriptionNotificationWorker::class.java)
-                    .build()
-            )
+            if (PrefManager.getVal<Int>(PrefName.CommentsEnabled) == 1) {
+                workManager.enqueueUniqueWork(
+                    CommentNotificationWorker.WORK_NAME + "_single",
+                    androidx.work.ExistingWorkPolicy.REPLACE,
+                    androidx.work.OneTimeWorkRequest.Builder(CommentNotificationWorker::class.java)
+                        .build()
+                )
+            }
+            if (PrefManager.getVal<Boolean>(PrefName.AnilistNotifications) &&
+                AnilistNotificationWorker.checkIntervals[PrefManager.getVal(PrefName.AnilistNotificationInterval)] > 0
+            ) {
+                workManager.enqueueUniqueWork(
+                    AnilistNotificationWorker.WORK_NAME + "_single",
+                    androidx.work.ExistingWorkPolicy.REPLACE,
+                    androidx.work.OneTimeWorkRequest.Builder(AnilistNotificationWorker::class.java)
+                        .build()
+                )
+            }
+            if (PrefManager.getVal<Boolean>(PrefName.EpisodeNotifications) &&
+                SubscriptionNotificationWorker.checkIntervals[PrefManager.getVal(PrefName.SubscriptionNotificationInterval)] > 0
+            ) {
+                workManager.enqueueUniqueWork(
+                    SubscriptionNotificationWorker.WORK_NAME + "_single",
+                    androidx.work.ExistingWorkPolicy.REPLACE,
+                    androidx.work.OneTimeWorkRequest.Builder(SubscriptionNotificationWorker::class.java)
+                        .build()
+                )
+            }
         }
     }
 
