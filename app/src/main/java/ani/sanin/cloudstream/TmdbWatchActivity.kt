@@ -1,7 +1,9 @@
 package ani.sanin.cloudstream
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
+import android.text.TextUtils
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -351,6 +353,12 @@ class TmdbWatchActivity : AppCompatActivity() {
     private fun buildHeader() {
         val h = headerBinding
 
+        // Marquee doesn't scroll reliably on TV/landscape; truncate instead.
+        if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            h.tmdbWatchSourceTitle.ellipsize = TextUtils.TruncateAt.END
+            h.tmdbWatchSourceTitle.isSelected = false
+        }
+
         // ── source chips: installed CS3 plugins only (Auto Search is NOT a chip) ──
         if (selectedSourceIndex == -1) selectedSourceIndex = defaultSourceIndex()
         h.tmdbWatchSourceChips.removeAllViews()
@@ -479,7 +487,8 @@ class TmdbWatchActivity : AppCompatActivity() {
 
     private fun setSourceStatus(text: String) {
         headerBinding.tmdbWatchSourceTitle.text = text
-        headerBinding.tmdbWatchSourceTitle.isSelected = true
+        headerBinding.tmdbWatchSourceTitle.isSelected =
+            resources.configuration.orientation != Configuration.ORIENTATION_LANDSCAPE
         headerBinding.tmdbWatchSpinner.isVisible = text.startsWith("Searching")
     }
 
