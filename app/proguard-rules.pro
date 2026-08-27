@@ -79,6 +79,23 @@
 
 #############################################
 # Android / Jetpack
+
+# Plugin settings UIs (compiled .cs3 dex) call AndroidX helper methods at runtime
+# that are otherwise unused by the host app and would be stripped by R8. Keep
+# the helpers they can reference so opening a plugin's settings doesn't crash.
+-keep class androidx.core.content.res.ResourcesCompat { *; }
+-keepclassmembers,allowoptimization class androidx.core.content.res.ResourcesCompat {
+    public static ** getDrawable(...);
+    public static ** getColor(...);
+    public static ** getColorStateList(...);
+}
+-keepclassmembers,allowoptimization class androidx.core.content.ContextCompat {
+    public static ** getDrawable(...);
+    public static ** getColor(...);
+}
+-keepclassmembers,allowoptimization class androidx.core.content.res.ColorStateListInflaterCompat { *; }
+-dontwarn androidx.core.content.res.ResourcesCompat
+
 #############################################
 
 -keep class androidx.preference.** { *; }
