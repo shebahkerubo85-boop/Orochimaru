@@ -23,7 +23,7 @@ object SvgImageLoader {
             val requestOptions = RequestOptions()
             context.getDrawable(placeholder)?.let { requestOptions.placeholder(it) }
             context.getDrawable(error)?.let { requestOptions.error(it) }
-            val request = Glide.with(imageView).as(PictureDrawable::class.java).load(url)
+            val request = Glide.with(imageView).`as`(PictureDrawable::class.java).load(url)
             request.apply(requestOptions)
             request.into(imageView)
         } else {
