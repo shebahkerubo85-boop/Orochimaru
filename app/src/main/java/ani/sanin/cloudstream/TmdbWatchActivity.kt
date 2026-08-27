@@ -1,7 +1,6 @@
 package ani.sanin.cloudstream
 
 import android.content.Intent
-import android.content.res.Configuration
 import android.os.Bundle
 import android.text.TextUtils
 import android.view.LayoutInflater
@@ -353,11 +352,7 @@ class TmdbWatchActivity : AppCompatActivity() {
     private fun buildHeader() {
         val h = headerBinding
 
-        // Marquee doesn't scroll reliably on TV/landscape; truncate instead.
-        if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            h.tmdbWatchSourceTitle.ellipsize = TextUtils.TruncateAt.END
-            h.tmdbWatchSourceTitle.isSelected = false
-        }
+        h.tmdbWatchSourceTitle.singleLine = true
 
         // ── source chips: installed CS3 plugins only (Auto Search is NOT a chip) ──
         if (selectedSourceIndex == -1) selectedSourceIndex = defaultSourceIndex()
@@ -486,9 +481,13 @@ class TmdbWatchActivity : AppCompatActivity() {
     }
 
     private fun setSourceStatus(text: String) {
-        headerBinding.tmdbWatchSourceTitle.text = text
-        headerBinding.tmdbWatchSourceTitle.isSelected =
-            resources.configuration.orientation != Configuration.ORIENTATION_LANDSCAPE
+        // Pad with invisible braille blanks so the status always fills its weight
+        // and the refresh/notification buttons stay pinned at the right edge,
+        // regardless of title length or how many plugin chips are present.
+        val filler = "\u2800".repeat(120)
+        headerBinding.tmdbWatchSourceTitle.ellipsize = TextUtils.TruncateAt.END
+        headerBinding.tmdbWatchSourceTitle.isSelected = false
+        headerBinding.tmdbWatchSourceTitle.text = text + filler
         headerBinding.tmdbWatchSpinner.isVisible = text.startsWith("Searching")
     }
 

@@ -63,6 +63,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:clipToPadding="false"
+            android:fillViewport="true"
             android:scrollbars="none">
 
             <com.google.android.material.chip.ChipGroup
