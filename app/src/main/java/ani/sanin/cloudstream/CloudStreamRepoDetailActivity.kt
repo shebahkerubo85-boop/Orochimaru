@@ -125,7 +125,7 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
         .replace("index.json", "")
         .removeSuffix("/")
 
-    class SourceAdapter(
+    inner class SourceAdapter(
         private val onInstall: (CsSource) -> Unit,
         private val onSettings: (CsSource) -> Unit,
         private val installedIdsProvider: () -> Set<String>

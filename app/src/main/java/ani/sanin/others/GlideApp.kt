@@ -2,7 +2,7 @@ package ani.sanin.others
 
 import android.annotation.SuppressLint
 import android.content.Context
-import com.caverock.androidsvg.PictureDrawable
+import android.graphics.drawable.PictureDrawable
 import ani.sanin.okHttpClient
 import ani.sanin.others.svg.SvgDecoder
 import ani.sanin.others.svg.SvgDrawableTranscoder

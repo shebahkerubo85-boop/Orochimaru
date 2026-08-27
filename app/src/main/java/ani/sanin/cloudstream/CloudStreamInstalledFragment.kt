@@ -17,6 +17,10 @@ import ani.sanin.settings.SearchQueryHandler
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.customAlertDialog
 import java.util.Locale
+import ani.sanin.settings.saving.PrefName
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.others.svg.SvgImageLoader
+import ani.sanin.R
 
 class CloudStreamInstalledFragment : Fragment(), SearchQueryHandler {
 
