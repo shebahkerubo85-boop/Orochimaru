@@ -44,6 +44,7 @@ import ani.sanin.connections.simkl.Simkl
 import ani.sanin.connections.mal.MAL
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.NavPillCustomizer
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import ani.sanin.util.GlassComponent
 import ani.sanin.util.GlassEffectManager
