@@ -283,7 +283,7 @@ enum class PrefName(val data: Pref) {
 
     GestureSliders(Pref(Location.Player, Boolean::class, true)),
     DpadEpisodeSkip(Pref(Location.Player, Boolean::class, true)),
-    WrapButtons(Pref(Location.Player, Int::class, 2)), // 0=Off, 1=Dark, 2=No tint, 3=Primary
+    WrapButtons(Pref(Location.Player, Int::class, 0)), // 0=Off, 1=Dark, 2=No tint, 3=Primary
     Interpolation(Pref(Location.Player, Boolean::class, false)),
     UpscalingAlgorithm(Pref(Location.Player, Int::class, 0)),
     RawConfiguration(Pref(Location.Player, String::class, "")),

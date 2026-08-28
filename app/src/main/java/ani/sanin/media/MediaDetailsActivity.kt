@@ -200,6 +200,11 @@ class MediaDetailsActivity : AppCompatActivity() {
             frame.findViewWithTag<LinearLayout>("pill_list")?.let {
                 NavPillCustomizer.applyToPillList(it)
             }
+            // Push pill up to avoid phone navigation bar overlap
+            (frame.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
+                lp.bottomMargin = (16 * resources.displayMetrics.density).toInt() + navBarHeight
+                frame.layoutParams = lp
+            }
         }
 
         fun showWatchTab(container: FrameLayout, animate: Boolean) {
