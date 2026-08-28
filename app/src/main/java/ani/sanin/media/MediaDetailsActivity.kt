@@ -36,7 +36,8 @@ import ani.sanin.databinding.ActivityMediaBinding
 import ani.sanin.getThemeColor
 import ani.sanin.initActivity
 import ani.sanin.loadImage
-import ani.sanin.navBarHeight
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import ani.sanin.openLinkInBrowser
 import ani.sanin.media.anime.AnimeWatchFragment
 import ani.sanin.media.comments.CommentsCarouselAdapter
@@ -201,10 +202,15 @@ class MediaDetailsActivity : AppCompatActivity() {
             frame.findViewWithTag<LinearLayout>("pill_list")?.let {
                 NavPillCustomizer.applyToPillList(it)
             }
-            // Push pill up to avoid phone navigation bar overlap
-            (frame.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
-                lp.bottomMargin = (16 * resources.displayMetrics.density).toInt() + navBarHeight
-                frame.layoutParams = lp
+            // Push pill up to avoid phone navigation bar overlap, reacting to
+            // the system nav bar appearing/hiding (gesture vs 3-button mode).
+            ViewCompat.setOnApplyWindowInsetsListener(frame) { v, insets ->
+                val bottomInset = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+                (v.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
+                    lp.bottomMargin = (16 * resources.displayMetrics.density).toInt() + bottomInset
+                    v.layoutParams = lp
+                }
+                insets
             }
         }
 
