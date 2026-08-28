@@ -1,9 +1,11 @@
 package ani.sanin.cloudstream
 
+import android.app.Activity
 import android.content.Context
 import android.content.res.AssetManager
 import android.content.res.Resources
 import android.util.Log
+import androidx.appcompat.app.AppCompatActivity
 import com.lagradost.api.setContext
 import com.lagradost.cloudstream3.APIHolder
 import com.lagradost.cloudstream3.MainAPI
@@ -114,6 +116,53 @@ object CsRuntime {
 
     fun isLoaded(sourceId: String): Boolean = plugins.containsKey(sourceId)
 
+    /**
+     * Some plugins (e.g. Ultima) cache the [Activity] they were loaded against and
+     * open their settings sheet on that cached fragment manager. If the plugin was
+     * first loaded on a different screen, the sheet targets a stale/hidden window
+     * and never appears. Point any such cached reference at the live activity before
+     * invoking the plugin's settings callback.
+     */
+    private fun syncPluginActivity(plugin: BasePlugin, context: Context) {
+        val activity = resolveActivity(context) ?: return
+        val target = activity as? AppCompatActivity ?: return
+        runCatching {
+            var clazz: Class<*>? = plugin.javaClass
+            while (clazz != null && clazz != Any::class.java) {
+                // Prefer an explicit setter/property then fall back to the field.
+                runCatching {
+                    val setter = clazz.getMethod("setActivity", AppCompatActivity::class.java)
+                    setter.isAccessible = true
+                    setter.invoke(plugin, target)
+                    return
+                }
+                runCatching {
+                    val field = clazz.getDeclaredField("activity")
+                    field.isAccessible = true
+                    if (field.type.isAssignableFrom(AppCompatActivity::class.java) ||
+                        field.type == Activity::class.java
+                    ) {
+                        field.set(plugin, target)
+                        return
+                    }
+                }
+                clazz = clazz.superclass
+            }
+        }
+    }
+
+    private fun resolveActivity(context: Context): Activity? {
+        var ctx: Context? = context
+        while (ctx != null) {
+            when (ctx) {
+                is Activity -> return ctx
+                is android.content.ContextWrapper -> ctx = ctx.baseContext
+                else -> return null
+            }
+        }
+        return null
+    }
+
     /** Returns the loaded plugin's custom-settings callback, if any. */
     fun openSettingsFor(context: Context, source: CsInstalledSource): ((android.content.Context) -> Unit)? {
         if (!plugins.containsKey(source.id)) {
@@ -121,7 +170,11 @@ object CsRuntime {
         }
         val plugin = plugins[source.id]
         if (plugin is com.lagradost.cloudstream3.plugins.Plugin) {
-            return plugin.openSettings
+            val original = plugin.openSettings ?: return null
+            return { ctx ->
+                syncPluginActivity(plugin, ctx)
+                original(ctx)
+            }
         }
         return null
     }
