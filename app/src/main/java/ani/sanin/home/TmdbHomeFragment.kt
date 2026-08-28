@@ -125,7 +125,6 @@ class TmdbHomeFragment : Fragment() {
         }
         applyBannerLayout()
         setupWatchNowBtn()
-        setupBannerFrame()
         load()
         applyTmdbBannerFocusChain()
     }
@@ -180,29 +179,9 @@ class TmdbHomeFragment : Fragment() {
         }
     }
 
-    private fun setupBannerFrame() {
-        val frame = binding.tmdbBannerFrame
-        frame.isFocusable = true
-        frame.isFocusableInTouchMode = false
-        frame.setOnKeyListener { _, keyCode, event ->
-            if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
-            when (keyCode) {
-                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                    frame.performClick()
-                    true
-                }
-                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                    moveBanner(keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
-                    true
-                }
-                else -> false
-            }
-        }
-        FocusEffectUtil.applyFocusListener(frame)
-    }
-
     private fun setupWatchNowBtn() {
         val b = _binding ?: return
+        val isCarouselMode = PrefManager.getVal<Int>(PrefName.HomeBannerMode) == 0
         for (btn in listOf(b.tmdbBannerWatchBtn, b.tmdbBannerSideWatchBtn)) {
             btn.setOnClickListener { openCurrentBanner() }
             btn.setOnKeyListener { _, keyCode, event ->
@@ -213,8 +192,10 @@ class TmdbHomeFragment : Fragment() {
                         true
                     }
                     KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                        moveBanner(keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
-                        true
+                        if (isCarouselMode) {
+                            moveBanner(keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
+                            true
+                        } else false
                     }
                     else -> false
                 }
