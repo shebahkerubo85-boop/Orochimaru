@@ -36,6 +36,7 @@ import ani.sanin.databinding.ActivityMediaBinding
 import ani.sanin.getThemeColor
 import ani.sanin.initActivity
 import ani.sanin.loadImage
+import ani.sanin.navBarHeight
 import ani.sanin.openLinkInBrowser
 import ani.sanin.media.anime.AnimeWatchFragment
 import ani.sanin.media.comments.CommentsCarouselAdapter
