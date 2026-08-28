@@ -236,10 +236,14 @@ class TmdbWatchActivity : AppCompatActivity() {
             seasons = buildPluginSeasons(load)
             selectedSeason = seasons.firstOrNull()?.seasonNumber ?: 1
             pluginEpisodes.clear()
+            val tmdbEpRatings = seasons.associate { s ->
+                s.seasonNumber to Tmdb.episodes("tv", mediaId, s.seasonNumber)
+                    .associate { it.episodeNumber to it.voteAverage }
+            }
             seasons.forEach { season ->
                 pluginEpisodes[season.seasonNumber] = load.episodes
                     .filter { (it.season ?: 1) == season.seasonNumber }
-                    .map { toPluginEpisode(it) }
+                    .map { toPluginEpisode(it, tmdbEpRatings[season.seasonNumber]) }
             }
             episodes = pluginEpisodes[selectedSeason].orEmpty()
             detail = TmdbDetail(
@@ -311,14 +315,17 @@ class TmdbWatchActivity : AppCompatActivity() {
         }
     }
 
-    private fun toPluginEpisode(ep: com.lagradost.cloudstream3.Episode): TmdbEpisode = TmdbEpisode(
+    private fun toPluginEpisode(
+        ep: com.lagradost.cloudstream3.Episode,
+        tmdbRatings: Map<Int, Double>? = null
+    ): TmdbEpisode = TmdbEpisode(
         id = ep.data.hashCode(),
         name = ep.name,
         episodeNumber = ep.episode ?: 0,
         seasonNumber = ep.season ?: 1,
         stillPath = ep.posterUrl,
         airDate = formatEpochDate(ep.date),
-        voteAverage = ep.score?.toFloat(10)?.toDouble() ?: 0.0
+        voteAverage = tmdbRatings?.get(ep.episode ?: 0)?.takeIf { it > 0 } ?: 0.0
     )
 
     private fun formatEpochDate(epoch: Long?): String? {
