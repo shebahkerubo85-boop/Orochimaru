@@ -108,7 +108,7 @@
 
                     <LinearLayout
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
+                        android:layout_height="42dp"
                         android:background="@drawable/bg_tv_pill"
                         android:focusable="false"
                         android:clickable="false"
@@ -170,7 +170,7 @@
 
                     <LinearLayout
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
+                        android:layout_height="42dp"
                         android:background="@drawable/bg_tv_pill"
                         android:focusable="false"
                         android:clickable="false"
@@ -418,7 +418,7 @@
 
                     <LinearLayout
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
+                        android:layout_height="42dp"
                         android:background="@drawable/bg_tv_pill"
                         android:focusable="false"
                         android:clickable="false"
