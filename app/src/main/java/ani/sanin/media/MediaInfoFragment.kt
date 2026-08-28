@@ -226,7 +226,7 @@ class MediaInfoFragment : Fragment() {
                 val endFmt = media.endDate?.let { formatFuzzyDate(it) }
                 val airedStr = buildString {
                     if (startFmt != null) append("Aired: ").append(startFmt)
-                    if (startFmt != null) append("  •  ")
+                    if (startFmt != null) append("\n")
                     append("To: ").append(endFmt ?: "???")
                 }
                 if (airedStr.isNotBlank()) {

@@ -146,7 +146,7 @@ class TmdbDetailsActivity : AppCompatActivity() {
                 if (startFmt != null) append("Aired: ").append(startFmt)
                 if (mediaType == "tv") {
                     val endFmt = d.lastEpisodeToAir?.airDate?.let { formatAiredDate(it) }
-                    if (startFmt != null) append("  •  ")
+                    if (startFmt != null) append("\n")
                     append("To: ").append(endFmt ?: "???")
                 }
             }
