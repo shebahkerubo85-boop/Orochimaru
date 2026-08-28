@@ -140,6 +140,23 @@ class TmdbDetailsActivity : AppCompatActivity() {
             binding.mediaInfoStatus.text = statusLabel(d.status)
             binding.mediaInfoStatus.setTextColor(tmdbStatusColor(d.status))
 
+            val airedStr = buildString {
+                val startRaw = if (mediaType == "movie") d.releaseDate else d.firstAirDate
+                val startFmt = startRaw?.let { formatAiredDate(it) }
+                if (startFmt != null) append("Aired: ").append(startFmt)
+                if (mediaType == "tv") {
+                    val endFmt = d.lastEpisodeToAir?.airDate?.let { formatAiredDate(it) }
+                    if (startFmt != null) append("  •  ")
+                    append("To: ").append(endFmt ?: "???")
+                }
+            }
+            if (airedStr.isNotBlank()) {
+                binding.mediaInfoAired.text = airedStr
+                binding.mediaInfoAired.visibility = View.VISIBLE
+            } else {
+                binding.mediaInfoAired.visibility = View.GONE
+            }
+
             if (mediaType == "tv" && d.numberOfEpisodes > 0) {
                 val total = d.numberOfEpisodes
                 binding.mediaInfoReleased.text = total.toString() + " of " + total.toString()
@@ -199,6 +216,28 @@ class TmdbDetailsActivity : AppCompatActivity() {
                 Color.parseColor("#F44336")
             else -> Color.WHITE
         }
+    }
+
+    private fun formatAiredDate(raw: String): String? {
+        val parts = raw.split("-")
+        if (parts.size < 3) return raw
+        val year = parts[0].toIntOrNull() ?: return raw
+        val month = parts[1].toIntOrNull() ?: return raw
+        val day = parts[2].toIntOrNull() ?: return raw
+        if (year == 0) return null
+        val months = arrayOf(
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        )
+        val monthName = if (month in 1..12) months[month - 1] else return raw
+        val suffix = when {
+            day in 11..13 -> "th"
+            day % 10 == 1 -> "st"
+            day % 10 == 2 -> "nd"
+            day % 10 == 3 -> "rd"
+            else -> "th"
+        }
+        return "${day}${suffix} $monthName $year"
     }
 
 // __PART2__

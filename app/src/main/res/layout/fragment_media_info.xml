@@ -290,6 +290,17 @@
                                 android:textColor="@android:color/white"
                                 android:textSize="18sp"
                                 tools:text="RELEASING" />
+
+                            <TextView
+                                android:id="@+id/mediaInfoAired"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/poppins"
+                                android:rotation="-0.5"
+                                android:alpha="0.7"
+                                android:textColor="@android:color/white"
+                                android:textSize="11sp"
+                                tools:text="Aired: • To: •" />
                         </LinearLayout>
 
                         <LinearLayout

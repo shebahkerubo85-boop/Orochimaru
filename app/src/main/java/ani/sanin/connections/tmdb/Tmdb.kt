@@ -60,7 +60,8 @@ data class TmdbDetail(
     @SerialName("videos") val videos: TmdbVideoPage? = null,
     @SerialName("keywords") val keywords: TmdbKeywordPage? = null,
     val seasons: List<TmdbSeason> = emptyList(),
-    @SerialName("belongs_to_collection") val collection: TmdbCollection? = null
+    @SerialName("belongs_to_collection") val collection: TmdbCollection? = null,
+    @SerialName("last_episode_to_air") val lastEpisodeToAir: TmdbEpisode? = null
 ) {
     val displayTitle: String get() = title ?: name ?: ""
     val year: String get() = (releaseDate ?: firstAirDate ?: "").take(4)

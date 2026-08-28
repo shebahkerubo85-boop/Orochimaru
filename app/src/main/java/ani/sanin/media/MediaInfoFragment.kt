@@ -36,6 +36,7 @@ import ani.sanin.Refresh
 import ani.sanin.connections.LogoApi
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.anilist.AnilistMutations
+import ani.sanin.connections.anilist.api.FuzzyDate
 import ani.sanin.connections.anilist.GenresViewModel
 import ani.sanin.connections.mal.MAL
 import ani.sanin.copyToClipboard
@@ -219,6 +220,21 @@ class MediaInfoFragment : Fragment() {
                     else -> Color.WHITE
                 }
                 binding.mediaInfoStatus.setTextColor(statusColor)
+
+                // Aired dates
+                val startFmt = media.startDate?.let { formatFuzzyDate(it) }
+                val endFmt = media.endDate?.let { formatFuzzyDate(it) }
+                val airedStr = buildString {
+                    if (startFmt != null) append("Aired: ").append(startFmt)
+                    if (startFmt != null) append("  •  ")
+                    append("To: ").append(endFmt ?: "???")
+                }
+                if (airedStr.isNotBlank()) {
+                    binding.mediaInfoAired.text = airedStr
+                    binding.mediaInfoAired.visibility = View.VISIBLE
+                } else {
+                    binding.mediaInfoAired.visibility = View.GONE
+                }
 
                 // Description (right after status, before everything else)
                 val desc = HtmlCompat.fromHtml(
@@ -944,4 +960,24 @@ class MediaInfoFragment : Fragment() {
              onerror="this.src='https://img.youtube.com/vi/$trailerId/hqdefault.jpg'" alt="Trailer">
         <div class="play-button"><div class="play-icon"></div></div></div></body></html>
     """.trimIndent()
+
+    private fun formatFuzzyDate(date: FuzzyDate): String? {
+        val y = date.year ?: return date.toStringOrEmpty().takeIf { it.isNotBlank() }
+        val m = date.month
+        val d = date.day
+        val months = arrayOf(
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        )
+        val monthName = if (m != null && m in 1..12) months[m - 1] else return y.toString()
+        if (d == null) return "$monthName $y"
+        val suffix = when {
+            d in 11..13 -> "th"
+            d % 10 == 1 -> "st"
+            d % 10 == 2 -> "nd"
+            d % 10 == 3 -> "rd"
+            else -> "th"
+        }
+        return "${d}${suffix} $monthName $y"
+    }
 }
