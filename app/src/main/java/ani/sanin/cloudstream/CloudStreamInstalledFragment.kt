@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
+import ani.sanin.forcePluginSheetFull
 import ani.sanin.databinding.FragmentExtensionsBinding
 import ani.sanin.databinding.ItemCsSourceInstalledBinding
 import ani.sanin.settings.SearchQueryHandler
@@ -169,8 +170,10 @@ class CloudStreamInstalledFragment : Fragment(), SearchQueryHandler {
             Toast.makeText(requireContext(), "No settings available for ${source.name}", Toast.LENGTH_SHORT).show()
             return
         }
-        runCatching { openSettings(requireContext()) }
-            .onFailure { Toast.makeText(requireContext(), "Failed to open settings: ${it.message}", Toast.LENGTH_SHORT).show() }
+        runCatching {
+            openSettings(requireContext())
+            forcePluginSheetFull(requireContext())
+        }.onFailure { Toast.makeText(requireContext(), "Failed to open settings: ${it.message}", Toast.LENGTH_SHORT).show() }
     }
 
     private fun confirmDelete(source: CsInstalledSource) {

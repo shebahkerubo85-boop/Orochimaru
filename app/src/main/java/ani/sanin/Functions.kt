@@ -473,6 +473,56 @@ open class BottomSheetDialogFragment :
     }
 }
 
+fun isTvDevice(context: Context): Boolean {
+    return (context.resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK) ==
+        Configuration.UI_MODE_TYPE_TELEVISION
+}
+
+fun forcePluginSheetFull(context: Context) {
+    // Plugin-supplied settings sheets are built inside compiled .cs3 plugins, so we
+    // can't control their layout directly. On TV/landscape, walk the visible window
+    // hierarchy shortly after openSettings() is invoked and force any Material
+    // BottomSheetDialog fully expanded, matching the app's own sheet behaviour.
+    val isTv = isTvDevice(context)
+    if (!isTv && context.resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT) return
+
+    Handler(Looper.getMainLooper()).postDelayed({
+        val activity = context as? Activity ?: return@postDelayed
+        val decor = activity.window?.decorView ?: return@postDelayed
+
+        val visited = mutableSetOf<View>()
+        fun expandSheet(v: View) {
+            // Only walk the decor once per tree
+            if (v is FrameLayout) {
+                val behavior = try {
+                    BottomSheetBehavior.from(v)
+                } catch (t: Throwable) {
+                    null
+                }
+                if (behavior != null) {
+                    try {
+                        if (isTv) {
+                            behavior.isFitToContents = false
+                            behavior.maxHeight = activity.resources.displayMetrics.heightPixels
+                            behavior.skipCollapsed = true
+                        }
+                        behavior.state = BottomSheetBehavior.STATE_EXPANDED
+                    } catch (t: Throwable) {
+                        // ignore
+                    }
+                }
+            }
+            if (v is ViewGroup) {
+                for (i in 0 until v.childCount) {
+                    val child = v.getChildAt(i)
+                    if (visited.add(child)) expandSheet(child)
+                }
+            }
+        }
+        expandSheet(decor)
+    }, 150)
+}
+
 fun isOnline(context: Context): Boolean {
     val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager

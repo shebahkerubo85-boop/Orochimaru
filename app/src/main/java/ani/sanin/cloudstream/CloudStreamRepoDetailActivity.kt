@@ -18,6 +18,7 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.databinding.ActivityCsRepoDetailBinding
 import ani.sanin.databinding.ItemCsSourceBinding
+import ani.sanin.forcePluginSheetFull
 import ani.sanin.initActivity
 import ani.sanin.statusBarHeight
 import ani.sanin.util.FocusEffectUtil
@@ -93,7 +94,10 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
     private fun onSettingsClick(source: CsSource) {
         val installed = CsRepos.installed(this).find { it.id == source.id } ?: return
         val openSettings = CsRuntime.openSettingsFor(this, installed) ?: return
-        runCatching { openSettings(this) }
+        runCatching {
+            openSettings(this)
+            forcePluginSheetFull(this)
+        }
             .onFailure { Toast.makeText(this, "Failed to open settings: ${it.message}", Toast.LENGTH_SHORT).show() }
     }
 
