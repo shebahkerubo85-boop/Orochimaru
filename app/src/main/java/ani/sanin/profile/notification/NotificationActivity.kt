@@ -118,7 +118,7 @@ class NotificationActivity : AppCompatActivity() {
             // Push nav rail up when system navigation bar is visible
             ViewCompat.setOnApplyWindowInsetsListener(frame) { v, insets ->
                 val bottomInset = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
-                (v.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
+                (v.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
                     lp.bottomMargin = (16 * resources.displayMetrics.density).toInt() + bottomInset
                     v.layoutParams = lp
                 }
@@ -501,21 +501,37 @@ class NotificationActivity : AppCompatActivity() {
     }
 
     private fun showNotificationNavRail() {
+        val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
         binding.notificationNavRail.apply {
             visibility = View.VISIBLE
-            pivotY = 0f; translationX = -60f * resources.displayMetrics.density
-            scaleY = 0.3f; alpha = 0f
+            alpha = 0f
+            if (isLandscape) {
+                pivotY = 0f; translationX = -60f * resources.displayMetrics.density; scaleY = 0.3f
+            } else {
+                translationY = 60f * resources.displayMetrics.density; scaleX = 0.3f
+            }
         }
         binding.notificationNavRail.post {
             if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.NavRailAnimations)) {
-                ObjectAnimator.ofFloat(binding.notificationNavRail, View.SCALE_Y, 1f).apply {
-                    interpolator = OvershootInterpolator(); duration = 500
-                }.start()
-                binding.notificationNavRail.animate()
-                    .translationX(0f).alpha(1f)
-                    .setInterpolator(DecelerateInterpolator()).setDuration(500).start()
+                if (isLandscape) {
+                    ObjectAnimator.ofFloat(binding.notificationNavRail, View.SCALE_Y, 1f).apply {
+                        interpolator = OvershootInterpolator(); duration = 500
+                    }.start()
+                    binding.notificationNavRail.animate()
+                        .translationX(0f).alpha(1f)
+                        .setInterpolator(DecelerateInterpolator()).setDuration(500).start()
+                } else {
+                    ObjectAnimator.ofFloat(binding.notificationNavRail, View.SCALE_X, 1f).apply {
+                        interpolator = OvershootInterpolator(); duration = 500
+                    }.start()
+                    binding.notificationNavRail.animate()
+                        .translationY(0f).alpha(1f)
+                        .setInterpolator(DecelerateInterpolator()).setDuration(500).start()
+                }
             } else {
                 binding.notificationNavRail.translationX = 0f
+                binding.notificationNavRail.translationY = 0f
+                binding.notificationNavRail.scaleX = 1f
                 binding.notificationNavRail.scaleY = 1f
                 binding.notificationNavRail.alpha = 1f
             }
