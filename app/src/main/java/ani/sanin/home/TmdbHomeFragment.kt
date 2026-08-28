@@ -132,12 +132,21 @@ class TmdbHomeFragment : Fragment() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        if (_binding != null) applyBannerLayout()
+        if (_binding != null) {
+            applyBannerLayout()
+            applyTmdbBannerFocusChain()
+        }
+    }
+
+    private fun activeWatchBtn(): View? {
+        val b = _binding ?: return null
+        val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        return if (isLandscape) b.tmdbBannerSideWatchBtn else b.tmdbBannerWatchBtn
     }
 
     private fun applyTmdbBannerFocusChain() {
         val b = _binding ?: return
-        val watchBtn = b.tmdbBannerWatchBtn
+        val watchBtn = activeWatchBtn() ?: return
         val cal = activity?.findViewById<View>(R.id.mainCalendarContainer)
         val avatar = activity?.findViewById<View>(R.id.mainUserAvatarContainer)
 
@@ -153,6 +162,7 @@ class TmdbHomeFragment : Fragment() {
         // Once rows are laid out, make the first card of each row lead back up to watch-now.
         binding.tmdbHomeSections.post {
             if (_binding == null) return@post
+            val activeBtn = activeWatchBtn() ?: return@post
             var first = true
             for (i in 0 until b.tmdbHomeSections.childCount) {
                 val child = b.tmdbHomeSections.getChildAt(i)
@@ -161,8 +171,8 @@ class TmdbHomeFragment : Fragment() {
                     val card = child.getChildAt(j)
                     val target = card.findViewById<View>(R.id.tmdbCardPoster) ?: card
                     if (first) {
-                        watchBtn.nextFocusDownId = target.id
-                        target.nextFocusUpId = watchBtn.id
+                        activeBtn.nextFocusDownId = target.id
+                        target.nextFocusUpId = activeBtn.id
                         first = false
                     }
                 }
@@ -193,23 +203,24 @@ class TmdbHomeFragment : Fragment() {
 
     private fun setupWatchNowBtn() {
         val b = _binding ?: return
-        val btn = b.tmdbBannerWatchBtn
-        btn.setOnClickListener { openCurrentBanner() }
-        btn.setOnKeyListener { _, keyCode, event ->
-            if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
-            when (keyCode) {
-                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                    openCurrentBanner()
-                    true
+        for (btn in listOf(b.tmdbBannerWatchBtn, b.tmdbBannerSideWatchBtn)) {
+            btn.setOnClickListener { openCurrentBanner() }
+            btn.setOnKeyListener { _, keyCode, event ->
+                if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+                when (keyCode) {
+                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                        openCurrentBanner()
+                        true
+                    }
+                    KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                        moveBanner(keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
+                        true
+                    }
+                    else -> false
                 }
-                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                    moveBanner(keyCode == KeyEvent.KEYCODE_DPAD_RIGHT)
-                    true
-                }
-                else -> false
             }
+            FocusEffectUtil.applyFocusListener(btn)
         }
-        FocusEffectUtil.applyFocusListener(btn)
     }
 
     private fun openCurrentBanner() {
