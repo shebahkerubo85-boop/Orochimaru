@@ -20,6 +20,8 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.updateLayoutParams
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -112,6 +114,15 @@ class NotificationActivity : AppCompatActivity() {
         binding.notificationNavRail.let { frame ->
             frame.findViewWithTag<LinearLayout>("pill_list")?.let {
                 NavPillCustomizer.applyToPillList(it)
+            }
+            // Push nav rail up when system navigation bar is visible
+            ViewCompat.setOnApplyWindowInsetsListener(frame) { v, insets ->
+                val bottomInset = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+                (v.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
+                    lp.bottomMargin = (16 * resources.displayMetrics.density).toInt() + bottomInset
+                    v.layoutParams = lp
+                }
+                insets
             }
         }
 

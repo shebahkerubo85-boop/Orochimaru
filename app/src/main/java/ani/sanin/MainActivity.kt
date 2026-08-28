@@ -685,6 +685,15 @@ class MainActivity : AppCompatActivity() {
             GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)
         )
         updateSideRailGlass()
+        // Push home nav rail up when system nav bar is visible
+        ViewCompat.setOnApplyWindowInsetsListener(binding.homeNavRail) { v, insets ->
+            val bottomInset = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            (v.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
+                lp.bottomMargin = (16 * resources.displayMetrics.density).toInt() + bottomInset
+                v.layoutParams = lp
+            }
+            insets
+        }
         binding.homeNavRail.post { updateSideRail() }
         updateNavPillFocusChains()
     }
