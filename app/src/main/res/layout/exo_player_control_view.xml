@@ -106,90 +106,112 @@
                     android:orientation="horizontal"
                     app:layout_constraintBottom_toBottomOf="parent">
 
-                    <ImageButton
-                        android:id="@+id/exo_settings"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:focusable="true"
-                        android:backgroundTint="#00FFFFFF"
-                        android:src="@drawable/ic_round_video_settings_24"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:tint="#fff"
-                        tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_tv_pill"
+                        android:focusable="false"
+                        android:clickable="false"
+                        android:orientation="horizontal"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp"
+                        android:gravity="center_vertical">
 
-                    <ImageButton
-                        android:id="@+id/exo_source"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:focusable="true"
-                        android:backgroundTint="#00FFFFFF"
-                        android:src="@drawable/ic_round_source_24"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
+                        <ImageButton
+                            android:id="@+id/exo_settings"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:focusable="true"
+                            android:backgroundTint="#00FFFFFF"
+                            android:src="@drawable/ic_round_video_settings_24"
+                            app:tint="#fff"
+                            tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
 
-                    <ImageButton
-                        android:id="@+id/exo_sub"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:focusable="true"
-                        android:backgroundTint="#00FFFFFF"
-                        android:scaleX="-1"
-                        android:src="@drawable/ic_round_subtitles_24"
-                        android:visibility="gone"
-                        app:tint="#fff"
-                        tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
+                        <ImageButton
+                            android:id="@+id/exo_source"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:focusable="true"
+                            android:backgroundTint="#00FFFFFF"
+                            android:src="@drawable/ic_round_source_24"
+                            tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
 
-                    <ImageButton
-                        android:id="@+id/exo_audio"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:focusable="true"
-                        android:backgroundTint="#00FFFFFF"
-                        android:src="@drawable/ic_round_audiotrack_24"
-                        android:visibility="gone"
-                        app:tint="#fff"
-                        tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
+                        <ImageButton
+                            android:id="@+id/exo_sub"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:focusable="true"
+                            android:backgroundTint="#00FFFFFF"
+                            android:scaleX="-1"
+                            android:src="@drawable/ic_round_subtitles_24"
+                            android:visibility="gone"
+                            app:tint="#fff"
+                            tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
+
+                        <ImageButton
+                            android:id="@+id/exo_audio"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:focusable="true"
+                            android:backgroundTint="#00FFFFFF"
+                            android:src="@drawable/ic_round_audiotrack_24"
+                            android:visibility="gone"
+                            app:tint="#fff"
+                            tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
+
+                    </LinearLayout>
 
                     <View
                         android:layout_width="0dp"
                         android:layout_height="match_parent"
                         android:layout_weight="1" />
 
-                    <ImageButton
-                        android:id="@+id/exo_skip_op_ed"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:focusable="true"
-                        android:backgroundTint="#00FFFFFF"
-                        android:src="@drawable/ic_round_play_disabled_24"
-                        android:visibility="gone"
-                        app:tint="#fff"
-                        tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_tv_pill"
+                        android:focusable="false"
+                        android:clickable="false"
+                        android:orientation="horizontal"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp"
+                        android:gravity="center_vertical">
 
-                    <ImageButton
-                        android:id="@+id/exo_rotate"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:focusable="true"
-                        android:backgroundTint="#00FFFFFF"
-                        android:src="@drawable/ic_round_screen_rotation_alt_24"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:tint="#fff"
-                        tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
+                        <ImageButton
+                            android:id="@+id/exo_skip_op_ed"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:focusable="true"
+                            android:backgroundTint="#00FFFFFF"
+                            android:src="@drawable/ic_round_play_disabled_24"
+                            android:visibility="gone"
+                            app:tint="#fff"
+                            tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
 
-                    <ImageButton
-                        android:id="@+id/exo_screen"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:focusable="true"
-                        android:backgroundTint="#00FFFFFF"
-                        android:src="@drawable/ic_round_fullscreen_24"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
+                        <ImageButton
+                            android:id="@+id/exo_rotate"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:focusable="true"
+                            android:backgroundTint="#00FFFFFF"
+                            android:src="@drawable/ic_round_screen_rotation_alt_24"
+                            app:tint="#fff"
+                            tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
+
+                        <ImageButton
+                            android:id="@+id/exo_screen"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:focusable="true"
+                            android:backgroundTint="#00FFFFFF"
+                            android:src="@drawable/ic_round_fullscreen_24"
+                            tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
+
+                    </LinearLayout>
 
                 </LinearLayout>
             </LinearLayout>
@@ -397,7 +419,15 @@
                     <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal">
+                        android:background="@drawable/bg_tv_pill"
+                        android:focusable="false"
+                        android:clickable="false"
+                        android:orientation="horizontal"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp"
+                        android:gravity="center_vertical">
 
                         <ImageButton
                             android:id="@id/exo_playback_speed"
