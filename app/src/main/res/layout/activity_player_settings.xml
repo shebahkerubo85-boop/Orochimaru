@@ -1510,6 +1510,25 @@
                 app:iconPadding="16dp"
                 app:iconSize="24dp" />
 
+            <Button
+                android:id="@+id/playerWrapButtons"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:layout_marginBottom="8dp"
+                android:fontFamily="@font/poppins_bold"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingHorizontal="32dp"
+                android:text="Wrap Buttons"
+                android:textAlignment="viewStart"
+                android:textAllCaps="false"
+                android:textColor="@color/bg_opp"
+                app:cornerRadius="0dp"
+                app:icon="@drawable/blur_on"
+                app:iconPadding="16dp"
+                app:iconSize="24dp" />
+
         </LinearLayout>
 
     </LinearLayout>

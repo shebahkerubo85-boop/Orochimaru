@@ -395,6 +395,21 @@ class PlayerSettingsActivity :
             }
         }
 
+        // Wrap Buttons (pill background for player controls)
+        val wrapBtnLabels = arrayOf("Off", "Dark tint", "No tint (default)", "Primary color")
+        binding.playerWrapButtons.setOnClickListener {
+            customAlertDialog().apply {
+                setTitle("Wrap Buttons")
+                singleChoiceItems(
+                    wrapBtnLabels,
+                    PrefManager.getVal<Int>(PrefName.WrapButtons)
+                ) { index ->
+                    PrefManager.setVal(PrefName.WrapButtons, index)
+                }
+                show()
+            }
+        }
+
         val resizeModes = arrayOf("Original", "Zoom", "Stretch")
         binding.playerResizeMode.setOnClickListener {
             customAlertDialog().apply {

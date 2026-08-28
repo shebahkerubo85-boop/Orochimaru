@@ -585,6 +585,9 @@ class ExoplayerView :
         episodeTitleText = playerView.findViewById(R.id.exo_ep_sel_text)
         episodeTitleBtn = playerView.findViewById(R.id.exo_ep_sel_btn)
 
+        // Apply WrapButtons pill style to control button groups
+        applyWrapButtonsStyle()
+
         episodeDrawer = binding.root
         episodeDrawerList = findViewById(R.id.episodeDrawerList)
         episodeDrawerClose = findViewById(R.id.episodeDrawerClose)
@@ -2588,6 +2591,46 @@ class ExoplayerView :
 
     fun getPlayerPosition(): Long {
         return if (::exoPlayer.isInitialized) exoPlayer.currentPosition else 0L
+    }
+
+    private fun applyWrapButtonsStyle() {
+        val wrapMode = PrefManager.getVal<Int>(PrefName.WrapButtons)
+        val pillLeft = playerView.findViewById<View>(R.id.pillBottomLeft)
+        val pillRight = playerView.findViewById<View>(R.id.pillBottomRight)
+        val pillTop = playerView.findViewById<View>(R.id.pillTopRight)
+        val pills = listOfNotNull(pillLeft, pillRight, pillTop)
+        
+        when (wrapMode) {
+            0 -> { // Off: no pill background
+                pills.forEach { it.background = null }
+            }
+            1 -> { // Dark tint
+                val d = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.bg_tv_pill_dark) ?: return
+                pills.forEach { it.background = d }
+            }
+            2 -> { // No tint (current: semi-transparent white)
+                val d = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.bg_tv_pill) ?: return
+                pills.forEach { it.background = d }
+            }
+            3 -> { // Primary color tint — resolve theme primary and apply with alpha
+                val typedVal = android.util.TypedValue()
+                theme.resolveAttribute(com.google.android.material.R.attr.colorPrimary, typedVal, true)
+                val primaryColor = typedVal.data
+                val alphaColor = android.graphics.Color.argb(
+                    (0.33f * 255).toInt(),
+                    android.graphics.Color.red(primaryColor),
+                    android.graphics.Color.green(primaryColor),
+                    android.graphics.Color.blue(primaryColor)
+                )
+                pills.forEach {
+                    it.background = android.graphics.drawable.GradientDrawable().apply {
+                        shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                        setColor(alphaColor)
+                        cornerRadius = 26f * resources.displayMetrics.density
+                    }
+                }
+            }
+        }
     }
 
     fun applySubtitleOffset(offsetMs: Long) {
