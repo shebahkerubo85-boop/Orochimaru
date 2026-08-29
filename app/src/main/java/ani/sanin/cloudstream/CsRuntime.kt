@@ -13,6 +13,7 @@ import com.lagradost.cloudstream3.plugins.BasePlugin
 import com.lagradost.cloudstream3.plugins.Plugin
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import dalvik.system.PathClassLoader
+import java.io.File
 import java.io.InputStreamReader
 
 class CsPluginException(message: String) : Exception(message)
@@ -75,15 +76,7 @@ object CsRuntime {
             if (manifest.requiresResources && instance is Plugin) {
                 // Plugin was built with requiresResources: give it a Resources
                 // wrapper backed by its own asset path (same as CloudStream).
-                val assets = AssetManager::class.java.getDeclaredConstructor().newInstance()
-                AssetManager::class.java.getMethod("addAssetPath", String::class.java)
-                    .invoke(assets, file.absolutePath)
-                @Suppress("DEPRECATION")
-                instance.resources = Resources(
-                    assets,
-                    context.resources.displayMetrics,
-                    context.resources.configuration
-                )
+                instance.resources = buildPluginResources(context, file)
             }
             if (instance is Plugin) {
                 instance.load(context)
@@ -160,20 +153,105 @@ object CsRuntime {
         return null
     }
 
-    /** Returns the loaded plugin's custom-settings callback, if any. */
+    /**
+     * Returns the loaded plugin's custom-settings callback, if any.
+     *
+     * Settings plugins capture the hosting `Activity` during `load()` and commit
+     * their sheet to that activity's fragment manager. If the plugin was first
+     * loaded on a different screen (or the activity was destroyed by rotation),
+     * the sheet targets a stale window and never appears. Mirror what working
+     * hosts (Zangetsu) do: re-instantiate the plugin against the live activity
+     * so `openSettings` binds to a real window, undoing the duplicate MainAPI
+     * registration. Falls back to the already-loaded instance's opener.
+     */
     fun openSettingsFor(context: Context, source: CsInstalledSource): ((android.content.Context) -> Unit)? {
         if (!plugins.containsKey(source.id)) {
             if (!load(context, source)) return null
         }
-        val plugin = plugins[source.id]
-        if (plugin is com.lagradost.cloudstream3.plugins.Plugin) {
-            val original = plugin.openSettings ?: return null
-            return { ctx ->
-                syncPluginActivity(plugin, ctx)
-                original(ctx)
+        val plugin = plugins[source.id] as? Plugin ?: return null
+        val original = plugin.openSettings ?: return null
+
+        val live = resolveActivity(context) as? AppCompatActivity
+        if (live != null) {
+            val fresh = runCatching { freshSettingsOpener(context, source, live) }.getOrNull()
+            if (fresh != null) {
+                return { _ ->
+                    try {
+                        fresh(live)
+                    } catch (t: Throwable) {
+                        // Plugin throws inside its own settings code; surface the
+                        // full stack in logcat, callers show a toast.
+                        Log.e(TAG, "Plugin ${source.name} failed to open settings", t)
+                        throw t
+                    }
+                }
             }
         }
-        return null
+
+        return { ctx ->
+            syncPluginActivity(plugin, ctx)
+            try {
+                original(ctx)
+            } catch (t: Throwable) {
+                Log.e(TAG, "Plugin ${source.name} failed to open settings", t)
+                throw t
+            }
+        }
+    }
+
+    /** Re-instantiate the plugin in [file] against [activity] and return its
+     *  freshly-bound `openSettings`, undoing the duplicate MainAPI registration
+     *  (we only want the opener, not a second copy of every provider). */
+    private fun freshSettingsOpener(
+        context: Context,
+        source: CsInstalledSource,
+        activity: AppCompatActivity,
+    ): ((android.content.Context) -> Unit)? {
+        val file = CsRepos.installedFile(context, source)
+        if (!file.exists()) return null
+
+        val loader = PathClassLoader(file.absolutePath, context.classLoader)
+        val manifest = loader.getResourceAsStream("manifest.json")?.use { stream ->
+            InputStreamReader(stream).use { reader ->
+                parseJson<BasePlugin.Manifest>(reader.readText())
+            }
+        } ?: return null
+        val className = manifest.pluginClassName ?: return null
+        val instance = loader.loadClass(className).getDeclaredConstructor().newInstance() as? Plugin
+            ?: return null
+        instance.filename = file.absolutePath
+        if (manifest.requiresResources) {
+            instance.resources = buildPluginResources(context, file)
+        }
+        // Let CloudStream's global statics resolve to this activity during load.
+        runCatching { setContext(activity) }
+
+        val before = APIHolder.allProviders.toList()
+        try {
+            instance.load(activity)
+        } catch (t: Throwable) {
+            // Never leave a partially-registered duplicate set behind.
+            val dupes = APIHolder.allProviders.filter { it !in before }
+            APIHolder.allProviders.removeAll(dupes)
+            dupes.forEach { runCatching { APIHolder.removePluginMapping(it) } }
+            return null
+        }
+        val dupes = APIHolder.allProviders.filter { it !in before }
+        APIHolder.allProviders.removeAll(dupes)
+        dupes.forEach { runCatching { APIHolder.removePluginMapping(it) } }
+        return instance.openSettings
+    }
+
+    private fun buildPluginResources(context: Context, file: File): Resources {
+        val assets = AssetManager::class.java.getDeclaredConstructor().newInstance()
+        AssetManager::class.java.getMethod("addAssetPath", String::class.java)
+            .invoke(assets, file.absolutePath)
+        @Suppress("DEPRECATION")
+        return Resources(
+            assets,
+            context.resources.displayMetrics,
+            context.resources.configuration
+        )
     }
 
     @Synchronized
