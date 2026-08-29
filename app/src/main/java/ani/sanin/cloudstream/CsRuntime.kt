@@ -54,7 +54,7 @@ object CsRuntime {
         // any plugin class is loaded (mirrors Zangetsu's PluginHost init). See
         // CloudStreamApp.context: it must never point at a transient activity.
         setContext(context.applicationContext)
-        CloudStreamApp.setContext(context.applicationContext)
+        CloudStreamApp.pinContext(context.applicationContext)
         if (plugins.containsKey(source.id)) return true
 
         val file = CsRepos.installedFile(context, source)
