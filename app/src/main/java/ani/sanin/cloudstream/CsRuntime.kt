@@ -117,34 +117,31 @@ object CsRuntime {
     fun isLoaded(sourceId: String): Boolean = plugins.containsKey(sourceId)
 
     /**
-     * Some plugins (e.g. Ultima) cache the [Activity] they were loaded against and
-     * open their settings sheet on that cached fragment manager. If the plugin was
-     * first loaded on a different screen, the sheet targets a stale/hidden window
-     * and never appears. Point any such cached reference at the live activity before
-     * invoking the plugin's settings callback.
+     * CloudStream plugins resolve the fragment manager for their settings sheet in
+     * two ways: either they cache an `Activity` on themselves during `load()` (e.g.
+     * Ultima's `activity` field), or they read CloudStream's global context statics.
+     * Both go stale after the host activity is destroyed (navigation or rotation,
+     * which shows up as "fragment manager has been destroyed"). Before invoking the
+     * plugin's settings callback, point every activity source at the live activity
+     * so the sheet is committed to a visible window.
      */
     private fun syncPluginActivity(plugin: BasePlugin, context: Context) {
         val activity = resolveActivity(context) ?: return
         val target = activity as? AppCompatActivity ?: return
+
+        // CloudStream globals that plugins read to obtain the current activity.
+        runCatching { com.lagradost.cloudstream3.CommonActivity.setActivityInstance(target) }
+        runCatching { setContext(target) }
+
+        // Refresh every Activity-typed field on the plugin instance (any name), so
+        // plugins that captured the load-time activity pick up the live one.
         runCatching {
             var clazz: Class<*>? = plugin.javaClass
             while (clazz != null && clazz != Any::class.java) {
-                // Prefer an explicit setter/property then fall back to the field.
-                runCatching {
-                    val setter = clazz.getMethod("setActivity", AppCompatActivity::class.java)
-                    setter.isAccessible = true
-                    setter.invoke(plugin, target)
-                    return
-                }
-                runCatching {
-                    val field = clazz.getDeclaredField("activity")
+                for (field in clazz.declaredFields) {
+                    if (!Activity::class.java.isAssignableFrom(field.type)) continue
                     field.isAccessible = true
-                    if (field.type.isAssignableFrom(AppCompatActivity::class.java) ||
-                        field.type == Activity::class.java
-                    ) {
-                        field.set(plugin, target)
-                        return
-                    }
+                    runCatching { field.set(plugin, target) }
                 }
                 clazz = clazz.superclass
             }

@@ -487,39 +487,46 @@ fun forcePluginSheetFull(context: Context) {
     if (!isTv && context.resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT) return
 
     Handler(Looper.getMainLooper()).postDelayed({
+        // The plugin may have already crashed/closed its sheet; never let this
+        // deferred cleanup take the process down (e.g. a finishing activity).
         val activity = context as? Activity ?: return@postDelayed
-        val decor = activity.window?.decorView ?: return@postDelayed
+        if (activity.isFinishing || activity.isDestroyed) return@postDelayed
+        try {
+            val decor = activity.window?.decorView ?: return@postDelayed
 
-        val visited = mutableSetOf<View>()
-        fun expandSheet(v: View) {
-            // Only walk the decor once per tree
-            if (v is FrameLayout) {
-                val behavior = try {
-                    BottomSheetBehavior.from(v)
-                } catch (t: Throwable) {
-                    null
-                }
-                if (behavior != null) {
-                    try {
-                        if (isTv) {
-                            behavior.isFitToContents = false
-                            behavior.maxHeight = activity.resources.displayMetrics.heightPixels
-                            behavior.skipCollapsed = true
-                        }
-                        behavior.state = BottomSheetBehavior.STATE_EXPANDED
+            val visited = mutableSetOf<View>()
+            fun expandSheet(v: View) {
+                // Only walk the decor once per tree
+                if (v is FrameLayout) {
+                    val behavior = try {
+                        BottomSheetBehavior.from(v)
                     } catch (t: Throwable) {
-                        // ignore
+                        null
+                    }
+                    if (behavior != null) {
+                        try {
+                            if (isTv) {
+                                behavior.isFitToContents = false
+                                behavior.maxHeight = activity.resources.displayMetrics.heightPixels
+                                behavior.skipCollapsed = true
+                            }
+                            behavior.state = BottomSheetBehavior.STATE_EXPANDED
+                        } catch (t: Throwable) {
+                            // ignore
+                        }
+                    }
+                }
+                if (v is ViewGroup) {
+                    for (i in 0 until v.childCount) {
+                        val child = v.getChildAt(i)
+                        if (visited.add(child)) expandSheet(child)
                     }
                 }
             }
-            if (v is ViewGroup) {
-                for (i in 0 until v.childCount) {
-                    val child = v.getChildAt(i)
-                    if (visited.add(child)) expandSheet(child)
-                }
-            }
+            expandSheet(decor)
+        } catch (t: Throwable) {
+            // ignore; the sheet may have been removed already
         }
-        expandSheet(decor)
     }, 150)
 }
 
