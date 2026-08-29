@@ -17,7 +17,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
-import ani.sanin.forcePluginSheetFull
 import ani.sanin.databinding.FragmentExtensionsBinding
 import ani.sanin.databinding.ItemCsSourceInstalledBinding
 import ani.sanin.settings.SearchQueryHandler
@@ -166,17 +165,10 @@ class CloudStreamInstalledFragment : Fragment(), SearchQueryHandler {
     }
 
     private fun openSettings(source: CsInstalledSource) {
-        val openSettings = CsRuntime.openSettingsFor(requireContext(), source) ?: run {
-            Toast.makeText(requireContext(), "No settings available for ${source.name}", Toast.LENGTH_SHORT).show()
-            return
-        }
-        runCatching {
-            openSettings(requireContext())
-            forcePluginSheetFull(requireContext())
-        }.onFailure {
-            val detail = it.stackTraceToString().lineSequence().take(2).joinToString(" | ")
-            Toast.makeText(requireContext(), "Failed to open settings: ${it.message} ($detail)", Toast.LENGTH_LONG).show()
-        }
+        // Launch the dedicated, transparent MaterialComponents-settings host
+        // (mirrors Zangetsu). The plugin's sheet renders there, not on this
+        // busy, Material3-theme activity which crashes it.
+        startActivity(CloudStreamSettingsActivity.intent(requireContext(), source.id))
     }
 
     private fun confirmDelete(source: CsInstalledSource) {

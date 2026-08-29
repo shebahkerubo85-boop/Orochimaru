@@ -18,7 +18,6 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.databinding.ActivityCsRepoDetailBinding
 import ani.sanin.databinding.ItemCsSourceBinding
-import ani.sanin.forcePluginSheetFull
 import ani.sanin.initActivity
 import ani.sanin.statusBarHeight
 import ani.sanin.util.FocusEffectUtil
@@ -93,15 +92,9 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
 
     private fun onSettingsClick(source: CsSource) {
         val installed = CsRepos.installed(this).find { it.id == source.id } ?: return
-        val openSettings = CsRuntime.openSettingsFor(this, installed) ?: return
-        runCatching {
-            openSettings(this)
-            forcePluginSheetFull(this)
-        }
-            .onFailure {
-            val detail = it.stackTraceToString().lineSequence().take(2).joinToString(" | ")
-            Toast.makeText(this, "Failed to open settings: ${it.message} ($detail)", Toast.LENGTH_LONG).show()
-        }
+        // Launch the dedicated, transparent MaterialComponents-settings host
+        // (mirrors Zangetsu). The plugin's sheet renders there, not here.
+        startActivity(CloudStreamSettingsActivity.intent(this, installed.id))
     }
 
     private fun onInstallClick(source: CsSource) {
