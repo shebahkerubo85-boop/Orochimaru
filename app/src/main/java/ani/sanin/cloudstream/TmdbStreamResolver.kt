@@ -3,6 +3,7 @@ package ani.sanin.cloudstream
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import android.util.Base64
 import ani.sanin.FileUrl
 import ani.sanin.defaultHeaders
 import ani.sanin.okHttpClient
@@ -490,8 +491,9 @@ object TmdbStreamResolver {
     }
 
     /** Minimal regex-based MPD parser — finds [ContentProtection] scheme UUIDs
-     *  (Widevine / PlayReady) and any `laurl` license server URL. Keeps
-     *  the dependency footprint at zero (no XmlPullParser, no Ksoup). */
+     *  (Widevine / PlayReady) and any `laurl` license server URL, including
+     *  LA_URLs embedded inside base64 PlayReady PSSH / <mspr:pro> objects.
+     *  Keeps the dependency footprint at zero (no XmlPullParser, no Ksoup). */
     private fun parseManifestDrm(mpd: String): DrmInfo? {
         if (mpd.isBlank()) return null
         val widevine = Regex(WIDEVINE_SCHEME_URI, RegexOption.IGNORE_CASE)
@@ -503,13 +505,16 @@ object TmdbStreamResolver {
         if (!widevine && !playready) return null
         // Extract the license URL: both attribute form (laurl="...") and element form
         // (<ms:laurl>...</ms:laurl>) are common in DASH manifests.
-        val license: String? = listOf(
+        val plainLicense: String? = listOf(
             Regex("""(?i)(?:laurl|license[_-]?url)\s*[=:]\s*["']?([^"'<>\s]+)"""),
             Regex("""(?i)<(?:[a-zA-Z0-9_:]+)?laurl[^>]*>\s*([^<>\s]+)\s*</(?:[a-zA-Z0-9_:]+)?laurl>""")
         ).asSequence()
             .flatMap { it.findAll(mpd) }
             .mapNotNull { runCatching { java.net.URLDecoder.decode(it.groupValues[1], "UTF-8") }.getOrNull() }
             .firstOrNull { it.startsWith("http", ignoreCase = true) }
+        // Fallback: Amazon-style CDNs put the license URL inside a base64
+        // PlayReady PSSH / <mspr:pro> object instead of a plain laurl.
+        val license = plainLicense ?: extractLaUrlFromPssh(mpd)
         val uuid = when {
             widevine -> WIDEVINE_UUID
             playready -> PLAYREADY_UUID
@@ -517,13 +522,37 @@ object TmdbStreamResolver {
         }
         Logger.log(
             "TMDB_PLAY: DRM inferred from manifest uuid=$uuid " +
-                "license=${license?.take(80) ?: "<manifest LAURL>"}"
+                "license=${license?.take(80) ?: "<none>"}"
         )
         return DrmInfo(
             licenseUrl = license,
             uuid = uuid,
             keyRequestParameters = hashMapOf(),
         )
+    }
+
+    /** Decodes every base64 <mspr:pro> / <cenc:pssh> block in the MPD and
+     *  searches the PlayReady object inside for a <LA_URL>...</LA_URL> entry.
+     *  PlayReady objects are UTF-16LE XML, so we probe each byte alignment of
+     *  the PSSH header until the XML shows through. */
+    private fun extractLaUrlFromPssh(mpd: String): String? {
+        val payloads = Regex(
+            """(?is)<(?:mspr:pro|cenc:pssh)[^>]*>\s*([A-Za-z0-9+/=\s]+?)\s*</(?:mspr:pro|cenc:pssh)>"""
+        ).findAll(mpd)
+            .mapNotNull { m -> runCatching { Base64.decode(m.groupValues[1], Base64.DEFAULT) }.getOrNull() }
+        val laUrl = Regex("""(?i)LA_URL>\s*([^<\s]+)\s*<""")
+        for (bytes in payloads) {
+            for (off in 0..minOf(64, bytes.size)) {
+                val s = runCatching {
+                    String(bytes, off, bytes.size - off, Charsets.UTF_16LE)
+                }.getOrNull() ?: continue
+                laUrl.find(s)?.let { match ->
+                    val url = match.groupValues[1].trim()
+                    if (url.startsWith("http", ignoreCase = true)) return url
+                }
+            }
+        }
+        return null
     }
 
     /** Returns [DrmInfo] for a link — extracts from [DrmExtractorLink] or, for
