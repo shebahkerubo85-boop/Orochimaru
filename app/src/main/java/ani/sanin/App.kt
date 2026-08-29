@@ -20,6 +20,7 @@ import ani.sanin.util.FinalExceptionHandler
 import ani.sanin.util.LogcatBuffer
 import ani.sanin.util.Logger
 import ani.sanin.util.TvKeyboardUtil
+import com.lagradost.cloudstream3.CommonActivity
 import com.google.android.material.color.DynamicColors
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
@@ -153,12 +154,23 @@ class App : Application() {
 
         override fun onActivityResumed(p0: Activity) {
             currentActivity = p0
+            // Keep CommonActivity.activity pointing at the current foreground
+            // activity. Older .cs3 plugins (Cricify / SKTech checkbox settings)
+            // capture their own SharedPreferences in the CONSTRUCTOR via
+            // CommonActivity.getActivity(); if this is null their prefs object
+            // is null, writes no-op, and the setting never persists. Mirror
+            // Zangetsu's MainActivity.onResume wiring, but globally.
+            CommonActivity.setActivityInstance(p0)
         }
 
         override fun onActivityPaused(p0: Activity) {}
         override fun onActivityStopped(p0: Activity) {}
         override fun onActivitySaveInstanceState(p0: Activity, p1: Bundle) {}
-        override fun onActivityDestroyed(p0: Activity) {}
+        override fun onActivityDestroyed(p0: Activity) {
+            if (CommonActivity.activity === p0) {
+                CommonActivity.setActivityInstance(null)
+            }
+        }
     }
 
     companion object {

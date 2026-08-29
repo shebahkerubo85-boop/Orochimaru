@@ -6,6 +6,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import android.content.Intent
 import android.widget.Toast
+import com.lagradost.cloudstream3.CommonActivity
 
 /**
  * A thin, transparent [AppCompatActivity] that hosts a CloudStream plugin's OWN
@@ -30,6 +31,12 @@ class CloudStreamSettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Pin CommonActivity to THIS activity before CsRuntime re-instantiates
+        // the plugin (freshSettingsOpener runs the plugin constructor, which
+        // captures SharedPreferences via CommonActivity.getActivity()). Without
+        // this the constructor captures a null activity -> null prefs -> checkbox
+        // saves silently no-op while the "Restart Required" dialog still shows.
+        CommonActivity.setActivityInstance(this)
 
         val sourceId = intent.getStringExtra(EXTRA_SOURCE_ID)
         val source = sourceId?.let { id ->
