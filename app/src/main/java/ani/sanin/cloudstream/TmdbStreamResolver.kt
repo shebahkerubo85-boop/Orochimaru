@@ -483,9 +483,13 @@ object TmdbStreamResolver {
                 .build()
             runCatching {
                 client.newCall(requestBuilder.build()).execute().use { r ->
+                    Log.i("TmdbDetails", "manifestDrm: HTTP ${r.code} success=${r.isSuccessful} contentLen=${r.body?.contentLength()}")
                     if (r.isSuccessful) r.body?.string() else null
                 }
-            }.getOrNull()
+            }.getOrElse { t ->
+                Log.i("TmdbDetails", "manifestDrm: fetch FAILED: ${t::class.java.simpleName}: ${t.message}")
+                null
+            }
         } ?: return null
         return parseManifestDrm(body)
     }
@@ -502,7 +506,11 @@ object TmdbStreamResolver {
         val playready = Regex(PLAYREADY_SCHEME_URI, RegexOption.IGNORE_CASE)
             .containsMatchIn(mpd)
             || Regex("""(?i)value\s*=\s*"playready"""").containsMatchIn(mpd)
-        if (!widevine && !playready) return null
+        Log.i("TmdbDetails", "parseManifestDrm: mpd_len=${mpd.length} widevine=$widevine playready=$playready")
+        if (!widevine && !playready) {
+            Log.i("TmdbDetails", "parseManifestDrm: no DRM schemes found, returning null")
+            return null
+        }
         // Extract the license URL: both attribute form (laurl="...") and element form
         // (<ms:laurl>...</ms:laurl>) are common in DASH manifests.
         val plainLicense: String? = listOf(
@@ -524,6 +532,7 @@ object TmdbStreamResolver {
             "TMDB_PLAY: DRM inferred from manifest uuid=$uuid " +
                 "license=${license?.take(80) ?: "<none>"}"
         )
+        Log.i("TmdbDetails", "parseManifestDrm: widevine=$widevine playready=$playready uuid=$uuid license=${license?.take(120) ?: "<none>"}")
         return DrmInfo(
             licenseUrl = license,
             uuid = uuid,
@@ -558,26 +567,50 @@ object TmdbStreamResolver {
     /** Returns [DrmInfo] for a link — extracts from [DrmExtractorLink] or, for
      *  plain CENC DASH streams, mirrors CloudStream's DrmUtil by fetching the
      *  manifest and parsing its ContentProtection. */
-    private suspend fun drmForLink(link: ExtractorLink): DrmInfo? = when (link) {
-        is DrmExtractorLink -> DrmInfo(
-            licenseUrl = link.licenseUrl,
-            uuid = link.uuid.toJavaUuid(),
-            keyRequestParameters = link.keyRequestParameters,
-            kid = link.kid,
-            key = link.key,
-            kty = link.kty,
-        )
-        else -> {
-            if (!looksEncrypted(link)) return null
-            val base = runCatching {
-                val u = java.net.URI(link.url)
-                "${u.scheme}://${u.host}${u.path}"
-            }.getOrNull() ?: link.url
-            synchronized(drmCache) { drmCache[base] }?.let { return it }
-            val drm = manifestDrm(link.url, link)
-            if (drm != null) synchronized(drmCache) { drmCache.putIfAbsent(base, drm) }
-            drm
+    private suspend fun drmForLink(link: ExtractorLink): DrmInfo? {
+        Log.i("TmdbDetails", "drmForLink: url=${link.url.take(120)} class=${link::class.java.simpleName}")
+        val encrypted = looksEncrypted(link)
+        Log.i("TmdbDetails", "drmForLink: looksEncrypted=$encrypted")
+        val result: DrmInfo? = when (link) {
+            is DrmExtractorLink -> {
+                val license = link.licenseUrl?.takeIf { it.isNotBlank() }
+                license?.let { url ->
+                    DrmInfo(
+                        licenseUrl = url,
+                        uuid = link.uuid.toJavaUuid(),
+                        keyRequestParameters = link.keyRequestParameters,
+                        kid = link.kid,
+                        key = link.key,
+                        kty = link.kty,
+                    )
+                } ?: runCatching {
+                    val base = runCatching {
+                        val u = java.net.URI(link.url)
+                        "${u.scheme}://${u.host}${u.path}"
+                    }.getOrNull() ?: link.url
+                    val drm = manifestDrm(link.url, link)
+                    if (drm != null) synchronized(drmCache) { drmCache.putIfAbsent(base, drm) }
+                    drm
+                } ?: null
+            }
+            else -> {
+                if (!encrypted) return null
+                val base = runCatching {
+                    val u = java.net.URI(link.url)
+                    "${u.scheme}://${u.host}${u.path}"
+                }.getOrNull() ?: link.url
+                synchronized(drmCache) { drmCache[base] }?.let {
+                    Log.i("TmdbDetails", "drmForLink: cache hit url=$base uuid=${it.uuid} license=${it.licenseUrl?.take(80)}")
+                    return it
+                }
+                Log.i("TmdbDetails", "drmForLink: fetching manifest DRM from ${link.url.take(120)}")
+                val drm = manifestDrm(link.url, link)
+                if (drm != null) synchronized(drmCache) { drmCache.putIfAbsent(base, drm) }
+                drm
+            }
         }
+        Log.i("TmdbDetails", "drmForLink: result uuid=${result?.uuid} license=${result?.licenseUrl?.take(80) ?: "<none>"}")
+        return result
     }
 
     // ── Synthetic TMDB media session (watch tab -> anime player) ─────────────
