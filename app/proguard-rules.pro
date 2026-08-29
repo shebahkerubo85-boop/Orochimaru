@@ -98,6 +98,25 @@
 
 #############################################
 
+# Plugin settings UI (.cs3 dex) links against the AndroidX/Material bottom-sheet
+# dialog stack by classloader at runtime. R8 optimization strips/inlines methods
+# those precompiled dex call (e.g. BottomSheetDialog.getBehavior, and the
+# getClass() on the ComponentDialog host). Keep this dialog chain unoptimized so
+# opening a plugin's settings doesn't crash. Scope is tiny (sheet+host dialog).
+-keep class androidx.activity.** { *; }
+-dontwarn androidx.activity.**
+-keep class androidx.appcompat.** { *; }
+-dontwarn androidx.appcompat.**
+-keep class androidx.fragment.** { *; }
+-dontwarn androidx.fragment.**
+-keep class androidx.savedstate.** { *; }
+-dontwarn androidx.savedstate.**
+-keep class androidx.lifecycle.** { *; }
+-dontwarn androidx.lifecycle.**
+-keep class com.google.android.material.bottomsheet.** { *; }
+-keep class com.google.android.material.dialog.** { *; }
+-dontwarn com.google.android.material.**
+
 -keep class androidx.preference.** { *; }
 
 # WorkManager database
