@@ -4,6 +4,9 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
+import com.fasterxml.jackson.databind.json.JsonMapper
+import com.fasterxml.jackson.module.kotlin.kotlinModule
+import com.lagradost.cloudstream3.CloudStreamApp
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKeyClass
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.removeKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKeyClass
@@ -78,6 +81,42 @@ data class Editor(
 }
 
 object DataStore {
+    /**
+     * Jackson mapper matching the REAL CloudStream app-module DataStore surface.
+     * Older .cs3 plugins (e.g. Cricify / CNC Verse checkbox settings) INLINE the
+     * app's setKey/getKey at compile time, so their bytecode links directly
+     * against `DataStore.getMapper()`, `DataStore.setKey(String, Object)` and
+     * `DataStore.getKey(String, Class)` with NO Context receiver. Without these
+     * exact JVM members their saves throw NoSuchMethodError, get swallowed, and
+     * the checkbox silently never persists (string/token plugins are newer and
+     * call the Context.setKey extension instead, which is why those survive).
+     */
+    val mapper: JsonMapper = JsonMapper.builder().addModule(kotlinModule()).build()
+
+    /** Plain-member variant of the store — what inlined plugin bytecode calls. */
+    fun <T> setKey(path: String, value: T) {
+        val ctx = CloudStreamApp.context ?: return
+        try {
+            ctx.getSharedPrefs().edit {
+                putString(path, mapper.writeValueAsString(value))
+            }
+        } catch (e: Exception) {
+            logError(e)
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun <T : Any> getKey(path: String, valueType: Class<T>): T? {
+        val ctx = CloudStreamApp.context ?: return null
+        val json = ctx.getSharedPrefs().getString(path, null) ?: return null
+        return try {
+            mapper.readValue(json, valueType)
+        } catch (e: Exception) {
+            logError(e)
+            null
+        }
+    }
+
     private fun getPreferences(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
     }

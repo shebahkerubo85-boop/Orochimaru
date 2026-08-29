@@ -9,7 +9,6 @@ import com.lagradost.cloudstream3.utils.DataStore.getKeys
 import com.lagradost.cloudstream3.utils.DataStore.removeKey
 import com.lagradost.cloudstream3.utils.DataStore.removeKeys
 import com.lagradost.cloudstream3.utils.DataStore.setKey
-import java.lang.ref.WeakReference
 
 /**
  * Host implementation of CloudStream's [CloudStreamApp] companion. Plugins link
@@ -31,12 +30,22 @@ class CloudStreamApp {
             }
         }
 
-        private var _context: WeakReference<Context>? = null
+        // Strong, stable reference to the application context, set once by the
+        // host (CsRuntime.load / setContext). Kept STRONG (not a WeakReference)
+        // exactly like Zangetsu's CloudStreamApp, so plugin prefs always read and
+        // write against the process-lifetime app context. The settings flow
+        // re-instantiates a plugin against a transient Activity; if that activity
+        // ever leaked into this global here, its destruction would null the weak
+        // ref and every subsequent plugin setKey/getKey would silently no-op —
+        // the checkbox would never persist. Normalizing to applicationContext and
+        // pinning it strongly makes the store stable across restarts.
+        @Volatile
+        private var _context: Context? = null
         var context: Context?
-            get() = _context?.get() ?: (com.lagradost.api.getContext() as? Context)
+            get() = _context ?: (com.lagradost.api.getContext() as? Context)?.applicationContext
             private set(value) {
-                _context = WeakReference(value)
-                com.lagradost.api.setContext(value)
+                _context = value?.applicationContext
+                com.lagradost.api.setContext(_context)
             }
 
         fun <T : Any> getKeyClass(path: String, valueType: Class<T>): T? {

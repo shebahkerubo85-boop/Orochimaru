@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import com.lagradost.api.setContext
 import com.lagradost.cloudstream3.APIHolder
+import com.lagradost.cloudstream3.CloudStreamApp
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.plugins.BasePlugin
 import com.lagradost.cloudstream3.plugins.Plugin
@@ -37,9 +38,23 @@ object CsRuntime {
     var lastError: String? = null
         private set
 
+    /**
+     * Cached "fresh" settings openers, keyed by source id. The first time a
+     * source's settings are opened we re-instantiate the plugin against a live
+     * activity (freshSettingsOpener) — that dex-loads and re-runs the plugin's
+     * load(), which is slow (seconds). Keep that bound opener so subsequent taps
+     * reuse it and the sheet appears instantly instead of re-loading every time
+     * (mirrors Zangetsu, whose plugins are loaded once against a real activity).
+     */
+    private val settingsOpeners = mutableMapOf<String, (android.content.Context) -> Unit>()
+
     @Synchronized
     fun load(context: Context, source: CsInstalledSource): Boolean {
+        // Pin the plugin store to the process-lifetime application context BEFORE
+        // any plugin class is loaded (mirrors Zangetsu's PluginHost init). See
+        // CloudStreamApp.context: it must never point at a transient activity.
         setContext(context.applicationContext)
+        CloudStreamApp.context = context.applicationContext
         if (plugins.containsKey(source.id)) return true
 
         val file = CsRepos.installedFile(context, source)
@@ -140,19 +155,26 @@ object CsRuntime {
             val act = activity ?: throw IllegalStateException(
                 "No live AppCompatActivity to host ${source.name} settings"
             )
-            val rebound = runCatching { freshSettingsOpener(context, source, act) }
-                .onFailure {
-                    Log.e(TAG, "Falling back to cached opener for ${source.name} (fresh bind failed)", it)
-                }
-                .getOrNull()
 
-            val invoke: (android.content.Context) -> Unit = rebound ?: cached
+            // Bind the plugin against a live activity ONCE and cache it. Only the
+            // first tap pays the cost of re-instantiating + re-loading the plugin;
+            // later taps reuse the bound opener (instant sheet, like Zangetsu).
+            val invoke: (android.content.Context) -> Unit =
+                settingsOpeners.getOrPut(source.id) {
+                    runCatching { freshSettingsOpener(context, source, act) }
+                        .onFailure {
+                            Log.e(TAG, "Falling back to cached opener for ${source.name} (fresh bind failed)", it)
+                        }
+                        .getOrNull() ?: cached
+                }
+
             try {
                 invoke(act)
             } catch (t: Throwable) {
-                // Plugin threw inside its own settings code. Log the FULL stack
-                // (the toast callers show only carries the message) so the exact
-                // frame is recoverable from logcat, then rethrow for the toast.
+                // Fresh-bound openers hold a reference to the FIRST activity that
+                // hosted them. If that sheet was dismissed/rotated, rebind once so
+                // a later tap still works, then rethrow for the toast.
+                settingsOpeners.remove(source.id)
                 Log.e(TAG, "Plugin ${source.name} failed to open settings", t)
                 throw t
             }
@@ -213,5 +235,6 @@ object CsRuntime {
             runCatching { plugin.beforeUnload() }
         }
         apis.remove(sourceId)
+        settingsOpeners.remove(sourceId)
     }
 }

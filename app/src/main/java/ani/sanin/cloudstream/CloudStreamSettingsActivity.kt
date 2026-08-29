@@ -53,11 +53,23 @@ class CloudStreamSettingsActivity : AppCompatActivity() {
             // openSettingsFor binds the plugin against THIS activity (an
             // AppCompatActivity), so plugins that capture the activity at load
             // time (e.g. Ultima) can actually show their sheet.
-            val shown = runCatching {
-                val opener = CsRuntime.openSettingsFor(this, source) ?: return@runCatching false
-                opener(this)
-                true
-            }.getOrElse { t ->
+            val opener = runCatching { CsRuntime.openSettingsFor(this, source) }
+            if (opener.isFailure) {
+                val t = opener.exceptionOrNull()!!
+                val detail = t.stackTraceToString().lineSequence().take(2).joinToString(" | ")
+                Toast.makeText(this, "Failed to open settings: ${t.message} ($detail)", Toast.LENGTH_LONG).show()
+                finish()
+                return
+            }
+            val invoke = opener.getOrNull()
+            if (invoke == null) {
+                // Plugin exposes no openSettings — nothing to configure. Tell the
+                // user instead of silently doing nothing.
+                Toast.makeText(this, "${source.name} is not configurable", Toast.LENGTH_SHORT).show()
+                finish()
+                return
+            }
+            val shown = runCatching { invoke(this) }.getOrElse { t ->
                 val detail = t.stackTraceToString().lineSequence().take(2).joinToString(" | ")
                 Toast.makeText(this, "Failed to open settings: ${t.message} ($detail)", Toast.LENGTH_LONG).show()
                 false
