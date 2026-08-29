@@ -1237,7 +1237,6 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="dpad_episode_skip">Long Press DPad to Skip Episode</string>
     <string name="dpad_episode_skip_info">Hold DPad Right for 3 seconds to go to next episode, Left for previous</string>
 
-</resources>
 
     <!-- Direct URL strings -->
     <string name="direct_url">Direct URL</string>
@@ -1255,3 +1254,4 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="direct_url_error_invalid">Enter a valid URL starting with http:// or https://</string>
     <string name="direct_url_error_no_video">No video found on this page</string>
     <string name="direct_url_success">Video extracted and ready to play</string>
+</resources>
