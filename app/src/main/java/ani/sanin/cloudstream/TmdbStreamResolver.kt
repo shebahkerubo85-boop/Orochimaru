@@ -13,6 +13,7 @@ import ani.sanin.media.anime.Anime
 import ani.sanin.media.anime.Episode
 import ani.sanin.media.anime.ExoplayerView
 import ani.sanin.parsers.Video
+import eu.kanade.tachiyomi.animesource.model.Track
 import ani.sanin.parsers.VideoContainer
 import ani.sanin.parsers.VideoExtractor
 import ani.sanin.parsers.VideoServer
@@ -24,6 +25,7 @@ import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MovieLoadResponse
 import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.AudioFile
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvSeriesLoadResponse
 import com.lagradost.cloudstream3.isMovieType
@@ -50,6 +52,7 @@ object TmdbStreamResolver {
             val referer: String? = null,
             val headers: Map<String, String> = emptyMap(),
             val drm: DrmInfo? = null,
+            val audioTracks: List<AudioFile> = emptyList(),
         )
 
         data class Success(val links: List<PlayableLink>, val matchName: String? = null) : StreamResult()
@@ -216,6 +219,7 @@ object TmdbStreamResolver {
                 referer = link.referer.takeIf { it.isNotBlank() },
                 headers = link.headers,
                 drm = drmInfo,
+                audioTracks = link.audioTracks,
             )
         }
         return StreamResult.Success(playable, load.name)
@@ -364,6 +368,7 @@ object TmdbStreamResolver {
                 referer = link.referer.takeIf { it.isNotBlank() },
                 headers = link.headers,
                 drm = drmInfo,
+                audioTracks = link.audioTracks,
             )
         }
         return ApiResolve(playable, "ok", match?.name)
@@ -441,6 +446,46 @@ object TmdbStreamResolver {
         else -> VideoType.CONTAINER
     }
 
+    /** Best-effort language label for a CloudStream audio track. The vendored
+     *  AudioFile only carries url+headers, so the language is derived from the
+     *  url when the plugin bakes it in (e.g. "track-eng.m3u8", "english.mp4").
+     *  Returns a language name the player's LanguageMapper understands (the
+     *  same path anime sources use), so the merged track is tagged, prepared
+     *  and labelled correctly in the rail. Falls back to "Unknown" so the
+     *  track stays selectable in the rail. */
+    private fun audioLanguage(audio: AudioFile): String {
+        val hay = audio.url.lowercase()
+        val rules = listOf(
+            "english" to "English", "eng" to "English",
+            "japanese" to "Japanese", "jpn" to "Japanese", "日本語" to "Japanese",
+            "hindi" to "Hindi", "hin" to "Hindi",
+            "korean" to "Korean", "kor" to "Korean",
+            "mandarin" to "Chinese", "cantonese" to "Chinese",
+            "chinese" to "Chinese", "zho" to "Chinese", "chi" to "Chinese",
+            "spanish" to "Spanish", "spa" to "Spanish",
+            "french" to "French", "francais" to "French", "fra" to "French",
+            "german" to "German", "deu" to "German",
+            "italian" to "Italian", "ita" to "Italian",
+            "portuguese" to "Portuguese", "por" to "Portuguese",
+            "arabic" to "Arabic", "ara" to "Arabic",
+            "russian" to "Russian", "rus" to "Russian",
+            "tamil" to "Tamil", "tam" to "Tamil",
+            "telugu" to "Telugu", "tel" to "Telugu",
+            "malayalam" to "Malayalam", "mal" to "Malayalam",
+            "thai" to "Thai", "tha" to "Thai",
+            "vietnamese" to "Vietnamese", "vie" to "Vietnamese",
+            "indonesian" to "Indonesian", "ind" to "Indonesian",
+            "turkish" to "Turkish", "tur" to "Turkish",
+            "polish" to "Polish", "pol" to "Polish",
+            "ukrainian" to "Ukrainian", "ukr" to "Ukrainian",
+            "portugues" to "Portuguese",
+        )
+        for ((needle, name) in rules) {
+            if (Regex("(^|[^a-z0-9])$needle([^a-z0-9]|$)").containsMatchIn(hay)) return name
+        }
+        return "Unknown"
+    }
+
     /** One extractor per link, named after the link label (quality/host), so the
      *  player's server sheet lists every server the plugin returned. */
     fun buildExtractors(links: List<StreamResult.PlayableLink>): List<VideoExtractor> {
@@ -458,10 +503,15 @@ object TmdbStreamResolver {
                 file = FileUrl(link.url, headers),
                 drm = link.drm,
             )
+            val audioTracks = link.audioTracks.map { Track(url = it.url, lang = audioLanguage(it)) }
             object : VideoExtractor() {
                 override val server = VideoServer(name, "", mapOf("quality" to name))
-                override suspend fun extract() = VideoContainer(listOf(video))
-            }.apply { videos = listOf(video) }
+                override suspend fun extract() =
+                    VideoContainer(videos = listOf(video), audioTracks = audioTracks)
+            }.apply {
+                videos = listOf(video)
+                this.audioTracks = audioTracks
+            }
         }
     }
 
