@@ -173,7 +173,10 @@ class CloudStreamInstalledFragment : Fragment(), SearchQueryHandler {
         runCatching {
             openSettings(requireContext())
             forcePluginSheetFull(requireContext())
-        }.onFailure { Toast.makeText(requireContext(), "Failed to open settings: ${it.message}", Toast.LENGTH_SHORT).show() }
+        }.onFailure {
+            val detail = it.stackTraceToString().lineSequence().take(2).joinToString(" | ")
+            Toast.makeText(requireContext(), "Failed to open settings: ${it.message} ($detail)", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun confirmDelete(source: CsInstalledSource) {

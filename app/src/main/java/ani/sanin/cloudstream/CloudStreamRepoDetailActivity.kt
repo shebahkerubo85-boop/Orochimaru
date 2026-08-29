@@ -98,7 +98,10 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
             openSettings(this)
             forcePluginSheetFull(this)
         }
-            .onFailure { Toast.makeText(this, "Failed to open settings: ${it.message}", Toast.LENGTH_SHORT).show() }
+            .onFailure {
+            val detail = it.stackTraceToString().lineSequence().take(2).joinToString(" | ")
+            Toast.makeText(this, "Failed to open settings: ${it.message} ($detail)", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun onInstallClick(source: CsSource) {

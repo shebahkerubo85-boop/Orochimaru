@@ -173,7 +173,11 @@ object CsRuntime {
 
         val live = resolveActivity(context) as? AppCompatActivity
         if (live != null) {
-            val fresh = runCatching { freshSettingsOpener(context, source, live) }.getOrNull()
+            val fresh = runCatching { freshSettingsOpener(context, source, live) }
+                .onFailure {
+                    Log.e(TAG, "Fresh settings opener failed for ${source.name}; using cached opener", it)
+                }
+                .getOrNull()
             if (fresh != null) {
                 return { _ ->
                     try {
@@ -189,9 +193,14 @@ object CsRuntime {
         }
 
         return { ctx ->
-            syncPluginActivity(plugin, ctx)
+            // Hand the plugin a real Activity, never a wrapped context. Plugins
+            // cast the openSettings context to AppCompatActivity; a fragment's
+            // requireContext() can be a ContextThemeWrapper, which makes the
+            // cast null and the sheet silently never opens.
+            val act = resolveActivity(ctx) ?: ctx
+            syncPluginActivity(plugin, act)
             try {
-                original(ctx)
+                original(act)
             } catch (t: Throwable) {
                 Log.e(TAG, "Plugin ${source.name} failed to open settings", t)
                 throw t
