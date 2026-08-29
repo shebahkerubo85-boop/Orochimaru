@@ -591,7 +591,7 @@ object TmdbStreamResolver {
                     val drm = manifestDrm(link.url, link)
                     if (drm != null) synchronized(drmCache) { drmCache.putIfAbsent(base, drm) }
                     drm
-                } ?: null
+                }.getOrNull()
             }
             else -> {
                 if (!encrypted) return null
