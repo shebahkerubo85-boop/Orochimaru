@@ -43,7 +43,9 @@ class CloudStreamApp {
         private var _context: Context? = null
         var context: Context?
             get() = _context ?: (com.lagradost.api.getContext() as? Context)?.applicationContext
-            private set
+            private set(value) {
+                if (value != null) setContext(value)
+            }
 
         /** Pin the plugin store to the process-lifetime application context. */
         fun setContext(context: Context) {
