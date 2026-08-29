@@ -8,6 +8,7 @@ import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import com.lagradost.api.setContext
 import com.lagradost.cloudstream3.APIHolder
+import com.lagradost.cloudstream3.CommonActivity
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.plugins.BasePlugin
 import com.lagradost.cloudstream3.plugins.Plugin
@@ -156,52 +157,64 @@ object CsRuntime {
     /**
      * Returns the loaded plugin's custom-settings callback, if any.
      *
-     * Settings plugins capture the hosting `Activity` during `load()` and commit
-     * their sheet to that activity's fragment manager. If the plugin was first
-     * loaded on a different screen (or the activity was destroyed by rotation),
-     * the sheet targets a stale window and never appears. Mirror what working
-     * hosts (Zangetsu) do: re-instantiate the plugin against the live activity
-     * so `openSettings` binds to a real window, undoing the duplicate MainAPI
-     * registration. Falls back to the already-loaded instance's opener.
+     * Settings plugins resolve the fragment manager for their sheet in two ways:
+     * they capture the hosting `Activity` at `load()` time (Zangetsu's comment:
+     * "Some plugins (e.g. StremioX) capture context as? AppCompatActivity at
+     * LOAD time and reuse it in openSettings"), or they read the `ctx` they are
+     * handed at call time (Ultima). Either way the sheet must be committed to a
+     * visible, non-destroyed window, so mirror what working hosts (Zangetsu)
+     * do:
+     *
+     *  - resolve the live `AppCompatActivity` at invocation time (not build
+     *    time, so rotation between screenshots cannot point us at a destroyed
+     *    window);
+     *  - point CloudStream's statics (CommonActivity + ContextHelper) at it,
+     *    exactly like Zangetsu's host init does;
+     *  - re-instantiate the plugin against it so load()-captured activities are
+     *    real, undoing the duplicate MainAPI registration;
+     *  - fall back to the cached opener, synced to the live activity.
      */
     fun openSettingsFor(context: Context, source: CsInstalledSource): ((android.content.Context) -> Unit)? {
         if (!plugins.containsKey(source.id)) {
             if (!load(context, source)) return null
         }
         val plugin = plugins[source.id] as? Plugin ?: return null
-        val original = plugin.openSettings ?: return null
-
-        val live = resolveActivity(context) as? AppCompatActivity
-        if (live != null) {
-            val fresh = runCatching { freshSettingsOpener(context, source, live) }
-                .onFailure {
-                    Log.e(TAG, "Fresh settings opener failed for ${source.name}; using cached opener", it)
-                }
-                .getOrNull()
-            if (fresh != null) {
-                return { _ ->
-                    try {
-                        fresh(live)
-                    } catch (t: Throwable) {
-                        // Plugin throws inside its own settings code; surface the
-                        // full stack in logcat, callers show a toast.
-                        Log.e(TAG, "Plugin ${source.name} failed to open settings", t)
-                        throw t
-                    }
-                }
-            }
-        }
+        val cached = plugin.openSettings ?: return null
 
         return { ctx ->
             // Hand the plugin a real Activity, never a wrapped context. Plugins
             // cast the openSettings context to AppCompatActivity; a fragment's
             // requireContext() can be a ContextThemeWrapper, which makes the
             // cast null and the sheet silently never opens.
-            val act = resolveActivity(ctx) ?: ctx
-            syncPluginActivity(plugin, act)
+            val live = (resolveActivity(ctx) as? AppCompatActivity)
+                ?: (resolveActivity(context) as? AppCompatActivity)
+                ?: throw IllegalStateException("No live Activity to host ${source.name} settings")
+
+            // Zangetsu host init: point CloudStream's globals at the live window
+            // so any plugin path that reads them (CommonActivity, CloudStreamApp,
+            // ContextHelper) sees a real, visible activity.
+            runCatching { CommonActivity.setActivityInstance(live) }
+            runCatching { setContext(live) }
+
+            // Zangetsu's primary path: re-instantiate against the live activity
+            // so plugins that captured the activity at load() bind their sheet
+            // to a real window. Undo the duplicate MainAPI registration.
+            val rebound = runCatching { freshSettingsOpener(context, source, live) }
+                .onFailure {
+                    Log.e(TAG, "Falling back to cached opener for ${source.name} (fresh bind failed)", it)
+                }
+                .getOrNull()
+
+            val invoke: (android.content.Context) -> Unit = rebound ?: { act ->
+                syncPluginActivity(plugin, act)
+                cached(act)
+            }
             try {
-                original(act)
+                invoke(live)
             } catch (t: Throwable) {
+                // Plugin threw inside its own settings code. Log the FULL stack
+                // (the toast callers show only carries the message) so the exact
+                // frame is recoverable from logcat, then rethrow for the toast.
                 Log.e(TAG, "Plugin ${source.name} failed to open settings", t)
                 throw t
             }
@@ -234,6 +247,7 @@ object CsRuntime {
         }
         // Let CloudStream's global statics resolve to this activity during load.
         runCatching { setContext(activity) }
+        runCatching { CommonActivity.setActivityInstance(activity) }
 
         val before = APIHolder.allProviders.toList()
         try {
