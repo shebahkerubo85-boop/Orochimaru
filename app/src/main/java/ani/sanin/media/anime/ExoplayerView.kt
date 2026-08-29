@@ -252,6 +252,12 @@ class ExoplayerView :
     private lateinit var subtitleDrawerList: RecyclerView
     private var subtitleRailController: SubtitleRailController? = null
     private var embeddedSubTracks: List<Tracks.Group> = emptyList()
+    private var playerTracksBtn: ImageButton? = null
+    private lateinit var tracksDrawerContent: View
+    private lateinit var tracksDrawerClose: ImageButton
+    private lateinit var tracksDrawerList: RecyclerView
+    private var trackRailController: TrackRailController? = null
+    private var tracksHidden = true
     private lateinit var exoAudioTrack: ImageButton
     private lateinit var exoSpeed: ImageButton
     private lateinit var exoScreen: ImageButton
@@ -685,6 +691,44 @@ class ExoplayerView :
                 playerView.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
                 playerView.isFocusable = true
                 exoSubtitle.requestFocus()
+            }
+            override fun onDrawerStateChanged(newState: Int) {}
+        })
+
+        // Tracks rail (right side) — mirrors the episode rail focus behaviour.
+        tracksDrawerContent = findViewById(R.id.tracksDrawer)
+        tracksDrawerClose = findViewById(R.id.tracksDrawerClose)
+        tracksDrawerList = findViewById(R.id.tracksDrawerList)
+        trackRailController = TrackRailController(
+            this,
+            binding.root,
+            tracksDrawerContent,
+            tracksDrawerClose,
+            tracksDrawerList,
+        )
+        playerTracksBtn = playerView.findViewById(R.id.exo_tracks)
+        playerTracksBtn?.setOnClickListener {
+            Logger.log("Player: TRACKS pressed")
+            trackRailController?.open()
+        }
+
+        binding.root.addDrawerListener(object : DrawerLayout.DrawerListener {
+            override fun onDrawerSlide(drawerView: View, slideOffset: Float) {}
+            override fun onDrawerOpened(drawerView: View) {
+                if (drawerView !== tracksDrawerContent) return
+                playerView.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                playerView.isFocusable = false
+                trackRailController?.focusFirst()
+            }
+            override fun onDrawerClosed(drawerView: View) {
+                if (drawerView !== tracksDrawerContent) return
+                playerView.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+                playerView.isFocusable = true
+                if (!tracksHidden) {
+                    if (playerTracksBtn?.requestFocus() != true) exoPlay.requestFocus()
+                } else {
+                    exoPlay.requestFocus()
+                }
             }
             override fun onDrawerStateChanged(newState: Int) {}
         })
@@ -3857,13 +3901,17 @@ class ExoplayerView :
     ) {
         val isDisabled = trackGroup.getTrackFormat(0).language == "none"
         Logger.log("onSetTrackGroupOverride: type=$type index=$index isDisabled=$isDisabled")
-        exoPlayer.trackSelectionParameters =
-            exoPlayer.trackSelectionParameters
-                .buildUpon()
-                .setTrackTypeDisabled(TRACK_TYPE_TEXT, isDisabled)
-                .setOverrideForType(
-                    TrackSelectionOverride(trackGroup.mediaTrackGroup, index),
-                ).build()
+        val paramsBuilder = exoPlayer.trackSelectionParameters.buildUpon()
+        if (type == TRACK_TYPE_TEXT) {
+            // Only the text renderer is toggled off/on here; audio/video
+            // overrides must never flip it (CloudStream applies audio/video
+            // TrackSelectionOverrides without touching text).
+            paramsBuilder.setTrackTypeDisabled(TRACK_TYPE_TEXT, isDisabled)
+        }
+        paramsBuilder.setOverrideForType(
+            TrackSelectionOverride(trackGroup.mediaTrackGroup, index),
+        )
+        exoPlayer.trackSelectionParameters = paramsBuilder.build()
         if (type == TRACK_TYPE_TEXT) {
             setupSubFormatting(playerView)
             applySubtitleStyles(customSubtitleView)
@@ -3883,11 +3931,53 @@ class ExoplayerView :
             booleanArrayOf(false),
         )
 
+    /** Current ExoPlayer track snapshot for the tracks rail. */
+    fun playerCurrentTracks(): Tracks = if (isInitialized) exoPlayer.currentTracks else Tracks.EMPTY
+
     fun subtitleRailHasExtSubtitles(): Boolean = hasExtSubtitles
 
     fun subtitleRailEmbeddedTracks(): List<Tracks.Group> = embeddedSubTracks
 
     fun subtitleRailDummyTrack(): Tracks.Group = dummyTrack
+
+    /**
+     * CloudStream rule: the top-right tracks button only appears when the open
+     * stream exposes more than one video rendition OR more than one audio track.
+     * Hiding it also takes it out of the DPAD chain: the episode button's right
+     * neighbour is reset, the button is not focusable, and if it held focus when
+     * the tracks disappeared the focus moves back to the episode button.
+     */
+    private fun updateTracksButton(tracks: Tracks) {
+        val videoCount = tracks.groups.sumOf { group ->
+            if (group.type != TRACK_TYPE_VIDEO) return@sumOf 0
+            (0 until group.length).count { i ->
+                val f = group.getTrackFormat(i)
+                group.isTrackSupported(i, C.TRACK_TYPE_VIDEO) &&
+                    f.height != Format.NO_VALUE && f.height > 0
+            }
+        }
+        val audioCount = tracks.groups.sumOf { group ->
+            if (group.type != TRACK_TYPE_AUDIO) return@sumOf 0
+            (0 until group.length).count { i ->
+                group.isTrackSupported(i, C.TRACK_TYPE_AUDIO)
+            }
+        }
+        val show = videoCount > 1 || audioCount > 1
+        tracksHidden = !show
+        val btn = playerTracksBtn ?: return
+        btn.isVisible = show
+        btn.isFocusable = show
+        val epBtn = playerView.findViewById<View>(R.id.exo_ep_sel_btn)
+        if (show) {
+            epBtn.nextFocusRightId = R.id.exo_tracks
+        } else {
+            epBtn.nextFocusRightId = View.NO_ID
+            // Never leave focus parked on a view that just disappeared.
+            if (btn.hasFocus()) {
+                epBtn.requestFocus()
+            }
+        }
+    }
 
     /**
      * Master subtitle toggle used by the subtitle rail. Turning it off greys
@@ -3971,6 +4061,8 @@ class ExoplayerView :
         } else {
             emptyList()
         }
+        updateTracksButton(tracks)
+        trackRailController?.rebuild()
         exoAudioTrack.isVisible = audioTracks.size > 1
         exoAudioTrack.setOnClickListener {
             Logger.log("Player: AUDIO TRACK pressed — ${audioTracks.size} tracks available")
@@ -4628,6 +4720,24 @@ class ExoplayerView :
                 KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
                     if (event.action == KeyEvent.ACTION_DOWN) {
                         binding.root.closeDrawer(subtitleDrawerContent)
+                    }
+                    return true
+                }
+            }
+        }
+        // Tracks rail (right side): DPAD left closes it (right stays trapped), and
+        // back/escape closes it too — mirrors the subtitle rail, mirrored sides.
+        if (this::tracksDrawerContent.isInitialized && binding.root.isDrawerOpen(tracksDrawerContent)) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                        binding.root.closeDrawer(tracksDrawerContent)
+                    }
+                    return true
+                }
+                KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
+                    if (event.action == KeyEvent.ACTION_DOWN) {
+                        binding.root.closeDrawer(tracksDrawerContent)
                     }
                     return true
                 }

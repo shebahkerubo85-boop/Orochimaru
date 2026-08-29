@@ -451,9 +451,23 @@
                             android:layout_height="48dp"
                             android:focusable="true"
                             android:nextFocusLeft="@id/exo_playback_speed"
+                            android:nextFocusRight="@+id/exo_tracks"
                             android:nextFocusDown="@id/exo_play"
                             android:backgroundTint="#00FFFFFF"
                             android:src="@drawable/ic_round_video_library_24"
+                            app:tint="@color/bg_white"
+                            tools:ignore="ContentDescription" />
+
+                        <ImageButton
+                            android:id="@+id/exo_tracks"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:focusable="true"
+                            android:visibility="gone"
+                            android:nextFocusLeft="@id/exo_ep_sel_btn"
+                            android:nextFocusDown="@id/exo_play"
+                            android:backgroundTint="#00FFFFFF"
+                            android:src="@drawable/ic_tracks_24"
                             app:tint="@color/bg_white"
                             tools:ignore="ContentDescription" />
                     </LinearLayout>
