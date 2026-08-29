@@ -572,14 +572,27 @@ object TmdbStreamResolver {
         val encrypted = looksEncrypted(link)
         Log.i("TmdbDetails", "drmForLink: looksEncrypted=$encrypted")
         val result: DrmInfo? = when (link) {
-            is DrmExtractorLink -> DrmInfo(
-                licenseUrl = link.licenseUrl,
-                uuid = link.uuid.toJavaUuid(),
-                keyRequestParameters = link.keyRequestParameters,
-                kid = link.kid,
-                key = link.key,
-                kty = link.kty,
-            )
+            is DrmExtractorLink -> {
+                val license = link.licenseUrl?.takeIf { it.isNotBlank() }
+                license?.let { url ->
+                    DrmInfo(
+                        licenseUrl = url,
+                        uuid = link.uuid.toJavaUuid(),
+                        keyRequestParameters = link.keyRequestParameters,
+                        kid = link.kid,
+                        key = link.key,
+                        kty = link.kty,
+                    )
+                } ?: runCatching {
+                    val base = runCatching {
+                        val u = java.net.URI(link.url)
+                        "${u.scheme}://${u.host}${u.path}"
+                    }.getOrNull() ?: link.url
+                    val drm = manifestDrm(link.url, link)
+                    if (drm != null) synchronized(drmCache) { drmCache.putIfAbsent(base, drm) }
+                    drm
+                } ?: null
+            }
             else -> {
                 if (!encrypted) return null
                 val base = runCatching {
