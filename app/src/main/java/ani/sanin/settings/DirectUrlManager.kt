@@ -60,8 +60,8 @@ object DirectUrlManager {
                     val first = parts.first()
                     // Remove common prefixes
                     val clean = when (first.lowercase()) {
-                        "www" → parts.getOrElse(1) { "" }
-                        else → first
+                        "www" -> parts.getOrElse(1) { "" }
+                        else -> first
                     }
                     // Titlecase
                     clean.substring(0, 1).uppercase() + clean.substring(1).lowercase()
@@ -131,11 +131,11 @@ object DirectUrlManager {
                     // Pick best: m3u8 > mp4 > mpd > webm
                     val best = videos.sortedBy { v ->
                         when {
-                            v.url.contains(".m3u8") → 0
-                            v.url.contains(".mp4") → 1
-                            v.url.contains(".mpd") → 2
-                            v.url.contains(".webm") → 3
-                            else → 4
+                            v.url.contains(".m3u8") -> 0
+                            v.url.contains(".mp4") -> 1
+                            v.url.contains(".mpd") -> 2
+                            v.url.contains(".webm") -> 3
+                            else -> 4
                         }
                     }.first()
                     Logger.d(TAG, "Extracted best video: ${best.url}")
