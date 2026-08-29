@@ -69,7 +69,7 @@ class CloudStreamSettingsActivity : AppCompatActivity() {
                 finish()
                 return
             }
-            val shown = runCatching { invoke(this) }.getOrElse { t ->
+            val shown = runCatching { invoke(this); true }.getOrElse { t ->
                 val detail = t.stackTraceToString().lineSequence().take(2).joinToString(" | ")
                 Toast.makeText(this, "Failed to open settings: ${t.message} ($detail)", Toast.LENGTH_LONG).show()
                 false
