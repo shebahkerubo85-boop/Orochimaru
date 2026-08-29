@@ -128,7 +128,7 @@ object CsRuntime {
     fun openSettingsFor(
         context: Context,
         source: CsInstalledSource,
-        activity: AppCompatActivity = context as? AppCompatActivity,
+        activity: AppCompatActivity? = context as? AppCompatActivity,
     ): ((android.content.Context) -> Unit)? {
         if (!plugins.containsKey(source.id)) {
             if (!load(context, source)) return null
