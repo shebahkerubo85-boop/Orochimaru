@@ -8,7 +8,8 @@
     android:layout_gravity="end"
     android:background="#E6101010"
     android:focusable="true"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:visibility="gone">
 
     <LinearLayout
         android:layout_width="match_parent"

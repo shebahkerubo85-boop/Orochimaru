@@ -701,37 +701,26 @@ class ExoplayerView :
         tracksDrawerList = findViewById(R.id.tracksDrawerList)
         trackRailController = TrackRailController(
             this,
-            binding.root,
             tracksDrawerContent,
             tracksDrawerClose,
             tracksDrawerList,
         )
         playerTracksBtn = playerView.findViewById(R.id.exo_tracks)
-        playerTracksBtn?.setOnClickListener {
-            Logger.log("Player: TRACKS pressed")
-            trackRailController?.open()
-        }
 
-        binding.root.addDrawerListener(object : DrawerLayout.DrawerListener {
-            override fun onDrawerSlide(drawerView: View, slideOffset: Float) {}
-            override fun onDrawerOpened(drawerView: View) {
-                if (drawerView !== tracksDrawerContent) return
+        // The tracks rail is a visibility-toggled overlay on the right edge (it
+        // can't be a DrawerLayout drawer: the episode rail already owns that
+        // edge). Opening it contains focus inside the rail like the comment panel.
+        trackRailController?.let { rail ->
+            playerTracksBtn?.setOnClickListener {
+                Logger.log("Player: TRACKS pressed")
+                rail.open()
                 playerView.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
                 playerView.isFocusable = false
-                trackRailController?.focusFirst()
             }
-            override fun onDrawerClosed(drawerView: View) {
-                if (drawerView !== tracksDrawerContent) return
-                playerView.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
-                playerView.isFocusable = true
-                if (!tracksHidden) {
-                    if (playerTracksBtn?.requestFocus() != true) exoPlay.requestFocus()
-                } else {
-                    exoPlay.requestFocus()
-                }
+            tracksDrawerClose.setOnClickListener {
+                closeTracksRail()
             }
-            override fun onDrawerStateChanged(newState: Int) {}
-        })
+        }
 
         playerView.controllerShowTimeoutMs = PrefManager.getVal<Int>(PrefName.AutoHideTimeout) * 1000
 
@@ -3934,6 +3923,19 @@ class ExoplayerView :
     /** Current ExoPlayer track snapshot for the tracks rail. */
     fun playerCurrentTracks(): Tracks = if (isInitialized) exoPlayer.currentTracks else Tracks.EMPTY
 
+    /** Hide the tracks rail and hand focus back to the top-right button (or the
+     *  play button if the tracks button is hidden). */
+    fun closeTracksRail() {
+        playerView.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+        playerView.isFocusable = true
+        trackRailController?.close()
+        if (!tracksHidden) {
+            if (playerTracksBtn?.requestFocus() != true) exoPlay.requestFocus()
+        } else {
+            exoPlay.requestFocus()
+        }
+    }
+
     fun subtitleRailHasExtSubtitles(): Boolean = hasExtSubtitles
 
     fun subtitleRailEmbeddedTracks(): List<Tracks.Group> = embeddedSubTracks
@@ -4726,18 +4728,20 @@ class ExoplayerView :
             }
         }
         // Tracks rail (right side): DPAD left closes it (right stays trapped), and
-        // back/escape closes it too — mirrors the subtitle rail, mirrored sides.
-        if (this::tracksDrawerContent.isInitialized && binding.root.isDrawerOpen(tracksDrawerContent)) {
+        // back/escape closes it too — mirrors the episode rail, mirrored sides.
+        if (this::tracksDrawerContent.isInitialized &&
+            trackRailController?.isOpen() == true
+        ) {
             when (event.keyCode) {
                 KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
                     if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-                        binding.root.closeDrawer(tracksDrawerContent)
+                        closeTracksRail()
                     }
                     return true
                 }
                 KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
                     if (event.action == KeyEvent.ACTION_DOWN) {
-                        binding.root.closeDrawer(tracksDrawerContent)
+                        closeTracksRail()
                     }
                     return true
                 }

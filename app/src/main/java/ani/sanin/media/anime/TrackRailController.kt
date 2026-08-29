@@ -7,7 +7,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
 import androidx.core.graphics.ColorUtils
-import androidx.drawerlayout.widget.DrawerLayout
 import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.Tracks
@@ -35,7 +34,6 @@ import java.util.Locale
 @UnstableApi
 class TrackRailController(
     private val activity: ExoplayerView,
-    private val drawer: DrawerLayout,
     private val content: View,
     private val closeButton: ImageButton,
     private val recycler: RecyclerView,
@@ -66,21 +64,20 @@ class TrackRailController(
         closeButton.nextFocusDownId = R.id.tracksDrawerList
         recycler.nextFocusUpId = R.id.tracksDrawerClose
         FocusEffectUtil.applyFocusListener(closeButton)
-        closeButton.setOnClickListener { close() }
     }
 
     fun open() {
         rebuild()
-        if (drawer.isDrawerOpen(content)) {
-            focusFirst()
-        } else {
-            drawer.openDrawer(content)
-        }
+        content.visibility = View.VISIBLE
+        content.requestFocus()
+        focusFirst()
     }
 
     fun close() {
-        drawer.closeDrawer(content)
+        content.visibility = View.GONE
     }
+
+    fun isOpen(): Boolean = content.visibility == View.VISIBLE
 
     fun rebuild() {
         rows.clear()
