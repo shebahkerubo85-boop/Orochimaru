@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
 import ani.sanin.databinding.ItemSubtitleTextBinding
 import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import ani.sanin.util.FocusEffectUtil
 import com.google.android.material.color.MaterialColors
 import java.util.Locale
@@ -127,7 +128,7 @@ class TrackRailController(
         tracks.groups.forEach { group ->
             if (group.type != C.TRACK_TYPE_VIDEO) return@forEach
             for (i in 0 until group.length) {
-                if (!group.isTrackSupported(i, C.TRACK_TYPE_VIDEO)) continue
+                if (!group.isTrackSupported(i, true)) continue
                 val format = group.getTrackFormat(i)
                 val height = format.height
                 if (height == Format.NO_VALUE || height <= 0) continue
@@ -154,7 +155,7 @@ class TrackRailController(
         tracks.groups.forEach { group ->
             if (group.type != C.TRACK_TYPE_AUDIO) return@forEach
             for (i in 0 until group.length) {
-                if (!group.isTrackSupported(i, C.TRACK_TYPE_AUDIO)) continue
+                if (!group.isTrackSupported(i, true)) continue
                 val format = group.getTrackFormat(i)
                 val language = languageLabel(format.language)
                 val channels = when (format.channelCount) {

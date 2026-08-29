@@ -3952,14 +3952,14 @@ class ExoplayerView :
             if (group.type != TRACK_TYPE_VIDEO) return@sumOf 0
             (0 until group.length).count { i ->
                 val f = group.getTrackFormat(i)
-                group.isTrackSupported(i, C.TRACK_TYPE_VIDEO) &&
+                group.isTrackSupported(i, true) &&
                     f.height != Format.NO_VALUE && f.height > 0
             }
         }
         val audioCount = tracks.groups.sumOf { group ->
             if (group.type != TRACK_TYPE_AUDIO) return@sumOf 0
             (0 until group.length).count { i ->
-                group.isTrackSupported(i, C.TRACK_TYPE_AUDIO)
+                group.isTrackSupported(i, true)
             }
         }
         val show = videoCount > 1 || audioCount > 1
