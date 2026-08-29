@@ -1070,14 +1070,15 @@ class MainActivity : AppCompatActivity() {
         
         // Media & tracker button
         findViewById<View>(R.id.rightRailMediaTracker).setOnClickListener { showMediaTrackerBottomSheet() }
-        
+        FocusEffectUtil.applyFocusListener(findViewById(R.id.rightRailMediaTracker))
+
         FocusEffectUtil.applyFocusListener(findViewById(R.id.rightRailAvatarCard))
 
         binding.mainDrawer.addDrawerListener(object : DrawerLayout.DrawerListener {
             override fun onDrawerSlide(drawerView: View, slideOffset: Float) {}
             override fun onDrawerStateChanged(newState: Int) {}
             override fun onDrawerOpened(drawerView: View) {
-                findViewById<View>(R.id.rightRailNotifications).requestFocus()
+                findViewById<View>(R.id.rightRailMediaTracker).requestFocus()
                 if (GlassEffectManager.isComponentEnabled(GlassComponent.SideRail)) {
                     findViewById<View>(R.id.rightRailContainer)?.let { container ->
                         container.post {
