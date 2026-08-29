@@ -17,7 +17,6 @@ import ani.sanin.cloudstream.CloudStreamInstalledFragment
 import ani.sanin.cloudstream.CsRepos
 import ani.sanin.cloudstream.CsTypeFilter
 import ani.sanin.databinding.ActivityExtensionsBinding
-import ani.sanin.directurl.DirectUrlManager
 import ani.sanin.initActivity
 import ani.sanin.media.MediaType
 import ani.sanin.navBarHeight
@@ -38,7 +37,6 @@ class ExtensionsActivity : AppCompatActivity() {
     lateinit var binding: ActivityExtensionsBinding
 
     private var cloudStreamMode = false
-    private var isDirectUrlMode = false
     private var tabMediator: TabLayoutMediator? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -75,7 +73,7 @@ class ExtensionsActivity : AppCompatActivity() {
 
         val tabLayout = findViewById<TabLayout>(R.id.tabLayout)
         val viewPager = findViewById<ViewPager2>(R.id.viewPager)
-        viewPager.offscreenPageLimit = 2
+        viewPager.offscreenPageLimit = 1
 
         setupTabs()
 
@@ -166,7 +164,6 @@ class ExtensionsActivity : AppCompatActivity() {
         cloudStreamMode = cloudStream
         binding.searchViewText.setText("")
         binding.searchViewText.clearFocus()
-        binding.languageselect.visibility = View.GONE
         setupTabs()
         setupModeButtons()
     }
@@ -176,19 +173,11 @@ class ExtensionsActivity : AppCompatActivity() {
         tabMediator = null
         val tabLayout = findViewById<TabLayout>(R.id.tabLayout)
         val viewPager = findViewById<ViewPager2>(R.id.viewPager)
-        viewPager.offscreenPageLimit = 2
-
         viewPager.adapter = object : FragmentStateAdapter(this) {
-            override fun getItemCount(): Int = when {
-                isDirectUrlMode -> 1
-                cloudStreamMode -> 2
-                else -> 2
-            }
+            override fun getItemCount(): Int = 2
 
             override fun createFragment(position: Int): Fragment {
-                return if (isDirectUrlMode) {
-                    DirectUrlFragment()
-                } else if (cloudStreamMode) {
+                return if (cloudStreamMode) {
                     when (position) {
                         0 -> CloudStreamInstalledFragment()
                         else -> CloudStreamAvailableFragment()
@@ -202,9 +191,7 @@ class ExtensionsActivity : AppCompatActivity() {
             }
         }
         tabMediator = TabLayoutMediator(tabLayout, viewPager) { tab, position ->
-            tab.text = if (isDirectUrlMode) {
-                "Direct URLs"
-            } else if (cloudStreamMode) {
+            tab.text = if (cloudStreamMode) {
                 when (position) {
                     0 -> "Installed Extensions"
                     else -> "Available Extensions"
@@ -220,46 +207,20 @@ class ExtensionsActivity : AppCompatActivity() {
     }
 
     private fun setupModeButtons() {
-        // Update chip texts and visibility based on mode
-        binding.aniyomiChip.text = if (cloudStreamMode) "Aniyomi" else "Aniyomi Extensions"
-        binding.cloudstreamChip.text = if (cloudStreamMode) "CloudStream" else "CloudStream Extensions"
-
-        // Direct URL pill - visibility depends on mode
-        binding.directUrlChip.visibility = View.VISIBLE
-        binding.directUrlChip.text = if (cloudStreamMode) "Direct URL" else "Direct URL"
-        binding.directUrlChip.isChecked = false
-
-        // Open settings button changes purpose based on mode
         binding.openSettingsButton.setOnClickListener {
-            if (cloudStreamMode) {
-                // In CloudStream mode, show CloudStream repo management
-                val repos = CsRepos.repos().toList()
-                AddRepositoryBottomSheet.newInstance(
-                    MediaType.ANIME,
-                    repos,
-                    { input, _ -> AddRepositoryBottomSheet.addRepo(input, MediaType.ANIME, cloudStreamMode) },
-                    { input, _ -> AddRepositoryBottomSheet.removeRepo(input, MediaType.ANIME, cloudStreamMode) },
-                    cloudStreamMode
-                ).show(supportFragmentManager, "add_repo")
+            val repos = if (cloudStreamMode) {
+                CsRepos.repos().toList()
             } else {
-                // In Aniyomi mode, or Direct URL mode, show the appropriate sheet
-                if (isDirectUrlMode) {
-                    // Direct URL mode - show link management screen
-                    showDirectUrlManagement()
-                } else {
-                    // Default: Aniyomi repo management
-                    val repos = PrefManager.getVal<Set<String>>(PrefName.AnimeExtensionRepos).toList()
-                    AddRepositoryBottomSheet.newInstance(
-                        MediaType.ANIME,
-                        repos,
-                        { input, _ -> AddRepositoryBottomSheet.addRepo(input, MediaType.ANIME, cloudStreamMode) },
-                        { input, _ -> AddRepositoryBottomSheet.removeRepo(input, MediaType.ANIME, cloudStreamMode) },
-                        cloudStreamMode
-                    ).show(supportFragmentManager, "add_repo")
-                }
+                PrefManager.getVal<Set<String>>(PrefName.AnimeExtensionRepos).toList()
             }
+            AddRepositoryBottomSheet.newInstance(
+                MediaType.ANIME,
+                repos,
+                { input, _ -> AddRepositoryBottomSheet.addRepo(input, MediaType.ANIME, cloudStreamMode) },
+                { input, _ -> AddRepositoryBottomSheet.removeRepo(input, MediaType.ANIME, cloudStreamMode) },
+                cloudStreamMode
+            ).show(supportFragmentManager, "add_repo")
         }
-
         binding.filterButton.visibility = if (cloudStreamMode) View.VISIBLE else View.GONE
         binding.filterButton.setOnClickListener {
             CsTypeFilter.show(this) {
@@ -271,29 +232,10 @@ class ExtensionsActivity : AppCompatActivity() {
         FocusEffectUtil.applyFocusListener(binding.openSettingsButton)
         FocusEffectUtil.applyFocusListener(binding.languageselect)
         FocusEffectUtil.applyFocusListener(binding.filterButton)
-
-        // Direct URL chip listener
-        binding.directUrlChip.setOnCheckedChangeListener { _, checked ->
-            if (checked) {
-                switchToDirectUrlMode()
-            } else {
-                // Switch back to default mode (Aniyomi if not cloudStream, else cloudStream)
-                if (cloudStreamMode) {
-                    switchMode(false)
-                } else {
-                    switchMode(true)
-                }
-                binding.aniyomiChip.isChecked = true
-            }
-        }
     }
+}
 
-    private fun switchToDirectUrlMode() {
-        isDirectUrlMode = true
-        binding.directUrlChip.isChecked = true
-        binding.aniyomiChip.isChecked = false
-        binding.cloudstreamChip.isChecked = false
-        setupTabs()
-        setupModeButtons()
-    }
+interface SearchQueryHandler {
+    fun updateContentBasedOnQuery(query: String?)
+    fun notifyDataChanged()
 }
