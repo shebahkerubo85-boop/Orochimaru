@@ -4177,13 +4177,42 @@ class ExoplayerView :
     private fun isLiveStream(): Boolean =
         media.id < 0 && (TmdbStreamResolver.sessionFor(media.id)?.isLive == true)
 
-    /** Re-anchor a live stream to the live window default (just behind the live
-     *  edge) when the playhead runs too close to the edge or the window slides
-     *  out from under it. Mirrors CloudStream's LiveManager correction
-     *  (getTimeAheadOfLive): with the small target live offset set on the
-     *  MediaItem, seekToDefaultPosition lands right behind the live edge, so the
-     *  stream continues with the current broadcast instead of "ending" and
-     *  rewatching from the window start. */
+    /** Seek a live stream to the true live edge position (duration - target
+     *  offset), never the playlist's #EXT-X-START startOffset. HLS live
+     *  playlists often declare a fixed startOffset (e.g. 4.8s into a 14.4s
+     *  window), so seekToDefaultPosition() lands back on that fixed start every
+     *  time and the progress bar visibly jumps backward and rewatches. Seeking
+     *  to duration - targetOffset puts us ~5s from the current broadcast edge so
+     *  the bar stays near the end and playback just keeps advancing with the
+     *  sliding window. */
+    private fun seekToLiveEdge() {
+        if (!isLiveStream() || ::exoPlayer.isInitialized.not() || exoPlayer.isReleased) return
+        val duration = exoPlayer.duration
+        if (duration <= 0L) {
+            // Live window duration not ready yet (freshly prepared source);
+            // retry briefly until the timeline is usable.
+            handler.postDelayed({ seekToLiveEdge() }, 250L)
+            return
+        }
+        // ~5s behind the true edge, never before the middle of the window (so we
+        // never rewatch the early-timeline band on a tiny live window).
+        val liveEdge = maxOf(duration - LIVE_TARGET_OFFSET_MS, duration / 2)
+        try {
+            Logger.log(
+                Log.WARN,
+                "Player: LIVE seeking to live edge ${exoPlayer.currentPosition} -> $liveEdge (dur=$duration)"
+            )
+            exoPlayer.seekTo(liveEdge)
+        } catch (_: Exception) {
+        }
+    }
+
+    /** Re-anchor a live stream to the live edge when the playhead drifts too
+     *  close to it (the sliding window is about to slide out from under us) or
+     *  the window slides past our position. Mirrors CloudStream's LiveManager
+     *  correction (getTimeAheadOfLive): when the playhead is already at the
+     *  target live offset nothing happens, so a healthy stream plays
+     *  continuously without rewatching content. */
     private fun reanchorToLiveEdge() {
         if (!isLiveStream() || ::exoPlayer.isInitialized.not() || exoPlayer.isReleased) return
         try {
@@ -4192,8 +4221,6 @@ class ExoplayerView :
             if (liveOffset == androidx.media3.common.C.TIME_UNSET ||
                 duration == androidx.media3.common.C.TIME_UNSET
             ) {
-                // No usable live window — drop to the native default.
-                exoPlayer.seekToDefaultPosition()
                 return
             }
             // CloudStream LiveManager: only correct when the playhead drifts
@@ -4202,11 +4229,7 @@ class ExoplayerView :
             // healthy stream plays continuously without rewatching content.
             val aheadOfLive = LIVE_TARGET_OFFSET_MS - liveOffset
             if (aheadOfLive > 100L) {
-                Logger.log(
-                    Log.WARN,
-                    "Player: LIVE re-anchoring ${exoPlayer.currentPosition} -> default (dur=$duration, liveOffset=$liveOffset)"
-                )
-                exoPlayer.seekToDefaultPosition()
+                seekToLiveEdge()
             }
         } catch (_: Exception) {
         }
@@ -4258,12 +4281,13 @@ class ExoplayerView :
             liveReconnectPending = false
             if (!::exoPlayer.isInitialized || exoPlayer.isReleased) return@postDelayed
             try {
-                // Re-prepare from a fresh playlist; re-anchor to the live window
-                // default (behind the live edge), not a stored/resumed position.
+                // Re-prepare from a fresh playlist; re-anchor to the true live edge
+                // (duration - target offset), not a stored/resumed position or the
+                // playlist startOffset.
                 exoPlayer.setMediaSource(mediaSource, androidx.media3.common.C.TIME_UNSET)
                 exoPlayer.prepare()
                 exoPlayer.play()
-                reanchorToLiveEdge()
+                seekToLiveEdge()
             } catch (_: Exception) {
             }
         }, LIVE_RECONNECT_RETRY_MS)
@@ -4280,8 +4304,8 @@ class ExoplayerView :
             // rejoin the current broadcast instead of replaying old content.
             Logger.log(Log.WARN, "Player: LIVE behind-live-window error — re-anchoring to live edge on '$epLabel'")
             try {
-                exoPlayer.seekToDefaultPosition()
                 exoPlayer.prepare()
+                seekToLiveEdge()
             } catch (_: Exception) {
             }
             return
@@ -4364,12 +4388,11 @@ class ExoplayerView :
         }
         if (playbackState == Player.STATE_ENDED) {
             if (isLiveStream()) {
-                // Continuous stream: never let it "end". Rejoin the live edge.
-                // seekToDefaultPosition lands just behind the live edge (small
-                // target offset), so playback continues with the broadcast window
-                // instead of rewatching the start of the window.
+                // Continuous stream: never let it "end". Rejoin the true live edge
+                // (duration - target offset) so playback continues with the current
+                // broadcast window instead of rewatching from the playlist start.
                 Logger.log("Player: LIVE stream hit ENDED — rejoining live edge (continuous stream)")
-                exoPlayer.seekToDefaultPosition()
+                seekToLiveEdge()
                 exoPlayer.play()
                 super.onPlaybackStateChanged(playbackState)
                 return
