@@ -314,6 +314,13 @@ class ExoplayerView :
         private const val BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 5000
         private const val BACK_BUFFER_DURATION_MS = 1000 * 60 * 2
         private const val MAX_PLAYER_ERROR_RETRIES = 1
+        // Live streams (Cricify/SKTech/PlayZTV): HLS segment URLs expire after a
+        // short TTL, so the playhead must be kept near the live edge and any
+        // expired-segment load failure must reconnect instead of failing.
+        private const val LIVE_EDGE_REPOSITION_MS = 1000 * 20   // nudge toward live edge every 20s
+        private const val LIVE_LIVE_EDGE_MARGIN_MS = 1000 * 12  // stay 12s back from the live edge
+        private const val LIVE_MAX_RECONNECTS = 5
+        private const val LIVE_RECONNECT_RETRY_MS = 1000 * 3
 
         fun clearAllCaches() {
             try {
@@ -383,6 +390,14 @@ class ExoplayerView :
     private var isSeeking = false
     private var isFastForwarding = false
     private var playerErrorRetryCount = 0
+
+    // Live-stream reconnect + live-edge handling. Cricify/SKTech HLS streams issue
+    // segment URLs with a short TTL, so we keep the playhead near the live edge and
+    // reconnect (re-fetch the playlist) when an expired segment makes the source
+    // error out, instead of dropping to an error screen like a VOD would.
+    private var liveReconnectCount = 0
+    private var liveRepositionTimer: Runnable? = null
+    private var liveReconnectPending = false
 
     private val audioTrackGroups = mutableListOf<Tracks.Group>()
 
@@ -2601,6 +2616,7 @@ class ExoplayerView :
     }
 
     private fun releasePlayer() {
+        stopLiveTicker()
         isPlayerPlaying = exoPlayer.playWhenReady
         playbackPosition = exoPlayer.currentPosition
         disappeared = false
@@ -4134,8 +4150,113 @@ class ExoplayerView :
             if (isInitialized) exoPlayer.play()
         }
 
+    private fun isLiveStream(): Boolean =
+        media.id < 0 && (TmdbStreamResolver.sessionFor(media.id)?.isLive == true)
+
+    /** Reposition the playhead close to the live edge so we never pull segments
+     *  that have already expired (HLS TTL windows). Mirrors the CloudStream live
+     *  behaviour where the bar tracks the live edge instead of a VOD timeline. */
+    private fun repositionToLiveEdge() {
+        if (!isLiveStream() || ::exoPlayer.isInitialized.not() || exoPlayer.isReleased) return
+        try {
+            val duration = exoPlayer.duration
+            if (duration <= 0 || duration == androidx.media3.common.C.TIME_UNSET) return
+            val pos = exoPlayer.currentPosition
+            val target = (duration - LIVE_LIVE_EDGE_MARGIN_MS).coerceAtLeast(0L)
+            if (target - pos > LIVE_LIVE_EDGE_MARGIN_MS) {
+                Logger.log(
+                    Log.WARN,
+                    "Player: LIVE repositioning $pos -> $target (dur=$duration)"
+                )
+                exoPlayer.seekTo(target)
+            }
+        } catch (_: Exception) {
+        }
+    }
+
+    /** Start the periodic live-edge keep-alive ticker. Every tick we nudge the
+     *  playhead back toward the live edge and run a connectivity check that
+     *  reconnects when the source stops feeding new segments (expired TTL). */
+    private fun startLiveTicker() {
+        stopLiveTicker()
+        if (!isLiveStream()) return
+        liveRepositionTimer = Runnable {
+            if (!::exoPlayer.isInitialized || exoPlayer.isReleased || liveReconnectPending) {
+                startLiveTicker()
+                return@Runnable
+            }
+            repositionToLiveEdge()
+            startLiveTicker()
+        }
+        handler.postDelayed(liveRepositionTimer!!, LIVE_EDGE_REPOSITION_MS)
+    }
+
+    private fun stopLiveTicker() {
+        liveRepositionTimer?.let { handler.removeCallbacks(it) }
+        liveRepositionTimer = null
+    }
+
+    /** CloudStream-style LIVE badge: when a live stream is playing, show a red
+     *  "LIVE" tag in the timeline instead of a fixed seekbar duration. */
+    private fun updateLiveBadge() {
+        val live = isLiveStream()
+        playerView.findViewById<View>(R.id.exo_live_badge)?.visibility =
+            if (live) View.VISIBLE else View.GONE
+        // Replace the fixed VOD position/duration readout with the LIVE tag.
+        playerView.findViewById<View>(androidx.media3.ui.R.id.exo_position)?.visibility =
+            if (live) View.GONE else View.VISIBLE
+        playerView.findViewById<View>(androidx.media3.ui.R.id.exo_duration)?.visibility =
+            if (live) View.GONE else View.VISIBLE
+    }
+
+    /** Reconnect a live stream: re-fetch the playlist by re-preparing the media
+     *  source and seek to the live edge. Used when segment URLs expire (IO/HTTP
+     *  source errors) so the stream recovers instead of failing like a VOD. */
+    private fun reconnectLiveStream(error: PlaybackException?) {
+        if (!isLiveStream() || ::exoPlayer.isInitialized.not() || exoPlayer.isReleased) return
+        if (liveReconnectPending) return
+        if (liveReconnectCount >= LIVE_MAX_RECONNECTS) {
+            Logger.log(Log.ERROR, "Player: LIVE reconnect limit reached — giving up")
+            liveReconnectCount = 0
+            toast("Player Error: live stream connection lost")
+            return
+        }
+        liveReconnectCount++
+        liveReconnectPending = true
+        Logger.log(
+            Log.WARN,
+            "Player: LIVE reconnect ${liveReconnectCount}/$LIVE_MAX_RECONNECTS " +
+                (error?.let { "(code=${it.errorCode}) ${it.errorCodeName}: ${it.message}" } ?: "")
+        )
+        handler.postDelayed({
+            liveReconnectPending = false
+            if (!::exoPlayer.isInitialized || exoPlayer.isReleased) return@postDelayed
+            try {
+                // Re-prepare from a fresh playlist; seek to the live edge.
+                exoPlayer.setMediaSource(mediaSource, androidx.media3.common.C.TIME_UNSET)
+                exoPlayer.prepare()
+                exoPlayer.play()
+                startLiveTicker()
+            } catch (_: Exception) {
+            }
+        }, LIVE_RECONNECT_RETRY_MS)
+    }
+
     override fun onPlayerError(error: PlaybackException) {
         val epLabel = media.anime?.selectedEpisode ?: "?"
+        // Live streams error when their short-TTL HLS segments expire. Reconnect
+        // (re-fetch the playlist) and seek to the live edge instead of failing
+        // like a VOD or opening the source sheet.
+        if (isLiveStream() &&
+            (error.errorCode == PlaybackException.ERROR_CODE_IO_UNSPECIFIED ||
+                error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ||
+                error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
+                error.errorCode == PlaybackException.ERROR_CODE_IO_NO_PERMISSION)
+        ) {
+            Logger.log(Log.WARN, "Player: LIVE stream source error (${error.errorCode}) on '$epLabel': ${error.message}")
+            reconnectLiveStream(error)
+            return
+        }
         when (error.errorCode) {
             PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
             PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
@@ -4191,16 +4312,27 @@ class ExoplayerView :
             }
             // Fallback trigger in case onRenderedFirstFrame never fired.
             maybeLoadTimeStamps("ready")
+            if (isLiveStream()) {
+                // A successful live reconnect is complete: refresh the budget.
+                liveReconnectCount = 0
+                startLiveTicker()
+            }
+            updateLiveBadge()
         }
         isBuffering = playbackState == Player.STATE_BUFFERING
         if (isBuffering) {
             Logger.log(Log.WARN, "Player: BUFFERING on ep '$epLabel' pos=${exoPlayer.currentPosition} (${exoPlayer.playbackState})")
         }
         if (playbackState == Player.STATE_ENDED) {
-            val liveNow = media.id < 0 &&
-                (TmdbStreamResolver.sessionFor(media.id)?.isLive == true)
-            if (liveNow) {
-                Logger.log("Player: LIVE stream hit ENDED — ignoring (continuous stream)")
+            if (isLiveStream()) {
+                // Continuous stream: never let it "end". Re-seek to the live edge
+                // if the window slid out from under us, else just ignore.
+                Logger.log("Player: LIVE stream hit ENDED — re-seeking to live edge (continuous stream)")
+                repositionToLiveEdge()
+                if (exoPlayer.playbackState != Player.STATE_READY) {
+                    exoPlayer.seekToDefaultPosition()
+                    exoPlayer.play()
+                }
                 super.onPlaybackStateChanged(playbackState)
                 return
             }
