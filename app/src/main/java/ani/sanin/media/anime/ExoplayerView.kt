@@ -2249,9 +2249,26 @@ class ExoplayerView :
                 else -> MimeTypes.APPLICATION_MP4
             }
 
-        mediaItem = MediaItem.Builder().setUri(video!!.file.url).setMimeType(mimeType)
+        // Live streams (HLS/DASH from live-TV plugins) must be flagged as live
+        // so ExoPlayer doesn't treat them as VOD with a fixed window. Without
+        // LiveConfiguration the player shows a short fixed duration and errors
+        // when that "ends".
+        val isLiveStream = media.id < 0 &&
+            (TmdbStreamResolver.sessionFor(media.id)?.isLive == true)
+        val mediaItemBuilder = MediaItem.Builder()
+            .setUri(video!!.file.url)
+            .setMimeType(mimeType)
             .setSubtitleConfigurations(sub)
-            .build()
+        if (isLiveStream) {
+            mediaItemBuilder.setLiveConfiguration(
+                MediaItem.LiveConfiguration.Builder()
+                    .setTargetOffsetMs(15_000)
+                    .setMaxOffsetMs(60_000)
+                    .setMinOffsetMs(5_000)
+                    .build()
+            )
+        }
+        mediaItem = mediaItemBuilder.build()
 
         Logger.log(
             "Player: building media source url=${video!!.file.url.take(200)} " +
@@ -2442,13 +2459,20 @@ class ExoplayerView :
             this.playbackParameters = this@ExoplayerView.playbackParameters
             setMediaSource(mediaSource)
             prepare()
-            PrefManager
-                .getCustomVal(
-                    "${media.id}_${media.anime!!.selectedEpisode}_max",
-                    Long.MAX_VALUE,
-                ).takeIf { it != Long.MAX_VALUE }
-                ?.let { if (it <= playbackPosition) playbackPosition = max(0, it - 5) }
-            seekTo(playbackPosition)
+            val isLiveStream = media.id < 0 &&
+                (TmdbStreamResolver.sessionFor(media.id)?.isLive == true)
+            if (isLiveStream) {
+                playbackPosition = 0L
+                Logger.log("Player: LIVE stream detected — skipping resume seek")
+            } else {
+                PrefManager
+                    .getCustomVal(
+                        "${media.id}_${media.anime!!.selectedEpisode}_max",
+                        Long.MAX_VALUE,
+                    ).takeIf { it != Long.MAX_VALUE }
+                    ?.let { if (it <= playbackPosition) playbackPosition = max(0, it - 5) }
+                seekTo(playbackPosition)
+            }
         }
 
         exoPlayer.addListener(
@@ -4173,6 +4197,13 @@ class ExoplayerView :
             Logger.log(Log.WARN, "Player: BUFFERING on ep '$epLabel' pos=${exoPlayer.currentPosition} (${exoPlayer.playbackState})")
         }
         if (playbackState == Player.STATE_ENDED) {
+            val liveNow = media.id < 0 &&
+                (TmdbStreamResolver.sessionFor(media.id)?.isLive == true)
+            if (liveNow) {
+                Logger.log("Player: LIVE stream hit ENDED — ignoring (continuous stream)")
+                super.onPlaybackStateChanged(playbackState)
+                return
+            }
             Logger.log("Player: ENDED on ep '$epLabel'")
             if (PrefManager.getVal(PrefName.AutoPlay)) {
                 val browsingEpisodes =
@@ -4192,7 +4223,12 @@ class ExoplayerView :
 
     private fun updateAniProgress() {
         val incognito: Boolean = PrefManager.getVal(PrefName.Incognito)
-        
+
+        // Live streams have no episode to track — skip progress entirely
+        if (media.id < 0 && TmdbStreamResolver.sessionFor(media.id)?.isLive == true) {
+            return
+        }
+
         // TMDB content (synthetic id < 0): track on Simkl
         if (media.id < 0) {
             if (episodeLength <= 0f || incognito || Simkl.token == null) return

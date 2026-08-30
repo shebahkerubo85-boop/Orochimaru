@@ -620,7 +620,8 @@ object TmdbStreamResolver {
         val mediaType: String,
         val detail: TmdbDetail,
         val source: CsInstalledSource,
-        val load: LoadResponse? = null
+        val load: LoadResponse? = null,
+        val isLive: Boolean = load is LiveStreamLoadResponse
     )
 
     /** Per-plugin episode shells (extractors live on them, so re-launching the

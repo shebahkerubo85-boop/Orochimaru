@@ -219,6 +219,14 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
                         }
                     }
                     KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                        val focusedId = currentFocus?.id
+                        val onPill = focusedId == R.id.tmdbNavPillInfo ||
+                            focusedId == R.id.tmdbNavPillWatch ||
+                            focusedId == R.id.tmdbNavPillComments
+                        if (onPill) {
+                            // Let the pill's own click listener run (selects the tab)
+                            return false
+                        }
                         when (selectedPill) {
                             1 -> { onPlayClick(); return true }
                             else -> return true
@@ -259,8 +267,12 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
             frame.findViewWithTag<LinearLayout>("pill_list")?.let {
                 NavPillCustomizer.applyToPillList(it)
             }
-            if (GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)) {
-                GlassEffectManager.applyGlass(frame, GlassComponent.NavPills, 28f)
+            // Defer glass to next layout pass so the backdrop capture sees the
+            // visible content instead of a blank surface.
+            frame.post {
+                if (GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)) {
+                    GlassEffectManager.applyGlass(frame, GlassComponent.NavPills, 28f)
+                }
             }
         }
         updatePillTints()
@@ -786,12 +798,16 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         shell.tmdbNavPillBg?.live =
             PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) &&
                 PrefManager.getVal<Boolean>(PrefName.LiveSideRail)
-        if (GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)) {
-            shell.tmdbNavPills?.let { frame ->
-                GlassEffectManager.applyGlass(frame, GlassComponent.NavPills, 28f)
+        shell.tmdbNavPills?.let { frame ->
+            if (GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)) {
+                // Defer to next layout pass so the backdrop content has rendered
+                // before the glass drawable captures it.
+                frame.post {
+                    GlassEffectManager.applyGlass(frame, GlassComponent.NavPills, 28f)
+                }
+            } else {
+                GlassEffectManager.removeGlass(frame)
             }
-        } else {
-            shell.tmdbNavPills?.let { frame -> GlassEffectManager.removeGlass(frame) }
         }
         shell.tmdbNavPillBg?.doOnLayout { updatePillTints() }
         shell.tmdbNavPills?.let { frame ->
