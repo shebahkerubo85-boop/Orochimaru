@@ -317,10 +317,10 @@ class ExoplayerView :
         // Live streams (Cricify/SKTech/PlayZTV): HLS segment URLs expire after a
         // short TTL, so the playhead must be kept near the live edge and any
         // expired-segment load failure must reconnect instead of failing.
-        private const val LIVE_EDGE_REPOSITION_MS = 1000 * 20   // nudge toward live edge every 20s
-        private const val LIVE_LIVE_EDGE_MARGIN_MS = 1000 * 12  // stay 12s back from the live edge
+        private const val LIVE_EDGE_REPOSITION_MS = 1000L * 20   // nudge toward live edge every 20s
+        private const val LIVE_LIVE_EDGE_MARGIN_MS = 1000L * 12  // stay 12s back from the live edge
         private const val LIVE_MAX_RECONNECTS = 5
-        private const val LIVE_RECONNECT_RETRY_MS = 1000 * 3
+        private const val LIVE_RECONNECT_RETRY_MS = 1000L * 3
 
         fun clearAllCaches() {
             try {
