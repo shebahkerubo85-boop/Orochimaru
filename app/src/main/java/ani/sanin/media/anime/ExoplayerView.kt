@@ -317,8 +317,8 @@ class ExoplayerView :
         // Live streams (Cricify/SKTech/PlayZTV): HLS segment URLs expire after a
         // short TTL, so the playhead must be kept near the live edge and any
         // expired-segment load failure must reconnect instead of failing.
-        private const val LIVE_EDGE_REPOSITION_MS = 1000L * 20   // nudge toward live edge every 20s
-        private const val LIVE_LIVE_EDGE_MARGIN_MS = 1000L * 12  // stay 12s back from the live edge
+        private const val LIVE_EDGE_REPOSITION_MS = 1000L * 4    // nudge toward live edge every 4s
+        private const val LIVE_LIVE_EDGE_MARGIN_MS = 1000L * 3   // stay ~3s back from the live edge
         private const val LIVE_MAX_RECONNECTS = 5
         private const val LIVE_RECONNECT_RETRY_MS = 1000L * 3
 
@@ -2488,6 +2488,9 @@ class ExoplayerView :
                     ?.let { if (it <= playbackPosition) playbackPosition = max(0, it - 5) }
                 seekTo(playbackPosition)
             }
+            // Apply the LIVE badge / hide fixed VOD stamps immediately so the
+            // short fixed timeline never flashes during initial buffering.
+            updateLiveBadge()
         }
 
         exoPlayer.addListener(
@@ -4163,7 +4166,10 @@ class ExoplayerView :
             if (duration <= 0 || duration == androidx.media3.common.C.TIME_UNSET) return
             val pos = exoPlayer.currentPosition
             val target = (duration - LIVE_LIVE_EDGE_MARGIN_MS).coerceAtLeast(0L)
-            if (target - pos > LIVE_LIVE_EDGE_MARGIN_MS) {
+            // If the playhead has drifted to the far edge of the sliding window
+            // (segments about to expire), hop back toward the live edge so we
+            // never "reach the end" and error out.
+            if (duration - pos < LIVE_LIVE_EDGE_MARGIN_MS && pos != target) {
                 Logger.log(
                     Log.WARN,
                     "Player: LIVE repositioning $pos -> $target (dur=$duration)"
@@ -4196,17 +4202,27 @@ class ExoplayerView :
         liveRepositionTimer = null
     }
 
-    /** CloudStream-style LIVE badge: when a live stream is playing, show a red
-     *  "LIVE" tag in the timeline instead of a fixed seekbar duration. */
+    /** CloudStream-style LIVE badge: when a live stream is playing, drop the
+     *  fixed VOD position/duration readout (an HLS live window has no real
+     *  timeline) and show only the red "LIVE" tag. The seekbar and skip button
+     *  stay, since the bar still reflects the sliding live window. */
     private fun updateLiveBadge() {
         val live = isLiveStream()
         playerView.findViewById<View>(R.id.exo_live_badge)?.visibility =
             if (live) View.VISIBLE else View.GONE
-        // Replace the fixed VOD position/duration readout with the LIVE tag.
+        // Hide the fixed position/duration stamps and their separators for live;
+        // there is no meaningful absolute timeline on an HLS live window.
+        val showStamps = !live
         playerView.findViewById<View>(androidx.media3.ui.R.id.exo_position)?.visibility =
-            if (live) View.GONE else View.VISIBLE
+            if (showStamps) View.VISIBLE else View.GONE
         playerView.findViewById<View>(androidx.media3.ui.R.id.exo_duration)?.visibility =
-            if (live) View.GONE else View.VISIBLE
+            if (showStamps) View.VISIBLE else View.GONE
+        playerView.findViewById<View>(R.id.exo_time_sep)?.visibility =
+            if (showStamps) View.VISIBLE else View.GONE
+        playerView.findViewById<View>(R.id.exo_dot_sep)?.visibility =
+            if (showStamps) View.VISIBLE else View.GONE
+        playerView.findViewById<View>(R.id.exo_time_stamp_text)?.visibility =
+            if (showStamps) View.VISIBLE else View.GONE
     }
 
     /** Reconnect a live stream: re-fetch the playlist by re-preparing the media
