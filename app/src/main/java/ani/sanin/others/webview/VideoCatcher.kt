@@ -7,7 +7,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import ani.sanin.FileUrl
 
-class VideoCatcher(
+open class VideoCatcher(
     override val location: FileUrl,
     override val title: String = "Loading video…"
 ) : WebViewBottomDialog() {
