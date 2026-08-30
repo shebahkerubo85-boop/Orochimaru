@@ -39,6 +39,7 @@ import ani.sanin.toast
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.Logger
 import ani.sanin.util.customAlertDialog
+import android.widget.LinearLayout
 import android.widget.ImageButton
 import com.google.android.material.chip.Chip
 import com.lagradost.cloudstream3.LoadResponse
@@ -187,6 +188,9 @@ class TmdbWatchFragment : Fragment() {
         if (::episodeAdapter.isInitialized) {
             episodeAdapter.refreshCache()
             loadSimklWatched()
+            // Refresh the continue card too — the resume position was just saved
+            // by the player, so returning shows "Continue watching" immediately.
+            updateContinueCard()
         }
     }
 
@@ -221,7 +225,7 @@ class TmdbWatchFragment : Fragment() {
 
             if (mediaType == "tv") {
                 seasons = Tmdb.seasons(mediaType, mediaId)
-                selectedSeason = seasons.firstOrNull()?.seasonNumber ?: 1
+                selectedSeason = restoreSeason()
                 episodes = Tmdb.episodes(mediaType, mediaId, selectedSeason)
             } else {
                 // A movie is a single "episode".
@@ -292,7 +296,7 @@ class TmdbWatchFragment : Fragment() {
         if (load is TvSeriesLoadResponse) {
             mediaType = "tv"
             seasons = buildPluginSeasons(load)
-            selectedSeason = seasons.firstOrNull()?.seasonNumber ?: 1
+            selectedSeason = restoreSeason()
             pluginEpisodes.clear()
             val tmdbEpRatings = seasons.associate { s ->
                 s.seasonNumber to Tmdb.episodes("tv", mediaId, s.seasonNumber)
@@ -442,6 +446,7 @@ class TmdbWatchFragment : Fragment() {
             chip.setOnClickListener {
                 val nowChecked = chip.isChecked
                 selectedSourceIndex = if (nowChecked) index else -1
+                saveSourcePref()
                 lastAutoSource = null
                 TmdbStreamResolver.invalidateLinks(mediaId)
                 resolveJob?.cancel()
@@ -537,6 +542,13 @@ class TmdbWatchFragment : Fragment() {
     /** First chip on open: the plugin chosen at home if it's still installed,
      *  otherwise the first installed plugin (or Auto Search if none). */
     private fun defaultSourceIndex(): Int {
+        // Per-title source persistence first, so re-opening a show resumes the
+        // exact plugin you last used (mirrors anime mode's continuity).
+        val savedId = PrefManager.getNullableCustomVal("tmdb_source_$mediaId", null, String::class.java)
+        if (!savedId.isNullOrEmpty()) {
+            val idx = sources.indexOfFirst { it.id == savedId }
+            if (idx >= 0) return idx
+        }
         val preferredId = pluginSourceId
             ?: PrefManager.getVal<String>(PrefName.ContentSource).takeIf { it != "tmdb" }
         if (preferredId != null) {
@@ -957,10 +969,17 @@ class TmdbWatchFragment : Fragment() {
         onEpisodeClick(episode)
     }
 
+    /** Restore the last-watched season for this title, falling back to the
+     *  first season if the saved one no longer exists. */
+    private fun restoreSeason(): Int {
+        val saved = lastPlayed()?.first ?: return seasons.firstOrNull()?.seasonNumber ?: 1
+        return seasons.firstOrNull { it.seasonNumber == saved }?.seasonNumber ?: 1
+    }
+
     private fun saveLastPlayed(season: Int?, ep: Int?) {
-        if (mediaType == "tv" && season != null && ep != null) {
-            PrefManager.setCustomVal("tmdb_last_${mediaId}", "$season:$ep")
-        }
+        val savedSeason = season ?: 1
+        val savedEp = ep ?: 1
+        PrefManager.setCustomVal("tmdb_last_${mediaId}", "$savedSeason:$savedEp")
     }
 
     private fun lastPlayed(): Pair<Int, Int>? {
@@ -972,11 +991,27 @@ class TmdbWatchFragment : Fragment() {
         return s to e
     }
 
+    private fun saveSourcePref() {
+        // -1 = Auto Search: forget the per-title pin so it falls back to the
+        // home/global source next time instead of resurrecting an old plugin.
+        if (selectedSourceIndex == -1) {
+            PrefManager.setCustomVal("tmdb_source_$mediaId", "")
+            return
+        }
+        val source = sources.getOrNull(selectedSourceIndex) ?: return
+        PrefManager.setCustomVal("tmdb_source_$mediaId", source.id)
+    }
+
     private fun updateContinueCard() {
         val h = headerBinding
         val syntheticId = TmdbStreamResolver.syntheticId(mediaId)
-        val pos = PrefManager.getNullableCustomVal("${syntheticId}_1", 0L, Long::class.java) ?: 0L
-        val max = PrefManager.getNullableCustomVal("${syntheticId}_1_max", 0L, Long::class.java) ?: 0L
+        // The player stores position under "S{season}E{ep}" for TV and "1" for
+        // movies, so look up the exact key of the last thing the user watched
+        // instead of assuming "_1" (which is why TV continue cards vanished).
+        val (s, e) = lastPlayed() ?: (if (mediaType == "tv") selectedSeason to 1 else 1 to 1)
+        val epKey = if (mediaType == "tv") "S${s}E$e" else "1"
+        val pos = PrefManager.getNullableCustomVal("${syntheticId}_$epKey", 0L, Long::class.java) ?: 0L
+        val max = PrefManager.getNullableCustomVal("${syntheticId}_${epKey}_max", 0L, Long::class.java) ?: 0L
         if (pos <= 0 || max <= 0) {
             h.tmdbWatchContinueCard.isVisible = false
             return
@@ -984,13 +1019,19 @@ class TmdbWatchFragment : Fragment() {
         val detail = detail ?: return
         h.tmdbWatchContinueCard.isVisible = true
         h.tmdbWatchContinueImage.loadImage(Tmdb.imageUrl(detail.backdropPath ?: detail.posterPath, 780))
-        val (s, e) = lastPlayed() ?: (selectedSeason to 1)
         val mm = TimeUnit.MILLISECONDS.toMinutes(pos)
         val ss = TimeUnit.MILLISECONDS.toSeconds(pos) % 60
         val episodeTitle = episodes.firstOrNull { it.seasonNumber == s && it.episodeNumber == e }?.name
             ?: (if (mediaType == "tv") "S${s} E$e" else detail.displayTitle)
         h.tmdbWatchContinueText.text = episodeTitle
         h.tmdbWatchContinueDetail.text = getString(R.string.tmdb_watch_continue_detail, s, e, mm, ss)
+        val div = (pos.toFloat() / max.toFloat()).coerceIn(0f, 1f)
+        val barParams = h.tmdbWatchContinueProgress.layoutParams as LinearLayout.LayoutParams
+        barParams.weight = div
+        h.tmdbWatchContinueProgress.layoutParams = barParams
+        val emptyParams = h.tmdbWatchContinueProgressEmpty.layoutParams as LinearLayout.LayoutParams
+        emptyParams.weight = 1f - div
+        h.tmdbWatchContinueProgressEmpty.layoutParams = emptyParams
     }
 
     private fun openWatch(type: String, id: Int) {

@@ -238,6 +238,28 @@
                 android:importantForAccessibility="no"
                 android:src="@drawable/ic_round_play_arrow_24"
                 app:tint="#FFFFFF" />
+
+            <LinearLayout
+                android:id="@+id/tmdbWatchContinueProgressCont"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:orientation="horizontal">
+
+                <View
+                    android:id="@+id/tmdbWatchContinueProgress"
+                    android:layout_width="0dp"
+                    android:layout_height="3dp"
+                    android:layout_weight="0"
+                    android:background="?attr/colorPrimary" />
+
+                <View
+                    android:id="@+id/tmdbWatchContinueProgressEmpty"
+                    android:layout_width="0dp"
+                    android:layout_height="3dp"
+                    android:layout_weight="1"
+                    android:background="#66FFFFFF" />
+            </LinearLayout>
         </FrameLayout>
     </androidx.cardview.widget.CardView>
 
