@@ -63,6 +63,8 @@ class TmdbDetailsActivity : AppCompatActivity() {
     private var pluginUrl: String? = null
     private val pluginMode get() = pluginUrl != null
     private var detail: TmdbDetail? = null
+    // 0 = Info, 1 = Watch, 2 = Comments
+    private var selectedPill = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -86,6 +88,8 @@ class TmdbDetailsActivity : AppCompatActivity() {
         FocusEffectUtil.applyFocusListener(binding.tmdbDetailPlayCard)
         binding.mediaInfoAddToList.setOnClickListener { detail?.let { openListEditor(it) } }
         FocusEffectUtil.applyFocusListener(binding.mediaInfoAddToList)
+
+        setupNavPills()
 
         load()
     }
@@ -586,6 +590,45 @@ class TmdbDetailsActivity : AppCompatActivity() {
     }
 
 // __PART4__
+
+    private fun setupNavPills() {
+        val info = shell.tmdbNavPillInfo
+        val watch = shell.tmdbNavPillWatch
+        val comments = shell.tmdbNavPillComments
+        FocusEffectUtil.applyFocusListener(info, watch, comments)
+        info.setOnClickListener { selectTab(0) }
+        watch.setOnClickListener { onPlayClick() }
+        comments.setOnClickListener { selectTab(2) }
+        updatePillTints()
+    }
+
+    private fun selectTab(idx: Int) {
+        selectedPill = idx
+        when (idx) {
+            0 -> {
+                binding.root.visibility = View.VISIBLE
+                shell.tmdbCommentsPlaceholder.visibility = View.GONE
+            }
+            2 -> {
+                binding.root.visibility = View.GONE
+                shell.tmdbCommentsPlaceholder.visibility = View.VISIBLE
+                shell.tmdbCommentsPlaceholder.requestFocus()
+            }
+        }
+        updatePillTints()
+    }
+
+    private fun updatePillTints() {
+        val primary = getThemeColor(com.google.android.material.R.attr.colorPrimary)
+        val dim = android.graphics.Color.argb(140, 255, 255, 255)
+        shell.tmdbNavPillInfo.imageTintList = android.content.res.ColorStateList.valueOf(
+            if (selectedPill == 0) primary else dim
+        )
+        shell.tmdbNavPillWatch.imageTintList = android.content.res.ColorStateList.valueOf(dim)
+        shell.tmdbNavPillComments.imageTintList = android.content.res.ColorStateList.valueOf(
+            if (selectedPill == 2) primary else dim
+        )
+    }
 
     private fun onPlayClick() {
         val intent = Intent(this, TmdbWatchActivity::class.java).apply {

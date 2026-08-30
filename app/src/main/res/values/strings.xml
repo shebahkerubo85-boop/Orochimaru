@@ -8,6 +8,7 @@
 
     <string name="login">Login</string>
     <string name="logout">Logout</string>
+    <string name="coming_soon">Coming soon</string>
 
     <string name="sanin" translatable="false">https://dantotsu.app/</string>
     <string name="discord" translatable="false">https://discord.gg/QCc5xbgbsA</string>

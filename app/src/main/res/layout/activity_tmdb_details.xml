@@ -45,4 +45,90 @@
         android:id="@+id/tmdbDetailFragmentContainer"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
+
+    <FrameLayout
+        android:id="@+id/tmdbCommentsPlaceholder"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#CC000000"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tmdbCommentsComingSoon"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_bold"
+                android:gravity="center"
+                android:text="@string/coming_soon"
+                android:textColor="@color/bg_white"
+                android:textSize="22sp" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/tmdbNavPills"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/bg_tmdb_pill"
+        android:elevation="10dp"
+        android:translationZ="10dp"
+        android:focusable="true"
+        android:focusableInTouchMode="false"
+        android:descendantFocusability="afterDescendants"
+        android:clipToOutline="true">
+
+        <LinearLayout
+            android:id="@+id/tmdbPillList"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp">
+
+            <ImageButton
+                android:id="@+id/tmdbNavPillInfo"
+                android:layout_width="46dp"
+                android:layout_height="46dp"
+                android:padding="12dp"
+                android:src="@drawable/ic_round_info_24"
+                android:scaleType="fitCenter"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/info"
+                android:focusable="true" />
+
+            <ImageButton
+                android:id="@+id/tmdbNavPillWatch"
+                android:layout_width="46dp"
+                android:layout_height="46dp"
+                android:layout_marginStart="2dp"
+                android:padding="12dp"
+                android:src="@drawable/ic_round_movie_filter_24"
+                android:scaleType="fitCenter"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/watch"
+                android:focusable="true" />
+
+            <ImageButton
+                android:id="@+id/tmdbNavPillComments"
+                android:layout_width="46dp"
+                android:layout_height="46dp"
+                android:layout_marginStart="2dp"
+                android:padding="12dp"
+                android:src="@drawable/ic_round_comment_24"
+                android:scaleType="fitCenter"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/comments"
+                android:focusable="true" />
+        </LinearLayout>
+    </FrameLayout>
 </FrameLayout>
