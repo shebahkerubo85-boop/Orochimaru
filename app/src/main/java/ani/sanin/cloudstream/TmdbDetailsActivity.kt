@@ -8,13 +8,19 @@ import android.text.SpannableString
 import android.text.style.ForegroundColorSpan
 import android.view.LayoutInflater
 import android.view.View
+import android.view.KeyEvent
 import android.view.ViewGroup
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.doOnLayout
+import android.content.res.ColorStateList
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -40,6 +46,12 @@ import ani.sanin.snackString
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.Logger
+import ani.sanin.util.NavPillCustomizer
+import ani.sanin.util.GlassEffectManager
+import ani.sanin.util.GlassComponent
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
+import ani.sanin.ui.components.NavPillAnimator
 import com.google.android.material.card.MaterialCardView
 import com.lagradost.cloudstream3.CommonActivity
 import kotlinx.coroutines.Dispatchers
@@ -97,6 +109,34 @@ class TmdbDetailsActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         CommonActivity.setActivityInstance(this)
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    if (selectedPill < 2) {
+                        selectTab(selectedPill + 1)
+                        return true
+                    }
+                }
+                KeyEvent.KEYCODE_DPAD_LEFT -> {
+                    if (selectedPill > 0) {
+                        selectTab(selectedPill - 1)
+                        return true
+                    }
+                }
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                    when (selectedPill) {
+                        0 -> return true
+                        1 -> { onPlayClick(); return true }
+                        2 -> return true
+                    }
+                }
+                KeyEvent.KEYCODE_MENU -> return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
@@ -595,7 +635,36 @@ class TmdbDetailsActivity : AppCompatActivity() {
         val info = shell.tmdbNavPillInfo
         val watch = shell.tmdbNavPillWatch
         val comments = shell.tmdbNavPillComments
-        FocusEffectUtil.applyFocusListener(info, watch, comments)
+        val pills = listOfNotNull(info, watch, comments)
+        val navFocusColor = null
+        pills.forEach { FocusEffectUtil.applyFocusListener(it, borderColor = navFocusColor) }
+
+        shell.tmdbNavPillBg?.live =
+            PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) &&
+                PrefManager.getVal<Boolean>(PrefName.LiveSideRail)
+        if (GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)) {
+            shell.tmdbNavPills?.let { frame ->
+                GlassEffectManager.applyGlass(frame, GlassComponent.NavPills, 28f)
+            }
+        } else {
+            shell.tmdbNavPills?.let { frame -> GlassEffectManager.removeGlass(frame) }
+        }
+        shell.tmdbNavPillBg?.doOnLayout { updatePillTints() }
+        shell.tmdbNavPills?.let { frame ->
+            frame.findViewWithTag<LinearLayout>("pill_list")?.let {
+                NavPillCustomizer.applyToPillList(it)
+            }
+            // Push pill up to avoid phone navigation bar overlap.
+            ViewCompat.setOnApplyWindowInsetsListener(frame) { v, insets ->
+                val bottomInset = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+                (v.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
+                    lp.bottomMargin = (16 * resources.displayMetrics.density).toInt() + bottomInset
+                    v.layoutParams = lp
+                }
+                insets
+            }
+        }
+
         info.setOnClickListener { selectTab(0) }
         watch.setOnClickListener { onPlayClick() }
         comments.setOnClickListener { selectTab(2) }
@@ -604,6 +673,8 @@ class TmdbDetailsActivity : AppCompatActivity() {
 
     private fun selectTab(idx: Int) {
         selectedPill = idx
+        mediaNavAnimator?.select(idx)
+        updatePillTints()
         when (idx) {
             0 -> {
                 binding.root.visibility = View.VISIBLE
@@ -615,20 +686,27 @@ class TmdbDetailsActivity : AppCompatActivity() {
                 shell.tmdbCommentsPlaceholder.requestFocus()
             }
         }
-        updatePillTints()
     }
 
     private fun updatePillTints() {
-        val primary = getThemeColor(com.google.android.material.R.attr.colorPrimary)
-        val dim = android.graphics.Color.argb(140, 255, 255, 255)
-        shell.tmdbNavPillInfo.imageTintList = android.content.res.ColorStateList.valueOf(
-            if (selectedPill == 0) primary else dim
+        val customColor = NavPillCustomizer.getIconColor()
+        val pills = listOfNotNull(
+            shell.tmdbNavPillInfo,
+            shell.tmdbNavPillWatch,
+            shell.tmdbNavPillComments
         )
-        shell.tmdbNavPillWatch.imageTintList = android.content.res.ColorStateList.valueOf(dim)
-        shell.tmdbNavPillComments.imageTintList = android.content.res.ColorStateList.valueOf(
-            if (selectedPill == 2) primary else dim
-        )
+        if (mediaNavAnimator == null) {
+            mediaNavAnimator = NavPillAnimator(shell.tmdbNavPills, pills)
+        }
+        pills.forEachIndexed { i, pill ->
+            pill.imageTintList = ColorStateList.valueOf(customColor)
+            pill.alpha = 1f
+            pill.scaleX = if (i == selectedPill) 1.18f else 1f
+            pill.scaleY = if (i == selectedPill) 1.18f else 1f
+        }
     }
+
+    private var mediaNavAnimator: NavPillAnimator? = null
 
     private fun onPlayClick() {
         val intent = Intent(this, TmdbWatchActivity::class.java).apply {

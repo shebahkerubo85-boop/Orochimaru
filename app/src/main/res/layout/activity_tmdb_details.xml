@@ -72,13 +72,16 @@
         </LinearLayout>
     </FrameLayout>
 
+    <!-- Replicate anime mode pill: bg_clay_pill + SnakeNavRailView + tag pill_list -->
     <FrameLayout
         android:id="@+id/tmdbNavPills"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="16dp"
-        android:background="@drawable/bg_tmdb_pill"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:background="@drawable/bg_clay_pill"
         android:elevation="10dp"
         android:translationZ="10dp"
         android:focusable="true"
@@ -86,49 +89,56 @@
         android:descendantFocusability="afterDescendants"
         android:clipToOutline="true">
 
+        <ani.sanin.ui.components.SnakeNavRailView
+            android:id="@+id/tmdbNavPillBg"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:focusable="false"
+            android:clickable="false"
+            android:importantForAccessibility="no" />
+
         <LinearLayout
-            android:id="@+id/tmdbPillList"
+            android:tag="pill_list"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:gravity="center"
             android:orientation="horizontal"
+            android:gravity="center"
             android:paddingStart="6dp"
             android:paddingEnd="6dp">
 
             <ImageButton
                 android:id="@+id/tmdbNavPillInfo"
-                android:layout_width="46dp"
-                android:layout_height="46dp"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
                 android:padding="12dp"
                 android:src="@drawable/ic_round_info_24"
                 android:scaleType="fitCenter"
                 android:background="@android:color/transparent"
                 android:contentDescription="@string/info"
-                android:focusable="true" />
+                android:focusable="false" />
 
             <ImageButton
                 android:id="@+id/tmdbNavPillWatch"
-                android:layout_width="46dp"
-                android:layout_height="46dp"
-                android:layout_marginStart="2dp"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
                 android:padding="12dp"
                 android:src="@drawable/ic_round_movie_filter_24"
                 android:scaleType="fitCenter"
                 android:background="@android:color/transparent"
                 android:contentDescription="@string/watch"
-                android:focusable="true" />
+                android:focusable="false" />
 
             <ImageButton
                 android:id="@+id/tmdbNavPillComments"
-                android:layout_width="46dp"
-                android:layout_height="46dp"
-                android:layout_marginStart="2dp"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
                 android:padding="12dp"
                 android:src="@drawable/ic_round_comment_24"
                 android:scaleType="fitCenter"
                 android:background="@android:color/transparent"
                 android:contentDescription="@string/comments"
-                android:focusable="true" />
+                android:focusable="false" />
         </LinearLayout>
     </FrameLayout>
 </FrameLayout>
