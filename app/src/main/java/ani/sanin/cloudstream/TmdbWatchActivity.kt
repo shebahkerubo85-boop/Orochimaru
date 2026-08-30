@@ -36,6 +36,17 @@ import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.Logger
 import ani.sanin.util.customAlertDialog
 import android.widget.ImageButton
+import android.content.res.ColorStateList
+import android.view.KeyEvent
+import android.widget.FrameLayout
+import android.widget.LinearLayout
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.doOnLayout
+import ani.sanin.ui.components.NavPillAnimator
+import ani.sanin.util.GlassComponent
+import ani.sanin.util.GlassEffectManager
+import ani.sanin.util.NavPillCustomizer
 import com.google.android.material.chip.Chip
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.TvSeriesLoadResponse
@@ -88,6 +99,8 @@ class TmdbWatchActivity : AppCompatActivity() {
     private var sequel: TmdbMedia? = null
 
     private val pluginMode get() = pluginUrl != null
+    // 0 = Info, 1 = Watch, 2 = Comments (persistent pill, same as anime mode)
+    private var selectedPill = 1
 
     private lateinit var episodeAdapter: EpisodeListAdapter
 
@@ -118,6 +131,8 @@ class TmdbWatchActivity : AppCompatActivity() {
         }
         FocusEffectUtil.applyFocusListener(binding.tmdbWatchScrollTop, binding.tmdbWatchScrollTop)
 
+        setupNavPills()
+
         binding.tmdbWatchRecycler.layoutManager = LinearLayoutManager(this)
         binding.tmdbWatchRecycler.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
@@ -138,6 +153,116 @@ class TmdbWatchActivity : AppCompatActivity() {
         load()
     }
 
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN) {
+            // Portrait/phone: pills are a horizontal bar at the bottom, so the
+            // selected pill moves with LEFT/RIGHT. Landscape/TV uses a vertical
+            // rail on the left where the system focus chain moves between pills.
+            val landscape = resources.configuration.orientation ==
+                android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            if (!landscape) {
+                when (event.keyCode) {
+                    KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                        if (selectedPill < 2) {
+                            selectTab(selectedPill + 1)
+                            return true
+                        }
+                    }
+                    KeyEvent.KEYCODE_DPAD_LEFT -> {
+                        if (selectedPill > 0) {
+                            selectTab(selectedPill - 1)
+                            return true
+                        }
+                    }
+                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                        when (selectedPill) {
+                            1 -> return true
+                            else -> return true
+                        }
+                    }
+                    KeyEvent.KEYCODE_MENU -> return true
+                }
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    private fun setupNavPills() {
+        val info = binding.tmdbWatchNavPillInfo
+        val watch = binding.tmdbWatchNavPillWatch
+        val comments = binding.tmdbWatchNavPillComments
+        val pills = listOfNotNull(info, watch, comments)
+        pills.forEach { FocusEffectUtil.applyFocusListener(it) }
+
+        binding.tmdbWatchNavPillBg?.live =
+            PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) &&
+                PrefManager.getVal<Boolean>(PrefName.LiveSideRail)
+        if (GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)) {
+            binding.tmdbWatchNavPills?.let { frame ->
+                GlassEffectManager.applyGlass(frame, GlassComponent.NavPills, 28f)
+            }
+        } else {
+            binding.tmdbWatchNavPills?.let { frame -> GlassEffectManager.removeGlass(frame) }
+        }
+        binding.tmdbWatchNavPillBg?.doOnLayout { updatePillTints() }
+        binding.tmdbWatchNavPills?.let { frame ->
+            frame.findViewWithTag<LinearLayout>("pill_list")?.let {
+                NavPillCustomizer.applyToPillList(it)
+            }
+            // Push pill up to avoid phone navigation bar overlap.
+            ViewCompat.setOnApplyWindowInsetsListener(frame) { v, insets ->
+                val bottomInset = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+                (v.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
+                    lp.bottomMargin = (16 * resources.displayMetrics.density).toInt() + bottomInset
+                    v.layoutParams = lp
+                }
+                insets
+            }
+        }
+
+        info.setOnClickListener { finish() }
+        watch.setOnClickListener { selectTab(1) }
+        comments.setOnClickListener { selectTab(2) }
+        selectTab(selectedPill)
+    }
+
+    private fun selectTab(idx: Int) {
+        selectedPill = idx
+        mediaNavAnimator?.select(idx)
+        updatePillTints()
+        when (idx) {
+            0 -> finish()
+            2 -> {
+                binding.root.visibility = View.GONE
+                binding.tmdbWatchCommentsPlaceholder.visibility = View.VISIBLE
+                binding.tmdbWatchCommentsPlaceholder.requestFocus()
+            }
+            else -> {
+                binding.root.visibility = View.VISIBLE
+                binding.tmdbWatchCommentsPlaceholder.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun updatePillTints() {
+        val customColor = NavPillCustomizer.getIconColor()
+        val pills = listOfNotNull(
+            binding.tmdbWatchNavPillInfo,
+            binding.tmdbWatchNavPillWatch,
+            binding.tmdbWatchNavPillComments
+        )
+        if (mediaNavAnimator == null) {
+            mediaNavAnimator = NavPillAnimator(binding.tmdbWatchNavPills, pills)
+        }
+        pills.forEachIndexed { i, pill ->
+            pill.imageTintList = ColorStateList.valueOf(customColor)
+            pill.alpha = 1f
+            pill.scaleX = if (i == selectedPill) 1.18f else 1f
+            pill.scaleY = if (i == selectedPill) 1.18f else 1f
+        }
+    }
+
+    private var mediaNavAnimator: NavPillAnimator? = null
     private fun load() {
         lifecycleScope.launch {
             if (pluginMode) {
