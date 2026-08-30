@@ -1238,4 +1238,28 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="dpad_episode_skip">Long Press DPad to Skip Episode</string>
     <string name="dpad_episode_skip_info">Hold DPad Right for 3 seconds to go to next episode, Left for previous</string>
 
+
+    <string name="direct_url">Direct URL</string>
+    <string name="add_direct_url">Add Direct URL</string>
+    <string name="edit_direct_url">Edit Direct URL</string>
+    <string name="delete_direct_url">Delete</string>
+    <string name="no_direct_urls">No saved direct URLs. Use the book icon in the top bar or tap a Link slot to add one.</string>
+    <string name="direct_url_chip_1">Link 1</string>
+    <string name="direct_url_chip_2">Link 2</string>
+    <string name="direct_url_chip_3">Link 3</string>
+    <string name="direct_url_placeholder">Paste video page URL</string>
+    <string name="direct_url_save">Save</string>
+    <string name="direct_url_update">Update</string>
+    <string name="direct_url_cancel">Cancel</string>
+    <string name="direct_url_error_invalid">Enter a valid URL starting with http:// or https://</string>
+    <string name="direct_url_error_no_video">No video found on this page</string>
+    <string name="direct_url_success">Video extracted and ready to play</string>
+    <string name="direct_url_saving">Extracting video…</string>
+    <string name="direct_url_slots_title">Link Slots</string>
+    <string name="direct_url_auto_title">Auto Detect</string>
+    <string name="direct_url_tap_configure">Tap to configure URL</string>
+    <string name="direct_url_rename">Rename</string>
+    <string name="direct_url_add">Add Direct URL</string>
+    <string name="configure">Configure</string>
+
 </resources>

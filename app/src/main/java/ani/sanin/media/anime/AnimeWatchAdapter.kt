@@ -191,6 +191,42 @@ class AnimeWatchAdapter(
             chipGroup.addView(chip)
         }
 
+        // Direct URL chips (saved via Extensions > Direct URL) — a horizontal
+        // separator chip then one chip per active saved link. Clicking plays the
+        // extracted video for that URL through the existing player pipeline.
+        val directUrlChips = ani.sanin.settings.DirectUrlManager.getActiveConfigs(chipGroup.context)
+        if (directUrlChips.isNotEmpty()) {
+            val sep = LayoutInflater.from(chipGroup.context)
+                .inflate(R.layout.item_chip, chipGroup, false) as Chip
+            sep.text = "•"
+            sep.isCheckable = false
+            sep.isClickable = false
+            sep.isFocusable = false
+            chipGroup.addView(sep)
+            directUrlChips.forEach { cfg ->
+                val chip = LayoutInflater.from(chipGroup.context)
+                    .inflate(R.layout.item_chip, chipGroup, false) as Chip
+                chip.text = cfg.name
+                chip.isCheckable = true
+                chip.isFocusable = true
+                chip.setOnClickListener {
+                    Logger.log("Watch: Direct URL chip clicked '${cfg.name}'")
+                    ani.sanin.currActivity()?.let { act ->
+                        val scope = (act as? androidx.fragment.app.FragmentActivity)
+                            ?.lifecycleScope
+                            ?: kotlinx.coroutines.MainScope()
+                        scope.launch {
+                            val ok = ani.sanin.settings.DirectUrlPlayer.play(
+                                chip.context, cfg.name, cfg.url
+                            )
+                            if (!ok) toast("No video found on ${cfg.name}")
+                        }
+                    }
+                }
+                chipGroup.addView(chip)
+            }
+        }
+
         if (!chipRowFocused) {
             chipRowFocused = true
             chipGroup.post {

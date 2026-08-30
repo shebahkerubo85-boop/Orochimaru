@@ -37,6 +37,7 @@ class ExtensionsActivity : AppCompatActivity() {
     lateinit var binding: ActivityExtensionsBinding
 
     private var cloudStreamMode = false
+    private var directUrlMode = false
     private var tabMediator: TabLayoutMediator? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,11 +65,15 @@ class ExtensionsActivity : AppCompatActivity() {
 
         FocusEffectUtil.applyFocusListener(binding.aniyomiChip)
         FocusEffectUtil.applyFocusListener(binding.cloudstreamChip)
+        FocusEffectUtil.applyFocusListener(binding.directUrlChip)
         binding.aniyomiChip.setOnCheckedChangeListener { _, checked ->
             if (checked) switchMode(false)
         }
         binding.cloudstreamChip.setOnCheckedChangeListener { _, checked ->
             if (checked) switchMode(true)
+        }
+        binding.directUrlChip.setOnCheckedChangeListener { _, checked ->
+            if (checked) switchToDirectUrl()
         }
 
         val tabLayout = findViewById<TabLayout>(R.id.tabLayout)
@@ -84,7 +89,7 @@ class ExtensionsActivity : AppCompatActivity() {
                     binding.searchViewText.clearFocus()
                     tabLayout.clearFocus()
                     binding.languageselect.visibility =
-                        if (tab.text?.contains("Installed") == true) View.GONE else View.VISIBLE
+                        if (directUrlMode || tab.text?.contains("Installed") == true) View.GONE else View.VISIBLE
                     viewPager.updateLayoutParams<ViewGroup.LayoutParams> {
                         height = ViewGroup.LayoutParams.MATCH_PARENT
                     }
@@ -162,6 +167,17 @@ class ExtensionsActivity : AppCompatActivity() {
     private fun switchMode(cloudStream: Boolean) {
         if (cloudStreamMode == cloudStream) return
         cloudStreamMode = cloudStream
+        directUrlMode = false
+        binding.searchViewText.setText("")
+        binding.searchViewText.clearFocus()
+        setupTabs()
+        setupModeButtons()
+    }
+
+    private fun switchToDirectUrl() {
+        if (directUrlMode) return
+        directUrlMode = true
+        cloudStreamMode = false
         binding.searchViewText.setText("")
         binding.searchViewText.clearFocus()
         setupTabs()
@@ -174,9 +190,10 @@ class ExtensionsActivity : AppCompatActivity() {
         val tabLayout = findViewById<TabLayout>(R.id.tabLayout)
         val viewPager = findViewById<ViewPager2>(R.id.viewPager)
         viewPager.adapter = object : FragmentStateAdapter(this) {
-            override fun getItemCount(): Int = 2
+            override fun getItemCount(): Int = if (directUrlMode) 1 else 2
 
             override fun createFragment(position: Int): Fragment {
+                if (directUrlMode) return DirectUrlFragment()
                 return if (cloudStreamMode) {
                     when (position) {
                         0 -> CloudStreamInstalledFragment()
@@ -191,7 +208,9 @@ class ExtensionsActivity : AppCompatActivity() {
             }
         }
         tabMediator = TabLayoutMediator(tabLayout, viewPager) { tab, position ->
-            tab.text = if (cloudStreamMode) {
+            tab.text = if (directUrlMode) {
+                "Direct URLs"
+            } else if (cloudStreamMode) {
                 when (position) {
                     0 -> "Installed Extensions"
                     else -> "Available Extensions"
@@ -208,6 +227,15 @@ class ExtensionsActivity : AppCompatActivity() {
 
     private fun setupModeButtons() {
         binding.openSettingsButton.setOnClickListener {
+            if (directUrlMode) {
+                UrlPlayBottomSheet.newInstance(null).apply {
+                    onSaved = {
+                        val frag = supportFragmentManager.findFragmentByTag("f0")
+                        if (frag is DirectUrlFragment) frag.refreshList()
+                    }
+                }.show(supportFragmentManager, "direct_url_add")
+                return@setOnClickListener
+            }
             val repos = if (cloudStreamMode) {
                 CsRepos.repos().toList()
             } else {
@@ -221,7 +249,7 @@ class ExtensionsActivity : AppCompatActivity() {
                 cloudStreamMode
             ).show(supportFragmentManager, "add_repo")
         }
-        binding.filterButton.visibility = if (cloudStreamMode) View.VISIBLE else View.GONE
+        binding.filterButton.visibility = if (directUrlMode) View.GONE else if (cloudStreamMode) View.VISIBLE else View.GONE
         binding.filterButton.setOnClickListener {
             CsTypeFilter.show(this) {
                 val currentFragment =
