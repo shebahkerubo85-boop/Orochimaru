@@ -13,15 +13,17 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
+import ani.sanin.copyToClipboard
+import ani.sanin.others.LanguageMapper
 import ani.sanin.others.svg.SvgImageLoader
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.databinding.ActivityCsRepoDetailBinding
 import ani.sanin.databinding.ItemCsSourceBinding
 import ani.sanin.initActivity
-import ani.sanin.statusBarHeight
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.themes.ThemeManager
+import ani.sanin.util.customAlertDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -33,6 +35,8 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
     private val adapter = SourceAdapter(::onInstallClick, ::onSettingsClick, { installedIds }) { repoUrl }
     private var installedIds: Set<String> = emptySet()
     private var repoUrl: String = ""
+    private var cachedManifest: CsRepoManifest? = null
+    private var cachedPlugins: List<CsSource> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,6 +55,56 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
         FocusEffectUtil.applyFocusListener(binding.csRepoBack)
         binding.csRepoTitle.text = repoUrl.clean()
 
+        // Header action buttons
+        binding.csRepoCopy.setOnClickListener {
+            copyToClipboard(repoUrl, true)
+        }
+        binding.csRepoDelete.setOnClickListener {
+            customAlertDialog().apply {
+                setTitle("Remove repository")
+                setMessage("Remove this repository? Installed extensions stay on device.")
+                setPosButton("Remove") {
+                    CsRepos.removeRepo(repoUrl)
+                    finish()
+                }
+                setNegButton("Cancel")
+                show()
+            }
+        }
+        FocusEffectUtil.applyFocusListener(binding.csRepoCopy)
+        FocusEffectUtil.applyFocusListener(binding.csRepoDelete)
+
+        // Filter chip
+        binding.csRepoFilterChip.setOnClickListener {
+            CsTypeFilter.show(this) { refreshList(cachedPlugins) }
+        }
+        FocusEffectUtil.applyFocusListener(binding.csRepoFilterChip)
+
+        // Language chip
+        binding.csRepoLangChip.setOnClickListener {
+            val languageOptions =
+                LanguageMapper.Companion.Language.entries.map { entry ->
+                    entry.name.lowercase().replace("_", " ")
+                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
+                }.toTypedArray()
+            val listOrder: String = PrefManager.getVal(PrefName.LangSort)
+            val index = LanguageMapper.Companion.Language.entries.toTypedArray()
+                .indexOfFirst { it.code == listOrder }
+            customAlertDialog().apply {
+                setTitle("Language")
+                singleChoiceItems(languageOptions, index) { selected ->
+                    PrefManager.setVal(
+                        PrefName.LangSort,
+                        LanguageMapper.Companion.Language.entries[selected].code
+                    )
+                    refreshList(cachedPlugins)
+                }
+                setNegButton("Cancel")
+                show()
+            }
+        }
+        FocusEffectUtil.applyFocusListener(binding.csRepoLangChip)
+
         binding.csRepoRecyclerView.adapter = adapter
         binding.csRepoRecyclerView.layoutManager = LinearLayoutManager(this)
 
@@ -66,11 +120,26 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
                 return@launch
             }
             binding.csRepoTitle.text = result.name
+            cachedManifest = result
+            // Load repo icon
+            result.iconUrl?.let { icon ->
+                val fullUrl = if (icon.startsWith("http")) icon else CsRepos.sourceUrl(repoUrl, icon)
+                SvgImageLoader.load(
+                    binding.csRepoIcon,
+                    fullUrl,
+                    R.drawable.ic_extension,
+                    R.drawable.ic_extension
+                )
+            }
             binding.csRepoRecyclerView.visibility = View.VISIBLE
             val plugins = CsRepos.getRepoPlugins(repoUrl)
+            cachedPlugins = plugins
             binding.csRepoEmptyText.visibility = if (plugins.isEmpty()) View.VISIBLE else View.GONE
             if (plugins.isEmpty()) binding.csRepoEmptyText.text = "No extensions found in this repo"
             refreshList(plugins)
+
+            // Build focus chain: back → copy/delete + filter/lang → plugin list
+            binding.csRepoRecyclerView.requestFocus()
         }
     }
 
@@ -92,8 +161,6 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
 
     private fun onSettingsClick(source: CsSource) {
         val installed = CsRepos.installed(this).find { it.id == source.id } ?: return
-        // Launch the dedicated, transparent MaterialComponents-settings host
-        // (mirrors Zangetsu). The plugin's sheet renders there, not here.
         startActivity(CloudStreamSettingsActivity.intent(this, installed.id))
     }
 
@@ -102,7 +169,6 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
             Toast.makeText(this, "${source.name} is already installed", Toast.LENGTH_SHORT).show()
             return
         }
-        val repoUrl = intent.getStringExtra(ARG_REPO_URL) ?: return
         lifecycleScope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) { CsRepos.install(this@CloudStreamRepoDetailActivity, repoUrl, source) }

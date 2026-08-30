@@ -169,6 +169,8 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
     override fun onResume() {
         super.onResume()
         CommonActivity.setActivityInstance(this)
+        // Re-apply the banner brightness slider when returning from settings.
+        if (::shell.isInitialized) applyBannerBrightness()
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
@@ -225,7 +227,10 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
                 Tmdb.imageUrl(d.posterPath, 780) ?: Tmdb.imageUrl(d.backdropPath, 780)
             else
                 Tmdb.imageUrl(d.backdropPath, 1280) ?: Tmdb.imageUrl(d.posterPath, 780)
-            bg?.let { shell.tmdbDetailBackdrop.loadImage(it) }
+            bg?.let {
+                shell.tmdbDetailBackdrop.loadImage(it)
+                applyBannerBrightness()
+            }
 
             val logo = Tmdb.logoUrl(d)
             if (logo != null) {
@@ -373,6 +378,14 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         binding.mediaInfoReleasedRow.visibility = View.GONE
         binding.mediaInfoProgressRow.visibility = View.GONE
         binding.mediaInfoNextRow.visibility = View.GONE
+    }
+
+    private fun applyBannerBrightness() {
+        val brightness = PrefManager.getVal<Float>(PrefName.BannerBrightness)
+        if (brightness > 0f) {
+            shell.tmdbDetailBackdrop.alpha = brightness
+            shell.tmdbDetailGradient.alpha = brightness
+        }
     }
 
     private fun loadGenres(d: TmdbDetail) {

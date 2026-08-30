@@ -127,6 +127,9 @@ object FocusEffectUtil {
             TypedValue.COMPLEX_UNIT_DIP, borderDp, v.resources.displayMetrics
         ).toInt()
         var cardRadius = if (v is androidx.cardview.widget.CardView) v.radius else 0f
+        if (cardRadius == 0f && v is com.google.android.material.chip.Chip) {
+            cardRadius = v.chipCornerRadius
+        }
         if (cardRadius == 0f) {
             var parent = v.parent
             while (parent is View) {
@@ -183,7 +186,7 @@ object FocusEffectUtil {
         val id = v.id
         return id == R.id.mainCalendarContainer ||
                 id == R.id.mainUserAvatarContainer ||
-                id == R.id.sheetMoviePluginSpinner
+                id == R.id.sheetMoviePluginArrow
     }
 
     private fun applyFocusGain(v: View) {

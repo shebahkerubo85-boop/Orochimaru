@@ -43,6 +43,15 @@
                     android:background="@drawable/banner_scrim_left"
                     android:importantForAccessibility="no"
                     android:visibility="gone" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/tmdbBannerCarousel"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipToPadding="false"
+                    android:visibility="gone"
+                    tools:listitem="@layout/item_banner_card"
+                    tools:orientation="horizontal" />
             </androidx.cardview.widget.CardView>
 
             <View
@@ -238,6 +247,25 @@
             </LinearLayout>
         </FrameLayout>
 
+
+        <LinearLayout
+            android:id="@+id/tmdbBannerDots"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:visibility="gone" />
+
+        <ProgressBar
+            android:id="@+id/tmdbHomeSpinner"
+            style="?android:attr/progressBarStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="48dp"
+            android:indeterminateTint="?attr/colorPrimary"
+            android:visibility="gone" />
 
         <LinearLayout
             android:id="@+id/tmdbHomeSections"

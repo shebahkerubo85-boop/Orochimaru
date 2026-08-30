@@ -12,12 +12,15 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
 import ani.sanin.bannerCardSizePx
@@ -94,6 +97,8 @@ class TmdbHomeFragment : Fragment() {
     private var genreNames: Map<Int, String> = emptyMap()
     private var logoJob: Job? = null
     private var loadJob: Job? = null
+    private var bannerCarouselAdapter: TmdbBannerCarouselAdapter? = null
+    private val bannerSnapHelper = PagerSnapHelper()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -145,23 +150,38 @@ class TmdbHomeFragment : Fragment() {
 
     private fun applyTmdbBannerFocusChain() {
         val b = _binding ?: return
+        val mode = PrefManager.getVal<Int>(PrefName.HomeBannerMode)
+        val bannerShown = mode == 0 || mode == 2
         val watchBtn = activeWatchBtn() ?: return
         val cal = activity?.findViewById<View>(R.id.mainCalendarContainer)
         val avatar = activity?.findViewById<View>(R.id.mainUserAvatarContainer)
+        val carouselMode = mode == 0
 
-        // Up from banner / watch-now -> top-right icons; down from icons -> watch-now.
-        b.tmdbBannerFrame.nextFocusUpId = R.id.mainCalendarContainer
-        watchBtn.nextFocusUpId = R.id.mainCalendarContainer
-        cal?.nextFocusDownId = watchBtn.id
-        avatar?.nextFocusDownId = watchBtn.id
+        if (bannerShown) {
+            // Vertical chain, anime-exact: top icons -> watch-now -> first card.
+            // In carousel mode the banner card itself is NOT a focus point; the
+            // watch-now button owns the banner focus and moves the carousel.
+            b.tmdbBannerFrame.isFocusable = !carouselMode
+            b.tmdbBannerFrame.isClickable = !carouselMode
+            b.tmdbBannerFrame.nextFocusUpId = R.id.mainCalendarContainer
+            watchBtn.isFocusable = true
+            watchBtn.nextFocusUpId = R.id.mainCalendarContainer
+            cal?.nextFocusDownId = watchBtn.id
+            avatar?.nextFocusDownId = watchBtn.id
+            watchBtn.nextFocusDownId = View.NO_ID
+        } else {
+            b.tmdbBannerFrame.nextFocusUpId = View.NO_ID
+            watchBtn.nextFocusUpId = R.id.mainCalendarContainer
+            cal?.nextFocusDownId = R.id.mainCalendarContainer
+            avatar?.nextFocusDownId = R.id.mainUserAvatarContainer
+            watchBtn.nextFocusDownId = View.NO_ID
+        }
 
-        // Down from watch-now -> first card of the first section (default focus search).
-        watchBtn.nextFocusDownId = View.NO_ID
-
-        // Once rows are laid out, make the first card of each row lead back up to watch-now.
+        // Once rows are laid out, wire each row vertically.
         binding.tmdbHomeSections.post {
             if (_binding == null) return@post
-            val activeBtn = activeWatchBtn() ?: return@post
+            val activeBtn = if (bannerShown) activeWatchBtn() else null
+            val carousel = if (mode == 0) b.tmdbBannerCarousel else null
             var first = true
             for (i in 0 until b.tmdbHomeSections.childCount) {
                 val child = b.tmdbHomeSections.getChildAt(i)
@@ -170,8 +190,17 @@ class TmdbHomeFragment : Fragment() {
                     val card = child.getChildAt(j)
                     val target = card.findViewById<View>(R.id.tmdbCardPoster) ?: card
                     if (first) {
-                        activeBtn.nextFocusDownId = target.id
-                        target.nextFocusUpId = activeBtn.id
+                        if (activeBtn != null) {
+                            activeBtn.nextFocusDownId = target.id
+                            target.nextFocusUpId = activeBtn.id
+                        } else {
+                            target.nextFocusUpId = R.id.mainCalendarContainer
+                        }
+                        // Carousel cards (and the banner frame) jump straight to
+                        // the first card on down, bypassing the watch-now button.
+                        if (carousel != null) {
+                            carousel.nextFocusDownId = target.id
+                        }
                         first = false
                     }
                 }
@@ -229,6 +258,10 @@ class TmdbHomeFragment : Fragment() {
     }
 
     private fun moveBanner(forward: Boolean) {
+        if (isCarouselMode()) {
+            scrollBannerCarousel(forward)
+            return
+        }
         if (bannerItems.size < 2) return
         val next = (bannerIndex + (if (forward) 1 else -1) + bannerItems.size) % bannerItems.size
         showBanner(next)
@@ -250,6 +283,8 @@ class TmdbHomeFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         bannerHandler.removeCallbacksAndMessages(null)
+        bannerSnapHelper.attachToRecyclerView(null)
+        bannerCarouselAdapter = null
         logoJob?.cancel()
         _binding = null
     }
@@ -260,6 +295,7 @@ class TmdbHomeFragment : Fragment() {
             else CsRepos.installed(requireContext()).firstOrNull { it.id == sourceId }
         loadJob?.cancel()
         binding.tmdbHomeSections.removeAllViews()
+        binding.tmdbHomeSpinner.isVisible = true
         loadJob = viewLifecycleOwner.lifecycleScope.launch {
             // Load banner (single view — adds immediately, no frame skip).
             loadBanner(plugin)
@@ -267,10 +303,12 @@ class TmdbHomeFragment : Fragment() {
             val hasPluginSections = if (plugin != null) {
                 loadPluginSections(plugin)
             } else false
+            // Continue watching row is shared across every home mode.
+            loadSimklContinueWatching()
             if (!hasPluginSections) {
-                loadSimklContinueWatching()
                 loadTmdbSections()
             }
+            binding.tmdbHomeSpinner.isVisible = false
         }
     }
 
@@ -350,7 +388,171 @@ class TmdbHomeFragment : Fragment() {
             bannerItems.addAll(trendingSeries.map { BannerItem.Tmdb(it) })
             bannerItems.addAll(trendingMovies.map { BannerItem.Tmdb(it) })
         }
-        if (bannerItems.isNotEmpty()) showBanner(0)
+        val mode = PrefManager.getVal<Int>(PrefName.HomeBannerMode)
+        if (mode == 1 || mode == 3) {
+            // No banner in profile/off modes.
+            binding.tmdbBannerFrame.visibility = View.GONE
+            binding.tmdbBannerCarousel.isVisible = false
+            binding.tmdbBannerDots.visibility = View.GONE
+            return
+        }
+        binding.tmdbBannerFrame.visibility = View.VISIBLE
+        if (bannerItems.isNotEmpty()) {
+            val isCarouselMode = mode == 0
+            if (isCarouselMode) setupTmdbBannerCarousel() else {
+                binding.tmdbBannerImage.isVisible = true
+                binding.tmdbBannerCarousel.isVisible = false
+                binding.tmdbBannerDots.visibility = View.GONE
+                showBanner(0)
+            }
+        }
+    }
+
+    private fun isCarouselMode(): Boolean =
+        PrefManager.getVal<Int>(PrefName.HomeBannerMode) == 0
+
+    /** Sets up the horizontal carousel banner (anime-style) with transparent pill
+     *  chips and progress dots, driven by HomeBannerMode == carousel. */
+    private fun setupTmdbBannerCarousel() {
+        val rv = binding.tmdbBannerCarousel
+        rv.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        // The banner carousel is never D-pad focusable (anime-exact): the
+        // watch-now button is the banner focus point and moves this carousel.
+        rv.isFocusable = false
+        rv.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+        bannerSnapHelper.attachToRecyclerView(rv)
+
+        // Prefetch per-item logos, status and score for the carousel cards.
+        lifecycleScope.launch(Dispatchers.IO) {
+            val logos = mutableMapOf<Int, String?>()
+            val statuses = mutableMapOf<Int, String?>()
+            val scores = mutableMapOf<Int, String?>()
+            for ((idx, item) in bannerItems.withIndex()) {
+                when (item) {
+                    is BannerItem.Tmdb -> {
+                        val d = runCatching { Tmdb.detail(item.media.type, item.media.id) }.getOrNull()
+                        val logo = d?.let { Tmdb.logoUrl(it) }
+                        logos[idx] = logo
+                        val st = d?.status?.let { statusLabel(it) }.orEmpty()
+                        statuses[idx] = st.ifBlank { null }
+                        if (item.media.voteAverage > 0) {
+                            scores[idx] = String.format("%.1f", item.media.voteAverage) + "%"
+                        }
+                    }
+                    is BannerItem.Plugin -> {
+                        if (item.tmdbId != null && item.tmdbType != null) {
+                            val d = runCatching { Tmdb.detail(item.tmdbType, item.tmdbId) }.getOrNull()
+                            val logo = d?.let { Tmdb.logoUrl(it) }
+                            logos[idx] = logo
+                            val st = d?.status?.let { statusLabel(it) }.orEmpty()
+                            statuses[idx] = st.ifBlank { null }
+                        }
+                    }
+                }
+            }
+            withContext(Dispatchers.Main) {
+                if (_binding == null) return@withContext
+                val adapter = TmdbBannerCarouselAdapter(
+                    bannerItems.toList(),
+                    { item -> openBannerItem(item) },
+                    genreNames,
+                    logos,
+                    statuses,
+                    scores
+                )
+                bannerCarouselAdapter = adapter
+                rv.adapter = adapter
+                binding.tmdbBannerSide.isVisible = false
+                binding.tmdbBannerContent.isVisible = false
+                binding.tmdbBannerImage.isVisible = false
+                binding.tmdbBannerCarousel.isVisible = true
+                val start = Int.MAX_VALUE / 2 - (Int.MAX_VALUE / 2 % bannerItems.size)
+                rv.scrollToPosition(start)
+                rv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                    override fun onScrollStateChanged(rv: RecyclerView, newState: Int) {
+                        if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                            val lm = rv.layoutManager as? LinearLayoutManager ?: return
+                            val pos = lm.findFirstVisibleItemPosition()
+                            if (pos != RecyclerView.NO_POSITION && bannerItems.isNotEmpty()) {
+                                bannerIndex = pos % bannerItems.size
+                                val isLandscape = resources.configuration.orientation ==
+                                    Configuration.ORIENTATION_LANDSCAPE
+                                if (isLandscape) showBanner(bannerIndex)
+                            }
+                            updateDots()
+                        }
+                    }
+                })
+                applyBannerLayout()
+                setupBannerDots(rv, bannerItems.size)
+                updateDots()
+                startAutoAdvance()
+                applyTmdbBannerFocusChain()
+            }
+        }
+    }
+
+    private fun updateDots() {
+        val dots = binding.tmdbBannerDots
+        if (dots.visibility != View.VISIBLE) return
+        val density = resources.displayMetrics.density
+        for (i in 0 until dots.childCount) {
+            val dot = dots.getChildAt(i)
+            val lp = dot.layoutParams
+            lp.width = if (i == bannerIndex) (32 * density).toInt() else (12 * density).toInt()
+            dot.layoutParams = lp
+            dot.background = if (i == bannerIndex)
+                ContextCompat.getDrawable(requireContext(), R.drawable.banner_dot_active)
+            else
+                ContextCompat.getDrawable(requireContext(), R.drawable.banner_dot_inactive)
+        }
+    }
+
+    private fun setupBannerDots(rv: RecyclerView, itemCount: Int) {
+        val dots = binding.tmdbBannerDots
+        dots.removeAllViews()
+        val density = resources.displayMetrics.density
+        for (i in 0 until itemCount) {
+            val dot = View(requireContext())
+            val w = if (i == 0) (32 * density).toInt() else (12 * density).toInt()
+            val lp = LinearLayout.LayoutParams(w, (4 * density).toInt())
+            lp.marginEnd = (6 * density).toInt()
+            dot.layoutParams = lp
+            dot.background = if (i == 0)
+                ContextCompat.getDrawable(requireContext(), R.drawable.banner_dot_active)
+            else
+                ContextCompat.getDrawable(requireContext(), R.drawable.banner_dot_inactive)
+            dot.setOnClickListener {
+                val lm = rv.layoutManager as? LinearLayoutManager ?: return@setOnClickListener
+                val current = lm.findFirstVisibleItemPosition()
+                val currentReal = current % itemCount
+                if (i == currentReal) return@setOnClickListener
+                rv.smoothScrollToPosition(current + (i - currentReal))
+            }
+            dots.addView(dot)
+        }
+        dots.visibility = View.VISIBLE
+    }
+
+    private fun openBannerItem(item: BannerItem) {
+        when (item) {
+            is BannerItem.Tmdb -> startActivity(
+                Intent(requireContext(), TmdbWatchActivity::class.java)
+                    .putExtra(TmdbWatchActivity.ARG_MEDIA_TYPE, item.media.type)
+                    .putExtra(TmdbWatchActivity.ARG_MEDIA_ID, item.media.id)
+            )
+            is BannerItem.Plugin -> {
+                if (item.tmdbId != null && item.tmdbType != null) {
+                    openDetails(item.tmdbType, item.tmdbId)
+                } else {
+                    startActivity(
+                        Intent(requireContext(), TmdbDetailsActivity::class.java)
+                            .putExtra(TmdbDetailsActivity.ARG_PLUGIN_SOURCE, item.sourceId)
+                            .putExtra(TmdbDetailsActivity.ARG_PLUGIN_URL, item.response.url)
+                    )
+                }
+            }
+        }
     }
 
     /** Fetches TMDB browse rows as the default home content. */
@@ -663,6 +865,65 @@ class TmdbHomeFragment : Fragment() {
         val isLandscape = ctx.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         val card = binding.tmdbBannerCard
         val density = ctx.resources.displayMetrics.density
+        val mode = PrefManager.getVal<Int>(PrefName.HomeBannerMode)
+        if (mode == 1 || mode == 3) {
+            binding.tmdbBannerFrame.visibility = View.GONE
+            binding.tmdbBannerDots.visibility = View.GONE
+            return
+        }
+        val carousel = isCarouselMode() && binding.tmdbBannerCarousel.adapter != null
+
+        if (carousel) {
+            bannerCarouselAdapter?.setLandscapeMode(isLandscape, card.bannerCardSizePx(0.65f).first)
+            binding.tmdbBannerCarousel.isVisible = true
+            binding.tmdbBannerImage.isVisible = false
+            binding.tmdbBannerContent.isVisible = false
+            binding.tmdbBannerDots.isVisible = bannerItems.size > 1
+            if (isLandscape) {
+                card.sizeBannerCard(0.65f)
+                val (cardW, cardH) = card.bannerCardSizePx(0.65f)
+                card.updateLayoutParams<FrameLayout.LayoutParams> {
+                    gravity = Gravity.END or Gravity.TOP
+                }
+                val stripW = ctx.resources.displayMetrics.widthPixels - cardW
+                binding.tmdbBannerFade.isVisible = true
+                binding.tmdbBannerFade.updateLayoutParams<FrameLayout.LayoutParams> {
+                    width = stripW
+                    height = cardH
+                    gravity = Gravity.START or Gravity.TOP
+                }
+                binding.tmdbBannerFade.bringToFront()
+                binding.tmdbBannerFade.z = 10f
+                binding.tmdbBannerCardScrim.isVisible = true
+                binding.tmdbBannerCardScrim.layoutParams = binding.tmdbBannerCardScrim.layoutParams.apply {
+                    width = cardW / 2
+                    height = cardH
+                }
+                binding.tmdbBannerSide.isVisible = true
+                binding.tmdbBannerSide.updateLayoutParams<FrameLayout.LayoutParams> {
+                    width = stripW + cardW / 4
+                    gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                }
+                binding.tmdbBannerSide.bringToFront()
+                binding.tmdbBannerSide.z = 11f
+                binding.tmdbBannerSideSynopsis.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                    width = (stripW - 48 * density + cardW / 4).toInt().coerceAtLeast(1)
+                }
+                binding.tmdbBannerLogo.maxWidth = (stripW - 48 * density).toInt().coerceAtLeast(100)
+                binding.tmdbBannerLogo.maxHeight = (cardH * 0.30f).toInt()
+                showBanner(bannerIndex)
+            } else {
+                card.sizeBannerCard()
+                val (cardW, cardH) = card.bannerCardSizePx()
+                card.updateLayoutParams<FrameLayout.LayoutParams> {
+                    gravity = Gravity.CENTER
+                }
+                binding.tmdbBannerFade.isVisible = false
+                binding.tmdbBannerCardScrim.isVisible = false
+                binding.tmdbBannerSide.isVisible = false
+            }
+            return
+        }
 
         if (isLandscape) {
             card.sizeBannerCard(0.65f)
@@ -725,10 +986,30 @@ class TmdbHomeFragment : Fragment() {
         if (mode != 0 || bannerItems.size < 2) return
         bannerHandler.postDelayed(object : Runnable {
             override fun run() {
-                showBanner((bannerIndex + 1) % bannerItems.size)
+                if (isCarouselMode()) {
+                    scrollBannerCarousel(forward = true)
+                } else {
+                    showBanner((bannerIndex + 1) % bannerItems.size)
+                }
                 bannerHandler.postDelayed(this, 6000)
             }
         }, 6000)
+    }
+
+    private fun scrollBannerCarousel(forward: Boolean) {
+        val rv = binding.tmdbBannerCarousel
+        if (rv.adapter == null || rv.visibility != View.VISIBLE) return
+        val lm = rv.layoutManager as? LinearLayoutManager ?: return
+        val pos = lm.findFirstVisibleItemPosition()
+        if (pos == RecyclerView.NO_POSITION) return
+        val focus = requireActivity().currentFocus
+        val onBanner = focus != null && (
+            binding.tmdbBannerCarousel.findContainingViewHolder(focus) != null ||
+            focus == binding.tmdbBannerWatchBtn || focus == binding.tmdbBannerSideWatchBtn
+        )
+        if (!onBanner) {
+            rv.smoothScrollToPosition(pos + (if (forward) 1 else -1))
+        }
     }
 
     private fun openDetails(mediaType: String, id: Int) {

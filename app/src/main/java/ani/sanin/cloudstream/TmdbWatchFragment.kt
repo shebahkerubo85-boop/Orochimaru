@@ -1,5 +1,7 @@
 package ani.sanin.cloudstream
 
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.os.Bundle
 import android.text.TextUtils
 import android.view.LayoutInflater
@@ -11,6 +13,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
+import ani.sanin.connections.simkl.Simkl
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.tmdb.TmdbDetail
 import ani.sanin.connections.tmdb.TmdbEpisode
@@ -174,6 +177,16 @@ class TmdbWatchFragment : Fragment() {
         load()
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Re-read the blur/grey watched toggles (anime-exact) and re-sync Simkl
+        // state so the indicators reflect setting changes / scrobbles.
+        if (::episodeAdapter.isInitialized) {
+            episodeAdapter.refreshCache()
+            loadSimklWatched()
+        }
+    }
+
     private fun goBack() {
         host?.onWatchBackPressed()
             ?: requireActivity().onBackPressedDispatcher.onBackPressed()
@@ -226,6 +239,7 @@ class TmdbWatchFragment : Fragment() {
             buildHeader()
             buildAdapter()
             updateContinueCard()
+            loadSimklWatched()
             // Always kick off the auto search as soon as the tab opens so the user
             // sees "Searching : …" immediately instead of an idle Sources row.
             autoSearchOnOpen()
@@ -339,6 +353,7 @@ class TmdbWatchFragment : Fragment() {
         buildHeader()
         buildAdapter()
         updateContinueCard()
+        loadSimklWatched()
         autoSearchOnOpen()
     }
 
@@ -414,6 +429,11 @@ class TmdbWatchFragment : Fragment() {
             chip.isCheckable = true
             chip.isClickable = true
             chip.isFocusable = true
+            chip.setTextColor(
+                androidx.core.content.ContextCompat.getColorStateList(
+                    requireContext(), ani.sanin.R.color.chip_text_color
+                )
+            )
             chip.tag = index
             if (index == selectedSourceIndex) chip.isChecked = true
             chip.setOnClickListener {
@@ -445,6 +465,11 @@ class TmdbWatchFragment : Fragment() {
                     chip.isCheckable = true
                     chip.isClickable = true
                     chip.isFocusable = true
+                    chip.setTextColor(
+                        androidx.core.content.ContextCompat.getColorStateList(
+                            requireContext(), ani.sanin.R.color.chip_text_color
+                        )
+                    )
                     chip.tag = season.seasonNumber
                     if (season.seasonNumber == selectedSeason) chip.isChecked = true
                     chip.setOnClickListener {
@@ -618,6 +643,31 @@ class TmdbWatchFragment : Fragment() {
         binding.tmdbWatchRecycler.adapter = episodeAdapter
         // Header is a fixed first item owned by the adapter.
         episodeAdapter.setHeader(headerBinding.root)
+    }
+
+    /** Fetches Simkl watched episodes for the current title and marks them in
+     *  the episode list (eye icon + anime blur/grey toggles). */
+    private fun loadSimklWatched() {
+        // Plugin titles carry a hashed mediaId, so the real TMDB id is only
+        // available on the non-plugin path (mediaId is the genuine TMDB id).
+        val realTmdbId = if (!pluginMode) mediaId else null
+        lifecycleScope.launch(Dispatchers.IO) {
+            val watched = if (realTmdbId != null && realTmdbId > 0 && mediaType == "tv") {
+                runCatching {
+                    Simkl.getShowLibrary()
+                        .firstOrNull { it.ids?.tmdb == realTmdbId }
+                        ?.episodes
+                        ?.filter { it.completed == true }
+                        ?.mapNotNull { it.number }
+                        ?.toSet() ?: emptySet()
+                }.getOrDefault(emptySet())
+            } else emptySet()
+            withContext(Dispatchers.Main) {
+                if (_binding != null && ::episodeAdapter.isInitialized) {
+                    episodeAdapter.setWatchedEpisodes(watched)
+                }
+            }
+        }
     }
 
     private fun onEpisodeClick(episode: TmdbEpisode) {
@@ -931,10 +981,23 @@ class TmdbWatchFragment : Fragment() {
     ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
         private var header: View? = null
+        private var watchedEpisodes: Set<Int> = emptySet()
+
+        private val blurUnwatched: Boolean get() = PrefManager.getVal(PrefName.BlurUnwatchedEpisodes)
+        private val greyWatched: Boolean get() = PrefManager.getVal(PrefName.GreyWatchedEpisodes)
 
         fun setHeader(view: View) {
             header = view
             notifyItemInserted(0)
+        }
+
+        fun setWatchedEpisodes(eps: Set<Int>) {
+            watchedEpisodes = eps
+            notifyDataSetChanged()
+        }
+
+        fun refreshCache() {
+            notifyDataSetChanged()
         }
 
         fun updateStyle(newStyle: Int) {
@@ -968,6 +1031,7 @@ class TmdbWatchFragment : Fragment() {
             val title = ep.name?.takeIf { it.isNotBlank() } ?: "Episode ${ep.episodeNumber}"
             val date = ep.airDate.orEmpty()
             val image = Tmdb.imageUrl(ep.stillPath, 500)
+            val isWatched = watchedEpisodes.contains(ep.episodeNumber)
             when (holder) {
                 is GridVH -> {
                     holder.binding.itemEpisodeTitle.text = title
@@ -983,9 +1047,17 @@ class TmdbWatchFragment : Fragment() {
                     }
                     holder.binding.itemMediaImage.loadImage(image)
                     holder.binding.itemMediaProgressCont.isVisible = false
-                    holder.binding.itemEpisodeViewed.isVisible = false
                     holder.binding.itemEpisodeSparkle1.isVisible = false
                     holder.binding.itemEpisodeSparkle2.isVisible = false
+                    applyWatchedState(
+                        holder.binding.itemEpisodeViewed,
+                        holder.binding.itemEpisodeViewedCover,
+                        holder.binding.itemMediaImage,
+                        holder.binding.itemEpisodeTitle,
+                        holder.binding.itemEpisodeDate,
+                        holder.binding.itemEpisodeNumber,
+                        isWatched
+                    )
                     holder.binding.root.setOnClickListener { onClick(ep) }
                     FocusEffectUtil.applyFocusListener(holder.binding.root)
                 }
@@ -1008,13 +1080,65 @@ class TmdbWatchFragment : Fragment() {
                     holder.binding.itemMediaProgressCont.isVisible = false
                     holder.binding.itemDownload.isVisible = false
                     holder.binding.itemDownloadStatus.isVisible = false
-                    holder.binding.itemEpisodeViewed.isVisible = false
                     holder.binding.itemEpisodeSparkle1.isVisible = false
                     holder.binding.itemEpisodeSparkle2.isVisible = false
+                    applyWatchedState(
+                        holder.binding.itemEpisodeViewed,
+                        holder.binding.itemEpisodeViewedCover,
+                        holder.binding.itemMediaImage,
+                        holder.binding.itemEpisodeTitle,
+                        holder.binding.itemEpisodeDate,
+                        holder.binding.itemEpisodeNumber,
+                        isWatched
+                    )
                     holder.binding.root.setOnClickListener { onClick(ep) }
                     FocusEffectUtil.applyFocusListener(holder.binding.root)
                 }
                 else -> {}
+            }
+        }
+
+        /** Anime-exact watched styling: eye icon + cover when watched, and
+         *  optional grey (watched) / blur (unwatched) via the shared toggles. */
+        private fun applyWatchedState(
+            viewedIcon: View,
+            viewedCover: View,
+            image: android.widget.ImageView,
+            title: android.widget.TextView,
+            date: android.widget.TextView,
+            number: android.widget.TextView,
+            isWatched: Boolean
+        ) {
+            if (isWatched) {
+                viewedCover.isVisible = true
+                viewedIcon.isVisible = true
+                if (greyWatched) {
+                    val cm = ColorMatrix().apply { setSaturation(0f) }
+                    image.colorFilter = ColorMatrixColorFilter(cm)
+                    title.alpha = 0.5f
+                    date.alpha = 0.5f
+                    number.alpha = 0.5f
+                } else {
+                    image.colorFilter = null
+                    title.alpha = 1f
+                    date.alpha = 1f
+                    number.alpha = 1f
+                }
+            } else {
+                viewedCover.isVisible = false
+                viewedIcon.isVisible = false
+                if (blurUnwatched) {
+                    val cm = ColorMatrix().apply { setSaturation(0.3f) }
+                    image.colorFilter = ColorMatrixColorFilter(cm)
+                    title.alpha = 0.5f
+                    date.alpha = 0.5f
+                    number.alpha = 0.5f
+                } else {
+                    image.colorFilter = null
+                    title.alpha = 1f
+                    date.alpha = 1f
+                    number.alpha = 1f
+                }
             }
         }
 

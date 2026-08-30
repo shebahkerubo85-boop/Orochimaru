@@ -3,7 +3,6 @@ package ani.sanin.settings
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.View
 import android.view.ViewGroup
 import android.widget.AutoCompleteTextView
 import androidx.appcompat.app.AppCompatActivity
@@ -15,23 +14,19 @@ import ani.sanin.R
 import ani.sanin.cloudstream.CloudStreamAvailableFragment
 import ani.sanin.cloudstream.CloudStreamInstalledFragment
 import ani.sanin.cloudstream.CsRepos
-import ani.sanin.cloudstream.CsTypeFilter
 import ani.sanin.databinding.ActivityExtensionsBinding
 import ani.sanin.initActivity
 import ani.sanin.media.MediaType
 import ani.sanin.navBarHeight
 import ani.sanin.others.AndroidBug5497Workaround
-import ani.sanin.others.LanguageMapper
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.TvKeyboardUtil
-import ani.sanin.util.customAlertDialog
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
-import java.util.Locale
 
 class ExtensionsActivity : AppCompatActivity() {
     lateinit var binding: ActivityExtensionsBinding
@@ -83,8 +78,6 @@ class ExtensionsActivity : AppCompatActivity() {
                     binding.searchViewText.setText("")
                     binding.searchViewText.clearFocus()
                     tabLayout.clearFocus()
-                    binding.languageselect.visibility =
-                        if (tab.text?.contains("Installed") == true) View.GONE else View.VISIBLE
                     viewPager.updateLayoutParams<ViewGroup.LayoutParams> {
                         height = ViewGroup.LayoutParams.MATCH_PARENT
                     }
@@ -124,32 +117,6 @@ class ExtensionsActivity : AppCompatActivity() {
         })
 
         TvKeyboardUtil.setupTvInput(binding.searchViewText)
-
-        binding.languageselect.setOnClickListener {
-            val languageOptions =
-                LanguageMapper.Companion.Language.entries.map { entry ->
-                    entry.name.lowercase().replace("_", " ")
-                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
-                }.toTypedArray()
-            val listOrder: String = PrefManager.getVal(PrefName.LangSort)
-            val index = LanguageMapper.Companion.Language.entries.toTypedArray()
-                .indexOfFirst { it.code == listOrder }
-            customAlertDialog().apply {
-                setTitle("Language")
-                singleChoiceItems(languageOptions, index) { selected ->
-                    PrefManager.setVal(
-                        PrefName.LangSort,
-                        LanguageMapper.Companion.Language.entries[selected].code
-                    )
-                    val currentFragment =
-                        supportFragmentManager.findFragmentByTag("f${viewPager.currentItem}")
-                    if (currentFragment is SearchQueryHandler) {
-                        currentFragment.notifyDataChanged()
-                    }
-                }
-                show()
-            }
-        }
 
         binding.settingsContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             topMargin = statusBarHeight
@@ -221,17 +188,7 @@ class ExtensionsActivity : AppCompatActivity() {
                 cloudStreamMode
             ).show(supportFragmentManager, "add_repo")
         }
-        binding.filterButton.visibility = if (cloudStreamMode) View.VISIBLE else View.GONE
-        binding.filterButton.setOnClickListener {
-            CsTypeFilter.show(this) {
-                val currentFragment =
-                    supportFragmentManager.findFragmentByTag("f${binding.viewPager.currentItem}")
-                if (currentFragment is SearchQueryHandler) currentFragment.notifyDataChanged()
-            }
-        }
         FocusEffectUtil.applyFocusListener(binding.openSettingsButton)
-        FocusEffectUtil.applyFocusListener(binding.languageselect)
-        FocusEffectUtil.applyFocusListener(binding.filterButton)
     }
 }
 

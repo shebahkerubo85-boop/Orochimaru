@@ -40,7 +40,7 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
 
     private val adapter = RepoAdapter(
         onOpen = { repo -> openRepo(repo) },
-        onDelete = { repo -> confirmDelete(repo) }
+        onLongClick = { repo -> showRepoShortcuts(repo) }
     )
     private var repos: List<RepoUi> = emptyList()
     private var query = ""
@@ -88,11 +88,15 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
         )
     }
 
-    private fun confirmDelete(repo: RepoUi) {
+    private fun showRepoShortcuts(repo: RepoUi) {
         requireContext().customAlertDialog().apply {
-            setTitle("Remove repository")
-            setMessage("Remove ${repo.name}? Installed extensions stay on device.")
-            setPosButton("Remove") {
+            setTitle(repo.name)
+            setMessage("Choose an action for this repository")
+            setPosButton("Copy URL") {
+                copyToClipboard(repo.url, true)
+                Toast.makeText(requireContext(), "Copied", Toast.LENGTH_SHORT).show()
+            }
+            setNeutralButton("Delete") {
                 CsRepos.removeRepo(repo.url)
                 loadRepos()
             }
@@ -121,7 +125,7 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
 
     class RepoAdapter(
         private val onOpen: (RepoUi) -> Unit,
-        private val onDelete: (RepoUi) -> Unit
+        private val onLongClick: (RepoUi) -> Unit
     ) : ListAdapter<RepoUi, RepoAdapter.VH>(DIFF) {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -141,16 +145,10 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
                 )
             }
             holder.binding.repoNameTextView.text = item.name
-            holder.binding.repoNameTextView.isFocusable = true
-            FocusEffectUtil.applyFocusListener(holder.binding.repoNameTextView)
-            holder.binding.repoNameTextView.setOnClickListener { onOpen(item) }
-            holder.binding.repoDeleteImageView.setOnClickListener { onDelete(item) }
-            holder.binding.repoCopyImageView.setOnClickListener {
-                copyToClipboard(item.url, true)
-                Toast.makeText(holder.itemView.context, "Copied", Toast.LENGTH_SHORT).show()
-            }
-            FocusEffectUtil.applyFocusListener(holder.binding.repoDeleteImageView)
-            FocusEffectUtil.applyFocusListener(holder.binding.repoCopyImageView)
+            holder.itemView.isFocusable = true
+            holder.itemView.setOnClickListener { onOpen(item) }
+            holder.itemView.setOnLongClickListener { onLongClick(item); true }
+            FocusEffectUtil.applyFocusListener(holder.itemView)
         }
 
         class VH(val binding: ItemRepoBinding) : RecyclerView.ViewHolder(binding.root)

@@ -37,6 +37,7 @@
             android:text="Aniyomi Extensions"
             android:textSize="13sp"
             app:chipBackgroundColor="@color/nav_bg_inv"
+            app:chipCornerRadius="20dp"
             app:chipStrokeColor="@color/cs_chip_stroke"
             app:chipStrokeWidth="2dp"
             android:textColor="@color/cs_chip_text" />
@@ -59,6 +60,7 @@
             android:text="CloudStream Extensions"
             android:textSize="13sp"
             app:chipBackgroundColor="@color/nav_bg_inv"
+            app:chipCornerRadius="20dp"
             app:chipStrokeColor="@color/cs_chip_stroke"
             app:chipStrokeWidth="2dp"
             android:textColor="@color/cs_chip_text" />
@@ -81,27 +83,6 @@
             app:tabPaddingEnd="16dp"
             app:tabPaddingStart="16dp"
             app:tabTextAppearance="@style/NavBarText" />
-
-        <ImageButton
-            android:id="@+id/filterButton"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?android:attr/selectableItemBackground"
-            android:contentDescription="@string/sort_by"
-            android:focusable="true"
-            android:visibility="gone"
-            app:srcCompat="@drawable/ic_round_filter_24"
-            app:tint="?attr/colorOnBackground" />
-
-        <ImageButton
-            android:id="@+id/languageselect"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?android:attr/selectableItemBackground"
-            android:contentDescription="@string/sort_by"
-            android:focusable="true"
-            app:srcCompat="@drawable/ic_round_translate_24"
-            app:tint="?attr/colorOnBackground" />
 
         <ImageButton
             android:id="@+id/openSettingsButton"

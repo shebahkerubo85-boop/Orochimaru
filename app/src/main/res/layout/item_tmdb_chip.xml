@@ -10,7 +10,6 @@
     android:elegantTextHeight="true"
     android:textAppearance="@style/Suffix"
     android:textSize="14sp"
-    app:chipBackgroundColor="@color/tmdb_season_chip_bg"
-    app:chipStrokeColor="@color/tmdb_season_chip_stroke"
-    app:chipStrokeWidth="2dp"
-    android:textColor="@color/tmdb_season_chip_text" />
+    app:chipBackgroundColor="@color/chip_background_color"
+    app:chipStrokeColor="?attr/colorPrimaryContainer">
+</com.google.android.material.chip.Chip>

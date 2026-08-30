@@ -48,6 +48,7 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
         val malCheck = v.findViewById<CheckBox>(R.id.sheetAnimeMALCheck)
         val simklCheck = v.findViewById<CheckBox>(R.id.sheetMovieSimklCheck)
         val pluginSpinner = v.findViewById<Spinner>(R.id.sheetMoviePluginSpinner)
+        val pluginArrow = v.findViewById<View>(R.id.sheetMoviePluginArrow)
 
         // Card banner/scrim/profile/tracker icon views
         val animeBanner = v.findViewById<ImageView>(R.id.sheetAnimeBanner)
@@ -74,7 +75,7 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             animeButton.nextFocusDownId = aniListCheck.id
             aniListCheck.nextFocusUpId = animeButton.id
             aniListCheck.nextFocusDownId = malCheck.id
-            malCheck.nextFocusUpId = animeButton.id
+            malCheck.nextFocusUpId = aniListCheck.id
             malCheck.nextFocusDownId = View.NO_ID
             movieButton.nextFocusUpId = View.NO_ID
             movieButton.nextFocusDownId = View.NO_ID
@@ -84,9 +85,9 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             movieButton.nextFocusUpId = View.NO_ID
             movieButton.nextFocusDownId = simklCheck.id
             simklCheck.nextFocusUpId = movieButton.id
-            simklCheck.nextFocusDownId = pluginSpinner.id
-            pluginSpinner.nextFocusUpId = simklCheck.id
-            pluginSpinner.nextFocusDownId = View.NO_ID
+            simklCheck.nextFocusDownId = pluginArrow.id
+            pluginArrow.nextFocusUpId = simklCheck.id
+            pluginArrow.nextFocusDownId = View.NO_ID
             animeButton.nextFocusUpId = View.NO_ID
             animeButton.nextFocusDownId = View.NO_ID
         }
@@ -212,14 +213,11 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
         }
 
         malCheck.setOnKeyListener { _, keyCode, event ->
-            when {
-                event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_UP -> {
-                    collapseSection(animeExpanded, animeArrow)
-                    updateCollapsedFocusChain()
-                    animeButton.requestFocus()
-                    true
-                }
-                else -> false
+            if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                aniListCheck.requestFocus()
+                true
+            } else {
+                false
             }
         }
 
@@ -232,17 +230,16 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
                     true
                 }
                 event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    pluginSpinner.requestFocus()
+                    pluginArrow.requestFocus()
                     true
                 }
                 else -> false
             }
         }
 
-        pluginSpinner.isFocusable = true
-        pluginSpinner.isFocusableInTouchMode = false
-        FocusEffectUtil.applyFocusListener(pluginSpinner)
-        pluginSpinner.setOnKeyListener { _, keyCode, event ->
+        pluginArrow.setOnClickListener { pluginSpinner.performClick() }
+        FocusEffectUtil.applyFocusListener(pluginArrow)
+        pluginArrow.setOnKeyListener { _, keyCode, event ->
             event.action == KeyEvent.ACTION_DOWN &&
                 keyCode == KeyEvent.KEYCODE_DPAD_UP && simklCheck.requestFocus().let { true }
         }

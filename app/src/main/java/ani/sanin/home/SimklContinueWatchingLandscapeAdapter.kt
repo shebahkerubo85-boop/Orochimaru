@@ -57,7 +57,22 @@ class SimklContinueWatchingLandscapeAdapter(
                 val backdropUrl = detail?.backdropPath?.let { ani.sanin.connections.tmdb.Tmdb.imageUrl(it, 780) }
                 val logoUrl = Tmdb.logoUrl(mediaType, tmdbId)
 
+                val isOngoing = when (detail?.status?.lowercase()) {
+                    "returning series", "returning", "in production" -> true
+                    else -> false
+                }
                 withContext(Dispatchers.Main) {
+                    holder.ongoing.isVisible = isOngoing
+                    if (mediaType == "tv") {
+                        val watched = item.lastWatchedEpisode ?: 0
+                        val total = detail?.numberOfEpisodes?.takeIf { it > 0 }
+                            ?: item.totalEpisodes?.takeIf { it > 0 } ?: 0
+                        if (total > 0) {
+                            holder.progress.max = total
+                            holder.progress.progress = watched.coerceIn(0, total)
+                            holder.progress.visibility = View.VISIBLE
+                        }
+                    }
                     val imageUrl = backdropUrl ?: Simkl.imageUrl(item.poster)
                     if (!imageUrl.isNullOrBlank()) {
                         holder.image.loadImage(imageUrl)
@@ -93,6 +108,15 @@ class SimklContinueWatchingLandscapeAdapter(
             holder.overlayTitle.visibility = View.VISIBLE
             holder.title.text = item.title ?: ""
             holder.title.isVisible = true
+            if (mediaType == "tv") {
+                val watched = item.lastWatchedEpisode ?: 0
+                val total = item.totalEpisodes?.takeIf { it > 0 } ?: 0
+                if (total > 0) {
+                    holder.progress.max = total
+                    holder.progress.progress = watched.coerceIn(0, total)
+                    holder.progress.visibility = View.VISIBLE
+                }
+            }
         }
 
         val epStr = item.lastWatched
@@ -110,12 +134,12 @@ class SimklContinueWatchingLandscapeAdapter(
         }
         holder.subtitle.text = subtitle
 
+        // The in-card progress bar (anime-exact) is filled below from Simkl +
+        // TMDB detail; never show the below-card progress row for Simkl items.
         holder.timeWatched.visibility = View.GONE
         holder.progress.visibility = View.GONE
         holder.cwProgressRow.visibility = View.GONE
-
-        val isOngoing = item.status?.lowercase() == "watching" || item.status?.lowercase() == "current"
-        holder.ongoing.isVisible = isOngoing
+        holder.ongoing.isVisible = false
 
         setGradient(holder.gradientOverlay)
 
