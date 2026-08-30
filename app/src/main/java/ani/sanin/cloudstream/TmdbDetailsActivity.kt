@@ -218,20 +218,10 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
                             return true
                         }
                     }
-                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                        val focusedId = currentFocus?.id
-                        val onPill = focusedId == R.id.tmdbNavPillInfo ||
-                            focusedId == R.id.tmdbNavPillWatch ||
-                            focusedId == R.id.tmdbNavPillComments
-                        if (onPill) {
-                            // Let the pill's own click listener run (selects the tab)
-                            return false
-                        }
-                        when (selectedPill) {
-                            1 -> { onPlayClick(); return true }
-                            else -> return true
-                        }
-                    }
+                    // DPAD_CENTER/ENTER are NOT intercepted here on landscape so
+                    // chips, season chips and episode cards still receive their
+                    // own click listeners.  Only the pill rail handles ENTER via
+                    // its own OnClickListener.
                 }
             } else {
                 // Portrait/phone: horizontal bar at bottom
@@ -248,12 +238,9 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
                             return true
                         }
                     }
-                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                        when (selectedPill) {
-                            1 -> { onPlayClick(); return true }
-                            else -> return true
-                        }
-                    }
+                    // CENTER/ENTER: the play card carries its own OnClickListener
+                    // (onPlayClick), so we must NOT intercept here or chip/card
+                    // clicks get swallowed when the watch tab is active.
                     KeyEvent.KEYCODE_MENU -> return true
                 }
             }
