@@ -113,27 +113,33 @@ class TmdbDetailsActivity : AppCompatActivity() {
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN) {
-            when (event.keyCode) {
-                KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                    if (selectedPill < 2) {
-                        selectTab(selectedPill + 1)
-                        return true
+            // Portrait/phone: pills are a horizontal bar at the bottom, so the
+            // selected pill moves with LEFT/RIGHT. Landscape/TV uses a vertical
+            // rail on the left where the system focus chain moves between pills.
+            val landscape = resources.configuration.orientation ==
+                android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            if (!landscape) {
+                when (event.keyCode) {
+                    KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                        if (selectedPill < 2) {
+                            selectTab(selectedPill + 1)
+                            return true
+                        }
                     }
-                }
-                KeyEvent.KEYCODE_DPAD_LEFT -> {
-                    if (selectedPill > 0) {
-                        selectTab(selectedPill - 1)
-                        return true
+                    KeyEvent.KEYCODE_DPAD_LEFT -> {
+                        if (selectedPill > 0) {
+                            selectTab(selectedPill - 1)
+                            return true
+                        }
                     }
-                }
-                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                    when (selectedPill) {
-                        0 -> return true
-                        1 -> { onPlayClick(); return true }
-                        2 -> return true
+                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                        when (selectedPill) {
+                            1 -> { onPlayClick(); return true }
+                            else -> return true
+                        }
                     }
+                    KeyEvent.KEYCODE_MENU -> return true
                 }
-                KeyEvent.KEYCODE_MENU -> return true
             }
         }
         return super.dispatchKeyEvent(event)
