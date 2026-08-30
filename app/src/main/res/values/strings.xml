@@ -1252,6 +1252,8 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="direct_url_cancel">Cancel</string>
     <string name="direct_url_error_invalid">Enter a valid URL starting with http:// or https://</string>
     <string name="direct_url_error_no_video">No video found on this page</string>
+    <string name="direct_url_saved">Saved: %1$s</string>
+    <string name="direct_url_resolving">Resolving video from %1$s…</string>
     <string name="direct_url_success">Video extracted and ready to play</string>
     <string name="direct_url_saving">Extracting video…</string>
     <string name="direct_url_slots_title">Link Slots</string>

@@ -7,16 +7,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.DialogFragment
-import androidx.lifecycle.lifecycleScope
 import ani.sanin.R
 import ani.sanin.databinding.BottomSheetDirectUrlBinding
 import ani.sanin.toast
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.Logger
 import ani.sanin.util.TvKeyboardUtil
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class UrlPlayBottomSheet : DialogFragment() {
 
@@ -84,37 +80,18 @@ class UrlPlayBottomSheet : DialogFragment() {
             return
         }
         binding.directUrlError.visibility = View.GONE
-        val savingLabel = getString(R.string.direct_url_saving)
-        binding.directUrlSave.isEnabled = false
-        binding.directUrlTitle.text = savingLabel
-        lifecycleScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                UrlVideoExtractor.extract(input)
-            }
-            if (!isAdded) return@launch
-            binding.directUrlSave.isEnabled = true
-            binding.directUrlTitle.text = if (slotIndex != null) {
-                getString(R.string.configure) + " " + DirectUrlManager.slotName(slotIndex!!)
-            } else {
-                getString(R.string.add_direct_url)
-            }
-            if (result.videos.isEmpty()) {
-                binding.directUrlError.visibility = View.VISIBLE
-                binding.directUrlError.text = getString(R.string.direct_url_error_no_video)
-                return@launch
-            }
-            val ctx = requireContext()
-            val name = if (slotIndex != null) {
-                DirectUrlManager.slotName(slotIndex!!)
-            } else {
-                DirectUrlManager.extractSiteName(input)
-            }
-            DirectUrlManager.saveConfig(ctx, DirectUrlManager.DirectUrlConfig(name, input, true, slotIndex))
-            Logger.log("DIRECT_URL: saved '$name' <- $input (videos=${result.videos.size})")
-            toast(getString(R.string.direct_url_success))
-            onSaved?.invoke()
-            dismiss()
+        val ctx = requireContext()
+        val name = if (slotIndex != null) {
+            DirectUrlManager.slotName(slotIndex!!)
+        } else {
+            DirectUrlManager.extractSiteName(input)
         }
+        DirectUrlManager.saveConfig(ctx, DirectUrlManager.DirectUrlConfig(name, input, true, slotIndex))
+        Logger.log("DIRECT_URL: saved '$name' <- $input")
+        toast(getString(R.string.direct_url_saved, name))
+        onSaved?.invoke()
+        dismiss()
     }
+
 
 }
