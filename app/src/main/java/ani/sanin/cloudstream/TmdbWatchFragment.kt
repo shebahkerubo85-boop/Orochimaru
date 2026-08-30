@@ -567,7 +567,7 @@ class TmdbWatchFragment : Fragment() {
             db.tmdbSortText.text = getString(if (rev) R.string.tmdb_watch_down_to_up else R.string.tmdb_watch_up_to_down)
             run = true
         }
-        customAlertDialog().apply {
+        requireContext().customAlertDialog().apply {
             setTitle(getString(R.string.tmdb_watch_options))
             setCustomView(db.root)
             setPosButton(R.string.ok) {
