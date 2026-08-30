@@ -392,6 +392,26 @@ class TmdbWatchActivity : AppCompatActivity() {
             h.tmdbWatchSourceChips.addView(chip)
         }
 
+        // ── Direct URL chips (saved via Extensions > Direct URL) ──
+        val directChips = ani.sanin.settings.DirectUrlManager.getActiveConfigs(this)
+        directChips.forEach { cfg ->
+            val dchip = LayoutInflater.from(this).inflate(R.layout.item_tmdb_chip, h.tmdbWatchSourceChips, false) as Chip
+            dchip.text = cfg.name
+            dchip.isCheckable = false
+            dchip.isClickable = true
+            dchip.isFocusable = true
+            dchip.setOnClickListener {
+                lifecycleScope.launch {
+                    val ok = ani.sanin.settings.DirectUrlPlayer.play(
+                        this@TmdbWatchActivity, cfg.name, cfg.url
+                    )
+                    if (!ok) toast("No video found on ${cfg.name}")
+                }
+            }
+            FocusEffectUtil.applyFocusListener(dchip)
+            h.tmdbWatchSourceChips.addView(dchip)
+        }
+
         // ── season area ──
         if (mediaType == "tv") {
             if (seasons.isNotEmpty()) {
