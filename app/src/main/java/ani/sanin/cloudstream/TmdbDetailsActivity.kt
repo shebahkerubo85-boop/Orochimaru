@@ -58,13 +58,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class TmdbDetailsActivity : AppCompatActivity() {
+class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
 
     companion object {
         const val ARG_MEDIA_TYPE = "mediaType"
         const val ARG_MEDIA_ID = "mediaId"
         const val ARG_PLUGIN_SOURCE = "pluginSource"
         const val ARG_PLUGIN_URL = "pluginUrl"
+        private const val TAG_WATCH = "tmdbWatch"
     }
 
     private lateinit var shell: ActivityTmdbDetailsBinding
@@ -77,6 +78,55 @@ class TmdbDetailsActivity : AppCompatActivity() {
     private var detail: TmdbDetail? = null
     // 0 = Info, 1 = Watch, 2 = Comments
     private var selectedPill = 0
+
+    override fun onWatchBackPressed() {
+        selectTab(0)
+    }
+
+    override fun onWatchOpenTitle(type: String, id: Int) {
+        openInDetails(type, id)
+    }
+
+    private fun openInDetails(type: String, id: Int) {
+        supportFragmentManager.findFragmentByTag(TAG_WATCH)?.let {
+            supportFragmentManager.beginTransaction().remove(it).commitNow()
+        }
+        mediaType = type
+        mediaId = id
+        pluginSourceId = null
+        pluginUrl = null
+        intent.putExtra(ARG_MEDIA_TYPE, type)
+        intent.putExtra(ARG_MEDIA_ID, id)
+        intent.removeExtra(ARG_PLUGIN_SOURCE)
+        intent.removeExtra(ARG_PLUGIN_URL)
+        recreate()
+    }
+
+    private fun showWatch() {
+        val fm = supportFragmentManager
+        val existing = fm.findFragmentByTag(TAG_WATCH) as? TmdbWatchFragment
+        if (existing == null || !existing.isAdded) {
+            if (existing != null) {
+                fm.beginTransaction().remove(existing).commitNow()
+            }
+            fm.beginTransaction()
+                .add(R.id.tmdbDetailFragmentContainer, TmdbWatchFragment.newInstance(
+                    mediaType = mediaType,
+                    mediaId = mediaId,
+                    pluginSourceId = pluginSourceId,
+                    pluginUrl = pluginUrl
+                ), TAG_WATCH)
+                .commit()
+        } else {
+            fm.beginTransaction().show(existing).commit()
+        }
+    }
+
+    private fun hideWatch() {
+        (supportFragmentManager.findFragmentByTag(TAG_WATCH) as? TmdbWatchFragment)?.let {
+            if (it.isAdded) supportFragmentManager.beginTransaction().hide(it).commit()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -101,9 +151,19 @@ class TmdbDetailsActivity : AppCompatActivity() {
         binding.mediaInfoAddToList.setOnClickListener { detail?.let { openListEditor(it) } }
         FocusEffectUtil.applyFocusListener(binding.mediaInfoAddToList)
 
+        if (savedInstanceState != null) {
+            selectedPill = savedInstanceState.getInt("selectedPill", 0).coerceIn(0, 2)
+        }
+
         setupNavPills()
+        selectTab(selectedPill)
 
         load()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt("selectedPill", selectedPill)
     }
 
     override fun onResume() {
@@ -672,7 +732,7 @@ class TmdbDetailsActivity : AppCompatActivity() {
         }
 
         info.setOnClickListener { selectTab(0) }
-        watch.setOnClickListener { onPlayClick() }
+        watch.setOnClickListener { selectTab(1) }
         comments.setOnClickListener { selectTab(2) }
         updatePillTints()
     }
@@ -685,11 +745,19 @@ class TmdbDetailsActivity : AppCompatActivity() {
             0 -> {
                 binding.root.visibility = View.VISIBLE
                 shell.tmdbCommentsPlaceholder.visibility = View.GONE
+                hideWatch()
+            }
+            1 -> {
+                binding.root.visibility = View.GONE
+                shell.tmdbCommentsPlaceholder.visibility = View.GONE
+                showWatch()
+                shell.tmdbDetailFragmentContainer.requestFocus()
             }
             2 -> {
                 binding.root.visibility = View.GONE
                 shell.tmdbCommentsPlaceholder.visibility = View.VISIBLE
                 shell.tmdbCommentsPlaceholder.requestFocus()
+                hideWatch()
             }
         }
     }
@@ -715,13 +783,7 @@ class TmdbDetailsActivity : AppCompatActivity() {
     private var mediaNavAnimator: NavPillAnimator? = null
 
     private fun onPlayClick() {
-        val intent = Intent(this, TmdbWatchActivity::class.java).apply {
-            putExtra(TmdbWatchActivity.ARG_MEDIA_TYPE, mediaType)
-            putExtra(TmdbWatchActivity.ARG_MEDIA_ID, mediaId)
-            pluginSourceId?.let { putExtra(TmdbWatchActivity.ARG_PLUGIN_SOURCE, it) }
-            pluginUrl?.let { putExtra(TmdbWatchActivity.ARG_PLUGIN_URL, it) }
-        }
-        startActivity(intent)
+        selectTab(1)
     }
 
     private fun refreshListLabel(d: TmdbDetail) {

@@ -7,8 +7,9 @@
     android:background="@color/bg_black"
     android:descendantFocusability="afterDescendants"
     android:focusable="true"
-    tools:context=".cloudstream.TmdbWatchActivity">
+    tools:context=".cloudstream.TmdbWatchFragment">
 
+    <!-- Background image (blurred poster, same as anime mode) -->
     <ImageView
         android:id="@+id/mediaBg"
         android:layout_width="match_parent"
@@ -17,6 +18,7 @@
         android:importantForAccessibility="no"
         tools:ignore="ContentDescription" />
 
+    <!-- Dark gradient overlay (same as anime mode) -->
     <View
         android:id="@+id/mediaBgGradient"
         android:layout_width="320dp"
@@ -24,6 +26,7 @@
         android:background="@drawable/gradient_rtl_dark"
         android:importantForAccessibility="no" />
 
+    <!-- Logo art (same position as anime mode mediaWatchLogo) -->
     <ImageView
         android:id="@+id/tmdbWatchLogo"
         android:layout_width="wrap_content"
@@ -37,6 +40,7 @@
         tools:ignore="ContentDescription"
         tools:visibility="visible" />
 
+    <!-- Title (same position as anime mode mediaWatchTitle) -->
     <TextView
         android:id="@+id/tmdbWatchTitle"
         android:layout_width="wrap_content"
@@ -50,6 +54,7 @@
         android:visibility="gone"
         tools:visibility="visible" />
 
+    <!-- Episode RecyclerView (same structure as anime mode mediaSourceRecycler) -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/tmdbWatchRecycler"
         android:layout_width="match_parent"
@@ -63,6 +68,7 @@
         android:paddingBottom="128dp"
         tools:listitem="@layout/item_episode_grid" />
 
+    <!-- Close button (same position/style as anime mode mediaClose; back to Info) -->
     <androidx.cardview.widget.CardView
         android:id="@+id/tmdbWatchBackCard"
         android:layout_width="32dp"
@@ -87,6 +93,7 @@
             tools:ignore="ContentDescription" />
     </androidx.cardview.widget.CardView>
 
+    <!-- Scroll-to-top (same as anime mode ScrollTop) -->
     <androidx.cardview.widget.CardView
         android:id="@+id/tmdbWatchScrollTop"
         android:layout_width="48dp"
@@ -110,102 +117,4 @@
             tools:ignore="ContentDescription" />
     </androidx.cardview.widget.CardView>
 
-    <!-- Comments coming-soon placeholder -->
-    <FrameLayout
-        android:id="@+id/tmdbWatchCommentsPlaceholder"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#CC000000"
-        android:visibility="gone">
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:gravity="center"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/tmdbWatchCommentsComingSoon"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/poppins_bold"
-                android:gravity="center"
-                android:text="@string/coming_soon"
-                android:textColor="@color/bg_white"
-                android:textSize="22sp" />
-        </LinearLayout>
-    </FrameLayout>
-
-    <!-- Vertical pill rail on the left (landscape / TV, same as anime mode) -->
-    <FrameLayout
-        android:id="@+id/tmdbWatchNavPills"
-        android:layout_width="44dp"
-        android:layout_height="wrap_content"
-        android:layout_gravity="start|center_vertical"
-        android:layout_marginStart="8dp"
-        android:elevation="10dp"
-        android:translationZ="10dp"
-        android:focusable="true"
-        android:focusableInTouchMode="false"
-        android:descendantFocusability="afterDescendants"
-        android:clipToOutline="true">
-
-        <ani.sanin.ui.components.SnakeNavRailView
-            android:id="@+id/tmdbWatchNavPillBg"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:focusable="false"
-            android:clickable="false"
-            android:importantForAccessibility="no" />
-
-        <LinearLayout
-            android:background="@drawable/bg_clay_pill"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:paddingTop="6dp"
-            android:paddingBottom="6dp">
-
-            <ImageButton
-                android:id="@+id/tmdbWatchNavPillInfo"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:padding="12dp"
-                android:src="@drawable/ic_round_info_24"
-                android:scaleType="fitCenter"
-                android:background="@android:color/transparent"
-                android:contentDescription="@string/info"
-                android:focusable="true"
-                android:nextFocusUp="@id/tmdbWatchNavPillComments"
-                android:nextFocusDown="@id/tmdbWatchNavPillWatch" />
-
-            <ImageButton
-                android:id="@+id/tmdbWatchNavPillWatch"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:padding="12dp"
-                android:src="@drawable/ic_round_movie_filter_24"
-                android:scaleType="fitCenter"
-                android:background="@android:color/transparent"
-                android:contentDescription="@string/watch"
-                android:focusable="true"
-                android:nextFocusUp="@id/tmdbWatchNavPillInfo"
-                android:nextFocusDown="@id/tmdbWatchNavPillComments" />
-
-            <ImageButton
-                android:id="@+id/tmdbWatchNavPillComments"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:padding="12dp"
-                android:src="@drawable/ic_round_comment_24"
-                android:scaleType="fitCenter"
-                android:background="@android:color/transparent"
-                android:contentDescription="@string/comments"
-                android:focusable="true"
-                android:nextFocusUp="@id/tmdbWatchNavPillWatch"
-                android:nextFocusDown="@id/tmdbWatchNavPillInfo" />
-        </LinearLayout>
-    </FrameLayout>
 </FrameLayout>
