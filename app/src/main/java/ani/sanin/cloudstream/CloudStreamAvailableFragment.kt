@@ -18,7 +18,6 @@ import ani.sanin.others.svg.SvgImageLoader
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.databinding.FragmentExtensionsBinding
-import ani.sanin.databinding.ItemRepoBinding
 import ani.sanin.databinding.ItemAvailableRepoBinding
 import ani.sanin.settings.SearchQueryHandler
 import ani.sanin.util.FocusEffectUtil
