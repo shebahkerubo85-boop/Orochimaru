@@ -233,12 +233,12 @@ class TmdbWatchActivity : AppCompatActivity() {
         when (idx) {
             0 -> finish()
             2 -> {
-                binding.root.visibility = View.GONE
+                // Never hide binding.root here — it's the entire watch layout
+                // (including the pill), so hiding it would black out everything.
                 binding.tmdbWatchCommentsPlaceholder.visibility = View.VISIBLE
                 binding.tmdbWatchCommentsPlaceholder.requestFocus()
             }
             else -> {
-                binding.root.visibility = View.VISIBLE
                 binding.tmdbWatchCommentsPlaceholder.visibility = View.GONE
             }
         }
