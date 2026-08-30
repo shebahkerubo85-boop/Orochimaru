@@ -19,6 +19,7 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.databinding.FragmentExtensionsBinding
 import ani.sanin.databinding.ItemRepoBinding
+import ani.sanin.databinding.ItemAvailableRepoBinding
 import ani.sanin.settings.SearchQueryHandler
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.customAlertDialog
@@ -129,7 +130,7 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
     ) : ListAdapter<RepoUi, RepoAdapter.VH>(DIFF) {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-            val binding = ItemRepoBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+            val binding = ItemAvailableRepoBinding.inflate(LayoutInflater.from(parent.context), parent, false)
             return VH(binding)
         }
 
@@ -151,7 +152,7 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
             FocusEffectUtil.applyFocusListener(holder.itemView)
         }
 
-        class VH(val binding: ItemRepoBinding) : RecyclerView.ViewHolder(binding.root)
+        class VH(val binding: ItemAvailableRepoBinding) : RecyclerView.ViewHolder(binding.root)
 
         companion object {
             val DIFF = object : DiffUtil.ItemCallback<RepoUi>() {

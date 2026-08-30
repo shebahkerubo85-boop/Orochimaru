@@ -651,7 +651,7 @@ class TmdbWatchFragment : Fragment() {
         // Plugin titles carry a hashed mediaId, so the real TMDB id is only
         // available on the non-plugin path (mediaId is the genuine TMDB id).
         val realTmdbId = if (!pluginMode) mediaId else null
-        lifecycleScope.launch(Dispatchers.IO) {
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             val watched = if (realTmdbId != null && realTmdbId > 0 && mediaType == "tv") {
                 runCatching {
                     Simkl.getShowLibrary()
@@ -663,7 +663,7 @@ class TmdbWatchFragment : Fragment() {
                 }.getOrDefault(emptySet())
             } else emptySet()
             withContext(Dispatchers.Main) {
-                if (_binding != null && ::episodeAdapter.isInitialized) {
+                if (::episodeAdapter.isInitialized) {
                     episodeAdapter.setWatchedEpisodes(watched)
                 }
             }
