@@ -86,7 +86,7 @@ class DirectUrlFragment : Fragment() {
                     textSize = 16f
                     setPadding(0, dp(20), 0, dp(8))
                     gravity = Gravity.CENTER
-                    setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+                    setTextColor(requireContext().getThemeColor(com.google.android.material.R.attr.colorOnSurface))
                 }
             )
         }
@@ -97,7 +97,7 @@ class DirectUrlFragment : Fragment() {
         textSize = 18f
         setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
         setPadding(0, dp(10), 0, dp(8))
-        setTextColor(getThemeColor(com.google.android.material.R.attr.colorPrimary))
+        setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorPrimary))
     }
 
     private fun slotCard(ctx: Context, slot: Int, config: DirectUrlManager.DirectUrlConfig?): View {
@@ -146,7 +146,7 @@ class DirectUrlFragment : Fragment() {
             text = name
             textSize = 22f
             setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
-            setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
         }
         card.addView(title)
 
@@ -156,7 +156,7 @@ class DirectUrlFragment : Fragment() {
                 text = urlText
                 textSize = 14f
                 maxLines = 1
-                setTextColor(getThemeColor(com.google.android.material.R.attr.colorPrimary))
+                setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorPrimary))
                 setPadding(0, dp(4), 0, 0)
             })
         }
@@ -193,7 +193,7 @@ class DirectUrlFragment : Fragment() {
             textSize = 14f
             isFocusable = true
             setOnClickListener { onClick() }
-            setTextColor(getThemeColor(com.google.android.material.R.attr.colorPrimary))
+            setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorPrimary))
             setBackgroundColor(Color.TRANSPARENT)
             setPadding(dp(10), dp(4), dp(10), dp(4))
             FocusEffectUtil.applyFocusListener(this)
@@ -207,7 +207,7 @@ class DirectUrlFragment : Fragment() {
             getString(R.string.direct_url_rename),
             getString(R.string.delete_direct_url)
         )
-        customAlertDialog().apply {
+        ctx.customAlertDialog().apply {
             setTitle(config.name)
             singleChoiceItems(options) { index ->
                 when (index) {
@@ -232,11 +232,10 @@ class DirectUrlFragment : Fragment() {
         val input = EditText(ctx).apply {
             setText(configName)
             inputType = InputType.TYPE_CLASS_TEXT
-            selectAllOnFocus = true
             isFocusableInTouchMode = true
             setPadding(dp(16), dp(8), dp(16), dp(8))
         }
-        customAlertDialog().apply {
+        ctx.customAlertDialog().apply {
             setTitle(getString(R.string.direct_url_rename))
             setCustomView(input)
             setPosButton(getString(R.string.ok)) {

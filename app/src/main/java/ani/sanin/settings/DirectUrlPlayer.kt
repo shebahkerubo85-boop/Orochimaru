@@ -1,6 +1,7 @@
 package ani.sanin.settings
 
 import android.content.Context
+import ani.sanin.R
 import ani.sanin.cloudstream.CsInstalledSource
 import ani.sanin.cloudstream.TmdbStreamResolver
 import ani.sanin.connections.tmdb.TmdbDetail

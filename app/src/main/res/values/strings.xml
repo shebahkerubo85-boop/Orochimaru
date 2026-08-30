@@ -1258,6 +1258,7 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="direct_url_auto_title">Auto Detect</string>
     <string name="direct_url_tap_configure">Tap to configure URL</string>
     <string name="direct_url_rename">Rename</string>
+    <string name="direct_url_edit">Edit URL</string>
     <string name="direct_url_add">Add Direct URL</string>
     <string name="configure">Configure</string>
 
