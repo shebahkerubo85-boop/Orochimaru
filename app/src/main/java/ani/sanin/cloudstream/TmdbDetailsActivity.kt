@@ -65,6 +65,7 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         const val ARG_MEDIA_ID = "mediaId"
         const val ARG_PLUGIN_SOURCE = "pluginSource"
         const val ARG_PLUGIN_URL = "pluginUrl"
+        const val ARG_OPEN_TAB = "openTab"
         private const val TAG_WATCH = "tmdbWatch"
     }
 
@@ -155,6 +156,9 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
             selectedPill = savedInstanceState.getInt("selectedPill", 0).coerceIn(0, 2)
         }
 
+        val openTab = intent.getIntExtra(ARG_OPEN_TAB, -1)
+        if (openTab in 0..2) selectedPill = openTab
+
         setupNavPills()
         selectTab(selectedPill)
 
@@ -175,12 +179,54 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN) {
-            // Portrait/phone: pills are a horizontal bar at the bottom, so the
-            // selected pill moves with LEFT/RIGHT. Landscape/TV uses a vertical
-            // rail on the left where the system focus chain moves between pills.
             val landscape = resources.configuration.orientation ==
                 android.content.res.Configuration.ORIENTATION_LANDSCAPE
-            if (!landscape) {
+            val pillsVisible = shell.tmdbNavPills?.visibility == View.VISIBLE
+
+            if (landscape) {
+                // TV/landscape: vertical rail on the left, show/hide like anime mode
+                when (event.keyCode) {
+                    KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
+                        if (pillsVisible) {
+                            hideNavPills()
+                            return true
+                        }
+                    }
+                    KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                        val focusedId = currentFocus?.id
+                        if (focusedId == R.id.tmdbNavPillInfo || focusedId == R.id.tmdbNavPillWatch || focusedId == R.id.tmdbNavPillComments) {
+                            hideNavPills()
+                            return true
+                        }
+                    }
+                    KeyEvent.KEYCODE_DPAD_LEFT -> {
+                        val focusedId = currentFocus?.id
+                        if (focusedId == R.id.tmdbNavPillInfo || focusedId == R.id.tmdbNavPillWatch || focusedId == R.id.tmdbNavPillComments) {
+                            return true
+                        }
+                        if (!pillsVisible) {
+                            showNavPills()
+                            shell.tmdbNavPills?.let { frame ->
+                                val idx = selectedPill
+                                val target = when (idx) {
+                                    0 -> R.id.tmdbNavPillInfo
+                                    1 -> R.id.tmdbNavPillWatch
+                                    else -> R.id.tmdbNavPillComments
+                                }
+                                frame.findViewById<View>(target)?.requestFocus()
+                            }
+                            return true
+                        }
+                    }
+                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                        when (selectedPill) {
+                            1 -> { onPlayClick(); return true }
+                            else -> return true
+                        }
+                    }
+                }
+            } else {
+                // Portrait/phone: horizontal bar at bottom
                 when (event.keyCode) {
                     KeyEvent.KEYCODE_DPAD_RIGHT -> {
                         if (selectedPill < 2) {
@@ -205,6 +251,25 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
             }
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    fun showNavPills() {
+        shell.tmdbNavPills?.let { frame ->
+            frame.visibility = View.VISIBLE
+            frame.findViewWithTag<LinearLayout>("pill_list")?.let {
+                NavPillCustomizer.applyToPillList(it)
+            }
+            if (GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)) {
+                GlassEffectManager.applyGlass(frame, GlassComponent.NavPills, 28f)
+            }
+        }
+        updatePillTints()
+    }
+
+    fun hideNavPills() {
+        shell.tmdbNavPills?.let { frame ->
+            frame.visibility = View.GONE
+        }
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
@@ -744,9 +809,24 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
             }
         }
 
-        info.setOnClickListener { selectTab(0) }
-        watch.setOnClickListener { selectTab(1) }
-        comments.setOnClickListener { selectTab(2) }
+        info.setOnClickListener {
+            selectTab(0)
+            val landscape = resources.configuration.orientation ==
+                android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            if (landscape) hideNavPills()
+        }
+        watch.setOnClickListener {
+            selectTab(1)
+            val landscape = resources.configuration.orientation ==
+                android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            if (landscape) hideNavPills()
+        }
+        comments.setOnClickListener {
+            selectTab(2)
+            val landscape = resources.configuration.orientation ==
+                android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            if (landscape) hideNavPills()
+        }
         updatePillTints()
     }
 

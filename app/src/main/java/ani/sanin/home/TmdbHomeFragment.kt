@@ -648,9 +648,10 @@ class TmdbHomeFragment : Fragment() {
                 val tmdbId = item.ids?.tmdb ?: return@SimklContinueWatchingLandscapeAdapter
                 val mediaType = item.mediaType ?: "tv"
                 startActivity(
-                    Intent(requireContext(), ani.sanin.cloudstream.TmdbWatchActivity::class.java)
-                        .putExtra(ani.sanin.cloudstream.TmdbWatchActivity.ARG_MEDIA_TYPE, mediaType)
-                        .putExtra(ani.sanin.cloudstream.TmdbWatchActivity.ARG_MEDIA_ID, tmdbId)
+                    Intent(requireContext(), TmdbDetailsActivity::class.java)
+                        .putExtra(TmdbDetailsActivity.ARG_MEDIA_TYPE, mediaType)
+                        .putExtra(TmdbDetailsActivity.ARG_MEDIA_ID, tmdbId)
+                        .putExtra(TmdbDetailsActivity.ARG_OPEN_TAB, 1)
                 )
             }
             isNestedScrollingEnabled = false

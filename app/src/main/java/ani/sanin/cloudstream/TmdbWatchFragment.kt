@@ -29,6 +29,9 @@ import ani.sanin.databinding.ItemTmdbWatchHeaderBinding
 import ani.sanin.databinding.DialogTmdbWatchOptionsBinding
 import ani.sanin.media.SheetSourceSelector
 import ani.sanin.loadImage
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
+import jp.wasabeef.glide.transformations.BlurTransformation
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.snackString
@@ -648,18 +651,40 @@ class TmdbWatchFragment : Fragment() {
     /** Fetches Simkl watched episodes for the current title and marks them in
      *  the episode list (eye icon + anime blur/grey toggles). */
     private fun loadSimklWatched() {
-        // Plugin titles carry a hashed mediaId, so the real TMDB id is only
-        // available on the non-plugin path (mediaId is the genuine TMDB id).
         val realTmdbId = if (!pluginMode) mediaId else null
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             val watched = if (realTmdbId != null && realTmdbId > 0 && mediaType == "tv") {
                 runCatching {
-                    Simkl.getShowLibrary()
+                    val item = Simkl.getShowLibrary()
                         .firstOrNull { it.ids?.tmdb == realTmdbId }
-                        ?.episodes
-                        ?.filter { it.completed == true }
-                        ?.mapNotNull { it.number }
-                        ?.toSet() ?: emptySet()
+                    if (item == null) return@runCatching emptySet()
+                    // Prefer lastWatchedEpisode (total absolute across all seasons)
+                    val totalWatched = item.lastWatchedEpisode ?: 0
+                    if (totalWatched > 0) {
+                        // Compute cumulative episode offsets per season so we can map
+                        // absolute numbers back to per-season episode numbers.
+                        var cumulative = 0
+                        val result = mutableSetOf<Int>()
+                        for (s in 1..50) {
+                            val eps = try { Tmdb.episodes(mediaType, realTmdbId, s) } catch (_: Exception) { emptyList() }
+                            if (eps.isEmpty()) break
+                            for (ep in eps) {
+                                cumulative++
+                                if (cumulative <= totalWatched) {
+                                    result.add(ep.episodeNumber)
+                                }
+                            }
+                            // If we haven't reached this season yet at all, stop
+                            if (cumulative >= totalWatched) break
+                        }
+                        result
+                    } else {
+                        // Fallback: use per-episode completed flag if available
+                        item.episodes
+                            ?.filter { it.completed == true }
+                            ?.mapNotNull { it.number }
+                            ?.toSet() ?: emptySet()
+                    }
                 }.getOrDefault(emptySet())
             } else emptySet()
             withContext(Dispatchers.Main) {
@@ -1045,7 +1070,7 @@ class TmdbWatchFragment : Fragment() {
                     } else {
                         holder.binding.itemEpisodeRating.isVisible = false
                     }
-                    holder.binding.itemMediaImage.loadImage(image)
+                    loadEpisodeImage(holder.binding.itemMediaImage, image, isWatched)
                     holder.binding.itemMediaProgressCont.isVisible = false
                     holder.binding.itemEpisodeSparkle1.isVisible = false
                     holder.binding.itemEpisodeSparkle2.isVisible = false
@@ -1076,7 +1101,7 @@ class TmdbWatchFragment : Fragment() {
                     } else {
                         holder.binding.itemEpisodeRating.isVisible = false
                     }
-                    holder.binding.itemMediaImage.loadImage(image)
+                    loadEpisodeImage(holder.binding.itemMediaImage, image, isWatched)
                     holder.binding.itemMediaProgressCont.isVisible = false
                     holder.binding.itemDownload.isVisible = false
                     holder.binding.itemDownloadStatus.isVisible = false
@@ -1127,18 +1152,39 @@ class TmdbWatchFragment : Fragment() {
             } else {
                 viewedCover.isVisible = false
                 viewedIcon.isVisible = false
+                image.colorFilter = null
                 if (blurUnwatched) {
-                    val cm = ColorMatrix().apply { setSaturation(0.3f) }
-                    image.colorFilter = ColorMatrixColorFilter(cm)
                     title.alpha = 0.5f
                     date.alpha = 0.5f
                     number.alpha = 0.5f
                 } else {
-                    image.colorFilter = null
                     title.alpha = 1f
                     date.alpha = 1f
                     number.alpha = 1f
                 }
+            }
+        }
+
+        /** Load episode thumbnail with optional BlurTransformation (anime-exact). */
+        private fun loadEpisodeImage(
+            image: android.widget.ImageView,
+            url: String?,
+            isWatched: Boolean
+        ) {
+            if (url.isNullOrEmpty()) {
+                image.loadImage(url)
+                return
+            }
+            if (!isWatched && blurUnwatched) {
+                val ctx = image.context
+                val glideUrl = com.bumptech.glide.load.model.GlideUrl(url)
+                Glide.with(ctx).load(glideUrl)
+                    .override(400, 0)
+                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                    .transform(BlurTransformation(15, 3))
+                    .into(image)
+            } else {
+                image.loadImage(url)
             }
         }
 
