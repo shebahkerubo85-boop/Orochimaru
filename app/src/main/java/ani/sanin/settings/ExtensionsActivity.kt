@@ -70,6 +70,20 @@ class ExtensionsActivity : AppCompatActivity() {
         val viewPager = findViewById<ViewPager2>(R.id.viewPager)
         viewPager.offscreenPageLimit = 1
 
+        // When the ViewPager2 gains focus (e.g. from search bar UP or tab DOWN),
+        // forward it into the current page's RecyclerView so DPAD works.
+        viewPager.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                viewPager.post {
+                    val currentFragment = supportFragmentManager.findFragmentByTag("f${viewPager.currentItem}")
+                    val rv = currentFragment?.view?.findViewById<androidx.recyclerview.widget.RecyclerView>(
+                        R.id.allExtensionsRecyclerView
+                    )
+                    rv?.requestFocus()
+                }
+            }
+        }
+
         setupTabs()
 
         tabLayout.addOnTabSelectedListener(
@@ -81,9 +95,7 @@ class ExtensionsActivity : AppCompatActivity() {
                     viewPager.updateLayoutParams<ViewGroup.LayoutParams> {
                         height = ViewGroup.LayoutParams.MATCH_PARENT
                     }
-                    // Ensure ViewPager gets focus so DPAD Down lands on the
-                    // current tab's RecyclerView (not the search bar).
-                    viewPager.post { viewPager.requestFocus() }
+                    // Focus listener on viewPager will forward into the RecyclerView
                 }
 
                 override fun onTabUnselected(tab: TabLayout.Tab) {
