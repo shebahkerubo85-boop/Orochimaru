@@ -3450,7 +3450,7 @@ class ExoplayerView :
     override fun onPause() {
         super.onPause()
         orientationListener?.disable()
-        if (isInitialized) {
+        if (isInitialized && !isLiveStream()) {
             val pos = exoPlayer.currentPosition
             if (pos > 5000) {
                 PrefManager.setCustomVal(
@@ -3478,7 +3478,7 @@ class ExoplayerView :
             } else {
                 true
             }
-        if (shouldPausePlayback) {
+        if (shouldPausePlayback && !isLiveStream()) {
             playerView.player?.pause()
         }
         super.onStop()
@@ -3487,7 +3487,7 @@ class ExoplayerView :
     private var wasPlaying = false
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
-        if (PrefManager.getVal(PrefName.FocusPause) && !epChanging) {
+        if (PrefManager.getVal(PrefName.FocusPause) && !epChanging && !isLiveStream()) {
             if (isInitialized && !hasFocus) wasPlaying = exoPlayer.playWhenReady
             if (hasFocus) {
                 if (isInitialized && wasPlaying) exoPlayer.play()
@@ -3681,14 +3681,16 @@ class ExoplayerView :
 
         videoInfo.text = getString(R.string.video_quality, height)
 
-        if (exoPlayer.duration < playbackPosition) {
-            exoPlayer.seekTo(0)
-        }
+        if (!isLiveStream()) {
+            if (exoPlayer.duration < playbackPosition) {
+                exoPlayer.seekTo(0)
+            }
 
-        // if playbackPosition is within 92% of the episode length, reset it to 0
-        if (playbackPosition > exoPlayer.duration.toFloat() * 0.92) {
-            playbackPosition = 0
-            exoPlayer.seekTo(0)
+            // if playbackPosition is within 92% of the episode length, reset it to 0
+            if (playbackPosition > exoPlayer.duration.toFloat() * 0.92) {
+                playbackPosition = 0
+                exoPlayer.seekTo(0)
+            }
         }
 
     }
@@ -4370,7 +4372,7 @@ class ExoplayerView :
         if (playbackState == ExoPlayer.STATE_READY) {
             Logger.log("Player: READY on ep '$epLabel' duration=${exoPlayer.duration} pos=${exoPlayer.currentPosition}")
             if (!userPaused) exoPlayer.play()
-            if (episodeLength == 0f) {
+            if (episodeLength == 0f && !isLiveStream()) {
                 episodeLength = exoPlayer.duration.toFloat()
             }
             // Fallback trigger in case onRenderedFirstFrame never fired.
@@ -4388,12 +4390,12 @@ class ExoplayerView :
         }
         if (playbackState == Player.STATE_ENDED) {
             if (isLiveStream()) {
-                // CloudStream: re-initialize player at the current live window default position.
-                // LiveHelper will track the live edge and correct via onPositionDiscontinuity.
-                Logger.log("Player: LIVE stream hit ENDED — seekToDefaultPosition + prepare (continuous stream)")
+                // Live stream hit ENDED — reconnect at live edge without disrupting playback.
+                // Avoid prepare() which stalls the player; just seek to the live edge.
+                // LiveHelper corrects any drift via onPositionDiscontinuity.
+                Logger.log("Player: LIVE stream hit ENDED — seeking to live edge")
+                exoPlayer.playWhenReady = true
                 exoPlayer.seekToDefaultPosition()
-                exoPlayer.prepare()
-                exoPlayer.play()
                 super.onPlaybackStateChanged(playbackState)
                 return
             }
