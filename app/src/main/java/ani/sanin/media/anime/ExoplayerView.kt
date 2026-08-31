@@ -4240,9 +4240,10 @@ class ExoplayerView :
             liveReconnectPending = false
             if (!::exoPlayer.isInitialized || exoPlayer.isReleased) return@postDelayed
             try {
-                // Re-prepare from a fresh playlist; let LiveHelper track the live edge
-                // and correct via onPositionDiscontinuity + onTimelineChanged.
-                exoPlayer.setMediaSource(mediaSource, androidx.media3.common.C.TIME_UNSET)
+                // CloudStream: re-prepare the current source (re-fetch the playlist)
+                // without resetting via setMediaSource(mediaSource, TIME_UNSET) —
+                // that snaps to #EXT-X-START and makes the bar jump backward.
+                // LiveHelper corrects any drift via onPositionDiscontinuity.
                 exoPlayer.prepare()
                 exoPlayer.play()
             } catch (_: Exception) {
@@ -4252,29 +4253,48 @@ class ExoplayerView :
 
     override fun onPlayerError(error: PlaybackException) {
         val epLabel = media.anime?.selectedEpisode ?: "?"
-        // Live streams error when their short-TTL HLS segments expire. Reconnect
-        // (re-fetch the playlist) and seek to the live edge instead of failing
-        // like a VOD or opening the source sheet.
-        if (isLiveStream() && error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
-            // CloudStream: re-initialize player at the current live window default position.
-            // LiveHelper will track the live edge and correct via onPositionDiscontinuity.
-            Logger.log(Log.WARN, "Player: LIVE behind-live-window error — seekToDefaultPosition + prepare on '$epLabel'")
-            try {
-                exoPlayer.seekToDefaultPosition()
-                exoPlayer.prepare()
-            } catch (_: Exception) {
+        // Live streams error when their short-TTL HLS segments expire. Mirror
+        // CloudStream's onPlayerError exactly so recovery keeps the current live
+        // position (and LiveHelper corrects) instead of snapping back to the
+        // playlist #EXT-X-START offset.
+        if (isLiveStream()) {
+            when {
+                // Network failure on a stream whose duration is already known:
+                // just re-fetch the playlist, keep the current position.
+                error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED &&
+                    exoPlayer.duration != androidx.media3.common.C.TIME_UNSET -> {
+                    Logger.log(Log.WARN, "Player: LIVE network error on '$epLabel' — re-preparing in place")
+                    try {
+                        exoPlayer.prepare()
+                    } catch (_: Exception) {
+                    }
+                    return
+                }
+
+                // Playhead fell outside the sliding live window: re-init at the
+                // current live window default position.
+                error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW -> {
+                    Logger.log(Log.WARN, "Player: LIVE behind-live-window error — seekToDefaultPosition + prepare on '$epLabel'")
+                    try {
+                        exoPlayer.seekToDefaultPosition()
+                        exoPlayer.prepare()
+                    } catch (_: Exception) {
+                    }
+                    return
+                }
+
+                // Other live IO/source errors (e.g. expired HLS segments): fetch a
+                // fresh playlist but keep the current live position rather than
+                // resetting to TIME_UNSET (which would jump back to #EXT-X-START).
+                // HlsPlaylistTracker.PlaylistStuckException is package-private in
+                // media3 so cannot be caught from Kotlin; LiveHelper corrects
+                // position proactively so this rarely triggers.
+                else -> {
+                    Logger.log(Log.WARN, "Player: LIVE stream source error (${error.errorCode}) on '$epLabel': ${error.message}")
+                    reconnectLiveStream(error)
+                    return
+                }
             }
-            return
-        }
-        if (isLiveStream() &&
-            (error.errorCode == PlaybackException.ERROR_CODE_IO_UNSPECIFIED ||
-                error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ||
-                error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
-                error.errorCode == PlaybackException.ERROR_CODE_IO_NO_PERMISSION)
-        ) {
-            Logger.log(Log.WARN, "Player: LIVE stream source error (${error.errorCode}) on '$epLabel': ${error.message}")
-            reconnectLiveStream(error)
-            return
         }
         when (error.errorCode) {
             PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
