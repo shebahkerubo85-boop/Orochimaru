@@ -4295,15 +4295,15 @@ class ExoplayerView :
         // DRM license acquisition failed: retry without DRM (Zangetsu approach).
         // Many live streams don't actually need a DRM license — the manifest
         // contains ContentProtection but the stream plays fine without it.
-        if (error.errorCode == PlaybackException.ERROR_CODE_DRM_LICENSE_ACQUISITION_FAILED ||
-            error.errorCode == PlaybackException.ERROR_CODE_DRM_SESSION_ERROR) {
+        if (error.errorCode == PlaybackException.ERROR_CODE_DRM_LICENSE_ACQUISITION_FAILED) {
             if (!drmDisabledForSession) {
                 drmDisabledForSession = true
                 Logger.log(Log.WARN, "Player: DRM license failed (${error.errorCodeName}) - retrying without DRM on '$epLabel'")
                 try {
-                    val noDrmFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(httpDataSourceFactory)
-                    val rebuiltSource = noDrmFactory.createMediaSource(mediaItem)
-                    exoPlayer.setMediaSource(rebuiltSource)
+                    // Build a fresh source without DRM (cacheFactory has no DRM provider)
+                    val noDrmSource = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(cacheFactory)
+                        .createMediaSource(mediaItem)
+                    exoPlayer.setMediaSource(noDrmSource)
                     exoPlayer.prepare()
                     exoPlayer.play()
                 } catch (_: Exception) {
