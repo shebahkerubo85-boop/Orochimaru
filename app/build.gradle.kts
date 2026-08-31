@@ -112,6 +112,25 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
+    packaging {
+        jniLibs {
+            // mpv-android-lib bundles its own FFmpeg libs; exclude duplicates
+            // from nextlib-media3ext (same libavcodec.so etc.)
+            excludes += setOf(
+                "lib/arm64-v8a/libavcodec.so",
+                "lib/arm64-v8a/libavformat.so",
+                "lib/arm64-v8a/libavutil.so",
+                "lib/arm64-v8a/libswresample.so",
+                "lib/arm64-v8a/libswscale.so",
+                "lib/armeabi-v7a/libavcodec.so",
+                "lib/armeabi-v7a/libavformat.so",
+                "lib/armeabi-v7a/libavutil.so",
+                "lib/armeabi-v7a/libswresample.so",
+                "lib/armeabi-v7a/libswscale.so",
+            )
+        }
+    }
 }
 
 kotlin {
