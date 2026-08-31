@@ -74,6 +74,7 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.common.TrackGroup
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
@@ -404,6 +405,10 @@ class ExoplayerView :
     // error out, instead of dropping to an error screen like a VOD would.
     private var liveReconnectCount = 0
     private var liveReconnectPending = false
+    // Set to true when the player's own timeline says the item is dynamic (live).
+    // This catches live HLS/DASH streams whose plugins return a regular
+    // LoadResponse instead of LiveStreamLoadResponse.
+    private var liveDetectedFromPlayer = false
 
     private val audioTrackGroups = mutableListOf<Tracks.Group>()
 
@@ -2280,11 +2285,12 @@ class ExoplayerView :
             .setUri(video!!.file.url)
             .setMimeType(mimeType)
             .setSubtitleConfigurations(sub)
-        if (isLiveStream) {
-            // Small target offset (<= the usual 10-15s sliding window) so ExoPlayer
-            // anchors just behind the live edge and follows the window natively.
-            // CloudStream anchors at PREFERRED_LIVE_OFFSET=5s; a larger target would
-            // be clamped to the window start and replay already-watched content.
+        val urlIsHls = video!!.file.url.contains(".m3u8")
+        if (isLiveStream || urlIsHls) {
+            // Set LiveConfiguration for every HLS URL. ExoPlayer ignores it for
+            // VOD playlists (#EXT-X-ENDLIST present) but uses it for live/event
+            // playlists to anchor near the live edge. This catches live TV plugins
+            // that return a regular LoadResponse instead of LiveStreamLoadResponse.
             mediaItemBuilder.setLiveConfiguration(
                 MediaItem.LiveConfiguration.Builder()
                     .setTargetOffsetMs(LIVE_TARGET_OFFSET_MS)
@@ -2492,11 +2498,13 @@ class ExoplayerView :
             this.playbackParameters = this@ExoplayerView.playbackParameters
             setMediaSource(mediaSource)
             prepare()
-            val isLiveStream = media.id < 0 &&
-                (TmdbStreamResolver.sessionFor(media.id)?.isLive == true)
-            if (isLiveStream) {
+            val localIsLive = media.id < 0 &&
+                (TmdbStreamResolver.sessionFor(media.id)?.isLive == true ||
+                 liveDetectedFromPlayer ||
+                 mediaSource.mediaItem.localConfiguration?.uri?.toString()?.contains(".m3u8") == true)
+            if (localIsLive) {
                 playbackPosition = 0L
-                Logger.log("Player: LIVE stream detected — skipping resume seek")
+                Logger.log("Player: LIVE stream detected — skipping resume seek (source=${if (liveDetectedFromPlayer) "timeline" else "plugin"})")
             } else {
                 PrefManager
                     .getCustomVal(
@@ -4191,7 +4199,10 @@ class ExoplayerView :
         }
 
     private fun isLiveStream(): Boolean =
-        media.id < 0 && (TmdbStreamResolver.sessionFor(media.id)?.isLive == true)
+        media.id < 0 && (
+            TmdbStreamResolver.sessionFor(media.id)?.isLive == true ||
+            liveDetectedFromPlayer
+        )
 
 
     /** CloudStream-style LIVE badge: when a live stream is playing, drop the
@@ -4341,6 +4352,19 @@ class ExoplayerView :
     private var userPaused = false
     private var interactionTimer: Timer? = null
 
+    override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+        if (::exoPlayer.isInitialized && !exoPlayer.isReleased) {
+            val window = Timeline.Window()
+            timeline.getWindow(exoPlayer.currentMediaItemIndex, window)
+            if (window.isDynamic && !liveDetectedFromPlayer) {
+                liveDetectedFromPlayer = true
+                Logger.log("Player: LIVE detected from timeline (window.isDynamic=true)")
+                updateLiveBadge()
+            }
+        }
+        super.onTimelineChanged(timeline, reason)
+    }
+
     override fun onPlaybackStateChanged(playbackState: Int) {
         val epLabel = media.anime?.selectedEpisode ?: "?"
         if (playbackState == ExoPlayer.STATE_READY) {
@@ -4394,7 +4418,7 @@ class ExoplayerView :
         val incognito: Boolean = PrefManager.getVal(PrefName.Incognito)
 
         // Live streams have no episode to track — skip progress entirely
-        if (media.id < 0 && TmdbStreamResolver.sessionFor(media.id)?.isLive == true) {
+        if (media.id < 0 && isLiveStream()) {
             return
         }
 

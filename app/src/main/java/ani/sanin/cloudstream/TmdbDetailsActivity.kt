@@ -204,7 +204,7 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
                         if (focusedId == R.id.tmdbNavPillInfo || focusedId == R.id.tmdbNavPillWatch || focusedId == R.id.tmdbNavPillComments) {
                             return true
                         }
-                        if (!pillsVisible) {
+                        if (!pillsVisible && currentFocus?.focusSearch(View.FOCUS_LEFT) == null) {
                             showNavPills()
                             shell.tmdbNavPills?.let { frame ->
                                 val idx = selectedPill
@@ -257,7 +257,9 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
             // Defer glass to next layout pass so the backdrop capture sees the
             // visible content instead of a blank surface.
             frame.post {
-                if (GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)) {
+                val glassOn = GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)
+                shell.tmdbNavPillBg?.setGlassEnabled(glassOn)
+                if (glassOn) {
                     GlassEffectManager.applyGlass(frame, GlassComponent.NavPills, 28f)
                 }
             }
@@ -785,8 +787,10 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         shell.tmdbNavPillBg?.live =
             PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) &&
                 PrefManager.getVal<Boolean>(PrefName.LiveSideRail)
+        val glassOn = GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)
+        shell.tmdbNavPillBg?.setGlassEnabled(glassOn)
         shell.tmdbNavPills?.let { frame ->
-            if (GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)) {
+            if (glassOn) {
                 // Defer to next layout pass so the backdrop content has rendered
                 // before the glass drawable captures it.
                 frame.post {
