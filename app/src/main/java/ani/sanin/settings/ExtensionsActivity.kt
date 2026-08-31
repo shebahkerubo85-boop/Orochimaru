@@ -81,6 +81,9 @@ class ExtensionsActivity : AppCompatActivity() {
                     viewPager.updateLayoutParams<ViewGroup.LayoutParams> {
                         height = ViewGroup.LayoutParams.MATCH_PARENT
                     }
+                    // Ensure ViewPager gets focus so DPAD Down lands on the
+                    // current tab's RecyclerView (not the search bar).
+                    viewPager.post { viewPager.requestFocus() }
                 }
 
                 override fun onTabUnselected(tab: TabLayout.Tab) {

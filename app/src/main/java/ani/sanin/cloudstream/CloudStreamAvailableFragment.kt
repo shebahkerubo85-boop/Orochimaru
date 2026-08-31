@@ -78,6 +78,17 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
                 )
             }
             adapter.submitList(repos.filter { it.matches(query) })
+            // After async load completes, request focus on the RecyclerView so
+            // DPAD navigation works (the RecyclerView was empty when focus first
+            // tried to land, causing focus to fall through to the search bar).
+            view?.post {
+                val rv = view?.findViewById<androidx.recyclerview.widget.RecyclerView>(
+                    ani.sanin.R.id.allExtensionsRecyclerView
+                )
+                if (rv != null && !rv.hasFocus() && rv.adapter != null && rv.adapter!!.itemCount > 0) {
+                    rv.requestFocus()
+                }
+            }
         }
     }
 
