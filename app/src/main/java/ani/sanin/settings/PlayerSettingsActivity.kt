@@ -410,6 +410,24 @@ class PlayerSettingsActivity :
             }
         }
 
+        // Player Engine (ExoPlayer vs mpv)
+        val engineLabels = arrayOf("ExoPlayer", "mpv")
+        val currentEngine = PrefManager.getVal<Int>(PrefName.PlayerEngine)
+        binding.playerEngineButton.text = "Player Engine: ${engineLabels[currentEngine]}"
+        binding.playerEngineButton.setOnClickListener {
+            customAlertDialog().apply {
+                setTitle("Player Engine")
+                singleChoiceItems(
+                    engineLabels,
+                    PrefManager.getVal<Int>(PrefName.PlayerEngine)
+                ) { index ->
+                    PrefManager.setVal(PrefName.PlayerEngine, index)
+                    binding.playerEngineButton.text = "Player Engine: ${engineLabels[index]}"
+                }
+                show()
+            }
+        }
+
         val resizeModes = arrayOf("Original", "Zoom", "Stretch")
         binding.playerResizeMode.setOnClickListener {
             customAlertDialog().apply {

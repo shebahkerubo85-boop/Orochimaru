@@ -151,6 +151,9 @@ dependencies {
     implementation(libs.bundles.subtitles)
     implementation(libs.mediarouter)
 
+    // mpv (libmpv) player engine — port of Zangetsu live-stream handling
+    implementation("io.github.abdallahmehiz:mpv-android-lib:0.1.9")
+
     // UI
     implementation(libs.material)
     implementation(files("libs/AnimatedBottomBar-7fcb9af.aar"))

@@ -42,6 +42,9 @@ import android.view.MotionEvent
 import android.view.OrientationEventListener
 import android.view.View
 import android.view.ViewGroup
+import ani.sanin.media.engine.PlayerEngine
+import ani.sanin.media.engine.ExoEngine
+import ani.sanin.media.engine.MpvEngine
 import android.view.animation.AnimationUtils
 import android.widget.AdapterView
 import android.widget.ImageButton
@@ -236,6 +239,14 @@ class ExoplayerView :
     private var functionstarted: Boolean = false
 
     private lateinit var exoPlayer: ExoPlayer
+
+    /** When true, live streams route to mpv (libmpv) instead of ExoPlayer. */
+    var useMpv = false
+
+    /** Unified engine — set after exoPlayer (or mpv) is created. */
+    var engine: PlayerEngine? = null
+        private set
+
     private lateinit var trackSelector: DefaultTrackSelector
     private lateinit var cacheFactory: CacheDataSource.Factory
     private lateinit var playbackParameters: PlaybackParameters
@@ -318,13 +329,6 @@ class ExoplayerView :
         private const val BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 5000
         private const val BACK_BUFFER_DURATION_MS = 1000 * 60 * 2
         private const val MAX_PLAYER_ERROR_RETRIES = 1
-        // Live streams (Cricify/SKTech/PlayZTV): HLS segment URLs expire after a
-        // short TTL. Anchor near the live edge with a small target offset
-        // (CloudStream uses 5s) so ExoPlayer follows the sliding window natively
-        // instead of treating it as a fixed VOD timeline that "ends" and rewinds.
-        // A target offset larger than the window would clamp the join position to
-        // the window start, replaying content on every join/reconnect.
-
         fun clearAllCaches() {
             try {
                 val ctx = ani.sanin.App.instance
@@ -339,7 +343,6 @@ class ExoplayerView :
             } catch (_: Exception) { }
         }
     }
-
 
     private lateinit var episode: Episode
     private lateinit var episodes: MutableMap<String, Episode>
@@ -394,10 +397,6 @@ class ExoplayerView :
     private var isFastForwarding = false
     private var playerErrorRetryCount = 0
 
-    // Live-stream reconnect + live-edge handling. Cricify/SKTech HLS streams issue
-    // segment URLs with a short TTL, so we keep the playhead near the live edge and
-    // reconnect (re-fetch the playlist) when an expired segment makes the source
-    // error out, instead of dropping to an error screen like a VOD would.
     // Set to true when the player's own timeline says the item is dynamic (live).
     // This catches live HLS/DASH streams whose plugins return a regular
     // LoadResponse instead of LiveStreamLoadResponse.
@@ -1781,7 +1780,6 @@ class ExoplayerView :
         )
         var curSpeed = savedIndex.coerceIn(0, speedsLength - 1)
 
-
         playbackParameters = PlaybackParameters(speeds[curSpeed])
         var speed: Float
         exoSpeed.setOnClickListener {
@@ -1893,6 +1891,9 @@ class ExoplayerView :
     }
 
     private fun initPlayer() {
+        // Read player engine preference: 0=ExoPlayer (default), 1=mpv
+        useMpv = PrefManager.getVal<Int>(PrefName.PlayerEngine) == 1
+
         checkNotch()
 
         synchronized(storedSyncCues) {
@@ -2118,7 +2119,6 @@ class ExoplayerView :
         // Subtitles are now fetched only when the user opens the Subtitle Dialog.
         // The "Online Subtitles" button availability is handled by the subtitle rail.
 
-
         lifecycleScope.launch(Dispatchers.IO) {
             ext.onVideoPlayed(video)
         }
@@ -2270,17 +2270,13 @@ class ExoplayerView :
                 else -> MimeTypes.APPLICATION_MP4
             }
 
-        // Live streams (HLS/DASH from live-TV plugins) must be flagged as live
-        // so ExoPlayer doesn't treat them as VOD with a fixed window. Without
-        // LiveConfiguration the player shows a short fixed duration and errors
-        // when that "ends".
+        // Detect live streams: negative media id + live session flag.
         val isLiveStream = media.id < 0 &&
             (TmdbStreamResolver.sessionFor(media.id)?.isLive == true)
         val mediaItemBuilder = MediaItem.Builder()
             .setUri(video!!.file.url)
             .setMimeType(mimeType)
             .setSubtitleConfigurations(sub)
-
         mediaItem = mediaItemBuilder.build()
 
         Logger.log(
@@ -2471,6 +2467,10 @@ class ExoplayerView :
                 .build()
         playerView.player = exoPlayer
 
+        // Wrap ExoPlayer behind the PlayerEngine interface. The UI will call
+        // engine.* instead of exoPlayer.* directly once the toggle is wired up.
+        engine = ExoEngine(exoPlayer)
+
         // init() must be called before prepare() so it receives onTracksChanged.
         Logger.log("Libass: Calling handler.init(exoPlayer)")
         handler.init(exoPlayer)
@@ -2496,10 +2496,25 @@ class ExoplayerView :
                     ?.let { if (it <= playbackPosition) playbackPosition = max(0, it - 5) }
                 seekTo(playbackPosition)
             }
-            // Apply the LIVE badge / hide fixed VOD stamps immediately so the
-            // short fixed timeline never flashes during initial buffering.
             updateLiveBadge()
 
+        }
+
+        // If mpv engine is selected AND the stream has no DRM (kid+key),
+        // route playback to mpv. DRM streams need ExoPlayer for ClearKey.
+        // This mirrors Zangetsu: mpv for everything non-DRM, ExoPlayer for DRM.
+        if (useMpv) {
+            val url = video?.file?.url
+            val headers = video?.file?.headers
+            val hasDrmKeys = video?.drm?.let { drm ->
+                !drm.kid.isNullOrEmpty() && !drm.key.isNullOrEmpty()
+            } ?: false
+            if (url != null && !hasDrmKeys) {
+                Logger.log("Player: mpv engine selected (no DRM keys), routing to mpv")
+                initMpv(url, headers)
+            } else if (hasDrmKeys) {
+                Logger.log("Player: DRM keys present (kid+key), falling back to ExoPlayer")
+            }
         }
 
         exoPlayer.addListener(
@@ -2634,10 +2649,75 @@ class ExoplayerView :
         functionstarted = false
         exoSubtitleView.setCues(emptyList())
         exoPlayer.release()
+        engine?.release()
+        engine = null
         VideoCache.release()
         mediaSession?.release()
     }
 
+    /**
+     * Initialise mpv as the playback engine and open [url] on the
+     * [R.id.mpv_surface] SurfaceView.  When [useMpv] is true this replaces
+     * the ExoPlayer pipeline entirely; the same UI buttons/overlay are used
+     * by wiring them to [engine].
+     */
+    fun initMpv(url: String, headers: Map<String, String>?) {
+        useMpv = true
+        val ctx = this
+        val mpv = MpvEngine(ctx.applicationContext)
+        engine = mpv
+
+        val mpvSurface = binding.root.findViewById<android.view.SurfaceView>(R.id.mpv_surface)
+        mpvSurface.visibility = View.VISIBLE
+        playerView.visibility = View.GONE
+
+        // Track mpv state for UI updates (buffering indicator, play/pause, etc.)
+        mpv.addListener(object : PlayerEngine.Listener {
+            override fun onStateChanged(state: PlayerEngine.State) {
+                when (state) {
+                    PlayerEngine.State.BUFFERING -> {
+                        isBuffering = true
+                        binding.root.findViewById<View>(androidx.media3.ui.R.id.exo_buffering)?.visibility = View.VISIBLE
+                    }
+                    PlayerEngine.State.READY -> {
+                        isBuffering = false
+                        binding.root.findViewById<View>(androidx.media3.ui.R.id.exo_buffering)?.visibility = View.GONE
+                    }
+                    PlayerEngine.State.ENDED -> {
+                        isBuffering = false
+                        binding.root.findViewById<View>(androidx.media3.ui.R.id.exo_buffering)?.visibility = View.GONE
+                    }
+                    else -> {}
+                }
+            }
+            override fun onIsPlayingChanged(playing: Boolean) {
+                isPlayerPlaying = playing
+                if (playing) exoPlay.setImageResource(R.drawable.ic_round_pause_24)
+                else exoPlay.setImageResource(R.drawable.ic_round_play_arrow_24)
+            }
+            override fun onError(message: String?) {
+                Logger.log(Log.ERROR, "mpv error: $message")
+            }
+            override fun onVideoSizeChanged(width: Int, height: Int) {
+                if (width > 0 && height > 0) {
+                    aspectRatio = Rational(width, height)
+                }
+            }
+        })
+
+        mpvSurface.holder.addCallback(object : android.view.SurfaceHolder.Callback {
+            override fun surfaceCreated(holder: android.view.SurfaceHolder) {
+                mpv.setSurface(holder.surface)
+                mpv.setMediaSource(url, headers, null, null)
+                mpv.openUrl(url, headers)
+                mpv.play()
+            }
+            override fun surfaceChanged(holder: android.view.SurfaceHolder, format: Int, w: Int, h: Int) {}
+            override fun surfaceDestroyed(holder: android.view.SurfaceHolder) {
+                mpv.setSurface(null)
+            }
+        })
+    }
 
     override fun onSaveInstanceState(outState: Bundle) {
         if (isInitialized) {
@@ -2874,7 +2954,6 @@ class ExoplayerView :
             e.printStackTrace()
         }
     }
-
 
     private fun applyLocalSubtitle(uri: android.net.Uri) {
         try {
@@ -3294,7 +3373,6 @@ class ExoplayerView :
             snackString("Failed to apply subtitle: ${e.message}")
         }
     }
-
 
     // Map ISO 639-2 codes (from Stremio API) to language names
     private fun mapLanguageCode(isoCode: String): String = when (isoCode.lowercase()) {
@@ -4170,32 +4248,12 @@ class ExoplayerView :
             liveDetectedFromPlayer
         )
 
-
-    /** CloudStream-style LIVE badge: when a live stream is playing, drop the
-     *  fixed VOD position/duration readout (an HLS live window has no real
-     *  timeline) and show only the red "LIVE" tag. The seekbar and skip button
-     *  stay, since the bar still reflects the sliding live window. */
+    /** Always hide the LIVE badge and always show position/duration stamps.
+     *  ExoPlayer natively updates position/duration for live HLS/DASH so the
+     *  user sees real timestamps like "23:00 / 24:00". */
     private fun updateLiveBadge() {
-        val live = isLiveStream()
-        playerView.findViewById<View>(R.id.exo_live_badge)?.visibility =
-            if (live) View.VISIBLE else View.GONE
-        // Hide the fixed position/duration stamps and their separators for live;
-        // there is no meaningful absolute timeline on an HLS live window.
-        val showStamps = !live
-        playerView.findViewById<View>(androidx.media3.ui.R.id.exo_position)?.visibility =
-            if (showStamps) View.VISIBLE else View.GONE
-        playerView.findViewById<View>(androidx.media3.ui.R.id.exo_duration)?.visibility =
-            if (showStamps) View.VISIBLE else View.GONE
-        playerView.findViewById<View>(R.id.exo_time_sep)?.visibility =
-            if (showStamps) View.VISIBLE else View.GONE
-        playerView.findViewById<View>(R.id.exo_dot_sep)?.visibility =
-            if (showStamps) View.VISIBLE else View.GONE
-        playerView.findViewById<View>(R.id.exo_time_stamp_text)?.visibility =
-            if (showStamps) View.VISIBLE else View.GONE
+        playerView.findViewById<View>(R.id.exo_live_badge)?.visibility = View.GONE
     }
-
-
-
     override fun onPlayerError(error: PlaybackException) {
         val epLabel = media.anime?.selectedEpisode ?: "?"
         // DRM license acquisition failed. We no longer retry without DRM because
@@ -4274,6 +4332,7 @@ class ExoplayerView :
             }
             // Fallback trigger in case onRenderedFirstFrame never fired.
             maybeLoadTimeStamps("ready")
+
             updateLiveBadge()
         }
         isBuffering = playbackState == Player.STATE_BUFFERING
@@ -4281,6 +4340,7 @@ class ExoplayerView :
             Logger.log(Log.WARN, "Player: BUFFERING on ep '$epLabel' pos=${exoPlayer.currentPosition} (${exoPlayer.playbackState})")
         }
         if (playbackState == Player.STATE_ENDED) {
+
             Logger.log("Player: ENDED on ep '$epLabel'")
             if (PrefManager.getVal(PrefName.AutoPlay)) {
                 val browsingEpisodes =
@@ -4496,7 +4556,6 @@ class ExoplayerView :
         super.onDestroy()
         finishAndRemoveTask()
     }
-
 
     // Enter PiP Mode
     @Suppress("DEPRECATION")
