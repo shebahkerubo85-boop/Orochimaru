@@ -116,19 +116,13 @@ android {
     packaging {
         jniLibs {
             // mpv-android-lib bundles its own FFmpeg libs; exclude duplicates
-            // from nextlib-media3ext (same libavcodec.so etc.)
-            excludes += setOf(
-                "lib/arm64-v8a/libavcodec.so",
-                "lib/arm64-v8a/libavformat.so",
-                "lib/arm64-v8a/libavutil.so",
-                "lib/arm64-v8a/libswresample.so",
-                "lib/arm64-v8a/libswscale.so",
-                "lib/armeabi-v7a/libavcodec.so",
-                "lib/armeabi-v7a/libavformat.so",
-                "lib/armeabi-v7a/libavutil.so",
-                "lib/armeabi-v7a/libswresample.so",
-                "lib/armeabi-v7a/libswscale.so",
+            // from nextlib-media3ext across ALL ABIs
+            val ffmpegLibs = listOf(
+                "libavcodec.so", "libavformat.so", "libavutil.so",
+                "libswresample.so", "libswscale.so",
             )
+            val abis = listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+            excludes += abis.flatMap { abi -> ffmpegLibs.map { "lib/$abi/$it" } }.toSet()
         }
     }
 }
