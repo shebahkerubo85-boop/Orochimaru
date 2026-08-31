@@ -115,14 +115,17 @@ android {
 
     packaging {
         jniLibs {
-            // mpv-android-lib bundles its own FFmpeg libs; exclude duplicates
-            // from nextlib-media3ext across ALL ABIs
-            val ffmpegLibs = listOf(
-                "libavcodec.so", "libavformat.so", "libavutil.so",
-                "libswresample.so", "libswscale.so",
+            // mpv-android-lib and other AARs (nextlib-media3ext, ass-kt) ship
+            // overlapping .so files. Use pickFirst to keep one copy and avoid
+            // merge failures across all ABIs.
+            pickFirsts += setOf(
+                "**/libavcodec.so",
+                "**/libavformat.so",
+                "**/libavutil.so",
+                "**/libswresample.so",
+                "**/libswscale.so",
+                "**/libc++_shared.so",
             )
-            val abis = listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
-            excludes += abis.flatMap { abi -> ffmpegLibs.map { "lib/$abi/$it" } }.toSet()
         }
     }
 }
