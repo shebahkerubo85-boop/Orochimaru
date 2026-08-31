@@ -80,9 +80,7 @@ class ExoEngine(val exoPlayer: ExoPlayer) : PlayerEngine {
     override val durationMs: Long get() = exoPlayer.duration
     override val state: PlayerEngine.State get() = _state
     override var videoWidth: Int = 0
-        private set
     override var videoHeight: Int = 0
-        private set
 
     override fun setSurface(surface: Surface?) {
         // ExoPlayer manages its own surface via PlayerView; this is a no-op.
