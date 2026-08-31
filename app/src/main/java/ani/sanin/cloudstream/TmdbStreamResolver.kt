@@ -594,19 +594,12 @@ object TmdbStreamResolver {
                 }.getOrNull()
             }
             else -> {
-                if (!encrypted) return null
-                val base = runCatching {
-                    val u = java.net.URI(link.url)
-                    "${u.scheme}://${u.host}${u.path}"
-                }.getOrNull() ?: link.url
-                synchronized(drmCache) { drmCache[base] }?.let {
-                    Log.i("TmdbDetails", "drmForLink: cache hit url=$base uuid=${it.uuid} license=${it.licenseUrl?.take(80)}")
-                    return it
-                }
-                Log.i("TmdbDetails", "drmForLink: fetching manifest DRM from ${link.url.take(120)}")
-                val drm = manifestDrm(link.url, link)
-                if (drm != null) synchronized(drmCache) { drmCache.putIfAbsent(base, drm) }
-                drm
+                // Zangetsu approach: only use DRM when the plugin explicitly
+                // provides a DrmExtractorLink. Inferring DRM from manifest
+                // ContentProtection causes spurious license-server failures
+                // (UnknownHostException) on streams that play fine without it.
+                Log.i("TmdbDetails", "drmForLink: non-DRM link, skipping DRM inference")
+                null
             }
         }
         Log.i("TmdbDetails", "drmForLink: result uuid=${result?.uuid} license=${result?.licenseUrl?.take(80) ?: "<none>"}")

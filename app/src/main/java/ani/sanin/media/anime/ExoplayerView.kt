@@ -94,6 +94,8 @@ import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.SingleSampleMediaSource
 import androidx.media3.exoplayer.drm.DefaultDrmSessionManager
 import androidx.media3.exoplayer.drm.FrameworkMediaDrm
+import androidx.media3.exoplayer.drm.DrmSessionManager
+import androidx.media3.exoplayer.drm.LocalMediaDrmCallback
 import androidx.media3.exoplayer.drm.HttpMediaDrmCallback
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.util.EventLogger
@@ -405,6 +407,8 @@ class ExoplayerView :
     // error out, instead of dropping to an error screen like a VOD would.
     private var liveReconnectCount = 0
     private var liveReconnectPending = false
+    // When DRM license acquisition fails, retry once without DRM (Zangetsu approach).
+    private var drmDisabledForSession = false
     // Set to true when the player's own timeline says the item is dynamic (live).
     // This catches live HLS/DASH streams whose plugins return a regular
     // LoadResponse instead of LiveStreamLoadResponse.
@@ -2236,21 +2240,43 @@ class ExoplayerView :
         assMediaSourceFactory = DefaultMediaSourceFactory(cacheFactory, extractorsFactory)
         assMediaSourceFactory.setSubtitleParserFactory(assSubtitleParserFactory)
 
-        // DRM session manager for Widevine/PlayReady encrypted streams
+        // DRM session manager for encrypted streams.
+        // Zangetsu approach: when kid+key are provided (ClearKey), use
+        // LocalMediaDrmCallback so no license-server round-trip is needed.
+        // Otherwise fall back to HttpMediaDrmCallback with the license URL.
         video?.drm?.let { drm ->
-            if (drm.uuid != null && drm.licenseUrl != null) {
-                Logger.log("Player: Setting up DRM session manager uuid=${drm.uuid} license=${drm.licenseUrl?.take(80)}")
-                val drmCallback = HttpMediaDrmCallback(drm.licenseUrl, httpDataSourceFactory)
-                val drmManager = DefaultDrmSessionManager.Builder()
-                    .setPlayClearSamplesWithoutKeys(true)
-                    .setMultiSession(true)
-                    .setKeyRequestParameters(drm.keyRequestParameters)
-                    .setUuidAndExoMediaDrmProvider(
-                        drm.uuid,
-                        FrameworkMediaDrm.DEFAULT_PROVIDER
-                    )
-                    .build(drmCallback)
-                assMediaSourceFactory.setDrmSessionManagerProvider { drmManager }
+            if (drm.uuid != null) {
+                val hasLocalKeys = !drm.kid.isNullOrEmpty() && !drm.key.isNullOrEmpty()
+                val drmManager = if (hasLocalKeys) {
+                    // Local clearkey — no license server needed (Zangetsu approach)
+                    val json = "{\"keys\":[{\"kty\":\"oct\",\"k\":\"" + (drm.key ?: "") + "\",\"kid\":\"" + (drm.kid ?: "") + "\"}],\"type\":\"temporary\"}"
+                    Logger.log("Player: Setting up local ClearKey DRM uuid=${drm.uuid} kid=${drm.kid?.take(20)}")
+                    DefaultDrmSessionManager.Builder()
+                        .setMultiSession(false)
+                        .setUuidAndExoMediaDrmProvider(
+                            drm.uuid,
+                            FrameworkMediaDrm.DEFAULT_PROVIDER
+                        )
+                        .build(LocalMediaDrmCallback(json.toByteArray(Charsets.UTF_8)))
+                } else if (drm.licenseUrl != null) {
+                    // Remote license server (Widevine/PlayReady)
+                    Logger.log("Player: Setting up DRM session manager uuid=${drm.uuid} license=${drm.licenseUrl?.take(80)}")
+                    val drmCallback = HttpMediaDrmCallback(drm.licenseUrl, httpDataSourceFactory)
+                    DefaultDrmSessionManager.Builder()
+                        .setPlayClearSamplesWithoutKeys(true)
+                        .setMultiSession(true)
+                        .setKeyRequestParameters(drm.keyRequestParameters)
+                        .setUuidAndExoMediaDrmProvider(
+                            drm.uuid,
+                            FrameworkMediaDrm.DEFAULT_PROVIDER
+                        )
+                        .build(drmCallback)
+                } else {
+                    null
+                }
+                if (drmManager != null) {
+                    assMediaSourceFactory.setDrmSessionManagerProvider { drmManager }
+                }
             }
         }
 
@@ -4266,6 +4292,27 @@ class ExoplayerView :
 
     override fun onPlayerError(error: PlaybackException) {
         val epLabel = media.anime?.selectedEpisode ?: "?"
+        // DRM license acquisition failed: retry without DRM (Zangetsu approach).
+        // Many live streams don't actually need a DRM license — the manifest
+        // contains ContentProtection but the stream plays fine without it.
+        if (error.errorCode == PlaybackException.ERROR_CODE_DRM_LICENSE_ACQUISITION_FAILED ||
+            error.errorCode == PlaybackException.ERROR_CODE_DRM_SESSION_ERROR) {
+            if (!drmDisabledForSession) {
+                drmDisabledForSession = true
+                Logger.log(Log.WARN, "Player: DRM license failed (${error.errorCodeName}) - retrying without DRM on '$epLabel'")
+                try {
+                    val noDrmFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(httpDataSourceFactory)
+                    val rebuiltSource = noDrmFactory.createMediaSource(mediaItem)
+                    exoPlayer.setMediaSource(rebuiltSource)
+                    exoPlayer.prepare()
+                    exoPlayer.play()
+                } catch (_: Exception) {
+                }
+                return
+            }
+            Logger.log(Log.ERROR, "Player: DRM already disabled, DRM error persists on '$epLabel': ${error.errorCodeName}")
+        }
+
         // Live streams error when their short-TTL HLS segments expire. Mirror
         // CloudStream's onPlayerError exactly so recovery keeps the current live
         // position (and LiveHelper corrects) instead of snapping back to the
