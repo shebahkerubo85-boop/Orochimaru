@@ -34,11 +34,7 @@ class MpvEngine(private val appContext: Context) : PlayerEngine {
     private var _videoWidth = 0
     private var _videoHeight = 0
 
-    init {
-        applyGlobalConfig()
-        MPVLib.addObserver(eventObserver)
-        Log.i(TAG, "mpv engine initialised, observer registered")
-    }
+
 
     private fun applyGlobalConfig() {
         try {
@@ -123,7 +119,7 @@ class MpvEngine(private val appContext: Context) : PlayerEngine {
                 val headerStr = headers.entries.joinToString(",") { "${it.key}: ${it.value}" }
                 MPVLib.setPropertyString("http-header-fields", headerStr)
             }
-            MPVLib.command(arrayOf("loadfile", url))
+            MPVLib.command("loadfile", url)
         } catch (e: Exception) {
             Log.e(TAG, "openUrl failed", e)
             notifyError(e.message)
@@ -261,9 +257,14 @@ class MpvEngine(private val appContext: Context) : PlayerEngine {
             }
         }
 
-        override fun eventProperty(property: String, value: Long) {}
 
         override fun eventProperty(property: String, value: `is`.xyz.mpv.MPVNode) {}
+    }
+
+    init {
+        applyGlobalConfig()
+        MPVLib.addObserver(eventObserver)
+        Log.i(TAG, "mpv engine initialised, observer registered")
     }
 
     // ── Property accessors ────────────────────────────────────────────
@@ -285,7 +286,7 @@ class MpvEngine(private val appContext: Context) : PlayerEngine {
         MPVLib.removeObserver(eventObserver)
         try {
             MPVLib.detachSurface()
-            MPVLib.command(arrayOf("stop"))
+            MPVLib.command("stop")
         } catch (_: Exception) {}
     }
 }
