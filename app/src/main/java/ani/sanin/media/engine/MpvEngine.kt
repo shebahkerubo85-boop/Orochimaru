@@ -5,18 +5,14 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.Surface
-import `is`.xyz.mpv.MPV
+import `is`.xyz.mpv.MPVLib
 
 /**
  * Video playback engine backed by **libmpv** (mpv-android 0.1.9).
  *
- * Ports the live-stream / HLS stack from Zangetsu's player to pure Kotlin.
- * Key properties:
- *  - `cache` + `cache-secs`  — large read-ahead (60 s) absorbs CDN dips
- *  - `stream-lavf-o`        — per-segment reconnect for live HLS
- *  - `cache-pause`          — pause audio+video on underrun, resume in sync
- *  - `hwdec=mediacodec-copy`— routes frames through mpv's pipeline for A/V
- *                             sync recovery after a stall
+ * Ports the live-stream / HLS stack from Zangetsu to pure Kotlin.
+ * MPVLib is a singleton — we configure it globally and use addObserver
+ * for event callbacks.
  */
 class MpvEngine(private val appContext: Context) : PlayerEngine {
 
@@ -38,52 +34,54 @@ class MpvEngine(private val appContext: Context) : PlayerEngine {
     private var _videoWidth = 0
     private var _videoHeight = 0
 
-    lateinit var mpv: MPV
-        private set
-
     init {
-        mpv = MPV(appContext.applicationContext)
         applyGlobalConfig()
-        mpv.initSession()
-        mpv.addObserver(eventObserver)
-        Log.i(TAG, "mpv created + initialised")
+        MPVLib.addObserver(eventObserver)
+        Log.i(TAG, "mpv engine initialised, observer registered")
     }
 
     private fun applyGlobalConfig() {
         try {
-            mpv.setPropertyString("cache", "yes")
-            mpv.setPropertyString("cache-secs", "$CACHE_SECS")
-            mpv.setPropertyString("demuxer-readahead-secs", "$CACHE_SECS")
-            mpv.setPropertyString("demuxer-max-bytes", DEMUXER_MAX_BYTES)
-            mpv.setPropertyString("demuxer-max-back-bytes", DEMUXER_MAX_BACK_BYTES)
-            mpv.setPropertyString("cache-pause", "yes")
-            mpv.setPropertyString("cache-pause-wait", "2")
-            mpv.setPropertyString("hwdec", "mediacodec-copy")
-            mpv.setPropertyString("force-seekable", "yes")
-
-            mpv.setPropertyString(
+            // Cache / read-ahead (Zangetsu)
+            MPVLib.setPropertyString("cache", "yes")
+            MPVLib.setPropertyString("cache-secs", "$CACHE_SECS")
+            MPVLib.setPropertyString("demuxer-readahead-secs", "$CACHE_SECS")
+            MPVLib.setPropertyString("demuxer-max-bytes", DEMUXER_MAX_BYTES)
+            MPVLib.setPropertyString("demuxer-max-back-bytes", DEMUXER_MAX_BACK_BYTES)
+            // Pause audio+video together on underrun, wait 2 s, resume in sync
+            MPVLib.setPropertyString("cache-pause", "yes")
+            MPVLib.setPropertyString("cache-pause-wait", "2")
+            // A/V sync after mid-stream stall
+            MPVLib.setPropertyString("hwdec", "mediacodec-copy")
+            // Force-seekable
+            MPVLib.setPropertyString("force-seekable", "yes")
+            // Reconnect for live HLS
+            MPVLib.setPropertyString(
                 "stream-lavf-o",
                 "reconnect=1,reconnect_streamed=1," +
                     "reconnect_on_network_error=1,reconnect_delay_max=5"
             )
-            mpv.setPropertyString(
+            // Demuxer tuning
+            MPVLib.setPropertyString(
                 "demuxer-lavf-o",
                 "extension_picky=0,allowed_extensions=ALL," +
                     "http_persistent=0,analyzeduration=$ANALYZEDURATION_US"
             )
+            // Software decode fallback
+            MPVLib.setPropertyString("vd-lavc-threads", "4")
+            MPVLib.setPropertyString("vd-lavc-skiploopfilter", "nonkey")
+            MPVLib.setPropertyString("vd-lavc-fast", "yes")
+            // Volume
+            MPVLib.setPropertyString("volume-max", "200")
+            MPVLib.setPropertyString("audio-pitch-correction", "yes")
 
-            mpv.setPropertyString("vd-lavc-threads", "4")
-            mpv.setPropertyString("vd-lavc-skiploopfilter", "nonkey")
-            mpv.setPropertyString("vd-lavc-fast", "yes")
-            mpv.setPropertyString("volume-max", "200")
-            mpv.setPropertyString("audio-pitch-correction", "yes")
-
-            mpv.observeProperty("pause", MPV.mpvFormat.MPV_FORMAT_FLAG)
-            mpv.observeProperty("duration", MPV.mpvFormat.MPV_FORMAT_DOUBLE)
-            mpv.observeProperty("time-pos", MPV.mpvFormat.MPV_FORMAT_DOUBLE)
-            mpv.observeProperty("width", MPV.mpvFormat.MPV_FORMAT_INT64)
-            mpv.observeProperty("height", MPV.mpvFormat.MPV_FORMAT_INT64)
-            mpv.observeProperty("core-idle", MPV.mpvFormat.MPV_FORMAT_FLAG)
+            // Observe properties so we get callbacks
+            MPVLib.observeProperty("pause", MPVLib.mpvFormat.MPV_FORMAT_FLAG)
+            MPVLib.observeProperty("duration", MPVLib.mpvFormat.MPV_FORMAT_DOUBLE)
+            MPVLib.observeProperty("time-pos", MPVLib.mpvFormat.MPV_FORMAT_DOUBLE)
+            MPVLib.observeProperty("width", MPVLib.mpvFormat.MPV_FORMAT_INT64)
+            MPVLib.observeProperty("height", MPVLib.mpvFormat.MPV_FORMAT_INT64)
+            MPVLib.observeProperty("core-idle", MPVLib.mpvFormat.MPV_FORMAT_FLAG)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to apply global config", e)
         }
@@ -93,10 +91,14 @@ class MpvEngine(private val appContext: Context) : PlayerEngine {
 
     override fun setSurface(surface: Surface?) {
         if (_released) return
-        if (surface != null) {
-            mpv.attachSurface(surface)
-        } else {
-            mpv.detachSurface()
+        try {
+            if (surface != null) {
+                MPVLib.attachSurface(surface)
+            } else {
+                MPVLib.detachSurface()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "setSurface error", e)
         }
     }
 
@@ -106,22 +108,22 @@ class MpvEngine(private val appContext: Context) : PlayerEngine {
         mimeType: String?,
         subs: List<Any>?
     ) {
-        // Headers are set at openUrl time via http-header-fields
+        // Headers are set at openUrl time
     }
 
     override fun prepare() {
         // no-op; prepare happens in openUrl
     }
 
-    /** Actually open a URL in mpv. Called after setSurface. */
+    /** Actually open a URL in mpv. */
     fun openUrl(url: String, headers: Map<String, String>?) {
         if (_released) return
         try {
             if (!headers.isNullOrEmpty()) {
                 val headerStr = headers.entries.joinToString(",") { "${it.key}: ${it.value}" }
-                mpv.setPropertyString("http-header-fields", headerStr)
+                MPVLib.setPropertyString("http-header-fields", headerStr)
             }
-            mpv.command("loadfile", url)
+            MPVLib.command(arrayOf("loadfile", url))
         } catch (e: Exception) {
             Log.e(TAG, "openUrl failed", e)
             notifyError(e.message)
@@ -130,31 +132,31 @@ class MpvEngine(private val appContext: Context) : PlayerEngine {
 
     override fun play() {
         if (_released) return
-        mpv.setPropertyBoolean("pause", false)
+        MPVLib.setPropertyBoolean("pause", false)
     }
 
     override fun pause() {
         if (_released) return
-        mpv.setPropertyBoolean("pause", true)
+        MPVLib.setPropertyBoolean("pause", true)
     }
 
     override fun seekTo(positionMs: Long) {
         if (_released) return
-        mpv.setPropertyDouble("seekto", positionMs / 1000.0)
+        MPVLib.setPropertyDouble("seekto", positionMs / 1000.0)
     }
 
     override fun setSpeed(speed: Float) {
         if (_released) return
-        mpv.setPropertyDouble("speed", speed.toDouble())
+        MPVLib.setPropertyDouble("speed", speed.toDouble())
     }
 
     override fun setVolume(volume: Float) {
         if (_released) return
-        mpv.setPropertyDouble("volume", (volume * 100.0).coerceIn(0.0, 200.0))
+        MPVLib.setPropertyDouble("volume", (volume * 100.0).coerceIn(0.0, 200.0))
     }
 
     override fun setAudioSessionId(sessionId: Int) {
-        // mpv uses Android's AudioTrack directly; session ID is not directly settable.
+        // mpv uses Android's AudioTrack directly
     }
 
     // ── Listener management ───────────────────────────────────────────
@@ -195,36 +197,36 @@ class MpvEngine(private val appContext: Context) : PlayerEngine {
         mainHandler.post { snapshot.forEach { it.onVideoSizeChanged(w, h) } }
     }
 
-    // ── MPV event observer ────────────────────────────────────────────
+    // ── MPVLib event observer ─────────────────────────────────────────
 
-    private val eventObserver = object : MPV.EventObserver {
-        override fun event(eventId: Int, data: `is`.xyz.mpv.MPVNode) {
+    private val eventObserver = object : MPVLib.EventObserver {
+        override fun event(eventId: Int) {
             when (eventId) {
-                MPV.mpvEvent.MPV_EVENT_FILE_LOADED -> {
+                MPVLib.mpvEventId.MPV_EVENT_FILE_LOADED -> {
                     Log.i(TAG, "FILE_LOADED")
                     notifyState(PlayerEngine.State.READY)
                     try {
-                        val w = mpv.getPropertyInt("width") ?: 0
-                        val h = mpv.getPropertyInt("height") ?: 0
+                        val w = MPVLib.getPropertyInt("width") ?: 0
+                        val h = MPVLib.getPropertyInt("height") ?: 0
                         if (w > 0 && h > 0) notifyVideoSize(w, h)
                     } catch (_: Exception) {}
                 }
-                MPV.mpvEvent.MPV_EVENT_START_FILE -> {
+                MPVLib.mpvEventId.MPV_EVENT_START_FILE -> {
                     Log.i(TAG, "START_FILE -> BUFFERING")
                     notifyState(PlayerEngine.State.BUFFERING)
                 }
-                MPV.mpvEvent.MPV_EVENT_END_FILE -> {
+                MPVLib.mpvEventId.MPV_EVENT_END_FILE -> {
                     Log.i(TAG, "END_FILE")
                     notifyState(PlayerEngine.State.ENDED)
                 }
-                MPV.mpvEvent.MPV_EVENT_SEEK -> {
+                MPVLib.mpvEventId.MPV_EVENT_SEEK -> {
                     val snapshot: List<PlayerEngine.Listener>
                     synchronized(listeners) { snapshot = listeners.toList() }
                     mainHandler.post {
                         snapshot.forEach { it.onPositionDiscontinuity(0) }
                     }
                 }
-                MPV.mpvEvent.MPV_EVENT_PLAYBACK_RESTART -> {
+                MPVLib.mpvEventId.MPV_EVENT_PLAYBACK_RESTART -> {
                     notifyState(PlayerEngine.State.READY)
                 }
             }
@@ -259,6 +261,8 @@ class MpvEngine(private val appContext: Context) : PlayerEngine {
             }
         }
 
+        override fun eventProperty(property: String, value: Long) {}
+
         override fun eventProperty(property: String, value: `is`.xyz.mpv.MPVNode) {}
     }
 
@@ -278,10 +282,10 @@ class MpvEngine(private val appContext: Context) : PlayerEngine {
     override fun release() {
         if (_released) return
         _released = true
-        mpv.removeObserver(eventObserver)
+        MPVLib.removeObserver(eventObserver)
         try {
-            mpv.detachSurface()
-            mpv.command("stop")
+            MPVLib.detachSurface()
+            MPVLib.command(arrayOf("stop"))
         } catch (_: Exception) {}
     }
 }

@@ -28,13 +28,6 @@ class ExoEngine(val exoPlayer: ExoPlayer) : PlayerEngine {
     private val listeners = mutableListOf<PlayerEngine.Listener>()
     private var _state = PlayerEngine.State.IDLE
 
-    /** Register on the real ExoPlayer so we translate callbacks. */
-    init {
-        exoPlayer.addListener(exoListener)
-    }
-
-    // ── ExoPlayer.Listener → PlayerEngine.Listener bridge ──────────────
-
     private val exoListener = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
             val mapped = when (playbackState) {
@@ -71,6 +64,10 @@ class ExoEngine(val exoPlayer: ExoPlayer) : PlayerEngine {
         override fun onTimelineChanged(timeline: Timeline, reason: Int) {
             notify { it.onTracksChanged() }
         }
+    }
+
+    init {
+        exoPlayer.addListener(exoListener)
     }
 
     // ── PlayerEngine interface ─────────────────────────────────────────
