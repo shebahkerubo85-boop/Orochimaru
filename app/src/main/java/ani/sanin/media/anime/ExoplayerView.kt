@@ -42,7 +42,6 @@ import android.view.MotionEvent
 import android.view.OrientationEventListener
 import android.view.View
 import android.view.ViewGroup
-import ani.sanin.media.live.LiveHelper
 import android.view.animation.AnimationUtils
 import android.widget.AdapterView
 import android.widget.ImageButton
@@ -325,11 +324,6 @@ class ExoplayerView :
         // instead of treating it as a fixed VOD timeline that "ends" and rewinds.
         // A target offset larger than the window would clamp the join position to
         // the window start, replaying content on every join/reconnect.
-        private const val LIVE_TARGET_OFFSET_MS = 1000L * 5   // prefer ~5s behind the live edge (CloudStream PREFERRED_LIVE_OFFSET)
-        private const val LIVE_MIN_OFFSET_MS = 1000L * 5
-        private const val LIVE_MAX_OFFSET_MS = 1000L * 60
-        private const val LIVE_MAX_RECONNECTS = 5
-        private const val LIVE_RECONNECT_RETRY_MS = 1000L * 3
 
         fun clearAllCaches() {
             try {
@@ -404,8 +398,6 @@ class ExoplayerView :
     // segment URLs with a short TTL, so we keep the playhead near the live edge and
     // reconnect (re-fetch the playlist) when an expired segment makes the source
     // error out, instead of dropping to an error screen like a VOD would.
-    private var liveReconnectCount = 0
-    private var liveReconnectPending = false
     // Set to true when the player's own timeline says the item is dynamic (live).
     // This catches live HLS/DASH streams whose plugins return a regular
     // LoadResponse instead of LiveStreamLoadResponse.
@@ -2288,20 +2280,7 @@ class ExoplayerView :
             .setUri(video!!.file.url)
             .setMimeType(mimeType)
             .setSubtitleConfigurations(sub)
-        val urlIsHls = video!!.file.url.contains(".m3u8")
-        if (isLiveStream || urlIsHls) {
-            // Set LiveConfiguration for every HLS URL. ExoPlayer ignores it for
-            // VOD playlists (#EXT-X-ENDLIST present) but uses it for live/event
-            // playlists to anchor near the live edge. This catches live TV plugins
-            // that return a regular LoadResponse instead of LiveStreamLoadResponse.
-            mediaItemBuilder.setLiveConfiguration(
-                MediaItem.LiveConfiguration.Builder()
-                    .setTargetOffsetMs(LIVE_TARGET_OFFSET_MS)
-                    .setMaxOffsetMs(LIVE_MAX_OFFSET_MS)
-                    .setMinOffsetMs(LIVE_MIN_OFFSET_MS)
-                    .build()
-            )
-        }
+
         mediaItem = mediaItemBuilder.build()
 
         Logger.log(
@@ -2520,20 +2499,7 @@ class ExoplayerView :
             // Apply the LIVE badge / hide fixed VOD stamps immediately so the
             // short fixed timeline never flashes during initial buffering.
             updateLiveBadge()
-            // CloudStream LivePreviewTimeBar: pin the progress bar to duration when at live edge
-            // so the bar never visually jumps backward even when the player position resets on reconnect.
-            val liveProgressCallback = object : PlayerControlView.ProgressUpdateListener {
-                override fun onProgressUpdate(position: Long, bufferedPosition: Long) {
-                    if (isLiveStream() && LiveHelper.getLiveManager(exoPlayer)?.isAtLiveEdge() == true) {
-                        val bar = playerView.findViewById<androidx.media3.ui.DefaultTimeBar>(
-                            androidx.media3.ui.R.id.exo_progress
-                        )
-                        bar?.setPosition(exoPlayer.duration)
-                    }
-                }
-            }
-            val exoCtrl = playerView.findViewById<PlayerControlView>(androidx.media3.ui.R.id.exo_controller)
-            exoCtrl?.setProgressUpdateListener(liveProgressCallback)
+
         }
 
         exoPlayer.addListener(
@@ -2642,7 +2608,6 @@ class ExoplayerView :
 
         exoPlayer.addListener(this)
         exoPlayer.addAnalyticsListener(EventLogger())
-        LiveHelper.registerPlayer(exoPlayer)
         isInitialized = true
 
         if (!hasExtSubtitles && !PrefManager.getVal<Boolean>(PrefName.Subtitles)) {
@@ -2668,7 +2633,6 @@ class ExoplayerView :
         disappeared = false
         functionstarted = false
         exoSubtitleView.setCues(emptyList())
-        LiveHelper.unregisterPlayer(exoPlayer)
         exoPlayer.release()
         VideoCache.release()
         mediaSession?.release()
@@ -3645,10 +3609,7 @@ class ExoplayerView :
         reason: Int
     ) {
         super.onPositionDiscontinuity(oldPosition, newPosition, reason)
-        // CloudStream LiveHelper: after any discontinuity, check whether the
-        // playhead has drifted ahead of the live edge and re-anchor if so. The
-        // small target live offset keeps a healthy stream at the edge natively.
-        // LiveHelper's onPositionDiscontinuity handles live edge correction automatically
+        // Zangetsu approach: no custom live edge correction — let ExoPlayer handle it natively.
         if (reason == Player.DISCONTINUITY_REASON_SEEK || reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT) {
             if (!userPaused) {
                 exoPlayer.play()
@@ -4233,39 +4194,7 @@ class ExoplayerView :
             if (showStamps) View.VISIBLE else View.GONE
     }
 
-    /** Reconnect a live stream: re-fetch the playlist by re-preparing the media
-     *  source and seek to the live edge. Used when segment URLs expire (IO/HTTP
-     *  source errors) so the stream recovers instead of failing like a VOD. */
-    private fun reconnectLiveStream(error: PlaybackException?) {
-        if (!isLiveStream() || ::exoPlayer.isInitialized.not() || exoPlayer.isReleased) return
-        if (liveReconnectPending) return
-        if (liveReconnectCount >= LIVE_MAX_RECONNECTS) {
-            Logger.log(Log.ERROR, "Player: LIVE reconnect limit reached — giving up")
-            liveReconnectCount = 0
-            toast("Player Error: live stream connection lost")
-            return
-        }
-        liveReconnectCount++
-        liveReconnectPending = true
-        Logger.log(
-            Log.WARN,
-            "Player: LIVE reconnect ${liveReconnectCount}/$LIVE_MAX_RECONNECTS " +
-                (error?.let { "(code=${it.errorCode}) ${it.errorCodeName}: ${it.message}" } ?: "")
-        )
-        handler.postDelayed({
-            liveReconnectPending = false
-            if (!::exoPlayer.isInitialized || exoPlayer.isReleased) return@postDelayed
-            try {
-                // CloudStream: re-prepare the current source (re-fetch the playlist)
-                // without resetting via setMediaSource(mediaSource, TIME_UNSET) —
-                // that snaps to #EXT-X-START and makes the bar jump backward.
-                // LiveHelper corrects any drift via onPositionDiscontinuity.
-                exoPlayer.prepare()
-                exoPlayer.play()
-            } catch (_: Exception) {
-            }
-        }, LIVE_RECONNECT_RETRY_MS)
-    }
+
 
     override fun onPlayerError(error: PlaybackException) {
         val epLabel = media.anime?.selectedEpisode ?: "?"
@@ -4277,49 +4206,6 @@ class ExoplayerView :
             Logger.log(Log.WARN, "Player: DRM license failed (${error.errorCodeName}) on '$epLabel' — no retry without DRM (Zangetsu approach)")
         }
 
-        // Live streams error when their short-TTL HLS segments expire. Mirror
-        // CloudStream's onPlayerError exactly so recovery keeps the current live
-        // position (and LiveHelper corrects) instead of snapping back to the
-        // playlist #EXT-X-START offset.
-        if (isLiveStream()) {
-            when {
-                // Network failure on a stream whose duration is already known:
-                // just re-fetch the playlist, keep the current position.
-                error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED &&
-                    exoPlayer.duration != androidx.media3.common.C.TIME_UNSET -> {
-                    Logger.log(Log.WARN, "Player: LIVE network error on '$epLabel' — re-preparing in place")
-                    try {
-                        exoPlayer.prepare()
-                    } catch (_: Exception) {
-                    }
-                    return
-                }
-
-                // Playhead fell outside the sliding live window: re-init at the
-                // current live window default position.
-                error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW -> {
-                    Logger.log(Log.WARN, "Player: LIVE behind-live-window error — seekToDefaultPosition + prepare on '$epLabel'")
-                    try {
-                        exoPlayer.seekToDefaultPosition()
-                        exoPlayer.prepare()
-                    } catch (_: Exception) {
-                    }
-                    return
-                }
-
-                // Other live IO/source errors (e.g. expired HLS segments): fetch a
-                // fresh playlist but keep the current live position rather than
-                // resetting to TIME_UNSET (which would jump back to #EXT-X-START).
-                // HlsPlaylistTracker.PlaylistStuckException is package-private in
-                // media3 so cannot be caught from Kotlin; LiveHelper corrects
-                // position proactively so this rarely triggers.
-                else -> {
-                    Logger.log(Log.WARN, "Player: LIVE stream source error (${error.errorCode}) on '$epLabel': ${error.message}")
-                    reconnectLiveStream(error)
-                    return
-                }
-            }
-        }
         when (error.errorCode) {
             PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
             PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
@@ -4388,11 +4274,6 @@ class ExoplayerView :
             }
             // Fallback trigger in case onRenderedFirstFrame never fired.
             maybeLoadTimeStamps("ready")
-            if (isLiveStream()) {
-                // A successful (re)connect is complete: refresh the budget. The
-                // live edge is followed natively via the small live target offset.
-                liveReconnectCount = 0
-            }
             updateLiveBadge()
         }
         isBuffering = playbackState == Player.STATE_BUFFERING
@@ -4400,16 +4281,6 @@ class ExoplayerView :
             Logger.log(Log.WARN, "Player: BUFFERING on ep '$epLabel' pos=${exoPlayer.currentPosition} (${exoPlayer.playbackState})")
         }
         if (playbackState == Player.STATE_ENDED) {
-            if (isLiveStream()) {
-                // Live stream hit ENDED — reconnect at live edge without disrupting playback.
-                // Avoid prepare() which stalls the player; just seek to the live edge.
-                // LiveHelper corrects any drift via onPositionDiscontinuity.
-                Logger.log("Player: LIVE stream hit ENDED — seeking to live edge")
-                exoPlayer.playWhenReady = true
-                exoPlayer.seekToDefaultPosition()
-                super.onPlaybackStateChanged(playbackState)
-                return
-            }
             Logger.log("Player: ENDED on ep '$epLabel'")
             if (PrefManager.getVal(PrefName.AutoPlay)) {
                 val browsingEpisodes =
