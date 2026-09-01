@@ -51,7 +51,7 @@ import com.lagradost.cloudstream3.ui.BaseFragment
 import com.lagradost.cloudstream3.ui.home.HomeFragment
 import com.lagradost.cloudstream3.ui.home.HomeFragment.Companion.bindChips
 import com.lagradost.cloudstream3.ui.home.HomeFragment.Companion.currentSpan
-import com.lagradost.cloudstream3.ui.home.HomeFragment.Companion.loadHomepageList
+import com.lagradost.cloudstream3.ui.home.loadHomepageList
 import com.lagradost.cloudstream3.ui.home.HomeFragment.Companion.updateChips
 import com.lagradost.cloudstream3.ui.home.HomeViewModel
 import com.lagradost.cloudstream3.ui.home.ParentItemAdapter
@@ -227,7 +227,7 @@ class SearchFragment : BaseFragment<FragmentSearchBinding>(
         // Fix grid
         currentSpan = view.context.getSpanCount()
         binding?.searchAutofitResults?.spanCount = currentSpan
-        HomeFragment.configEvent.invoke()
+        HomeFragment.configEvent.invoke(true)
     }
 
     override fun onBindingCreated(

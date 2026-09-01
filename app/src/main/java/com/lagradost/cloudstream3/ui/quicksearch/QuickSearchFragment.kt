@@ -25,7 +25,7 @@ import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.mvvm.observe
 import com.lagradost.cloudstream3.ui.BaseFragment
 import com.lagradost.cloudstream3.ui.home.HomeFragment
-import com.lagradost.cloudstream3.ui.home.HomeFragment.Companion.loadHomepageList
+import com.lagradost.cloudstream3.ui.home.loadHomepageList
 import com.lagradost.cloudstream3.ui.home.HomeViewModel
 import com.lagradost.cloudstream3.ui.home.ParentItemAdapter
 import com.lagradost.cloudstream3.ui.search.SearchAdapter
@@ -99,7 +99,7 @@ class QuickSearchFragment : BaseFragment<QuickSearchBinding>(
         // Fix grid
         HomeFragment.currentSpan = view.context.getSpanCount()
         binding?.quickSearchAutofitResults?.spanCount = HomeFragment.currentSpan
-        HomeFragment.configEvent.invoke()
+        HomeFragment.configEvent.invoke(true)
     }
 
     override fun onCreateView(

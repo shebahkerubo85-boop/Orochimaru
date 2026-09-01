@@ -35,9 +35,9 @@ import okhttp3.Response
  * */
 class WebViewResolver (
     val interceptUrl: Regex,
-    val additionalUrls: List<Regex>,
-    val userAgent: String?,
-    val useOkhttp: Boolean,
+    val additionalUrls: List<Regex> = emptyList(),
+    val userAgent: String? = null,
+    val useOkhttp: Boolean = true,
     val script: String? = null,
     val scriptCallback: ((String) -> Unit)? = null,
     val timeout: Long = DEFAULT_TIMEOUT

@@ -20,6 +20,7 @@ import com.lagradost.cloudstream3.ActorData
 import com.lagradost.cloudstream3.AnimeLoadResponse
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.context
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
+import com.lagradost.cloudstream3.CommonActivity.setKey as activitySetKey
 import com.lagradost.cloudstream3.CommonActivity.activity
 import com.lagradost.cloudstream3.CommonActivity.getCastSession
 import com.lagradost.cloudstream3.CommonActivity.showToast
@@ -1634,7 +1635,7 @@ class ResultViewModel2 : ViewModel() {
                     return
                 }
 
-                activity?.setKey("last_click_action", action.uniqueId())
+                activity?.activitySetKey("last_click_action", action.uniqueId())
                 if (action.oneSource) {
                     acquireSingleLink(
                         click.data,
