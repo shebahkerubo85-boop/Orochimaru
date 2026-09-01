@@ -115,9 +115,9 @@ android {
 
     packaging {
         jniLibs {
-            // mpv-android-lib and other AARs (nextlib-media3ext, ass-kt) ship
-            // overlapping .so files. Use pickFirst to keep one copy and avoid
-            // merge failures across all ABIs.
+            // mpv-android-lib bundles its own FFmpeg; nextlib-media3ext also ships FFmpeg.
+            // pickFirsts ensures no merge error; source set jniLibs (mpv's FFmpeg extracted
+            // below) are processed BEFORE AAR copies, so mpv's versions always win.
             pickFirsts += setOf(
                 "**/libavcodec.so",
                 "**/libavformat.so",
@@ -127,6 +127,42 @@ android {
                 "**/libc++_shared.so",
             )
         }
+    }
+}
+
+// Extract mpv's FFmpeg .so files from its AAR into a source-set directory.
+// Source set jniLibs are processed BEFORE AAR extractions during the merge,
+// so these files always win the pickFirsts race against nextlib-media3ext's copies.
+val extractMpvFfmpeg by tasks.registering(Copy::class) {
+    description = "Extracts mpv FFmpeg .so files from mpv-android-lib AAR"
+    group = "build"
+    doFirst {
+        // Resolve mpv AAR directly (no transitive deps) via a detached configuration
+        val mpvConfig = project.configurations.detachedConfiguration(
+            project.dependencies.create("io.github.abdallahmehiz:mpv-android-lib:0.1.9")
+        )
+        mpvConfig.isTransitive = false
+        val mpvAar = mpvConfig.singleFile
+        project.logger.lifecycle("Extracting mpv FFmpeg from: ${mpvAar.name}")
+        from(zipTree(mpvAar)) {
+            include("jni/*/libav*.so")
+            include("jni/*/libsw*.so")
+        }
+        into(layout.buildDirectory.dir("mpv-ffmpeg-libs"))
+    }
+}
+
+android {
+    sourceSets {
+        getByName("main") {
+            jniLibs.srcDir(layout.buildDirectory.dir("mpv-ffmpeg-libs"))
+        }
+    }
+}
+
+tasks.configureEach {
+    if (name.contains("merge", ignoreCase = true) && name.contains("NativeLib", ignoreCase = true)) {
+        dependsOn(extractMpvFfmpeg)
     }
 }
 
