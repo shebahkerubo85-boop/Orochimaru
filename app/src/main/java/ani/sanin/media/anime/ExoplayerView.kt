@@ -2678,6 +2678,7 @@ class ExoplayerView :
     private fun silentLiveReconnect() {
         val epLabel = episode.number
         val previousServer = extractor?.server?.name
+        val oldUrl = video?.file?.url
         Logger.log(
             "Player: silent live reconnect — re-fetching URLs " +
                 "(previous server='${previousServer ?: "none"}', ep=$epLabel)"
@@ -2711,8 +2712,11 @@ class ExoplayerView :
                 return@launch
             }
 
-            // 4. Find the fresh extractor (same server if still available,
-            //    otherwise fall back to the first server).
+            // 4. Find the fresh extractor.  Servers whose URL is identical
+            //    to the old one are stale (e.g. DAZN with an expired auth_key
+            //    baked into the encrypted payload).  Skip those and prefer the
+            //    first server whose URL actually changed (typically an embed
+            //    server that produced a fresh signed URL via WebView extraction).
             val freshExtractors = episode.extractors?.filterNotNull()
             if (freshExtractors.isNullOrEmpty()) {
                 withContext(Dispatchers.Main) {
@@ -2727,8 +2731,26 @@ class ExoplayerView :
                 return@launch
             }
 
-            val freshExt = freshExtractors.find { it.server.name == previousServer }
-                ?: freshExtractors.first()
+            val freshExt = freshExtractors.firstNotNullOfOrNull { ext ->
+                val url = ext.videos.firstOrNull()?.file?.url
+                if (url != null && url != oldUrl) ext else null
+            }
+
+            if (freshExt == null) {
+                withContext(Dispatchers.Main) {
+                    Logger.log(
+                        Log.WARN,
+                        "Player: silent reconnect — every server returned " +
+                            "the same URL as the expired one; " +
+                            "cannot silently recover (ep=$epLabel)"
+                    )
+                    toast("Reconnect failed — same URLs")
+                    isPlayerPlaying = true
+                    sourceClick()
+                }
+                return@launch
+            }
+
             val freshVideo = freshExt.videos.getOrNull(episode.selectedVideo)
                 ?: freshExt.videos.firstOrNull()
 
