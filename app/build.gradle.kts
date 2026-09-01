@@ -235,7 +235,7 @@ dependencies {
     implementation(libs.tvprovider)
     implementation(libs.nextlib.media3ext)
     implementation(libs.nextlib.mediainfo)
-    implementation(libs.desugar.jdk.libs.nio)
+    compileOnly(libs.desugar.jdk.libs.nio)
     implementation(libs.torrentserver)
     implementation(libs.conscrypt)
 }
