@@ -148,6 +148,7 @@ dependencies {
     ksp(libs.glide.ksp)
 
     implementation(libs.bundles.media3)
+    implementation(libs.previewseekbar.media3)
     implementation(libs.bundles.subtitles)
     implementation(libs.mediarouter)
 

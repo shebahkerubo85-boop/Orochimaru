@@ -1240,4 +1240,58 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
 
     <string name="live">LIVE</string>
 
+    <!-- CS3 Player strings -->
+    <string name="wifi">Wi-Fi</string>
+    <string name="volume_exceeded_100">Volume has exceeded 100%</string>
+    <string name="video_source">Source</string>
+    <string name="unsupported_error">Unsupported error</string>
+    <string name="unexpected_error">Unexpected player error</string>
+    <string name="torrent_preferred_media">Enable torrent in Settings/Providers/Preferred media</string>
+    <string name="torrent_not_accepted">Restart app and accept Stream Torrent pop-up to proceed.</string>
+    <string name="torrent_info">This video is a Torrent, this means that your video activity can be tracked.nMake sure you understand Torrenting before continuing.</string>
+    <string name="subtitles_from_online">Online</string>
+    <string name="subtitles_from_embedded">Embedded</string>
+    <string name="subtitles_encoding">Subtitle encoding</string>
+    <string name="subtitle_offset_extra_hint_none_format">No subtitle delay</string>
+    <string name="subtitle_offset_extra_hint_later_format">Use this if the subtitles are shown %d ms too early</string>
+    <string name="subtitle_offset_extra_hint_before_format">Use this if subtitles are shown %d ms too late</string>
+    <string name="subs_subtitle_languages">Subtitle Language</string>
+    <string name="source_error">Source error</string>
+    <string name="slide_up_again_to_exceed_100">Slide up again to go beyond 100%</string>
+    <string name="skip_loading">Skip Loading</string>
+    <string name="set_default">Set default</string>
+    <string name="season_short">S</string>
+    <string name="resize_zoom">Zoom</string>
+    <string name="resize_fit">Fit to screen</string>
+    <string name="resize_fill">Stretch</string>
+    <string name="render_error">Renderer error</string>
+    <string name="remote_error">Remote error</string>
+    <string name="quality_profile_help">
+    <string name="profile_number">Profile %d</string>
+    <string name="player_speed_text_format" formatted="true">Speed (%.2fx)</string>
+    <string name="player_notification_channel_name">Player notifications</string>
+    <string name="player_notification_channel_description">The player notification for controlling the playback from the background</string>
+    <string name="player_loaded_subtitles" formatted="true">Loaded %s</string>
+    <string name="player_load_subtitles_online">Load from Internet</string>
+    <string name="player_load_subtitles">Load from file</string>
+    <string name="player_load_one_subtitle_online">Load first available</string>
+    <string name="play_torrent_button">Stream Torrent</string>
+    <string name="pause">Pause</string>
+    <string name="no_subtitles">No Subtitles</string>
+    <string name="no_links_found_toast">No Links Found</string>
+    <string name="mobile_data">Mobile data</string>
+    <string name="go_forward_30">+30</string>
+    <string name="go_back_30">-30</string>
+    <string name="go_back">Go Back</string>
+    <string name="extra_brightness_key">extra_brightness_enabled</string>
+    <string name="episode_short">E</string>
+    <string name="encoding_error">Encoding error</string>
+    <string name="downloaded_file">Downloaded file</string>
+    <string name="downloaded">Downloaded</string>
+    <string name="audio_singular">Audio</string>
+        <string name="clipboard_too_large">Too much text. Unable to save to clipboard.</string>
+        <string name="toast_copied">copied!</string>
+        <string name="download_time_left_hour_min_sec_format" formatted="true">%1$dh %2$dm %3$ds</string>
+        <string name="download_time_left_min_sec_format" formatted="true">%1$dm %2$ds</string>
+        <string name="download_time_left_sec_format" formatted="true">%1$ds</string>
 </resources>
