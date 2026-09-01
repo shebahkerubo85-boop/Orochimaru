@@ -5,7 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.core.content.ContextCompat.getString
 import androidx.navigation.NavOptions
-import com.lagradost.cloudstream3.R
+import ani.sanin.R
 import com.lagradost.cloudstream3.actions.temp.CloudStreamPackage
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.DataStoreHelper

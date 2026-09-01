@@ -4,7 +4,7 @@ import android.app.Dialog
 import android.content.Context
 import android.view.LayoutInflater
 import androidx.annotation.StyleRes
-import com.lagradost.cloudstream3.databinding.SourceProfileSettingsDialogBinding
+import ani.sanin.databinding.SourceProfileSettingsDialogBinding
 import com.lagradost.cloudstream3.utils.UIHelper.dismissSafe
 import com.lagradost.cloudstream3.utils.UIHelper.fixSystemBarsPadding
 

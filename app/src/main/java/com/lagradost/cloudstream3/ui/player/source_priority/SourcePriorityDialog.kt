@@ -5,8 +5,8 @@ import android.content.Context
 import android.view.LayoutInflater
 import androidx.annotation.StyleRes
 import androidx.appcompat.app.AlertDialog
-import com.lagradost.cloudstream3.R
-import com.lagradost.cloudstream3.databinding.PlayerSelectSourcePriorityBinding
+import ani.sanin.R
+import ani.sanin.databinding.PlayerSelectSourcePriorityBinding
 import com.lagradost.cloudstream3.utils.txt
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.UIHelper.dismissSafe

@@ -4,8 +4,8 @@ import android.app.Dialog
 import androidx.annotation.StyleRes
 import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentActivity
-import com.lagradost.cloudstream3.R
-import com.lagradost.cloudstream3.databinding.PlayerQualityProfileDialogBinding
+import ani.sanin.R
+import ani.sanin.databinding.PlayerQualityProfileDialogBinding
 import com.lagradost.cloudstream3.ui.player.source_priority.QualityDataHelper.getAllSourcePriorityNames
 import com.lagradost.cloudstream3.ui.player.source_priority.QualityDataHelper.getProfileName
 import com.lagradost.cloudstream3.ui.player.source_priority.QualityDataHelper.getProfiles

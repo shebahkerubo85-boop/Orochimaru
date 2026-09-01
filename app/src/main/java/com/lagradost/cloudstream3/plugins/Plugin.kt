@@ -2,13 +2,11 @@ package com.lagradost.cloudstream3.plugins
 
 import android.content.Context
 import android.content.res.Resources
+import android.util.Log
+import com.lagradost.cloudstream3.actions.VideoClickAction
+import com.lagradost.cloudstream3.actions.VideoClickActionHolder
 import kotlin.Throws
 
-/**
- * Host-side entry point for `.cs3` plugins. Compiled plugins link against this
- * class when they use `requiresResources` (they are built against the
- * CloudStream app, not the library module), so it must exist in the app.
- */
 abstract class Plugin : BasePlugin() {
     /**
      * Called when your Plugin is loaded
@@ -18,6 +16,16 @@ abstract class Plugin : BasePlugin() {
     open fun load(context: Context) {
         // If not overridden by an extension then try the cross-platform load()
         load()
+    }
+
+    /**
+     * Used to register VideoClickAction instances
+     * @param element VideoClickAction you want to register
+     */
+    fun registerVideoClickAction(element: VideoClickAction) {
+        Log.i(PLUGIN_TAG, "Adding ${element.name} VideoClickAction")
+        element.sourcePlugin = this.filename
+        VideoClickActionHolder.allVideoClickActions.add(element)
     }
 
     /**

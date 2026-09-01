@@ -10,7 +10,7 @@ import androidx.annotation.WorkerThread
 import androidx.core.graphics.scale
 import androidx.preference.PreferenceManager
 import com.lagradost.cloudstream3.CloudStreamApp
-import com.lagradost.cloudstream3.R
+import ani.sanin.R
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.ui.settings.Globals.TV
 import com.lagradost.cloudstream3.ui.settings.Globals.isLayout

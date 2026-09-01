@@ -15,7 +15,7 @@ import androidx.annotation.RequiresApi
 import androidx.annotation.StringRes
 import androidx.preference.PreferenceManager
 import com.lagradost.cloudstream3.CommonActivity
-import com.lagradost.cloudstream3.R
+import ani.sanin.R
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.mvvm.safe
 import kotlin.math.roundToInt

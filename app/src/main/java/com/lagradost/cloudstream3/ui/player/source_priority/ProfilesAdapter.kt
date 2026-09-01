@@ -10,8 +10,8 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.palette.graphics.Palette
-import com.lagradost.cloudstream3.R
-import com.lagradost.cloudstream3.databinding.PlayerQualityProfileItemBinding
+import ani.sanin.R
+import ani.sanin.databinding.PlayerQualityProfileItemBinding
 import com.lagradost.cloudstream3.ui.BaseDiffCallback
 import com.lagradost.cloudstream3.ui.NoStateAdapter
 import com.lagradost.cloudstream3.ui.ViewHolderState

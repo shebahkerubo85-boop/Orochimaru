@@ -9,7 +9,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.SubtitleView
 import androidx.viewbinding.ViewBinding
-import com.lagradost.cloudstream3.R
+import ani.sanin.R
 import com.lagradost.cloudstream3.ui.BaseFragment
 
 enum class PlayerResize(@StringRes val nameRes: Int) {

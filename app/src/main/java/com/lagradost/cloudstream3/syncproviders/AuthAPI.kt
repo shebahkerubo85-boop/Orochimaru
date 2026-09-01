@@ -26,14 +26,25 @@ data class AuthLoginPage(
 
 @Serializable
 data class AuthToken(
+    /**
+     * This is the general access tokens/api token representing a logged in user.
+     * Access tokens are the thing that applications use to make API requests on behalf of a user.
+     */
     @JsonProperty("accessToken") @SerialName("accessToken")
     val accessToken: String? = null,
+    /** For OAuth a special refresh token is issues to refresh the access token. */
     @JsonProperty("refreshToken") @SerialName("refreshToken")
     val refreshToken: String? = null,
+    /** In UnixTime (sec) when it expires */
     @JsonProperty("accessTokenLifetime") @SerialName("accessTokenLifetime")
     val accessTokenLifetime: Long? = null,
+    /** In UnixTime (sec) when it expires */
     @JsonProperty("refreshTokenLifetime") @SerialName("refreshTokenLifetime")
     val refreshTokenLifetime: Long? = null,
+    /**
+     * Sometimes AuthToken needs to be customized to store e.g. username/password,
+     * this acts as a catch all to store text or JSON data.
+     */
     @JsonProperty("payload") @SerialName("payload")
     val payload: String? = null,
 ) {
@@ -44,23 +55,35 @@ data class AuthToken(
         refreshTokenLifetime != null && unixTime + marginSec >= refreshTokenLifetime
 }
 
-@OptIn(ExperimentalSerializationApi::class)
+@OptIn(ExperimentalSerializationApi::class) // JsonNames is an experimental annotation for now
 @Serializable
 data class AuthUser(
+    /** Account display-name, can also be email if name does not exist */
     @JsonProperty("name") @SerialName("name")
-    val name: String,
-    /** This id is unique for the service, and as such can be used to identify the account.
-     * Note that the id is NOT unique across services.
-     * This should be handled by the idPrefix. */
+    val name: String?,
+    /**
+     * Unique account identifier. If a subsequent login is done then it
+     * will be refused if another account with the same id exists.
+     */
     @JsonProperty("id") @SerialName("id")
     val id: Int,
+    /** Profile picture URL */
     @JsonProperty("profilePicture") @SerialName("profilePicture")
     val profilePicture: String? = null,
+    /** Profile picture Headers of the URL */
     @JsonProperty("profilePictureHeaders") @JsonAlias("profilePictureHeader")
     @SerialName("profilePictureHeaders") @JsonNames("profilePictureHeader")
     val profilePictureHeaders: Map<String, String>? = null,
 )
 
+/**
+ * Stores all information that should be used to authorize access.
+ * Be aware that token and user may change independently when a refresh is needed,
+ * and as such there should be no strong pairing between the two.
+ *
+ * Any local set/get key should use user.id.toString(),
+ * as token.accessToken (even hashed) is unsecure, and will rotate.
+ */
 @Serializable
 data class AuthData(
     @JsonProperty("user") @SerialName("user") val user: AuthUser,
@@ -125,9 +148,25 @@ abstract class AuthAPI {
     open val inAppLoginRequirement: AuthLoginRequirement? = null
 
     companion object {
+        @Deprecated(
+            message = "Use APIHolder.unixTime instead",
+            replaceWith = ReplaceWith(
+                expression = "APIHolder.unixTime",
+                imports = ["com.lagradost.cloudstream3.APIHolder"]
+            ),
+            level = DeprecationLevel.WARNING,
+        )
         val unixTime: Long
             get() = APIHolder.unixTime
 
+        @Deprecated(
+            message = "Use APIHolder.unixTimeMS instead",
+            replaceWith = ReplaceWith(
+                expression = "unixTimeMS",
+                imports = ["com.lagradost.cloudstream3.APIHolder.unixTimeMS"]
+            ),
+            level = DeprecationLevel.WARNING,
+        )
         val unixTimeMs: Long
             get() = unixTimeMS
 
@@ -138,40 +177,89 @@ abstract class AuthAPI {
         }
 
         fun generateCodeVerifier(): String {
+            // It is recommended to use a URL-safe string as code_verifier.
+            // See section 4 of RFC 7636 for more details.
             val secureRandom = SecureRandom()
-            val codeVerifierBytes = ByteArray(96)
+            val codeVerifierBytes = ByteArray(96) // base64 has 6bit per char; (8/6)*96 = 128
             secureRandom.nextBytes(codeVerifierBytes)
             return base64Encode(codeVerifierBytes).trimEnd('=')
                 .replace("+", "-").replace("/", "_").replace("\n", "")
         }
     }
 
+    /** Is this url a valid redirect url for this service? */
     @Throws
     open fun isValidRedirectUrl(url: String): Boolean =
         redirectUrlIdentifier != null && url.contains("/$redirectUrlIdentifier")
 
+    /** OAuth2 login from a valid redirectUrl, and payload given in loginRequest */
     @Throws
     open suspend fun login(redirectUrl: String, payload: String?): AuthToken? =
         throw NotImplementedError()
 
+    /** OAuth2 login request, asking the service to provide a url to open in the browser */
     @Throws
     open fun loginRequest(): AuthLoginPage? = throw NotImplementedError()
 
+    /** Pin login request, asking the service to provide an verificationUrl to display with a QR code */
     @Throws
     open suspend fun pinRequest(): AuthPinData? = throw NotImplementedError()
 
+    /** OAuth2 token refresh, this ensures that all token passed to other functions will be valid */
     @Throws
     open suspend fun refreshToken(token: AuthToken): AuthToken? = throw NotImplementedError()
 
+    /** Pin login, this will be called periodically while logging in to check if the pin has been verified by the user */
     @Throws
     open suspend fun login(payload: AuthPinData): AuthToken? = throw NotImplementedError()
 
+    /** In app login */
     @Throws
     open suspend fun login(form: AuthLoginResponse): AuthToken? = throw NotImplementedError()
 
+    /** Get the visible user account */
     @Throws
     open suspend fun user(token: AuthToken?): AuthUser? = throw NotImplementedError()
 
+    /**
+     * An optional security measure to make sure that even if an attacker gets ahold of the token, it will be invalid.
+     *
+     * Note that this will currently only be called *once* on logout,
+     * and as such any network issues it will fail silently, and the token will not be revoked.
+     */
     @Throws
     open suspend fun invalidateToken(token: AuthToken): Nothing = throw NotImplementedError()
+
+    @Throws
+    @Deprecated("Please use the new API for AuthAPI", level = DeprecationLevel.ERROR)
+    fun toRepo(): AuthRepo = when (this) {
+        is SubtitleAPI -> SubtitleRepo(this)
+        is SyncAPI -> SyncRepo(this)
+        else -> throw NotImplementedError("Unknown inheritance from AuthAPI")
+    }
+
+    @Suppress("DEPRECATION_ERROR")
+    @Deprecated("Please use the new API for AuthAPI", level = DeprecationLevel.ERROR)
+    fun loginInfo(): LoginInfo? {
+        return this.toRepo().authUser()?.let { user ->
+            LoginInfo(
+                profilePicture = user.profilePicture,
+                name = user.name,
+                accountIndex = -1,
+            )
+        }
+    }
+
+    @Deprecated("Please use the new API for AuthAPI", level = DeprecationLevel.ERROR)
+    suspend fun getPersonalLibrary(): SyncAPI.LibraryMetadata? {
+        @Suppress("DEPRECATION_ERROR")
+        return (this.toRepo() as? SyncRepo)?.library()?.getOrThrow()
+    }
+
+    @Deprecated("Please use the new API for AuthAPI", level = DeprecationLevel.ERROR)
+    class LoginInfo(
+        val profilePicture: String? = null,
+        val name: String?,
+        val accountIndex: Int,
+    )
 }

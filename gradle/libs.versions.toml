@@ -161,6 +161,27 @@ google = { id = "com.google.gms.google-services", version = "4.4.1" }
 crashlytics = { id = "com.google.firebase.crashlytics", version = "3.0.6" }
 compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 
+# === Upstream CS3 libraries ===
+anime-db = { module = "com.github.recloudstream:anime-db", version.ref = "animeDb" }
+biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
+coil3 = { module = "io.coil-kt.coil3:coil", version.ref = "coil" }
+coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
+colorpicker = { module = "com.github.recloudstream:color-picker-android", version.ref = "colorpicker" }
+constraintlayout = { module = "androidx.constraintlayout:constraintlayout", version.ref = "constraintlayout" }
+core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+instancio-core = { group = "org.instancio", name = "instancio-core", version.ref = "instancioCore" }
+lifecycle-livedata-ktx = { module = "androidx.lifecycle:lifecycle-livedata-ktx", version.ref = "lifecycleKtx" }
+lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "lifecycleKtx" }
+media3-common = { module = "androidx.media3:media3-common", version.ref = "exo" }
+media3-container = { module = "androidx.media3:media3-container", version.ref = "exo" }
+media3-datasource-cronet = { group = "androidx.media3", name = "media3-datasource-cronet", version.ref = "exo" }
+media3-datasource-okhttp = { module = "androidx.media3:media3-datasource-okhttp", version.ref = "exo" }
+navigation-fragment-ktx = { module = "androidx.navigation:navigation-fragment-ktx", version.ref = "navigationKtx" }
+navigation-ui-ktx = { module = "androidx.navigation:navigation-ui-ktx", version.ref = "navigationKtx" }
+torrentserver = { module = "com.github.recloudstream:torrentserver", version.ref = "torrentserver" }
+work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtx" }
+zipline = { module = "app.cash.zipline:zipline-android", version.ref = "zipline" }
+
 [bundles]
 
 firebase = ["firebase-analytics", "firebase-crashlytics"]
@@ -229,3 +250,16 @@ misc = [
     "logcat",
     "injekt"
 ]
+# === Upstream CS3 additions ===
+coil = "3.3.0"
+biometric = "1.4.0-alpha07"
+colorpicker = "6b46b49"
+constraintlayout = "2.2.1"
+torrentserver = "7861970"
+zipline = "1.27.0"
+coreKtx = "1.15.0"
+lifecycleKtx = "2.8.7"
+navigationKtx = "2.8.4"
+workRuntimeKtx = "2.10.0"
+instancioCore = "5.3.0"
+animeDb = "1.0.0"

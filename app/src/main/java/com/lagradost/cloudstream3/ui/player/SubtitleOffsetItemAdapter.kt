@@ -5,7 +5,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
 import androidx.core.view.isInvisible
-import com.lagradost.cloudstream3.databinding.SubtitleOffsetItemBinding
+import ani.sanin.databinding.SubtitleOffsetItemBinding
 import com.lagradost.cloudstream3.ui.BaseDiffCallback
 import com.lagradost.cloudstream3.ui.NoStateAdapter
 import com.lagradost.cloudstream3.ui.ViewHolderState

@@ -4,7 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.core.net.toUri
 import androidx.preference.PreferenceManager
-import com.lagradost.cloudstream3.R
+import ani.sanin.R
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.getFolderPrefix
 import com.lagradost.cloudstream3.isEpisodeBased

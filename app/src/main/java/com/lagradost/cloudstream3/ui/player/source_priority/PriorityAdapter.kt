@@ -2,7 +2,7 @@ package com.lagradost.cloudstream3.ui.player.source_priority
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import com.lagradost.cloudstream3.databinding.PlayerPrioritizeItemBinding
+import ani.sanin.databinding.PlayerPrioritizeItemBinding
 import com.lagradost.cloudstream3.ui.NoStateAdapter
 import com.lagradost.cloudstream3.ui.ViewHolderState
 

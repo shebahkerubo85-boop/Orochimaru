@@ -10,10 +10,10 @@ import androidx.preference.PreferenceManager
 import coil3.dispose
 import com.lagradost.cloudstream3.APIHolder.unixTimeMS
 import com.lagradost.cloudstream3.CommonActivity
-import com.lagradost.cloudstream3.R
+import ani.sanin.R
 import com.lagradost.cloudstream3.actions.VideoClickActionHolder
-import com.lagradost.cloudstream3.databinding.ResultEpisodeBinding
-import com.lagradost.cloudstream3.databinding.ResultEpisodeLargeBinding
+import ani.sanin.databinding.ResultEpisodeBinding
+import ani.sanin.databinding.ResultEpisodeLargeBinding
 import com.lagradost.cloudstream3.syncproviders.AccountManager.Companion.secondsToReadable
 import com.lagradost.cloudstream3.ui.BaseDiffCallback
 import com.lagradost.cloudstream3.ui.NoStateAdapter

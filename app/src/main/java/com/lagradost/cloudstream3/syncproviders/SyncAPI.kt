@@ -1,5 +1,6 @@
 package com.lagradost.cloudstream3.syncproviders
 
+import androidx.annotation.WorkerThread
 import com.lagradost.cloudstream3.ActorData
 import com.lagradost.cloudstream3.NextAiring
 import com.lagradost.cloudstream3.Score
@@ -12,16 +13,6 @@ import com.lagradost.cloudstream3.ui.library.ListSorting
 import com.lagradost.cloudstream3.utils.Levenshtein
 import com.lagradost.cloudstream3.utils.UiText
 import java.util.Date
-
-enum class SyncIdName {
-    Anilist,
-    MyAnimeList,
-    Kitsu,
-    Trakt,
-    Imdb,
-    Simkl,
-    LocalList,
-}
 
 /**
  * Stateless synchronization class, used for syncing status about a specific movie/show.
@@ -46,6 +37,7 @@ abstract class SyncAPI : AuthAPI() {
 
     /** Modify the current status of an item */
     @Throws
+    @WorkerThread
     open suspend fun updateStatus(
         auth: AuthData?,
         id: String,
@@ -54,20 +46,24 @@ abstract class SyncAPI : AuthAPI() {
 
     /** Get the current status of an item */
     @Throws
+    @WorkerThread
     open suspend fun status(auth: AuthData?, id: String): AbstractSyncStatus? =
         throw NotImplementedError()
 
     /** Get metadata about an item */
     @Throws
+    @WorkerThread
     open suspend fun load(auth: AuthData?, id: String): SyncResult? = throw NotImplementedError()
 
     /** Search this service for any results for a given query */
     @Throws
+    @WorkerThread
     open suspend fun search(auth: AuthData?, query: String): List<SyncSearchResult>? =
         throw NotImplementedError()
 
     /** Get the current library/bookmarks of this service */
     @Throws
+    @WorkerThread
     open suspend fun library(auth: AuthData?): LibraryMetadata? = throw NotImplementedError()
 
     /** Helper function, may be used in the future */

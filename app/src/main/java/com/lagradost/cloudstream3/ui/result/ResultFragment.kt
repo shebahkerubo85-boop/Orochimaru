@@ -8,7 +8,7 @@ import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import coil3.dispose
 import com.lagradost.cloudstream3.DubStatus
-import com.lagradost.cloudstream3.R
+import ani.sanin.R
 import com.lagradost.cloudstream3.Score
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SeasonData

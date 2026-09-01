@@ -2,7 +2,7 @@ package com.lagradost.cloudstream3.utils.videoskip
 
 import androidx.annotation.StringRes
 import com.lagradost.cloudstream3.LoadResponse
-import com.lagradost.cloudstream3.R
+import ani.sanin.R
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.mvvm.safeAsync
 import com.lagradost.cloudstream3.ui.result.ResultEpisode

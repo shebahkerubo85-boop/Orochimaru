@@ -40,11 +40,11 @@ import androidx.recyclerview.widget.SimpleItemAnimator
 import com.google.android.material.button.MaterialButton
 import com.lagradost.cloudstream3.CommonActivity.keyEventListener
 import com.lagradost.cloudstream3.LoadResponse
-import com.lagradost.cloudstream3.R
-import com.lagradost.cloudstream3.databinding.FragmentPlayerBinding
-import com.lagradost.cloudstream3.databinding.PlayerCustomLayoutBinding
-import com.lagradost.cloudstream3.databinding.SpeedDialogBinding
-import com.lagradost.cloudstream3.databinding.SubtitleOffsetBinding
+import ani.sanin.R
+import ani.sanin.databinding.FragmentPlayerBinding
+import ani.sanin.databinding.PlayerCustomLayoutBinding
+import ani.sanin.databinding.SpeedDialogBinding
+import ani.sanin.databinding.SubtitleOffsetBinding
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.ui.player.GeneratorPlayer.Companion.subsProvidersIsActive
 import com.lagradost.cloudstream3.ui.player.source_priority.QualityDataHelper

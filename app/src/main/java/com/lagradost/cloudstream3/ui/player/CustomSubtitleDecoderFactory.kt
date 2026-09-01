@@ -23,7 +23,7 @@ import androidx.media3.extractor.text.tx3g.Tx3gParser
 import androidx.media3.extractor.text.webvtt.Mp4WebvttParser
 import androidx.media3.extractor.text.webvtt.WebvttParser
 import androidx.preference.PreferenceManager
-import com.lagradost.cloudstream3.R
+import ani.sanin.R
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.ui.subtitles.SaveCaptionStyle
 import com.lagradost.cloudstream3.ui.subtitles.SubtitlesFragment

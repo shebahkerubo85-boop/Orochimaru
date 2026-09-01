@@ -3,6 +3,7 @@ package com.lagradost.cloudstream3.syncproviders
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.openBrowser
 import com.lagradost.cloudstream3.CommonActivity.showToast
 import com.lagradost.cloudstream3.ErrorLoadingException
+import ani.sanin.R
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.mvvm.safe
 import com.lagradost.cloudstream3.syncproviders.AccountManager.Companion.NONE_ID
@@ -54,7 +55,7 @@ abstract class AuthRepo(open val api: AuthAPI) {
     fun openOAuth2PageWithToast() {
         try {
             if (!openOAuth2Page()) {
-                showToast(txt("Failed to login to ${api.name}"))
+                showToast(txt(R.string.authenticated_user_fail, api.name))
             }
         } catch (t: Throwable) {
             logError(t)
@@ -62,7 +63,7 @@ abstract class AuthRepo(open val api: AuthAPI) {
                 showToast(t.message)
                 return
             }
-            showToast(txt("Failed to login to ${api.name}"))
+            showToast(txt(R.string.authenticated_user_fail, api.name))
         }
     }
 
