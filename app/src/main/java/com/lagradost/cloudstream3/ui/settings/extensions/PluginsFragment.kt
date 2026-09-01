@@ -194,13 +194,11 @@ class PluginsFragment : BaseFragment<FragmentPluginsBinding>(
                 binding.tvtypesChipsScroll.tvtypesChips,
                 emptyList(),
                 TvType.entries.toList(),
-                callback = { list ->
+                callback = { list: List<TvType> ->
                     pluginViewModel.tvTypes.clear()
                     pluginViewModel.tvTypes.addAll(list.map { it.name })
                     pluginViewModel.updateFilteredPlugins()
-                },
-                nextFocusDown = R.id.plugin_recycler_view,
-                nextFocusUp = null,
+                }
             )
         }
     }

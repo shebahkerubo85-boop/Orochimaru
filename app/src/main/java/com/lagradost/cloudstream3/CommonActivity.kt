@@ -144,11 +144,6 @@ object CommonActivity {
         com.lagradost.cloudstream3.CloudStreamApp.setKey(path, value)
     }
 
-    fun Activity?.getCastSession(): Any? {
-        // Stub — Cast support handled by fork's own app
-        return null
-    }
-
     fun hideSystemUI(activity: Activity?) {}
     fun showSystemUI(activity: Activity?) {}
 }
