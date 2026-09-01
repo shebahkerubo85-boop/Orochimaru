@@ -23,6 +23,20 @@ cryptography = "0.6.0"
 newpipe = "v0.26.3"
 rhino = "1.8.1"
 
+# === Upstream CS3 additions ===
+coil = "3.3.0"
+biometric = "1.4.0-alpha07"
+colorpicker = "6b46b49"
+constraintlayout = "2.2.1"
+torrentserver = "7861970"
+zipline = "1.27.0"
+coreKtx = "1.15.0"
+lifecycleKtx = "2.8.7"
+navigationKtx = "2.8.4"
+workRuntimeKtx = "2.10.0"
+instancioCore = "5.3.0"
+animeDb = "1.0.0"
+
 [libraries]
 
 # Firebase
@@ -252,16 +266,3 @@ misc = [
     "logcat",
     "injekt"
 ]
-# === Upstream CS3 additions ===
-coil = "3.3.0"
-biometric = "1.4.0-alpha07"
-colorpicker = "6b46b49"
-constraintlayout = "2.2.1"
-torrentserver = "7861970"
-zipline = "1.27.0"
-coreKtx = "1.15.0"
-lifecycleKtx = "2.8.7"
-navigationKtx = "2.8.4"
-workRuntimeKtx = "2.10.0"
-instancioCore = "5.3.0"
-animeDb = "1.0.0"
