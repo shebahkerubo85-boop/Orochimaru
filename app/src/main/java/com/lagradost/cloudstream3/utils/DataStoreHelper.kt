@@ -1,4 +1,5 @@
 package com.lagradost.cloudstream3.utils
+import ani.sanin.R
 
 import android.content.Context
 import com.fasterxml.jackson.annotation.JsonIgnore

@@ -1,4 +1,5 @@
 package com.lagradost.cloudstream3.utils
+import ani.sanin.R
 
 import com.lagradost.cloudstream3.mvvm.logError
 import kotlin.math.pow

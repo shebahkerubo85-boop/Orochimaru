@@ -103,8 +103,6 @@
         tools:ignore="SpUsage"
         tools:text="@string/slogan" />
 
-
-
     <LinearLayout
         android:id="@+id/itemCompactProgressContainer"
         android:layout_width="wrap_content"

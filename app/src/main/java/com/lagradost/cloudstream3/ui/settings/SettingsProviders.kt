@@ -1,4 +1,5 @@
 package com.lagradost.cloudstream3.ui.settings
+import ani.sanin.R
 
 import android.os.Bundle
 import android.view.View

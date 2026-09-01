@@ -11,228 +11,66 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:clipToPadding="false"
-        android:orientation="vertical"
-        android:padding="8dp">
-
-        <!-- Search bar row: back + input + filter + clear -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_margin="16dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <androidx.cardview.widget.CardView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                app:cardBackgroundColor="?attr/colorSurface"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="0dp">
-
-                <ImageButton
-                    android:id="@+id/tmdbSearchBack"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:background="?attr/colorSurface"
-                    android:focusable="true"
-                    android:padding="14dp"
-                    app:srcCompat="@drawable/ic_round_arrow_back_ios_new_24"
-                    app:tint="?attr/colorPrimary"
-                    tools:ignore="ContentDescription" />
-            </androidx.cardview.widget.CardView>
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/tmdbSearchInputLayout"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-                android:layout_width="0dp"
-                android:layout_height="56dp"
-                android:layout_marginStart="12dp"
-                android:layout_weight="1"
-                android:hint="Search movies &amp; TV"
-                android:transitionName="@string/search"
-                app:boxBackgroundColor="?attr/colorSurface"
-                app:boxBackgroundMode="outline"
-                app:boxCornerRadiusBottomEnd="28dp"
-                app:boxCornerRadiusBottomStart="28dp"
-                app:boxCornerRadiusTopEnd="28dp"
-                app:boxCornerRadiusTopStart="28dp"
-                app:endIconDrawable="@drawable/ic_round_search_24"
-                app:endIconTint="?attr/colorPrimary"
-                app:hintAnimationEnabled="true">
-
-                <AutoCompleteTextView
-                    android:id="@+id/tmdbSearchInput"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="@font/poppins_bold"
-                    android:imeOptions="actionSearch"
-                    android:inputType="textPersonName"
-                    android:padding="8dp"
-                    android:selectAllOnFocus="true"
-                    android:textSize="14sp"
-                    app:boxStrokeColor="?attr/colorPrimary"
-                    tools:ignore="LabelFor,TextContrastCheck" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <ImageButton
-                android:id="@+id/tmdbSearchKeyboardToggle"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:layout_marginStart="4dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:clickable="true"
-                android:contentDescription="@null"
-                android:focusable="true"
-                android:src="@drawable/ic_round_keyboard_24"
-                android:tint="?attr/colorPrimary"
-                android:visibility="gone"
-                tools:ignore="ContentDescription" />
-        </LinearLayout>
-
-        <!-- Filter / Clear History chips row (anime mode identical) -->
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:clipToPadding="false"
-            android:focusable="false"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:scrollbars="none">
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/tmdbSearchFilter"
-                    android:layout_width="wrap_content"
-                    android:layout_height="36dp"
-                    android:layout_marginEnd="8dp"
-                    android:elegantTextHeight="true"
-                    android:focusable="true"
-                    android:fontFamily="@font/poppins_bold"
-                    android:text="@string/filter"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textSize="13sp"
-                    app:chipBackgroundColor="?attr/colorSurface"
-                    app:chipCornerRadius="18dp"
-                    app:chipIcon="@drawable/ic_round_filter_alt_24"
-                    app:chipIconSize="20dp"
-                    app:chipIconTint="?attr/colorPrimary"
-                    app:chipStrokeWidth="0dp" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/tmdbSearchClearHistory"
-                    android:layout_width="wrap_content"
-                    android:layout_height="36dp"
-                    android:layout_marginEnd="8dp"
-                    android:elegantTextHeight="true"
-                    android:focusable="true"
-                    android:fontFamily="@font/poppins_bold"
-                    android:text="@string/clear_history"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textSize="13sp"
-                    app:chipBackgroundColor="?attr/colorSurface"
-                    app:chipCornerRadius="18dp"
-                    app:chipIcon="@drawable/ic_round_history_24"
-                    app:chipIconSize="20dp"
-                    app:chipIconTint="?attr/colorPrimary"
-                    app:chipStrokeWidth="0dp" />
-            </LinearLayout>
-        </HorizontalScrollView>
-    </LinearLayout>
-
-    <!-- Source/plugin chips (TMDB, MovieBox, etc.) -->
-    <HorizontalScrollView
-        android:id="@+id/tmdbSearchPluginScroll"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:clipToPadding="false"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:scrollbars="none"
-        android:visibility="gone">
-
-        <com.google.android.material.chip.ChipGroup
-            android:id="@+id/tmdbSearchPluginChips"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:singleLine="true"
-            app:singleSelection="false" />
-    </HorizontalScrollView>
-
-    <!-- Search results label + grid/list toggle -->
-    <LinearLayout
-        android:id="@+id/tmdbSearchResultLayout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
-        android:layout_marginEnd="16dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:visibility="gone">
+        android:padding="16dp">
 
-        <TextView
+        <androidx.cardview.widget.CardView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="@color/nav_bg_inv"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp">
+
+            <ImageButton
+                android:id="@+id/tmdbSearchBack"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@color/nav_bg_inv"
+                android:focusable="true"
+                android:padding="14dp"
+                app:srcCompat="@drawable/ic_round_arrow_back_ios_new_24"
+                app:tint="?attr/colorOnBackground"
+                tools:ignore="ContentDescription" />
+        </androidx.cardview.widget.CardView>
+
+        <EditText
+            android:id="@+id/tmdbSearchInput"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="48dp"
+            android:layout_marginStart="12dp"
             android:layout_weight="1"
-            android:fontFamily="@font/poppins_bold"
-            android:text="@string/search_results"
-            android:textSize="16sp" />
+            android:background="@color/nav_bg_inv"
+            android:fontFamily="@font/poppins_semi_bold"
+            android:hint="Search movies &amp; TV"
+            android:imeOptions="actionSearch"
+            android:inputType="text"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:textColor="?attr/colorOnSurface"
+            android:textColorHint="?attr/colorOutline"
+            android:textSize="14sp" />
 
-        <ImageView
-            android:id="@+id/tmdbSearchResultList"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:alpha="0.33"
-            android:padding="8dp"
-            app:srcCompat="@drawable/ic_round_view_list_24"
-            app:tint="?attr/colorOnBackground"
-            tools:ignore="ContentDescription,ImageContrastCheck" />
+        <ImageButton
+            android:id="@+id/tmdbSearchFilter"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:contentDescription="Filter"
+            android:focusable="true"
+            app:srcCompat="@drawable/ic_round_filter_24"
+            app:tint="?attr/colorOnBackground" />
 
-        <ImageView
-            android:id="@+id/tmdbSearchResultGrid"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:alpha="0.33"
-            android:padding="8dp"
-            app:srcCompat="@drawable/ic_round_grid_view_24"
-            app:tint="?attr/colorOnBackground"
-            tools:ignore="ContentDescription,ImageContrastCheck" />
+        <ImageButton
+            android:id="@+id/tmdbSearchClearHistory"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:contentDescription="Clear history"
+            android:focusable="true"
+            app:srcCompat="@drawable/ic_round_delete_24"
+            app:tint="?attr/colorOnBackground" />
     </LinearLayout>
-
-    <!-- Search history label -->
-    <TextView
-        android:id="@+id/tmdbSearchHistoryLabel"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="14dp"
-        android:layout_marginEnd="16dp"
-        android:alpha="0.65"
-        android:fontFamily="@font/poppins_bold"
-        android:letterSpacing="0.12"
-        android:text="@string/search_history"
-        android:textColor="?attr/colorOnSurface"
-        android:textSize="11sp" />
-
-    <!-- Search history list -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/tmdbSearchHistory"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="6dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp"
-        android:dividerHeight="0dp"
-        android:descendantFocusability="afterDescendants"
-        tools:listitem="@layout/item_search_history" />
 
     <ProgressBar
         android:id="@+id/tmdbSearchProgress"
@@ -251,6 +89,16 @@
         android:paddingEnd="24dp"
         android:paddingBottom="64dp" />
 
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/tmdbSearchHistory"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/tmdbSearchEmpty"
         android:layout_width="match_parent"
@@ -261,5 +109,4 @@
         android:text="No results"
         android:textColor="?attr/colorOutline"
         android:visibility="gone" />
-
 </LinearLayout>

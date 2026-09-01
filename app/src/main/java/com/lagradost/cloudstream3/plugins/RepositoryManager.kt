@@ -1,4 +1,5 @@
 package com.lagradost.cloudstream3.plugins
+import ani.sanin.R
 
 import android.content.Context
 import androidx.annotation.WorkerThread

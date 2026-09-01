@@ -1,4 +1,5 @@
 package com.lagradost.cloudstream3.ui
+import ani.sanin.R
 
 import android.content.Context
 import android.util.AttributeSet

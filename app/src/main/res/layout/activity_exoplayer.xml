@@ -22,8 +22,6 @@
 
         <include layout="@layout/panel_episode_comments" />
 
-        <include layout="@layout/drawer_tracks_rail" />
-
     </FrameLayout>
 
     <include layout="@layout/drawer_episode_rail" />
