@@ -25,7 +25,7 @@ rhino = "1.8.1"
 
 # === Upstream CS3 additions ===
 coil = "3.3.0"
-biometric = "1.4.0-alpha07"
+biometric = "1.1.0"
 colorpicker = "6b46b49"
 constraintlayout = "2.2.1"
 torrentserver = "7861970"
@@ -170,7 +170,6 @@ okio = "com.squareup.okio:okio:3.9.1"
 
 # === Upstream CS3 libraries ===
 anime-db = { module = "com.github.recloudstream:anime-db", version.ref = "animeDb" }
-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
 coil3 = { module = "io.coil-kt.coil3:coil", version.ref = "coil" }
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 colorpicker = { module = "com.github.recloudstream:color-picker-android", version.ref = "colorpicker" }

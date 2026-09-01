@@ -208,7 +208,7 @@ dependencies {
     implementation(libs.lifecycle.viewmodel.ktx)
     implementation(libs.navigation.fragment.ktx)
     implementation(libs.navigation.ui.ktx)
-    implementation(libs.biometric)
+    implementation(libs.androidx.biometric)
     implementation(libs.colorpicker)
     implementation(libs.constraintlayout)
     implementation(libs.core.ktx)
