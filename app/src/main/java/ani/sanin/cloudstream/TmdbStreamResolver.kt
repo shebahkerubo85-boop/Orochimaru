@@ -46,6 +46,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import android.app.Activity
+import ani.sanin.R as SaninR
+import com.lagradost.cloudstream3.ui.player.ExtractorLinkGenerator
+import com.lagradost.cloudstream3.ui.player.GeneratorPlayer
+import com.lagradost.cloudstream3.ui.player.SubtitleData
+import com.lagradost.cloudstream3.utils.ExtractorLinkType
+import com.lagradost.cloudstream3.utils.UIHelper.navigate
 
 /**
  * Shared CloudStream resolution + player-launch helpers used by the TMDB
@@ -909,6 +916,47 @@ object TmdbStreamResolver {
         val selected = Selected(sourceIndex = 0, server = pickedLabel, video = 0)
         media.selected = selected
         PrefManager.setCustomVal("Selected-$id", selected)
+        // Movie mode: use CS3 player (GeneratorPlayer) for movie playback
+        if (mediaType == "movie") {
+            val activity = context as? Activity
+            if (activity != null) {
+                val extractorLinks = links.mapIndexedNotNull { index, pl ->
+                    if (pl.url.isBlank()) return@mapIndexedNotNull null
+                    val hdrs = HashMap(pl.headers).apply {
+                        pl.referer?.takeIf { it.isNotBlank() }?.let { put("Referer", it) }
+                    }
+                    val type = when {
+                        pl.url.contains(".m3u8") || pl.url.contains("hls") -> ExtractorLinkType.M3U8
+                        pl.url.contains(".mpd") -> ExtractorLinkType.DASH
+                        else -> ExtractorLinkType.VIDEO
+                    }
+                    ExtractorLink(
+                        source = pickedLabel.ifBlank { "TMDB" },
+                        name = pl.label.ifBlank { "Server ${index + 1}" },
+                        url = pl.url,
+                        referer = pl.referer ?: "",
+                        quality = 0,
+                        headers = hdrs,
+                        type = type,
+                        audioTracks = pl.audioTracks
+                    )
+                }
+                if (extractorLinks.isNotEmpty()) {
+                    val generator = ExtractorLinkGenerator(extractorLinks, emptyList())
+                    Logger.log(
+                        "TMDB_PLAY: launching CS3 GeneratorPlayer for movie id=$id title='$title' " +
+                            "links=${extractorLinks.size} picked='$pickedLabel'"
+                    )
+                    activity.navigate(
+                        SaninR.id.global_to_navigation_player,
+                        GeneratorPlayer.newInstance(generator, 0)
+                    )
+                    return
+                }
+            }
+        }
+
+        // Anime/TV mode: use ExoplayerView as before
         ExoplayerView.media = media
         ExoplayerView.initialized = true
         Logger.log(
