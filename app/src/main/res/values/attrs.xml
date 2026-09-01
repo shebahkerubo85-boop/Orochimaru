@@ -83,4 +83,7 @@
     <attr name="appWidgetPadding" format="dimension" />
     <attr name="appWidgetRadius" format="dimension" />
     <attr name="appWidgetInnerRadius" format="dimension" />
+    <attr name="expandedMaxWidth" format="dimension" />
+    <attr name="collapsedItemMinHeight" format="dimension" />
+    <attr name="expandedItemMinHeight" format="dimension" />
 </resources>

@@ -174,6 +174,8 @@ dependencies {
 
     implementation(libs.bundles.markwon)
     implementation(libs.bundles.groupie)
+    implementation(libs.shimmer)
+    implementation(libs.overlappingpanels)
     implementation(libs.bundles.rx)
     implementation(libs.bundles.okhttp)
     implementation(libs.okio)

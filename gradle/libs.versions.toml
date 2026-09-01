@@ -146,6 +146,8 @@ markwon-glide = { module = "io.noties.markwon:image-glide", version.ref = "markw
 # Groupie
 groupie = { module = "com.github.lisawray.groupie:groupie", version.ref = "groupie" }
 groupie-vb = { module = "com.github.lisawray.groupie:groupie-viewbinding", version.ref = "groupie" }
+shimmer = { module = "com.facebook.shimmer:shimmer", version = "0.5.0" }
+overlappingpanels = { module = "com.github.discord:OverlappingPanels", version.ref = "overlappingpanels" }
 
 # Rx / misc
 rxjava = "io.reactivex:rxjava:1.3.8"
@@ -156,6 +158,7 @@ fuzzy = "me.xdrop:fuzzywuzzy:1.4.0"
 voyager = "ca.gosyer:voyager-navigator:1.0.0-rc07"
 logcat = "com.squareup.logcat:logcat:0.1"
 injekt = "uy.kohesive.injekt:injekt-core:1.16.+"
+overlappingpanels = "0.1.5"
 
 
 
@@ -265,3 +268,5 @@ misc = [
     "logcat",
     "injekt"
 ]
+
+[libraries]
