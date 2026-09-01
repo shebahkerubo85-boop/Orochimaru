@@ -5,6 +5,12 @@ import com.lagradost.api.Log
 import com.lagradost.cloudstream3.ErrorLoadingException
 import com.lagradost.cloudstream3.utils.AppDebug
 import com.lagradost.cloudstream3.utils.Coroutines.ioWork
+import java.io.InterruptedIOException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import javax.net.ssl.SSLHandshakeException
+import kotlin.reflect.full.NoSuchPropertyException
+
 import com.lagradost.cloudstream3.utils.WorkerThread
 import kotlinx.coroutines.*
 import kotlin.coroutines.CoroutineContext
@@ -162,23 +168,36 @@ fun CoroutineScope.launchSafe(
     return this.launch(context, start, obj)
 }
 
-actual fun <T> platformThrowAbleToResource(throwable: Throwable): Resource<T> {
+fun <T> platformThrowAbleToResource(throwable: Throwable): Resource<T> {
     return when (throwable) {
-        is NoSuchMethodException, is NoSuchFieldException, is NoSuchMethodError, is NoSuchFieldError -> {
-            Resource.Failure(false, "App or extension is outdated, update the app or try pre-release.\n${throwable.message}")
+        is NoSuchMethodException, is NoSuchFieldException, is NoSuchMethodError, is NoSuchFieldError, is NoSuchPropertyException -> {
+            Resource.Failure(
+                false,
+                "App or extension is outdated, update the app or try pre-release.\n${throwable.message}" // todo add exact version?
+            )
         }
-        is java.net.SocketTimeoutException, is java.io.InterruptedIOException -> {
-            Resource.Failure(true, "Connection Timeout\nPlease try again later.")
+        is SocketTimeoutException, is InterruptedIOException -> {
+            Resource.Failure(
+                true,
+                "Connection Timeout\nPlease try again later."
+            )
         }
-        is java.net.UnknownHostException -> {
-            Resource.Failure(true, "Cannot connect to server, try again later.\n${throwable.message}")
+        is UnknownHostException -> {
+            Resource.Failure(
+                true,
+                "Cannot connect to server, try again later.\n${throwable.message}"
+            )
         }
-        is javax.net.ssl.SSLHandshakeException -> {
-            Resource.Failure(true, (throwable.message ?: "SSLHandshakeException") + "\nTry a VPN or DNS.")
+        is SSLHandshakeException -> {
+            Resource.Failure(
+                true,
+                (throwable.message ?: "SSLHandshakeException") + "\nTry a VPN or DNS."
+            )
         }
         else -> safeFail(throwable)
     }
 }
+
 
 fun <T> throwAbleToResource(
     throwable: Throwable

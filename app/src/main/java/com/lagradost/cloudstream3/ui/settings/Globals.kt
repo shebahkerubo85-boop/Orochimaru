@@ -5,21 +5,24 @@ import android.content.Context
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.os.Build
-import androidx.preference.PreferenceManager
-import ani.sanin.R
 
+/**
+ * Host implementation of CloudStream's [Globals] so plugins referencing it can
+ * resolve. Layout selection defaults to phone; the value is only meaningful for
+ * UI decisions, never for stream extraction.
+ */
 object Globals {
     var beneneCount = 0
 
-    const val PHONE : Int = 0b001
-    const val TV : Int = 0b010
-    const val EMULATOR : Int = 0b100
+    const val PHONE: Int = 0b001
+    const val TV: Int = 0b010
+    const val EMULATOR: Int = 0b100
     private const val INVALID = -1
     private var layoutId = INVALID
 
     private fun Context.getLayoutInt(): Int {
-        val settingsManager = PreferenceManager.getDefaultSharedPreferences(this)
-        return settingsManager.getInt(this.getString(R.string.app_layout_key), -1)
+        val settingsManager = getSharedPreferences("cloudstream_settings", Context.MODE_PRIVATE)
+        return settingsManager.getInt("app_layout_key", -1)
     }
 
     private fun Context.isAutoTv(): Boolean {
@@ -32,7 +35,7 @@ object Globals {
     }
 
     private fun Context.layoutIntCorrected(): Int {
-        return when(getLayoutInt()) {
+        return when (getLayoutInt()) {
             -1 -> if (isAutoTv()) TV else PHONE
             0 -> PHONE
             1 -> TV
@@ -50,13 +53,12 @@ object Globals {
         isLayout(TV or EMULATOR) ||
             Resources.getSystem().configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    /** Returns true if the layout is any of the flags,
+    /**
+     * Returns true if the layout is any of the flags,
      * so isLayout(TV or EMULATOR) is a valid statement for checking if the layout is in the emulator
      * or tv. Auto will become the "TV" or the "PHONE" layout.
-     *
-     * Valid flags are: PHONE, TV, EMULATOR
-     * */
-    fun isLayout(flags: Int) : Boolean {
+     */
+    fun isLayout(flags: Int): Boolean {
         return (layoutId and flags) != 0
     }
 }

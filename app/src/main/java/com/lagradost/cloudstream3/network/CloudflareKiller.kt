@@ -15,7 +15,6 @@ import okhttp3.Request
 import okhttp3.Response
 import java.net.URI
 
-
 @AnyThread
 class CloudflareKiller : Interceptor {
     companion object {
@@ -51,13 +50,21 @@ class CloudflareKiller : Interceptor {
         return getHeaders(userAgentHeaders, savedCookies[URI(url).host] ?: emptyMap())
     }
 
+    private fun getHeaders(userAgentHeaders: Map<String, String>, cookies: Map<String, String>): Headers {
+        val cookieHeader = cookies.entries.joinToString(";") { "${it.key}=${it.value}" }
+        val builder = Headers.Builder()
+        userAgentHeaders.forEach { (k, v) -> builder.set(k, v) }
+        if (cookieHeader.isNotBlank()) builder.set("Cookie", cookieHeader)
+        return builder.build()
+    }
+
     override fun intercept(chain: Interceptor.Chain): Response = runBlocking {
         val request = chain.request()
 
         when (val cookies = savedCookies[request.url.host]) {
             null -> {
                 val response = chain.proceed(request)
-                if(!(response.header("Server") in CLOUDFLARE_SERVERS && response.code in ERROR_CODES)) {
+                if (!(response.header("Server") in CLOUDFLARE_SERVERS && response.code in ERROR_CODES)) {
                     return@runBlocking response
                 } else {
                     response.close()
@@ -126,7 +133,9 @@ class CloudflareKiller : Interceptor {
                 // Match every url for the requestCallBack
                 additionalUrls = listOf(Regex("."))
             ).resolveUsingWebView(
-                url
+                url,
+                referer = null,
+                method = "GET"
             ) {
                 trySolveWithSavedCookies(request)
             }
