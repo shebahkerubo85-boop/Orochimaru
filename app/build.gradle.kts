@@ -155,7 +155,7 @@ val extractMpvFfmpeg by tasks.registering(Copy::class) {
 android {
     sourceSets {
         getByName("main") {
-            jniLibs.srcDir(layout.buildDirectory.dir("mpv-ffmpeg-libs"))
+            jniLibs.srcDir(layout.buildDirectory.dir("mpv-ffmpeg-libs").get().asFile)
         }
     }
 }
