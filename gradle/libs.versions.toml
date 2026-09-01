@@ -191,6 +191,27 @@ torrentserver = { module = "com.github.recloudstream:torrentserver", version.ref
 work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtx" }
 zipline = { module = "app.cash.zipline:zipline-android", version.ref = "zipline" }
 
+# Upstream CS3 dependencies
+activity-ktx = { module = "androidx.activity:activity-ktx", version = "1.13.0" }
+annotation = { module = "androidx.annotation:annotation", version = "1.10.0" }
+appcompat = { module = "androidx.appcompat:appcompat", version = "1.7.1" }
+fragment-ktx = { module = "androidx.fragment:fragment-ktx", version = "1.8.9" }
+jsoup = { module = "org.jsoup:jsoup", version = "1.22.1" }
+juniversalchardet = { module = "com.github.albfernandez:juniversalchardet", version = "2.5.0" }
+kotlinx-collections-immutable = { module = "org.jetbrains.kotlinx:kotlinx-collections-immutable", version = "0.4.0" }
+nicehttp = { module = "com.github.Blatzar:NiceHttp", version = "0.4.18" }
+palette-ktx = { module = "androidx.palette:palette-ktx", version = "1.0.0" }
+preference-ktx = { module = "androidx.preference:preference-ktx", version = "1.2.1" }
+safefile = { module = "com.github.LagradOst:SafeFile", version = "0.0.8" }
+tvprovider = { module = "androidx.tvprovider:tvprovider", version = "1.1.0" }
+json = { module = "org.json:json", version = "20260522" }
+media3-exoplayer-dash = { module = "androidx.media3:media3-exoplayer-dash", version = "1.9.3" }
+media3-exoplayer-hls = { module = "androidx.media3:media3-exoplayer-hls", version = "1.9.3" }
+nextlib-media3ext = { module = "io.github.anilbeesetti:nextlib-media3ext", version = "1.9.3-0.12.0" }
+nextlib-mediainfo = { module = "io.github.anilbeesetti:nextlib-mediainfo", version = "1.9.3-0.12.0" }
+desugar_jdk_libs_nio = { module = "com.android.tools:desugar_jdk_libs_nio", version = "2.1.5" }
+
+
 [plugins]
 android = { id = "com.android.application", version.ref = "agp" }
 serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
