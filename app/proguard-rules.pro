@@ -222,3 +222,9 @@
 -keep class androidx.appcompat.app.AlertDialog$Builder { *; }
 -keep class androidx.appcompat.app.AlertDialog$Builder$* { *; }
 -dontwarn androidx.appcompat.app.AlertDialog
+
+#############################################
+# R8: desugar_jdk_libs_nio class conflicts
+#############################################
+-dontwarn jdk.internal.misc.Unsafe
+-dontwarn jdk.internal.misc.**

@@ -114,6 +114,7 @@ android {
     }
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -235,7 +236,7 @@ dependencies {
     implementation(libs.tvprovider)
     implementation(libs.nextlib.media3ext)
     implementation(libs.nextlib.mediainfo)
-    compileOnly(libs.desugar.jdk.libs.nio)
+    coreLibraryDesugaring(libs.desugar.jdk.libs.nio)
     implementation(libs.torrentserver)
     implementation(libs.conscrypt)
 }
