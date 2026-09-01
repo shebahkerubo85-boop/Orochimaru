@@ -215,7 +215,7 @@ dependencies {
     implementation(libs.constraintlayout)
     implementation(libs.core.ktx)
     implementation(libs.work.runtime.ktx)
-}    // Upstream CS3 dependencies
+    // Upstream CS3 dependencies
     implementation(libs.safefile)
     implementation(libs.nicehttp)
     implementation(libs.jsoup)
@@ -234,3 +234,4 @@ dependencies {
     implementation(libs.nextlib.media3ext)
     implementation(libs.nextlib.mediainfo)
     implementation(libs.desugar.jdk.libs.nio)
+}
