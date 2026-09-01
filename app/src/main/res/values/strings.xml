@@ -1266,7 +1266,7 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="resize_fill">Stretch</string>
     <string name="render_error">Renderer error</string>
     <string name="remote_error">Remote error</string>
-    <string name="quality_profile_help">
+    <string name="quality_profile_help">Quality profile</string>
     <string name="profile_number">Profile %d</string>
     <string name="player_speed_text_format" formatted="true">Speed (%.2fx)</string>
     <string name="player_notification_channel_name">Player notifications</string>
