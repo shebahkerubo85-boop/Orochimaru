@@ -80,4 +80,7 @@
     <attr name="expandedWidth" format="dimension" />
     <attr name="expandedActiveIndicatorPaddingTop" format="dimension" />
     <attr name="expandedActiveIndicatorPaddingBottom" format="dimension" />
+    <attr name="appWidgetPadding" format="dimension" />
+    <attr name="appWidgetRadius" format="dimension" />
+    <attr name="appWidgetInnerRadius" format="dimension" />
 </resources>
