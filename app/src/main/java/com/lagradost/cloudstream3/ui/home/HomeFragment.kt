@@ -8,6 +8,8 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.fragment.app.Fragment
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import ani.sanin.databinding.TvtypesChipsBinding
+import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.utils.Event
 
 class HomeFragment : Fragment() {
@@ -19,10 +21,27 @@ class HomeFragment : Fragment() {
         val errorProfilePic: Int = 0
 
         @JvmStatic
-        fun bindChips(chipGroup: Any?, items: Any?, types: Any?, callback: ((Any) -> Unit)? = null, nextFocusDown: Int = 0, nextFocusUp: Int = 0) {}
+        fun bindChips(
+            header: TvtypesChipsBinding?,
+            selectedTypes: List<TvType>,
+            validTypes: List<TvType>,
+            callback: (List<TvType>) -> Unit
+        ) {
+            bindChips(header, selectedTypes, validTypes, callback, null, null)
+        }
 
         @JvmStatic
-        fun updateChips(chipGroup: Any?, items: Any?, callback: ((Any) -> Unit)? = null) {}
+        fun bindChips(
+            header: TvtypesChipsBinding?,
+            selectedTypes: List<TvType>,
+            validTypes: List<TvType>,
+            callback: (List<TvType>) -> Unit,
+            nextFocusDown: Int?,
+            nextFocusUp: Int?
+        ) {}
+
+        @JvmStatic
+        fun updateChips(header: TvtypesChipsBinding?, selectedTypes: List<TvType>) {}
 
         @JvmStatic
         fun expandAndReturn(name: String): Any? { return null }
