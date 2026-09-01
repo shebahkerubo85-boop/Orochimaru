@@ -9,7 +9,6 @@ exo = "1.11.0"
 previewseekbarVer = "1.1.1.0"
 markwon = "4.6.2"
 groupie = "2.10.1"
-nextlib = "0.8.4"
 ass = "0.4.0"
 compose-bom = "2025.06.00"
 androidsvg = "1.4"
@@ -109,7 +108,6 @@ media3-cast = { module = "androidx.media3:media3-cast", version.ref = "exo" }
 media3-effect = { module = "androidx.media3:media3-effect", version.ref = "exo" }
 
 # Extra Media
-nextlib = { module = "com.github.anilbeesetti.nextlib:nextlib-media3ext", version.ref = "nextlib" }
 previewseekbar-media3 = { module = "com.github.rubensousa:previewseekbar-media3", version.ref = "previewseekbarVer" }
 ass-media = { module = "io.github.peerless2012:ass-media", version.ref = "ass" }
 ass-kt = { module = "io.github.peerless2012:ass-kt", version.ref = "ass" }
@@ -184,7 +182,6 @@ lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx
 media3-common = { module = "androidx.media3:media3-common", version.ref = "exo" }
 media3-container = { module = "androidx.media3:media3-container", version.ref = "exo" }
 media3-datasource-cronet = { group = "androidx.media3", name = "media3-datasource-cronet", version.ref = "exo" }
-media3-datasource-okhttp = { module = "androidx.media3:media3-datasource-okhttp", version.ref = "exo" }
 navigation-fragment-ktx = { module = "androidx.navigation:navigation-fragment-ktx", version.ref = "navigationKtx" }
 navigation-ui-ktx = { module = "androidx.navigation:navigation-ui-ktx", version.ref = "navigationKtx" }
 torrentserver = { module = "com.github.recloudstream:torrentserver", version.ref = "torrentserver" }
@@ -199,8 +196,6 @@ palette-ktx = { module = "androidx.palette:palette-ktx", version = "1.0.0" }
 preference-ktx = { module = "androidx.preference:preference-ktx", version = "1.2.1" }
 activity-ktx = { module = "androidx.activity:activity-ktx", version = "1.13.0" }
 fragment-ktx = { module = "androidx.fragment:fragment-ktx", version = "1.8.9" }
-media3-exoplayer-dash = { module = "androidx.media3:media3-exoplayer-dash", version = "1.9.3" }
-media3-exoplayer-hls = { module = "androidx.media3:media3-exoplayer-hls", version = "1.9.3" }
 nextlib-media3ext = { module = "io.github.anilbeesetti:nextlib-media3ext", version = "1.9.3-0.12.0" }
 nextlib-mediainfo = { module = "io.github.anilbeesetti:nextlib-mediainfo", version = "1.9.3-0.12.0" }
 desugar_jdk_libs_nio = { module = "com.android.tools:desugar_jdk_libs_nio", version = "2.1.5" }
@@ -249,7 +244,6 @@ media3 = [
     "media3-session",
     "media3-cast",
     "media3-effect",
-    "nextlib"
 ]
 
 subtitles = ["ass-media", "ass-kt"]
