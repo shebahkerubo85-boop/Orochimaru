@@ -23,7 +23,7 @@
             android:layout_width="80dp"
             android:layout_height="80dp"
             android:focusable="true"
-            android:nextFocusDown="@+id/rightRailNotifications"
+            android:nextFocusDown="@+id/rightRailMediaTracker"
             app:cardCornerRadius="40dp"
             app:cardElevation="4dp">
 
@@ -149,6 +149,25 @@
             android:paddingTop="8dp">
 
             <TextView
+                android:id="@+id/rightRailMediaTracker"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:background="?attr/selectableItemBackground"
+                android:drawablePadding="16dp"
+                android:fontFamily="@font/poppins_bold"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:nextFocusDown="@+id/rightRailNotifications"
+                android:nextFocusUp="@+id/rightRailAvatar"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:text="Media &amp; tracker"
+                android:textColor="@android:color/white"
+                android:textSize="15sp"
+                app:drawableStartCompat="@drawable/ic_round_movie_filter_24"
+                app:drawableTint="@android:color/white" />
+
+            <TextView
                 android:id="@+id/rightRailNotifications"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
@@ -158,7 +177,7 @@
                 android:focusable="true"
                 android:gravity="center_vertical"
             android:nextFocusDown="@+id/rightRailExtensions"
-                android:nextFocusUp="@+id/rightRailAvatar"
+                android:nextFocusUp="@+id/rightRailMediaTracker"
                 android:paddingStart="24dp"
                 android:paddingEnd="24dp"
                 android:text="Notifications"
@@ -246,6 +265,7 @@
         </LinearLayout>
     </ScrollView>
 
+
     <TextView
         android:id="@+id/rightRailClearCache"
         android:layout_width="match_parent"
@@ -274,7 +294,7 @@
         android:fontFamily="@font/poppins_bold"
         android:focusable="true"
         android:gravity="center_vertical"
-        android:nextFocusUp="@+id/rightRailClearCache"
+        android:nextFocusUp="@+id/rightRailMediaTracker"
         android:paddingStart="24dp"
         android:paddingEnd="24dp"
         android:text="Log Out"

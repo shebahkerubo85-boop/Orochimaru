@@ -183,10 +183,13 @@
 
     <FrameLayout
         android:id="@+id/homeNavRail"
-        android:layout_width="44dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="start|center_vertical"
-        android:layout_marginStart="8dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="16dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:background="@drawable/bg_clay_pill"
         android:elevation="10dp"
         android:translationZ="10dp"
         android:focusable="true"
@@ -198,17 +201,19 @@
             android:id="@+id/homeNavRailBg"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:visibility="gone"
             android:focusable="false"
             android:clickable="false"
             android:importantForAccessibility="no" />
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:tag="pill_list"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
+            android:orientation="horizontal"
             android:gravity="center"
-            android:paddingTop="6dp"
-            android:paddingBottom="6dp">
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp">
 
                 <ImageButton
                     android:id="@+id/homeNavHome"
@@ -218,9 +223,7 @@
                     android:src="@drawable/ic_round_home_24"
                     android:scaleType="fitCenter"
                     android:background="@android:color/transparent"
-                    android:focusable="true"
-                    android:nextFocusUp="@id/homeNavLibrary"
-                    android:nextFocusDown="@id/homeNavAnime" />
+                    android:focusable="false" />
 
                 <ImageButton
                     android:id="@+id/homeNavAnime"
@@ -230,9 +233,7 @@
                     android:src="@drawable/ic_round_movie_filter_24"
                     android:scaleType="fitCenter"
                     android:background="@android:color/transparent"
-                    android:focusable="true"
-                    android:nextFocusUp="@id/homeNavHome"
-                    android:nextFocusDown="@id/homeNavDiscovery" />
+                    android:focusable="false" />
 
                 <ImageButton
                     android:id="@+id/homeNavDiscovery"
@@ -242,9 +243,7 @@
                     android:src="@drawable/ic_round_explore_24"
                     android:scaleType="fitCenter"
                     android:background="@android:color/transparent"
-                    android:focusable="true"
-                    android:nextFocusUp="@id/homeNavAnime"
-                    android:nextFocusDown="@id/homeNavLibrary" />
+                    android:focusable="false" />
 
                 <ImageButton
                     android:id="@+id/homeNavLibrary"
@@ -254,9 +253,7 @@
                     android:src="@drawable/ic_round_library_books_24"
                     android:scaleType="fitCenter"
                     android:background="@android:color/transparent"
-                    android:focusable="true"
-                    android:nextFocusUp="@id/homeNavDiscovery"
-                    android:nextFocusDown="@id/homeNavHome" />
+                    android:focusable="false" />
             </LinearLayout>
         </FrameLayout>
 

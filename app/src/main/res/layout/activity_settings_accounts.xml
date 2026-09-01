@@ -107,7 +107,7 @@
                     android:layout_marginEnd="20dp"
                     android:contentDescription="@string/anilist"
                     app:srcCompat="@drawable/ic_anilist"
-                    app:tint="?attr/colorPrimary" />
+                    tools:ignore="ImageContrastCheck" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -187,7 +187,7 @@
                 android:layout_marginEnd="16dp"
                 android:contentDescription="@string/myanimelist"
                 app:srcCompat="@drawable/ic_myanimelist"
-                app:tint="?attr/colorPrimary" />
+                tools:ignore="ImageContrastCheck" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -239,7 +239,7 @@
                 android:contentDescription="@string/account_help"
                 android:padding="16dp"
                 android:src="@drawable/ic_round_help_24"
-                app:tint="?attr/colorPrimary"/>
+                tools:ignore="ImageContrastCheck"/>
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/settingsMALAvatarContainer"
@@ -260,6 +260,89 @@
             </com.google.android.material.card.MaterialCardView>
 
         </LinearLayout>
+
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/settingsSimklCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="8dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="@android:color/transparent">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="8dp">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="match_parent"
+                    android:background="?attr/colorSurface"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginEnd="20dp"
+                    android:contentDescription="Simkl"
+                    app:srcCompat="@drawable/ic_simkl"
+                    tools:ignore="ImageContrastCheck" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center_vertical"
+                    android:minHeight="64dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/settingsSimklUsername"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="-4dp"
+                        android:fontFamily="@font/poppins_bold"
+                        android:gravity="center"
+                        android:text="@string/username"
+                        android:textColor="?attr/colorSecondary"
+                        android:textSize="16sp"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/settingsSimklLogin"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="-16dp"
+                        android:layout_marginTop="-16dp"
+                        android:layout_marginBottom="-16dp"
+                        android:fontFamily="@font/poppins_bold"
+                        android:padding="16dp"
+                        android:text="@string/login"
+                        android:textSize="14sp" />
+
+                </LinearLayout>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/settingsSimklAvatarContainer"
+                    android:layout_width="51dp"
+                    android:layout_height="51dp"
+                    android:layout_marginTop="4dp"
+                    android:backgroundTint="@color/nav_bg_inv"
+                    app:cardCornerRadius="26dp">
+
+                    <com.google.android.material.imageview.ShapeableImageView
+                        android:id="@+id/settingsSimklAvatar"
+                        android:layout_width="51dp"
+                        android:layout_height="51dp"
+                        android:scaleType="center"
+                        app:srcCompat="@drawable/ic_round_person_24"
+                        tools:ignore="ContentDescription,ImageContrastCheck" />
+
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/settingsDiscordLogin"
@@ -285,7 +368,7 @@
                     android:layout_marginEnd="20dp"
                     android:contentDescription="@string/discord"
                     app:srcCompat="@drawable/ic_discord"
-                    app:tint="?attr/colorPrimary" />
+                    tools:ignore="ImageContrastCheck" />
 
                 <TextView
                     android:layout_width="0dp"

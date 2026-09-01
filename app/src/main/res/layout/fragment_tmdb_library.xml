@@ -1,28 +1,177 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorSurface"
-    android:gravity="center"
-    android:orientation="vertical"
-    android:padding="32dp">
+    android:background="?attr/colorSurface">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:fontFamily="@font/poppins_bold"
-        android:gravity="center"
-        android:text="User List"
-        android:textColor="?attr/colorOnSurface"
-        android:textSize="22sp" />
+    <FrameLayout
+        android:id="@+id/tmdbLibProgressBar"
+        android:layout_width="76.5dp"
+        android:layout_height="76.5dp"
+        android:layout_gravity="center"
+    >
 
-    <TextView
-        android:layout_width="wrap_content"
+        <com.airbnb.lottie.LottieAnimationView
+        android:layout_width="45dp"
+        android:layout_height="45dp"
+        android:layout_gravity="center_horizontal|top"
+        android:layout_marginTop="4dp"
+        app:lottie_rawRes="@raw/tomoe"
+        app:lottie_autoPlay="true"
+        app:lottie_loop="true"
+        app:lottie_colorFilter="?attr/colorSecondary" 
+        app:lottie_speed="1.75" android:rotation="75" />
+
+        <com.airbnb.lottie.LottieAnimationView
+        android:layout_width="45dp"
+        android:layout_height="45dp"
+        android:layout_gravity="bottom|start"
+        android:layout_marginStart="4dp"
+        android:layout_marginBottom="8dp"
+        app:lottie_rawRes="@raw/tomoe"
+        app:lottie_autoPlay="true"
+        app:lottie_loop="true"
+        app:lottie_colorFilter="?attr/colorSecondary" 
+        app:lottie_speed="1.75" android:rotation="-45" />
+
+        <com.airbnb.lottie.LottieAnimationView
+        android:layout_width="45dp"
+        android:layout_height="45dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="4dp"
+        android:layout_marginBottom="8dp"
+        app:lottie_rawRes="@raw/tomoe"
+        app:lottie_autoPlay="true"
+        app:lottie_loop="true"
+        app:lottie_colorFilter="?attr/colorSecondary" 
+        app:lottie_speed="1.75" android:rotation="195" />
+
+    </FrameLayout>
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/tmdbLibAppBar"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:fontFamily="@font/poppins_semi_bold"
-        android:gravity="center"
-        android:text="Simkl tracking is coming soon.\nWatching, Completed Series, Completed Movies and more will live here."
-        android:textColor="?attr/colorOutline"
-        android:textSize="14sp" />
-</LinearLayout>
+        android:background="?attr/colorSurface"
+        android:theme="@style/Theme.Sanin.AppBarOverlay">
+
+        <LinearLayout
+            android:id="@+id/tmdbLibSettingsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tmdbLibTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="16dp"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/poppins_bold"
+                    android:gravity="center|start"
+                    android:singleLine="true"
+                    android:text="@string/simkl_library"
+                    android:textAppearance="@style/TextAppearance.Widget.AppCompat.Toolbar.Title"
+                    android:textColor="?attr/colorOnBackground"
+                    android:textSize="14sp" />
+
+                <ImageButton
+                    android:id="@+id/tmdbLibSearch"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:contentDescription="@string/search"
+                    app:srcCompat="@drawable/ic_round_search_24"
+                    app:tint="?attr/colorOnBackground" />
+
+                <ImageButton
+                    android:id="@+id/tmdbLibFilter"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:contentDescription="@string/filter"
+                    app:srcCompat="@drawable/ic_round_filter_alt_24"
+                    app:tint="?attr/colorOnBackground" />
+
+                <ImageButton
+                    android:id="@+id/tmdbLibSort"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginEnd="4dp"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:contentDescription="@string/sort_by"
+                    app:srcCompat="@drawable/ic_round_sort_24"
+                    app:tint="?attr/colorOnBackground" />
+
+            </LinearLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tmdbLibSearchView"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_gravity="bottom"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:transitionName="@string/search"
+                android:visibility="gone"
+                app:boxBackgroundColor="?android:attr/colorBackground"
+                app:boxBackgroundMode="outline"
+                app:boxCornerRadiusBottomEnd="28dp"
+                app:boxCornerRadiusBottomStart="28dp"
+                app:boxCornerRadiusTopEnd="28dp"
+                app:boxCornerRadiusTopStart="28dp"
+                app:boxStrokeColor="?attr/colorOnBackground"
+                app:cursorColor="?attr/colorOnBackground"
+                app:endIconDrawable="@drawable/ic_round_search_24"
+                app:endIconTint="?attr/colorOnBackground"
+                app:hintAnimationEnabled="true"
+                app:hintTextColor="?attr/colorOnBackground"
+                tools:visibility="visible">
+
+                <AutoCompleteTextView
+                    android:id="@+id/tmdbLibSearchText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom"
+                    android:layout_marginBottom="8dp"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/poppins_bold"
+                    android:hint="@string/search"
+                    android:imeOptions="actionSearch"
+                    android:inputType="textPersonName"
+                    android:padding="8dp"
+                    android:paddingBottom="4dp"
+                    android:selectAllOnFocus="true"
+                    android:textSize="14sp"
+                    tools:ignore="LabelFor,TextContrastCheck" />
+            </com.google.android.material.textfield.TextInputLayout>
+        </LinearLayout>
+
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tmdbLibTabLayout"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            app:tabContentStart="32dp"
+            app:tabMode="scrollable"
+            app:tabPaddingEnd="16dp"
+            app:tabPaddingStart="16dp"
+            app:tabTextAppearance="@style/NavBarText"
+            tools:ignore="SpeakableTextPresentCheck" />
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/tmdbLibViewPager"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

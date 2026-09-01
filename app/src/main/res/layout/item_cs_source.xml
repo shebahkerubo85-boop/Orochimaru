@@ -8,7 +8,17 @@
     android:orientation="horizontal"
     android:paddingTop="10dp"
     android:paddingBottom="10dp"
-    android:focusable="true">
+    android:focusable="true"
+    android:nextFocusRight="@id/sourceSettingsImageView">
+
+    <ImageView
+        android:id="@+id/sourceIconImageView"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="center_vertical"
+        android:layout_marginEnd="9dp"
+        android:importantForAccessibility="no"
+        tools:ignore="ContentDescription" />
 
     <LinearLayout
         android:layout_width="0dp"
@@ -36,6 +46,23 @@
     </LinearLayout>
 
     <ImageView
+        android:id="@+id/sourceSettingsImageView"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="center_vertical"
+        android:layout_marginStart="3dp"
+        android:background="?android:attr/selectableItemBackground"
+        android:focusable="true"
+        android:nextFocusLeft="@id/sourceCardView"
+        android:nextFocusRight="@id/sourceInstallImageView"
+        android:scaleX="0.8"
+        android:scaleY="0.8"
+        android:visibility="gone"
+        app:srcCompat="@drawable/ic_round_dots_vertical_24"
+        app:tint="?attr/colorOnBackground"
+        tools:ignore="ContentDescription" />
+
+    <ImageView
         android:id="@+id/sourceInstallImageView"
         android:layout_width="40dp"
         android:layout_height="40dp"
@@ -43,6 +70,8 @@
         android:layout_marginStart="3dp"
         android:background="?android:attr/selectableItemBackground"
         android:focusable="true"
+        android:nextFocusLeft="@id/sourceSettingsImageView"
+        android:nextFocusRight="@id/sourceCardView"
         android:scaleX="0.8"
         android:scaleY="0.8"
         app:srcCompat="@drawable/ic_download_24"
