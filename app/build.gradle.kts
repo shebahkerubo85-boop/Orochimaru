@@ -213,7 +213,4 @@ dependencies {
     implementation(libs.constraintlayout)
     implementation(libs.core.ktx)
     implementation(libs.work.runtime.ktx)
-    implementation(libs.anime.db)
-    implementation(libs.torrentserver)
-    implementation(libs.zipline)
 }
