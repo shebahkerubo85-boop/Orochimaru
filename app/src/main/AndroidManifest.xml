@@ -229,6 +229,11 @@
             android:excludeFromRecents="true"
             android:supportsPictureInPicture="true" />
         <activity
+            android:name=".cloudstream.CsPlayerActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation"
+            android:excludeFromRecents="true"
+            android:supportsPictureInPicture="true" />
+        <activity
             android:name=".media.anime.ExoplayerView"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation"
             android:excludeFromRecents="true"
