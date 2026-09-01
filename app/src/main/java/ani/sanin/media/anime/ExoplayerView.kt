@@ -2668,6 +2668,155 @@ class ExoplayerView :
         )
     }
 
+    /**
+     * Silent live-stream reconnect: re-fetches fresh URLs from the plugin
+     * (bypassing the app-level link cache) and rebuilds the media source
+     * in-place without opening the server-selector dialog or tearing down
+     * the player.  Falls back to [sourceClick] (dialog) if the plugin
+     * returns nothing usable.
+     */
+    private fun silentLiveReconnect() {
+        val epLabel = episode.number
+        val previousServer = extractor?.server?.name
+        Logger.log(
+            "Player: silent live reconnect — re-fetching URLs " +
+                "(previous server='${previousServer ?: "none"}', ep=$epLabel)"
+        )
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            // 1. Invalidate the app-level link cache so the plugin re-fetches
+            //    fresh encrypted channel data (new auth_key).
+            val session = TmdbStreamResolver.sessionFor(media.id)
+            session?.mediaId?.let { TmdbStreamResolver.invalidateLinks(it) }
+
+            // 2. Clear the episode's extractors to force a full re-fetch.
+            episode.extractors = null
+            episode.extractorsSource = null
+            episode.allStreams = false
+
+            // 3. Re-run the plugin to get fresh extractors/links.
+            val ok = TmdbStreamResolver.populateSyntheticEpisode(
+                this@ExoplayerView, media, episode
+            )
+            if (!ok) {
+                withContext(Dispatchers.Main) {
+                    Logger.log(
+                        Log.ERROR,
+                        "Player: silent reconnect failed — plugin returned no links (ep=$epLabel)"
+                    )
+                    toast("Reconnect failed — no fresh URLs")
+                    isPlayerPlaying = true
+                    sourceClick()
+                }
+                return@launch
+            }
+
+            // 4. Find the fresh extractor (same server if still available,
+            //    otherwise fall back to the first server).
+            val freshExtractors = episode.extractors?.filterNotNull()
+            if (freshExtractors.isNullOrEmpty()) {
+                withContext(Dispatchers.Main) {
+                    Logger.log(
+                        Log.ERROR,
+                        "Player: silent reconnect failed — empty extractors (ep=$epLabel)"
+                    )
+                    toast("Reconnect failed — no servers")
+                    isPlayerPlaying = true
+                    sourceClick()
+                }
+                return@launch
+            }
+
+            val freshExt = freshExtractors.find { it.server.name == previousServer }
+                ?: freshExtractors.first()
+            val freshVideo = freshExt.videos.getOrNull(episode.selectedVideo)
+                ?: freshExt.videos.firstOrNull()
+
+            if (freshVideo == null) {
+                withContext(Dispatchers.Main) {
+                    Logger.log(
+                        Log.ERROR,
+                        "Player: silent reconnect failed — no video in '${freshExt.server.name}' (ep=$epLabel)"
+                    )
+                    toast("Reconnect failed — no playable URL")
+                    isPlayerPlaying = true
+                    sourceClick()
+                }
+                return@launch
+            }
+
+            // 5. Update internal state so the rest of the player stays in sync.
+            extractor = freshExt
+            video = freshVideo
+            episode.extractors = freshExtractors.toMutableList()
+            episode.selectedExtractor = freshExt.server.name
+            episode.selectedVideo =
+                freshExt.videos.indexOf(freshVideo).coerceAtLeast(0)
+
+            // 6. Build a fresh media source from the new URL, reusing the
+            //    existing cacheFactory / assMediaSourceFactory (same HTTP
+            //    client, same DRM config, same subtitle factory).
+            val mimeType = when (freshVideo.format) {
+                VideoType.M3U8 -> MimeTypes.APPLICATION_M3U8
+                VideoType.DASH -> MimeTypes.APPLICATION_MPD
+                VideoType.CONTAINER -> {
+                    val url = freshVideo.file.url
+                    if (url.startsWith("content://")) {
+                        val decoded = java.net.URLDecoder.decode(url, "UTF-8").lowercase()
+                        when {
+                            decoded.endsWith(".mkv") -> MimeTypes.APPLICATION_MATROSKA
+                            decoded.endsWith(".webm") -> MimeTypes.APPLICATION_WEBM
+                            else -> MimeTypes.APPLICATION_MP4
+                        }
+                    } else null
+                }
+                else -> MimeTypes.APPLICATION_MP4
+            }
+
+            mediaItem = MediaItem.Builder()
+                .setUri(freshVideo.file.url)
+                .setMimeType(mimeType)
+                .build()
+
+            val videoMediaSource =
+                assMediaSourceFactory.createMediaSource(mediaItem)
+
+            // Handle separate audio tracks (rare for live HLS, but possible).
+            val audioSources = freshExt.audioTracks.map { track ->
+                val audioItem = MediaItem.Builder()
+                    .setUri(track.url)
+                    .setMimeType(MimeTypes.APPLICATION_M3U8)
+                    .build()
+                HlsMediaSource.Factory(cacheFactory).createMediaSource(audioItem)
+            }.toTypedArray()
+
+            mediaSource = MergingMediaSource(videoMediaSource, *audioSources)
+
+            // 7. Swap the source on the live player — no teardown required.
+            withContext(Dispatchers.Main) {
+                if (!isInitialized || exoPlayer.isReleased) {
+                    Logger.log(
+                        Log.WARN,
+                        "Player: silent reconnect — player released during fetch, " +
+                            "falling back to episode re-init (ep=$epLabel)"
+                    )
+                    model.setEpisode(episode, "live-reconnect-fallback")
+                    return@withContext
+                }
+
+                Logger.log(
+                    "Player: silent reconnect OK — " +
+                        "url=${freshVideo.file.url.take(120)} " +
+                        "server='${freshExt.server.name}' ep=$epLabel"
+                )
+                toast("Reconnected ✓")
+                exoPlayer.setMediaSource(mediaSource)
+                exoPlayer.prepare()
+                exoPlayer.play()
+            }
+        }
+    }
+
     fun getSyncCues(): List<SyncCue> {
         synchronized(storedSyncCues) {
             return storedSyncCues.toList()
@@ -4219,7 +4368,7 @@ class ExoplayerView :
                     toast("Reconnecting… ($liveReconnectCount/$MAX_LIVE_RECONNECTS)")
                     // Re-fetch fresh URLs from the plugin — the old auth_key has expired
                     isPlayerPlaying = true
-                    sourceClick()
+                    silentLiveReconnect()
                 } else {
                     if (isLiveStream()) liveReconnectCount = 0
                     Logger.log(Log.ERROR, "Player: source exception (${error.errorCode}) on ep '$epLabel': ${error.message}")
