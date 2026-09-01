@@ -4210,17 +4210,18 @@ class ExoplayerView :
         when (error.errorCode) {
             PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
             PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+            PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
                 -> {
                 if (isLiveStream() && liveReconnectCount < MAX_LIVE_RECONNECTS) {
                     liveReconnectCount++
                     Logger.log(Log.WARN, "Player: live reconnect $liveReconnectCount/$MAX_LIVE_RECONNECTS " +
                         "on ep '$epLabel' (${error.errorCodeName}): ${error.message}")
                     toast("Reconnecting… ($liveReconnectCount/$MAX_LIVE_RECONNECTS)")
-                    exoPlayer.setMediaSource(mediaSource, exoPlayer.currentPosition)
-                    exoPlayer.prepare()
-                    exoPlayer.play()
+                    // Re-fetch fresh URLs from the plugin — the old auth_key has expired
+                    isPlayerPlaying = true
+                    sourceClick()
                 } else {
-                    liveReconnectCount = 0
+                    if (isLiveStream()) liveReconnectCount = 0
                     Logger.log(Log.ERROR, "Player: source exception (${error.errorCode}) on ep '$epLabel': ${error.message}")
                     toast("Source Exception : ${error.message}")
                     isPlayerPlaying = true
