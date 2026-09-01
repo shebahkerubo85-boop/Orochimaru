@@ -49,6 +49,11 @@ android {
             .toInt()
 
         signingConfig = signingConfigs.getByName("debug")
+
+        buildConfigField("String", "SIMKL_CLIENT_ID", "\"\"")
+        buildConfigField("String", "SIMKL_CLIENT_SECRET", "\"\"")
+        buildConfigField("long", "BUILD_DATE", "System.currentTimeMillis()")
+        buildConfigField("String", "MAL_KEY", "\"\"")
     }
 
     flavorDimensions += "store"
@@ -231,4 +236,6 @@ dependencies {
     implementation(libs.nextlib.media3ext)
     implementation(libs.nextlib.mediainfo)
     implementation(libs.desugar.jdk.libs.nio)
+    implementation(libs.torrentserver)
+    implementation(libs.conscrypt)
 }

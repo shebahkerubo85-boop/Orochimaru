@@ -113,7 +113,7 @@ object BiometricAuthenticator {
                     BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> result = false
                     BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> result = false
                     BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> result = false
-                    BiometricManager.BIOMETRIC_ERROR_NOT_ENABLED_FOR_APPS -> result = false
+                                        else -> result = false
                     BiometricManager.BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED -> result = true
                     BiometricManager.BIOMETRIC_ERROR_UNSUPPORTED -> result = true
                     BiometricManager.BIOMETRIC_STATUS_UNKNOWN -> result = false

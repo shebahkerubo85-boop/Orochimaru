@@ -131,7 +131,10 @@ class CloudflareKiller : Interceptor {
                 // Cannot use okhttp (i think intercepting cookies fails which causes the issues)
                 useOkhttp = false,
                 // Match every url for the requestCallBack
-                additionalUrls = listOf(Regex("."))
+                additionalUrls = listOf(Regex(".")),
+                script = null,
+                scriptCallback = null,
+                timeout = WebViewResolver.DEFAULT_TIMEOUT
             ).resolveUsingWebView(
                 url,
                 referer = null,

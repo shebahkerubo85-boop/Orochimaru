@@ -80,4 +80,8 @@ class AniListApi : SyncAPI() {
         @JsonProperty("perPage") @SerialName("perPage") val perPage: Int?,
         @JsonProperty("hasNextPage") @SerialName("hasNextPage") val hasNextPage: Boolean?,
     )
+
+    companion object {
+        const val ANILIST_CACHED_LIST: String = "anilist_cached_list"
+    }
 }

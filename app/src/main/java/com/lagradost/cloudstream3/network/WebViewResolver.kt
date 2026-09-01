@@ -33,7 +33,7 @@ import okhttp3.Response
  * @param scriptCallback will be called with the result from custom js
  * @param timeout close webview after timeout
  * */
-actual class WebViewResolver actual constructor(
+class WebViewResolver (
     val interceptUrl: Regex,
     val additionalUrls: List<Regex>,
     val userAgent: String?,
@@ -44,9 +44,9 @@ actual class WebViewResolver actual constructor(
 ) :
     Interceptor {
 
-    actual companion object {
-        actual var webViewUserAgent: String? = null
-        actual val DEFAULT_TIMEOUT = 60_000L
+    companion object {
+        var webViewUserAgent: String? = null
+        val DEFAULT_TIMEOUT = 60_000L
         private const val TAG = "WebViewResolver"
 
         @JvmName("getWebViewUserAgent1")
@@ -66,12 +66,12 @@ actual class WebViewResolver actual constructor(
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         return runBlocking {
-            val fixedRequest = resolveUsingWebView(request).first
+            val fixedRequest = resolveUsingWebView(request) { false }.first
             return@runBlocking chain.proceed(fixedRequest ?: request)
         }
     }
 
-    actual suspend fun resolveUsingWebView(
+    suspend fun resolveUsingWebView(
         url: String,
         referer: String?,
         method: String,
@@ -79,7 +79,7 @@ actual class WebViewResolver actual constructor(
     ): Pair<Request?, List<Request>> =
         resolveUsingWebView(url, referer, emptyMap(), method, requestCallBack)
 
-    actual suspend fun resolveUsingWebView(
+    suspend fun resolveUsingWebView(
         url: String,
         referer: String?,
         headers: Map<String, String>,
@@ -98,7 +98,7 @@ actual class WebViewResolver actual constructor(
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    actual suspend fun resolveUsingWebView(
+    suspend fun resolveUsingWebView(
         request: Request,
         requestCallBack: (Request) -> Boolean
     ): Pair<Request?, List<Request>> {

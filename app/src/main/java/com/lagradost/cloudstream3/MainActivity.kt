@@ -1,6 +1,8 @@
 package com.lagradost.cloudstream3
 
 import android.content.Intent
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
 import com.lagradost.cloudstream3.utils.Event
 import java.io.File
 
@@ -8,7 +10,15 @@ import java.io.File
  * Minimal host stub for upstream cloudstream3 references.
  * The real Activity lives in ani.sanin.MainActivity.
  */
-class MainActivity {
+open class MainActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+    }
+
+    fun loadPopup(result: com.lagradost.cloudstream3.utils.SearchResponse, load: Boolean = true) {}
+
+    var binding: Any? = null
+
     companion object {
         var activityResultLauncher: androidx.activity.result.ActivityResultLauncher<Intent>? = null
 
@@ -21,6 +31,9 @@ class MainActivity {
         val afterRepositoryLoadedEvent = Event<Boolean>()
 
         var nextSearchQuery: String? = null
+        fun centerView(view: android.view.View) {}
+        var lastError: String? = null
+        fun setLastError(err: String?) { lastError = err }
 
         const val API_NAME_EXTRA_KEY = "API_NAME_EXTRA_KEY"
 
@@ -47,6 +60,7 @@ class MainActivity {
             prefs.edit().remove(FILE_DELETE_KEY).apply()
         }
 
-        fun handleAppIntentUrl(context: android.content.Context, intent: Intent?) {}
+        fun handleAppIntentUrl(context: android.content.Context?, intent: Any?): Boolean { return false }
+        fun handleAppIntentUrl(context: android.content.Context, intent: String, extra: Boolean): Boolean { return false }
     }
 }

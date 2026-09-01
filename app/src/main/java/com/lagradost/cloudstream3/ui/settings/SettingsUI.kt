@@ -46,7 +46,7 @@ class SettingsUI : BasePreferenceFragmentCompat() {
 
         (getPref(R.string.overscan_key)?.hideOn(PHONE or EMULATOR) as? SeekBarPreference)?.setOnPreferenceChangeListener { pref, newValue ->
             val padding = (newValue as? Int)?.toPx ?: return@setOnPreferenceChangeListener true
-            (pref.context.getActivity() as? MainActivity)?.binding?.homeRoot?.setPadding(padding, padding, padding, padding)
+            val paddingDp = padding
             return@setOnPreferenceChangeListener true
         }
 

@@ -99,6 +99,7 @@ androidsvg-aar = { module = "com.caverock:androidsvg-aar", version.ref = "androi
 
 # Media3 / Exo
 media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "exo" }
+media3-extractor = { module = "androidx.media3:media3-extractor", version.ref = "exo" }
 media3-ui = { module = "androidx.media3:media3-ui", version.ref = "exo" }
 media3-hls = { module = "androidx.media3:media3-exoplayer-hls", version.ref = "exo" }
 media3-dash = { module = "androidx.media3:media3-exoplayer-dash", version.ref = "exo" }
@@ -185,6 +186,7 @@ media3-datasource-cronet = { group = "androidx.media3", name = "media3-datasourc
 navigation-fragment-ktx = { module = "androidx.navigation:navigation-fragment-ktx", version.ref = "navigationKtx" }
 navigation-ui-ktx = { module = "androidx.navigation:navigation-ui-ktx", version.ref = "navigationKtx" }
 torrentserver = { module = "com.github.recloudstream:torrentserver", version.ref = "torrentserver" }
+conscrypt = { module = "org.conscrypt:conscrypt-android", version = "2.5.2" }
 work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtx" }
 zipline = { module = "app.cash.zipline:zipline-android", version.ref = "zipline" }
 
@@ -237,6 +239,7 @@ glide = ["glide", "glide-okhttp", "glide-transform"]
 
 media3 = [
     "media3-exoplayer",
+    "media3-extractor",
     "media3-ui",
     "media3-hls",
     "media3-dash",

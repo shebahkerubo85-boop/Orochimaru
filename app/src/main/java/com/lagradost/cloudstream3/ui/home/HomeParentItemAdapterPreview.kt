@@ -625,12 +625,10 @@ class HomeParentItemAdapterPreview(
                     if (!hasFocus) return@setOnFocusChangeListener
                     if (previewViewpager.currentItem <= 0) {
                         //Focus the Home item as the default focus will be the header item
-                        (activity as? MainActivity)?.binding?.navRailView?.findViewById<NavigationBarItemView>(
-                            R.id.navigation_home
-                        )?.requestFocus()
+                        (activity as? MainActivity)?.binding?.let { }
                     } else {
                         previewViewpager.setCurrentItem(previewViewpager.currentItem - 1, true)
-                        binding.homePreviewInfoBtt.requestFocus()
+                        (binding as? ani.sanin.databinding.FragmentHomeHeadBinding)?.homePreviewInfoBtt?.requestFocus()
                         //binding.homePreviewPlayBtt.requestFocus()
                     }
                 }

@@ -2,15 +2,20 @@ package com.lagradost.cloudstream3
 
 import android.app.Activity
 import android.content.res.Configuration
-import android.os.Build
-import android.view.KeyCharacterMap
 import android.view.KeyEvent
 import android.view.View
-import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.annotation.StringRes
+import com.lagradost.cloudstream3.utils.Event
 import com.lagradost.cloudstream3.utils.UiText
 import java.lang.ref.WeakReference
+
+enum class FocusDirection {
+    Start,
+    End,
+    Up,
+    Down,
+}
 
 object CommonActivity {
 
@@ -20,8 +25,17 @@ object CommonActivity {
         private set(value) { _activity = WeakReference(value) }
 
     var isInPIPMode: Boolean = false
-    var keyEventListener: ((Pair<android.view.KeyEvent?, Boolean>) -> Boolean)? = null
+    var isPipDesired: Boolean = false
+    var keyEventListener: ((Pair<KeyEvent?, Boolean>) -> Boolean)? = null
 
+    val onColorSelectedEvent = Event<Pair<Int, Int>>()
+    val onDialogDismissedEvent = Event<Int>()
+    var appliedTheme: Int = 0
+
+    val screenHeight: Int get() {
+        val act = activity ?: return 0
+        return act.resources.displayMetrics.heightPixels
+    }
     val screenWidth: Int get() {
         val act = activity ?: return 0
         return act.resources.displayMetrics.widthPixels
@@ -40,6 +54,54 @@ object CommonActivity {
     }
 
     fun setActivityInstance(newActivity: Activity?) { activity = newActivity }
+
+    fun init(act: Activity) {
+        setActivityInstance(act)
+    }
+
+    fun loadThemes(act: Activity?) {
+        // Stub — theme loading handled by the fork's own app
+    }
+
+    fun setLocale(context: android.content.Context?, languageTag: String?) {
+        if (context == null || languageTag == null) return
+        val locale = java.util.Locale.forLanguageTag(languageTag)
+        val resources = context.resources
+        val config = resources.configuration
+        java.util.Locale.setDefault(locale)
+        config.setLocale(locale)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
+            context.createConfigurationContext(config)
+    }
+
+    fun onKeyDown(act: Activity?, keyCode: Int, event: KeyEvent?): Boolean? {
+        return null
+    }
+
+    fun dispatchKeyEvent(act: Activity?, event: KeyEvent?): Boolean? {
+        return keyEventListener?.invoke(Pair(event, false)) == true
+    }
+
+    fun onUserLeaveHint(act: Activity) {
+        // Stub — PIP handled by PlayerPipHelper
+    }
+
+    /** Skips the initial stage of searching for an id using the view */
+    fun continueGetNextFocus(
+        root: Any?,
+        view: View,
+        direction: FocusDirection,
+        nextId: Int,
+        depth: Int = 0
+    ): View? {
+        if (nextId == View.NO_ID) return null
+        var next = when (root) {
+            is Activity -> root.findViewById(nextId)
+            is View -> root.rootView.findViewById<View?>(nextId)
+            else -> null
+        } ?: return null
+        return next
+    }
 
     private var currentToast: Toast? = null
 
@@ -75,6 +137,11 @@ object CommonActivity {
         val toast = Toast.makeText(act, message, duration ?: Toast.LENGTH_SHORT)
         currentToast = toast
         toast.show()
+    }
+
+    fun Activity?.getCastSession(): Any? {
+        // Stub — Cast support handled by fork's own app
+        return null
     }
 
     fun hideSystemUI(activity: Activity?) {}

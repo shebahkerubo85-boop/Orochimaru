@@ -141,7 +141,7 @@ class KitsuApi: SyncAPI() {
 
         return AuthUser(
             id = user.data[0].id.toInt(),
-            name = user.data[0].attributes.name,
+            name = user.data[0].attributes.name ?: "",
             profilePicture = user.data[0].attributes.avatar?.original
         )
     }
