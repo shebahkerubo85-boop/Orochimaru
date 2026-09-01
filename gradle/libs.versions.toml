@@ -161,6 +161,7 @@ google = { id = "com.google.gms.google-services", version = "4.4.1" }
 crashlytics = { id = "com.google.firebase.crashlytics", version = "3.0.6" }
 compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 
+
 # === Upstream CS3 libraries ===
 anime-db = { module = "com.github.recloudstream:anime-db", version.ref = "animeDb" }
 biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
