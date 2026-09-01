@@ -130,41 +130,10 @@ android {
     }
 }
 
-// Extract mpv's FFmpeg .so files from its AAR into a source-set directory.
-// Source set jniLibs are processed BEFORE AAR extractions during the merge,
-// so these files always win the pickFirsts race against nextlib-media3ext's copies.
-val extractMpvFfmpeg by tasks.registering(Copy::class) {
-    description = "Extracts mpv FFmpeg .so files from mpv-android-lib AAR"
-    group = "build"
-    doFirst {
-        // Resolve mpv AAR directly (no transitive deps) via a detached configuration
-        val mpvConfig = project.configurations.detachedConfiguration(
-            project.dependencies.create("io.github.abdallahmehiz:mpv-android-lib:0.1.9")
-        )
-        mpvConfig.isTransitive = false
-        val mpvAar = mpvConfig.singleFile
-        project.logger.lifecycle("Extracting mpv FFmpeg from: ${mpvAar.name}")
-        from(zipTree(mpvAar)) {
-            include("jni/*/libav*.so")
-            include("jni/*/libsw*.so")
-        }
-        into(layout.buildDirectory.dir("mpv-ffmpeg-libs"))
-    }
-}
-
-android {
-    sourceSets {
-        getByName("main") {
-            jniLibs.srcDir(layout.buildDirectory.dir("mpv-ffmpeg-libs").get().asFile)
-        }
-    }
-}
-
-tasks.configureEach {
-    if (name.contains("merge", ignoreCase = true) && name.contains("NativeLib", ignoreCase = true)) {
-        dependsOn(extractMpvFfmpeg)
-    }
-}
+// mpv's FFmpeg .so files are committed to app/src/main/jniLibs/{arm64-v8a,armeabi-v7a}/
+// Source-set jniLibs are processed BEFORE AAR extractions during native lib merge,
+// so mpv's FFmpeg always wins the pickFirsts race against nextlib-media3ext's copies.
+// This prevents the "av_default_item_name" dlopen crash from loading the wrong libavutil.so.
 
 kotlin {
     jvmToolchain(17)
