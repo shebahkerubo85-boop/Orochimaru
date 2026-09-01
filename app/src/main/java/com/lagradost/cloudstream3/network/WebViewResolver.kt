@@ -38,9 +38,9 @@ class WebViewResolver (
     val additionalUrls: List<Regex>,
     val userAgent: String?,
     val useOkhttp: Boolean,
-    val script: String?,
-    val scriptCallback: ((String) -> Unit)?,
-    val timeout: Long
+    val script: String? = null,
+    val scriptCallback: ((String) -> Unit)? = null,
+    val timeout: Long = DEFAULT_TIMEOUT
 ) :
     Interceptor {
 
@@ -66,7 +66,7 @@ class WebViewResolver (
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         return runBlocking {
-            val fixedRequest = resolveUsingWebView(request) { false }.first
+            val fixedRequest = resolveUsingWebView(request, requestCallBack = { false }).first
             return@runBlocking chain.proceed(fixedRequest ?: request)
         }
     }

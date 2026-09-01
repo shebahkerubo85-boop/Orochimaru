@@ -628,7 +628,7 @@ class HomeParentItemAdapterPreview(
                         (activity as? MainActivity)?.binding?.let { }
                     } else {
                         previewViewpager.setCurrentItem(previewViewpager.currentItem - 1, true)
-                        (binding as? ani.sanin.databinding.FragmentHomeHeadBinding)?.homePreviewInfoBtt?.requestFocus()
+                        (binding as? ani.sanin.databinding.FragmentHomeHeadTvBinding)?.homePreviewInfoBtt?.requestFocus()
                         //binding.homePreviewPlayBtt.requestFocus()
                     }
                 }

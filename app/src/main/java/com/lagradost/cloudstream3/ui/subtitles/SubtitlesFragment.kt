@@ -29,6 +29,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.jaredrummler.android.colorpicker.ColorPickerDialog
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
+import com.lagradost.cloudstream3.utils.DataStore.setKey as dataStoreSetKey
 import com.lagradost.cloudstream3.CommonActivity.onColorSelectedEvent
 import com.lagradost.cloudstream3.CommonActivity.onDialogDismissedEvent
 import com.lagradost.cloudstream3.CommonActivity.showToast
@@ -259,7 +260,7 @@ class SubtitlesFragment : BaseDialogFragment<SubtitleSettingsBinding>(
 
         fun Context.saveStyle(style: SaveCaptionStyle) {
             cachedSubtitleStyle = style
-            this.setKey(SUBTITLE_KEY, style)
+            this.dataStoreSetKey(SUBTITLE_KEY, style)
         }
 
         fun getCurrentSavedStyle(): SaveCaptionStyle {

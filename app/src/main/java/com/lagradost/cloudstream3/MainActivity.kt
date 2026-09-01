@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.lagradost.cloudstream3.utils.Event
+import com.lagradost.cloudstream3.SearchResponse
 import java.io.File
 
 /**
@@ -15,7 +16,7 @@ open class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
     }
 
-    fun loadPopup(result: com.lagradost.cloudstream3.utils.SearchResponse, load: Boolean = true) {}
+    fun loadPopup(result: com.lagradost.cloudstream3.SearchResponse, load: Boolean = true) {}
 
     var binding: Any? = null
 
@@ -34,6 +35,7 @@ open class MainActivity : AppCompatActivity() {
         fun centerView(view: android.view.View) {}
         var lastError: String? = null
         fun setLastError(err: String?) { lastError = err }
+        fun setLastError(context: android.content.Context) { lastError = null }
 
         const val API_NAME_EXTRA_KEY = "API_NAME_EXTRA_KEY"
 
@@ -61,6 +63,6 @@ open class MainActivity : AppCompatActivity() {
         }
 
         fun handleAppIntentUrl(context: android.content.Context?, intent: Any?): Boolean { return false }
-        fun handleAppIntentUrl(context: android.content.Context, intent: String, extra: Boolean): Boolean { return false }
+        fun handleAppIntentUrl(context: android.app.Activity?, requestUrl: String, extra: Boolean): Boolean { return false }
     }
 }

@@ -1,6 +1,7 @@
 package com.lagradost.cloudstream3
 
 import android.app.Activity
+import android.os.Build
 import android.content.res.Configuration
 import android.view.KeyEvent
 import android.view.View
@@ -139,7 +140,11 @@ object CommonActivity {
         toast.show()
     }
 
-    fun Activity?.getCastSession(): Any? {
+    fun <T> Activity.setKey(path: String, value: T) {
+        com.lagradost.cloudstream3.CloudStreamApp.setKey(path, value)
+    }
+
+    fun Activity.getCastSession(): Any? {
         // Stub — Cast support handled by fork's own app
         return null
     }

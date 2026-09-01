@@ -27,7 +27,7 @@ suspend fun evalJs(
             val latch = CountDownLatch(1)
             var result: Any? = null
 
-            val app = com.lagradost.cloudstream3.CloudStreamApp.getAppContext() ?: return@withContext null
+            val app = com.lagradost.api.getContext() ?: return@withContext null
             val webView = WebView(app)
 
             webView.settings.javaScriptEnabled = true
