@@ -278,7 +278,6 @@ enum class PrefName(val data: Pref) {
 
     AutoHideTimeout(Pref(Location.Player, Int::class, 5)),
     BufferSize(Pref(Location.Player, Int::class, 64)),
-    PlayerEngine(Pref(Location.Player, Int::class, 0)), // 0=ExoPlayer, 1=mpv
     DecodingMode(Pref(Location.Player, Int::class, 0)), // 0=Hardware, 1=Software
     SubtitleRenderMode(Pref(Location.Player, Int::class, 0)), // 0=Canvas (TV), 1=OpenGL (Phone)
 

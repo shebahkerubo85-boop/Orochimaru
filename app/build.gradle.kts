@@ -112,28 +112,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-
-    packaging {
-        jniLibs {
-            // mpv-android-lib bundles its own FFmpeg; nextlib-media3ext also ships FFmpeg.
-            // pickFirsts ensures no merge error; source set jniLibs (mpv's FFmpeg extracted
-            // below) are processed BEFORE AAR copies, so mpv's versions always win.
-            pickFirsts += setOf(
-                "**/libavcodec.so",
-                "**/libavformat.so",
-                "**/libavutil.so",
-                "**/libswresample.so",
-                "**/libswscale.so",
-                "**/libc++_shared.so",
-            )
-        }
-    }
 }
-
-// mpv's FFmpeg .so files are committed to app/src/main/jniLibs/{arm64-v8a,armeabi-v7a}/
-// Source-set jniLibs are processed BEFORE AAR extractions during native lib merge,
-// so mpv's FFmpeg always wins the pickFirsts race against nextlib-media3ext's copies.
-// This prevents the "av_default_item_name" dlopen crash from loading the wrong libavutil.so.
 
 kotlin {
     jvmToolchain(17)
@@ -171,9 +150,6 @@ dependencies {
     implementation(libs.bundles.media3)
     implementation(libs.bundles.subtitles)
     implementation(libs.mediarouter)
-
-    // mpv (libmpv) player engine — port of Zangetsu live-stream handling
-    implementation("io.github.abdallahmehiz:mpv-android-lib:0.1.9")
 
     // UI
     implementation(libs.material)

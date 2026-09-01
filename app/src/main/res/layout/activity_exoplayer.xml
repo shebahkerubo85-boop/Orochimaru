@@ -10,13 +10,6 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <!-- mpv rendering surface: hidden by default, shown when useMpv=true -->
-        <SurfaceView
-            android:id="@+id/mpv_surface"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="gone" />
-
         <androidx.media3.ui.PlayerView
             android:id="@+id/player_view"
             android:layout_width="match_parent"
