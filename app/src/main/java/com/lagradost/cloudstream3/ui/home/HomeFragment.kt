@@ -8,8 +8,6 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.fragment.app.Fragment
 import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.google.android.material.chip.ChipGroup
-import com.lagradost.cloudstream3.MainAPI.TvType
 import com.lagradost.cloudstream3.utils.Event
 
 class HomeFragment : Fragment() {
@@ -21,21 +19,10 @@ class HomeFragment : Fragment() {
         val errorProfilePic: Int = 0
 
         @JvmStatic
-        fun bindChips(
-            chipGroup: ChipGroup?,
-            selectedTypes: List<TvType>,
-            availableTypes: List<TvType>,
-            callback: (List<TvType>) -> Unit,
-            nextFocusDown: Int = 0,
-            nextFocusUp: Int = 0
-        ) {}
+        fun bindChips(chipGroup: Any?, items: Any?, types: Any?, callback: ((Any) -> Unit)? = null, nextFocusDown: Int = 0, nextFocusUp: Int = 0) {}
 
         @JvmStatic
-        fun updateChips(
-            chipGroup: ChipGroup?,
-            selectedTypes: List<TvType>,
-            callback: (List<TvType>) -> Unit
-        ) {}
+        fun updateChips(chipGroup: Any?, items: Any?, callback: ((Any) -> Unit)? = null) {}
 
         @JvmStatic
         fun expandAndReturn(name: String): Any? { return null }

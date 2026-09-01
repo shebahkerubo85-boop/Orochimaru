@@ -22,7 +22,7 @@ import com.lagradost.cloudstream3.CloudStreamApp.Companion.context
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
 import com.lagradost.cloudstream3.CommonActivity.setKey as activitySetKey
 import com.lagradost.cloudstream3.CommonActivity.activity
-import com.lagradost.cloudstream3.CommonActivity.getCastSession
+import com.lagradost.cloudstream3.getCastSession
 import com.lagradost.cloudstream3.CommonActivity.showToast
 import com.lagradost.cloudstream3.DubStatus
 import com.lagradost.cloudstream3.EpisodeResponse

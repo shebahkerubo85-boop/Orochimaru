@@ -192,7 +192,7 @@ class PluginsFragment : BaseFragment<FragmentPluginsBinding>(
 
             bindChips(
                 binding.tvtypesChipsScroll.tvtypesChips,
-                emptyList(),
+                emptyList<Nothing>() as List<Any>,
                 TvType.entries.toList(),
                 callback = { list: List<TvType> ->
                     pluginViewModel.tvTypes.clear()
