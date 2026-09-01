@@ -318,6 +318,7 @@ class ExoplayerView :
         private const val BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 5000
         private const val BACK_BUFFER_DURATION_MS = 1000 * 60 * 2
         private const val MAX_PLAYER_ERROR_RETRIES = 1
+        private const val MAX_LIVE_RECONNECTS = 3
         // Live streams (Cricify/SKTech/PlayZTV): HLS segment URLs expire after a
         // short TTL. Anchor near the live edge with a small target offset
         // (CloudStream uses 5s) so ExoPlayer follows the sliding window natively
@@ -393,6 +394,7 @@ class ExoplayerView :
     private var isSeeking = false
     private var isFastForwarding = false
     private var playerErrorRetryCount = 0
+    private var liveReconnectCount = 0
 
     // Live-stream reconnect + live-edge handling. Cricify/SKTech HLS streams issue
     // segment URLs with a short TTL, so we keep the playhead near the live edge and
@@ -2421,6 +2423,7 @@ class ExoplayerView :
         exoSubtitleView.visibility = View.GONE
         // Reset the error retry counter so fresh sources get the full retry budget.
         playerErrorRetryCount = 0
+        liveReconnectCount = 0
 
         // Player
         val bufferSize = PrefManager.getVal<Int>(PrefName.BufferSize)
@@ -3902,6 +3905,22 @@ class ExoplayerView :
                     ""
                 }
         }
+
+        // Force time bar + duration text to update from the player each tick.
+        // For live streams the duration window shifts as new segments arrive,
+        // so we must refresh the seekbar length and duration label every cycle
+        // (Zangetsu / CloudStream behaviour).
+        if (isInitialized && exoPlayer.duration > 0) {
+            try {
+                val timeBar = playerView.findViewById<androidx.media3.ui.DefaultTimeBar>(
+                    androidx.media3.ui.R.id.exo_progress
+                )
+                timeBar?.setDuration(exoPlayer.duration)
+                timeBar?.setPosition(exoPlayer.currentPosition)
+                timeBar?.setBufferedPosition(exoPlayer.bufferedPosition)
+            } catch (_: Exception) { }
+        }
+
         handler.postDelayed({
             updateTimeStamp()
         }, 500)
@@ -4192,10 +4211,21 @@ class ExoplayerView :
             PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
             PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
                 -> {
-                Logger.log(Log.ERROR, "Player: source exception (${error.errorCode}) on ep '$epLabel': ${error.message}")
-                toast("Source Exception : ${error.message}")
-                isPlayerPlaying = true
-                sourceClick()
+                if (isLiveStream() && liveReconnectCount < MAX_LIVE_RECONNECTS) {
+                    liveReconnectCount++
+                    Logger.log(Log.WARN, "Player: live reconnect $liveReconnectCount/$MAX_LIVE_RECONNECTS " +
+                        "on ep '$epLabel' (${error.errorCodeName}): ${error.message}")
+                    toast("Reconnecting… ($liveReconnectCount/$MAX_LIVE_RECONNECTS)")
+                    exoPlayer.setMediaSource(mediaSource, exoPlayer.currentPosition)
+                    exoPlayer.prepare()
+                    exoPlayer.play()
+                } else {
+                    liveReconnectCount = 0
+                    Logger.log(Log.ERROR, "Player: source exception (${error.errorCode}) on ep '$epLabel': ${error.message}")
+                    toast("Source Exception : ${error.message}")
+                    isPlayerPlaying = true
+                    sourceClick()
+                }
             }
 
             PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
