@@ -13,7 +13,7 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import com.lagradost.api.setContext
-import com.lagradost.cloudstream3.BuildConfig
+import ani.sanin.BuildConfig
 import com.lagradost.cloudstream3.mvvm.safe
 import com.lagradost.cloudstream3.mvvm.safeAsync
 import com.lagradost.cloudstream3.plugins.PluginManager
@@ -123,6 +123,8 @@ class CloudStreamApp : Application(), SingletonImageLoader.Factory {
         fun <T : Any> setKeyClass(path: String, value: T) {
             context?.setKey(path, value)
         }
+
+        fun pinContext(context: Context) { this.context = context }
 
         fun removeKeys(folder: String): Int? {
             return context?.removeKeys(folder)
