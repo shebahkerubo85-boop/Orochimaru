@@ -131,7 +131,7 @@
                     android:layout_marginEnd="8dp"
                     android:backgroundTint="@color/nav_bg_inv"
                     android:focusable="true"
-                    android:nextFocusDown="@id/homeBannerCarousel"
+                    
                     app:cardCornerRadius="22dp">
 
                     <androidx.constraintlayout.utils.widget.ImageFilterView
@@ -151,7 +151,7 @@
                     android:layout_marginStart="52dp"
                     android:backgroundTint="@color/nav_bg_inv"
                     android:focusable="true"
-                    android:nextFocusDown="@id/homeBannerCarousel"
+                    
                     app:cardCornerRadius="22dp">
 
                     <com.google.android.material.imageview.ShapeableImageView
