@@ -20,7 +20,7 @@ object CommonActivity {
         private set(value) { _activity = WeakReference(value) }
 
     var isInPIPMode: Boolean = false
-    var keyEventListener: ((KeyEvent) -> Boolean)? = null
+    var keyEventListener: ((Pair<android.view.KeyEvent?, Boolean>) -> Boolean)? = null
 
     val screenWidth: Int get() {
         val act = activity ?: return 0
