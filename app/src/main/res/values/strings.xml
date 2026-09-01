@@ -1294,4 +1294,43 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
         <string name="download_time_left_hour_min_sec_format" formatted="true">%1$dh %2$dm %3$ds</string>
         <string name="download_time_left_min_sec_format" formatted="true">%1$dm %2$ds</string>
         <string name="download_time_left_sec_format" formatted="true">%1$ds</string>
+        <string name="home_change_provider_img_des">Change Provider</string>
+        <string name="action_default">Default</string>
+        <string name="play_episode">Play Episode</string>
+        <string name="synopsis">Synopsis</string>
+    <string name="action_mark_as_watched">Mark as watched</string>
+    <string name="action_mark_watched_up_to_this_episode">Mark as watched up to this episode</string>
+    <string name="action_remove_from_watched">Remove from watched</string>
+    <string name="action_remove_mark_watched_up_to_this_episode">Remove watched up to this episode</string>
+    <string name="anime_singular">Anime</string>
+    <string name="app_dubbed_text">Dub</string>
+    <string name="app_subbed_text">Sub</string>
+    <string name="asian_drama_singular">Asian Drama</string>
+    <string name="audio_book_singular">Audio Book</string>
+    <string name="cartoons_singular">Cartoon</string>
+    <string name="custom_media_singular">Media</string>
+    <string name="documentaries_singular">Documentary</string>
+    <string name="duplicate_replace">Replace</string>
+    <string name="duplicate_replace_all">Replace All</string>
+    <string name="favorites_list_name">Favorites</string>
+    <string name="live_singular">Livestream</string>
+    <string name="movies_singular">Movie</string>
+    <string name="music_singular">Music</string>
+    <string name="no_episodes_found">No Episodes found</string>
+    <string name="nsfw_singular">NSFW</string>
+    <string name="other_singular">Video</string>
+    <string name="ova_singular">OVA</string>
+    <string name="play_full_series_button">Play Full Series</string>
+    <string name="play_livestream_button">Play Livestream</string>
+    <string name="play_movie_button">Play Movie</string>
+    <string name="podcast_singular">Podcast</string>
+    <string name="status_completed">Completed</string>
+    <string name="status_ongoing">Ongoing</string>
+    <string name="subscription_list_name">Subscribed</string>
+    <string name="torrent_plot">Description</string>
+    <string name="torrent_singular">Torrent</string>
+    <string name="tv_series_singular">Series</string>
+    <string name="video_singular">Video</string>
+    <string name="vpn_might_be_needed">A VPN might be needed for this provider to work correctly</string>
+    <string name="vpn_torrent">This provider is a torrent, a VPN is recommended</string>
 </resources>
