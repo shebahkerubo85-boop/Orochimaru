@@ -36,6 +36,7 @@ navigationKtx = "2.8.4"
 workRuntimeKtx = "2.10.0"
 instancioCore = "5.3.0"
 animeDb = "1.0.0"
+overlappingpanels = "0.1.5"
 
 [libraries]
 
@@ -158,7 +159,6 @@ fuzzy = "me.xdrop:fuzzywuzzy:1.4.0"
 voyager = "ca.gosyer:voyager-navigator:1.0.0-rc07"
 logcat = "com.squareup.logcat:logcat:0.1"
 injekt = "uy.kohesive.injekt:injekt-core:1.16.+"
-overlappingpanels = "0.1.5"
 
 
 
@@ -269,4 +269,3 @@ misc = [
     "injekt"
 ]
 
-[libraries]
