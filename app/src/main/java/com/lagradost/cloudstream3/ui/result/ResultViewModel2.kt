@@ -1134,7 +1134,7 @@ class ResultViewModel2 : ViewModel() {
 
         // Main needed because getCastSession needs to be on main thread
         main {
-            activity.getCastSession()?.startCast(
+            activity?.getCastSession()?.startCast(
                 response.apiName,
                 response.isMovie(),
                 response.name,
