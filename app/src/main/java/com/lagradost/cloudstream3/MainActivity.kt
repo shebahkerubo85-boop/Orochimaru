@@ -34,7 +34,6 @@ open class MainActivity : AppCompatActivity() {
         var nextSearchQuery: String? = null
         fun centerView(view: android.view.View) {}
         var lastError: String? = null
-        fun setLastError(err: String?) { lastError = err }
         fun setLastError(context: android.content.Context) { lastError = null }
 
         const val API_NAME_EXTRA_KEY = "API_NAME_EXTRA_KEY"
