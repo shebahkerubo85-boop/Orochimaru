@@ -795,4 +795,9 @@
     <string name="preference_file_key" translatable="false">ani.sanin.PREFERENCE_FILE</string>
     <string name="slogan" translatable="false">A anime, manga, movie app</string>
     <string name="app_name" translatable="false">Sanin</string>
+    <string name="video">Video</string>
+    <string name="read_on_sanin">Read on Sanin</string>
+    <string name="watch_on_sanin">Watch on Sanin</string>
+    <string name="view_profile_in_sanin">Sanin Profile</string>
+    <string name="discord_view_profile">View Profile</string>
 </resources>
