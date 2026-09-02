@@ -912,46 +912,44 @@ object TmdbStreamResolver {
         val selected = Selected(sourceIndex = 0, server = pickedLabel, video = 0)
         media.selected = selected
         PrefManager.setCustomVal("Selected-$id", selected)
-        // Movie mode: use CS3 player (GeneratorPlayer) for movie playback
-        if (mediaType == "movie") {
-            val extractorLinks = links.mapIndexedNotNull { index, pl ->
-                if (pl.url.isBlank()) return@mapIndexedNotNull null
-                val hdrs = HashMap(pl.headers).apply {
-                    pl.referer?.takeIf { it.isNotBlank() }?.let { put("Referer", it) }
-                }
-                val type = when {
-                    pl.url.contains(".m3u8") || pl.url.contains("hls") -> ExtractorLinkType.M3U8
-                    pl.url.contains(".mpd") -> ExtractorLinkType.DASH
-                    else -> ExtractorLinkType.VIDEO
-                }
-                ExtractorLink(
-                    source = pickedLabel.ifBlank { "TMDB" },
-                    name = pl.label.ifBlank { "Server ${index + 1}" },
-                    url = pl.url,
-                    referer = pl.referer ?: "",
-                    quality = 0,
-                    headers = hdrs,
-                    type = type,
-                    audioTracks = pl.audioTracks
-                )
+        // TMDB mode: use CS3 player (GeneratorPlayer) for all content
+        val extractorLinks = links.mapIndexedNotNull { index, pl ->
+            if (pl.url.isBlank()) return@mapIndexedNotNull null
+            val hdrs = HashMap(pl.headers).apply {
+                pl.referer?.takeIf { it.isNotBlank() }?.let { put("Referer", it) }
             }
-            if (extractorLinks.isNotEmpty()) {
-                val generator = ExtractorLinkGenerator(extractorLinks, emptyList())
-                Logger.log(
-                    "TMDB_PLAY: launching CS3 GeneratorPlayer for movie id=$id title='$title' " +
-                        "links=${extractorLinks.size} picked='$pickedLabel'"
-                )
-                val playerArgs = GeneratorPlayer.newInstance(generator, 0)
-                context.startActivity(
-                    Intent(context, CsPlayerActivity::class.java)
-                        .putExtra(CsPlayerActivity.EXTRA_PLAYER_ARGS, playerArgs)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                )
-                return
+            val type = when {
+                pl.url.contains(".m3u8") || pl.url.contains("hls") -> ExtractorLinkType.M3U8
+                pl.url.contains(".mpd") -> ExtractorLinkType.DASH
+                else -> ExtractorLinkType.VIDEO
             }
+            ExtractorLink(
+                source = pickedLabel.ifBlank { "TMDB" },
+                name = pl.label.ifBlank { "Server ${index + 1}" },
+                url = pl.url,
+                referer = pl.referer ?: "",
+                quality = 0,
+                headers = hdrs,
+                type = type,
+                audioTracks = pl.audioTracks
+            )
+        }
+        if (extractorLinks.isNotEmpty()) {
+            val generator = ExtractorLinkGenerator(extractorLinks, emptyList())
+            Logger.log(
+                "TMDB_PLAY: launching CS3 GeneratorPlayer for ${mediaType} id=$id title='$title' " +
+                    "links=${extractorLinks.size} picked='$pickedLabel'"
+            )
+            val playerArgs = GeneratorPlayer.newInstance(generator, 0)
+            context.startActivity(
+                Intent(context, CsPlayerActivity::class.java)
+                    .putExtra(CsPlayerActivity.EXTRA_PLAYER_ARGS, playerArgs)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+            return
         }
 
-        // Anime/TV mode: use ExoplayerView as before
+        // Fallback: anime mode ExoplayerView
         ExoplayerView.media = media
         ExoplayerView.initialized = true
         Logger.log(

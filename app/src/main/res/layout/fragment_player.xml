@@ -21,7 +21,7 @@
         app:auto_show="true"
         app:backgroundTint="@android:color/black"
         app:controller_layout_id="@layout/player_custom_layout"
-        app:hide_on_touch="false"
+        app:hide_on_touch="true"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
