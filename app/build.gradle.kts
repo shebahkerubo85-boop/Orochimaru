@@ -210,7 +210,6 @@ dependencies {
     implementation(libs.coil.network.okhttp)
     implementation(libs.media3.common)
     implementation(libs.media3.container)
-    implementation(libs.media3.datasource.cronet)
     implementation(libs.lifecycle.livedata.ktx)
     implementation(libs.lifecycle.viewmodel.ktx)
     implementation(libs.navigation.fragment.ktx)
@@ -235,8 +234,5 @@ dependencies {
     implementation(libs.json)
     implementation(libs.tvprovider)
     implementation(libs.nextlib.media3ext)
-    implementation(libs.nextlib.mediainfo)
     coreLibraryDesugaring(libs.desugar.jdk.libs.nio)
-    implementation(libs.torrentserver)
-    implementation(libs.conscrypt)
 }

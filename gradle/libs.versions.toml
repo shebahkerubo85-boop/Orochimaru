@@ -27,8 +27,6 @@ coil = "3.3.0"
 biometric = "1.1.0"
 colorpicker = "6b46b49"
 constraintlayout = "2.2.1"
-torrentserver = "7861970"
-zipline = "1.27.0"
 coreKtx = "1.15.0"
 lifecycleKtx = "2.8.7"
 navigationKtx = "2.8.4"
@@ -105,8 +103,6 @@ media3-hls = { module = "androidx.media3:media3-exoplayer-hls", version.ref = "e
 media3-dash = { module = "androidx.media3:media3-exoplayer-dash", version.ref = "exo" }
 media3-okhttp = { module = "androidx.media3:media3-datasource-okhttp", version.ref = "exo" }
 media3-session = { module = "androidx.media3:media3-session", version.ref = "exo" }
-media3-cast = { module = "androidx.media3:media3-cast", version.ref = "exo" }
-media3-effect = { module = "androidx.media3:media3-effect", version.ref = "exo" }
 
 # Extra Media
 previewseekbar-media3 = { module = "com.github.rubensousa:previewseekbar-media3", version.ref = "previewseekbarVer" }
@@ -182,13 +178,9 @@ lifecycle-livedata-ktx = { module = "androidx.lifecycle:lifecycle-livedata-ktx",
 lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "lifecycleKtx" }
 media3-common = { module = "androidx.media3:media3-common", version.ref = "exo" }
 media3-container = { module = "androidx.media3:media3-container", version.ref = "exo" }
-media3-datasource-cronet = { group = "androidx.media3", name = "media3-datasource-cronet", version.ref = "exo" }
 navigation-fragment-ktx = { module = "androidx.navigation:navigation-fragment-ktx", version.ref = "navigationKtx" }
 navigation-ui-ktx = { module = "androidx.navigation:navigation-ui-ktx", version.ref = "navigationKtx" }
-torrentserver = { module = "com.github.recloudstream:torrentserver", version.ref = "torrentserver" }
-conscrypt = { module = "org.conscrypt:conscrypt-android", version = "2.5.2" }
 work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtx" }
-zipline = { module = "app.cash.zipline:zipline-android", version.ref = "zipline" }
 
 # Upstream CS3 dependencies
 annotation = { module = "androidx.annotation:annotation", version = "1.10.0" }
@@ -199,7 +191,6 @@ preference-ktx = { module = "androidx.preference:preference-ktx", version = "1.2
 activity-ktx = { module = "androidx.activity:activity-ktx", version = "1.13.0" }
 fragment-ktx = { module = "androidx.fragment:fragment-ktx", version = "1.8.9" }
 nextlib-media3ext = { module = "io.github.anilbeesetti:nextlib-media3ext", version = "1.9.3-0.12.0" }
-nextlib-mediainfo = { module = "io.github.anilbeesetti:nextlib-mediainfo", version = "1.9.3-0.12.0" }
 desugar_jdk_libs_nio = { module = "com.android.tools:desugar_jdk_libs_nio", version = "2.1.5" }
 safefile = { module = "com.github.LagradOst:SafeFile", version = "0.0.8" }
 appcompat = { module = "androidx.appcompat:appcompat", version = "1.7.1" }
@@ -245,8 +236,8 @@ media3 = [
     "media3-dash",
     "media3-okhttp",
     "media3-session",
-    "media3-cast",
-    "media3-effect",
+    
+    
 ]
 
 subtitles = ["ass-media", "ass-kt"]
