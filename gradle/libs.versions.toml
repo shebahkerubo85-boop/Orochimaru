@@ -10,6 +10,7 @@ previewseekbarVer = "1.1.1.0"
 markwon = "4.6.2"
 groupie = "2.10.1"
 ass = "0.4.0"
+fuzzy = "1.4.0"
 compose-bom = "2025.06.00"
 androidsvg = "1.4"
 jackson = "2.13.1"
@@ -204,6 +205,8 @@ google = { id = "com.google.gms.google-services", version = "4.4.1" }
 crashlytics = { id = "com.google.firebase.crashlytics", version = "3.0.6" }
 compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 
+
+fuzzy = { module = "me.xdrop:fuzzywuzzy", version.ref = "fuzzy" }
 
 [bundles]
 

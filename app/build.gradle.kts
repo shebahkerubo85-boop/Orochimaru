@@ -177,6 +177,10 @@ dependencies {
 
     implementation(libs.bundles.markwon)
     implementation(libs.bundles.rx)
+    implementation(libs.bundles.groupie)
+    implementation(libs.charts)
+    implementation(libs.dialogs)
+    implementation(libs.fuzzy)
     implementation(libs.overlappingpanels)
     implementation(libs.paging)
     implementation(libs.bundles.okhttp)
