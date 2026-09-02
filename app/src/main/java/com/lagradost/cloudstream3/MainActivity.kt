@@ -3,9 +3,35 @@ package com.lagradost.cloudstream3
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import com.lagradost.cloudstream3.utils.AppUtils.parseJson
+import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.Event
 import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.nicehttp.Requests
+import com.lagradost.nicehttp.ResponseParser
 import java.io.File
+import kotlin.reflect.KClass
+
+private val jsonResponseParser = object : ResponseParser {
+    override fun <T : Any> parse(text: String, kClass: KClass<T>): T {
+        return parseJson(text, kClass)
+    }
+    override fun <T : Any> parseSafe(text: String, kClass: KClass<T>): T? {
+        return try { parse(text, kClass) } catch (_: Exception) { null }
+    }
+    override fun writeValueAsString(obj: Any): String = obj.toJson()
+}
+
+// Top-level declarations MUST live in MainActivity.kt: plugins compiled against the
+// upstream CS3 SDK reference com.lagradost.cloudstream3.MainActivityKt.getApp().
+var app = Requests(responseParser = jsonResponseParser).apply {
+    defaultHeaders = mapOf("user-agent" to USER_AGENT)
+}
+
+@UnsafeSSL
+var insecureApp = Requests(responseParser = jsonResponseParser).apply {
+    defaultHeaders = mapOf("user-agent" to USER_AGENT)
+}
 
 /**
  * Minimal host stub for upstream cloudstream3 references.
