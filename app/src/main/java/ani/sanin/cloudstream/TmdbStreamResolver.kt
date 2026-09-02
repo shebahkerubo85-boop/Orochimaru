@@ -927,7 +927,7 @@ object TmdbStreamResolver {
             if (pl.drm != null && pl.drm.uuid != null) {
                 @Suppress("DEPRECATION_ERROR")
                 val drmLink = newDrmExtractorLink(
-                    source = pickedLabel.ifBlank { "TMDB" },
+                    source = source.name.ifBlank { "TMDB" },
                     name = pl.label.ifBlank { "Server ${index + 1}" },
                     url = pl.url,
                     type = type,
@@ -947,7 +947,7 @@ object TmdbStreamResolver {
                 drmLink
             } else {
                 ExtractorLink(
-                    source = pickedLabel.ifBlank { "TMDB" },
+                    source = source.name.ifBlank { "TMDB" },
                     name = pl.label.ifBlank { "Server ${index + 1}" },
                     url = pl.url,
                     referer = pl.referer ?: "",
