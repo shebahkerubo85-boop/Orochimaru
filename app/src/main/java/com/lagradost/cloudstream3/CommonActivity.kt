@@ -43,15 +43,11 @@ object CommonActivity {
     }
     val screenHeightWithOrientation: Int get() {
         val act = activity ?: return 0
-        val res = act.resources
-        val isLandscape = res.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-        return if (isLandscape) res.displayMetrics.widthPixels else res.displayMetrics.heightPixels
+        return act.resources.displayMetrics.heightPixels
     }
     val screenWidthWithOrientation: Int get() {
         val act = activity ?: return 0
-        val res = act.resources
-        val isLandscape = res.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-        return if (isLandscape) res.displayMetrics.heightPixels else res.displayMetrics.widthPixels
+        return act.resources.displayMetrics.widthPixels
     }
 
     fun setActivityInstance(newActivity: Activity?) { activity = newActivity }
