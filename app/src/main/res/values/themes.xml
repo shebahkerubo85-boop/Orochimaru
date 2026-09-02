@@ -31,6 +31,16 @@
         </item>
         <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="o_mr1">shortEdges
         </item>
+        <!-- Custom color attrs required by CS3 player button styles (NiceButton/BlackButton/SmallBlackButton) -->
+        <item name="textColor">@color/textColor</item>
+        <item name="grayTextColor">@color/grayTextColor</item>
+        <item name="primaryGrayBackground">@color/primaryGrayBackground</item>
+        <item name="primaryBlackBackground">@color/primaryBlackBackground</item>
+        <item name="iconGrayBackground">@color/iconGrayBackground</item>
+        <item name="boxItemBackground">@color/boxItemBackground</item>
+        <item name="iconColor">@color/iconColor</item>
+        <item name="white">@color/bg_white</item>
+        <item name="black">@color/bg_black</item>
     </style>
 
     <style name="Theme.Sanin.NoActionBar">

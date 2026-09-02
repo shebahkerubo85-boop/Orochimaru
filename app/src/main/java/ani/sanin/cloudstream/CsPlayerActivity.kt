@@ -8,6 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.lagradost.cloudstream3.CommonActivity
 import ani.sanin.R
 import ani.sanin.themes.ThemeManager
+import com.lagradost.cloudstream3.ui.settings.Globals.updateTv
 import com.lagradost.cloudstream3.utils.UIHelper.enableEdgeToEdgeCompat
 import com.lagradost.cloudstream3.utils.UIHelper.navigate
 
@@ -39,9 +40,10 @@ class CsPlayerActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
         ThemeManager(this).applyTheme()
+        super.onCreate(savedInstanceState)
         CommonActivity.init(this)
+        updateTv()
         enableEdgeToEdgeCompat()
         setContentView(R.layout.empty_layout)
 

@@ -5,6 +5,16 @@
         <item name="colorOnPrimary">@color/bg_black</item>
         <item name="android:textColor">@color/bg_white</item>
         <item name="colorSecondaryVariant">@color/violet_400</item>
+        <!-- CS3 player button styles need these custom attrs (defined in Theme.Base) overridden for night -->
+        <item name="textColor">@color/textColor</item>
+        <item name="grayTextColor">@color/grayTextColor</item>
+        <item name="primaryGrayBackground">@color/primaryGrayBackground</item>
+        <item name="primaryBlackBackground">@color/primaryBlackBackground</item>
+        <item name="iconGrayBackground">@color/iconGrayBackground</item>
+        <item name="boxItemBackground">@color/boxItemBackground</item>
+        <item name="iconColor">@color/iconColor</item>
+        <item name="white">@color/bg_white</item>
+        <item name="black">@color/bg_black</item>
     </style>
 
     <style name="Theme.Sanin.Sanin" parent="Theme.Base">
