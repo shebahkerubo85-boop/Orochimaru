@@ -176,6 +176,8 @@ dependencies {
     implementation(libs.gesture)
 
     implementation(libs.bundles.markwon)
+    implementation(libs.bundles.rx)
+    implementation(libs.paging)
     implementation(libs.bundles.okhttp)
     implementation(libs.okio)
 
