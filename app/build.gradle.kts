@@ -170,6 +170,7 @@ dependencies {
     implementation(libs.kenburns)
     implementation(libs.subsampling)
     implementation(libs.lottie)
+    implementation(libs.qrcode.kotlin)
 
     implementation(libs.bundles.markwon)
     implementation(libs.bundles.okhttp)
