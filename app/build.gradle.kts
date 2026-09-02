@@ -177,6 +177,7 @@ dependencies {
 
     implementation(libs.bundles.markwon)
     implementation(libs.bundles.rx)
+    implementation(libs.overlappingpanels)
     implementation(libs.paging)
     implementation(libs.bundles.okhttp)
     implementation(libs.okio)
