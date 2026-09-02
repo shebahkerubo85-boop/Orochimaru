@@ -236,6 +236,7 @@ media3 = [
     "media3-dash",
     "media3-okhttp",
     "media3-session",
+    "media3-cast",
     
     
 ]
