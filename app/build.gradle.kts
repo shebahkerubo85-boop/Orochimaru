@@ -173,6 +173,7 @@ dependencies {
     implementation(libs.shimmer)
     implementation(files("libs/AnimatedBottomBar-7fcb9af.aar"))
     implementation(libs.qrcode.kotlin)
+    implementation(libs.gesture)
 
     implementation(libs.bundles.markwon)
     implementation(libs.bundles.okhttp)

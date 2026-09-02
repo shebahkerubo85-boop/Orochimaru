@@ -90,7 +90,7 @@
         </Preference>
 
         <Preference
-            android:icon="@drawable/quick_novel_icon"
+            android:icon="@drawable/ic_round_keyboard_arrow_down_24"
             android:title="@string/lightnovel"
             app:summary="https://github.com/LagradOst/QuickNovel">
             <intent
