@@ -170,6 +170,8 @@ dependencies {
     implementation(libs.kenburns)
     implementation(libs.subsampling)
     implementation(libs.lottie)
+    implementation(libs.shimmer)
+    implementation(files("libs/AnimatedBottomBar-7fcb9af.aar"))
     implementation(libs.qrcode.kotlin)
 
     implementation(libs.bundles.markwon)
