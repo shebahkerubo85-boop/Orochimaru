@@ -12,9 +12,7 @@ import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
-import rx.Observable
 import tachiyomi.core.metadata.tachiyomi.AnimeDetails
 import tachiyomi.core.metadata.comicinfo.EpisodeDetails
 import tachiyomi.core.util.lang.withIOContext
@@ -126,22 +124,7 @@ class LocalAnimeSource(
         AnimesPage(animes, false)
     }
 
-    @Deprecated("Use the non-RxJava API instead", replaceWith = ReplaceWith("getPopularAnime"))
-    override fun fetchPopularAnime(page: Int) = fetchSearchAnime(page, "", POPULAR_FILTERS)
 
-    @Deprecated("Use the non-RxJava API instead", replaceWith = ReplaceWith("getLatestUpdates"))
-    override fun fetchLatestUpdates(page: Int) = fetchSearchAnime(page, "", LATEST_FILTERS)
-
-    @Deprecated("Use the non-RxJava API instead", replaceWith = ReplaceWith("getSearchAnime"))
-    override fun fetchSearchAnime(
-        page: Int,
-        query: String,
-        filters: AnimeFilterList
-    ): Observable<AnimesPage> {
-        return runBlocking {
-            Observable.just(getSearchAnime(page, query, filters))
-        }
-    }
 
     // Anime details related
     override suspend fun getAnimeDetails(anime: SAnime): SAnime = withIOContext {
