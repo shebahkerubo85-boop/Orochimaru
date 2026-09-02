@@ -12,7 +12,7 @@ import okhttp3.Cache
 import okhttp3.Headers
 import okhttp3.Headers.Companion.toHeaders
 import okhttp3.OkHttpClient
-import org.conscrypt.Conscrypt
+// import org.conscrypt.Conscrypt // removed to reduce APK size
 import java.io.File
 import java.security.Security
 
@@ -34,7 +34,7 @@ fun buildDefaultClient(context: Context): OkHttpClient {
 
 /** Only use ignoreSSL if you know what you are doing*/
 fun buildDefaultClient(context: Context, ignoreSSL: Boolean = false): OkHttpClient {
-    safe { Security.insertProviderAt(Conscrypt.newProvider(), 1) }
+    // Conscrypt removed to reduce APK size
     
     val settingsManager = PreferenceManager.getDefaultSharedPreferences(context)
     val dns = settingsManager.getInt(context.getString(R.string.dns_pref), 0)
