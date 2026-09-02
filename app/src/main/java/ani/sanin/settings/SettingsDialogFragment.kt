@@ -19,11 +19,9 @@ import ani.sanin.getThemeColor
 import ani.sanin.home.AnimeFragment
 import ani.sanin.home.HomeFragment
 import ani.sanin.home.LoginFragment
-import ani.sanin.home.NoInternet
 import ani.sanin.incognitoNotification
 import ani.sanin.loadImage
 import ani.sanin.snackString
-import ani.sanin.offline.OfflineFragment
 import ani.sanin.profile.ProfileActivity
 import ani.sanin.profile.activity.FeedActivity
 import ani.sanin.profile.notification.NotificationActivity
@@ -189,14 +187,14 @@ class SettingsDialogFragment : BottomSheetDialogFragment() {
                         }
 
                         PageType.ANIME -> {
-                            val intent = Intent(currentActivity, NoInternet::class.java)
+                            val intent = Intent(currentActivity, MainActivity::class.java)
                             intent.putExtra("FRAGMENT_CLASS_NAME", "")
                             startActivity(intent)
                         }
 
                         PageType.HOME -> {
-                            val intent = Intent(currentActivity, NoInternet::class.java)
-                            intent.putExtra("FRAGMENT_CLASS_NAME", OfflineFragment::class.java.name)
+                            val intent = Intent(currentActivity, MainActivity::class.java)
+                            intent.putExtra("FRAGMENT_CLASS_NAME", HomeFragment::class.java.name)
                             startActivity(intent)
                         }
 

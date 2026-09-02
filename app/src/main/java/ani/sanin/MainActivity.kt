@@ -60,7 +60,6 @@ import ani.sanin.home.LibraryFragment
 import ani.sanin.home.TmdbDiscoveryFragment
 import ani.sanin.home.TmdbHomeFragment
 import ani.sanin.home.TmdbLibraryFragment
-import ani.sanin.home.NoInternet
 import ani.sanin.media.MediaDetailsActivity
 import ani.sanin.notifications.TaskScheduler
 import ani.sanin.others.calc.CalcActivity
@@ -445,11 +444,11 @@ class MainActivity : AppCompatActivity() {
         val offlineMode: Boolean = PrefManager.getVal(PrefName.OfflineMode)
         if (!isOnline(this)) {
             snackString(this@MainActivity.getString(R.string.no_internet_connection))
-            startActivity(Intent(this, NoInternet::class.java))
+            snackString(this@MainActivity.getString(R.string.no_internet_connection))
         } else {
             if (offlineMode) {
                 snackString(this@MainActivity.getString(R.string.no_internet_connection))
-                startActivity(Intent(this, NoInternet::class.java))
+                snackString(this@MainActivity.getString(R.string.no_internet_connection))
             } else {
                 val model: AnilistHomeViewModel by viewModels()
 
