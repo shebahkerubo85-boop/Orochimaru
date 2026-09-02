@@ -156,7 +156,6 @@ dependencies {
     implementation(libs.bundles.media3)
     implementation(libs.previewseekbar.media3)
     implementation(libs.bundles.subtitles)
-    implementation(libs.mediarouter)
 
     // UI
     implementation(libs.material)
@@ -173,8 +172,6 @@ dependencies {
     implementation(libs.lottie)
 
     implementation(libs.bundles.markwon)
-    implementation(libs.bundles.groupie)
-    implementation(libs.bundles.rx)
     implementation(libs.bundles.okhttp)
     implementation(libs.okio)
 

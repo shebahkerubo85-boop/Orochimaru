@@ -222,9 +222,8 @@ androidx = [
     "androidx-legacy",
     "androidx-work",
     "androidx-preference",
-    "androidx-webkit",
-    "androidx-biometric",
-    "paging"
+    "androidx-biometric"
+    
 ]
 
 glide = ["glide", "glide-okhttp", "glide-transform"]
@@ -237,7 +236,7 @@ media3 = [
     "media3-dash",
     "media3-okhttp",
     "media3-session",
-    "media3-cast",
+    "media3-cast"
     
     
 ]
