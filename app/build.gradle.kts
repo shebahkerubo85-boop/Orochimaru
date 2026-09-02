@@ -160,7 +160,6 @@ dependencies {
 
     // UI
     implementation(libs.material)
-    implementation(files("libs/AnimatedBottomBar-7fcb9af.aar"))
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.tooling.preview)
@@ -171,17 +170,10 @@ dependencies {
     implementation(libs.flexbox)
     implementation(libs.kenburns)
     implementation(libs.subsampling)
-    implementation(libs.gesture)
-    implementation(libs.ebook)
-    implementation(libs.dialogs)
-    implementation(libs.charts)
     implementation(libs.lottie)
-    implementation(libs.qrcode.kotlin)
 
     implementation(libs.bundles.markwon)
     implementation(libs.bundles.groupie)
-    implementation(libs.shimmer)
-    implementation(libs.overlappingpanels)
     implementation(libs.bundles.rx)
     implementation(libs.bundles.okhttp)
     implementation(libs.okio)
