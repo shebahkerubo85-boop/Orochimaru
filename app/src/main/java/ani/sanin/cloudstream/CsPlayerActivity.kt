@@ -7,6 +7,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import com.lagradost.cloudstream3.CommonActivity
 import ani.sanin.R
+import ani.sanin.themes.ThemeManager
 import com.lagradost.cloudstream3.utils.UIHelper.enableEdgeToEdgeCompat
 import com.lagradost.cloudstream3.utils.UIHelper.navigate
 
@@ -39,7 +40,7 @@ class CsPlayerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        CommonActivity.loadThemes(this)
+        ThemeManager(this).applyTheme()
         CommonActivity.init(this)
         enableEdgeToEdgeCompat()
         setContentView(R.layout.empty_layout)
