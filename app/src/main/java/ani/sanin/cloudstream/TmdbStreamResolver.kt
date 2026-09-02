@@ -36,6 +36,7 @@ import com.lagradost.cloudstream3.LiveStreamLoadResponse
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.utils.DrmExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.newDrmExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.WIDEVINE_UUID
 import com.lagradost.cloudstream3.utils.PLAYREADY_UUID
@@ -923,16 +924,39 @@ object TmdbStreamResolver {
                 pl.url.contains(".mpd") -> ExtractorLinkType.DASH
                 else -> ExtractorLinkType.VIDEO
             }
-            ExtractorLink(
-                source = pickedLabel.ifBlank { "TMDB" },
-                name = pl.label.ifBlank { "Server ${index + 1}" },
-                url = pl.url,
-                referer = pl.referer ?: "",
-                quality = 0,
-                headers = hdrs,
-                type = type,
-                audioTracks = pl.audioTracks
-            )
+            if (pl.drm != null && pl.drm.uuid != null) {
+                @Suppress("DEPRECATION_ERROR")
+                val drmLink = newDrmExtractorLink(
+                    source = pickedLabel.ifBlank { "TMDB" },
+                    name = pl.label.ifBlank { "Server ${index + 1}" },
+                    url = pl.url,
+                    type = type,
+                    uuid = pl.drm.uuid,
+                ) {
+                    referer = pl.referer ?: ""
+                    headers = hdrs
+                    quality = 0
+                    audioTracks = pl.audioTracks
+                    licenseUrl = pl.drm.licenseUrl
+                    keyRequestParameters = pl.drm.keyRequestParameters
+                    kid = pl.drm.kid
+                    key = pl.drm.key
+                    kty = pl.drm.kty
+                }
+                Log.i("TmdbDetails", "launchPlayer: created DrmExtractorLink uuid=${pl.drm.uuid} license=${pl.drm.licenseUrl?.take(80)}")
+                drmLink
+            } else {
+                ExtractorLink(
+                    source = pickedLabel.ifBlank { "TMDB" },
+                    name = pl.label.ifBlank { "Server ${index + 1}" },
+                    url = pl.url,
+                    referer = pl.referer ?: "",
+                    quality = 0,
+                    headers = hdrs,
+                    type = type,
+                    audioTracks = pl.audioTracks
+                )
+            }
         }
         if (extractorLinks.isNotEmpty()) {
             val generator = ExtractorLinkGenerator(extractorLinks, emptyList())
