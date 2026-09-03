@@ -45,7 +45,7 @@
                     android:layout_margin="16dp"
                     android:orientation="horizontal">
 
-                    <com.google.android.material.card.MaterialCardView
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/skip_chapter_button"
                         android:layout_width="wrap_content"
                         android:layout_height="48dp"
@@ -53,51 +53,20 @@
                         android:clickable="true"
                         android:focusable="true"
                         android:visibility="gone"
-                        app:cardBackgroundColor="@color/nav_bg_inv"
-                        app:cardCornerRadius="16dp"
-                        app:rippleColor="#54FFFFFF">
+                        app:backgroundTint="@color/nav_bg_inv"
+                        app:cornerRadius="16dp"
+                        app:rippleColor="#54FFFFFF"
+                        app:icon="@drawable/ic_round_fast_forward_24"
+                        app:iconTint="?attr/colorSecondary"
+                        app:iconGravity="textEnd"
+                        android:textColor="?attr/colorSecondary"
+                        android:fontFamily="@font/poppins_bold"
+                        android:textSize="14sp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp">
 
-                        <LinearLayout
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:gravity="center"
-                            android:orientation="horizontal"
-                            android:padding="8dp"
-                            tools:ignore="UseCompoundDrawables">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="1dp"
-                                android:layout_marginEnd="-2dp"
-                                android:fontFamily="@font/poppins_bold"
-                                android:text="+"
-                                android:textColor="?attr/colorSecondary"
-                                android:textSize="14sp"
-                                tools:ignore="HardcodedText" />
-
-                            <TextView
-                                android:id="@+id/exo_skip_time"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="1dp"
-                                android:layout_marginEnd="-6dp"
-                                android:fontFamily="@font/poppins_bold"
-                                android:padding="4dp"
-                                android:text="85"
-                                android:textColor="?attr/colorSecondary"
-                                android:textSize="14sp"
-                                tools:ignore="HardcodedText" />
-
-                            <ImageView
-                                android:layout_width="24dp"
-                                android:layout_height="24dp"
-                                android:layout_margin="4dp"
-                                app:srcCompat="@drawable/ic_round_fast_forward_24"
-                                app:tint="?attr/colorSecondary"
-                                tools:ignore="ContentDescription" />
-                        </LinearLayout>
-                    </com.google.android.material.card.MaterialCardView>
+    <TextView android:id="@+id/exo_skip_time" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    </com.google.android.material.button.MaterialButton>
                 </LinearLayout>
 
                 <LinearLayout
@@ -586,7 +555,9 @@
     <TextView android:id="@+id/player_video_title_rez" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
     <TextClock android:id="@+id/player_video_clock" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
     <ImageView android:id="@+id/offline_pin" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <FrameLayout android:id="@+id/player_episode_filler_holder" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <FrameLayout android:id="@+id/player_episode_filler_holder" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone">
+        <com.google.android.material.button.MaterialButton android:id="@+id/player_episode_filler" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    </FrameLayout>
     <LinearLayout android:id="@+id/player_episodes_button_root" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
     <TextView android:id="@+id/player_episodes_button_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
     <LinearLayout android:id="@+id/download_both_header" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
