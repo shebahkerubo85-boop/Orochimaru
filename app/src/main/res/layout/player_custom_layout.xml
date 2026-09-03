@@ -424,41 +424,34 @@
 
             <!-- This nested layout is necessary because of buffering and clicking-->
 
-            <androidx.constraintlayout.widget.ConstraintLayout
+            <LinearLayout
                 android:id="@+id/player_center_menu"
-                android:layout_width="match_parent"
-                android:layout_height="100dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:gravity="center"
                 android:layoutDirection="ltr"
-                android:orientation="horizontal"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintLeft_toLeftOf="parent"
-                app:layout_constraintRight_toRightOf="parent"
-                app:layout_constraintTop_toTopOf="parent">
+                android:orientation="horizontal">
 
                 <androidx.cardview.widget.CardView
                     android:id="@+id/player_rew_holder"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="-24dp"
                     app:cardBackgroundColor="#00FFFFFF"
                     app:cardCornerRadius="16dp"
                     app:cardElevation="0dp">
 
                     <ImageButton
                         android:id="@+id/player_rew"
+                        style="@style/ExoMediaButton.Pause"
                         android:layout_width="72dp"
                         android:layout_height="72dp"
-                        android:background="@android:color/transparent"
-                        android:nextFocusLeft="@id/player_rew"
+                        android:focusable="true"
                         android:nextFocusUp="@id/player_go_back"
                         android:nextFocusDown="@id/player_lock"
-                        android:padding="10dp"
-                        android:scaleType="fitCenter"
+                        android:scaleX="1.5"
+                        android:scaleY="1.5"
                         android:src="@drawable/ic_round_skip_previous_24"
-                        android:tintMode="src_in"
-                        app:tint="@color/white"
                         tools:ignore="ContentDescription" />
                 </androidx.cardview.widget.CardView>
 
@@ -472,7 +465,7 @@
                     android:id="@+id/player_pause_play_holder_holder"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_margin="24dp"
+                    android:layout_margin="32dp"
                     app:cardBackgroundColor="#00FFFFFF"
                     app:cardCornerRadius="16dp"
                     app:cardElevation="0dp">
@@ -502,24 +495,21 @@
                     android:id="@+id/player_ffwd_holder"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="-24dp"
                     app:cardBackgroundColor="#00FFFFFF"
                     app:cardCornerRadius="16dp"
                     app:cardElevation="0dp">
 
                     <ImageButton
                         android:id="@+id/player_ffwd"
+                        style="@style/ExoMediaButton.Pause"
                         android:layout_width="72dp"
                         android:layout_height="72dp"
-                        android:background="@android:color/transparent"
-                        android:nextFocusRight="@id/player_rew"
+                        android:focusable="true"
                         android:nextFocusUp="@id/player_go_back"
                         android:nextFocusDown="@id/player_lock"
-                        android:padding="10dp"
-                        android:scaleType="fitCenter"
+                        android:scaleX="1.5"
+                        android:scaleY="1.5"
                         android:src="@drawable/ic_round_skip_next_24"
-                        android:tintMode="src_in"
-                        app:tint="@color/white"
                         tools:ignore="ContentDescription" />
                 </androidx.cardview.widget.CardView>
 
@@ -595,12 +585,12 @@
                                     android:progressTint="?attr/colorPrimary"
                                     tools:progress="20" />
 
-                            </LinearLayout>
+                </LinearLayout>
                         </androidx.cardview.widget.CardView>
                     </FrameLayout>
 
                 </LinearLayout>
-            </androidx.constraintlayout.widget.ConstraintLayout>
+            </LinearLayout>
 
 
             <com.google.android.material.button.MaterialButton
@@ -928,7 +918,7 @@
                                 android:text="@string/next_episode"
                                 app:icon="@drawable/ic_baseline_skip_next_24" />
 
-                        </LinearLayout>
+            </LinearLayout>
                     </LinearLayout>
                 </HorizontalScrollView>
             </LinearLayout>
