@@ -540,7 +540,7 @@
     <LinearLayout android:id="@+id/player_go_forward_root" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
     <ImageView android:id="@+id/player_go_forward" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
     <TextView android:id="@+id/player_go_forward_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <ImageView android:id="@+id/player_lock" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <com.google.android.material.button.MaterialButton android:id="@+id/player_lock" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
     <LinearLayout android:id="@+id/player_lock_holder" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
     <ImageButton android:id="@+id/player_rotate_btt" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
     <ImageButton android:id="@+id/player_resize_btt" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
