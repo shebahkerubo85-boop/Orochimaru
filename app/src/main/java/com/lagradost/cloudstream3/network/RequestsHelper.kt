@@ -9,15 +9,9 @@ import com.lagradost.cloudstream3.mvvm.safe
 import com.lagradost.nicehttp.Requests
 import com.lagradost.nicehttp.ignoreAllSSLErrors
 import okhttp3.Cache
-import okhttp3.Dns
 import okhttp3.Headers
 import okhttp3.Headers.Companion.toHeaders
 import okhttp3.OkHttpClient
-import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.Request
-import org.json.JSONObject
-import java.net.InetAddress
-import java.net.UnknownHostException
 // import org.conscrypt.Conscrypt // removed to reduce APK size
 import java.io.File
 import java.security.Security
@@ -31,7 +25,6 @@ fun Requests.initClient(context: Context) {
 fun Requests.initClient(context: Context, ignoreSSL: Boolean = false) {
     this.baseClient = buildDefaultClient(context, ignoreSSL)
 }
-
 
 // Backwards compatible constructor, mark as deprecated later
 fun buildDefaultClient(context: Context): OkHttpClient {
@@ -69,65 +62,12 @@ fun buildDefaultClient(context: Context, ignoreSSL: Boolean = false): OkHttpClie
                 6 -> addQuad9Dns()
                 7 -> addDnsSbDns()
                 8 -> addCanadianShieldDns()
-                else -> dns(FallbackDns)
+                else -> { /* system DNS */ }
             }
         }
         // Needs to be build as otherwise the other builders will change this object
         .build()
     return baseClient
-}
-
-/**
- * Fallback DNS resolver: uses system DNS first, falls back to Cloudflare DoH
- * when system DNS fails (e.g. UnknownHostException for Amazon DRM license servers).
- */
-private object FallbackDns : Dns {
-    private val dohUrl = "https://cloudflare-dns.com/dns-query".toHttpUrl()
-    // Hardcoded IPs for cloudflare-dns.com so we don't need DNS to reach the DoH server
-    private val cloudflareIps = listOf("1.1.1.1", "1.0.0.1")
-
-    private val dohClient = OkHttpClient.Builder()
-        .dns(object : Dns {
-            override fun lookup(hostname: String): List<InetAddress> {
-                return when (hostname) {
-                    "cloudflare-dns.com" -> cloudflareIps.map { InetAddress.getByName(it) }
-                    else -> Dns.SYSTEM.lookup(hostname)
-                }
-            }
-        })
-        .build()
-
-    override fun lookup(hostname: String): List<InetAddress> {
-        // Try system DNS first
-        try {
-            return Dns.SYSTEM.lookup(hostname)
-        } catch (_: UnknownHostException) { }
-        // Fall back to Cloudflare DoH
-        return try {
-            val url = dohUrl.newBuilder()
-                .addQueryParameter("name", hostname)
-                .addQueryParameter("type", "A")
-                .build()
-            val request = Request.Builder().url(url)
-                .header("accept", "application/dns-json")
-                .build()
-            val response = dohClient.newCall(request).execute()
-            val body = response.body?.string() ?: throw UnknownHostException("Empty DoH response")
-            val json = JSONObject(body)
-            val answers = json.optJSONArray("Answer") ?: throw UnknownHostException("No DNS answer for $hostname")
-            val addresses = mutableListOf<InetAddress>()
-            for (i in 0 until answers.length()) {
-                val answer = answers.getJSONObject(i)
-                if (answer.optString("type") == "1") {
-                    addresses.add(InetAddress.getByName(answer.getString("data")))
-                }
-            }
-            if (addresses.isEmpty()) throw UnknownHostException("No A records for $hostname")
-            addresses
-        } catch (e: Exception) {
-            throw UnknownHostException("DoH fallback failed for $hostname: ${e.message}")
-        }
-    }
 }
 
 private val DEFAULT_HEADERS = mapOf("user-agent" to USER_AGENT)
