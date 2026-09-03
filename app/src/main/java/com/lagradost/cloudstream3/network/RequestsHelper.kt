@@ -17,6 +17,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import org.json.JSONObject
 import java.net.InetAddress
+import java.net.UnknownHostException
 // import org.conscrypt.Conscrypt // removed to reduce APK size
 import java.io.File
 import java.security.Security
