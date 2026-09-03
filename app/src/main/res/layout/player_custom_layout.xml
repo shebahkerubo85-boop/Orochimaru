@@ -352,13 +352,13 @@
                             android:textSize="14sp"
                             tools:text="Episode 12: The Battle" />
 
-                        <ani.sanin.SpinnerNoSwipe
+                        <ImageView
                             android:id="@+id/player_episodes_button"
                             android:layout_width="match_parent"
                             android:layout_height="48dp"
                             android:background="@null"
-                            android:entries="@array/tips"
-                            android:popupBackground="@drawable/round_corner"
+                            android:clickable="true"
+                            android:focusable="true"
                             android:visibility="invisible"
                             tools:ignore="SpeakableTextPresentCheck" />
                     </RelativeLayout>
