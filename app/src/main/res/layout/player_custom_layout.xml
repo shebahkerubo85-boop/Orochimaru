@@ -422,16 +422,17 @@
 
 
 
-            <!-- This nested layout is necessary because of buffering and clicking-->
-
+            <!-- Center buttons - Exo identical -->
             <LinearLayout
                 android:id="@+id/player_center_menu"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
                 android:gravity="center"
-                android:layoutDirection="ltr"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
 
                 <androidx.cardview.widget.CardView
                     android:id="@+id/player_rew_holder"
@@ -447,19 +448,29 @@
                         android:layout_width="72dp"
                         android:layout_height="72dp"
                         android:focusable="true"
-                        android:nextFocusUp="@id/player_go_back"
-                        android:nextFocusDown="@id/player_lock"
                         android:scaleX="1.5"
                         android:scaleY="1.5"
                         android:src="@drawable/ic_round_skip_previous_24"
-                        tools:ignore="ContentDescription" />
+                        tools:ignore="ContentDescription,DuplicateSpeakableTextCheck" />
                 </androidx.cardview.widget.CardView>
 
-                    <TextView
-                        android:id="@+id/exo_rew_text"
-                        android:layout_width="0dp"
-                        android:layout_height="0dp"
-                        android:visibility="gone" />
+                <androidx.cardview.widget.CardView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="-32dp"
+                    android:visibility="gone"
+                    app:cardBackgroundColor="#00FFFFFF"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp">
+
+                    <ImageButton
+                        android:layout_width="72dp"
+                        android:layout_height="72dp"
+                        android:scaleX="1.5"
+                        android:scaleY="1.5"
+                        android:src="@drawable/ic_round_fast_rewind_24"
+                        tools:ignore="ContentDescription,DuplicateSpeakableTextCheck" />
+                </androidx.cardview.widget.CardView>
 
                 <androidx.cardview.widget.CardView
                     android:id="@+id/player_pause_play_holder_holder"
@@ -470,26 +481,34 @@
                     app:cardCornerRadius="16dp"
                     app:cardElevation="0dp">
 
-                    <ImageView
+                    <ImageButton
                         android:id="@+id/player_pause_play"
+                        style="@style/ExoMediaButton.Play"
                         android:layout_width="72dp"
                         android:layout_height="72dp"
-                        android:background="@android:color/transparent"
                         android:focusable="true"
-                        android:nextFocusLeft="@id/player_rew"
-                        android:nextFocusRight="@id/player_ffwd"
-                        android:nextFocusUp="@id/player_go_back"
-                        android:nextFocusDown="@id/player_lock"
                         android:src="@drawable/anim_play_to_pause"
-                        app:tint="@color/white"
                         tools:ignore="ContentDescription" />
                 </androidx.cardview.widget.CardView>
 
-                <TextView
-                    android:id="@+id/exo_ffwd_text"
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:visibility="gone" />
+                <androidx.cardview.widget.CardView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="-32dp"
+                    android:visibility="gone"
+                    app:cardBackgroundColor="#00FFFFFF"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp">
+
+                    <ImageButton
+                        android:layout_width="72dp"
+                        android:layout_height="72dp"
+                        android:layout_gravity="center"
+                        android:scaleX="1.5"
+                        android:scaleY="1.5"
+                        android:src="@drawable/ic_round_fast_forward_24"
+                        tools:ignore="ContentDescription,DuplicateSpeakableTextCheck" />
+                </androidx.cardview.widget.CardView>
 
                 <androidx.cardview.widget.CardView
                     android:id="@+id/player_ffwd_holder"
@@ -501,17 +520,27 @@
 
                     <ImageButton
                         android:id="@+id/player_ffwd"
-                        style="@style/ExoMediaButton.Pause"
                         android:layout_width="72dp"
                         android:layout_height="72dp"
                         android:focusable="true"
-                        android:nextFocusUp="@id/player_go_back"
-                        android:nextFocusDown="@id/player_lock"
+                        android:background="?android:attr/selectableItemBackground"
                         android:scaleX="1.5"
                         android:scaleY="1.5"
                         android:src="@drawable/ic_round_skip_next_24"
-                        tools:ignore="ContentDescription" />
+                        tools:ignore="ContentDescription,DuplicateSpeakableTextCheck" />
                 </androidx.cardview.widget.CardView>
+
+                <TextView
+                    android:id="@+id/exo_rew_text"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/exo_ffwd_text"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:visibility="gone" />
 
                 <LinearLayout
                     android:id="@+id/download_both_header"
