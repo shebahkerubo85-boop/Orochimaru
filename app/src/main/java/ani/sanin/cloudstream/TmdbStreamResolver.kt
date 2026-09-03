@@ -3,10 +3,7 @@ package ani.sanin.cloudstream
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import android.util.Base64
 import ani.sanin.FileUrl
-import ani.sanin.defaultHeaders
-import ani.sanin.okHttpClient
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.tmdb.TmdbDetail
 import ani.sanin.connections.tmdb.TmdbEpisode
@@ -37,11 +34,8 @@ import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.utils.DrmExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.newDrmExtractorLink
+import com.lagradost.cloudstream3.utils.CLEARKEY_DRM_UUID
 import com.lagradost.cloudstream3.utils.Qualities
-import com.lagradost.cloudstream3.utils.WIDEVINE_UUID
-import com.lagradost.cloudstream3.utils.PLAYREADY_UUID
-import okhttp3.Request
-import java.util.concurrent.TimeUnit
 import kotlin.uuid.toJavaUuid
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
@@ -433,178 +427,36 @@ object TmdbStreamResolver {
         return items
     }
 
-    // ── DRM inference (mirrors CloudStream DrmUtil) ─────────────────────────
-
-    private const val WIDEVINE_SCHEME_URI =
-        "urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed"
-    private const val PLAYREADY_SCHEME_URI =
-        "urn:uuid:9a04f079-9840-4286-ab92-e65be0885f95"
-
-    /** True when a DASH link's URL/headers signal encryption (CENC/Widevine/PlayReady). */
-    private fun looksEncrypted(link: ExtractorLink): Boolean {
-        if (!link.url.contains(".mpd", ignoreCase = true)) return false
-        val hay = buildString {
-            append(link.url.lowercase())
-            link.headers.forEach { (k, v) ->
-                append(' ').append(k.lowercase()).append('=').append(v.lowercase())
-            }
-            link.referer.takeIf { it.isNotBlank() }?.let {
-                append(' ').append(it.lowercase())
-            }
-        }
-        return hay.contains("drm=") || hay.contains("cenc") ||
-            hay.contains("encrypted") || hay.contains("widevine") ||
-            hay.contains("playready")
-    }
-
-    /** Fetches a DASH manifest and extracts the DRM scheme + license server URL from
-     *  its ContentProtection elements (same as CloudStream's DrmUtil.getDrmData). */
-    private suspend fun manifestDrm(
-        url: String,
-        link: ExtractorLink
-    ): DrmInfo? {
-        val body = withContext(Dispatchers.IO) {
-            val requestBuilder = Request.Builder().url(url)
-            // Send the standard app defaults (User-Agent at minimum) so CDNs
-            // that reject empty/manifest requests still serve the protected MPD.
-            defaultHeaders.forEach { (k, v) -> requestBuilder.header(k, v) }
-            // Mirror the plugin's own headers/referer so the server sees the
-            // same Origin/Referer it would get from the player's OkHttp client.
-            link.headers.forEach { (k, v) ->
-                if (!k.equals("Referer", ignoreCase = true)) {
-                    requestBuilder.header(k, v)
-                }
-            }
-            link.referer.takeIf { it.isNotBlank() }?.let {
-                requestBuilder.header("Referer", it)
-            }
-            // Build a short-lived client so a hung MPD fetch can't block
-            // the entire 60s provider budget.
-            val client = okHttpClient.newBuilder()
-                .callTimeout(10, TimeUnit.SECONDS)
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
-                .build()
-            runCatching {
-                client.newCall(requestBuilder.build()).execute().use { r ->
-                    Log.i("TmdbDetails", "manifestDrm: HTTP ${r.code} success=${r.isSuccessful} contentLen=${r.body?.contentLength()}")
-                    if (r.isSuccessful) r.body?.string() else null
-                }
-            }.getOrElse { t ->
-                Log.i("TmdbDetails", "manifestDrm: fetch FAILED: ${t::class.java.simpleName}: ${t.message}")
-                null
-            }
-        } ?: return null
-        return parseManifestDrm(body)
-    }
-
-    /** Minimal regex-based MPD parser — finds [ContentProtection] scheme UUIDs
-     *  (Widevine / PlayReady) and any `laurl` license server URL, including
-     *  LA_URLs embedded inside base64 PlayReady PSSH / <mspr:pro> objects.
-     *  Keeps the dependency footprint at zero (no XmlPullParser, no Ksoup). */
-    private fun parseManifestDrm(mpd: String): DrmInfo? {
-        if (mpd.isBlank()) return null
-        val widevine = Regex(WIDEVINE_SCHEME_URI, RegexOption.IGNORE_CASE)
-            .containsMatchIn(mpd)
-            || Regex("""(?i)value\s*=\s*"widevine"""").containsMatchIn(mpd)
-        val playready = Regex(PLAYREADY_SCHEME_URI, RegexOption.IGNORE_CASE)
-            .containsMatchIn(mpd)
-            || Regex("""(?i)value\s*=\s*"playready"""").containsMatchIn(mpd)
-        Log.i("TmdbDetails", "parseManifestDrm: mpd_len=${mpd.length} widevine=$widevine playready=$playready")
-        if (!widevine && !playready) {
-            Log.i("TmdbDetails", "parseManifestDrm: no DRM schemes found, returning null")
-            return null
-        }
-        // Extract the license URL: both attribute form (laurl="...") and element form
-        // (<ms:laurl>...</ms:laurl>) are common in DASH manifests.
-        val plainLicense: String? = listOf(
-            Regex("""(?i)(?:laurl|license[_-]?url)\s*[=:]\s*["']?([^"'<>\s]+)"""),
-            Regex("""(?i)<(?:[a-zA-Z0-9_:]+)?laurl[^>]*>\s*([^<>\s]+)\s*</(?:[a-zA-Z0-9_:]+)?laurl>""")
-        ).asSequence()
-            .flatMap { it.findAll(mpd) }
-            .mapNotNull { runCatching { java.net.URLDecoder.decode(it.groupValues[1], "UTF-8") }.getOrNull() }
-            .firstOrNull { it.startsWith("http", ignoreCase = true) }
-        // Fallback: Amazon-style CDNs put the license URL inside a base64
-        // PlayReady PSSH / <mspr:pro> object instead of a plain laurl.
-        val license = plainLicense ?: extractLaUrlFromPssh(mpd)
-        val uuid = when {
-            widevine -> WIDEVINE_UUID
-            playready -> PLAYREADY_UUID
-            else -> WIDEVINE_UUID
-        }
-        Logger.log(
-            "TMDB_PLAY: DRM inferred from manifest uuid=$uuid " +
-                "license=${license?.take(80) ?: "<none>"}"
-        )
-        Log.i("TmdbDetails", "parseManifestDrm: widevine=$widevine playready=$playready uuid=$uuid license=${license?.take(120) ?: "<none>"}")
-        return DrmInfo(
-            licenseUrl = license,
-            uuid = uuid,
-            keyRequestParameters = hashMapOf(),
-        )
-    }
-
-    /** Decodes every base64 <mspr:pro> / <cenc:pssh> block in the MPD and
-     *  searches the PlayReady object inside for a <LA_URL>...</LA_URL> entry.
-     *  PlayReady objects are UTF-16LE XML, so we probe each byte alignment of
-     *  the PSSH header until the XML shows through. */
-    private fun extractLaUrlFromPssh(mpd: String): String? {
-        val payloads = Regex(
-            """(?is)<(?:mspr:pro|cenc:pssh)[^>]*>\s*([A-Za-z0-9+/=\s]+?)\s*</(?:mspr:pro|cenc:pssh)>"""
-        ).findAll(mpd)
-            .mapNotNull { m -> runCatching { Base64.decode(m.groupValues[1], Base64.DEFAULT) }.getOrNull() }
-        val laUrl = Regex("""(?i)LA_URL>\s*([^<\s]+)\s*<""")
-        for (bytes in payloads) {
-            for (off in 0..minOf(64, bytes.size)) {
-                val s = runCatching {
-                    String(bytes, off, bytes.size - off, Charsets.UTF_16LE)
-                }.getOrNull() ?: continue
-                laUrl.find(s)?.let { match ->
-                    val url = match.groupValues[1].trim()
-                    if (url.startsWith("http", ignoreCase = true)) return url
-                }
-            }
-        }
-        return null
-    }
-
-    /** Returns [DrmInfo] for a link — extracts from [DrmExtractorLink] or, for
-     *  plain CENC DASH streams, mirrors CloudStream's DrmUtil by fetching the
-     *  manifest and parsing its ContentProtection. */
-    private suspend fun drmForLink(link: ExtractorLink): DrmInfo? {
-        Log.i("TmdbDetails", "drmForLink: url=${link.url.take(120)} class=${link::class.java.simpleName}")
-        val encrypted = looksEncrypted(link)
-        Log.i("TmdbDetails", "drmForLink: looksEncrypted=$encrypted")
-        val result: DrmInfo? = when (link) {
+    /** Zangetsu approach: only trust DRM the plugin explicitly provides. */
+    private fun drmForLink(link: ExtractorLink): DrmInfo? {
+        val result = when (link) {
             is DrmExtractorLink -> {
                 val license = link.licenseUrl?.takeIf { it.isNotBlank() }
-                license?.let { url ->
-                    DrmInfo(
-                        licenseUrl = url,
-                        uuid = link.uuid.toJavaUuid(),
-                        keyRequestParameters = link.keyRequestParameters,
-                        kid = link.kid,
-                        key = link.key,
-                        kty = link.kty,
-                    )
-                } ?: runCatching {
-                    val base = runCatching {
-                        val u = java.net.URI(link.url)
-                        "${u.scheme}://${u.host}${u.path}"
-                    }.getOrNull() ?: link.url
-                    val drm = manifestDrm(link.url, link)
-                    if (drm != null) synchronized(drmCache) { drmCache.putIfAbsent(base, drm) }
-                    drm
-                }.getOrNull()
+                val hasKidKey = !link.kid.isNullOrBlank() && !link.key.isNullOrBlank()
+                when {
+                    license != null -> {
+                        DrmInfo(
+                            licenseUrl = license,
+                            uuid = link.uuid.toJavaUuid(),
+                            keyRequestParameters = link.keyRequestParameters,
+                            kid = link.kid,
+                            key = link.key,
+                            kty = link.kty,
+                        )
+                    }
+                    hasKidKey -> {
+                        DrmInfo(
+                            uuid = CLEARKEY_DRM_UUID.toJavaUuid(),
+                            keyRequestParameters = link.keyRequestParameters,
+                            kid = link.kid,
+                            key = link.key,
+                            kty = link.kty ?: "oct",
+                        )
+                    }
+                    else -> null
+                }
             }
-            else -> {
-                // Zangetsu approach: only use DRM when the plugin explicitly
-                // provides a DrmExtractorLink. Inferring DRM from manifest
-                // ContentProtection causes spurious license-server failures
-                // (UnknownHostException) on streams that play fine without it.
-                Log.i("TmdbDetails", "drmForLink: non-DRM link, skipping DRM inference")
-                null
-            }
+            else -> null
         }
         Log.i("TmdbDetails", "drmForLink: result uuid=${result?.uuid} license=${result?.licenseUrl?.take(80) ?: "<none>"}")
         return result
@@ -615,6 +467,8 @@ object TmdbStreamResolver {
     data class SyntheticSession(
         val mediaId: Int,
         val mediaType: String,
+
+
         val detail: TmdbDetail,
         val source: CsInstalledSource,
         val load: LoadResponse? = null,
@@ -630,10 +484,6 @@ object TmdbStreamResolver {
     private val linksCache = mutableMapOf<String, StreamResult.Success>()
 
     private val sessions = mutableMapOf<Int, SyntheticSession>()
-
-    /** Deduplicates DRM manifest fetches so N quality variants of the same live
-     *  stream don't each round-trip the MPD. Keyed by scheme://host/path. */
-    private val drmCache = mutableMapOf<String, DrmInfo>()
 
     private fun cacheKey(mediaId: Int, sourceName: String, season: Int?, ep: Int?) =
         "$mediaId|$sourceName|$season|$ep"
