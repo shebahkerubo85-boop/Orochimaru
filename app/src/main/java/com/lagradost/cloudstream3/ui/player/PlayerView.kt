@@ -382,13 +382,13 @@ class PlayerView @JvmOverloads constructor(
                     player.handleEvent(CSPlayerEvent.PlayPauseToggle, PlayerEventSource.UI)
                 }
             }
-            playerRew?.setOnClickListener  {
+            playerRew?.setOnClickListener {
                 scheduleAutoHide()
-                gestureHelper.rewind()
+                callbacks?.prevEpisode()
             }
             playerFfwd?.setOnClickListener {
                 scheduleAutoHide()
-                gestureHelper.fastForward()
+                callbacks?.nextEpisode()
             }
 
             SubtitlesFragment.applyStyleEvent += subStyleListener
