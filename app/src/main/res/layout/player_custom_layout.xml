@@ -558,7 +558,46 @@
                             android:layout_margin="@dimen/video_frame_width"
                             android:importantForAccessibility="no"
                             android:scaleType="centerCrop" />
-                    </FrameLayout>
+                    
+    <!-- Hidden views for code compatibility -->
+    <View android:id="@+id/shadow_overlay" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <FrameLayout android:id="@+id/player_top_holder" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <LinearLayout android:id="@+id/player_go_back_holder" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <LinearLayout android:id="@+id/player_go_back_root" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <TextView android:id="@+id/player_go_back_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <LinearLayout android:id="@+id/player_restart_root" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <ImageView android:id="@+id/player_restart" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <TextView android:id="@+id/player_restart_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <LinearLayout android:id="@+id/player_go_forward_root" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <ImageView android:id="@+id/player_go_forward" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <TextView android:id="@+id/player_go_forward_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <ImageView android:id="@+id/player_lock" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <LinearLayout android:id="@+id/player_lock_holder" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <ImageButton android:id="@+id/player_rotate_btt" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <ImageButton android:id="@+id/player_resize_btt" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <ImageButton android:id="@+id/player_speed_btt" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <ImageButton android:id="@+id/player_subtitle_offset_btt" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <ImageButton android:id="@+id/player_sources_btt" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <ImageButton android:id="@+id/player_tracks_btt" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <ImageButton android:id="@+id/player_skip_op" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <ImageButton android:id="@+id/player_skip_episode" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <HorizontalScrollView android:id="@+id/player_controls_scroll" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <LinearLayout android:id="@+id/player_video_title_holder" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <TextView android:id="@+id/player_video_title_rez" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <TextClock android:id="@+id/player_video_clock" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <ImageView android:id="@+id/offline_pin" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <FrameLayout android:id="@+id/player_episode_filler_holder" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <LinearLayout android:id="@+id/player_episodes_button_root" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <TextView android:id="@+id/player_episodes_button_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <LinearLayout android:id="@+id/download_both_header" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <ImageView android:id="@+id/download_header_toggle" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <TextView android:id="@+id/download_header_toggle_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <TextView android:id="@+id/downloaded_progress_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <TextView android:id="@+id/downloaded_progress_speed_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <com.google.android.material.progressindicator.LinearProgressIndicator android:id="@+id/downloaded_progress" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+    <TextView android:id="@+id/player_time_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+
+</FrameLayout>
 
                     <com.lagradost.cloudstream3.ui.player.live.LivePreviewTimeBar
                         android:id="@id/exo_progress"
