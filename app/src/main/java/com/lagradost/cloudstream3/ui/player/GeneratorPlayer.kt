@@ -459,7 +459,6 @@ class GeneratorPlayer : FullScreenPlayer() {
 
     override fun onDownload(event: DownloadEvent) {
         super.onDownload(event)
-        showDownloadProgress(event)
     }
 
 
@@ -2032,7 +2031,7 @@ class GeneratorPlayer : FullScreenPlayer() {
 
     override fun onTimestamp(timestamp: VideoSkipStamp?) {
         if (timestamp != null) {
-            playerBinding?.exoSkip?.setText(timestamp.uiText)
+            playerBinding?.exoSkipTime?.text = timestamp.uiText
             displayTimeStamp(true)
             val currentIndex = skipIndex
             playerBinding?.exoSkip?.handler?.postDelayed({

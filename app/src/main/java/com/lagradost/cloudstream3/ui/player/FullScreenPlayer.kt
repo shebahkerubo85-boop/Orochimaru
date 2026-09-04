@@ -292,7 +292,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
             track.sampleMimeType == MimeTypes.APPLICATION_MEDIA3_CUES
         }
         // Subtitle offset is not possible on built-in media3 tracks
-            isBuiltinSubtitles || tracks.currentTextTracks.isEmpty()
+        return isBuiltinSubtitles || tracks.currentTextTracks.isEmpty()
     }
 
     private fun restoreOrientationWithSensor(activity: Activity) {
@@ -392,7 +392,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
             if (isShowingEpisodeOverlay) {
                 // isShowingEpisodeOverlay pauses, so this makes it easier to unpause
                 if (isLayout(TV or EMULATOR)) {
-                    exoPlay?.requestFocus()
+                    playerBinding?.exoPlay?.requestFocus()
                 }
                 toggleEpisodesOverlay(show = false)
                 return@attachBackPressedCallback
@@ -420,9 +420,8 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
     private fun setPlayBackSpeed(speed: Float) {
         try {
             DataStoreHelper.playBackSpeed = speed
-            playerBinding?.exoPlaybackSpeed?.text =
-                getString(R.string.player_speed_text_format).format(speed)
-                    .replace(".0x", "x")
+            // Speed text: exo_playback_speed is an ImageButton, no text property
+        // Speed is shown via the speed dialog instead
         } catch (e: Exception) {
             // the format string was wrong
             logError(e)
@@ -1052,7 +1051,6 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
             }
             playerBinding?.apply {
                 exoPlaybackSpeed.isVisible = playBackSpeedEnabled
-                    if (isLayout(TV or EMULATOR)) false else playerRotateEnabled
                 if (hideControlsNames) {
                     hideControlsNames()
                 }
@@ -1062,24 +1060,6 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         }
 
         playerBinding?.apply {
-            if (isLayout(TV or EMULATOR)) {
-                mapOf(
-                ).forEach { (button, text) ->
-                    button.setOnFocusChangeListener { _, hasFocus ->
-                        if (!hasFocus) {
-                            text.isSelected = false
-                            text.isVisible = false
-                            return@setOnFocusChangeListener
-                        }
-                        if (button.id == R.id.exo_ep_sel) {
-                            toggleEpisodesOverlay(show = true)
-                        }
-                        text.isSelected = true
-                        text.isVisible = true
-                    }
-                }
-            }
-
             exoSkip.setOnClickListener {
                 if(exoSkip.hasFocus()) {
                     exoPlay.requestFocus()
@@ -1109,7 +1089,6 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 showTracksDialogue()
             }
 
-            exoProgress.registerPlayerView(playerView)
 
             @SuppressLint("ClickableViewAccessibility")
             exoProgress.setOnTouchListener { _, event ->
