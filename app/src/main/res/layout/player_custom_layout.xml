@@ -578,16 +578,17 @@
 
             </LinearLayout>
 
-            <view
+            <com.lagradost.cloudstream3.ui.player.live.LivePreviewTimeBar
                 android:id="@id/exo_progress"
-                class="ani.sanin.media.anime.ExoplayerView$ExtendedTimeBar"
                 android:layout_width="match_parent"
                 android:layout_height="24dp"
                 app:ad_marker_color="#A9FFFFFF"
                 app:bar_height="2dp"
                 app:played_color="?attr/colorPrimary"
                 app:scrubber_color="?attr/colorPrimary"
-                tools:ignore="SpeakableTextPresentCheck" />
+                app:scrubber_dragged_size="20dp"
+                app:scrubber_enabled_size="16dp"
+                app:unplayed_color="@color/videoProgress" />
 
         </LinearLayout>
 

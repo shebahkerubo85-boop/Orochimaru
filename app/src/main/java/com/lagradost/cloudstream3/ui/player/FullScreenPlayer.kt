@@ -1084,6 +1084,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 showTracksDialogue()
             }
 
+            exoProgress.registerPlayerView(playerView)
 
             @SuppressLint("ClickableViewAccessibility")
             exoProgress.setOnTouchListener { _, event ->
