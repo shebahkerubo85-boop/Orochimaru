@@ -193,7 +193,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
     }
 
     open fun showEpisodesOverlay() {
-        throw NotImplementedError()
+        // Episode overlay removed — use exo_ep_sel spinner
     }
 
     open fun isThereEpisodes(): Boolean {
