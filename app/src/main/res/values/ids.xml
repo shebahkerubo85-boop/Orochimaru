@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- IDs referenced by trailer_custom_layout.xml that were previously in player_custom_layout.xml -->
+    <item name="player_rew" type="id" />
+    <item name="player_ffwd" type="id" />
+</resources>
