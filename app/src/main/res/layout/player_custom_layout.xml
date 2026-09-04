@@ -538,8 +538,6 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:layout_marginEnd="8dp"
                         android:layout_marginBottom="-8dp"
                         android:gravity="center_vertical"
                         android:orientation="horizontal">
@@ -568,7 +566,6 @@
                             android:layout_height="wrap_content"
                             android:fontFamily="@font/poppins"
                             android:includeFontPadding="false"
-                            android:textAlignment="viewEnd"
                             android:textColor="#80FFFFFF"
                             android:textSize="14sp"
                             tools:text="1:23:45" />
