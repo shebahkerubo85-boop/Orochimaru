@@ -287,12 +287,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
     }
 
     override fun subtitlesChanged() {
-        val tracks = player.getVideoTracks()
-        val isBuiltinSubtitles = tracks.currentTextTracks.all { track ->
-            track.sampleMimeType == MimeTypes.APPLICATION_MEDIA3_CUES
-        }
-        // Subtitle offset is not possible on built-in media3 tracks
-        return isBuiltinSubtitles || tracks.currentTextTracks.isEmpty()
+        // Subtitle offset button removed in exo layout
     }
 
     private fun restoreOrientationWithSensor(activity: Activity) {
