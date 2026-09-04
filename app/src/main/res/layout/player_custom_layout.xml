@@ -100,12 +100,13 @@
                             tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
 
                         <ImageButton
-                            android:id="@+id/exo_source"
+                            android:id="@+id/player_sources_btt"
                             android:layout_width="48dp"
                             android:layout_height="48dp"
                             android:backgroundTint="#00FFFFFF"
                             android:focusable="true"
                             android:src="@drawable/ic_round_source_24"
+                            app:tint="#fff"
                             tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
 
                         <ImageButton
@@ -239,17 +240,20 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_margin="32dp"
-                    app:cardBackgroundColor="#00FFFFFF"
-                    app:cardCornerRadius="16dp"
+                    app:cardBackgroundColor="#22FFFFFF"
+                    app:cardCornerRadius="36dp"
                     app:cardElevation="0dp">
 
                     <ImageButton
                         android:id="@+id/player_pause_play"
-                        style="@style/ExoMediaButton.Play"
                         android:layout_width="72dp"
                         android:layout_height="72dp"
+                        android:background="@android:color/transparent"
                         android:focusable="true"
+                        android:padding="16dp"
+                        android:scaleType="fitCenter"
                         android:src="@drawable/anim_play_to_pause"
+                        app:tint="@color/bg_white"
                         tools:ignore="ContentDescription" />
                 </androidx.cardview.widget.CardView>
 
@@ -396,15 +400,19 @@
                         android:paddingEnd="1dp"
                         android:paddingBottom="0dp">
 
-                        <ImageButton
-                            android:id="@+id/player_speedup_button"
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/player_speed_btt"
+                            style="@style/Widget.Material3.Button.IconButton"
                             android:layout_width="48dp"
                             android:layout_height="48dp"
                             android:backgroundTint="#00FFFFFF"
                             android:focusable="true"
-                            android:src="@drawable/ic_round_slow_motion_video_24"
+                            app:icon="@drawable/ic_round_slow_motion_video_24"
+                            app:iconTint="#fff"
                             android:visibility="gone"
-                            app:tint="#fff"
+                            android:text=""
+                            android:textColor="#fff"
+                            android:textSize="10sp"
                             tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
 
                         <ImageButton
@@ -418,7 +426,7 @@
                             tools:ignore="ContentDescription" />
 
                         <ImageButton
-                            android:id="@+id/player_tracks_btn"
+                            android:id="@+id/player_tracks_btt"
                             android:layout_width="48dp"
                             android:layout_height="48dp"
                             android:backgroundTint="#00FFFFFF"
@@ -466,7 +474,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom"
-                android:layout_marginBottom="10dp"
+                android:layout_marginBottom="36dp"
                 android:gravity="center_vertical"
                 android:orientation="vertical"
                 app:layout_constraintBottom_toBottomOf="parent"
@@ -541,10 +549,7 @@
     <LinearLayout android:id="@+id/player_lock_holder" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
     <ImageButton android:id="@+id/player_rotate_btt" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
     <ImageButton android:id="@+id/player_resize_btt" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <com.google.android.material.button.MaterialButton android:id="@+id/player_speed_btt" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
     <ImageButton android:id="@+id/player_subtitle_offset_btt" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <ImageButton android:id="@+id/player_sources_btt" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <ImageButton android:id="@+id/player_tracks_btt" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
     <ImageButton android:id="@+id/player_skip_op" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
     <ImageButton android:id="@+id/player_skip_episode" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
     <HorizontalScrollView android:id="@+id/player_controls_scroll" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
