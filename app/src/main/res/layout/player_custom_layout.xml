@@ -472,171 +472,147 @@
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent">
 
-                <androidx.constraintlayout.widget.ConstraintLayout
+                <LinearLayout
                     android:id="@+id/player_video_bar"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layoutDirection="ltr"
-                    android:orientation="horizontal"
-                    tools:visibility="visible">
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="8dp"
+                    android:orientation="vertical">
 
-                    <TextView
-                        android:id="@id/exo_position"
-                        android:layout_width="wrap_content"
-                        android:layout_height="30dp"
-                        android:layout_gravity="center"
-                        android:layout_marginStart="20dp"
-                        android:fontFamily="@font/poppins"
-                        android:gravity="end|center_vertical"
-                        android:includeFontPadding="false"
-                        android:minWidth="50dp"
-                        android:paddingLeft="4dp"
-                        android:paddingRight="4dp"
-                        android:textColor="#F1F1F1"
-                        android:textSize="14sp"
-                        android:textStyle="normal"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintStart_toStartOf="parent"
-                        tools:text="15:30" />
+                    <!-- Hidden views for code compatibility -->
+                    <View android:id="@+id/shadow_overlay" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <FrameLayout android:id="@+id/player_top_holder" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <LinearLayout android:id="@+id/player_go_back_holder" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <LinearLayout android:id="@+id/player_go_back_root" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <TextView android:id="@+id/player_go_back_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <LinearLayout android:id="@+id/player_restart_root" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <ImageView android:id="@+id/player_restart" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <TextView android:id="@+id/player_restart_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <LinearLayout android:id="@+id/player_go_forward_root" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <ImageView android:id="@+id/player_go_forward" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <TextView android:id="@+id/player_go_forward_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/player_lock" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <LinearLayout android:id="@+id/player_lock_holder" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <ImageButton android:id="@+id/player_rotate_btt" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <ImageButton android:id="@+id/player_resize_btt" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <ImageButton android:id="@+id/player_subtitle_offset_btt" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <ImageButton android:id="@+id/player_skip_op" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <ImageButton android:id="@+id/player_skip_episode" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <HorizontalScrollView android:id="@+id/player_controls_scroll" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <LinearLayout android:id="@+id/player_video_title_holder" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <TextView android:id="@+id/player_video_title_rez" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <TextClock android:id="@+id/player_video_clock" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <ImageView android:id="@+id/offline_pin" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <FrameLayout android:id="@+id/player_episode_filler_holder" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone">
+                        <com.google.android.material.button.MaterialButton android:id="@+id/player_episode_filler" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    </FrameLayout>
+                    <LinearLayout android:id="@+id/player_episodes_button_root" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <TextView android:id="@+id/player_episodes_button_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <LinearLayout android:id="@+id/download_both_header" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <androidx.cardview.widget.CardView android:id="@+id/download_header" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <ImageView android:id="@+id/download_header_toggle" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <TextView android:id="@+id/download_header_toggle_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <TextView android:id="@+id/downloaded_progress_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <TextView android:id="@+id/downloaded_progress_speed_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <com.google.android.material.progressindicator.LinearProgressIndicator android:id="@+id/downloaded_progress" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    <TextView android:id="@+id/player_time_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
 
+                    <!-- Position / Duration row -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:layout_marginEnd="8dp"
+                        android:layout_marginBottom="-8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/time_live"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins"
+                            android:includeFontPadding="false"
+                            android:text="@string/live"
+                            android:textColor="#FF3B30"
+                            android:textStyle="bold"
+                            android:textSize="14sp"
+                            android:visibility="gone" />
+
+                        <TextView
+                            android:id="@id/exo_position"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins"
+                            android:includeFontPadding="false"
+                            android:textColor="#F1F1F1"
+                            android:textSize="14sp"
+                            tools:text="15:30" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:includeFontPadding="false"
+                            android:text=" / "
+                            android:textColor="#80FFFFFF"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@id/exo_duration"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins"
+                            android:includeFontPadding="false"
+                            android:textAlignment="viewEnd"
+                            android:textColor="#80FFFFFF"
+                            android:textSize="14sp"
+                            tools:text="1:23:45" />
+
+                        <TextView
+                            android:id="@+id/time_left"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:includeFontPadding="false"
+                            android:text=" • "
+                            android:textColor="#80FFFFFF"
+                            android:textSize="14sp"
+                            android:visibility="gone" />
+
+                    </LinearLayout>
+
+                    <!-- Preview frame -->
                     <FrameLayout
                         android:id="@+id/previewFrameLayout"
                         android:layout_width="0dp"
                         android:layout_height="0dp"
-                        android:layout_marginStart="16dp"
-                        android:layout_marginEnd="16dp"
-                        android:layout_marginBottom="16dp"
-                        android:background="@drawable/video_frame"
                         android:visibility="invisible"
-                        app:layout_constraintBottom_toTopOf="@+id/exo_progress"
-                        app:layout_constraintDimensionRatio="16:9"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintHorizontal_bias="0.0"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintWidth_default="percent"
-                        app:layout_constraintWidth_percent="0.25"
                         tools:visibility="visible">
 
                         <ImageView
                             android:id="@+id/previewImageView"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
-                            android:layout_margin="@dimen/video_frame_width"
                             android:importantForAccessibility="no"
                             android:scaleType="centerCrop" />
-                    
-    <!-- Hidden views for code compatibility -->
-    <View android:id="@+id/shadow_overlay" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <FrameLayout android:id="@+id/player_top_holder" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <LinearLayout android:id="@+id/player_go_back_holder" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <LinearLayout android:id="@+id/player_go_back_root" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <TextView android:id="@+id/player_go_back_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <LinearLayout android:id="@+id/player_restart_root" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <ImageView android:id="@+id/player_restart" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <TextView android:id="@+id/player_restart_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <LinearLayout android:id="@+id/player_go_forward_root" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <ImageView android:id="@+id/player_go_forward" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <TextView android:id="@+id/player_go_forward_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <com.google.android.material.button.MaterialButton android:id="@+id/player_lock" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <LinearLayout android:id="@+id/player_lock_holder" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <ImageButton android:id="@+id/player_rotate_btt" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <ImageButton android:id="@+id/player_resize_btt" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <ImageButton android:id="@+id/player_subtitle_offset_btt" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <ImageButton android:id="@+id/player_skip_op" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <ImageButton android:id="@+id/player_skip_episode" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <HorizontalScrollView android:id="@+id/player_controls_scroll" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <LinearLayout android:id="@+id/player_video_title_holder" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <TextView android:id="@+id/player_video_title_rez" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <TextClock android:id="@+id/player_video_clock" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <ImageView android:id="@+id/offline_pin" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <FrameLayout android:id="@+id/player_episode_filler_holder" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone">
-        <com.google.android.material.button.MaterialButton android:id="@+id/player_episode_filler" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    </FrameLayout>
-    <LinearLayout android:id="@+id/player_episodes_button_root" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <TextView android:id="@+id/player_episodes_button_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <LinearLayout android:id="@+id/download_both_header" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <androidx.cardview.widget.CardView android:id="@+id/download_header" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <ImageView android:id="@+id/download_header_toggle" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <TextView android:id="@+id/download_header_toggle_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <TextView android:id="@+id/downloaded_progress_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <TextView android:id="@+id/downloaded_progress_speed_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <com.google.android.material.progressindicator.LinearProgressIndicator android:id="@+id/downloaded_progress" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
-    <TextView android:id="@+id/player_time_text" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+                    </FrameLayout>
 
-</FrameLayout>
-
+                    <!-- Progress bar -->
                     <com.lagradost.cloudstream3.ui.player.live.LivePreviewTimeBar
                         android:id="@id/exo_progress"
-                        android:layout_width="0dp"
-                        android:layout_height="30dp"
-                        android:layout_weight="1"
+                        android:layout_width="match_parent"
+                        android:layout_height="24dp"
                         app:bar_height="2dp"
-                        app:layout_constraintBottom_toBottomOf="@id/exo_position"
-                        app:layout_constraintEnd_toStartOf="@id/exo_duration"
-                        app:layout_constraintStart_toEndOf="@+id/exo_position"
+                        app:ad_marker_color="#A9FFFFFF"
                         app:played_color="?attr/colorPrimary"
                         app:scrubber_color="?attr/colorPrimary"
                         app:scrubber_dragged_size="20dp"
                         app:scrubber_enabled_size="16dp"
                         app:unplayed_color="@color/videoProgress" />
 
-                    <TextView
-                        android:id="@id/exo_duration"
-                        android:layout_width="wrap_content"
-                        android:layout_height="30dp"
-                        android:layout_marginEnd="20dp"
-                        android:fontFamily="@font/poppins"
-                        android:gravity="start|center_vertical"
-                        android:includeFontPadding="false"
-                        android:minWidth="50dp"
-                        android:paddingLeft="4dp"
-                        android:paddingRight="4dp"
-                        android:textColor="#80FFFFFF"
-                        android:textSize="14sp"
-                        android:textStyle="normal"
-                        app:layout_constraintBottom_toBottomOf="parent"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        tools:text="1:23:45" />
+                </LinearLayout>
 
-                    <TextView
-                        android:id="@+id/time_live"
-                        android:layout_width="wrap_content"
-                        android:layout_height="30dp"
-                        android:layout_gravity="center"
-                        android:layout_marginEnd="20dp"
-                        android:fontFamily="@font/poppins"
-                        android:includeFontPadding="false"
-                        android:minWidth="50dp"
-                        android:paddingLeft="4dp"
-                        android:paddingRight="4dp"
-                        android:textColor="#FF3B30"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        android:visibility="gone"
-                        app:layout_constraintBaseline_toBaselineOf="@id/exo_position"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        tools:text="LIVE" />
-
-                    <TextView
-                        android:id="@+id/time_left"
-                        android:layout_width="wrap_content"
-                        android:layout_height="30dp"
-                        android:layout_gravity="center|center_vertical"
-                        android:layout_marginEnd="20dp"
-                        android:fontFamily="@font/poppins"
-                        android:includeFontPadding="false"
-                        android:minWidth="50dp"
-                        android:paddingLeft="4dp"
-                        android:paddingRight="4dp"
-                        android:textColor="#80FFFFFF"
-                        android:textSize="14sp"
-                        android:textStyle="normal"
-                        android:visibility="gone"
-                        app:layout_constraintBaseline_toBaselineOf="@id/exo_position"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        tools:text="-23:20" />
-
-                </androidx.constraintlayout.widget.ConstraintLayout>
             </LinearLayout>
 
             <!-- ===== VOLUME / BRIGHTNESS OVERLAYS ===== -->
