@@ -95,7 +95,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
 
     protected var androidTVInterfaceOffSeekTime = 10000L
     protected var androidTVInterfaceOnSeekTime = 30000L
-    protected var playBackSpeedEnabled = false
+    protected var playBackSpeedEnabled = true
     protected var playerResizeEnabled = false
     protected var playerRotateEnabled = false
     protected var rotatedManually = false
@@ -1264,6 +1264,11 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
             }
 
             playerTracksBtt.setOnClickListener {
+                showTracksDialogue()
+            }
+
+            binding.exoSub.setOnClickListener {
+                autoHide()
                 showTracksDialogue()
             }
 

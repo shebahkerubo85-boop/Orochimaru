@@ -95,7 +95,7 @@
                             android:layout_height="48dp"
                             android:backgroundTint="#00FFFFFF"
                             android:focusable="true"
-                            android:src="@drawable/ic_round_settings_24"
+                            android:src="@drawable/ic_round_video_settings_24"
                             app:tint="#fff"
                             tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
 
@@ -117,7 +117,7 @@
                             android:focusable="true"
                             android:scaleX="-1"
                             android:src="@drawable/ic_round_subtitles_24"
-                            android:visibility="gone"
+                            android:visibility="visible"
                             app:tint="#fff"
                             tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
 
@@ -211,8 +211,6 @@
                         android:layout_width="72dp"
                         android:layout_height="72dp"
                         android:focusable="true"
-                        android:scaleX="1.5"
-                        android:scaleY="1.5"
                         android:src="@drawable/ic_round_skip_previous_24"
                         tools:ignore="ContentDescription,DuplicateSpeakableTextCheck" />
                 </androidx.cardview.widget.CardView>
@@ -229,8 +227,6 @@
                     <ImageButton
                         android:layout_width="72dp"
                         android:layout_height="72dp"
-                        android:scaleX="1.5"
-                        android:scaleY="1.5"
                         android:src="@drawable/ic_round_fast_rewind_24"
                         tools:ignore="ContentDescription,DuplicateSpeakableTextCheck" />
                 </androidx.cardview.widget.CardView>
@@ -270,8 +266,6 @@
                         android:layout_width="72dp"
                         android:layout_height="72dp"
                         android:layout_gravity="center"
-                        android:scaleX="1.5"
-                        android:scaleY="1.5"
                         android:src="@drawable/ic_round_fast_forward_24"
                         tools:ignore="ContentDescription,DuplicateSpeakableTextCheck" />
                 </androidx.cardview.widget.CardView>
@@ -290,8 +284,6 @@
                         android:layout_height="72dp"
                         android:focusable="true"
                         android:background="?android:attr/selectableItemBackground"
-                        android:scaleX="1.5"
-                        android:scaleY="1.5"
                         android:src="@drawable/ic_round_skip_next_24"
                         tools:ignore="ContentDescription,DuplicateSpeakableTextCheck" />
                 </androidx.cardview.widget.CardView>
