@@ -389,13 +389,11 @@
                         app:tint="#fff"
                         tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
 
-                        <ani.sanin.SpinnerNoSwipe
+                        <ImageView
                             android:id="@+id/exo_ep_sel"
                             android:layout_width="match_parent"
                             android:layout_height="48dp"
                             android:background="@null"
-                            android:entries="@array/tips"
-                            android:popupBackground="@drawable/round_corner"
                             android:visibility="invisible"
                             tools:ignore="SpeakableTextPresentCheck" />
                     </RelativeLayout>
