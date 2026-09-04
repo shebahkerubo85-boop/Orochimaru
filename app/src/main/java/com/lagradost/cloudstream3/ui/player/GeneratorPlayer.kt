@@ -2050,8 +2050,6 @@ class GeneratorPlayer : FullScreenPlayer() {
         return viewModel.state.generatorState?.allMeta?.getOrNull(1) as? ResultEpisode != null
     }
 
-                            }
-    }
 
     @MainThread
     fun releasePlayer() {
@@ -2149,7 +2147,6 @@ class GeneratorPlayer : FullScreenPlayer() {
 
         binding.playerLoadingGoBack.setOnClickListener {
             exitPlayer()
-        }
         }
 
         observe(viewModel.currentStamps) { (stamps, instance) ->
