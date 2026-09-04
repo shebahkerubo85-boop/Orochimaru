@@ -341,6 +341,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
             }
 
             bottomPlayerBar.startAnimation(fadeAnimation)
+            bottomControls.startAnimation(fadeAnimation)
             playerOpenSource.startAnimation(fadeAnimation)
             playerTopHolder.startAnimation(fadeAnimation)
         }
