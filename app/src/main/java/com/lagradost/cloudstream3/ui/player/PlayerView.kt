@@ -231,33 +231,33 @@ class PlayerView @JvmOverloads constructor(
      */
     fun bindViews(root: View) {
         exoDuration = root.findViewById(androidx.media3.ui.R.id.exo_duration)
-        exoFfwdText = root.findViewById(R.id.exo_ffwd_text)
+        exoFfwdText = null
         exoPlayerView = root.findViewById(R.id.player_view)
         exoPosition = root.findViewById(R.id.exo_position)
-        exoRewText = root.findViewById(R.id.exo_rew_text)
-        piphide = root.findViewById(R.id.piphide)
-        playerBuffering = root.findViewById(R.id.player_buffering)
-        playerCenterMenu = root.findViewById(R.id.player_center_menu)
-        playerFfwd = root.findViewById(R.id.player_ffwd)
-        playerFfwdHolder = root.findViewById(R.id.player_ffwd_holder)
-        playerHolder = root.findViewById(R.id.player_holder)
-        playerPausePlay = root.findViewById(R.id.player_pause_play)
-        playerPausePlayHolderHolder = root.findViewById(R.id.player_pause_play_holder_holder)
-        playerProgressbarLeftHolder = root.findViewById(R.id.player_progressbar_left_holder)
-        playerProgressbarLeftIcon = root.findViewById(R.id.player_progressbar_left_icon)
-        playerProgressbarLeftLevel1 = root.findViewById(R.id.player_progressbar_left_level1)
-        playerProgressbarLeftLevel2 = root.findViewById(R.id.player_progressbar_left_level2)
-        playerProgressbarRightHolder = root.findViewById(R.id.player_progressbar_right_holder)
-        playerProgressbarRightIcon = root.findViewById(R.id.player_progressbar_right_icon)
-        playerProgressbarRightLevel1 = root.findViewById(R.id.player_progressbar_right_level1)
-        playerProgressbarRightLevel2 = root.findViewById(R.id.player_progressbar_right_level2)
-        playerRew = root.findViewById(R.id.player_rew)
-        playerRewHolder = root.findViewById(R.id.player_rew_holder)
-        playerSpeedupButton = root.findViewById(R.id.player_speedup_button)
-        playerVideoHolder = root.findViewById(R.id.player_video_holder)
-        subtitleHolder = root.findViewById(R.id.subtitle_holder)
-        timeLeft = root.findViewById(R.id.time_left)
-        timeLive = root.findViewById(R.id.time_live)
+        exoRewText = null
+        piphide = root.findViewById(R.id.exo_controller_margin)
+        playerBuffering = null
+        playerCenterMenu = null
+        playerFfwd = root.findViewById(R.id.exo_next_ep)
+        playerFfwdHolder = null
+        playerHolder = root.findViewById(R.id.exo_controller)
+        playerPausePlay = root.findViewById(androidx.media3.ui.R.id.exo_play)
+        playerPausePlayHolderHolder = null
+        playerProgressbarLeftHolder = null
+        playerProgressbarLeftIcon = null
+        playerProgressbarLeftLevel1 = null
+        playerProgressbarLeftLevel2 = null
+        playerProgressbarRightHolder = null
+        playerProgressbarRightIcon = null
+        playerProgressbarRightLevel1 = null
+        playerProgressbarRightLevel2 = null
+        playerRew = root.findViewById(R.id.exo_prev_ep)
+        playerRewHolder = null
+        playerSpeedupButton = null
+        playerVideoHolder = root.findViewById(R.id.exo_controller_cont)
+        subtitleHolder = null
+        timeLeft = root.findViewById(R.id.exo_dot_sep)
+        timeLive = root.findViewById(R.id.exo_live_badge)
     }
 
     /**

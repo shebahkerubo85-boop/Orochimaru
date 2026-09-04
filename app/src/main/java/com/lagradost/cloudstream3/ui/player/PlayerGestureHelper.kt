@@ -863,7 +863,7 @@ class PlayerGestureHelper(private val playerView: PlayerView) {
     }
 
     /**
-     * Fades playerRewHolder, playerFfwdHolder, and playerPausePlay to [fadeTo] (0f or 1f).
+     * Fades playerRewHolder, playerFfwdHolder, and exoPlay to [fadeTo] (0f or 1f).
      * Always resets the holder alphas to 1f first so any stale fillAfter state is cleared.
      * Called from host fragments' show/hide control animations so both GeneratorPlayer and trailer share
      * the same fade logic.
@@ -875,23 +875,23 @@ class PlayerGestureHelper(private val playerView: PlayerView) {
         // not hold reliably across all views once any of them restarts the animation.
         playerView.playerRewHolder?.let  { it.alpha = 1f; it.startAnimation(makeAnim()) }
         playerView.playerFfwdHolder?.let { it.alpha = 1f; it.startAnimation(makeAnim()) }
-        playerView.playerPausePlay?.startAnimation(makeAnim())
+        playerView.exoPlay?.startAnimation(makeAnim())
     }
 
     /** Plays the rewind animation and seeks back by [fastForwardTime]. */
     fun rewind() {
         try {
             val rewHolder = playerView.playerRewHolder ?: return
-            val rew = playerView.playerRew
+            val rew = playerView.exoPrevEp
             val rewText = playerView.exoRewText
             val wasShowing = playerView.callbacks?.isUIShowing() ?: false
 
             // Only expose the parent chain when controls are currently hidden.
             val prevCenterMenuGone = playerView.playerCenterMenu?.isGone ?: false
-            val prevVideoHolderVisible = playerView.playerVideoHolder?.isVisible ?: true
+            val prevVideoHolderVisible = playerView.exoControllerCont?.isVisible ?: true
             if (!wasShowing) {
                 playerView.playerCenterMenu?.isGone = false
-                playerView.playerVideoHolder?.isVisible = true
+                playerView.exoControllerCont?.isVisible = true
             }
             // Always clear any stale fillAfter alpha so the button is visible during animation.
             rewHolder.alpha = 1f
@@ -907,7 +907,7 @@ class PlayerGestureHelper(private val playerView: PlayerView) {
                         // Restore parent chain only if we changed it and controls are still hidden.
                         if (!wasShowing && !(playerView.callbacks?.isUIShowing() ?: false)) {
                             playerView.playerCenterMenu?.isGone = prevCenterMenuGone
-                            playerView.playerVideoHolder?.isVisible = prevVideoHolderVisible
+                            playerView.exoControllerCont?.isVisible = prevVideoHolderVisible
                             rewHolder.alpha = 0f
                         }
                     }
@@ -923,15 +923,15 @@ class PlayerGestureHelper(private val playerView: PlayerView) {
     fun fastForward() {
         try {
             val ffwdHolder = playerView.playerFfwdHolder ?: return
-            val ffwd = playerView.playerFfwd
+            val ffwd = playerView.exoNextEp
             val ffwdText = playerView.exoFfwdText
             val wasShowing = playerView.callbacks?.isUIShowing() ?: false
 
             val prevCenterMenuGone = playerView.playerCenterMenu?.isGone ?: false
-            val prevVideoHolderVisible = playerView.playerVideoHolder?.isVisible ?: true
+            val prevVideoHolderVisible = playerView.exoControllerCont?.isVisible ?: true
             if (!wasShowing) {
                 playerView.playerCenterMenu?.isGone = false
-                playerView.playerVideoHolder?.isVisible = true
+                playerView.exoControllerCont?.isVisible = true
             }
             // Always clear any stale fillAfter alpha so the button is visible during animation.
             ffwdHolder.alpha = 1f
@@ -946,7 +946,7 @@ class PlayerGestureHelper(private val playerView: PlayerView) {
                         resetFastForwardText()
                         if (!wasShowing && !(playerView.callbacks?.isUIShowing() ?: false)) {
                             playerView.playerCenterMenu?.isGone = prevCenterMenuGone
-                            playerView.playerVideoHolder?.isVisible = prevVideoHolderVisible
+                            playerView.exoControllerCont?.isVisible = prevVideoHolderVisible
                             ffwdHolder.alpha = 0f
                         }
                     }
@@ -1004,7 +1004,7 @@ class PlayerGestureHelper(private val playerView: PlayerView) {
             /** Single tap (first tap, or too slow for double-tap) */
             tapCount = 0
             val token = ++doubleTapToken
-            playerView.playerHolder?.postDelayed({
+            playerView.exoController?.postDelayed({
                 if (token == doubleTapToken) {
                     onSingleTap()
                 }
@@ -1041,14 +1041,14 @@ class PlayerGestureHelper(private val playerView: PlayerView) {
     /** Touch gestures */
 
     fun setupTouchGestures() {
-        val holder = playerView.playerHolder ?: return
+        val holder = playerView.exoController ?: return
         @SuppressLint("ClickableViewAccessibility")
         holder.setOnTouchListener(::handleGesture)
     }
 
     private fun isValidTouch(rawX: Float, rawY: Float): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val holder = playerView.playerHolder ?: return true
+            val holder = playerView.exoController ?: return true
             val insets = holder.rootWindowInsets.getInsetsIgnoringVisibility(WindowInsets.Type.systemBars())
             val validHeight = rawY > insets.top && rawY < screenHeightWithOrientation - insets.bottom
             val validWidth = rawX > insets.left && rawX < screenWidthWithOrientation - insets.right

@@ -223,7 +223,7 @@ class GeneratorPlayer : FullScreenPlayer() {
 
     override fun onTracksInfoChanged() {
         val tracks = player.getVideoTracks()
-        playerBinding?.playerTracksBtt?.isVisible =
+        playerBinding?.exoTracks?.isVisible =
             tracks.allVideoTracks.size > 1 || tracks.allAudioTracks.size > 1
         // Only set the preferred language if it is available.
         // Otherwise, it may give some users audio track init failed!
@@ -462,39 +462,7 @@ class GeneratorPlayer : FullScreenPlayer() {
         showDownloadProgress(event)
     }
 
-    private fun showDownloadProgress(event: DownloadEvent) {
-        activity?.runOnUiThread {
-            playerBinding?.downloadedProgress?.apply {
-                val indeterminate = event.totalBytes <= 0 || event.downloadedBytes <= 0
-                isIndeterminate = indeterminate
-                if (!indeterminate) {
-                    max = (event.totalBytes / 1000).toInt()
-                    progress = (event.downloadedBytes / 1000).toInt()
-                }
-            }
-            playerBinding?.downloadedProgressText.setText(
-                txt(
-                    R.string.download_size_format,
-                    android.text.format.Formatter.formatShortFileSize(
-                        context,
-                        event.downloadedBytes
-                    ),
-                    android.text.format.Formatter.formatShortFileSize(context, event.totalBytes)
-                )
-            )
-            val downloadSpeed =
-                android.text.format.Formatter.formatShortFileSize(context, event.downloadSpeed)
-            playerBinding?.downloadedProgressSpeedText?.text =
-                    // todo string fmt
-                event.connections?.let { connections ->
-                    "%s/s - %d Connections".format(downloadSpeed, connections)
-                } ?: downloadSpeed
 
-            // don't display when done
-            playerBinding?.downloadedProgressSpeedText?.isGone =
-                event.downloadedBytes != 0L && event.downloadedBytes - 1024 >= event.totalBytes
-        }
-    }
 
     private fun loadLink(link: VideoLink?, sameEpisode: Boolean) {
         if (link == null) return
@@ -504,13 +472,6 @@ class GeneratorPlayer : FullScreenPlayer() {
         val isTorrent =
             link.first?.type == ExtractorLinkType.MAGNET || link.first?.type == ExtractorLinkType.TORRENT
 
-        playerBinding?.downloadHeader?.isVisible = false
-        playerBinding?.downloadHeaderToggle?.isVisible = isTorrent
-        if (!isLayout(PHONE)) {
-            playerBinding?.downloadBothHeader?.isVisible = isTorrent
-        }
-
-        showDownloadProgress(DownloadEvent(0, 0, 0, null))
 
         // uiReset() // Removed due to UX
 
@@ -1629,50 +1590,7 @@ class GeneratorPlayer : FullScreenPlayer() {
     }
 
     private fun showPlayerMetadata() {
-        val overlay = playerBinding?.playerMetadataScrim ?: return
-
-        val titleView = overlay.findViewById<TextView>(R.id.player_movie_title)
-        val logoView = overlay.findViewById<ImageView>(R.id.player_movie_logo)
-        val metaView = overlay.findViewById<TextView>(R.id.player_movie_meta)
-        val descView = overlay.findViewById<TextView>(R.id.player_movie_overview)
-
-        val load = viewModel.state.generatorState?.response ?: return
-        val episode = currentMeta as? ResultEpisode
-        titleView.text = load.name
-
-        bindLogo(
-            url = load.logoUrl,
-            headers = load.posterHeaders,
-            titleView = titleView,
-            logoView = logoView
-        )
-
-        val meta = arrayOf(
-            load.tags?.takeIf { it.isNotEmpty() }?.take(6)?.joinToString(", "),
-            load.year?.toString(),
-            if (!load.type.isMovieType())
-                context?.getShortSeasonText(
-                    episode = episode?.episode,
-                    season = episode?.season
-                )
-            else null,
-            load.score?.let { "⭐ $it" }
-        ).filterNotNull()
-            .joinToString(" • ")
-
-        metaView.text = meta
-        metaView.isVisible = meta.isNotBlank()
-
-
-        val description = load.plot
-
-        if (!description.isNullOrBlank()) {
-            descView.isVisible = true
-            descView.text = description.html()
-        } else {
-            descView.isVisible = false
-
-        }
+        // Metadata overlay removed — use TMDb integration
     }
 
     override fun nextEpisode() {
@@ -1774,17 +1692,17 @@ class GeneratorPlayer : FullScreenPlayer() {
             }
         }
 
-        playerBinding?.playerSkipOp?.isVisible = isOpVisible
+        // playerSkipOp removed
 
         when {
             isLayout(PHONE) ->
-                playerBinding?.playerSkipEpisode?.isVisible =
+                // playerSkipEpisode removed
                     !isOpVisible && viewModel.hasNextEpisode() == true
 
             else -> {
                 val hasNextEpisode = viewModel.hasNextEpisode() == true
-                playerBinding?.playerGoForward?.isVisible = hasNextEpisode
-                playerBinding?.playerGoForwardRoot?.isVisible = hasNextEpisode
+                // playerGoForward removed
+                // playerGoForwardRoot removed
             }
 
         }
@@ -1900,7 +1818,7 @@ class GeneratorPlayer : FullScreenPlayer() {
         }
         context?.let { ctx ->
             //Generate video title
-            val playerVideoTitle = if (headerName != null) {
+            val exoEpSelText = if (headerName != null) {
                 (headerName + if (tvType.isEpisodeBased() && episode != null) if (season == null) " - ${
                     ctx.getString(
                         R.string.episode
@@ -1915,30 +1833,30 @@ class GeneratorPlayer : FullScreenPlayer() {
             } else {
                 ""
             }
-            return playerVideoTitle
+            return exoEpSelText
         }
         return ""
     }
 
     fun setTitle() {
-        var playerVideoTitle = getPlayerVideoTitle()
+        var exoEpSelText = getPlayerVideoTitle()
 
         //Hide title, if set in setting
         if (limitTitle < 0) {
-            playerBinding?.playerVideoTitle?.visibility = View.GONE
+            playerBinding?.exoEpSelText?.visibility = View.GONE
         } else {
             //Truncate video title if it exceeds limit
-            val differenceInLength = playerVideoTitle.length - limitTitle
+            val differenceInLength = exoEpSelText.length - limitTitle
             val margin = 3 //If the difference is smaller than or equal to this value, ignore it
             if (limitTitle > 0 && differenceInLength > margin) {
-                playerVideoTitle = playerVideoTitle.substring(0, limitTitle - 1) + "..."
+                exoEpSelText = exoEpSelText.substring(0, limitTitle - 1) + "..."
             }
         }
         val isFiller: Boolean? = (currentMeta as? ResultEpisode)?.isFiller
 
-        playerBinding?.playerEpisodeFillerHolder?.isVisible = isFiller ?: false
-        playerBinding?.playerVideoTitle?.text = playerVideoTitle
-        playerBinding?.offlinePin?.isVisible = viewModel.generator is DownloadFileGenerator
+        // playerEpisodeFillerHolder removed
+        playerBinding?.exoEpSelText?.text = exoEpSelText
+
     }
 
     fun setPlayerDimen(widthHeight: Pair<Int, Int>?) {
@@ -1951,11 +1869,6 @@ class GeneratorPlayer : FullScreenPlayer() {
             name?.takeIf { showName && it.isNotBlank() },
             resolution?.takeIf { showResolution && it.isNotBlank() },
         ).joinToString(" - ")
-
-        playerBinding?.playerVideoTitleRez?.apply {
-            text = result
-            isVisible = result.isNotBlank()
-        }
     }
 
 
@@ -2034,7 +1947,7 @@ class GeneratorPlayer : FullScreenPlayer() {
             audioCodec
         ).filter { !it.isNullOrBlank() }.joinToString(" • ")
 
-        playerBinding?.playerVideoInfo?.apply {
+        playerBinding?.exoVideoInfo?.apply {
             text = stats
             isVisible = showMediaInfo && stats.isNotBlank()
         }
@@ -2067,7 +1980,7 @@ class GeneratorPlayer : FullScreenPlayer() {
         if (timestampShowState == show) return
         skipIndex++
         timestampShowState = show
-        playerBinding?.skipChapterButton?.apply {
+        playerBinding?.exoSkip?.apply {
             val showWidth = 170.toPx
             val noShowWidth = 10.toPx
             //if((show && width == showWidth) || (!show && width == noShowWidth)) {
@@ -2082,7 +1995,7 @@ class GeneratorPlayer : FullScreenPlayer() {
             /** Focus instantly to make the focus color appear instantly */
             if (show && !isShowing) {
                 // Automatically request focus if the menu is not opened
-                playerBinding?.skipChapterButton?.requestFocus()
+                playerBinding?.exoSkip?.requestFocus()
             }
 
             // just in case
@@ -2094,10 +2007,10 @@ class GeneratorPlayer : FullScreenPlayer() {
             ).apply {
                 addListener(onEnd = {
                     if (!show) {
-                        playerBinding?.skipChapterButton?.isVisible = false
+                        playerBinding?.exoSkip?.isVisible = false
                         if (!isShowing) {
                             // Automatically return focus to play pause
-                            playerBinding?.playerPausePlay?.requestFocus()
+                            playerBinding?.exoPlay?.requestFocus()
                         }
                     }
                 })
@@ -2119,10 +2032,10 @@ class GeneratorPlayer : FullScreenPlayer() {
 
     override fun onTimestamp(timestamp: VideoSkipStamp?) {
         if (timestamp != null) {
-            playerBinding?.skipChapterButton?.setText(timestamp.uiText)
+            playerBinding?.exoSkip?.setText(timestamp.uiText)
             displayTimeStamp(true)
             val currentIndex = skipIndex
-            playerBinding?.skipChapterButton?.handler?.postDelayed({
+            playerBinding?.exoSkip?.handler?.postDelayed({
                 if (skipIndex == currentIndex)
                     displayTimeStamp(false)
             }, 6000)
@@ -2137,76 +2050,7 @@ class GeneratorPlayer : FullScreenPlayer() {
         return viewModel.state.generatorState?.allMeta?.getOrNull(1) as? ResultEpisode != null
     }
 
-    override fun showEpisodesOverlay() {
-        try {
-            playerBinding?.apply {
-                playerEpisodeList.setRecycledViewPool(EpisodeAdapter.sharedPool)
-                playerEpisodeList.adapter = EpisodeAdapter(
-                    false,
-                    { episodeClick ->
-                        if (episodeClick.action == ACTION_CLICK_DEFAULT) {
-                            isNextEpisode = false
-                            releasePlayer()
-                            playerEpisodeOverlay.isGone = true
-                            episodeClick.position?.let { viewModel.loadThisEpisode(it) }
-                        }
-                    },
-                    { downloadClickEvent ->
-                        DownloadButtonSetup.handleDownloadClick(downloadClickEvent)
-                    }
-                )
-                playerEpisodeList.setLinearListLayout(
-                    isHorizontal = false,
-                    nextUp = FOCUS_SELF,
-                    nextDown = FOCUS_SELF,
-                    nextRight = FOCUS_SELF,
-                )
-                val episodes = allMeta ?: emptyList()
-                (playerEpisodeList.adapter as? EpisodeAdapter)?.submitList(episodes)
-
-                // Scroll to current episode
-                viewModel.state.generatorState?.index?.let { index ->
-                    playerEpisodeList.scrollToPosition(index)
-                    // Ensure focus on tv
-                    if (isLayout(TV)) {
-                        playerEpisodeList.post {
-                            val viewHolder =
-                                playerEpisodeList.findViewHolderForAdapterPosition(index)
-                            viewHolder?.itemView?.requestFocus()
-                            viewHolder?.itemView?.let { itemView ->
-                                itemView.isFocusableInTouchMode = true
-                                itemView.requestFocus()
                             }
-                        }
-                    }
-                }
-
-                // update overlay season title
-                var lastTopIndex = -1
-                playerEpisodeList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-                    override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                        val layoutManager =
-                            recyclerView.layoutManager as? LinearLayoutManager ?: return
-                        val topIndex = layoutManager.findFirstCompletelyVisibleItemPosition()
-                        if (topIndex != RecyclerView.NO_POSITION && topIndex != lastTopIndex) {
-                            @Suppress("AssignedValueIsNeverRead")
-                            lastTopIndex = topIndex
-                            val topItem = episodes.getOrNull(topIndex)
-                            topItem?.let {
-                                playerEpisodeOverlayTitle.setText(
-                                    ResultViewModel2.seasonToTxt(
-                                        topItem.seasonData,
-                                        topItem.seasonIndex
-                                    )
-                                )
-                            }
-                        }
-                    }
-                })
-            }
-        } catch (e: Exception) {
-            logError(e)
-        }
     }
 
     @MainThread
@@ -2275,9 +2119,9 @@ class GeneratorPlayer : FullScreenPlayer() {
             // Set up TV clock visibility
             if (isLayout(TV)) {
                 val showTvClock = settingsManager.getBoolean(ctx.getString(R.string.tv_layout_clock_key), false)
-                playerBinding?.playerVideoClock?.isVisible = showTvClock
+                // playerVideoClock removed
             } else {
-                playerBinding?.playerVideoClock?.isVisible = false
+                // playerVideoClock removed
             }
         }
 
@@ -2306,15 +2150,6 @@ class GeneratorPlayer : FullScreenPlayer() {
         binding.playerLoadingGoBack.setOnClickListener {
             exitPlayer()
         }
-
-        playerBinding?.downloadHeader?.setOnClickListener {
-            it?.isVisible = false
-        }
-
-        playerBinding?.downloadHeaderToggle?.setOnClickListener {
-            playerBinding?.downloadHeader?.let {
-                it.isVisible = !it.isVisible
-            }
         }
 
         observe(viewModel.currentStamps) { (stamps, instance) ->

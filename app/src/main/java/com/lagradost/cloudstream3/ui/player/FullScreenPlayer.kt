@@ -167,12 +167,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 || isShowingEpisodeOverlay
 
     private fun scheduleMetadataVisibility() {
-        val metadataScrim = playerBinding?.playerMetadataScrim ?: return
-        val ctx = metadataScrim.context ?: return
-
-        if (!ctx.shouldShowPlayerMetadata()) {
-            metadataScrim.isVisible = false
-            metadataVisibilityToken++
+        metadataVisibilityToken++
             return
         }
 
@@ -255,8 +250,8 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
     }
 
     private fun animateLayoutChangesForSubtitles() =
-        // Post here as bottomPlayerBar is gone the first frame => bottomPlayerBar.height = 0
-        playerBinding?.bottomPlayerBar?.post {
+        // Post here as exoTimelineCont is gone the first frame => exoTimelineCont.height = 0
+        playerBinding?.exoTimelineCont?.post {
             val sView = subView ?: return@post
             val sStyle = CustomDecoder.style
             val binding = playerBinding ?: return@post
@@ -265,7 +260,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 // We do not want to drag down subtitles if the subtitle elevation is large
                 -sStyle.elevation.toPx,
                 // The lib uses Invisible instead of Gone for no reason
-                binding.previewFrameLayout.height - binding.bottomPlayerBar.height
+                binding.exoTimelineCont.height
             ) else -sStyle.elevation.toPx
 
             sView.animateY(move.toFloat())
@@ -297,28 +292,22 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 updateUIVisibility()
             } else {
                 toggleEpisodesOverlay(false)
-                playerHolder.postDelayed({ updateUIVisibility() }, 200)
+                exoController.postDelayed({ updateUIVisibility() }, 200)
             }
 
             val titleMove = if (isShowing) 0f else -50.toPx.toFloat()
 
             listOfNotNull(
-                playerVideoTitleHolder,
-                playerVideoTitleRez,
-                playerVideoInfo,
-                playerGoBackHolder,
-                playerVideoClock,
+                exoVideoInfo,
             ).forEach {
                 it.animateY(titleMove)
             }
 
-            playerMetadataScrim.animateY(1f)
-
             val playerBarMove = if (isShowing) 0f else 50.toPx.toFloat()
-            bottomPlayerBar.animateY(playerBarMove)
+            exoTimelineCont.animateY(playerBarMove)
 
             if (isLayout(PHONE)) {
-                playerEpisodesButton.animateX(if (isShowing) 0f else 50.toPx.toFloat())
+                exoEpSel.animateX(if (isShowing) 0f else 50.toPx.toFloat())
             }
 
             val fadeTo = if (isShowing) 1f else 0f
@@ -331,19 +320,14 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
 
             val playerSourceMove = if (isShowing) 0f else -50.toPx.toFloat()
 
-            playerOpenSource.animateY(playerSourceMove)
+
 
             if (!isLocked) {
                 playerHostView?.gestureHelper?.animateCenterControls(fadeTo)
-                shadowOverlay.isVisible = true
-                shadowOverlay.startAnimation(fadeAnimation)
-                downloadBothHeader.startAnimation(fadeAnimation)
             }
 
-            bottomPlayerBar.startAnimation(fadeAnimation)
-            bottomControls.startAnimation(fadeAnimation)
-            playerOpenSource.startAnimation(fadeAnimation)
-            playerTopHolder.startAnimation(fadeAnimation)
+            exoTimelineCont.startAnimation(fadeAnimation)
+            exoBottomCont.startAnimation(fadeAnimation)
         }
     }
 
@@ -353,7 +337,6 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
             track.sampleMimeType == MimeTypes.APPLICATION_MEDIA3_CUES
         }
         // Subtitle offset is not possible on built-in media3 tracks
-        playerBinding?.playerSubtitleOffsetBtt?.isGone =
             isBuiltinSubtitles || tracks.currentTextTracks.isEmpty()
     }
 
@@ -454,7 +437,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
             if (isShowingEpisodeOverlay) {
                 // isShowingEpisodeOverlay pauses, so this makes it easier to unpause
                 if (isLayout(TV or EMULATOR)) {
-                    playerPausePlay?.requestFocus()
+                    exoPlay?.requestFocus()
                 }
                 toggleEpisodesOverlay(show = false)
                 return@attachBackPressedCallback
@@ -482,7 +465,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
     private fun setPlayBackSpeed(speed: Float) {
         try {
             DataStoreHelper.playBackSpeed = speed
-            playerBinding?.playerSpeedBtt?.text =
+            playerBinding?.exoPlaybackSpeed?.text =
                 getString(R.string.player_speed_text_format).format(speed)
                     .replace(".0x", "x")
         } catch (e: Exception) {
@@ -703,7 +686,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         if (isShowing) autoHide()
         activity?.hideSystemUI()
         animateLayoutChanges()
-        if (playerBinding?.playerEpisodeOverlay?.isGone == true) playerBinding?.playerPausePlay?.requestFocus()
+        playerBinding?.exoPlay?.requestFocus()
     }
 
     private fun toggleLock() {
@@ -716,7 +699,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         updateOrientation(true) // set true to ignore auto rotate to stay in current orientation
 
         if (isLocked && isShowing) {
-            playerBinding?.playerHolder?.postDelayed({
+            playerBinding?.exoController?.postDelayed({
                 if (isLocked && isShowing) {
                     onClickChange()
                 }
@@ -726,32 +709,18 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         val fadeTo = if (isLocked) 0f else 1f
         playerHostView?.gestureHelper?.animateCenterControls(fadeTo)
         playerBinding?.apply {
-            val fadeAnimation = AlphaAnimation(playerVideoTitleHolder.alpha, fadeTo).apply {
+            val fadeAnimation = AlphaAnimation(1f, fadeTo).apply {
                 duration = 100
                 fillAfter = true
             }
 
             updateUIVisibility()
-            downloadBothHeader.startAnimation(fadeAnimation)
 
             if (hasEpisodes)
-                playerEpisodesButton.startAnimation(fadeAnimation)
-            // player_media_route_button?.startAnimation(fadeAnimation)
-            // video_bar.startAnimation(fadeAnimation)
+                exoEpSel.startAnimation(fadeAnimation)
 
-            // TITLE
-            playerVideoTitleRez.startAnimation(fadeAnimation)
-            playerVideoInfo.startAnimation(fadeAnimation)
-            playerEpisodeFiller.startAnimation(fadeAnimation)
-            playerVideoTitleHolder.startAnimation(fadeAnimation)
-            playerTopHolder.startAnimation(fadeAnimation)
-            // BOTTOM
-            playerLockHolder.startAnimation(fadeAnimation)
-            // player_go_back_holder?.startAnimation(fadeAnimation)
-            shadowOverlay.isVisible = true
-            shadowOverlay.startAnimation(fadeAnimation)
+            exoVideoInfo.startAnimation(fadeAnimation)
         }
-        updateLockUI()
     }
 
     private fun updateUIVisibility() {
@@ -765,39 +734,14 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
             }
         }
         playerBinding?.apply {
-            playerLockHolder.isGone = isGone
-            playerVideoBar.isGone = isGone
-
-            playerPausePlayHolderHolder.isGone =
-                isGone || currentPlayerStatus == CSPlayerLoading.IsBuffering
-            playerTopHolder.isGone = isGone
             val showPlayerEpisodes = !isGone && isThereEpisodes()
-            playerEpisodesButtonRoot.isVisible = showPlayerEpisodes
-            playerEpisodesButton.isVisible = showPlayerEpisodes
-            playerVideoTitleHolder.isGone = togglePlayerTitleGone || playerVideoTitle.text.isBlank()
-            playerVideoTitleRez.isGone = isGone || playerVideoTitleRez.text.isBlank()
-            playerEpisodeFiller.isGone = isGone
-            playerCenterMenu.isGone = isGone
-            playerLock.isGone = !isShowing
-            playerGoBackHolder.isGone = isGone
-            playerSourcesBtt.isGone = isGone
-            shadowOverlay.isGone = isGone
-            playerSkipEpisode.isClickable = !isGone
+            exoEpSel.isVisible = showPlayerEpisodes
+            exoEpSelText.isGone = togglePlayerTitleGone || exoEpSelText.text.isBlank()
         }
     }
 
     private fun updateLockUI() {
-        playerBinding?.apply {
-            playerLock.setIconResource(if (isLocked) R.drawable.video_locked else R.drawable.video_unlocked)
-            val color = if (isLocked) context?.colorFromAttribute(R.attr.colorPrimary)
-            else Color.WHITE
-            if (color != null) {
-                playerLock.setTextColor(color)
-                playerLock.iconTint = ColorStateList.valueOf(color)
-                playerLock.rippleColor =
-                    ColorStateList.valueOf(Color.argb(50, color.red, color.green, color.blue))
-            }
-        }
+        // Lock removed in exo layout
     }
 
     protected fun autoHide() {
@@ -831,10 +775,6 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
 
     @SuppressLint("SetTextI18n")
     override fun onSeekPreviewText(text: String?) {
-        playerBinding?.playerTimeText?.apply {
-            isVisible = text != null
-            if (text != null) this.text = text
-        }
     }
 
     override fun onHidePlayerUI() {
@@ -982,7 +922,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 if (!isShowing && !isLocked && !isShowingEpisodeOverlay) {
                     player.seekTime(-androidTVInterfaceOffSeekTime)
                     return true
-                } else if (playerBinding?.playerPausePlay?.isFocused == true) {
+                } else if (playerBinding?.exoPlay?.isFocused == true) {
                     player.seekTime(-androidTVInterfaceOnSeekTime)
                     return true
                 } else {
@@ -993,7 +933,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
             KeyEvent.KEYCODE_DPAD_RIGHT -> {
                 if (!isShowing && !isLocked && !isShowingEpisodeOverlay) {
                     player.seekTime(androidTVInterfaceOffSeekTime)
-                } else if (playerBinding?.playerPausePlay?.isFocused == true) {
+                } else if (playerBinding?.exoPlay?.isFocused == true) {
                     player.seekTime(androidTVInterfaceOnSeekTime)
                 } else {
                     return null
@@ -1066,7 +1006,6 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
 
     protected fun uiReset() {
         metadataVisibilityToken++
-        playerBinding?.playerMetadataScrim?.let {
             it.animate().cancel()
             it.alpha = 0f
             it.isVisible = false
@@ -1075,11 +1014,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         toggleEpisodesOverlay(false)
         // if nothing has loaded these buttons should not be visible
         playerBinding?.apply {
-            playerSkipEpisode.isVisible = false
-            playerGoForwardRoot.isVisible = false
-            playerTracksBtt.isVisible = false
-            playerSkipOp.isVisible = false
-            shadowOverlay.isVisible = false
+            exoTracks.isVisible = false
         }
         updateLockUI()
         updateUIVisibility()
@@ -1098,7 +1033,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         // Set up playerBinding before super initializes the player
         // (brightness overlay is now injected by PlayerView.initialize())
         playerBinding =
-            PlayerCustomLayoutBinding.bind(binding.root.findViewById(R.id.player_holder))
+            PlayerCustomLayoutBinding.bind(binding.root.findViewById(R.id.exo_controller))
 
         super.onBindingCreated(binding, savedInstanceState)
 
@@ -1106,7 +1041,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         playerHostView?.isFullScreen = true
 
         // Wire up the snap-hint outline view and schedule brightness overlay bounds update
-        playerHostView?.videoOutline = playerBinding?.videoOutline
+
         playerHostView?.requestUpdateBrightnessOverlayOnNextLayout()
 
         val view = binding.root
@@ -1165,9 +1100,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                                 ?: currentQualityProfile
             }
             playerBinding?.apply {
-                playerSpeedBtt.isVisible = playBackSpeedEnabled
-                playerResizeBtt.isVisible = playerResizeEnabled
-                playerRotateBtt.isVisible =
+                exoPlaybackSpeed.isVisible = playBackSpeedEnabled
                     if (isLayout(TV or EMULATOR)) false else playerRotateEnabled
                 if (hideControlsNames) {
                     hideControlsNames()
@@ -1180,11 +1113,6 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         playerBinding?.apply {
             if (isLayout(TV or EMULATOR)) {
                 mapOf(
-                    playerGoBack to playerGoBackText,
-                    playerRestart to playerRestartText,
-                    playerGoForward to playerGoForwardText,
-                    downloadHeaderToggle to downloadHeaderToggleText,
-                    playerEpisodesButton to playerEpisodesButtonText
                 ).forEach { (button, text) ->
                     button.setOnFocusChangeListener { _, hasFocus ->
                         if (!hasFocus) {
@@ -1192,10 +1120,8 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                             text.isVisible = false
                             return@setOnFocusChangeListener
                         }
-                        if (button.id == R.id.player_episodes_button) {
+                        if (button.id == R.id.exo_ep_sel) {
                             toggleEpisodesOverlay(show = true)
-                        } else {
-                            toggleEpisodesOverlay(show = false)
                         }
                         text.isSelected = true
                         text.isVisible = true
@@ -1203,80 +1129,33 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 }
             }
 
-            skipChapterButton.setOnClickListener {
-                // Switch focus for a better UX, as otherwise it is reset to a random button like "back button"
-                if(skipChapterButton.hasFocus()) {
-                    playerPausePlay.requestFocus()
+            exoSkip.setOnClickListener {
+                if(exoSkip.hasFocus()) {
+                    exoPlay.requestFocus()
                 }
                 player.handleEvent(CSPlayerEvent.SkipCurrentChapter)
             }
 
-            playerRotateBtt.setOnClickListener {
-                autoHide()
-                toggleRotate()
-            }
-
-            // init clicks
-            playerResizeBtt.setOnClickListener {
-                autoHide()
-                nextResize()
-            }
-
-            playerSpeedBtt.setOnClickListener {
+            exoPlaybackSpeed.setOnClickListener {
                 autoHide()
                 showSpeedDialog()
             }
 
-            playerSkipOp.setOnClickListener {
-                autoHide()
-                skipOp()
-            }
-
-            playerSkipEpisode.setOnClickListener {
-                autoHide()
-                player.handleEvent(CSPlayerEvent.NextEpisode)
-            }
-
-            playerGoForward.setOnClickListener {
-                autoHide()
-                player.handleEvent(CSPlayerEvent.NextEpisode)
-            }
-
-            playerRestart.setOnClickListener {
-                autoHide()
-                player.handleEvent(CSPlayerEvent.Restart)
-            }
-
-            playerLock.setOnClickListener {
-                autoHide()
-                toggleLock()
-            }
-
-            playerSubtitleOffsetBtt.setOnClickListener {
-                showSubtitleOffsetDialog()
-            }
-
-            playerGoBack.setOnClickListener {
+            exoBack.setOnClickListener {
                 activity?.popCurrentPage("FullScreenPlayer")
             }
 
-            playerSourcesBtt.setOnClickListener {
+            exoSource.setOnClickListener {
                 showMirrorsDialogue()
             }
 
-            playerTracksBtt.setOnClickListener {
+            exoTracks.setOnClickListener {
                 showTracksDialogue()
             }
 
             exoSub.setOnClickListener {
                 autoHide()
                 showTracksDialogue()
-            }
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                playerControlsScroll.setOnScrollChangeListener { _, _, _, _, _ ->
-                    autoHide()
-                }
             }
 
             exoProgress.registerPlayerView(playerView)
@@ -1296,7 +1175,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 }
                 return@setOnTouchListener false
             }
-            playerEpisodesButton.setOnClickListener {
+            exoEpSel.setOnClickListener {
                 toggleEpisodesOverlay(show = true)
             }
         }
@@ -1328,7 +1207,6 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 }
             }
         }
-        iterate(playerLockHolder.parent as LinearLayout)
     }
 
     override fun playerDimensionsLoaded(width: Int, height: Int) {
@@ -1355,25 +1233,6 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
     }
 
     private fun animateEpisodesOverlay(show: Boolean) {
-        playerBinding?.playerEpisodeOverlay?.let { overlay ->
-            overlay.animate().cancel()
-            (overlay.parent as? ViewGroup)?.layoutTransition = null // Disable layout transitions
-
-            val offset = 50 * overlay.resources.displayMetrics.density
-
-            overlay.translationX = if (show) offset else 0f
-            playerBinding?.playerEpisodeOverlay?.isVisible = true
-
-            overlay.animate()
-                .translationX(if (show) 0f else offset)
-                .alpha(if (show) 1f else 0f)
-                .setDuration(300)
-                .setInterpolator(AccelerateDecelerateInterpolator()).withEndAction {
-                    if (!show) {
-                        playerBinding?.playerEpisodeOverlay?.isGone = true
-                    }
-                }
-                .start()
-        }
+        // Episode overlay removed — use exo_ep_sel spinner instead
     }
 }
