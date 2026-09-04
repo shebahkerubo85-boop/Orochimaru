@@ -167,52 +167,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 || isShowingEpisodeOverlay
 
     private fun scheduleMetadataVisibility() {
-        metadataVisibilityToken++
-            return
-        }
-
-        if (isLayout(PHONE)) {
-            metadataScrim.isVisible = false
-            metadataVisibilityToken++
-            return
-        }
-
-        val isPaused = currentPlayerStatus == CSPlayerLoading.IsPaused
-        val token = ++metadataVisibilityToken
-
-        if (isPaused) {
-            metadataScrim.postDelayed({
-                /** Make sure the user has not interacted with anything */
-                if (token != metadataVisibilityToken) return@postDelayed
-                /** If already visible, then do not rerun the animation */
-                if (metadataScrim.isVisible) return@postDelayed
-                /** Failsafe, as this should only be shown when paused */
-                if (currentPlayerStatus != CSPlayerLoading.IsPaused) return@postDelayed
-                /** We do not want to show the logo in the background when the user is within another screen */
-                if (isDialogOpen()) return@postDelayed
-
-                metadataScrim.alpha = 0f
-                metadataScrim.isVisible = true
-                metadataScrim.animate()
-                    .alpha(1f)
-                    .setDuration(500L)
-                    .setInterpolator(DecelerateInterpolator())
-                    .start()
-                hidePlayerUI()
-            }, 8000L)
-        } else {
-            if (metadataScrim.isVisible) {
-                metadataScrim.animate()
-                    .alpha(0f)
-                    .setDuration(300L)
-                    .setInterpolator(AccelerateDecelerateInterpolator())
-                    .withEndAction {
-                        metadataScrim.alpha = 0f      // force final state
-                        metadataScrim.isVisible = false
-                    }
-                    .start()
-            }
-        }
+        // Metadata overlay removed — use TMDb integration
     }
 
     override fun onDestroyView() {
@@ -1006,10 +961,6 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
 
     protected fun uiReset() {
         metadataVisibilityToken++
-            it.animate().cancel()
-            it.alpha = 0f
-            it.isVisible = false
-        }
         isShowing = false
         toggleEpisodesOverlay(false)
         // if nothing has loaded these buttons should not be visible
