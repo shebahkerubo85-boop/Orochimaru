@@ -1267,7 +1267,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 showTracksDialogue()
             }
 
-            binding.exoSub.setOnClickListener {
+            exoSub.setOnClickListener {
                 autoHide()
                 showTracksDialogue()
             }
