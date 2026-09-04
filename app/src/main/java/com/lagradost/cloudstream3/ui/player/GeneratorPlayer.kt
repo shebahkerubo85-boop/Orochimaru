@@ -33,6 +33,7 @@ import androidx.core.content.edit
 import androidx.core.text.toSpanned
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
+import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Format.NO_VALUE
@@ -183,6 +184,11 @@ class GeneratorPlayer : FullScreenPlayer() {
     private val currentMeta: Any? get() = viewModel.state.generatorState?.meta
     private val nextMeta: Any? get() = viewModel.state.generatorState?.nextMeta
 
+    private var drawerLayout: DrawerLayout? = null
+    private var episodeRail: EpisodeRailController? = null
+    private var subtitleRail: SubtitleRailController? = null
+    private var trackRail: TrackRailController? = null
+
     private var isPlayerActive: AtomicBoolean = AtomicBoolean(false)
     private var isNextEpisode: Boolean = false // this is used to reset the watch time
 
@@ -225,6 +231,7 @@ class GeneratorPlayer : FullScreenPlayer() {
         val tracks = player.getVideoTracks()
         playerBinding?.exoTracks?.isVisible =
             tracks.allVideoTracks.size > 1 || tracks.allAudioTracks.size > 1
+        playerBinding?.exoAudio?.isVisible = tracks.allAudioTracks.size > 1
         // Only set the preferred language if it is available.
         // Otherwise, it may give some users audio track init failed!
         if (tracks.allAudioTracks.any { it.language == preferredAudioTrackLanguage }) {
@@ -2049,6 +2056,123 @@ class GeneratorPlayer : FullScreenPlayer() {
         return viewModel.state.generatorState?.allMeta?.getOrNull(1) as? ResultEpisode != null
     }
 
+    override fun openEpisodesRail() {
+        if (isThereEpisodes()) episodeRail?.open()
+    }
+
+    override fun openSubtitleRail() {
+        subtitleRail?.open()
+    }
+
+    override fun openTracksRail() {
+        trackRail?.open()
+    }
+
+    override fun onPlayerBackPressed(): Boolean {
+        if (subtitleRail?.isOpen() == true) {
+            subtitleRail?.close()
+            return true
+        }
+        if (episodeRail?.isOpen() == true) {
+            episodeRail?.close()
+            return true
+        }
+        if (trackRail?.isOpen() == true) {
+            trackRail?.close()
+            return true
+        }
+        return false
+    }
+
+    private fun setupPlayerRails(binding: FragmentPlayerBinding) {
+        val root = binding.root
+        val drawer = root.findViewById<DrawerLayout>(R.id.playerDrawerLayout) ?: return
+        drawerLayout = drawer
+
+        // Keep the drawers swipe-locked; they only open from their player buttons.
+        drawer.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
+
+        drawer.addDrawerListener(object : DrawerLayout.DrawerListener {
+            override fun onDrawerSlide(drawerView: View, slideOffset: Float) {}
+
+            override fun onDrawerOpened(drawerView: View) {
+                when (drawerView.id) {
+                    R.id.episodeDrawer -> episodeRail?.onDrawerOpened()
+                    R.id.subtitleDrawer -> subtitleRail?.onDrawerOpened()
+                }
+            }
+
+            override fun onDrawerClosed(drawerView: View) {
+                when (drawerView.id) {
+                    R.id.episodeDrawer -> episodeRail?.onDrawerClosed()
+                    R.id.subtitleDrawer -> subtitleRail?.onDrawerClosed()
+                }
+            }
+
+            override fun onDrawerStateChanged(newState: Int) {}
+        })
+
+        episodeRail = EpisodeRailController(
+            drawer = drawer,
+            content = root.findViewById(R.id.episodeDrawer),
+            seasonScroll = root.findViewById(R.id.episodeRailSeasonScroll),
+            seasonChips = root.findViewById(R.id.episodeRailSeasonChips),
+            closeButton = root.findViewById(R.id.episodeDrawerClose),
+            recycler = root.findViewById(R.id.episodeDrawerList),
+            episodesProvider = { allMeta ?: emptyList() },
+            currentIndexProvider = { viewModel.episodeIndex },
+            onEpisodeSelected = { pos ->
+                closeRails()
+                if (pos != viewModel.episodeIndex) {
+                    isNextEpisode = true
+                    releasePlayer()
+                    viewModel.loadThisEpisode(pos)
+                }
+            }
+        )
+
+        subtitleRail = SubtitleRailController(
+            drawer = drawer,
+            content = root.findViewById(R.id.subtitleDrawer),
+            languageButton = root.findViewById(R.id.subtitleLangButton),
+            closeButton = root.findViewById(R.id.subtitleDrawerClose),
+            recycler = root.findViewById(R.id.subtitleDrawerList),
+            subtitlesProvider = { viewModel.state.subtitles.toList() },
+            currentSubtitleProvider = { currentSelectedSubtitles },
+            onSubtitleSelected = { sub ->
+                val ctx = context
+                if (setSubtitles(sub, userInitiated = true)) {
+                    player.saveData()
+                    if (ctx != null) player.reloadPlayer(ctx)
+                    player.handleEvent(CSPlayerEvent.Play)
+                }
+            }
+        )
+
+        trackRail = TrackRailController(
+            content = root.findViewById(R.id.tracksDrawer),
+            closeButton = root.findViewById(R.id.tracksDrawerClose),
+            recycler = root.findViewById(R.id.tracksDrawerList),
+            tracksProvider = { player.getVideoTracks() },
+            onVideoTrackSelected = { track ->
+                player.setMaxVideoSize(
+                    track.width ?: Int.MAX_VALUE,
+                    track.height ?: Int.MAX_VALUE,
+                    track.id
+                )
+            },
+            onAudioTrackSelected = { track ->
+                player.setPreferredAudioTrack(track.language, track.id, track.formatIndex)
+            }
+        )
+    }
+
+    private fun closeRails() {
+        episodeRail?.close()
+        subtitleRail?.close()
+        trackRail?.close()
+    }
+
 
     @MainThread
     fun releasePlayer() {
@@ -2085,6 +2209,8 @@ class GeneratorPlayer : FullScreenPlayer() {
         unwrapBundle(arguments)
 
         super.onBindingCreated(binding, savedInstanceState)
+
+        setupPlayerRails(binding)
 
         // Avoid showing no links found
         if (generator == null || index == null) {
@@ -2156,6 +2282,7 @@ class GeneratorPlayer : FullScreenPlayer() {
         observe(viewModel.currentSubtitles) { (subtitles, instance) ->
             if (instance != viewModel.state.instance) return@observe // Outdated observe
             player.setActiveSubtitles(subtitles)
+            playerBinding?.exoSub?.isVisible = subtitles.isNotEmpty()
 
             // If the file is downloaded then do not select auto select the subtitles
             // Downloaded subtitles cannot be selected immediately after loading since

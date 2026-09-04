@@ -2158,6 +2158,9 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
 <string name="single_plugin_disabled" formatted="true">%s (Disabled)</string>
     
 <string name="tracks">Tracks</string>
+<string name="audio">Audio</string>
+    
+<string name="no_tracks">No selectable tracks</string>
     
 <string name="video_tracks">Video tracks</string>
     

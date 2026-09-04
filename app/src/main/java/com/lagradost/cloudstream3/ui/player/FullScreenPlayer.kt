@@ -24,6 +24,7 @@ import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.AlphaAnimation
 import android.view.animation.DecelerateInterpolator
 import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.annotation.OptIn
 import androidx.appcompat.app.AlertDialog
 import androidx.core.graphics.blue
@@ -38,6 +39,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.SimpleItemAnimator
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.slider.Slider
 import com.lagradost.cloudstream3.CommonActivity.keyEventListener
 import com.lagradost.cloudstream3.LoadResponse
 import ani.sanin.R
@@ -45,9 +47,13 @@ import ani.sanin.databinding.FragmentPlayerBinding
 import ani.sanin.databinding.PlayerCustomLayoutBinding
 import ani.sanin.databinding.SpeedDialogBinding
 import ani.sanin.databinding.SubtitleOffsetBinding
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
+import com.lagradost.cloudstream3.mvvm.safe
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.ui.player.GeneratorPlayer.Companion.subsProvidersIsActive
 import com.lagradost.cloudstream3.ui.player.source_priority.QualityDataHelper
+import com.lagradost.cloudstream3.ui.subtitles.SubtitlesFragment
 import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
 import com.lagradost.cloudstream3.ui.settings.Globals.PHONE
 import com.lagradost.cloudstream3.ui.settings.Globals.TV
@@ -65,6 +71,7 @@ import com.lagradost.cloudstream3.utils.UIHelper.popCurrentPage
 import com.lagradost.cloudstream3.utils.UIHelper.toPx
 import com.lagradost.cloudstream3.utils.setText
 import com.lagradost.cloudstream3.utils.txt
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 private const val SUBTITLE_DELAY_BUNDLE_KEY = "subtitle_delay"
@@ -115,6 +122,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
 
     private var isShowingEpisodeOverlay: Boolean = false
     private var previousPlayStatus: Boolean = false
+    protected var resizeCycleIndex = 0
 
     override fun fixLayout(view: View) = Unit
 
@@ -198,6 +206,22 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
 
     open fun isThereEpisodes(): Boolean {
         return false
+    }
+
+    /** Hooks implemented by concrete players to open the exo-style rails. */
+    protected open fun openEpisodesRail() {}
+    protected open fun openSubtitleRail() {}
+    protected open fun openTracksRail() {}
+
+    /** Returns true if the back press was consumed (e.g. by closing a rail). */
+    protected open fun onPlayerBackPressed(): Boolean = false
+
+    protected open fun openPlayerSettings() {
+        safe {
+            val subtitlesFragment = SubtitlesFragment()
+            subtitlesFragment.systemBarsAddPadding = true
+            subtitlesFragment.show(this.parentFragmentManager, "SubtitleSettings")
+        }
     }
 
     override fun exitedPipMode() {
@@ -390,6 +414,8 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                     playerBinding?.exoPlay?.requestFocus()
                 }
                 toggleEpisodesOverlay(show = false)
+                return@attachBackPressedCallback
+            } else if (onPlayerBackPressed()) {
                 return@attachBackPressedCallback
             } else if (isShowing && isLayout(TV or EMULATOR)) {
                 // netflix capture back and hide ~monke
@@ -630,6 +656,76 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         //}
     }
 
+    /** Exo-style single-choice speed picker. */
+    private fun showExoStyleSpeedDialog() {
+        val act = activity ?: return
+        val speeds =
+            arrayOf(
+                0.25f, 0.33f, 0.5f, 0.66f, 0.75f, 1f, 1.15f, 1.25f, 1.33f, 1.5f,
+                1.66f, 1.75f, 2f
+            )
+        val current = player.getPlaybackSpeed()
+        var checked = speeds.indexOfFirst { abs(it - current) < 0.01f }
+        if (checked < 0) checked = speeds.indexOf(1f)
+
+        val dialog = AlertDialog.Builder(act, R.style.AlertDialogCustom)
+            .setTitle(R.string.speed)
+            .setSingleChoiceItems(speeds.map { "${it}x" }.toTypedArray(), checked) { d, which ->
+                setPlayBackSpeed(speeds[which])
+                d.dismiss()
+                activity?.hideSystemUI()
+            }
+            .setOnDismissListener {
+                activity?.hideSystemUI()
+                selectSpeedDialog = null
+            }
+            .create()
+        selectSpeedDialog = dialog
+        dialog.show()
+    }
+
+    /** Exo-style long-press skip-time seekbar dialog. */
+    private fun showSkipTimeDialog(): Boolean {
+        val act = activity ?: return true
+        var skipTime = PrefManager.getVal<Int>(PrefName.SkipTime)
+        val dialog = Dialog(act, R.style.MyPopup)
+        dialog.setContentView(R.layout.item_seekbar_dialog)
+        dialog.setCancelable(true)
+        dialog.setCanceledOnTouchOutside(true)
+        dialog.window?.setLayout(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        val slider = dialog.findViewById<Slider>(R.id.seekbar)
+        val valueText = dialog.findViewById<TextView>(R.id.seekbar_value)
+        slider.value = if (skipTime in 1..120) skipTime.toFloat() else 120f
+        valueText.text = skipTime.toString()
+        slider.addOnChangeListener { _, value, _ ->
+            skipTime = value.toInt()
+            PrefManager.setVal(PrefName.SkipTime, skipTime)
+            playerBinding?.exoSkipTime?.text = skipTime.toString()
+            valueText.text = skipTime.toString()
+        }
+        slider.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
+            override fun onStartTrackingTouch(slider: Slider) {}
+
+            override fun onStopTrackingTouch(slider: Slider) {
+                dialog.dismiss()
+            }
+        })
+        dialog.show()
+        return true
+    }
+
+    /** Exo-style resize cycle: Fit -> Zoom -> Fill -> Fit. */
+    private fun cycleScreenMode() {
+        val order = listOf(PlayerResize.Fit, PlayerResize.Zoom, PlayerResize.Fill)
+        resizeCycleIndex = ((resizeCycleIndex + 1) % order.size).let { index ->
+            resize(order[index], showToast = true)
+            index
+        }
+    }
+
     private fun onClickChange() {
         isShowing = !isShowing
         if (isShowing) autoHide()
@@ -685,6 +781,8 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         playerBinding?.apply {
             val showPlayerEpisodes = !isGone && isThereEpisodes()
             exoEpSel.isVisible = showPlayerEpisodes
+            exoEpSelBtn.isVisible = showPlayerEpisodes
+            exoSkipOpEd.isVisible = showPlayerEpisodes
             exoEpSelText.isGone = togglePlayerTitleGone || exoEpSelText.text.isBlank()
         }
     }
@@ -821,7 +919,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
             }
 
             KeyEvent.KEYCODE_E, KeyEvent.KEYCODE_NUMPAD_3, KeyEvent.KEYCODE_3 -> {
-                showSpeedDialog()
+                showExoStyleSpeedDialog()
             }
 
             KeyEvent.KEYCODE_R, KeyEvent.KEYCODE_NUMPAD_0, KeyEvent.KEYCODE_0 -> {
@@ -902,7 +1000,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 if (isLocked || !isThereEpisodes()) {
                     return null
                 }
-                toggleEpisodesOverlay(true)
+                openEpisodesRail()
             }
 
             else -> return null // Avoid capturing all input
@@ -1055,16 +1153,23 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         }
 
         playerBinding?.apply {
+            val skipTime = PrefManager.getVal<Int>(PrefName.SkipTime)
+            exoSkipTime.text = skipTime.toString()
+
             exoSkip.setOnClickListener {
-                if(exoSkip.hasFocus()) {
+                if (exoSkip.hasFocus()) {
                     exoPlay.requestFocus()
                 }
-                player.handleEvent(CSPlayerEvent.SkipCurrentChapter)
+                player.seekTime(skipTime * 1000L)
+                autoHide()
+            }
+            exoSkip.setOnLongClickListener {
+                showSkipTimeDialog()
             }
 
             exoPlaybackSpeed.setOnClickListener {
                 autoHide()
-                showSpeedDialog()
+                showExoStyleSpeedDialog()
             }
 
             exoBack.setOnClickListener {
@@ -1075,13 +1180,64 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 showMirrorsDialogue()
             }
 
-            exoTracks.setOnClickListener {
-                showTracksDialogue()
+            exoEpSelBtn.setOnClickListener {
+                openEpisodesRail()
+            }
+
+            exoEpSelText.setOnClickListener {
+                openEpisodesRail()
+            }
+
+            exoEpSel.setOnClickListener {
+                openEpisodesRail()
             }
 
             exoSub.setOnClickListener {
                 autoHide()
-                showTracksDialogue()
+                openSubtitleRail()
+            }
+
+            exoAudio.setOnClickListener {
+                autoHide()
+                openTracksRail()
+            }
+
+            exoTracks.setOnClickListener {
+                autoHide()
+                openTracksRail()
+            }
+
+            exoSettings.setOnClickListener {
+                openPlayerSettings()
+            }
+
+            exoRotate.setOnClickListener {
+                toggleRotate()
+            }
+
+            exoScreen.setOnClickListener {
+                cycleScreenMode()
+            }
+
+            exoPip.setOnClickListener {
+                activity?.let { act ->
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && act.isPIPPossible()) {
+                        act.enterPictureInPictureMode()
+                    }
+                }
+            }
+
+            exoSkipOpEd.apply {
+                val settingsManager =
+                    PreferenceManager.getDefaultSharedPreferences(requireContext())
+                val key = requireContext().getString(R.string.enable_skip_op_from_database)
+                val enabled = settingsManager.getBoolean(key, true)
+                alpha = if (enabled) 1f else 0.3f
+                setOnClickListener {
+                    val newEnabled = !settingsManager.getBoolean(key, true)
+                    settingsManager.edit().putBoolean(key, newEnabled).apply()
+                    alpha = if (newEnabled) 1f else 0.3f
+                }
             }
 
             exoProgress.registerPlayerView(playerView)
@@ -1100,9 +1256,6 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                     }
                 }
                 return@setOnTouchListener false
-            }
-            exoEpSel.setOnClickListener {
-                toggleEpisodesOverlay(show = true)
             }
         }
         // init UI
