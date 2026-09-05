@@ -2840,7 +2840,7 @@ class ExoplayerView :
         }
     }
 
-    fun getSyncCues(): List<SyncCue> {
+    override fun getSyncCues(): List<SyncCue> {
         synchronized(storedSyncCues) {
             return storedSyncCues.toList()
         }

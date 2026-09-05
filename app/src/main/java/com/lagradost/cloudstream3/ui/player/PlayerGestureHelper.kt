@@ -215,8 +215,8 @@ class PlayerGestureHelper(private val playerView: PlayerView) {
     // ──────────────────────────────────────────────
 
     private val keyEventListener = object : BroadcastReceiver() {
-        override fun onReceive(ctx: Context?, intent: KeyEvent?) {
-            intent?.keyCode?.let { handleVolumeKey(it) }
+        override fun onReceive(context: Context, intent: Intent) {
+            intent.extras?.getInt(android.view.KeyEvent.EXTRA_KEY_EVENT, 0)?.let { handleVolumeKey(it) }
         }
     }
 
@@ -458,7 +458,7 @@ class PlayerGestureHelper(private val playerView: PlayerView) {
     }
 
     fun applyZoomMatrix(newMatrix: Matrix, animation: Boolean) {
-        val exoView = playerView.exoPlayerView ?: return
+        val exoView = playerView.exoPlayerView ?: return@safe
         if (!animation) {
             matrixAnimation?.cancel()
             matrixAnimation = null
@@ -647,10 +647,10 @@ class PlayerGestureHelper(private val playerView: PlayerView) {
 
     fun fastForward() {
         safe {
-            val exoView = playerView.exoPlayerView ?: return
+            val exoView = playerView.exoPlayerView ?: return@safe
             val ffwdHolder = exoView.findViewById<View>(R.id.exo_fast_forward)
             val ffwdText = exoView.findViewById<TextView>(R.id.exo_fast_forward_anim)
-            val prevCenterMenuGone = playerView.playerCenterMenu?.isGone ?: true
+            val prevCenterMenuGone = playerView.playerCenterMenu?.visibility == View.GONE
             val prevVideoHolderVisible = playerView.playerVideoHolder?.isVisible ?: true
             val wasShowing = playerView.callbacks?.isUIShowing() == true
 
@@ -670,7 +670,7 @@ class PlayerGestureHelper(private val playerView: PlayerView) {
 
     fun rewind() {
         safe {
-            val exoView = playerView.exoPlayerView ?: return
+            val exoView = playerView.exoPlayerView ?: return@safe
             val rewHolder = exoView.findViewById<View>(R.id.exo_fast_rewind)
             val rewText = exoView.findViewById<TextView>(R.id.exo_fast_rewind_anim)
 
@@ -686,6 +686,32 @@ class PlayerGestureHelper(private val playerView: PlayerView) {
                 }?.start()
             }, 400)
         }
+    }
+
+    // ──────────────────────────────────────────────
+    //  Missing helpers needed by FullScreenPlayer / ResultTrailerPlayer
+    // ──────────────────────────────────────────────
+
+    fun animateCenterControls(alpha: Float) {
+        val exoView = playerView.exoPlayerView ?: return
+        val controller = exoView.findViewById<View>(R.id.exo_controller_cont)
+        val ffwd = exoView.findViewById<View>(R.id.exo_fast_forward)
+        val rew = exoView.findViewById<View>(R.id.exo_fast_rewind)
+        controller?.animate()?.alpha(alpha)?.setDuration(150)?.start()
+        ffwd?.animate()?.alpha(alpha)?.setDuration(150)?.start()
+        rew?.animate()?.alpha(alpha)?.setDuration(150)?.start()
+    }
+
+    fun resetFastForwardText() {
+        val exoView = playerView.exoPlayerView ?: return
+        exoView.findViewById<TextView>(R.id.exo_fast_forward_anim)?.text =
+            context.getString(R.string.ffw_text_format).format(fastForwardTime / 1000)
+    }
+
+    fun resetRewindText() {
+        val exoView = playerView.exoPlayerView ?: return
+        exoView.findViewById<TextView>(R.id.exo_fast_rewind_anim)?.text =
+            "-${fastForwardTime / 1000}"
     }
 
     // ──────────────────────────────────────────────
@@ -734,7 +760,7 @@ class PlayerGestureHelper(private val playerView: PlayerView) {
 
     @SuppressLint("ClickableViewAccessibility")
     fun setupTouchGestures() {
-        val exoView = playerView.exoPlayerView ?: return
+        val exoView = playerView.exoPlayerView ?: return@safe
         val ctx = exoView.context
 
         rewindArea = exoView.findViewById(R.id.exo_rewind_area)
