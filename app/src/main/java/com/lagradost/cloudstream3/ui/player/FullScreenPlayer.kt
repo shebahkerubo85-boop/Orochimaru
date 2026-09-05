@@ -6,6 +6,7 @@ import android.app.Activity
 import android.app.Dialog
 import android.content.Context
 import android.content.DialogInterface
+import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.res.ColorStateList
 import android.content.res.Configuration
@@ -47,6 +48,7 @@ import ani.sanin.databinding.FragmentPlayerBinding
 import ani.sanin.databinding.PlayerCustomLayoutBinding
 import ani.sanin.databinding.SpeedDialogBinding
 import ani.sanin.databinding.SubtitleOffsetBinding
+import ani.sanin.settings.PlayerSettingsActivity
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import com.lagradost.cloudstream3.mvvm.safe
@@ -218,10 +220,9 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
     protected open fun onPlayerBackPressed(): Boolean = false
 
     protected open fun openPlayerSettings() {
-        safe {
-            val subtitlesFragment = SubtitlesFragment()
-            subtitlesFragment.systemBarsAddPadding = true
-            subtitlesFragment.show(this.parentFragmentManager, "SubtitleSettings")
+        activity?.let { act ->
+            player.handleEvent(CSPlayerEvent.Pause, PlayerEventSource.UI)
+            act.startActivity(Intent(act, PlayerSettingsActivity::class.java))
         }
     }
 

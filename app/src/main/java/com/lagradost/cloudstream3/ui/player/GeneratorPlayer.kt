@@ -62,7 +62,7 @@ import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.amap
 import ani.sanin.databinding.DialogOnlineSubtitlesBinding
 import ani.sanin.databinding.FragmentPlayerBinding
-import ani.sanin.databinding.PlayerSelectSourceAndSubsBinding
+import ani.sanin.media.SheetSourceSelector
 import ani.sanin.databinding.PlayerSelectTracksBinding
 import com.lagradost.cloudstream3.isAnimeOp
 import com.lagradost.cloudstream3.isEpisodeBased
@@ -232,6 +232,8 @@ class GeneratorPlayer : FullScreenPlayer() {
         playerBinding?.exoTracks?.isVisible =
             tracks.allVideoTracks.size > 1 || tracks.allAudioTracks.size > 1
         playerBinding?.exoAudio?.isVisible = tracks.allAudioTracks.size > 1
+        playerBinding?.exoSub?.isVisible =
+            tracks.allTextTracks.isNotEmpty() || viewModel.state.subtitles.isNotEmpty()
         // Only set the preferred language if it is available.
         // Otherwise, it may give some users audio track init failed!
         if (tracks.allAudioTracks.any { it.language == preferredAudioTrackLanguage }) {
@@ -980,394 +982,34 @@ class GeneratorPlayer : FullScreenPlayer() {
 
     override fun showMirrorsDialogue() {
         try {
-            currentSelectedSubtitles = player.getCurrentPreferredSubtitle()
-            //println("CURRENT SELECTED :$currentSelectedSubtitles of $currentSubs")
-            context?.let { ctx ->
-                val isPlaying = player.getIsPlaying()
-                player.handleEvent(CSPlayerEvent.Pause, PlayerEventSource.UI)
-                val currentSubtitles = sortSubs(viewModel.state.subtitles)
-
-                val sourceDialog = Dialog(ctx, R.style.DialogFullscreenPlayer)
-                val binding =
-                    PlayerSelectSourceAndSubsBinding.inflate(LayoutInflater.from(ctx), null, false)
-                sourceDialog.setContentView(binding.root)
-
-                fixSystemBarsPadding(binding.root)
-                selectSourceDialog = sourceDialog
-
-                sourceDialog.show()
-                val providerList = binding.sortProviders
-                val subtitleList = binding.sortSubtitles
-                val subtitleOptionList = binding.sortSubtitlesOptions
-
-                val loadFromFileFooter: TextView =
-                    layoutInflater.inflate(R.layout.sort_bottom_footer_add_choice, null) as TextView
-
-                loadFromFileFooter.text = ctx.getString(R.string.player_load_subtitles)
-                loadFromFileFooter.setOnClickListener {
-                    openSubPicker()
-                }
-                subtitleList.addFooterView(loadFromFileFooter)
-
-                var shouldDismiss = true
-
-                binding.subtitleSettingsBtt.setOnClickListener {
-                    safe {
-                        val subtitlesFragment = SubtitlesFragment()
-                        subtitlesFragment.systemBarsAddPadding = true
-                        subtitlesFragment.show(this.parentFragmentManager, "SubtitleSettings")
-                    }
-                }
-
-                fun dismiss() {
-                    if (isPlaying) {
-                        player.handleEvent(CSPlayerEvent.Play)
-                    }
-                    activity?.hideSystemUI()
-                }
-
-                if (subsProvidersIsActive) {
-                    val currentLoadResponse = viewModel.state.generatorState?.response
-
-                    val loadFromOpenSubsFooter: TextView = layoutInflater.inflate(
-                        R.layout.sort_bottom_footer_add_choice, null
-                    ) as TextView
-
-                    loadFromOpenSubsFooter.text =
-                        ctx.getString(R.string.player_load_subtitles_online)
-
-                    loadFromOpenSubsFooter.setOnClickListener {
-                        shouldDismiss = false
-                        sourceDialog.dismissSafe(activity)
-                        selectSourceDialog = null
-                        openOnlineSubPicker(it.context, currentLoadResponse) {
-                            dismiss()
-                        }
-                    }
-                    subtitleList.addFooterView(loadFromOpenSubsFooter)
-
-                    // subs from 1 button here
-                    val metadata = getMetaData()
-                    val queryName = metadata.name ?: currentLoadResponse?.name
-                    if (queryName != null) {
-                        val currentLanguageTagIETF: String = getAutoSelectLanguageTagIETF()
-                        val loadFromFirstSubsFooter: TextView = layoutInflater.inflate(
-                            R.layout.sort_bottom_footer_add_choice, null
-                        ) as TextView
-
-                        loadFromFirstSubsFooter.text =
-                            ctx.getString(R.string.player_load_one_subtitle_online)
-
-                        loadFromFirstSubsFooter.setOnClickListener {
-                            sourceDialog.dismissSafe(activity)
-                            selectSourceDialog = null
-                            showToast(R.string.loading)
-                            addFirstSub(
-                                SubtitleSearch(
-                                    query = queryName,
-                                    imdbId = currentLoadResponse?.getImdbId(),
-                                    tmdbId = currentLoadResponse?.getTMDbId()?.toInt(),
-                                    malId = currentLoadResponse?.getMalId()?.toInt(),
-                                    aniListId = currentLoadResponse?.getAniListId()?.toInt(),
-                                    epNumber = metadata.episode,
-                                    seasonNumber = metadata.season,
-                                    lang = currentLanguageTagIETF.ifBlank { null },
-                                    year = viewModel.currentSubtitleYear.value
-                                )
-                            )
-                        }
-                        subtitleList.addFooterView(loadFromFirstSubsFooter)
-                    }
-                }
-
-                var sourceIndex = 0
-                var startSource = 0
-                // Filtered and sorted links
-                var currentHiddenFooter: View? = null
-                var filteredLinks: List<DisplayLink> = emptyList()
-
-                fun refreshLinks(qualityProfile: Int) {
-                    val currentLinkUsed = currentSelectedLink
-                    // Always display current linkFooter
-                    val sortedLinks = viewModel.state.sortLinks(qualityProfile)
-
-                    filteredLinks = sortedLinks.filter { it.shouldUseLink || it.link == currentLinkUsed }
-
-                    if (sortedLinks.isEmpty()) {
-                        sourceDialog.findViewById<LinearLayout>(R.id.sort_sources_holder)?.isGone =
-                            true
-                    } else {
-                        startSource = filteredLinks.indexOfFirst { it.link == currentLinkUsed }
-                        sourceIndex = startSource
-
-                        val sourcesArrayAdapter =
-                            ArrayAdapter<String>(ctx, R.layout.sort_bottom_single_choice)
-
-                        sourcesArrayAdapter.addAll(filteredLinks.map { displayLink ->
-                            val (link, uri) = displayLink.link
-                            val name = link?.name ?: uri?.name ?: "NULL"
-                            "$name ${Qualities.getStringByInt(link?.quality)}"
-                        })
-
-                        providerList.choiceMode = AbsListView.CHOICE_MODE_SINGLE
-                        providerList.adapter = sourcesArrayAdapter
-                        providerList.setSelection(sourceIndex)
-                        providerList.setItemChecked(sourceIndex, true)
-
-                        providerList.setOnItemClickListener { _, _, which, _ ->
-                            sourceIndex = which
-                            providerList.setItemChecked(which, true)
-                        }
-
-                        providerList.setOnItemLongClickListener { _, _, position, _ ->
-                            sortedLinks.getOrNull(position)?.link?.first?.url?.let {
-                                clipboardHelper(
-                                    txt(R.string.video_source),
-                                    it
-                                )
-                            }
-                            true
-                        }
-
-                        val hiddenLinks = sortedLinks.size - filteredLinks.size
-                        providerList.removeFooterView(currentHiddenFooter)
-
-                        if (hiddenLinks > 0) {
-                            val hiddenLinksFooter: TextView = layoutInflater.inflate(
-                                R.layout.sort_bottom_footer_add_choice, null
-                            ) as TextView
-
-                            providerList.addFooterView(hiddenLinksFooter, null, false)
-                            currentHiddenFooter = hiddenLinksFooter
-
-                            val hiddenLinksText =
-                                ctx.resources.getQuantityString(R.plurals.links_hidden, hiddenLinks)
-                                    .format(hiddenLinks)
-                            hiddenLinksFooter.text = hiddenLinksText
-                            hiddenLinksFooter.setCompoundDrawables(null, null, null, null)
-                            hiddenLinksFooter.setTypeface(null, Typeface.ITALIC)
-                        }
-                    }
-                }
-
-                refreshLinks(currentQualityProfile)
-
-                sourceDialog.setOnDismissListener {
-                    if (shouldDismiss) dismiss()
-                    selectSourceDialog = null
-                }
-
-
-                val subsArrayAdapter =
-                    ArrayAdapter<Spanned>(ctx, R.layout.sort_bottom_single_choice)
-                subsArrayAdapter.add(ctx.getString(R.string.no_subtitles).html())
-
-                val subtitlesGrouped =
-                    currentSubtitles.groupBy { it.originalName }.map { (key, value) ->
-                        key to value.sortedBy { it.nameSuffix.toIntOrNull() ?: 0 }
-                    }.toMap()
-                val subtitlesGroupedList = subtitlesGrouped.entries.toList()
-
-                val subtitles = subtitlesGrouped.map { it.key.html() }
-
-                val subtitleGroupIndexStart =
-                    subtitlesGrouped.keys.indexOf(currentSelectedSubtitles?.originalName) + 1
-                var subtitleGroupIndex = subtitleGroupIndexStart
-
-                val subtitleOptionIndexStart =
-                    subtitlesGrouped[currentSelectedSubtitles?.originalName]?.indexOfFirst { it.nameSuffix == currentSelectedSubtitles?.nameSuffix }
-                        ?: 0
-                var subtitleOptionIndex = subtitleOptionIndexStart
-
-                subsArrayAdapter.addAll(subtitles)
-
-                subtitleList.adapter = subsArrayAdapter
-                subtitleList.choiceMode = AbsListView.CHOICE_MODE_SINGLE
-
-                subtitleList.setSelection(subtitleGroupIndex)
-                subtitleList.setItemChecked(subtitleGroupIndex, true)
-
-                val subsOptionsArrayAdapter =
-                    ArrayAdapter<Spanned>(ctx, R.layout.sort_bottom_single_choice)
-
-                subtitleOptionList.adapter = subsOptionsArrayAdapter
-                subtitleOptionList.choiceMode = AbsListView.CHOICE_MODE_SINGLE
-
-                fun updateSubtitleOptionList() {
-                    subsOptionsArrayAdapter.clear()
-
-                    val subtitleOptions =
-                        subtitlesGroupedList
-                            .getOrNull(subtitleGroupIndex - 1)?.value?.map { subtitle ->
-                                val nameSuffix = subtitle.nameSuffix.html()
-                                nameSuffix.ifBlank {
-                                    when (subtitle.origin) {
-                                        SubtitleOrigin.URL -> txt(R.string.subtitles_from_online)
-                                        SubtitleOrigin.DOWNLOADED_FILE -> txt(R.string.downloaded)
-                                        SubtitleOrigin.EMBEDDED_IN_VIDEO -> txt(R.string.subtitles_from_embedded)
-                                    }.asString(ctx).toSpanned()
-                                }
-                            }
-                            ?: emptyList()
-
-                    // Show nothing if there is nothing to select
-                    val shouldHide = subtitleOptions.size < 2
-                    subtitleOptionList.isGone = shouldHide // Make it easier to click
-                    if (shouldHide) return
-
-                    subsOptionsArrayAdapter.addAll(subtitleOptions)
-
-                    subtitleOptionList.setSelection(subtitleOptionIndex)
-                    subtitleOptionList.setItemChecked(subtitleOptionIndex, true)
-                }
-
-                updateSubtitleOptionList()
-
-                subtitleList.setOnItemClickListener { _, _, which, _ ->
-                    if (which > subtitlesGrouped.size) {
-                        // Since android TV is funky the setOnItemClickListener will be triggered
-                        // instead of setOnClickListener when selecting. To override this we programmatically
-                        // click the view when selecting an item outside the list.
-
-                        // Cheeky way of getting the view at that position to click it
-                        // to avoid keeping track of the various footers.
-                        // getChildAt() gives null :(
-                        val child = subtitleList.adapter.getView(which, null, subtitleList)
-                        child?.performClick()
-                    } else {
-                        if (subtitleGroupIndex != which) {
-                            subtitleGroupIndex = which
-                            subtitleOptionIndex =
-                                if (subtitleGroupIndex == subtitleGroupIndexStart) {
-                                    subtitleOptionIndexStart
-                                } else {
-                                    0
-                                }
-                        }
-                        subtitleList.setItemChecked(which, true)
-                        updateSubtitleOptionList()
-                    }
-                }
-
-                subtitleOptionList.setOnItemClickListener { _, _, which, _ ->
-                    if (which >= (subtitlesGroupedList.getOrNull(subtitleGroupIndex - 1)?.value?.size
-                            ?: -1)
-                    ) {
-                        val child = subtitleOptionList.adapter.getView(which, null, subtitleList)
-                        child?.performClick()
-                    } else {
-                        subtitleOptionIndex = which
-                        subtitleOptionList.setItemChecked(which, true)
-                    }
-                }
-
-                binding.cancelBtt.setOnClickListener {
-                    sourceDialog.dismissSafe(activity)
-                    this.selectSourceDialog = null
-                }
-
-                fun setProfileName(profile: Int) {
-                    binding.sourceSettingsBtt.setText(
-                        QualityDataHelper.getProfileName(
-                            profile
-                        )
-                    )
-                }
-                setProfileName(currentQualityProfile)
-
-                binding.profilesClickSettings.setOnClickListener {
-                    val activity = activity ?: return@setOnClickListener
-                    val dialog = QualityProfileDialog(
-                        activity,
-                        R.style.DialogFullscreenPlayer,
-                        viewModel.state.links.mapNotNull {
-                            it.first?.let { extractorLink ->
-                                LinkSource(
-                                    extractorLink
-                                )
-                            }
-                        },
-                        currentQualityProfile
-                    ) { profile ->
-                        currentQualityProfile = profile.id
-                        setProfileName(profile.id)
-                    }
-
-                    dialog.setOnDismissListener {
-                        viewModel.state.clearSortedLinksCache()
-                        refreshLinks(currentQualityProfile)
-                    }
-
-                    dialog.show()
-                }
-
-                binding.subtitlesEncodingFormat.apply {
-                    val settingsManager = PreferenceManager.getDefaultSharedPreferences(ctx)
-
-                    val prefNames = ctx.resources.getStringArray(R.array.subtitles_encoding_list)
-                    val prefValues = ctx.resources.getStringArray(R.array.subtitles_encoding_values)
-
-                    val value = settingsManager.getString(
-                        ctx.getString(R.string.subtitles_encoding_key), null
-                    )
-                    val index = prefValues.indexOf(value)
-                    text = prefNames[if (index == -1) 0 else index]
-                }
-
-                binding.subtitlesEncodingFormat.setOnClickListener {
-                    val settingsManager = PreferenceManager.getDefaultSharedPreferences(ctx)
-
-                    val prefNames = ctx.resources.getStringArray(R.array.subtitles_encoding_list)
-                    val prefValues = ctx.resources.getStringArray(R.array.subtitles_encoding_values)
-
-                    val currentPrefMedia = settingsManager.getString(
-                        ctx.getString(R.string.subtitles_encoding_key), null
-                    )
-
-                    shouldDismiss = false
-                    sourceDialog.dismissSafe(activity)
-                    selectSourceDialog = null
-
-                    val index = prefValues.indexOf(currentPrefMedia)
-                    activity?.showDialog(
-                        prefNames.toList(),
-                        if (index == -1) 0 else index,
-                        ctx.getString(R.string.subtitles_encoding),
-                        true,
-                        {}) {
-                        settingsManager.edit {
-                            putString(
-                                ctx.getString(R.string.subtitles_encoding_key), prefValues[it]
-                            )
-                        }
-                        updateForcedEncoding(ctx)
-                        dismiss()
-                        player.seekTime(-1) // to update subtitles, a dirty trick
-                    }
-                }
-
-                binding.applyBtt.setOnClickListener {
-                    var init = sourceIndex != startSource
-                    if (subtitleGroupIndex != subtitleGroupIndexStart || subtitleOptionIndex != subtitleOptionIndexStart) {
-                        init = init or if (subtitleGroupIndex <= 0) {
-                            noSubtitles()
-                        } else {
-                            subtitlesGroupedList.getOrNull(subtitleGroupIndex - 1)?.value?.getOrNull(
-                                subtitleOptionIndex
-                            )?.let {
-                                setSubtitles(it, true)
-                            } ?: false
-                        }
-                    }
-                    if (init) {
-                        filteredLinks.getOrNull(sourceIndex)?.let {
-                            loadLink(it.link, true)
-                        }
-                    }
-                    sourceDialog.dismissSafe(activity)
-                    selectSourceDialog = null
-                }
+            val ctx = context ?: return
+            val sortedLinks = viewModel.state.sortLinks(currentQualityProfile)
+            val filteredLinks = sortedLinks.filter {
+                it.shouldUseLink || it.link == currentSelectedLink
             }
+            if (filteredLinks.isEmpty()) {
+                showToast(R.string.no_links_found_toast)
+                return
+            }
+            val names = filteredLinks.map { displayLink ->
+                val (link, uri) = displayLink.link
+                val name = link?.name ?: uri?.name ?: "NULL"
+                "$name ${Qualities.getStringByInt(link?.quality)}"
+            }
+            val sheet = SheetSourceSelector.newInstance(
+                sources = ArrayList(names),
+                onSelect = { index ->
+                    filteredLinks.getOrNull(index)?.let { displayLink ->
+                        if (displayLink.link != currentSelectedLink) {
+                            isNextEpisode = true
+                            releasePlayer()
+                            loadLink(displayLink.link, true)
+                        }
+                    }
+                },
+                onDismiss = { activity?.hideSystemUI() }
+            )
+            sheet.show(parentFragmentManager, "SourceSelector")
         } catch (e: Exception) {
             logError(e)
         }
@@ -2282,7 +1924,8 @@ class GeneratorPlayer : FullScreenPlayer() {
         observe(viewModel.currentSubtitles) { (subtitles, instance) ->
             if (instance != viewModel.state.instance) return@observe // Outdated observe
             player.setActiveSubtitles(subtitles)
-            playerBinding?.exoSub?.isVisible = subtitles.isNotEmpty()
+            playerBinding?.exoSub?.isVisible =
+                subtitles.isNotEmpty() || player.getVideoTracks().allTextTracks.isNotEmpty()
 
             // If the file is downloaded then do not select auto select the subtitles
             // Downloaded subtitles cannot be selected immediately after loading since
