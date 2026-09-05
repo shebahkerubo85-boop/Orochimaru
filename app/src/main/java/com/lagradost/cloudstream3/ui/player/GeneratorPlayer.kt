@@ -33,6 +33,8 @@ import androidx.core.content.edit
 import androidx.core.text.toSpanned
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
+import androidx.core.view.children
+import com.airbnb.lottie.LottieAnimationView
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -232,8 +234,6 @@ class GeneratorPlayer : FullScreenPlayer() {
         playerBinding?.exoTracks?.isVisible =
             tracks.allVideoTracks.size > 1 || tracks.allAudioTracks.size > 1
         playerBinding?.exoAudio?.isVisible = tracks.allAudioTracks.size > 1
-        playerBinding?.exoSub?.isVisible =
-            tracks.allTextTracks.isNotEmpty() || viewModel.state.subtitles.isNotEmpty()
         // Only set the preferred language if it is available.
         // Otherwise, it may give some users audio track init failed!
         if (tracks.allAudioTracks.any { it.language == preferredAudioTrackLanguage }) {
@@ -477,6 +477,10 @@ class GeneratorPlayer : FullScreenPlayer() {
         isPlayerActive.set(true)
         // manage UI
         binding?.playerLoadingOverlay?.isVisible = false
+        // Stop the spinner once playback actually starts (saves GPU while hidden).
+        binding?.playerLottieLoading?.children?.forEach { child ->
+            if (child is LottieAnimationView) child.pauseAnimation()
+        }
         val isTorrent =
             link.first?.type == ExtractorLinkType.MAGNET || link.first?.type == ExtractorLinkType.TORRENT
 
@@ -1824,6 +1828,16 @@ class GeneratorPlayer : FullScreenPlayer() {
         isPlayerActive.set(false)
         binding?.overlayLoadingSkipButton?.isVisible = false
         binding?.playerLoadingOverlay?.isVisible = true
+        // Some devices never auto-start Lottie views that were hidden at inflate
+        // time, leaving the loading screen blank. Restart them whenever the
+        // overlay is (re)shown.
+        binding?.playerLottieLoading?.let { container ->
+            container.post {
+                container.children.forEach { child ->
+                    if (child is LottieAnimationView) child.playAnimation()
+                }
+            }
+        }
         viewModel.modifyState { setError(emptyList()) }
         uiReset()
     }
@@ -1924,9 +1938,6 @@ class GeneratorPlayer : FullScreenPlayer() {
         observe(viewModel.currentSubtitles) { (subtitles, instance) ->
             if (instance != viewModel.state.instance) return@observe // Outdated observe
             player.setActiveSubtitles(subtitles)
-            playerBinding?.exoSub?.isVisible =
-                subtitles.isNotEmpty() || player.getVideoTracks().allTextTracks.isNotEmpty()
-
             // If the file is downloaded then do not select auto select the subtitles
             // Downloaded subtitles cannot be selected immediately after loading since
             // player.getCurrentPreferredSubtitle() cannot fetch data from non-loaded subtitles

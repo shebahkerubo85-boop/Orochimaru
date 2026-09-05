@@ -11,7 +11,6 @@ import ani.sanin.media.Media
 import ani.sanin.media.Selected
 import ani.sanin.media.anime.Anime
 import ani.sanin.media.anime.Episode
-import ani.sanin.media.anime.ExoplayerView
 import ani.sanin.parsers.Video
 import eu.kanade.tachiyomi.animesource.model.Track
 import ani.sanin.parsers.VideoContainer
@@ -31,9 +30,9 @@ import com.lagradost.cloudstream3.TvSeriesLoadResponse
 import com.lagradost.cloudstream3.isMovieType
 import com.lagradost.cloudstream3.LiveStreamLoadResponse
 import com.lagradost.cloudstream3.MainPageRequest
-import com.lagradost.cloudstream3.utils.DrmExtractorLink
+import com.lagradost.cloudstream3.Score
+import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.utils.ExtractorLink
-import com.lagradost.cloudstream3.utils.newDrmExtractorLink
 import com.lagradost.cloudstream3.utils.CLEARKEY_DRM_UUID
 import com.lagradost.cloudstream3.utils.Qualities
 import kotlin.uuid.toJavaUuid
@@ -41,9 +40,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import com.lagradost.cloudstream3.ui.player.ExtractorLinkGenerator
 import com.lagradost.cloudstream3.ui.player.GeneratorPlayer
-import com.lagradost.cloudstream3.utils.ExtractorLinkType
+import com.lagradost.cloudstream3.ui.player.TmdbSyntheticGenerator
+import com.lagradost.cloudstream3.ui.result.ResultEpisode
 
 /**
  * Shared CloudStream resolution + player-launch helpers used by the TMDB
@@ -702,6 +701,51 @@ object TmdbStreamResolver {
             true
         }
 
+    /** ResultEpisode rows for the CS3 player rail + next/prev, in the same
+     *  order as `episodes`. The synthetic generator resolves the actual links
+     *  through the anime-side Episode shells, so `data` stays empty (there is
+     *  no plugin URL to load here). */
+    private fun resultEpisodeRows(
+        media: Media,
+        d: TmdbDetail,
+        episodes: Map<String, Episode>,
+        sourceName: String,
+        mediaType: String,
+    ): List<ResultEpisode> {
+        val tvType = if (mediaType == "tv") TvType.TvSeries else TvType.Movie
+        return episodes.values.mapIndexed { index, ep ->
+            val season = ep.extra?.get("season")?.toIntOrNull()
+            val episodeNumber = ep.extra?.get("episode")?.toIntOrNull() ?: (index + 1)
+            ResultEpisode(
+                headerName = ep.title ?: d.displayTitle,
+                name = ep.title ?: d.displayTitle,
+                poster = ep.thumb?.url,
+                episode = episodeNumber,
+                seasonIndex = season,
+                season = season,
+                data = "",
+                apiName = sourceName,
+                id = media.id - index,
+                index = index + 1,
+                position = 0,
+                duration = 0,
+                score = d.voteAverage.takeIf { it > 0 }?.let { Score.from(it, 10) },
+                description = ep.desc,
+                isFiller = ep.filler.takeIf { it },
+                tvType = tvType,
+                parentId = media.id,
+                totalEpisodeIndex = index + 1,
+                airDate = ep.date?.let { date ->
+                    runCatching {
+                        java.time.LocalDate.parse(date)
+                            .atStartOfDay(java.time.ZoneOffset.UTC)
+                            .toInstant().toEpochMilli()
+                    }.getOrNull()
+                },
+            )
+        }
+    }
+
     /** Launches the full anime player for a TMDB title: all episodes across all
      *  seasons are wired into the rail, the picked episode carries every server
      *  the plugin returned (server button switches without re-fetching), and the
@@ -763,73 +807,28 @@ object TmdbStreamResolver {
         val selected = Selected(sourceIndex = 0, server = pickedLabel, video = 0)
         media.selected = selected
         PrefManager.setCustomVal("Selected-$id", selected)
-        // TMDB mode: use CS3 player (GeneratorPlayer) for all content
-        val extractorLinks = links.mapIndexedNotNull { index, pl ->
-            if (pl.url.isBlank()) return@mapIndexedNotNull null
-            val hdrs = HashMap(pl.headers).apply {
-                pl.referer?.takeIf { it.isNotBlank() }?.let { put("Referer", it) }
-            }
-            val type = when {
-                pl.url.contains(".m3u8") || pl.url.contains("hls") -> ExtractorLinkType.M3U8
-                pl.url.contains(".mpd") -> ExtractorLinkType.DASH
-                else -> ExtractorLinkType.VIDEO
-            }
-            if (pl.drm != null && pl.drm.uuid != null) {
-                @Suppress("DEPRECATION_ERROR")
-                val drmLink = newDrmExtractorLink(
-                    source = source.name.ifBlank { "TMDB" },
-                    name = pl.label.ifBlank { "Server ${index + 1}" },
-                    url = pl.url,
-                    type = type,
-                    uuid = pl.drm.uuid,
-                ) {
-                    referer = pl.referer ?: ""
-                    headers = hdrs
-                    quality = 0
-                    audioTracks = pl.audioTracks
-                    licenseUrl = pl.drm.licenseUrl
-                    keyRequestParameters = pl.drm.keyRequestParameters
-                    kid = pl.drm.kid
-                    key = pl.drm.key
-                    kty = pl.drm.kty
-                }
-                Log.i("TmdbDetails", "launchPlayer: created DrmExtractorLink uuid=${pl.drm.uuid} license=${pl.drm.licenseUrl?.take(80)}")
-                drmLink
-            } else {
-                ExtractorLink(
-                    source = source.name.ifBlank { "TMDB" },
-                    name = pl.label.ifBlank { "Server ${index + 1}" },
-                    url = pl.url,
-                    referer = pl.referer ?: "",
-                    quality = 0,
-                    headers = hdrs,
-                    type = type,
-                    audioTracks = pl.audioTracks
-                )
-            }
-        }
-        if (extractorLinks.isNotEmpty()) {
-            val generator = ExtractorLinkGenerator(extractorLinks, emptyList())
-            Logger.log(
-                "TMDB_PLAY: launching CS3 GeneratorPlayer for ${mediaType} id=$id title='$title' " +
-                    "links=${extractorLinks.size} picked='$pickedLabel'"
-            )
-            val playerArgs = GeneratorPlayer.newInstance(generator, 0)
-            context.startActivity(
-                Intent(context, CsPlayerActivity::class.java)
-                    .putExtra(CsPlayerActivity.EXTRA_PLAYER_ARGS, playerArgs)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
-            return
-        }
-
-        // Fallback: anime mode ExoplayerView
-        ExoplayerView.media = media
-        ExoplayerView.initialized = true
-        Logger.log(
-            "TMDB_PLAY: launching ExoplayerView id=$id title='$title' eps=${episodes.size} " +
-                "servers=${extractors.size} picked='$pickedLabel' imdb=${media.idIMDB}"
+        // TMDB mode: use CS3 player (GeneratorPlayer) for all content. The
+        // synthetic generator resolves each episode's plugin links on demand so
+        // next/prev buttons and the episode rail navigate every episode.
+        val episodeKeys = episodes.keys.toList()
+        val currentIndex = episodeKeys.indexOf(currentKey).coerceAtLeast(0)
+        val generator = TmdbSyntheticGenerator(
+            context.applicationContext,
+            media,
+            resultEpisodeRows(media, d, episodes, source.name, mediaType),
+            episodeKeys
         )
-        context.startActivity(Intent(context, ExoplayerView::class.java))
+        Logger.log(
+            "TMDB_PLAY: launching CS3 GeneratorPlayer for ${mediaType} id=$id title='$title' " +
+                "eps=${episodes.size} current='$currentKey' index=$currentIndex picked='$pickedLabel'"
+        )
+        val playerArgs = GeneratorPlayer.newInstance(generator, currentIndex)
+        context.startActivity(
+            Intent(context, CsPlayerActivity::class.java)
+                .putExtra(CsPlayerActivity.EXTRA_PLAYER_ARGS, playerArgs)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+        return
+
     }
 }

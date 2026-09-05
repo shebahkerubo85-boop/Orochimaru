@@ -149,7 +149,7 @@
                             android:backgroundTint="#00FFFFFF"
                             android:scaleX="-1"
                             android:src="@drawable/ic_round_subtitles_24"
-                            android:visibility="gone"
+                            android:visibility="visible"
                             app:tint="#fff"
                             tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
 
