@@ -376,6 +376,10 @@ class PlayerView @JvmOverloads constructor(
             exoRewText?.text = context.getString(R.string.rew_text_regular_format).format(seekSecs)
             exoFfwdText?.text = context.getString(R.string.ffw_text_regular_format).format(seekSecs)
 
+            // Static play icon before the first player status event arrives —
+            // the animated vector renders blank until its animation is started.
+            playerPausePlay?.setImageResource(R.drawable.netflix_play)
+
             playerPausePlay?.setOnClickListener {
                 scheduleAutoHide()
                 if (currentPlayerStatus == CSPlayerLoading.IsEnded && isLayout(PHONE)) {

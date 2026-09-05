@@ -284,7 +284,7 @@
                         android:layout_width="72dp"
                         android:layout_height="72dp"
                         android:focusable="true"
-                        android:src="@drawable/anim_play_to_pause"
+                        android:src="@drawable/netflix_play"
                         tools:ignore="ContentDescription" />
 
                 </androidx.cardview.widget.CardView>
