@@ -36,11 +36,22 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+
 data class SyncCue(
     val text: String,
     val startTimeMs: Long,
     val durationMs: Long = 3000L
 )
+
+/**
+ * Activity-hosted interface so the sync dialog works in both
+ * anime ExoplayerView and CS3 CsPlayerActivity.
+ */
+interface SubtitleSyncHost {
+    fun getSyncPlayerPosition(): Long
+    fun setSubtitleOffset(offsetMs: Long)
+    fun getSyncCues(): List<SyncCue>
+}
 
 class SubtitleSyncDialogFragment : DialogFragment() {
     private var _binding: BottomSheetSubtitleSyncBinding? = null
@@ -128,7 +139,7 @@ class SubtitleSyncDialogFragment : DialogFragment() {
 
         binding.subtitleSyncRecycler.layoutManager = LinearLayoutManager(requireContext())
 
-        val cues = (requireActivity() as? ExoplayerView)?.getSyncCues() ?: emptyList()
+        val cues = (requireActivity() as? SubtitleSyncHost)?.getSyncCues() ?: emptyList()
 
         if (cues.isEmpty()) {
             binding.noSubtitlesNotice.isVisible = true
@@ -194,7 +205,7 @@ class SubtitleSyncDialogFragment : DialogFragment() {
     private fun applyOffset() {
         PrefManager.setVal(PrefName.SubtitleDelay, currentOffset)
         PrefManager.setVal(PrefName.SubtitleSyncEnabled, currentOffset != 0L)
-        (requireActivity() as? ExoplayerView)?.applySubtitleOffset(currentOffset)
+        (requireActivity() as? SubtitleSyncHost)?.setSubtitleOffset(currentOffset)
         dismiss()
     }
 
@@ -203,12 +214,12 @@ class SubtitleSyncDialogFragment : DialogFragment() {
         binding.syncOffsetInput.setText("0")
         PrefManager.setVal(PrefName.SubtitleDelay, 0L)
         PrefManager.setVal(PrefName.SubtitleSyncEnabled, false)
-        (requireActivity() as? ExoplayerView)?.applySubtitleOffset(0L)
+        (requireActivity() as? SubtitleSyncHost)?.setSubtitleOffset(0L)
         dismiss()
     }
 
     private fun getPlayerPosition(): Long {
-        return (requireActivity() as? ExoplayerView)?.getPlayerPosition() ?: 0L
+        return (requireActivity() as? SubtitleSyncHost)?.getSyncPlayerPosition() ?: 0L
     }
 
     private fun updateStatusText() {
@@ -222,7 +233,7 @@ class SubtitleSyncDialogFragment : DialogFragment() {
 
     private fun scrollToCurrentCue() {
         val position = getPlayerPosition()
-        val cues = (requireActivity() as? ExoplayerView)?.getSyncCues() ?: return
+        val cues = (requireActivity() as? SubtitleSyncHost)?.getSyncCues() ?: return
         val index = cues.indexOfLast { position >= it.startTimeMs }
         if (index >= 0) {
             binding.subtitleSyncRecycler.post {

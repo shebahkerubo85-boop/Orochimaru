@@ -1278,6 +1278,8 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="play_torrent_button">Stream Torrent</string>
     <string name="pause">Pause</string>
     <string name="no_subtitles">No Subtitles</string>
+    <string name="subtitles_sync">Subtitle Sync</string>
+    <string name="searching">Searching…</string>
     <string name="no_links_found_toast">No Links Found</string>
     <string name="mobile_data">Mobile data</string>
     <string name="go_forward_30">+30</string>

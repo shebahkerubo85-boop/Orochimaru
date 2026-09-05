@@ -62,7 +62,13 @@ import com.lagradost.cloudstream3.MainActivity
 import ani.sanin.R
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.amap
+import ani.sanin.cloudstream.CsPlayerActivity
 import ani.sanin.databinding.DialogOnlineSubtitlesBinding
+import ani.sanin.media.anime.SubtitleSyncHost
+import ani.sanin.media.anime.SubtitleSyncDialogFragment
+import ani.sanin.media.anime.SyncCue
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import ani.sanin.databinding.FragmentPlayerBinding
 import ani.sanin.media.SheetSourceSelector
 import ani.sanin.databinding.PlayerSelectTracksBinding
@@ -475,6 +481,15 @@ class GeneratorPlayer : FullScreenPlayer() {
     private fun loadLink(link: VideoLink?, sameEpisode: Boolean) {
         if (link == null) return
         isPlayerActive.set(true)
+
+        // Wire SubtitleSyncHost so the sync dialog works from CsPlayerActivity
+        (activity as? CsPlayerActivity)?.syncHost = object : SubtitleSyncHost {
+            override fun getSyncPlayerPosition(): Long = player.getPosition() ?: 0L
+            override fun setSubtitleOffset(offsetMs: Long) {
+                player.setSubtitleOffset(offsetMs)
+            }
+            override fun getSyncCues(): List<SyncCue> = emptyList()
+        }
         // manage UI
         binding?.playerLoadingOverlay?.isVisible = false
         // Stop the spinner once playback actually starts (saves GPU while hidden).
@@ -1806,7 +1821,24 @@ class GeneratorPlayer : FullScreenPlayer() {
                     if (ctx != null) player.reloadPlayer(ctx)
                     player.handleEvent(CSPlayerEvent.Play)
                 }
-            }
+            },
+            onToggleChanged = { enabled ->
+                PrefManager.setVal(PrefName.Subtitles, enabled)
+                if (!enabled) {
+                    setSubtitles(null, userInitiated = true)
+                }
+                subtitleRail?.open()
+            },
+            isSubtitlesEnabledProvider = { PrefManager.getVal(PrefName.Subtitles) },
+            onSyncSubtitle = {
+                subtitleRail?.close()
+                SubtitleSyncDialogFragment().show(
+                    requireActivity().supportFragmentManager, "subtitle_sync"
+                )
+            },
+            onAddLocalSubtitle = {
+                openSubPicker()
+            },
         )
 
         trackRail = TrackRailController(

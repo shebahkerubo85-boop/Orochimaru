@@ -7,6 +7,8 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import com.lagradost.cloudstream3.CommonActivity
 import ani.sanin.R
+import ani.sanin.media.anime.SubtitleSyncHost
+import ani.sanin.media.anime.SyncCue
 import ani.sanin.themes.ThemeManager
 import com.lagradost.cloudstream3.ui.settings.Globals.updateTv
 import com.lagradost.cloudstream3.utils.UIHelper.enableEdgeToEdgeCompat
@@ -21,7 +23,14 @@ import com.lagradost.cloudstream3.utils.UIHelper.navigate
  * [com.lagradost.cloudstream3.ui.player.GeneratorPlayer.newInstance];
  * the returned bundle (containing the uuid) is passed here as [EXTRA_PLAYER_ARGS].
  */
-class CsPlayerActivity : AppCompatActivity() {
+class CsPlayerActivity : AppCompatActivity(), SubtitleSyncHost {
+
+    /** Set by GeneratorPlayer on attach, cleared on detach. */
+    var syncHost: SubtitleSyncHost? = null
+
+    override fun getSyncPlayerPosition(): Long = syncHost?.getSyncPlayerPosition() ?: 0L
+    override fun setSubtitleOffset(offsetMs: Long) { syncHost?.setSubtitleOffset(offsetMs) }
+    override fun getSyncCues(): List<SyncCue> = syncHost?.getSyncCues() ?: emptyList()
 
     companion object {
         const val TAG = "CsPlayerActivity"

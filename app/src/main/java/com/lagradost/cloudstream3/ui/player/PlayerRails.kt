@@ -44,6 +44,11 @@ private class RailTextRow(
     val header: Boolean = false,
     val selected: Boolean = false,
     val enabled: Boolean = true,
+    val isToggle: Boolean = false,
+    val toggleChecked: Boolean = false,
+    val isStatus: Boolean = false,
+    val language: String? = null,
+    val onToggleChanged: ((Boolean) -> Unit)? = null,
     val onClick: (() -> Unit)? = null,
 )
 
@@ -89,8 +94,32 @@ private class RailTextAdapter(private val rows: MutableList<RailTextRow>) :
             return
         }
 
+        // Toggle row: show Switch, hide everything else
+        if (row.isToggle) {
+            binding.root.setCardBackgroundColor(Color.TRANSPARENT)
+            binding.root.isClickable = true
+            binding.root.isFocusable = true
+            binding.subtitleTitle.text = row.label
+            binding.subtitleTitle.setTextColor(Color.WHITE)
+            binding.subtitleTitle.textSize = 16f
+            binding.subtitleGlobe.isVisible = false
+            binding.subtitleBadge.isVisible = false
+            binding.subtitleToggle.isVisible = true
+            binding.subtitleToggle.setOnCheckedChangeListener(null)
+            binding.subtitleToggle.isChecked = row.toggleChecked
+            binding.subtitleToggle.setOnCheckedChangeListener { _, checked ->
+                row.onToggleChanged?.invoke(checked)
+            }
+            return
+        }
+
+        // Status rows: greyed out, italic, not clickable
+        val isStatusRow = row.isStatus
         binding.subtitleTitle.text = row.label
-        binding.subtitleTitle.setTextColor(if (row.enabled) Color.WHITE else 0xFF808080.toInt())
+        binding.subtitleTitle.setTextColor(
+            if (row.enabled && !isStatusRow) Color.WHITE else 0xFF808080.toInt()
+        )
+        binding.subtitleTitle.setTypeface(null, if (isStatusRow) android.graphics.Typeface.ITALIC else android.graphics.Typeface.NORMAL)
         binding.subtitleToggle.isVisible = false
 
         binding.subtitleGlobe.isVisible = row.globe
@@ -110,13 +139,13 @@ private class RailTextAdapter(private val rows: MutableList<RailTextRow>) :
         }
 
         binding.root.setCardBackgroundColor(
-            if (row.selected) ColorUtils.setAlphaComponent(themePrimary, 60) else Color.TRANSPARENT
+            if (row.selected && !isStatusRow) ColorUtils.setAlphaComponent(themePrimary, 60) else Color.TRANSPARENT
         )
 
-        val clickable = row.onClick != null && row.enabled
+        val clickable = row.onClick != null && row.enabled && !isStatusRow
         binding.root.isClickable = clickable
         binding.root.isFocusable = clickable
-        binding.root.setOnClickListener { row.onClick?.invoke() }
+        binding.root.setOnClickListener { if (clickable) row.onClick?.invoke() }
     }
 }
 
@@ -310,6 +339,12 @@ class SubtitleRailController(
     private val subtitlesProvider: () -> List<SubtitleData>,
     private val currentSubtitleProvider: () -> SubtitleData?,
     private val onSubtitleSelected: (SubtitleData?) -> Unit,
+    private val onToggleChanged: ((Boolean) -> Unit)? = null,
+    private val isSubtitlesEnabledProvider: (() -> Boolean)? = null,
+    private val onSyncSubtitle: (() -> Unit)? = null,
+    private val onSearchOnline: (() -> Unit)? = null,
+    private val onAddLocalSubtitle: (() -> Unit)? = null,
+    private val isSearchingOnlineProvider: (() -> Boolean)? = null,
 ) {
     private val rows = mutableListOf<RailTextRow>()
     private val adapter = RailTextAdapter(rows)
@@ -343,54 +378,155 @@ class SubtitleRailController(
         drawer.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED, content)
     }
 
+    /** Toggle the search-in-progress state and refresh the rail. */
+    fun setSearchingOnline(searching: Boolean) {
+        rebuild()
+    }
+
     private fun subtitleLanguage(sub: SubtitleData): String? =
         sub.getIETF_tag()?.let { fromTagToLanguageName(it.substringBefore('-')) }
             ?: fromTagToLanguageName(sub.languageCode)
             ?: sub.languageCode?.replaceFirstChar { it.uppercaseChar() }
 
-    private fun filteredSubtitles(): List<SubtitleData> {
-        val subs = subtitlesProvider()
-        if (languageFilter == null) return subs
-        return subs.filter { sub ->
-            (sub.getIETF_tag() ?: sub.languageCode ?: "").substringBefore('-')
-                .equals(languageFilter, true)
-        }
+    private fun matchesFilter(sub: SubtitleData): Boolean {
+        if (languageFilter == null) return true
+        return (sub.getIETF_tag() ?: sub.languageCode ?: "").substringBefore('-')
+            .equals(languageFilter, true)
     }
 
     private fun rebuild() {
         val current = currentSubtitleProvider()
-        val subs = filteredSubtitles()
+        val allSubs = subtitlesProvider()
+        val enabled = isSubtitlesEnabledProvider?.invoke() ?: true
         rows.clear()
-        rows.add(RailTextRow(subtitleText(R.string.subtitles), header = true))
+
+        // 1. Master subtitle toggle
         rows.add(
             RailTextRow(
-                subtitleText(R.string.none),
-                selected = current == null,
-                onClick = {
-                    onSubtitleSelected(null)
-                    rebuild()
-                }
+                subtitleText(R.string.subtitles),
+                isToggle = true,
+                toggleChecked = enabled,
+                onToggleChanged = { checked -> onToggleChanged?.invoke(checked) },
             )
         )
-        subs.forEach { sub ->
-            val selected = sub == current
+
+        // 2. Subtitle sync
+        if (onSyncSubtitle != null) {
             rows.add(
                 RailTextRow(
-                    label = sub.name,
-                    badge = subtitleLanguage(sub),
-                    globe = sub.origin == SubtitleOrigin.URL,
-                    selected = selected,
-                    onClick = {
-                        onSubtitleSelected(sub)
-                        rebuild()
-                    }
+                    subtitleText(R.string.subtitles_sync),
+                    enabled = enabled,
+                    onClick = { if (enabled) onSyncSubtitle?.invoke() },
                 )
             )
         }
-        if (subs.isEmpty()) {
+
+        // Group subtitles by origin (filtered)
+        val embedded = allSubs.filter { it.origin == SubtitleOrigin.EMBEDDED_IN_VIDEO && matchesFilter(it) }
+        val online = allSubs.filter { it.origin == SubtitleOrigin.URL && matchesFilter(it) }
+        val local = allSubs.filter { it.origin == SubtitleOrigin.DOWNLOADED_FILE && matchesFilter(it) }
+
+        // 3. Embedded tracks
+        if (embedded.isNotEmpty()) {
+            rows.add(RailTextRow(subtitleText(R.string.subtitles_from_embedded), header = true))
+            embedded.forEach { sub ->
+                val selected = sub == current
+                rows.add(
+                    RailTextRow(
+                        label = sub.name,
+                        badge = subtitleLanguage(sub),
+                        selected = selected,
+                        enabled = enabled,
+                        language = sub.getIETF_tag()?.substringBefore('-') ?: sub.languageCode,
+                        onClick = { if (enabled) { onSubtitleSelected(sub); rebuild() } },
+                    )
+                )
+            }
+        }
+
+        // 4. Online subtitles
+        if (online.isNotEmpty()) {
+            rows.add(RailTextRow(subtitleText(R.string.subtitles_from_online), header = true))
+            online.forEach { sub ->
+                val selected = sub == current
+                rows.add(
+                    RailTextRow(
+                        label = sub.name,
+                        badge = subtitleLanguage(sub),
+                        globe = true,
+                        selected = selected,
+                        enabled = enabled,
+                        language = sub.getIETF_tag()?.substringBefore('-') ?: sub.languageCode,
+                        onClick = { if (enabled) { onSubtitleSelected(sub); rebuild() } },
+                    )
+                )
+            }
+        }
+
+        // 5. "+ Search Online Subtitles" action (under Online section)
+        if (onSearchOnline != null) {
+            val searching = isSearchingOnlineProvider?.invoke() == true
+            if (searching) {
+                rows.add(
+                    RailTextRow(
+                        subtitleText(R.string.searching),
+                        isStatus = true,
+                        enabled = enabled,
+                    )
+                )
+            } else {
+                rows.add(
+                    RailTextRow(
+                        subtitleText(R.string.player_load_subtitles_online),
+                        enabled = enabled,
+                        onClick = { if (enabled) onSearchOnline?.invoke() },
+                    )
+                )
+            }
+        }
+
+        // 6. Local subtitles
+        if (local.isNotEmpty()) {
+            rows.add(RailTextRow(subtitleText(R.string.player_load_subtitles), header = true))
+            local.forEach { sub ->
+                val selected = sub == current
+                rows.add(
+                    RailTextRow(
+                        label = sub.name,
+                        badge = subtitleLanguage(sub),
+                        selected = selected,
+                        enabled = enabled,
+                        language = sub.getIETF_tag()?.substringBefore('-') ?: sub.languageCode,
+                        onClick = { if (enabled) { onSubtitleSelected(sub); rebuild() } },
+                    )
+                )
+            }
+        }
+
+        // 7. "+ Add Local Subtitle" action
+        if (onAddLocalSubtitle != null) {
+            rows.add(
+                RailTextRow(
+                    subtitleText(R.string.player_load_subtitles),
+                    enabled = enabled,
+                    onClick = { if (enabled) { close(); onAddLocalSubtitle?.invoke() } },
+                )
+            )
+        }
+
+        // Empty state
+        if (embedded.isEmpty() && online.isEmpty() && local.isEmpty()) {
             rows.add(RailTextRow(subtitleText(R.string.no_subtitles), header = true))
         }
+
         adapter.submit(rows.toList())
+
+        // Language button reflects an active filter
+        languageButton.imageTintList = ColorStateList.valueOf(
+            if (languageFilter != null) MaterialColors.getColor(
+                languageButton, com.google.android.material.R.attr.colorPrimary
+            ) else Color.WHITE
+        )
     }
 
     private fun subtitleText(res: Int): String = recycler.context.getString(res)

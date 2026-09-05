@@ -227,7 +227,8 @@ import java.net.URI
 @SuppressLint("ClickableViewAccessibility")
 class ExoplayerView :
     AppCompatActivity(),
-    Player.Listener {
+    Player.Listener,
+    SubtitleSyncHost {
     private val resumeWindow = "resumeWindow"
     private val resumePosition = "resumePosition"
     private val playerFullscreen = "playerFullscreen"
@@ -2893,6 +2894,11 @@ class ExoplayerView :
         PrefManager.setVal(PrefName.SubtitleDelay, offsetMs)
         PrefManager.setVal(PrefName.SubtitleSyncEnabled, offsetMs != 0L)
     }
+
+    // SubtitleSyncHost implementation
+    override fun getSyncPlayerPosition(): Long = getPlayerPosition()
+    override fun setSubtitleOffset(offsetMs: Long) = applySubtitleOffset(offsetMs)
+    // getSyncCues() already matches the interface signature
 
     // ── Subtitle file parsing for full-cue sync ───────────────
 
