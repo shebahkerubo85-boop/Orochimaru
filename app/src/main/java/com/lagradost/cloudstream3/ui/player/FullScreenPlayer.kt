@@ -94,7 +94,6 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
     protected var timestampShowState = false
     private var metadataVisibilityToken = 0
     protected var hasEpisodes = false
-        private set
 
     /**
      * Default profile 1
