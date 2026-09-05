@@ -216,7 +216,7 @@ class PlayerGestureHelper(private val playerView: PlayerView) {
 
     private val keyEventListener = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            intent.extras?.getInt(android.view.KeyEvent.EXTRA_KEY_EVENT, 0)?.let { handleVolumeKey(it) }
+            intent.extras?.getInt(android.content.Intent.EXTRA_KEY_EVENT, 0)?.let { handleVolumeKey(it) }
         }
     }
 
@@ -458,7 +458,7 @@ class PlayerGestureHelper(private val playerView: PlayerView) {
     }
 
     fun applyZoomMatrix(newMatrix: Matrix, animation: Boolean) {
-        val exoView = playerView.exoPlayerView ?: return@safe
+        val exoView = playerView.exoPlayerView ?: return
         if (!animation) {
             matrixAnimation?.cancel()
             matrixAnimation = null
@@ -760,7 +760,7 @@ class PlayerGestureHelper(private val playerView: PlayerView) {
 
     @SuppressLint("ClickableViewAccessibility")
     fun setupTouchGestures() {
-        val exoView = playerView.exoPlayerView ?: return@safe
+        val exoView = playerView.exoPlayerView ?: return
         val ctx = exoView.context
 
         rewindArea = exoView.findViewById(R.id.exo_rewind_area)
