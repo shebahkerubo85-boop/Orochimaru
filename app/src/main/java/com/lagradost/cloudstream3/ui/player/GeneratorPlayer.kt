@@ -1835,11 +1835,11 @@ class GeneratorPlayer : FullScreenPlayer() {
 
         drawer.addDrawerListener(object : DrawerLayout.DrawerListener {
             override fun onDrawerSlide(drawerView: View, slideOffset: Float) {}
-
             override fun onDrawerOpened(drawerView: View) {
                 when (drawerView.id) {
                     R.id.episodeDrawer -> episodeRail?.onDrawerOpened()
                     R.id.subtitleDrawer -> subtitleRail?.onDrawerOpened()
+                    R.id.tracksDrawer -> trackRail?.onDrawerOpened()
                 }
             }
 
@@ -1847,9 +1847,9 @@ class GeneratorPlayer : FullScreenPlayer() {
                 when (drawerView.id) {
                     R.id.episodeDrawer -> episodeRail?.onDrawerClosed()
                     R.id.subtitleDrawer -> subtitleRail?.onDrawerClosed()
+                    R.id.tracksDrawer -> trackRail?.onDrawerClosed()
                 }
             }
-
             override fun onDrawerStateChanged(newState: Int) {}
         })
 
@@ -1912,6 +1912,7 @@ class GeneratorPlayer : FullScreenPlayer() {
         )
 
         trackRail = TrackRailController(
+            drawer = drawer,
             content = root.findViewById(R.id.tracksDrawer),
             closeButton = root.findViewById(R.id.tracksDrawerClose),
             recycler = root.findViewById(R.id.tracksDrawerList),

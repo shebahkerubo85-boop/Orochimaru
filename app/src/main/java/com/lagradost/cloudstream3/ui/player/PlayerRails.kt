@@ -577,6 +577,7 @@ class SubtitleRailController(
  */
 @OptIn(UnstableApi::class)
 class TrackRailController(
+    private val drawer: DrawerLayout,
     private val content: View,
     private val closeButton: ImageButton,
     private val recycler: RecyclerView,
@@ -598,16 +599,19 @@ class TrackRailController(
 
     fun open() {
         rebuild()
-        content.isVisible = true
-        content.requestFocus()
-        focusFirst()
+        drawer.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED, content)
+        if (drawer.isDrawerOpen(content)) focusFirst() else drawer.openDrawer(content)
     }
 
-    fun close() {
-        content.isVisible = false
-    }
+    fun close() = drawer.closeDrawer(content)
 
-    fun isOpen(): Boolean = content.isVisible
+    fun isOpen(): Boolean = drawer.isDrawerOpen(content)
+
+    fun onDrawerOpened() = focusFirst()
+
+    fun onDrawerClosed() {
+        drawer.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED, content)
+    }
 
     private fun mimeCodec(mime: String?): String? = when (mime) {
         "audio/mp4a-latm" -> "AAC"

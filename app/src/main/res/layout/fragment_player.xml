@@ -119,11 +119,12 @@
                     android:focusable="true" />
             </FrameLayout>
         </FrameLayout>
-
-
+    </FrameLayout>
 
     <include layout="@layout/drawer_episode_rail" />
 
     <include layout="@layout/drawer_subtitle_rail" />
+
+    <include layout="@layout/drawer_tracks_rail" />
 
 </androidx.drawerlayout.widget.DrawerLayout>
