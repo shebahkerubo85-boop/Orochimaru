@@ -16,6 +16,7 @@ import android.os.Looper
 import android.text.format.DateUtils
 import android.util.AttributeSet
 import android.util.Log
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
@@ -264,6 +265,7 @@ class PlayerView @JvmOverloads constructor(
      * Called once after [bindViews].  Sets up the preview seek-bar, subtitle style listener,
      * player callbacks and basic controls; then delegates gesture/input setup to [gestureHelper].
      */
+    @SuppressLint("ClickableViewAccessibility")
     fun initialize() {
         resizeMode = DataStoreHelper.resizeMode
         resize(resizeMode, false)
@@ -389,6 +391,55 @@ class PlayerView @JvmOverloads constructor(
             playerFfwd?.setOnClickListener {
                 scheduleAutoHide()
                 callbacks?.nextEpisode()
+            }
+
+            // Center rewind/fast-forward buttons — exo-style tap seek + long-press repeat.
+            val seekHandler = Handler(Looper.getMainLooper())
+            var seekRepeat: Runnable? = null
+            fun startSeekRepeat(forward: Boolean) {
+                seekRepeat?.let { seekHandler.removeCallbacks(it) }
+                seekRepeat = Runnable {
+                    if (forward) gestureHelper.fastForward() else gestureHelper.rewind()
+                    seekHandler.postDelayed(seekRepeat!!, 250)
+                }
+                seekHandler.post(seekRepeat!!)
+            }
+            fun stopSeekRepeat() {
+                seekRepeat?.let { seekHandler.removeCallbacks(it) }
+                seekRepeat = null
+            }
+
+            exoPlayerView?.findViewById<View>(R.id.exo_fast_forward_button)?.apply {
+                setOnClickListener {
+                    scheduleAutoHide()
+                    gestureHelper.fastForward()
+                }
+                setOnLongClickListener {
+                    startSeekRepeat(true)
+                    true
+                }
+                setOnTouchListener { _, event ->
+                    if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
+                        stopSeekRepeat()
+                    }
+                    false
+                }
+            }
+            exoPlayerView?.findViewById<View>(R.id.exo_fast_rewind_button)?.apply {
+                setOnClickListener {
+                    scheduleAutoHide()
+                    gestureHelper.rewind()
+                }
+                setOnLongClickListener {
+                    startSeekRepeat(false)
+                    true
+                }
+                setOnTouchListener { _, event ->
+                    if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
+                        stopSeekRepeat()
+                    }
+                    false
+                }
             }
 
             SubtitlesFragment.applyStyleEvent += subStyleListener
