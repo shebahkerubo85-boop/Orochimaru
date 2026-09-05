@@ -610,7 +610,7 @@ class PlayerView @JvmOverloads constructor(
                 playerPausePlay?.setImageResource(R.drawable.ic_baseline_replay_24)
             } else if (wasPlaying != isPlaying) {
                 playerPausePlay?.setImageResource(
-                    if (isPlayingRightNow) R.drawable.play_to_pause else R.drawable.pause_to_play
+                    if (isPlayingRightNow) R.drawable.anim_play_to_pause else R.drawable.anim_pause_to_play
                 )
                 val drawable = playerPausePlay?.drawable
                 var startedAnimation = false

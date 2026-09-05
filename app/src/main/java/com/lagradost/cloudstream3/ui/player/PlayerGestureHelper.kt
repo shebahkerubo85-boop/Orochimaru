@@ -875,6 +875,8 @@ class PlayerGestureHelper(private val playerView: PlayerView) {
         // not hold reliably across all views once any of them restarts the animation.
         playerView.playerRewHolder?.let  { it.alpha = 1f; it.startAnimation(makeAnim()) }
         playerView.playerFfwdHolder?.let { it.alpha = 1f; it.startAnimation(makeAnim()) }
+        playerView.playerRew?.let { it.alpha = 1f; it.startAnimation(makeAnim()) }
+        playerView.playerFfwd?.let { it.alpha = 1f; it.startAnimation(makeAnim()) }
         playerView.playerPausePlay?.startAnimation(makeAnim())
     }
 

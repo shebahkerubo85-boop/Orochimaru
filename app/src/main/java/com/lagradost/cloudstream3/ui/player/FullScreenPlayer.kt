@@ -286,28 +286,31 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
             val playerBarMove = if (isShowing) 0f else 50.toPx.toFloat()
             exoTimelineCont.animateY(playerBarMove)
 
+            val topBarMove = if (isShowing) 0f else -50.toPx.toFloat()
+            exoTopCont.animateY(topBarMove)
+
             if (isLayout(PHONE)) {
                 exoEpSel.animateX(if (isShowing) 0f else 50.toPx.toFloat())
             }
 
             val fadeTo = if (isShowing) 1f else 0f
-            val fadeAnimation = AlphaAnimation(1f - fadeTo, fadeTo)
-
-            fadeAnimation.duration = 100
-            fadeAnimation.fillAfter = true
 
             animateLayoutChangesForSubtitles()
-
-            val playerSourceMove = if (isShowing) 0f else -50.toPx.toFloat()
-
-
 
             if (!isLocked) {
                 playerHostView?.gestureHelper?.animateCenterControls(fadeTo)
             }
 
-            exoTimelineCont.startAnimation(fadeAnimation)
-            exoBottomCont.startAnimation(fadeAnimation)
+            // Each view needs its own AlphaAnimation instance; sharing one causes
+            // fillAfter to not hold reliably across views once any restarts.
+            listOfNotNull(exoTimelineCont, exoBottomCont, exoTopCont).forEach { view ->
+                view.startAnimation(
+                    AlphaAnimation(1f - fadeTo, fadeTo).apply {
+                        duration = 100
+                        fillAfter = true
+                    }
+                )
+            }
         }
     }
 
