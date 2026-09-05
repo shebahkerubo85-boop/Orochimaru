@@ -21,6 +21,11 @@ import ani.sanin.R
 import ani.sanin.databinding.ItemEpisodeRailBinding
 import ani.sanin.databinding.ItemSubtitleTextBinding
 import ani.sanin.util.FocusEffectUtil
+import ani.sanin.connections.subtitles.StremioSub
+import ani.sanin.connections.subtitles.StremioSubtitles
+import ani.sanin.connections.subtitles.WyzieSub
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import com.google.android.material.color.MaterialColors
