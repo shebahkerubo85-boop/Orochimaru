@@ -148,7 +148,7 @@ private class EpisodeRailRowAdapter(
         binding.episodeRailComment.isVisible = false
 
         binding.episodeRailNumber.text =
-            (episode.totalEpisodeIndex ?: episode.episode).toString()
+            (episode.episode ?: episode.totalEpisodeIndex).toString()
 
         binding.episodeRailTitle.text = buildString {
             if (episode.isFiller == true) append("[FILLER] ")
@@ -198,8 +198,16 @@ class EpisodeRailController(
     private val onEpisodeSelected: (Int) -> Unit,
 ) {
     private val episodes = mutableListOf<ResultEpisode>()
-    private val adapter = EpisodeRailRowAdapter(episodes, onEpisodeSelected)
     private var currentSeasonKey: String? = null
+    /** Full unfiltered list kept for id→globalIndex mapping. */
+    private var allEpisodes: List<ResultEpisode> = emptyList()
+
+    private val adapter = EpisodeRailRowAdapter(episodes) { adapterPos ->
+        // Map adapter position → global index in the full episode list
+        val episode = episodes.getOrNull(adapterPos)
+        val global = episode?.let { ep -> allEpisodes.indexOfFirst { it.id == ep.id } } ?: adapterPos
+        onEpisodeSelected(global)
+    }
 
     init {
         recycler.layoutManager = LinearLayoutManager(recycler.context)
@@ -234,6 +242,7 @@ class EpisodeRailController(
 
     private fun rebuild() {
         val all = episodesProvider()
+        allEpisodes = all
         currentSeasonKey = currentSeasonKey ?: currentSeasonOf(all, currentIndexProvider())
         buildSeasonChips(all)
         showSeason(all, currentSeasonKey)
