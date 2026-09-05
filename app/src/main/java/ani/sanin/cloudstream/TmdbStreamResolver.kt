@@ -32,6 +32,7 @@ import com.lagradost.cloudstream3.LiveStreamLoadResponse
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.Score
 import com.lagradost.cloudstream3.TvType
+import com.lagradost.cloudstream3.utils.DrmExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.CLEARKEY_DRM_UUID
 import com.lagradost.cloudstream3.utils.Qualities
@@ -43,6 +44,7 @@ import kotlinx.coroutines.withTimeout
 import com.lagradost.cloudstream3.ui.player.GeneratorPlayer
 import com.lagradost.cloudstream3.ui.player.TmdbSyntheticGenerator
 import com.lagradost.cloudstream3.ui.result.ResultEpisode
+import com.lagradost.cloudstream3.ui.result.VideoWatchState
 
 /**
  * Shared CloudStream resolution + player-launch helpers used by the TMDB
@@ -734,6 +736,7 @@ object TmdbStreamResolver {
                 isFiller = ep.filler.takeIf { it },
                 tvType = tvType,
                 parentId = media.id,
+                videoWatchState = VideoWatchState.None,
                 totalEpisodeIndex = index + 1,
                 airDate = ep.date?.let { date ->
                     runCatching {

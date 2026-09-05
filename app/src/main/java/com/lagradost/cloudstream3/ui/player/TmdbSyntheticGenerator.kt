@@ -9,7 +9,7 @@ import ani.sanin.parsers.VideoType
 import com.lagradost.cloudstream3.ui.result.ResultEpisode
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLinkType
-import com.lagradost.cloudstream3.utils.newAudioFile
+import com.lagradost.cloudstream3.newAudioFile
 import com.lagradost.cloudstream3.utils.newDrmExtractorLink
 import com.lagradost.cloudstream3.utils.newExtractorLink
 import eu.kanade.tachiyomi.animesource.model.Track
@@ -46,7 +46,7 @@ class TmdbSyntheticGenerator(
         isCasting: Boolean,
     ): Boolean {
         val key = episodeKeys.getOrNull(offset) ?: return false
-        val episode = media.anime.episodes?.get(key) ?: return false
+        val episode = media.anime?.episodes?.get(key) ?: return false
         if (!TmdbStreamResolver.populateSyntheticEpisode(appContext, media, episode)) return false
 
         var emitted = 0
@@ -67,7 +67,7 @@ class TmdbSyntheticGenerator(
     private suspend fun videoToLink(
         serverName: String,
         video: Video,
-        audioTracks: List<Track>,
+        trackList: List<Track>,
     ): ExtractorLink? {
         val url = video.file.url
         if (url.isBlank()) return null
@@ -82,7 +82,7 @@ class TmdbSyntheticGenerator(
                 else -> ExtractorLinkType.VIDEO
             }
         }
-        val audio = audioTracks.map { newAudioFile(it.url) }
+        val audio = trackList.map { newAudioFile(it.url) }
         val drm = video.drm
         return if (drm?.uuid != null) {
             @Suppress("DEPRECATION_ERROR")
