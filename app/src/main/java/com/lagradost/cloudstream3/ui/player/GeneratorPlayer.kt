@@ -1874,7 +1874,9 @@ class GeneratorPlayer : FullScreenPlayer() {
             return
         }
         viewModel.attachGenerator(generator, index)
-
+        // Reliable flag (independent of async generatorState): the episode
+        // selector/nav depend only on whether the generator carries episodes.
+        hasEpisodes = generator.videos.isNotEmpty()
         context?.let { ctx ->
             val settingsManager = PreferenceManager.getDefaultSharedPreferences(ctx)
             showName = settingsManager.getBoolean(ctx.getString(R.string.show_name_key), true)
