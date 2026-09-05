@@ -58,6 +58,7 @@
                     app:lottie_rawRes="@raw/tomoe"
                     app:lottie_autoPlay="true"
                     app:lottie_loop="true"
+                    app:lottie_colorFilter="?attr/colorPrimary"
                     app:lottie_speed="1.75"
                     android:rotation="75" />
 
@@ -70,6 +71,7 @@
                     app:lottie_rawRes="@raw/tomoe"
                     app:lottie_autoPlay="true"
                     app:lottie_loop="true"
+                    app:lottie_colorFilter="?attr/colorPrimary"
                     app:lottie_speed="1.75"
                     android:rotation="-45" />
 
@@ -82,6 +84,7 @@
                     app:lottie_rawRes="@raw/tomoe"
                     app:lottie_autoPlay="true"
                     app:lottie_loop="true"
+                    app:lottie_colorFilter="?attr/colorPrimary"
                     app:lottie_speed="1.75"
                     android:rotation="195" />
 
