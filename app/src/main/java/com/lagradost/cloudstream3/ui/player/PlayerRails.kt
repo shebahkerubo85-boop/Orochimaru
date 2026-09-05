@@ -616,7 +616,7 @@ class TrackSheetController(
         rebuild()
         content.visibility = View.VISIBLE
         content.alpha = 0f
-        content.translationY = -(content.height.coerceAtLeast(140))
+        content.translationY = -(content.height.coerceAtLeast(140)).toFloat()
         content.post {
             content.animate()
                 .alpha(1f)
@@ -632,7 +632,7 @@ class TrackSheetController(
         if (!content.isVisible) return
         content.animate()
             .alpha(0f)
-            .translationY(-content.height.coerceAtLeast(140))
+            .translationY(-content.height.coerceAtLeast(140).toFloat())
             .setDuration(180)
             .withEndAction { content.visibility = View.GONE }
             .start()
