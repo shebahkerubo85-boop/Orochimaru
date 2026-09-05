@@ -19,6 +19,178 @@
         android:layout_gravity="bottom"
         android:background="@drawable/linear_gradient_black" />
 
+
+    <!-- Anime-style gesture touch areas (left = brightness, right = volume) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="64dp"
+        android:layout_marginBottom="64dp"
+        android:orientation="horizontal">
+
+        <View
+            android:id="@+id/exo_rewind_area"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1" />
+
+        <View
+            android:layout_width="128dp"
+            android:layout_height="match_parent" />
+
+        <View
+            android:id="@+id/exo_forward_area"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1" />
+    </LinearLayout>
+
+    <!-- Double-tap seek animation TextViews -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/exo_fast_rewind_anim"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical|end"
+            android:layout_marginTop="16dp"
+            android:layout_weight="1"
+            android:alpha="0"
+            android:fontFamily="@font/poppins_bold"
+            android:text="-10"
+            android:textAlignment="center"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            app:drawableTopCompat="@drawable/anim_rewind"
+            tools:ignore="HardcodedText,RtlCompat" />
+
+        <View
+            android:layout_width="128dp"
+            android:layout_height="match_parent" />
+
+        <TextView
+            android:id="@+id/exo_fast_forward_anim"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical|end"
+            android:layout_marginTop="16dp"
+            android:layout_weight="1"
+            android:alpha="0"
+            android:fontFamily="@font/poppins_bold"
+            android:text="10+"
+            android:textAlignment="center"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            app:drawableTopCompat="@drawable/anim_skip"
+            tools:ignore="HardcodedText,RtlCompat" />
+    </LinearLayout>
+
+    <!-- Fast-forward speed text (shown during long-press) -->
+    <TextView
+        android:id="@+id/exo_fast_forward_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:fontFamily="@font/poppins_bold"
+        android:text="1.00x"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:visibility="gone"
+        tools:ignore="HardcodedText" />
+
+    <!-- Brightness slider container -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/exo_brightness_cont"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical|end"
+        android:layout_margin="16dp"
+        android:clipChildren="true"
+        android:visibility="gone"
+        app:cardBackgroundColor="#A9000000"
+        app:cardCornerRadius="24dp"
+        app:contentPadding="4dp">
+
+        <LinearLayout
+            android:layout_width="32dp"
+            android:layout_height="236dp"
+            android:orientation="vertical">
+
+            <com.google.android.material.slider.Slider
+                android:id="@+id/exo_brightness"
+                android:layout_width="200dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="76dp"
+                android:layout_marginBottom="-20dp"
+                style="@style/Widget.Material3.Slider.Legacy"
+                android:rotation="270"
+                android:value="2"
+                android:valueFrom="0"
+                android:valueTo="10"
+                app:labelBehavior="gone"
+                app:thumbElevation="0dp"
+                app:trackColorActive="?attr/colorPrimary"
+                app:trackColorInactive="?attr/colorOnPrimary"
+                app:trackHeight="24dp" />
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="100dp"
+                app:srcCompat="@drawable/ic_round_brightness_medium_24"
+                tools:ignore="ContentDescription" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Volume slider container -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/exo_volume_cont"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:layout_margin="16dp"
+        android:clipChildren="true"
+        android:visibility="gone"
+        app:cardBackgroundColor="#A9000000"
+        app:cardCornerRadius="24dp"
+        app:contentPadding="4dp">
+
+        <LinearLayout
+            android:layout_width="32dp"
+            android:layout_height="236dp"
+            android:orientation="vertical">
+
+            <com.google.android.material.slider.Slider
+                android:id="@+id/exo_volume"
+                android:layout_width="200dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="76dp"
+                android:layout_marginBottom="-20dp"
+                style="@style/Widget.Material3.Slider.Legacy"
+                android:rotation="270"
+                android:value="2"
+                android:valueFrom="0"
+                android:valueTo="10"
+                app:labelBehavior="gone"
+                app:thumbElevation="0dp"
+                app:trackColorActive="?attr/colorPrimary"
+                app:trackColorInactive="?attr/colorOnPrimary"
+                app:trackHeight="24dp" />
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="100dp"
+                app:srcCompat="@drawable/ic_round_volume_up_24"
+                tools:ignore="ContentDescription" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
     <FrameLayout
         android:id="@+id/exo_controller_margin"
         android:layout_width="match_parent"
