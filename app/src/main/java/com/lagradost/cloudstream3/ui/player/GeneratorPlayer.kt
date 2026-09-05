@@ -1719,6 +1719,12 @@ class GeneratorPlayer : FullScreenPlayer() {
 
     override fun openTracksRail() {
         trackRail?.open()
+        // Mirror anime ExoplayerView: block PlayerView from stealing
+        // focus/touch while the tracks overlay is open.
+        playerView?.let { pv ->
+            pv.descendantFocusability = android.view.ViewGroup.FOCUS_BLOCK_DESCENDANTS
+            pv.isFocusable = false
+        }
     }
 
     override fun onPlayerBackPressed(): Boolean {
@@ -1732,6 +1738,7 @@ class GeneratorPlayer : FullScreenPlayer() {
         }
         if (trackRail?.isOpen() == true) {
             trackRail?.close()
+            restorePlayerFocus()
             return true
         }
         return false
@@ -1824,6 +1831,15 @@ class GeneratorPlayer : FullScreenPlayer() {
         episodeRail?.close()
         subtitleRail?.close()
         trackRail?.close()
+        restorePlayerFocus()
+    }
+
+    /** Restore PlayerView focus after a rail overlay closes. */
+    private fun restorePlayerFocus() {
+        playerView?.let { pv ->
+            pv.descendantFocusability = android.view.ViewGroup.FOCUS_AFTER_DESCENDANTS
+            pv.isFocusable = true
+        }
     }
 
 
