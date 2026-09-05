@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.DecelerateInterpolator
 import android.widget.HorizontalScrollView
 import android.widget.ImageButton
 import androidx.annotation.OptIn
@@ -573,44 +574,86 @@ class SubtitleRailController(
 }
 
 /**
- * Right-side tracks/audio rail — the same overlay + rows as the anime player.
+ * Top-right track sheet for the CS3 player — a small accordion panel anchored
+ * near the track button. Two headers (Video / Audio); tapping a header expands
+ * that section's track list inline.
  */
 @OptIn(UnstableApi::class)
-class TrackRailController(
-    private val drawer: DrawerLayout,
+class TrackSheetController(
     private val content: View,
-    private val closeButton: ImageButton,
-    private val recycler: RecyclerView,
+    private val videoHeader: View,
+    private val audioHeader: View,
+    private val videoRecycler: RecyclerView,
+    private val audioRecycler: RecyclerView,
+    private val videoChevron: View,
+    private val audioChevron: View,
     private val tracksProvider: () -> CurrentTracks,
     private val onVideoTrackSelected: (VideoTrack) -> Unit,
     private val onAudioTrackSelected: (AudioTrack) -> Unit,
 ) {
-    private val rows = mutableListOf<RailTextRow>()
-    private val adapter = RailTextAdapter(rows)
+    private val videoRows = mutableListOf<RailTextRow>()
+    private val audioRows = mutableListOf<RailTextRow>()
+    private val videoAdapter = RailTextAdapter(videoRows)
+    private val audioAdapter = RailTextAdapter(audioRows)
+
+    private var expandedSection: Int? = null
 
     init {
-        recycler.layoutManager = LinearLayoutManager(recycler.context)
-        recycler.adapter = adapter
-        closeButton.nextFocusDownId = R.id.tracksDrawerList
-        recycler.nextFocusUpId = R.id.tracksDrawerClose
-        FocusEffectUtil.applyFocusListener(closeButton)
-        closeButton.setOnClickListener { close() }
+        videoRecycler.layoutManager = LinearLayoutManager(videoRecycler.context)
+        videoRecycler.adapter = videoAdapter
+        videoRecycler.isNestedScrollingEnabled = false
+        audioRecycler.layoutManager = LinearLayoutManager(audioRecycler.context)
+        audioRecycler.adapter = audioAdapter
+        audioRecycler.isNestedScrollingEnabled = false
+        FocusEffectUtil.applyFocusListener(videoHeader)
+        FocusEffectUtil.applyFocusListener(audioHeader)
+        videoHeader.setOnClickListener { toggleSection(SECTION_VIDEO) }
+        audioHeader.setOnClickListener { toggleSection(SECTION_AUDIO) }
     }
 
     fun open() {
+        if (content.isVisible) return
         rebuild()
-        drawer.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED, content)
-        if (drawer.isDrawerOpen(content)) focusFirst() else drawer.openDrawer(content)
+        content.visibility = View.VISIBLE
+        content.alpha = 0f
+        content.translationY = -(content.height.coerceAtLeast(140))
+        content.post {
+            content.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setDuration(220)
+                .setInterpolator(DecelerateInterpolator())
+                .start()
+        }
+        videoHeader.requestFocus()
     }
 
-    fun close() = drawer.closeDrawer(content)
+    fun close() {
+        if (!content.isVisible) return
+        content.animate()
+            .alpha(0f)
+            .translationY(-content.height.coerceAtLeast(140))
+            .setDuration(180)
+            .withEndAction { content.visibility = View.GONE }
+            .start()
+        expandedSection = null
+        videoRecycler.isVisible = false
+        audioRecycler.isVisible = false
+        videoChevron.rotation = 0f
+        audioChevron.rotation = 0f
+    }
 
-    fun isOpen(): Boolean = drawer.isDrawerOpen(content)
+    fun isOpen(): Boolean = content.isVisible
 
-    fun onDrawerOpened() = focusFirst()
-
-    fun onDrawerClosed() {
-        drawer.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED, content)
+    private fun toggleSection(section: Int) {
+        val target = if (expandedSection == section) null else section
+        expandedSection = target
+        val showVideo = target == SECTION_VIDEO
+        val showAudio = target == SECTION_AUDIO
+        videoRecycler.isVisible = showVideo && videoRows.isNotEmpty()
+        audioRecycler.isVisible = showAudio && audioRows.isNotEmpty()
+        videoChevron.animate().rotation(if (showVideo) 180f else 0f).setDuration(180).start()
+        audioChevron.animate().rotation(if (showAudio) 180f else 0f).setDuration(180).start()
     }
 
     private fun mimeCodec(mime: String?): String? = when (mime) {
@@ -633,72 +676,52 @@ class TrackRailController(
 
     private fun rebuild() {
         val tracks = tracksProvider()
-        rows.clear()
 
+        videoRows.clear()
         val videos = tracks.allVideoTracks.sortedByDescending { it.height ?: 0 }
-        if (videos.isNotEmpty()) {
-            rows.add(RailTextRow(text(R.string.tracks), header = true))
-            videos.forEachIndexed { index, track ->
-                val label = track.label?.takeIf { it.isNotBlank() }
-                    ?: if (track.width != null && track.height != null &&
-                        track.width != Format.NO_VALUE && track.height != Format.NO_VALUE
-                    ) "${track.width}x${track.height}" else "Video ${index + 1}"
-                rows.add(
-                    RailTextRow(
-                        label = label,
-                        selected = tracks.currentVideoTrack?.id == track.id,
-                        onClick = { onVideoTrackSelected(track) }
-                    )
+        videos.forEachIndexed { index, track ->
+            val label = track.label?.takeIf { it.isNotBlank() }
+                ?: if (track.width != null && track.height != null &&
+                    track.width != Format.NO_VALUE && track.height != Format.NO_VALUE
+                ) "${track.width}x${track.height}" else "Video ${index + 1}"
+            videoRows.add(
+                RailTextRow(
+                    label = label,
+                    selected = tracks.currentVideoTrack?.id == track.id,
+                    onClick = { onVideoTrackSelected(track) }
                 )
-            }
+            )
         }
 
-        val audios = tracks.allAudioTracks
-        if (audios.isNotEmpty()) {
-            rows.add(RailTextRow(text(R.string.audio), header = true))
-            audios.forEach { track ->
-                val channels = when (val count = track.channelCount) {
-                    null, 0, -1 -> ""
-                    1 -> "Mono"
-                    2 -> "Stereo"
-                    6 -> "5.1"
-                    8 -> "7.1"
-                    else -> "${count}ch"
-                }
-                val codec = mimeCodec(track.sampleMimeType)
-                val label = listOfNotNull(audioLanguage(track), channels, codec)
-                    .joinToString(" • ")
-                rows.add(
-                    RailTextRow(
-                        label = label,
-                        selected = tracks.currentAudioTrack?.id == track.id &&
-                            tracks.currentAudioTrack?.formatIndex == track.formatIndex,
-                        onClick = { onAudioTrackSelected(track) }
-                    )
-                )
+        audioRows.clear()
+        tracks.allAudioTracks.forEach { track ->
+            val channels = when (val count = track.channelCount) {
+                null, 0, -1 -> ""
+                1 -> "Mono"
+                2 -> "Stereo"
+                6 -> "5.1"
+                8 -> "7.1"
+                else -> "${count}ch"
             }
+            val codec = mimeCodec(track.sampleMimeType)
+            val label = listOfNotNull(audioLanguage(track), channels, codec)
+                .joinToString(" • ")
+            audioRows.add(
+                RailTextRow(
+                    label = label,
+                    selected = tracks.currentAudioTrack?.id == track.id &&
+                        tracks.currentAudioTrack?.formatIndex == track.formatIndex,
+                    onClick = { onAudioTrackSelected(track) }
+                )
+            )
         }
 
-        if (rows.isEmpty()) {
-            rows.add(RailTextRow(text(R.string.no_tracks), header = true))
-        }
-        adapter.submit(rows.toList())
+        videoAdapter.submit(videoRows.toList())
+        audioAdapter.submit(audioRows.toList())
     }
 
-    private fun text(res: Int): String = recycler.context.getString(res)
-
-    private fun focusFirst() {
-        val first = rows.indexOfFirst { it.onClick != null }
-        if (first >= 0) {
-            recycler.post {
-                recycler.scrollToPosition(first)
-                recycler.post {
-                    val holder = recycler.findViewHolderForAdapterPosition(first)
-                    if (holder != null) holder.itemView.requestFocus() else closeButton.requestFocus()
-                }
-            }
-        } else {
-            closeButton.requestFocus()
-        }
+    private companion object {
+        const val SECTION_VIDEO = 0
+        const val SECTION_AUDIO = 1
     }
 }

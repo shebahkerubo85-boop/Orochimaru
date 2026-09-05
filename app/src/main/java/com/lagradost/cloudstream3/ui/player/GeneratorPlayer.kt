@@ -196,7 +196,7 @@ class GeneratorPlayer : FullScreenPlayer() {
     private var drawerLayout: DrawerLayout? = null
     private var episodeRail: EpisodeRailController? = null
     private var subtitleRail: SubtitleRailController? = null
-    private var trackRail: TrackRailController? = null
+    private var trackSheet: TrackSheetController? = null
 
     private var isPlayerActive: AtomicBoolean = AtomicBoolean(false)
     private var isNextEpisode: Boolean = false // this is used to reset the watch time
@@ -1711,7 +1711,7 @@ class GeneratorPlayer : FullScreenPlayer() {
         super.isDialogOpen()
             || episodeRail?.isOpen() == true
             || subtitleRail?.isOpen() == true
-            || trackRail?.isOpen() == true
+            || trackSheet?.isOpen() == true
 
     var skipAnimator: ValueAnimator? = null
     var skipIndex = 0
@@ -1799,9 +1799,14 @@ class GeneratorPlayer : FullScreenPlayer() {
     }
 
     override fun openTracksRail() {
-        trackRail?.open()
+        if (trackSheet?.isOpen() == true) {
+            trackSheet?.close()
+            restorePlayerFocus()
+            return
+        }
+        trackSheet?.open()
         // Mirror anime ExoplayerView: block PlayerView from stealing
-        // focus/touch while the tracks overlay is open.
+        // focus/touch while the tracks sheet is open.
         playerView?.let { pv ->
             pv.descendantFocusability = android.view.ViewGroup.FOCUS_BLOCK_DESCENDANTS
             pv.isFocusable = false
@@ -1817,8 +1822,8 @@ class GeneratorPlayer : FullScreenPlayer() {
             episodeRail?.close()
             return true
         }
-        if (trackRail?.isOpen() == true) {
-            trackRail?.close()
+        if (trackSheet?.isOpen() == true) {
+            trackSheet?.close()
             restorePlayerFocus()
             return true
         }
@@ -1839,7 +1844,6 @@ class GeneratorPlayer : FullScreenPlayer() {
                 when (drawerView.id) {
                     R.id.episodeDrawer -> episodeRail?.onDrawerOpened()
                     R.id.subtitleDrawer -> subtitleRail?.onDrawerOpened()
-                    R.id.tracksDrawer -> trackRail?.onDrawerOpened()
                 }
             }
 
@@ -1847,7 +1851,6 @@ class GeneratorPlayer : FullScreenPlayer() {
                 when (drawerView.id) {
                     R.id.episodeDrawer -> episodeRail?.onDrawerClosed()
                     R.id.subtitleDrawer -> subtitleRail?.onDrawerClosed()
-                    R.id.tracksDrawer -> trackRail?.onDrawerClosed()
                 }
             }
             override fun onDrawerStateChanged(newState: Int) {}
@@ -1911,11 +1914,14 @@ class GeneratorPlayer : FullScreenPlayer() {
             isSearchingOnlineProvider = { searchingOnlineForRail },
         )
 
-        trackRail = TrackRailController(
-            drawer = drawer,
-            content = root.findViewById(R.id.tracksDrawer),
-            closeButton = root.findViewById(R.id.tracksDrawerClose),
-            recycler = root.findViewById(R.id.tracksDrawerList),
+        trackSheet = TrackSheetController(
+            content = root.findViewById(R.id.tracksSheet),
+            videoHeader = root.findViewById(R.id.tracksSheetVideoHeader),
+            audioHeader = root.findViewById(R.id.tracksSheetAudioHeader),
+            videoRecycler = root.findViewById(R.id.tracksSheetVideoList),
+            audioRecycler = root.findViewById(R.id.tracksSheetAudioList),
+            videoChevron = root.findViewById(R.id.tracksSheetVideoChevron),
+            audioChevron = root.findViewById(R.id.tracksSheetAudioChevron),
             tracksProvider = { player.getVideoTracks() },
             onVideoTrackSelected = { track ->
                 player.setMaxVideoSize(
@@ -1933,7 +1939,7 @@ class GeneratorPlayer : FullScreenPlayer() {
     private fun closeRails() {
         episodeRail?.close()
         subtitleRail?.close()
-        trackRail?.close()
+        trackSheet?.close()
         restorePlayerFocus()
     }
 
