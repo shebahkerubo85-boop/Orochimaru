@@ -1625,6 +1625,13 @@ class GeneratorPlayer : FullScreenPlayer() {
     override fun pickLayout(): Int =
         if (isLayout(TV or EMULATOR)) R.layout.fragment_player_tv else R.layout.fragment_player
 
+    /** Treat open rails as dialogs so D-pad center/enter reaches the focused row. */
+    override fun isDialogOpen(): Boolean =
+        super.isDialogOpen()
+            || episodeRail?.isOpen() == true
+            || subtitleRail?.isOpen() == true
+            || trackRail?.isOpen() == true
+
     var skipAnimator: ValueAnimator? = null
     var skipIndex = 0
 

@@ -1021,14 +1021,14 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
 
             KeyEvent.KEYCODE_DPAD_DOWN,
             KeyEvent.KEYCODE_DPAD_UP -> {
-                if (isShowing || isShowingEpisodeOverlay) {
+                if (isShowing || isDialogOpen()) {
                     return null
                 }
                 onClickChange()
             }
 
             KeyEvent.KEYCODE_DPAD_LEFT -> {
-                if (!isShowing && !isLocked && !isShowingEpisodeOverlay) {
+                if (!isShowing && !isLocked && !isDialogOpen()) {
                     player.seekTime(-androidTVInterfaceOffSeekTime)
                     return true
                 } else if (playerBinding?.exoPlay?.isFocused == true) {
@@ -1040,7 +1040,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
             }
 
             KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                if (!isShowing && !isLocked && !isShowingEpisodeOverlay) {
+                if (!isShowing && !isLocked && !isDialogOpen()) {
                     player.seekTime(androidTVInterfaceOffSeekTime)
                 } else if (playerBinding?.exoPlay?.isFocused == true) {
                     player.seekTime(androidTVInterfaceOnSeekTime)
