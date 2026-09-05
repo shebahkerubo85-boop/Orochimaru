@@ -169,7 +169,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         }
 
     /** Checks if any top level dialog is open and showing */
-    fun isDialogOpen() =
+    open fun isDialogOpen() =
         selectSourceDialog?.isShowing == true
                 || selectTrackDialog?.isShowing == true
                 || selectSpeedDialog?.isShowing == true
