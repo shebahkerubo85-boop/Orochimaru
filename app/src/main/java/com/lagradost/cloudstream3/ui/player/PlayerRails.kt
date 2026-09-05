@@ -101,7 +101,7 @@ private class RailTextAdapter(private val rows: MutableList<RailTextRow>) :
             binding.root.isFocusable = true
             binding.subtitleTitle.text = row.label
             binding.subtitleTitle.setTextColor(Color.WHITE)
-            binding.subtitleTitle.textSize = 16f
+            binding.subtitleTitle.textSize = 14f
             binding.subtitleGlobe.isVisible = false
             binding.subtitleBadge.isVisible = false
             binding.subtitleToggle.isVisible = true

@@ -695,11 +695,7 @@ class PlayerGestureHelper(private val playerView: PlayerView) {
     fun animateCenterControls(alpha: Float) {
         val exoView = playerView.exoPlayerView ?: return
         val controller = exoView.findViewById<View>(R.id.exo_controller_cont)
-        val ffwd = exoView.findViewById<View>(R.id.exo_fast_forward)
-        val rew = exoView.findViewById<View>(R.id.exo_fast_rewind)
         controller?.animate()?.alpha(alpha)?.setDuration(150)?.start()
-        ffwd?.animate()?.alpha(alpha)?.setDuration(150)?.start()
-        rew?.animate()?.alpha(alpha)?.setDuration(150)?.start()
     }
 
     fun resetFastForwardText() {

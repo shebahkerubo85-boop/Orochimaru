@@ -7,7 +7,9 @@
     android:layout_height="match_parent"
     android:layout_gravity="end"
     android:background="#E6101010"
+    android:clickable="true"
     android:focusable="true"
+    android:focusableInTouchMode="true"
     android:orientation="vertical"
     android:visibility="gone">
 

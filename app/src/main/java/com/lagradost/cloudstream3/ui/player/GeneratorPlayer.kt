@@ -199,6 +199,7 @@ class GeneratorPlayer : FullScreenPlayer() {
 
     private var isPlayerActive: AtomicBoolean = AtomicBoolean(false)
     private var isNextEpisode: Boolean = false // this is used to reset the watch time
+    private var searchingOnlineForRail = false
 
     private var preferredAutoSelectSubtitles: String? = null // null means do nothing, "" means none
     private val allMeta: List<ResultEpisode>?
@@ -846,6 +847,70 @@ class GeneratorPlayer : FullScreenPlayer() {
         binding.subtitlesSearch.setQuery(currentTempMeta.name, true)
         //TODO: Set year text from currently loaded movie on Player
         //dialog.subtitles_search_year?.setText(currentTempMeta.year)
+    }
+
+    /** Search online subtitle providers and add results to the rail (anime-style). */
+    private fun searchOnlineSubtitlesForRail() {
+        if (searchingOnlineForRail) return
+        searchingOnlineForRail = true
+        subtitleRail?.setSearchingOnline(true)
+
+        val meta = getMetaData()
+        val query = meta.name ?: run {
+            searchingOnlineForRail = false
+            return
+        }
+        val loadResp = viewModel.state.generatorState?.meta as? com.lagradost.cloudstream3.LoadResponse
+
+        viewModel.viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val search = SubtitleSearch(
+                    query = query,
+                    imdbId = loadResp?.getImdbId(),
+                    tmdbId = loadResp?.getTMDbId()?.toInt(),
+                    epNumber = meta.episode,
+                    seasonNumber = meta.season,
+                )
+
+                val newSubs = mutableListOf<SubtitleData>()
+                subsProviders.toList().amap { provider ->
+                    when (val result = Resource.fromResult(provider.search(search))) {
+                        is Resource.Success -> {
+                            for (entry in result.value) {
+                                val resources = provider.resource(entry).getOrNull() ?: continue
+                                newSubs.addAll(resources.getSubtitles().map { sub ->
+                                    SubtitleData(
+                                        originalName = sub.name ?: entry.name,
+                                        nameSuffix = "",
+                                        url = sub.url,
+                                        origin = sub.origin,
+                                        mimeType = sub.url.toSubtitleMimeType(),
+                                        headers = entry.headers,
+                                        languageCode = entry.lang,
+                                    )
+                                })
+                            }
+                        }
+                        else -> Unit
+                    }
+                }
+
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    searchingOnlineForRail = false
+                    if (newSubs.isNotEmpty()) {
+                        viewModel.addSubtitles(newSubs.toSet())
+                    } else {
+                        showToast(R.string.no_subtitles)
+                    }
+                    subtitleRail?.setSearchingOnline(false)
+                }
+            } catch (e: Exception) {
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    searchingOnlineForRail = false
+                    subtitleRail?.setSearchingOnline(false)
+                }
+            }
+        }
     }
 
     private fun openSubPicker() {
@@ -1839,6 +1904,10 @@ class GeneratorPlayer : FullScreenPlayer() {
             onAddLocalSubtitle = {
                 openSubPicker()
             },
+            onSearchOnline = {
+                searchOnlineSubtitlesForRail()
+            },
+            isSearchingOnlineProvider = { searchingOnlineForRail },
         )
 
         trackRail = TrackRailController(
