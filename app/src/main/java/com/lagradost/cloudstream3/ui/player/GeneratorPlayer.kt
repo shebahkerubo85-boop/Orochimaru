@@ -1697,9 +1697,9 @@ class GeneratorPlayer : FullScreenPlayer() {
     }
 
     override fun isThereEpisodes(): Boolean {
-        // Checks if there is a second episode of type ResultEpisode
-        // => There exists more than 1 episode, and they are all ResultEpisode
-        return viewModel.state.generatorState?.allMeta?.getOrNull(1) as? ResultEpisode != null
+        // Anime-mode style: show the episode selector whenever the generator
+        // carries at least one episode (movies get a single-row rail too).
+        return viewModel.state.generatorState?.allMeta?.firstOrNull() as? ResultEpisode != null
     }
 
     override fun openEpisodesRail() {
