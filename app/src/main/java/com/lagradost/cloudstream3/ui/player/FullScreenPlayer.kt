@@ -1238,6 +1238,13 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 activity?.popCurrentPage("FullScreenPlayer")
             }
 
+            exoNextEp.setOnClickListener {
+                nextEpisode()
+            }
+            exoPrevEp.setOnClickListener {
+                prevEpisode()
+            }
+
             exoSource.setOnClickListener {
                 showMirrorsDialogue()
             }
