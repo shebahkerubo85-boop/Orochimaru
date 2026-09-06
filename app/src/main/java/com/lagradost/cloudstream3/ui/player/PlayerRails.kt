@@ -618,6 +618,36 @@ class TrackSheetController(
 
     fun isOpen(): Boolean = dialog?.isShowing == true
 
+    fun refresh() {
+        rebuild()
+        if (dialog?.isShowing != true || !::videoRecycler.isInitialized) return
+        videoAdapter.submit(videoRows.toList())
+        audioAdapter.submit(audioRows.toList())
+        focusSelectedTrack()
+    }
+
+    private fun focusSelectedTrack() {
+        val videoPos = videoRows.indexOfFirst { it.selected }
+        if (videoPos >= 0) {
+            videoRecycler.post {
+                videoRecycler.scrollToPosition(videoPos)
+                videoRecycler.post {
+                    videoRecycler.findViewHolderForAdapterPosition(videoPos)?.itemView?.requestFocus()
+                }
+            }
+            return
+        }
+        val audioPos = audioRows.indexOfFirst { it.selected }
+        if (audioPos >= 0) {
+            audioRecycler.post {
+                audioRecycler.scrollToPosition(audioPos)
+                audioRecycler.post {
+                    audioRecycler.findViewHolderForAdapterPosition(audioPos)?.itemView?.requestFocus()
+                }
+            }
+        }
+    }
+
     private fun showDialog() {
         val dlg = Dialog(context, R.style.DialogTracksTopSheet)
         dialog = dlg
@@ -713,7 +743,10 @@ class TrackSheetController(
                 RailTextRow(
                     label = label,
                     selected = tracks.currentVideoTrack?.id == track.id,
-                    onClick = { onVideoTrackSelected(track) }
+                    onClick = {
+                        onVideoTrackSelected(track)
+                        refresh()
+                    }
                 )
             )
         }
@@ -736,7 +769,10 @@ class TrackSheetController(
                     label = label,
                     selected = tracks.currentAudioTrack?.id == track.id &&
                         tracks.currentAudioTrack?.formatIndex == track.formatIndex,
-                    onClick = { onAudioTrackSelected(track) }
+                    onClick = {
+                        onAudioTrackSelected(track)
+                        refresh()
+                    }
                 )
             )
         }
