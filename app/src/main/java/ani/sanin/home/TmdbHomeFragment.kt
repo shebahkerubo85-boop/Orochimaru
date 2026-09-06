@@ -315,6 +315,7 @@ class TmdbHomeFragment : Fragment() {
     /** Loads banner: plugin items for live sources, TMDB trending otherwise. */
     private suspend fun loadBanner(plugin: CsInstalledSource? = null) {
         genreNames = withContext(Dispatchers.IO) { Tmdb.genres().associate { it.id to it.name } }
+        if (_binding == null) return
         bannerItems.clear()
         if (plugin != null) {
             val apis = withContext(Dispatchers.IO) {
@@ -388,6 +389,7 @@ class TmdbHomeFragment : Fragment() {
             bannerItems.addAll(trendingSeries.map { BannerItem.Tmdb(it) })
             bannerItems.addAll(trendingMovies.map { BannerItem.Tmdb(it) })
         }
+        if (_binding == null) return
         val mode = PrefManager.getVal<Int>(PrefName.HomeBannerMode)
         if (mode == 1 || mode == 3) {
             // No banner in profile/off modes.
