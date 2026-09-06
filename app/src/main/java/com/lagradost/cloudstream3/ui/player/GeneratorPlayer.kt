@@ -253,11 +253,9 @@ class GeneratorPlayer : FullScreenPlayer() {
     override fun playerStatusChanged() {
         super.playerStatusChanged()
         val isBuffering = currentPlayerStatus == CSPlayerLoading.IsBuffering
-        // Only show the full-screen loading overlay during initial load.
-        // During mid-playback (e.g. seeking), Media3's built-in spinner
-        // (app:show_buffering="when_playing") handles the indicator so we
-        // don't black out the entire screen.
-        if (isBuffering && !isPlayerActive.get()) {
+        // Show the loading overlay during all buffering. Background is transparent
+        // so only the Lottie spinner is visible — no black screen.
+        if (isBuffering) {
             binding?.playerLoadingOverlay?.isVisible = true
             binding?.playerLottieLoading?.let { container ->
                 container.post {

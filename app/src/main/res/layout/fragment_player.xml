@@ -27,8 +27,8 @@
             android:id="@+id/player_loading_overlay"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="@android:color/black"
-            android:backgroundTint="@android:color/black">
+            android:background="@android:color/transparent"
+            android:backgroundTint="@android:color/transparent">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/overlay_loading_skip_button"
