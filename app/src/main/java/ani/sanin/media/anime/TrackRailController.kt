@@ -2,6 +2,8 @@ package ani.sanin.media.anime
 
 import android.graphics.Color
 import android.graphics.Color.TRANSPARENT
+import android.view.Gravity
+import androidx.core.view.isVisible
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -66,18 +68,78 @@ class TrackRailController(
         FocusEffectUtil.applyFocusListener(closeButton)
     }
 
+    private var dialog: android.app.Dialog? = null
+
     fun open() {
+        if (dialog?.isShowing == true) { close(); return }
         rebuild()
-        content.visibility = View.VISIBLE
-        content.requestFocus()
-        focusFirst()
+        val dlg = android.app.Dialog(activity, R.style.DialogTracksTopSheet)
+        dialog = dlg
+        val root = LayoutInflater.from(activity).inflate(R.layout.player_tracks_sheet, null)
+        dlg.setContentView(root)
+        dlg.setCancelable(true)
+        dlg.setOnDismissListener { dialog = null }
+
+        val videoHeader = root.findViewById<View>(R.id.tracksSheetVideoHeader)
+        val audioHeader = root.findViewById<View>(R.id.tracksSheetAudioHeader)
+        val videoList = root.findViewById<RecyclerView>(R.id.tracksSheetVideoList)
+        val audioList = root.findViewById<RecyclerView>(R.id.tracksSheetAudioList)
+        val videoChevron = root.findViewById<View>(R.id.tracksSheetVideoChevron)
+        val audioChevron = root.findViewById<View>(R.id.tracksSheetAudioChevron)
+
+        // Split rows into video/audio
+        val videoRows = rows.filter { it.entry?.type == C.TRACK_TYPE_VIDEO }
+        val audioRows = rows.filter { it.entry?.type == C.TRACK_TYPE_AUDIO }
+
+        videoHeader.setOnClickListener {
+            val show = videoList.visibility != View.VISIBLE
+            videoList.isVisible = show
+            videoChevron.animate().rotation(if (show) 180f else 0f).setDuration(180).start()
+        }
+        audioHeader.setOnClickListener {
+            val show = audioList.visibility != View.VISIBLE
+            audioList.isVisible = show
+            audioChevron.animate().rotation(if (show) 180f else 0f).setDuration(180).start()
+        }
+
+        FocusEffectUtil.applyFocusListener(videoHeader)
+        FocusEffectUtil.applyFocusListener(audioHeader)
+
+        if (videoRows.isNotEmpty()) {
+            videoHeader.isVisible = true
+            videoList.layoutManager = LinearLayoutManager(activity)
+            videoList.adapter = DialogAdapter(videoRows.toMutableList())
+            videoList.isNestedScrollingEnabled = false
+        } else {
+            videoHeader.isVisible = false
+        }
+        if (audioRows.isNotEmpty()) {
+            audioHeader.isVisible = true
+            audioList.layoutManager = LinearLayoutManager(activity)
+            audioList.adapter = DialogAdapter(audioRows.toMutableList())
+            audioList.isNestedScrollingEnabled = false
+        } else {
+            audioHeader.isVisible = false
+        }
+
+        val window = dlg.window ?: return
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        val params = window.attributes
+        params.gravity = Gravity.TOP or Gravity.END
+        params.y = (32 * activity.resources.displayMetrics.density).toInt()
+        params.x = (16 * activity.resources.displayMetrics.density).toInt()
+        window.attributes = params
+        dlg.show()
+        if (videoRows.isNotEmpty()) videoHeader.requestFocus()
+        else if (audioRows.isNotEmpty()) audioHeader.requestFocus()
     }
 
     fun close() {
-        content.visibility = View.GONE
+        dialog?.dismiss()
+        dialog = null
     }
 
-    fun isOpen(): Boolean = content.visibility == View.VISIBLE
+    fun isOpen(): Boolean = dialog?.isShowing == true
 
     fun rebuild() {
         rows.clear()
@@ -318,6 +380,48 @@ class TrackRailController(
                 binding.root.isClickable = false
                 binding.root.isFocusable = false
                 binding.root.setOnClickListener(null)
+            }
+        }
+    }
+
+    /** Lightweight adapter for the dialog's RecyclerViews. */
+    private inner class DialogAdapter(private val items: List<RailItem>) :
+        RecyclerView.Adapter<DialogAdapter.VH>() {
+        inner class VH(val binding: ItemSubtitleTextBinding) : RecyclerView.ViewHolder(binding.root)
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
+            VH(ItemSubtitleTextBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+        override fun getItemCount() = items.size
+        override fun onBindViewHolder(holder: VH, position: Int) {
+            val binding = holder.binding
+            val item = items[position]
+            val entry = item.entry ?: return
+            FocusEffectUtil.applyFocusListener(binding.root)
+            val primary = PrefManager.getVal<Int>(PrefName.PrimaryColor)
+            binding.subtitleTitle.text = item.label
+            binding.subtitleTitle.setTextColor(Color.WHITE)
+            binding.subtitleGlobe.visibility = View.GONE
+            binding.subtitleBadge.visibility = View.GONE
+            binding.subtitleToggle.visibility = View.GONE
+            binding.root.setCardBackgroundColor(
+                if (entry.active) android.graphics.ColorUtils.setAlphaComponent(primary, 60)
+                else TRANSPARENT
+            )
+            binding.root.isClickable = true
+            binding.root.isFocusable = true
+            binding.root.setOnClickListener {
+                activity.onSetTrackGroupOverride(entry.group, entry.type, entry.index)
+                rebuild()
+                close()
+                open()
+            }
+            if (entry.active) {
+                binding.subtitleBadge.visibility = View.VISIBLE
+                binding.subtitleBadge.text = "✔"
+                binding.subtitleBadge.setTextColor(primary)
+                binding.subtitleBadge.backgroundTintList =
+                    android.content.res.ColorStateList.valueOf(
+                        android.graphics.ColorUtils.setAlphaComponent(primary, 40)
+                    )
             }
         }
     }
