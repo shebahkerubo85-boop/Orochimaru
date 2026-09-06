@@ -253,8 +253,12 @@ class GeneratorPlayer : FullScreenPlayer() {
     override fun playerStatusChanged() {
         super.playerStatusChanged()
         val isBuffering = currentPlayerStatus == CSPlayerLoading.IsBuffering
-        binding?.playerLoadingOverlay?.isVisible = isBuffering
-        if (isBuffering) {
+        // Only show the full-screen loading overlay during initial load.
+        // During mid-playback (e.g. seeking), Media3's built-in spinner
+        // (app:show_buffering="when_playing") handles the indicator so we
+        // don't black out the entire screen.
+        if (isBuffering && !isPlayerActive.get()) {
+            binding?.playerLoadingOverlay?.isVisible = true
             binding?.playerLottieLoading?.let { container ->
                 container.post {
                     container.children.forEach { child ->
@@ -262,6 +266,8 @@ class GeneratorPlayer : FullScreenPlayer() {
                     }
                 }
             }
+        } else {
+            binding?.playerLoadingOverlay?.isVisible = false
         }
         if (player.getIsPlaying()) {
             viewModel.forceClearCache = false

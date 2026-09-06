@@ -20,6 +20,7 @@
             app:auto_show="true"
             app:backgroundTint="@android:color/black"
             app:controller_layout_id="@layout/player_custom_layout"
+            app:show_buffering="when_playing"
             app:show_timeout="0" />
 
         <FrameLayout
