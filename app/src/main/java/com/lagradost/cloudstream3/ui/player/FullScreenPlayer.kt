@@ -50,6 +50,8 @@ import ani.sanin.databinding.SubtitleOffsetBinding
 import ani.sanin.settings.PlayerSettingsActivity
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
+import ani.sanin.util.FocusEffectUtil
+import android.widget.ImageButton
 import com.lagradost.cloudstream3.mvvm.safe
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.ui.player.GeneratorPlayer.Companion.subsProvidersIsActive
@@ -216,6 +218,28 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
 
     /** Returns true if the back press was consumed (e.g. by closing a rail). */
     protected open fun onPlayerBackPressed(): Boolean = false
+
+    private fun showExitDialogOrPop() {
+        if (PrefManager.getVal<Boolean>(PrefName.ConfirmPlayerExit)) {
+            val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_exit_player, null)
+            val dialog = AlertDialog.Builder(requireContext(), R.style.MyPopup)
+                .setView(dialogView)
+                .create()
+            dialogView.findViewById<View>(R.id.exitYes).setOnClickListener {
+                dialog.dismiss()
+                activity?.popCurrentPage("FullScreenPlayer")
+            }
+            dialogView.findViewById<View>(R.id.exitNo).setOnClickListener { dialog.dismiss() }
+            dialog.setOnShowListener { dialogView.findViewById<View>(R.id.exitYes).requestFocus() }
+            dialog.window?.apply {
+                setDimAmount(0.5f)
+                attributes.windowAnimations = android.R.style.Animation_Dialog
+            }
+            dialog.show()
+        } else {
+            activity?.popCurrentPage("FullScreenPlayer")
+        }
+    }
 
     protected open fun openPlayerSettings() {
         activity?.let { act ->
@@ -426,7 +450,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 // netflix capture back and hide ~monke
                 onClickChange()
             } else {
-                activity?.popCurrentPage("FullScreenPlayer")
+                showExitDialogOrPop()
             }
         }
         playerHostView?.requestUpdateBrightnessOverlayOnNextLayout()
@@ -1239,7 +1263,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
             }
 
             exoBack.setOnClickListener {
-                activity?.popCurrentPage("FullScreenPlayer")
+                showExitDialogOrPop()
             }
 
             exoNextEp.setOnClickListener {
@@ -1331,6 +1355,59 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 return@setOnTouchListener false
             }
         }
+        // Focus chain + effects (matches anime ExoplayerView setup)
+        playerBinding?.apply {
+            listOf(
+                exoPlay, exoBack, exoPlaybackSpeed, exoEpSelBtn, exoSub, exoAudio,
+                exoTracks, exoSettings, exoRotate, exoScreen, exoSource, exoSkipOpEd,
+                exoSkip, exoNextEp, exoPrevEp, exoPip,
+            ).forEach { btn ->
+                btn?.isFocusable = true
+                btn?.let { FocusEffectUtil.applyFocusListener(it, it, isCircular = it is ImageButton) }
+            }
+
+            // Play → prev/next (horizontal), play → progress (down), play → ep_sel (up)
+            exoPlay.nextFocusLeftId = R.id.exo_prev_ep
+            exoPlay.nextFocusRightId = R.id.exo_next_ep
+            exoPlay.nextFocusUpId = R.id.exo_ep_sel_btn
+            exoPlay.nextFocusDownId = androidx.media3.ui.R.id.exo_progress
+            exoPrevEp.nextFocusLeftId = R.id.exo_back
+            exoPrevEp.nextFocusRightId = androidx.media3.ui.R.id.exo_play
+            exoPrevEp.nextFocusDownId = androidx.media3.ui.R.id.exo_progress
+            exoNextEp.nextFocusLeftId = androidx.media3.ui.R.id.exo_play
+            exoNextEp.nextFocusDownId = androidx.media3.ui.R.id.exo_progress
+            exoBack.nextFocusRightId = R.id.exo_prev_ep
+            exoBack.nextFocusLeftId = R.id.exo_ep_sel_btn
+            exoPlaybackSpeed.nextFocusDownId = androidx.media3.ui.R.id.exo_play
+            exoEpSelBtn.nextFocusDownId = androidx.media3.ui.R.id.exo_play
+
+            // Progress bar
+            val progressBar = exoProgress
+            progressBar.isFocusable = true
+            progressBar.nextFocusUpId = R.id.exo_next_ep
+
+            // Bottom row buttons → progress bar (up)
+            listOf(exoSettings, exoSource, exoSub, exoAudio, exoScreen, exoRotate).forEach { btn ->
+                btn?.nextFocusUpId = androidx.media3.ui.R.id.exo_progress
+            }
+
+            // Skip card focus chain
+            exoSkip.nextFocusUpId = R.id.exo_ep_sel_btn
+            exoSkip.nextFocusLeftId = R.id.exo_skip_op_ed
+            exoSkipOpEd?.nextFocusRightId = R.id.exo_skip
+            exoSkipOpEd?.nextFocusUpId = R.id.exo_skip
+
+            // Seek bar scale animation on focus
+            progressBar.setOnFocusChangeListener { _, hasFocus ->
+                if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.SeekBarAnimations)) {
+                    progressBar.animate().scaleY(if (hasFocus) 2.5f else 1f).setDuration(150).start()
+                } else {
+                    progressBar.scaleY = if (hasFocus) 2.5f else 1f
+                }
+            }
+        }
+        playerView?.post { playerBinding?.exoPlay?.requestFocus() }
+
         // init UI
         try {
             uiReset()
