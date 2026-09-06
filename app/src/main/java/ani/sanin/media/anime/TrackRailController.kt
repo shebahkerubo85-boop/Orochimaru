@@ -403,7 +403,7 @@ class TrackRailController(
             binding.subtitleBadge.visibility = View.GONE
             binding.subtitleToggle.visibility = View.GONE
             binding.root.setCardBackgroundColor(
-                if (entry.active) android.graphics.ColorUtils.setAlphaComponent(primary, 60)
+                if (entry.active) ColorUtils.setAlphaComponent(primary, 60)
                 else TRANSPARENT
             )
             binding.root.isClickable = true
@@ -420,7 +420,7 @@ class TrackRailController(
                 binding.subtitleBadge.setTextColor(primary)
                 binding.subtitleBadge.backgroundTintList =
                     android.content.res.ColorStateList.valueOf(
-                        android.graphics.ColorUtils.setAlphaComponent(primary, 40)
+                        ColorUtils.setAlphaComponent(primary, 40)
                     )
             }
         }
