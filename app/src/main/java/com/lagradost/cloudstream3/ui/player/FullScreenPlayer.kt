@@ -437,21 +437,31 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         setupKeyEventListener()
         playerHostView?.verifyVolume()
         activity?.attachBackPressedCallback("FullScreenPlayer") {
+            // Exact mirror of anime ExoplayerView.handleBackPress():
+            // 1. Close episode overlay
+            // 2. Close rail / sheet / panel
+            // 3. ConfirmPlayerExit ON  → always show dialog
+            // 4. Controller visible    → hide it
+            // 5. Otherwise             → exit
             if (isShowingEpisodeOverlay) {
-                // isShowingEpisodeOverlay pauses, so this makes it easier to unpause
                 if (isLayout(TV or EMULATOR)) {
                     playerBinding?.exoPlay?.requestFocus()
                 }
                 toggleEpisodesOverlay(show = false)
                 return@attachBackPressedCallback
-            } else if (onPlayerBackPressed()) {
-                return@attachBackPressedCallback
-            } else if (isShowing && isLayout(TV or EMULATOR)) {
-                // netflix capture back and hide ~monke
-                onClickChange()
-            } else {
-                showExitDialogOrPop()
             }
+            if (onPlayerBackPressed()) {
+                return@attachBackPressedCallback
+            }
+            if (PrefManager.getVal<Boolean>(PrefName.ConfirmPlayerExit)) {
+                showExitDialogOrPop()
+                return@attachBackPressedCallback
+            }
+            if (isShowing) {
+                onClickChange()
+                return@attachBackPressedCallback
+            }
+            activity?.popCurrentPage("FullScreenPlayer")
         }
         playerHostView?.requestUpdateBrightnessOverlayOnNextLayout()
         super.onResume()
@@ -1028,53 +1038,67 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 player.handleEvent(CSPlayerEvent.PlayPauseToggle)
             }
 
-            // KEYCODE_DPAD_CENTER and KEYCODE_ENTER both act as a "select/confirm" button.
-            // Some remotes (e.g. LG Magic Remote) send KEYCODE_ENTER instead of KEYCODE_DPAD_CENTER.
-            // When the player UI or a dialog is visible, we let the event pass through (return null)
-            // so the focused button/item can handle the click normally, rather than always toggling
-            // play/pause. Only when the UI is hidden do we treat it as a play/pause toggle.
+            // DPAD_CENTER / ENTER — matches anime ExoplayerView dispatchKeyEvent.
+            // When controller is visible, click the focused button (or play if nothing focused).
+            // When hidden, show the controller.
             KeyEvent.KEYCODE_DPAD_CENTER,
             KeyEvent.KEYCODE_ENTER -> {
-                if (isShowing || isDialogOpen()) {
-                    return null
+                if (event.action == KeyEvent.ACTION_UP) {
+                    if (isShowing) {
+                        playerBinding?.root?.findFocus()?.performClick()
+                            ?: playerBinding?.exoPlay?.performClick()
+                    } else {
+                        onClickChange()
+                    }
                 }
-                // If UI is not shown make click instantly skip to next chapter even if locked
-                if (timestampShowState) {
-                    player.handleEvent(CSPlayerEvent.SkipCurrentChapter)
-                } else if (!isLocked) {
-                    player.handleEvent(CSPlayerEvent.PlayPauseToggle)
-                }
-                onClickChange()
+                return true
             }
 
+            // DPAD UP/DOWN — always show controller (matches anime mode).
             KeyEvent.KEYCODE_DPAD_DOWN,
             KeyEvent.KEYCODE_DPAD_UP -> {
-                if (isShowing || isDialogOpen()) {
-                    return null
+                if (event.action == KeyEvent.ACTION_DOWN) {
+                    if (!isShowing) onClickChange()
+                    else autoHide()
                 }
-                onClickChange()
+                return false
             }
 
+            // DPAD LEFT — match anime mode:
+            // 1. If progress bar focused → seek (same as anime progressFocused check)
+            // 2. If controls hidden → just show them (never seek when hidden)
+            // 3. Otherwise → pass through for focus navigation
             KeyEvent.KEYCODE_DPAD_LEFT -> {
-                if (!isShowing && !isLocked && !isDialogOpen()) {
-                    player.seekTime(-androidTVInterfaceOffSeekTime)
+                val focusedId = activity?.currentFocus?.id
+                val progressFocused = focusedId == androidx.media3.ui.R.id.exo_progress
+                if (progressFocused) {
+                    if (event.action == KeyEvent.ACTION_DOWN) {
+                        player.seekTime(-androidTVInterfaceOnSeekTime)
+                    }
                     return true
-                } else if (playerBinding?.exoPlay?.isFocused == true) {
-                    player.seekTime(-androidTVInterfaceOnSeekTime)
-                    return true
-                } else {
-                    return null
                 }
+                if (!isShowing) {
+                    if (event.action == KeyEvent.ACTION_DOWN) onClickChange()
+                    return true
+                }
+                return null
             }
 
+            // DPAD RIGHT — same logic as DPAD LEFT, mirrored.
             KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                if (!isShowing && !isLocked && !isDialogOpen()) {
-                    player.seekTime(androidTVInterfaceOffSeekTime)
-                } else if (playerBinding?.exoPlay?.isFocused == true) {
-                    player.seekTime(androidTVInterfaceOnSeekTime)
-                } else {
-                    return null
+                val focusedId = activity?.currentFocus?.id
+                val progressFocused = focusedId == androidx.media3.ui.R.id.exo_progress
+                if (progressFocused) {
+                    if (event.action == KeyEvent.ACTION_DOWN) {
+                        player.seekTime(androidTVInterfaceOnSeekTime)
+                    }
+                    return true
                 }
+                if (!isShowing) {
+                    if (event.action == KeyEvent.ACTION_DOWN) onClickChange()
+                    return true
+                }
+                return null
             }
 
             KeyEvent.KEYCODE_VOLUME_DOWN,
