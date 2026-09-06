@@ -660,7 +660,7 @@ class TrackSheetController(
         window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         val params = window.attributes
         params.gravity = Gravity.TOP or Gravity.END
-        params.y = 100.dpPx(context)
+        params.y = 32.dpPx(context)
         params.x = 16.dpPx(context)
         window.attributes = params
         dlg.show()
