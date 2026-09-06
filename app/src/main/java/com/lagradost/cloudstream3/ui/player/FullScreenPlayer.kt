@@ -735,9 +735,9 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         isShowing = !isShowing
         if (isShowing) {
             autoHide()
-            exoPlayerView?.showController()
+            playerView?.showController()
         } else {
-            exoPlayerView?.hideController()
+            playerView?.hideController()
         }
         activity?.hideSystemUI()
         animateLayoutChanges()
@@ -869,7 +869,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
     protected fun hidePlayerUI() {
         if (isShowing) {
             isShowing = false
-            exoPlayerView?.hideController()
+            playerView?.hideController()
             animateLayoutChanges()
         }
     }
