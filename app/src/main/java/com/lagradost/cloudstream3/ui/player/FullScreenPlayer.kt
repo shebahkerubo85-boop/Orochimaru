@@ -1136,6 +1136,29 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         }
 
         when (keyCode) {
+            // BACK key — match anime ExoplayerView.handleBackPress() exactly.
+            // CommonActivity.dispatchKeyEvent never returns null, so super.dispatchKeyEvent
+            // is never called and onBackPressedDispatcher never fires. We must handle it here.
+            KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
+                if (event.action == KeyEvent.ACTION_DOWN) {
+                    if (isShowingEpisodeOverlay) {
+                        if (isLayout(TV or EMULATOR)) {
+                            playerBinding?.exoPlay?.requestFocus()
+                        }
+                        toggleEpisodesOverlay(show = false)
+                    } else if (onPlayerBackPressed()) {
+                        // rail / sheet / panel closed
+                    } else if (PrefManager.getVal<Boolean>(PrefName.ConfirmPlayerExit)) {
+                        showExitDialogOrPop()
+                    } else if (isShowing) {
+                        onClickChange()
+                    } else {
+                        activity?.popCurrentPage("FullScreenPlayer")
+                    }
+                }
+                return true
+            }
+
             // don't allow dpad move when hidden
 
             KeyEvent.KEYCODE_DPAD_DOWN,
