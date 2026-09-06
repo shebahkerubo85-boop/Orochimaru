@@ -1039,28 +1039,26 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 player.handleEvent(CSPlayerEvent.PlayPauseToggle)
             }
 
-            // DPAD_CENTER / ENTER — matches anime ExoplayerView dispatchKeyEvent.
-            // When controller is visible, click the focused button (or play if nothing focused).
-            // When hidden, show the controller.
+            // DPAD_CENTER / ENTER — matches anime ExoplayerView.
+            // When controller visible → click focused button (or play).
+            // When hidden → show controller.
             KeyEvent.KEYCODE_DPAD_CENTER,
             KeyEvent.KEYCODE_ENTER -> {
-                if (event.action == KeyEvent.ACTION_UP) {
-                    if (isShowing) {
-                        playerBinding?.root?.findFocus()?.performClick()
-                            ?: playerBinding?.exoPlay?.performClick()
-                    } else {
-                        onClickChange()
-                    }
+                if (isShowing) {
+                    playerBinding?.root?.findFocus()?.performClick()
+                        ?: playerBinding?.exoPlay?.performClick()
+                } else {
+                    onClickChange()
                 }
                 return true
             }
 
-            // DPAD UP/DOWN — always show controller (matches anime mode).
+            // DPAD UP/DOWN — show controller if hidden.
+            // Don't autoHide when visible — user is navigating.
             KeyEvent.KEYCODE_DPAD_DOWN,
             KeyEvent.KEYCODE_DPAD_UP -> {
-                if (event.action == KeyEvent.ACTION_DOWN) {
-                    if (!isShowing) onClickChange()
-                    else autoHide()
+                if (event.action == KeyEvent.ACTION_DOWN && !isShowing) {
+                    onClickChange()
                 }
                 return false
             }
@@ -1148,9 +1146,9 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
             KeyEvent.KEYCODE_DPAD_UP_RIGHT -> {
                 if (!isShowing) {
                     return true
-                } else {
-                    autoHide()
                 }
+                // Controls visible — just let the event pass for focus navigation.
+                // Don't autoHide here; the controller hides via its own timeout.
             }
 
             // netflix capture back and hide ~monke
