@@ -1805,12 +1805,6 @@ class GeneratorPlayer : FullScreenPlayer() {
             return
         }
         trackSheet?.open()
-        // Mirror anime ExoplayerView: block PlayerView from stealing
-        // focus/touch while the tracks sheet is open.
-        playerView?.let { pv ->
-            pv.descendantFocusability = android.view.ViewGroup.FOCUS_BLOCK_DESCENDANTS
-            pv.isFocusable = false
-        }
     }
 
     override fun onPlayerBackPressed(): Boolean {
@@ -1844,7 +1838,6 @@ class GeneratorPlayer : FullScreenPlayer() {
                 when (drawerView.id) {
                     R.id.episodeDrawer -> episodeRail?.onDrawerOpened()
                     R.id.subtitleDrawer -> subtitleRail?.onDrawerOpened()
-                    R.id.tracksSheet -> trackSheet?.onDrawerOpened()
                 }
             }
 
@@ -1852,10 +1845,6 @@ class GeneratorPlayer : FullScreenPlayer() {
                 when (drawerView.id) {
                     R.id.episodeDrawer -> episodeRail?.onDrawerClosed()
                     R.id.subtitleDrawer -> subtitleRail?.onDrawerClosed()
-                    R.id.tracksSheet -> {
-                        trackSheet?.onDrawerClosed()
-                        restorePlayerFocus()
-                    }
                 }
             }
             override fun onDrawerStateChanged(newState: Int) {}
@@ -1920,14 +1909,7 @@ class GeneratorPlayer : FullScreenPlayer() {
         )
 
         trackSheet = TrackSheetController(
-            drawer = drawer,
-            content = root.findViewById(R.id.tracksSheet),
-            videoHeader = root.findViewById(R.id.tracksSheetVideoHeader),
-            audioHeader = root.findViewById(R.id.tracksSheetAudioHeader),
-            videoRecycler = root.findViewById(R.id.tracksSheetVideoList),
-            audioRecycler = root.findViewById(R.id.tracksSheetAudioList),
-            videoChevron = root.findViewById(R.id.tracksSheetVideoChevron),
-            audioChevron = root.findViewById(R.id.tracksSheetAudioChevron),
+            context = requireContext(),
             tracksProvider = { player.getVideoTracks() },
             onVideoTrackSelected = { track ->
                 player.setMaxVideoSize(

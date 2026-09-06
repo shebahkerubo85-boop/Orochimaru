@@ -2,6 +2,10 @@ package com.lagradost.cloudstream3.ui.player
 
 import android.app.Activity
 import android.content.res.ColorStateList
+import android.app.Dialog
+import android.content.Context
+import android.graphics.drawable.ColorDrawable
+import android.view.Gravity
 import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
@@ -573,20 +577,14 @@ class SubtitleRailController(
 }
 
 /**
- * Top-right track sheet for the CS3 player — a small accordion panel anchored
- * near the track button. Two headers (Video / Audio); tapping a header expands
- * that section's track list inline.
+ * Top-right track sheet for the CS3 player — a small floating dialog with two
+ * accordion headers (Video / Audio). Tapping a header expands that section's
+ * track list inline. Owns its own window so it never collides with the
+ * episode/subtitle drawers and always receives touches.
  */
 @OptIn(UnstableApi::class)
 class TrackSheetController(
-    private val drawer: DrawerLayout,
-    private val content: View,
-    private val videoHeader: View,
-    private val audioHeader: View,
-    private val videoRecycler: RecyclerView,
-    private val audioRecycler: RecyclerView,
-    private val videoChevron: View,
-    private val audioChevron: View,
+    private val context: Context,
     private val tracksProvider: () -> CurrentTracks,
     private val onVideoTrackSelected: (VideoTrack) -> Unit,
     private val onAudioTrackSelected: (AudioTrack) -> Unit,
@@ -597,42 +595,73 @@ class TrackSheetController(
     private val audioAdapter = RailTextAdapter(audioRows)
 
     private var expandedSection: Int? = null
+    private var dialog: Dialog? = null
 
-    init {
-        videoRecycler.layoutManager = LinearLayoutManager(videoRecycler.context)
+    private lateinit var videoRecycler: RecyclerView
+    private lateinit var audioRecycler: RecyclerView
+    private lateinit var videoChevron: View
+    private lateinit var audioChevron: View
+
+    fun open() {
+        if (dialog?.isShowing == true) {
+            close()
+            return
+        }
+        rebuild()
+        showDialog()
+    }
+
+    fun close() {
+        dialog?.dismiss()
+        dialog = null
+    }
+
+    fun isOpen(): Boolean = dialog?.isShowing == true
+
+    private fun showDialog() {
+        val dlg = Dialog(context, R.style.DialogTracksTopSheet)
+        dialog = dlg
+        val root = LayoutInflater.from(context).inflate(R.layout.player_tracks_sheet, null)
+        dlg.setContentView(root)
+        dlg.setCanceledOnTouchOutside(true)
+        dlg.setOnDismissListener { dialog = null; expandedSection = null }
+
+        videoRecycler = root.findViewById(R.id.tracksSheetVideoList)
+        audioRecycler = root.findViewById(R.id.tracksSheetAudioList)
+        videoChevron = root.findViewById(R.id.tracksSheetVideoChevron)
+        audioChevron = root.findViewById(R.id.tracksSheetAudioChevron)
+        val videoHeader = root.findViewById<View>(R.id.tracksSheetVideoHeader)
+        val audioHeader = root.findViewById<View>(R.id.tracksSheetAudioHeader)
+
+        videoRecycler.layoutManager = LinearLayoutManager(context)
         videoRecycler.adapter = videoAdapter
         videoRecycler.isNestedScrollingEnabled = false
-        audioRecycler.layoutManager = LinearLayoutManager(audioRecycler.context)
+        audioRecycler.layoutManager = LinearLayoutManager(context)
         audioRecycler.adapter = audioAdapter
         audioRecycler.isNestedScrollingEnabled = false
+
         FocusEffectUtil.applyFocusListener(videoHeader)
         FocusEffectUtil.applyFocusListener(audioHeader)
         videoHeader.setOnClickListener { toggleSection(SECTION_VIDEO) }
         audioHeader.setOnClickListener { toggleSection(SECTION_AUDIO) }
-    }
 
-    fun open() {
-        rebuild()
-        drawer.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED, content)
-        if (drawer.isDrawerOpen(content)) return
-        drawer.openDrawer(content)
+        // Flush current rows into the fresh lists views.
+        videoAdapter.submit(videoRows.toList())
+        audioAdapter.submit(audioRows.toList())
+
+        val window = dlg.window ?: return
+        window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        val params = window.attributes
+        params.gravity = Gravity.TOP or Gravity.END
+        params.y = 100.dpPx(context)
+        params.x = 16.dpPx(context)
+        window.attributes = params
+        dlg.show()
         videoHeader.requestFocus()
     }
 
-    fun close() = drawer.closeDrawer(content)
-
-    fun isOpen(): Boolean = drawer.isDrawerOpen(content)
-
-    fun onDrawerOpened() = videoHeader.requestFocus()
-
-    fun onDrawerClosed() {
-        drawer.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED, content)
-        expandedSection = null
-        videoRecycler.isVisible = false
-        audioRecycler.isVisible = false
-        videoChevron.rotation = 0f
-        audioChevron.rotation = 0f
-    }
+    private fun Int.dpPx(context: Context): Int =
+        (this * context.resources.displayMetrics.density).toInt()
 
     private fun toggleSection(section: Int) {
         val target = if (expandedSection == section) null else section
@@ -704,9 +733,6 @@ class TrackSheetController(
                 )
             )
         }
-
-        videoAdapter.submit(videoRows.toList())
-        audioAdapter.submit(audioRows.toList())
     }
 
     private companion object {
@@ -714,3 +740,4 @@ class TrackSheetController(
         const val SECTION_AUDIO = 1
     }
 }
+

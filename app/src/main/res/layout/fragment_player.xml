@@ -125,6 +125,4 @@
 
     <include layout="@layout/drawer_subtitle_rail" />
 
-    <include layout="@layout/player_tracks_sheet" />
-
 </androidx.drawerlayout.widget.DrawerLayout>
