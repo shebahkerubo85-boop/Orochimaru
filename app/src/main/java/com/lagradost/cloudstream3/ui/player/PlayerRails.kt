@@ -84,6 +84,8 @@ private class RailTextAdapter(private val rows: MutableList<RailTextRow>) :
         val binding = holder.binding
         FocusEffectUtil.applyFocusListener(binding.root)
 
+        val primary = PrefManager.getVal<Int>(PrefName.PrimaryColor)
+        val grey = 0xFF808080.toInt()
         val themePrimary = MaterialColors.getColor(
             binding.root,
             com.google.android.material.R.attr.colorPrimary
@@ -110,7 +112,6 @@ private class RailTextAdapter(private val rows: MutableList<RailTextRow>) :
             binding.root.isFocusable = true
             binding.subtitleTitle.text = row.label
             binding.subtitleTitle.setTextColor(Color.WHITE)
-            binding.subtitleTitle.textSize = 14f
             binding.subtitleGlobe.isVisible = false
             binding.subtitleBadge.isVisible = false
             binding.subtitleToggle.isVisible = true
@@ -126,7 +127,7 @@ private class RailTextAdapter(private val rows: MutableList<RailTextRow>) :
         val isStatusRow = row.isStatus
         binding.subtitleTitle.text = row.label
         binding.subtitleTitle.setTextColor(
-            if (row.enabled && !isStatusRow) Color.WHITE else 0xFF808080.toInt()
+            if (row.enabled && !isStatusRow) Color.WHITE else grey
         )
         binding.subtitleTitle.setTypeface(null, if (isStatusRow) android.graphics.Typeface.ITALIC else android.graphics.Typeface.NORMAL)
         binding.subtitleToggle.isVisible = false
@@ -134,21 +135,22 @@ private class RailTextAdapter(private val rows: MutableList<RailTextRow>) :
         binding.subtitleGlobe.isVisible = row.globe
         if (row.globe) {
             binding.subtitleGlobe.imageTintList =
-                ColorStateList.valueOf(if (row.enabled) themePrimary else 0xFF808080.toInt())
+                ColorStateList.valueOf(if (row.enabled) themePrimary else grey)
         }
 
         binding.subtitleBadge.isVisible = row.badge != null
         if (row.badge != null) {
             binding.subtitleBadge.text = row.badge
-            binding.subtitleBadge.setTextColor(if (row.enabled) themePrimary else 0xFF808080.toInt())
+            binding.subtitleBadge.setTextColor(if (row.enabled) primary else grey)
             binding.subtitleBadge.backgroundTintList = ColorStateList.valueOf(
-                if (row.enabled) ColorUtils.setAlphaComponent(themePrimary, 40)
-                else ColorUtils.setAlphaComponent(0xFF808080.toInt(), 40)
+                if (row.enabled) ColorUtils.setAlphaComponent(primary, 40)
+                else ColorUtils.setAlphaComponent(grey, 40)
             )
         }
 
+        val highlighted = row.selected && !isStatusRow
         binding.root.setCardBackgroundColor(
-            if (row.selected && !isStatusRow) ColorUtils.setAlphaComponent(themePrimary, 60) else Color.TRANSPARENT
+            if (highlighted) ColorUtils.setAlphaComponent(primary, 60) else Color.TRANSPARENT
         )
 
         val clickable = row.onClick != null && row.enabled && !isStatusRow
@@ -437,7 +439,7 @@ class SubtitleRailController(
 
         // 3. Embedded tracks
         if (embedded.isNotEmpty()) {
-            rows.add(RailTextRow(subtitleText(R.string.subtitles_from_embedded), header = true))
+            rows.add(RailTextRow("Embedded Tracks", header = true))
             embedded.forEach { sub ->
                 val selected = sub == current
                 rows.add(
@@ -486,7 +488,7 @@ class SubtitleRailController(
             } else {
                 rows.add(
                     RailTextRow(
-                        subtitleText(R.string.player_load_subtitles_online),
+                        "+ Search Online Subtitles",
                         enabled = enabled,
                         onClick = { if (enabled) onSearchOnline?.invoke() },
                     )
@@ -496,7 +498,7 @@ class SubtitleRailController(
 
         // 6. Local subtitles
         if (local.isNotEmpty()) {
-            rows.add(RailTextRow(subtitleText(R.string.player_load_subtitles), header = true))
+            rows.add(RailTextRow("Local", header = true))
             local.forEach { sub ->
                 val selected = sub == current
                 rows.add(
@@ -516,7 +518,7 @@ class SubtitleRailController(
         if (onAddLocalSubtitle != null) {
             rows.add(
                 RailTextRow(
-                    subtitleText(R.string.player_load_subtitles),
+                    "+ Add Local Subtitle",
                     enabled = enabled,
                     onClick = { if (enabled) { close(); onAddLocalSubtitle?.invoke() } },
                 )
