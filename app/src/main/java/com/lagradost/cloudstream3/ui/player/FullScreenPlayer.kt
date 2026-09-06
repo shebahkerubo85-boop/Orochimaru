@@ -22,7 +22,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.animation.AccelerateDecelerateInterpolator
-import android.view.animation.AlphaAnimation
 import android.view.animation.DecelerateInterpolator
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -304,7 +303,12 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
             // Use property-based alpha so views never get stuck invisible: unlike
             // AlphaAnimation+fillAfter, view.animate().alpha() sets the actual
             // alpha property, so rapid show/hide restarts always settle correctly.
-            listOfNotNull(exoTimelineCont, exoBottomCont, exoTopCont).forEach { view ->
+            // Include exoBlackScreen so the dim overlay fades in sync with buttons
+            // (single tap exposes everything together, like anime mode).
+            val fadeViews = listOfNotNull(
+                exoBlackScreen, exoTimelineCont, exoBottomCont, exoTopCont
+            )
+            fadeViews.forEach { view ->
                 view.animate().cancel()
                 view.animate().alpha(fadeTo).setDuration(150).start()
             }
@@ -729,7 +733,12 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
 
     private fun onClickChange() {
         isShowing = !isShowing
-        if (isShowing) autoHide()
+        if (isShowing) {
+            autoHide()
+            exoPlayerView?.showController()
+        } else {
+            exoPlayerView?.hideController()
+        }
         activity?.hideSystemUI()
         animateLayoutChanges()
         playerBinding?.exoPlay?.requestFocus()
@@ -755,17 +764,14 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         val fadeTo = if (isLocked) 0f else 1f
         playerHostView?.gestureHelper?.animateCenterControls(fadeTo)
         playerBinding?.apply {
-            val fadeAnimation = AlphaAnimation(1f, fadeTo).apply {
-                duration = 100
-                fillAfter = true
-            }
-
             updateUIVisibility()
 
-            if (hasEpisodes)
-                exoEpSel.startAnimation(fadeAnimation)
-
-            exoVideoInfo.startAnimation(fadeAnimation)
+            if (hasEpisodes) {
+                exoEpSel.animate().cancel()
+                exoEpSel.animate().alpha(fadeTo).setDuration(100).start()
+            }
+            exoVideoInfo.animate().cancel()
+            exoVideoInfo.animate().alpha(fadeTo).setDuration(100).start()
         }
     }
 
@@ -863,6 +869,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
     protected fun hidePlayerUI() {
         if (isShowing) {
             isShowing = false
+            exoPlayerView?.hideController()
             animateLayoutChanges()
         }
     }
