@@ -301,15 +301,12 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 playerHostView?.gestureHelper?.animateCenterControls(fadeTo)
             }
 
-            // Each view needs its own AlphaAnimation instance; sharing one causes
-            // fillAfter to not hold reliably across views once any restarts.
+            // Use property-based alpha so views never get stuck invisible: unlike
+            // AlphaAnimation+fillAfter, view.animate().alpha() sets the actual
+            // alpha property, so rapid show/hide restarts always settle correctly.
             listOfNotNull(exoTimelineCont, exoBottomCont, exoTopCont).forEach { view ->
-                view.startAnimation(
-                    AlphaAnimation(1f - fadeTo, fadeTo).apply {
-                        duration = 100
-                        fillAfter = true
-                    }
-                )
+                view.animate().cancel()
+                view.animate().alpha(fadeTo).setDuration(150).start()
             }
         }
     }

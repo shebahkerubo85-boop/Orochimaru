@@ -252,6 +252,17 @@ class GeneratorPlayer : FullScreenPlayer() {
 
     override fun playerStatusChanged() {
         super.playerStatusChanged()
+        val isBuffering = currentPlayerStatus == CSPlayerLoading.IsBuffering
+        binding?.playerLoadingOverlay?.isVisible = isBuffering
+        if (isBuffering) {
+            binding?.playerLottieLoading?.let { container ->
+                container.post {
+                    container.children.forEach { child ->
+                        if (child is LottieAnimationView) child.playAnimation()
+                    }
+                }
+            }
+        }
         if (player.getIsPlaying()) {
             viewModel.forceClearCache = false
         }
