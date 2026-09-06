@@ -6,7 +6,6 @@ import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.animation.DecelerateInterpolator
 import android.widget.HorizontalScrollView
 import android.widget.ImageButton
 import androidx.annotation.OptIn
@@ -580,6 +579,7 @@ class SubtitleRailController(
  */
 @OptIn(UnstableApi::class)
 class TrackSheetController(
+    private val drawer: DrawerLayout,
     private val content: View,
     private val videoHeader: View,
     private val audioHeader: View,
@@ -612,38 +612,27 @@ class TrackSheetController(
     }
 
     fun open() {
-        if (content.isVisible) return
         rebuild()
-        content.visibility = View.VISIBLE
-        content.alpha = 0f
-        content.translationY = -(content.height.coerceAtLeast(140)).toFloat()
-        content.post {
-            content.animate()
-                .alpha(1f)
-                .translationY(0f)
-                .setDuration(220)
-                .setInterpolator(DecelerateInterpolator())
-                .start()
-        }
+        drawer.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED, content)
+        if (drawer.isDrawerOpen(content)) return
+        drawer.openDrawer(content)
         videoHeader.requestFocus()
     }
 
-    fun close() {
-        if (!content.isVisible) return
-        content.animate()
-            .alpha(0f)
-            .translationY(-content.height.coerceAtLeast(140).toFloat())
-            .setDuration(180)
-            .withEndAction { content.visibility = View.GONE }
-            .start()
+    fun close() = drawer.closeDrawer(content)
+
+    fun isOpen(): Boolean = drawer.isDrawerOpen(content)
+
+    fun onDrawerOpened() = videoHeader.requestFocus()
+
+    fun onDrawerClosed() {
+        drawer.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED, content)
         expandedSection = null
         videoRecycler.isVisible = false
         audioRecycler.isVisible = false
         videoChevron.rotation = 0f
         audioChevron.rotation = 0f
     }
-
-    fun isOpen(): Boolean = content.isVisible
 
     private fun toggleSection(section: Int) {
         val target = if (expandedSection == section) null else section

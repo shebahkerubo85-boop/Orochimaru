@@ -1844,6 +1844,7 @@ class GeneratorPlayer : FullScreenPlayer() {
                 when (drawerView.id) {
                     R.id.episodeDrawer -> episodeRail?.onDrawerOpened()
                     R.id.subtitleDrawer -> subtitleRail?.onDrawerOpened()
+                    R.id.tracksSheet -> trackSheet?.onDrawerOpened()
                 }
             }
 
@@ -1851,6 +1852,10 @@ class GeneratorPlayer : FullScreenPlayer() {
                 when (drawerView.id) {
                     R.id.episodeDrawer -> episodeRail?.onDrawerClosed()
                     R.id.subtitleDrawer -> subtitleRail?.onDrawerClosed()
+                    R.id.tracksSheet -> {
+                        trackSheet?.onDrawerClosed()
+                        restorePlayerFocus()
+                    }
                 }
             }
             override fun onDrawerStateChanged(newState: Int) {}
@@ -1915,6 +1920,7 @@ class GeneratorPlayer : FullScreenPlayer() {
         )
 
         trackSheet = TrackSheetController(
+            drawer = drawer,
             content = root.findViewById(R.id.tracksSheet),
             videoHeader = root.findViewById(R.id.tracksSheetVideoHeader),
             audioHeader = root.findViewById(R.id.tracksSheetAudioHeader),
