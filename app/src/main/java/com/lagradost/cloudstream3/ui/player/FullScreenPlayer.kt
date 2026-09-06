@@ -1053,20 +1053,20 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 return true
             }
 
-            // DPAD UP/DOWN — show controller if hidden.
-            // Don't autoHide when visible — user is navigating.
+            // DPAD UP/DOWN — show controller if hidden, reset hide timer.
             KeyEvent.KEYCODE_DPAD_DOWN,
             KeyEvent.KEYCODE_DPAD_UP -> {
-                if (event.action == KeyEvent.ACTION_DOWN && !isShowing) {
-                    onClickChange()
+                if (event.action == KeyEvent.ACTION_DOWN) {
+                    if (!isShowing) onClickChange()
+                    else autoHide() // reset 3s hide timer so controls stay visible during navigation
                 }
                 return false
             }
 
             // DPAD LEFT — match anime mode:
-            // 1. If progress bar focused → seek (same as anime progressFocused check)
-            // 2. If controls hidden → just show them (never seek when hidden)
-            // 3. Otherwise → pass through for focus navigation
+            // 1. If progress bar focused → seek
+            // 2. If controls hidden → show them
+            // 3. Otherwise → pass through for focus navigation, reset hide timer
             KeyEvent.KEYCODE_DPAD_LEFT -> {
                 val focusedId = activity?.currentFocus?.id
                 val progressFocused = focusedId == androidx.media3.ui.R.id.exo_progress
@@ -1080,6 +1080,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                     if (event.action == KeyEvent.ACTION_DOWN) onClickChange()
                     return true
                 }
+                if (event.action == KeyEvent.ACTION_DOWN) autoHide()
                 return null
             }
 
@@ -1097,6 +1098,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                     if (event.action == KeyEvent.ACTION_DOWN) onClickChange()
                     return true
                 }
+                if (event.action == KeyEvent.ACTION_DOWN) autoHide()
                 return null
             }
 
@@ -1170,8 +1172,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 if (!isShowing) {
                     return true
                 }
-                // Controls visible — just let the event pass for focus navigation.
-                // Don't autoHide here; the controller hides via its own timeout.
+                autoHide() // reset hide timer so controls stay visible during navigation
             }
 
             // netflix capture back and hide ~monke
