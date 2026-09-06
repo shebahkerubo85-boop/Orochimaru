@@ -154,7 +154,7 @@ private class RailTextAdapter(private val rows: MutableList<RailTextRow>) :
         val clickable = row.onClick != null && row.enabled && !isStatusRow
         binding.root.isClickable = clickable
         binding.root.isFocusable = clickable
-        binding.root.setOnClickListener { if (clickable) row.onClick?.invoke() }
+        binding.root.setOnClickListener { if (clickable) { row.onClick?.invoke(); binding.root.requestFocus() } }
     }
 }
 
@@ -648,6 +648,13 @@ class TrackSheetController(
         // Flush current rows into the fresh lists views.
         videoAdapter.submit(videoRows.toList())
         audioAdapter.submit(audioRows.toList())
+        // Request focus on the first visible item so the newly selected track gets focus
+        videoRecycler.post {
+            videoRecycler.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
+        }
+        audioRecycler.post {
+            audioRecycler.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
+        }
 
         val window = dlg.window ?: return
         window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
