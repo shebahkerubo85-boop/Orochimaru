@@ -968,7 +968,8 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         playerHostView?.requestUpdateBrightnessOverlayOnNextLayout()
     }
 
-    private fun handleKeyDownEvent(keyCode: Int): Boolean? {
+    private fun handleKeyDownEvent(event: KeyEvent): Boolean? {
+        val keyCode = event.keyCode
         // adb shell input keyevent [INT]
         when (keyCode) {
             KeyEvent.KEYCODE_FORWARD, KeyEvent.KEYCODE_D, KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
@@ -1130,7 +1131,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         val keyCode = event.keyCode
 
         if (event.action == KeyEvent.ACTION_DOWN) {
-            val value = handleKeyDownEvent(keyCode)
+            val value = handleKeyDownEvent(event)
             if (value != null) {
                 return value
             }
