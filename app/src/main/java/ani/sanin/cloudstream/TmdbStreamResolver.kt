@@ -97,6 +97,16 @@ object TmdbStreamResolver {
             val why = CsRuntime.lastError?.let { "\n$it" } ?: ""
             return StreamResult.Error("Failed to load ${source.name} — is it a .cs3 plugin?$why")
         }
+        // If we already loaded this title from this provider, skip search+load
+        // and go straight to loadLinks — avoids the double-load on episode click.
+        for (api in apis) {
+            val cachedLoad = loadResponseCache["${d.id}|${api.name}"]
+            if (cachedLoad != null) {
+                Logger.log("TMDB_PLAY: ${api.name} using cached LoadResponse for '${d.displayTitle}', skipping search+load")
+                Log.i("TmdbDetails", "${api.name}: cached load, calling resolvePluginStreams directly")
+                return resolvePluginStreams(context, source, cachedLoad, season, episodeNumber)
+            }
+        }
         val failures = mutableListOf<String>()
         for (api in apis) {
             Logger.log(
@@ -301,6 +311,8 @@ object TmdbStreamResolver {
         if (response == null) {
             return ApiResolve(emptyList(), "${api.name}: load returned null for ${match.url}")
         }
+        // Cache the LoadResponse so subsequent episode clicks skip search+load
+        loadResponseCache["${d.id}|${api.name}"] = response
         val dataUrl: String = when {
             response is TvSeriesLoadResponse -> {
                 val episode = when {
@@ -484,6 +496,10 @@ object TmdbStreamResolver {
      *  the watch tab and the player so nothing is ever fetched twice. */
     private val linksCache = mutableMapOf<String, StreamResult.Success>()
 
+    /** Cached LoadResponse per (mediaId, sourceName) — so the second episode click
+     *  skips the expensive search+load and goes straight to loadLinks. */
+    private val loadResponseCache = mutableMapOf<String, LoadResponse>()
+
     private val sessions = mutableMapOf<Int, SyntheticSession>()
 
     private fun cacheKey(mediaId: Int, sourceName: String, season: Int?, ep: Int?) =
@@ -506,6 +522,7 @@ object TmdbStreamResolver {
      *  plugins so stale links from the previous source are never shown. */
     fun invalidateLinks(mediaId: Int) {
         linksCache.keys.removeAll { it.startsWith("$mediaId|") }
+        loadResponseCache.keys.removeAll { it.startsWith("$mediaId|") }
     }
 
     private fun qualityFromLabel(label: String): Int? =
