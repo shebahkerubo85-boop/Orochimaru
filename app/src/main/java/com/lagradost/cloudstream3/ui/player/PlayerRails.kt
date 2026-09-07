@@ -111,18 +111,15 @@ private class RailTextAdapter(private val rows: MutableList<RailTextRow>) :
             return
         }
 
-        // Toggle row: show Switch with visible card container
+        // Toggle row: show Switch, hide everything else
         if (row.isToggle) {
-            binding.root.setCardBackgroundColor(
-                if (row.toggleChecked) ColorUtils.setAlphaComponent(primary, 40) else Color.TRANSPARENT
-            )
+            binding.root.setCardBackgroundColor(Color.TRANSPARENT)
             binding.root.isClickable = true
             binding.root.isFocusable = true
             binding.subtitleTitle.text = row.label
             binding.subtitleTitle.setTextColor(Color.WHITE)
             binding.subtitleGlobe.isVisible = false
             binding.subtitleBadge.isVisible = false
-            binding.subtitleSpinner.isVisible = false
             binding.subtitleToggle.isVisible = true
             binding.subtitleToggle.setOnCheckedChangeListener(null)
             binding.subtitleToggle.isChecked = row.toggleChecked
