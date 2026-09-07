@@ -547,7 +547,6 @@
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/poppins"
                     android:includeFontPadding="false"
-                    android:textAlignment="viewEnd"
                     android:textColor="#80FFFFFF"
                     android:textSize="14sp"
                     tools:ignore="TextContrastCheck"

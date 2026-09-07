@@ -844,7 +844,7 @@ class PlayerView @JvmOverloads constructor(
 
     fun setRemainingTimeCounter(showRemaining: Boolean) {
         durationMode = showRemaining
-        exoDuration?.isInvisible = showRemaining
+        exoDuration?.isVisible = !showRemaining
         timeLeft?.isVisible = showRemaining
         if (showRemaining) updateRemainingTime()
     }
