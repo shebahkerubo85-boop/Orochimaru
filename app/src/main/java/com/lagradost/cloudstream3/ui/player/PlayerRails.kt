@@ -61,6 +61,7 @@ private class RailTextRow(
     val isToggle: Boolean = false,
     val toggleChecked: Boolean = false,
     val isStatus: Boolean = false,
+    val isSpinner: Boolean = false,
     val language: String? = null,
     val onToggleChanged: ((Boolean) -> Unit)? = null,
     val onClick: (() -> Unit)? = null,
@@ -136,6 +137,7 @@ private class RailTextAdapter(private val rows: MutableList<RailTextRow>) :
         )
         binding.subtitleTitle.setTypeface(null, if (isStatusRow) android.graphics.Typeface.ITALIC else android.graphics.Typeface.NORMAL)
         binding.subtitleToggle.isVisible = false
+        binding.subtitleSpinner.isVisible = row.isSpinner
 
         binding.subtitleGlobe.isVisible = row.globe
         if (row.globe) {
@@ -399,6 +401,16 @@ class SubtitleRailController(
         rebuild()
     }
 
+
+    private fun sourceAbbrev(source: String?): String = when (source?.lowercase()) {
+        "wyzie", "wy" -> "WY"
+        "stremio", "st", "online" -> "ST"
+        "opensubtitles", "op" -> "OP"
+        "subdl", "dl" -> "DL"
+        "subsource", "ss" -> "SS"
+        else -> source?.take(2)?.uppercase() ?: "ON"
+    }
+
     private fun subtitleLanguage(sub: SubtitleData): String? =
         sub.getIETF_tag()?.let { fromTagToLanguageName(it.substringBefore('-')) }
             ?: fromTagToLanguageName(sub.languageCode)
@@ -483,7 +495,7 @@ class SubtitleRailController(
             rows.add(
                 RailTextRow(
                     label = sub.name,
-                    badge = subtitleLanguage(sub),
+                    badge = sourceAbbrev(sub.source),
                     globe = true,
                     selected = selected,
                     enabled = enabled,
@@ -492,13 +504,13 @@ class SubtitleRailController(
                 )
             )
         }
-        // 5. "+ Search Online Subtitles" — always shown under Online (matches anime mode)
+        // 5. "+ Search Online Subtitles" / spinner while loading
         if (onSearchOnline != null) {
             val searching = isSearchingOnlineProvider?.invoke() == true
-            if (searching) {
-                rows.add(
-                    RailTextRow(subtitleText(R.string.searching), isStatus = true, enabled = enabled)
-                )
+            if (searching && online.isNotEmpty()) {
+                rows.add(RailTextRow("", isStatus = true, enabled = true, isSpinner = true))
+            } else if (searching) {
+                rows.add(RailTextRow(subtitleText(R.string.searching), isStatus = true, enabled = enabled))
             } else {
                 rows.add(
                     RailTextRow("+ Search Online Subtitles", enabled = enabled,

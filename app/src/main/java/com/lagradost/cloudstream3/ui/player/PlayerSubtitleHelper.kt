@@ -45,6 +45,7 @@ data class SubtitleData(
     @SerialName("mimeType") val mimeType: String,
     @SerialName("headers") val headers: Map<String, String>,
     @SerialName("languageCode") val languageCode: String?,
+    @SerialName("source") val source: String? = null,
 ) {
     /** Internal ID for media3, unique for each link. */
     @JsonIgnore

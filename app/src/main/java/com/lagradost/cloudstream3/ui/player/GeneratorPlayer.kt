@@ -877,6 +877,7 @@ class GeneratorPlayer : FullScreenPlayer() {
         val meta = getMetaData()
         val query = meta.name ?: run {
             searchingOnlineForRail = false
+            subtitleRail?.setSearchingOnline(false)
             return
         }
         val imdbId = viewModel.state.generatorState?.imdbId
@@ -885,35 +886,43 @@ class GeneratorPlayer : FullScreenPlayer() {
 
         viewModel.viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
-                val stremioSubs = StremioSubtitles.getSubtitles(
+                var anyFound = false
+                StremioSubtitles.getSubtitlesStreaming(
                     imdbId = imdbId,
                     season = meta.season ?: 0,
                     episode = meta.episode ?: 0,
                     isTvSeries = isTvSeries,
                     queryText = query,
-                )
-
-                val newSubs = stremioSubs.mapNotNull { stremio ->
-                    val url = stremio.url
-                    if (url.isBlank()) null else SubtitleData(
-                        originalName = stremio.label ?: stremio.lang,
-                        nameSuffix = "",
-                        url = url,
-                        origin = SubtitleOrigin.URL,
-                        mimeType = url.toSubtitleMimeType(),
-                        headers = stremio.headers,
-                        languageCode = stremio.lang,
-                    )
-                }
-
-                withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    searchingOnlineForRail = false
-                    if (newSubs.isNotEmpty()) {
-                        viewModel.addSubtitles(newSubs.toSet())
-                    } else {
-                        showToast(R.string.no_subtitles)
+                    onAllDone = {
+                        viewModel.viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                            searchingOnlineForRail = false
+                            subtitleRail?.setSearchingOnline(false)
+                            if (!anyFound) {
+                                showToast(R.string.no_subtitles)
+                            }
+                        }
                     }
-                    subtitleRail?.setSearchingOnline(false)
+                ).collect { batch ->
+                    val newSubs = batch.mapNotNull { stremio ->
+                        val url = stremio.url
+                        if (url.isBlank()) null else SubtitleData(
+                            originalName = stremio.label ?: stremio.lang,
+                            nameSuffix = "",
+                            url = url,
+                            origin = SubtitleOrigin.URL,
+                            mimeType = url.toSubtitleMimeType(),
+                            headers = stremio.headers,
+                            languageCode = stremio.lang,
+                            source = stremio.source,
+                        )
+                    }
+                    if (newSubs.isNotEmpty()) {
+                        anyFound = true
+                        withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            viewModel.addSubtitles(newSubs.toSet())
+                            subtitleRail?.setSearchingOnline(true)
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 withContext(kotlinx.coroutines.Dispatchers.Main) {

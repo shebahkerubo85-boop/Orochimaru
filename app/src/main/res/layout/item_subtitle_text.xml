@@ -55,6 +55,15 @@
             tools:text="OP"
             tools:visibility="visible" />
 
+        <ProgressBar
+            android:id="@+id/subtitleSpinner"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_marginStart="6dp"
+            android:indeterminate="true"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
         <Switch
             android:id="@+id/subtitleToggle"
             android:layout_width="wrap_content"

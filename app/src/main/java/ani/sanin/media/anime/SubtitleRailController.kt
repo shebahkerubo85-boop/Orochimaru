@@ -274,8 +274,9 @@ class SubtitleRailController(
         // 6. Online subtitles
         rows.add(RailItem("Online", isHeader = true))
         val cached = model.getFetchedSubtitles(episodeId)
-        if (cached != null) {
-            cached.forEach { item ->
+        val hasCached = cached != null && cached.isNotEmpty()
+        if (hasCached) {
+            cached!!.forEach { item ->
                 when (item) {
                     is StremioSub -> rows.add(
                         RailItem(
@@ -300,9 +301,10 @@ class SubtitleRailController(
                     else -> Unit
                 }
             }
-        } else if (searchingOnline) {
-            rows.add(RailItem("Searching…", isStatus = true))
-        } else {
+        }
+        if (searchingOnline) {
+            rows.add(RailItem(" ", isStatus = true))
+        } else if (!hasCached) {
             val onlineEnabled = PrefManager.getVal<Boolean>(PrefName.OnlineSubtitlesEnabled)
             if (onlineEnabled) {
                 rows.add(RailItem("+ Search Online Subtitles", onClick = { searchOnline(media, episode, episodeId) }))
@@ -454,19 +456,29 @@ class SubtitleRailController(
                 val selectedEpisode = media.anime?.selectedEpisode ?: "1"
                 val episodeNum = selectedEpisode.toIntOrNull() ?: 1
                 val seasonEpisode = EpisodeMapper.mapEpisode(media, episodeNum, episode)
-                Logger.log("SubtitleRail: searching imdbId=$imdbId season=${seasonEpisode.season} episode=${seasonEpisode.episode} format=${media.format}")
-                val providers = PrefManager.getVal<Set<String>>(PrefName.OnlineSubtitleProviders)
-                Logger.log("SubtitleRail: enabled providers=$providers")
-                val subs = StremioSubtitles.getSubtitles(media, seasonEpisode.season, seasonEpisode.episode)
-                withContext(Dispatchers.Main) {
-                    searchingOnline = false
-                    if (subs.isNotEmpty()) {
-                        model.saveFetchedSubtitles(episodeId, subs)
-                        Logger.log("SubtitleRail: online search found ${subs.size} subs")
-                    } else {
-                        toast("No subtitles found")
+                Logger.log("SubtitleRail: streaming search imdbId=$imdbId season=${seasonEpisode.season} episode=${seasonEpisode.episode}")
+                val existing = model.getFetchedSubtitles(episodeId)?.toMutableList() ?: mutableListOf()
+                var anyFound = existing.isNotEmpty()
+                StremioSubtitles.getSubtitlesStreaming(
+                    imdbId = imdbId,
+                    season = seasonEpisode.season,
+                    episode = seasonEpisode.episode,
+                    isTvSeries = media.format != "MOVIE",
+                    queryText = media.userPreferredName,
+                    onAllDone = {
+                        activity.lifecycleScope.launch(Dispatchers.Main) {
+                            searchingOnline = false
+                            if (!anyFound) toast("No subtitles found")
+                            rebuild()
+                        }
                     }
-                    rebuild()
+                ).collect { batch ->
+                    anyFound = true
+                    existing.addAll(batch)
+                    withContext(Dispatchers.Main) {
+                        model.saveFetchedSubtitles(episodeId, existing.toList())
+                        rebuild()
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -626,6 +638,9 @@ class SubtitleRailController(
                     }
                 )
             }
+
+            // Spinner for "still loading" rows
+            binding.subtitleSpinner.visibility = if (item.isStatus && item.label.isBlank()) android.view.View.VISIBLE else android.view.View.GONE
 
             val media = model.getMedia().value
             val currentPref = media?.let {
