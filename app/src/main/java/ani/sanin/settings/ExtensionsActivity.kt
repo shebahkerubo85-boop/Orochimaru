@@ -73,37 +73,26 @@ class ExtensionsActivity : AppCompatActivity() {
         // When the ViewPager2 gains focus (e.g. from search bar UP or tab DOWN),
         // forward it into the Browse button of the first repo row
         viewPager.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus) {
-                viewPager.post {
-                    val currentFragment = supportFragmentManager.findFragmentByTag("f${viewPager.currentItem}")
-                    val rv = currentFragment?.view?.findViewById<androidx.recyclerview.widget.RecyclerView>(
-                        R.id.allExtensionsRecyclerView
-                    )
-                    val browseBtn = rv?.findViewHolderForAdapterPosition(0)
-                        ?.itemView?.findViewById<android.view.View>(R.id.repoBrowseButton)
-                    browseBtn?.requestFocus() ?: rv?.findViewHolderForAdapterPosition(0)
-                        ?.itemView?.requestFocus()
-                }
-            }
+            if (hasFocus) focusFirstBrowseButton(viewPager)
         }
 
         setupTabs()
+
+        // ViewPager2 internally sets FOCUS_BLOCK_DESCENDANTS on its child
+        // RecyclerView, which prevents DPAD focus from reaching Browse buttons.
+        // Override it AFTER adapter setup (setupTabs) since that recreates internals.
+        viewPager.post {
+            (viewPager.getChildAt(0) as? android.view.View)?.let { internal ->
+                internal.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+            }
+        }
 
         tabLayout.addOnTabSelectedListener(
             object : TabLayout.OnTabSelectedListener {
                 override fun onTabSelected(tab: TabLayout.Tab) {
                     binding.searchViewText.setText("")
                     binding.searchViewText.clearFocus()
-                    viewPager.post {
-                        val currentFragment = supportFragmentManager.findFragmentByTag("f${viewPager.currentItem}")
-                        val rv = currentFragment?.view?.findViewById<androidx.recyclerview.widget.RecyclerView>(
-                            R.id.allExtensionsRecyclerView
-                        )
-                        val browseBtn = rv?.findViewHolderForAdapterPosition(0)
-                            ?.itemView?.findViewById<android.view.View>(R.id.repoBrowseButton)
-                        browseBtn?.requestFocus() ?: rv?.findViewHolderForAdapterPosition(0)
-                            ?.itemView?.requestFocus()
-                    }
+                    focusFirstBrowseButton(viewPager)
                 }
 
                 override fun onTabUnselected(tab: TabLayout.Tab) {
@@ -147,6 +136,22 @@ class ExtensionsActivity : AppCompatActivity() {
         }
 
         setupModeButtons()
+    }
+
+    /** Focus the first Browse button in the current ViewPager page. */
+    private fun focusFirstBrowseButton(viewPager: ViewPager2) {
+        viewPager.postDelayed({
+            val currentFragment = supportFragmentManager.findFragmentByTag("f${viewPager.currentItem}")
+            val rv = currentFragment?.view?.findViewById<androidx.recyclerview.widget.RecyclerView>(
+                R.id.allExtensionsRecyclerView
+            )
+            val browseBtn = rv?.findViewHolderForAdapterPosition(0)
+                ?.itemView?.findViewById<android.view.View>(R.id.repoBrowseButton)
+            // Try Browse button first; fall back to itemView if it's visible
+            if (browseBtn?.requestFocus() != true) {
+                rv?.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
+            }
+        }, 150) // 150ms gives ViewPager2 time to settle after tab switch
     }
 
     private fun switchMode(cloudStream: Boolean) {
@@ -194,6 +199,12 @@ class ExtensionsActivity : AppCompatActivity() {
             }
         }
         tabMediator?.attach()
+        // Re-apply focus override after adapter re-attach (mode switch recreates internals)
+        viewPager.post {
+            (viewPager.getChildAt(0) as? android.view.View)?.let { internal ->
+                internal.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+            }
+        }
     }
 
     private fun setupModeButtons() {
