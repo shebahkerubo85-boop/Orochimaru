@@ -1127,12 +1127,25 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         return true
     }
 
+    /**
+     * Hook for subclasses (e.g. GeneratorPlayer) to intercept DPAD navigation
+     * and trap focus inside open rails so it can't leak to the background.
+     * Return true to consume the key event.
+     */
+    protected open fun interceptDpadNavigation(keyCode: Int): Boolean = false
+
     private fun handleKeyEvent(event: KeyEvent, hasNavigated: Boolean): Boolean {
         if (hasNavigated) {
             autoHide()
             return false
         }
         val keyCode = event.keyCode
+
+        // Let subclasses trap focus inside open rails first.
+        if (interceptDpadNavigation(keyCode)) {
+            if (event.action == KeyEvent.ACTION_DOWN) autoHide()
+            return true
+        }
 
         if (event.action == KeyEvent.ACTION_DOWN) {
             val value = handleKeyDownEvent(event)

@@ -1751,63 +1751,32 @@ class GeneratorPlayer : FullScreenPlayer() {
 
     /**
      * Trap focus inside open rails — prevent DPAD from leaking to the player
-     * background.  Mirrors anime ExoplayerView's drawer-key interception.
+     * background.  Called from FullScreenPlayer's handleKeyEvent for DPAD_UP/DOWN.
      */
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        val drawer = drawerLayout ?: return super.dispatchKeyEvent(event)
+    override fun interceptDpadNavigation(keyCode: Int): Boolean {
+        val drawer = drawerLayout ?: return false
         val epOpen = episodeRail?.isOpen() == true
         val subOpen = subtitleRail?.isOpen() == true
-        if (!epOpen && !subOpen) return super.dispatchKeyEvent(event)
+        if (!epOpen && !subOpen) return false
 
-        val keyCode = event.keyCode
-        val action = event.action
+        val ep = drawer.findViewById<View>(R.id.episodeDrawer)
+        val sub = drawer.findViewById<View>(R.id.subtitleDrawer)
+        val focused = activity?.window?.decorView?.findFocus() ?: return false
 
-        when (keyCode) {
-            // Left closes the episode rail (right side), right closes subtitle rail (left side)
-            KeyEvent.KEYCODE_DPAD_LEFT -> {
-                if (action == KeyEvent.ACTION_DOWN && epOpen) {
-                    drawer.closeDrawer(episodeRailContent())
-                }
-                return true
-            }
-            KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                if (action == KeyEvent.ACTION_DOWN && subOpen) {
-                    drawer.closeDrawer(subtitleRailContent())
-                }
-                return true
-            }
-            // Trap UP/DOWN inside the rail — consume if focus would escape
-            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
-                if (action != KeyEvent.ACTION_DOWN) return true
-                val focused = currentFocus ?: return true
-                // If the focused view is inside the rail, let it handle UP/DOWN
-                // via the RecyclerView. Only consume if the close button is focused
-                // (top boundary) to prevent escape upward.
-                val isClose = focused.id == R.id.episodeDrawerClose ||
-                    focused.id == R.id.subtitleDrawerClose
-                if (isClose && keyCode == KeyEvent.KEYCODE_DPAD_UP) return true
-                // If focused is NOT inside any rail, consume to prevent leaking
-                if (!isInsideOpenRail(focused, drawer)) return true
-                return false
-            }
-        }
-        return super.dispatchKeyEvent(event)
-    }
-
-    private fun episodeRailContent(): View? =
-        drawerLayout?.findViewById(R.id.episodeDrawer)
-
-    private fun subtitleRailContent(): View? =
-        drawerLayout?.findViewById(R.id.subtitleDrawer)
-
-    private fun isInsideOpenRail(view: View, drawer: DrawerLayout): Boolean {
-        val ep = episodeRailContent()
-        val sub = subtitleRailContent()
-        var v: android.view.ViewParent? = view.parent
+        // Check if focused view is inside any open rail
+        var insideRail = false
+        var v: android.view.ViewParent? = focused.parent
         while (v != null) {
-            if (v === ep || v === sub) return true
+            if (v === ep || v === sub) { insideRail = true; break }
             v = v.parent
         }
+        if (!insideRail) return true // Focus escaped — consume to prevent leaking
+
+        // At top boundary (close button), prevent UP escape
+        val isClose = focused.id == R.id.episodeDrawerClose ||
+            focused.id == R.id.subtitleDrawerClose
+        if (isClose && keyCode == KeyEvent.KEYCODE_DPAD_UP) return true
+
         return false
     }
 
