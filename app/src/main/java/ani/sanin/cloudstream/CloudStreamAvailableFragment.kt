@@ -187,14 +187,24 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
                 )
             }
             holder.binding.repoNameTextView.text = item.name
-            holder.itemView.isFocusable = true
+            // Browse button is the primary focus target on each row
+            with (holder.binding.repoBrowseButton) {
+                text = "Browse"
+                contentDescription = "Browse ${item.name}"
+                setOnClickListener { onOpen(item) }
+                isFocusable = true
+                // Each Browse button has a stable position/ID, so DPAD
+                // navigation reliably lands on it instead of the bare row.
+
+                FocusEffectUtil.applyFocusListener(this)
+            }
+            holder.itemView.isFocusable = false
             holder.itemView.setOnClickListener { onOpen(item) }
             holder.itemView.setOnLongClickListener { onLongClick(item); true }
             // Last item: DPAD_DOWN should go to search bar
             if (position == itemCount - 1) {
-                holder.itemView.nextFocusDownId = ani.sanin.R.id.searchViewText
+                holder.binding.repoBrowseButton.nextFocusDownId = ani.sanin.R.id.searchViewText
             }
-            FocusEffectUtil.applyFocusListener(holder.itemView)
         }
 
         class VH(val binding: ItemAvailableRepoBinding) : RecyclerView.ViewHolder(binding.root)

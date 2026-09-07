@@ -71,7 +71,7 @@ class ExtensionsActivity : AppCompatActivity() {
         viewPager.offscreenPageLimit = 1
 
         // When the ViewPager2 gains focus (e.g. from search bar UP or tab DOWN),
-        // forward it into the current page's RecyclerView so DPAD works.
+        // forward it into the Browse button of the first repo row
         viewPager.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
                 viewPager.post {
@@ -79,12 +79,10 @@ class ExtensionsActivity : AppCompatActivity() {
                     val rv = currentFragment?.view?.findViewById<androidx.recyclerview.widget.RecyclerView>(
                         R.id.allExtensionsRecyclerView
                     )
-                    if (rv != null) {
-                        val first = rv.findViewHolderForAdapterPosition(0)?.itemView
-                        if (first != null) {
-                            first.requestFocus()
-                        }
-                    }
+                    val browseBtn = rv?.findViewHolderForAdapterPosition(0)
+                        ?.itemView?.findViewById<android.view.View>(R.id.repoBrowseButton)
+                    browseBtn?.requestFocus() ?: rv?.findViewHolderForAdapterPosition(0)
+                        ?.itemView?.requestFocus()
                 }
             }
         }
@@ -101,8 +99,10 @@ class ExtensionsActivity : AppCompatActivity() {
                         val rv = currentFragment?.view?.findViewById<androidx.recyclerview.widget.RecyclerView>(
                             R.id.allExtensionsRecyclerView
                         )
-                        val first = rv?.findViewHolderForAdapterPosition(0)?.itemView
-                        first?.requestFocus()
+                        val browseBtn = rv?.findViewHolderForAdapterPosition(0)
+                            ?.itemView?.findViewById<android.view.View>(R.id.repoBrowseButton)
+                        browseBtn?.requestFocus() ?: rv?.findViewHolderForAdapterPosition(0)
+                            ?.itemView?.requestFocus()
                     }
                 }
 
