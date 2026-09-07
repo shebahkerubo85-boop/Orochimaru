@@ -819,7 +819,9 @@ class TmdbWatchFragment : Fragment() {
         if (isResolving) return
         val d = detail ?: return
         val season = if (mediaType == "tv") selectedSeason else null
-        Logger.log("TMDB_WATCH: auto search on open for '${d.displayTitle}' (season=$season)")
+        // Resolve for the last watched episode so links are ready on open.
+        val resumeEp = if (mediaType == "tv") lastPlayed()?.second else null
+        Logger.log("TMDB_WATCH: auto search on open for '${d.displayTitle}' (season=$season ep=$resumeEp)")
         setSourceStatus(getString(R.string.tmdb_watch_searching, d.displayTitle))
         isResolving = true
         autoSearchJob = lifecycleScope.launch {
@@ -832,13 +834,13 @@ class TmdbWatchFragment : Fragment() {
                         val load = pluginLoad
                         if (home != null && load != null) {
                             home to TmdbStreamResolver.resolvePluginStreams(
-                                requireContext(), home, load, season, null
+                                requireContext(), home, load, season, resumeEp
                             )
                         } else {
                             null to TmdbStreamResolver.StreamResult.Error("Plugin data missing")
                         }
                     } else {
-                        TmdbStreamResolver.resolveAuto(requireContext(), sources, d, season, null)
+                        TmdbStreamResolver.resolveAuto(requireContext(), sources, d, season, resumeEp)
                     }
                 }
             } finally {
@@ -871,6 +873,17 @@ class TmdbWatchFragment : Fragment() {
                     refreshChips(headerBinding.tmdbWatchSourceChips)
                     Logger.log("TMDB_WATCH: auto search found ${result.links.size} links via $foundName")
                     snackString("${result.links.size} links found via $foundName")
+                    // Cache auto-search result so clicking the same episode is instant
+                    TmdbStreamResolver.cacheLinks(mediaId, foundName, season, resumeEp, result)
+                    // Auto-show the server sheet so the user can pick a server immediately
+                    val epForSheet = if (mediaType == "tv") {
+                        resumeEp?.let { ep ->
+                            episodes.firstOrNull { it.seasonNumber == selectedSeason && it.episodeNumber == ep }
+                        } ?: episodes.firstOrNull()
+                    } else {
+                        movieEpisodes.firstOrNull()
+                    }
+                    if (epForSheet != null) onEpisodeClick(epForSheet)
                 }
             }
         }
