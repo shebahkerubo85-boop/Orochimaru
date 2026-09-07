@@ -77,6 +77,7 @@ enum class PrefName(val data: Pref) {
 
     AnilistNotifications(Pref(Location.General, Boolean::class, true)),
     EpisodeNotifications(Pref(Location.General, Boolean::class, true)),
+    AdBlockInterceptor(Pref(Location.General, Boolean::class, false)),
     ListStatusNotification(Pref(Location.General, Boolean::class, true)),
     AutoSyncAniList(Pref(Location.General, Boolean::class, true)),
     UpdateProgressAutomatically(Pref(Location.General, Boolean::class, true)),
