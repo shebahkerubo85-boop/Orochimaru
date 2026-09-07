@@ -82,7 +82,7 @@ class ExtensionsActivity : AppCompatActivity() {
         // RecyclerView, which prevents DPAD focus from reaching Browse buttons.
         // Override it AFTER adapter setup (setupTabs) since that recreates internals.
         viewPager.post {
-            (viewPager.getChildAt(0) as? android.view.View)?.let { internal ->
+            (viewPager.getChildAt(0) as? ViewGroup)?.let { internal ->
                 internal.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
             }
         }
@@ -201,7 +201,7 @@ class ExtensionsActivity : AppCompatActivity() {
         tabMediator?.attach()
         // Re-apply focus override after adapter re-attach (mode switch recreates internals)
         viewPager.post {
-            (viewPager.getChildAt(0) as? android.view.View)?.let { internal ->
+            (viewPager.getChildAt(0) as? ViewGroup)?.let { internal ->
                 internal.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
             }
         }
