@@ -573,11 +573,13 @@ object Simkl {
         return try {
             val movies = getMovieLibrary().filter {
                 val s = it.status?.lowercase()
-                s == "watching" || s == "current"
+                (s == "watching" || s == "current") ||
+                    (it.lastWatchedAt != null && it.totalWatched > 0)
             }
             val shows = getShowLibrary().filter {
                 val s = it.status?.lowercase()
-                s == "watching" || s == "current"
+                (s == "watching" || s == "current") ||
+                    (it.lastWatchedAt != null && it.totalWatched > 0)
             }
             val items = (movies + shows).sortedByDescending {
                 it.lastWatchedAt ?: ""
@@ -804,8 +806,8 @@ object Simkl {
         @SerialName("user_rating") val userRating: Int? = null,
         @SerialName("last_watched") val lastWatched: String? = null,
         @SerialName("next_to_watch") val nextToWatch: String? = null,
-        @SerialName("last_watched_episode") val lastWatchedEpisode: Int? = null,
-        val totalEpisodes: Int? = null,
+        @SerialName("watched_episodes_count") val watchedEpisodesCount: Int? = null,
+        @SerialName("total_episodes_count") val totalEpisodesCount: Int? = null,
         val type: String? = null,
         val season: Int? = null,
         val episodes: List<SimklWatchedEpisode>? = null,
@@ -819,6 +821,25 @@ object Simkl {
         val poster: String? get() = show?.poster ?: movie?.poster
         val ids: ScrobbleIds? get() = show?.ids ?: movie?.ids
         val mediaType: String? get() = if (show != null) "tv" else if (movie != null) "movie" else type
+
+        /** Total absolute episode count watched. */
+        val totalWatched: Int
+            get() = watchedEpisodesCount ?: 0
+
+        /** Total episode count across all aired episodes. */
+        val totalEpisodes: Int
+            get() = totalEpisodesCount ?: 0
+
+        /** Parse `lastWatched` "S{season}E{episode}" into (season, episode), or null. */
+        val lastWatchedSeasonEp: Pair<Int, Int>?
+            get() {
+                val str = lastWatched ?: return null
+                // Regex: ^[Ss](\d+)[Ee](\d+)$ e.g. "S11E10"
+                val m = Regex("^[Ss](\\d+)[Ee](\\d+)$").find(str) ?: return null
+                val s = m.groupValues[1].toIntOrNull() ?: return null
+                val e = m.groupValues[2].toIntOrNull() ?: return null
+                return s to e
+            }
     }
 
     @Serializable

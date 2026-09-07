@@ -64,9 +64,9 @@ class SimklContinueWatchingLandscapeAdapter(
                 withContext(Dispatchers.Main) {
                     holder.ongoing.isVisible = isOngoing
                     if (mediaType == "tv") {
-                        val watched = item.lastWatchedEpisode ?: 0
+                        val watched = item.totalWatched
                         val total = detail?.numberOfEpisodes?.takeIf { it > 0 }
-                            ?: item.totalEpisodes?.takeIf { it > 0 } ?: 0
+                            ?: item.totalEpisodes.takeIf { it > 0 } ?: 0
                         if (total > 0) {
                             holder.progress.max = total
                             holder.progress.progress = watched.coerceIn(0, total)
@@ -109,8 +109,8 @@ class SimklContinueWatchingLandscapeAdapter(
             holder.title.text = item.title ?: ""
             holder.title.isVisible = true
             if (mediaType == "tv") {
-                val watched = item.lastWatchedEpisode ?: 0
-                val total = item.totalEpisodes?.takeIf { it > 0 } ?: 0
+                val watched = item.totalWatched
+                val total = item.totalEpisodes.takeIf { it > 0 } ?: 0
                 if (total > 0) {
                     holder.progress.max = total
                     holder.progress.progress = watched.coerceIn(0, total)

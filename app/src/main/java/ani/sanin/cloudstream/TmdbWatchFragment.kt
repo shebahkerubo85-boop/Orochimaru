@@ -46,6 +46,7 @@ import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.TvSeriesLoadResponse
 import ani.sanin.media.anime.Episode as AnimeEpisode
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -670,8 +671,14 @@ class TmdbWatchFragment : Fragment() {
                     val item = Simkl.getShowLibrary()
                         .firstOrNull { it.ids?.tmdb == realTmdbId }
                     if (item == null) return@runCatching emptySet()
-                    // Prefer lastWatchedEpisode (total absolute across all seasons)
-                    val totalWatched = item.lastWatchedEpisode ?: 0
+                    // watched_episodes_count from Simkl = total absolute across all
+                    // seasons. Also honor per-episode completed flags as a fallback
+                    // when the count is missing (older API responses).
+                    val totalWatched = item.totalWatched
+                    val completedEps = item.episodes
+                        ?.filter { it.completed == true }
+                        ?.mapNotNull { it.number }
+                        ?.toSet() ?: emptySet()
                     if (totalWatched > 0) {
                         // Compute cumulative episode offsets per season so we can map
                         // absolute numbers back to per-season episode numbers.
@@ -689,13 +696,11 @@ class TmdbWatchFragment : Fragment() {
                             // If we haven't reached this season yet at all, stop
                             if (cumulative >= totalWatched) break
                         }
+                        if (completedEps.isNotEmpty()) result.addAll(completedEps)
                         result
                     } else {
                         // Fallback: use per-episode completed flag if available
-                        item.episodes
-                            ?.filter { it.completed == true }
-                            ?.mapNotNull { it.number }
-                            ?.toSet() ?: emptySet()
+                        completedEps
                     }
                 }.getOrDefault(emptySet())
             } else emptySet()
@@ -996,12 +1001,27 @@ class TmdbWatchFragment : Fragment() {
     }
 
     private fun lastPlayed(): Pair<Int, Int>? {
-        val raw = PrefManager.getNullableCustomVal("tmdb_last_${mediaId}", null, String::class.java) ?: return null
-        val parts = raw.split(":")
-        if (parts.size != 2) return null
-        val s = parts[0].toIntOrNull() ?: return null
-        val e = parts[1].toIntOrNull() ?: return null
-        return s to e
+        val raw = PrefManager.getNullableCustomVal("tmdb_last_${mediaId}", null, String::class.java)
+        if (raw != null) {
+            val parts = raw.split(":")
+            if (parts.size == 2) {
+                val s = parts[0].toIntOrNull()
+                val e = parts[1].toIntOrNull()
+                if (s != null && e != null) return s to e
+            }
+        }
+        // Fallback: read from Simkl on a fresh device (no local prefs yet).
+        val realTmdbId = if (!pluginMode) mediaId else null
+        if (realTmdbId != null && realTmdbId > 0 && mediaType == "tv") {
+            runCatching {
+                runBlocking(Dispatchers.IO) {
+                    Simkl.getShowLibrary()
+                        .firstOrNull { it.ids?.tmdb == realTmdbId }
+                        ?.lastWatchedSeasonEp
+                }
+            }.getOrNull()?.let { return it }
+        }
+        return null
     }
 
     private fun saveSourcePref() {

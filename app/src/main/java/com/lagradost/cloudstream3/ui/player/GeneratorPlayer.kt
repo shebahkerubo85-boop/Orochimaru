@@ -64,6 +64,8 @@ import ani.sanin.R
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.amap
 import ani.sanin.cloudstream.CsPlayerActivity
+import ani.sanin.cloudstream.TmdbStreamResolver
+import ani.sanin.connections.simkl.Simkl
 import ani.sanin.databinding.DialogOnlineSubtitlesBinding
 import ani.sanin.media.anime.SubtitleSyncHost
 import ani.sanin.connections.subtitles.StremioSubtitles
@@ -1390,6 +1392,8 @@ class GeneratorPlayer : FullScreenPlayer() {
     }
 
     var maxEpisodeSet: Int? = null
+    /** Episodes already pushed to Simkl history during this player session. */
+    private val simklHistorySent = mutableSetOf<String>()
     var hasRequestedStamps: Boolean = false
     override fun playerPositionChanged(position: Long, duration: Long) {
         // Don't save livestream data
@@ -1437,6 +1441,27 @@ class GeneratorPlayer : FullScreenPlayer() {
                             maxEpisodeSet = meta.episode
                             sync.modifyMaxEpisode(meta.totalEpisodeIndex ?: meta.episode)
                         }
+                    }
+                    // Push progress to Simkl (same as anime mode) so episode counts
+                    // sync across devices. Uses the synthetic TMDB session.
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                        val syntheticId = meta.parentId ?: return@launch
+                        val session = TmdbStreamResolver.sessionFor(syntheticId) ?: return@launch
+                        val key = "${session.mediaId}|${meta.season}|${meta.episode}"
+                        if (!simklHistorySent.add(key)) return@launch
+                        val d = session.detail
+                        val tmdbId = d.id
+                        val imdbId = d.externalIds?.imdbId
+                        val title = d.displayTitle
+                        val year = d.year.toIntOrNull()
+                        val type = if (session.mediaType == "tv") "tv" else "movie"
+                        // Ensure show is on the Simkl watchlist (status "watching") so
+                        // continue-watching card appears on other devices.
+                        val curStatus = Simkl.getMediaStatus(type, tmdbId = tmdbId, imdbId = imdbId)
+                        if (curStatus != "completed" && curStatus != "dropped") {
+                            Simkl.addToWatchlist(type, tmdbId, imdbId)
+                        }
+                        Simkl.addToHistory(type, title, year, tmdbId, imdbId, meta.season, meta.episode)
                     }
                 }
 

@@ -926,8 +926,8 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
             val ids = it.ids
             ids != null && (ids.tmdb == tmdbId || (!imdbId.isNullOrBlank() && ids.imdb == imdbId))
         } ?: return@withContext null
-        val w = item.lastWatchedEpisode ?: 0
-        val y = item.totalEpisodes ?: 0
+        val w = item.totalWatched
+        val y = item.totalEpisodes
         if (w == 0 && y == 0) null else Pair(w, y)
     }
 
