@@ -39,6 +39,11 @@ import com.lagradost.cloudstream3.utils.SubtitleHelper.fromTagToLanguageName
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
+import android.graphics.Typeface
+import android.text.SpannableString
+import android.text.style.ForegroundColorSpan
+import android.text.style.RelativeSizeSpan
+import android.text.style.StyleSpan
 import java.util.Locale
 
 /**
@@ -405,6 +410,22 @@ class SubtitleRailController(
             .equals(languageFilter, true)
     }
 
+    /** Exact mirror of anime SubtitleRailController.syncLabel(). */
+    private fun syncLabel(): CharSequence {
+        val primary = PrefManager.getVal<Int>(PrefName.PrimaryColor)
+        val lowContrast = 0xFF9E9E9E.toInt()
+        val text = "Subtitle Sync (online subtitles only)"
+        val openIdx = text.indexOf('(')
+        val closeIdx = text.indexOf(')')
+        return SpannableString(text).apply {
+            setSpan(ForegroundColorSpan(primary), openIdx, openIdx + 1, 0)
+            setSpan(RelativeSizeSpan(0.8f), openIdx + 1, closeIdx, 0)
+            setSpan(StyleSpan(Typeface.ITALIC), openIdx + 1, closeIdx, 0)
+            setSpan(ForegroundColorSpan(lowContrast), openIdx + 1, closeIdx, 0)
+            setSpan(ForegroundColorSpan(primary), closeIdx, closeIdx + 1, 0)
+        }
+    }
+
     private fun rebuild() {
         val current = currentSubtitleProvider()
         val allSubs = subtitlesProvider()
@@ -421,11 +442,11 @@ class SubtitleRailController(
             )
         )
 
-        // 2. Subtitle sync
+        // 2. Subtitle sync — styled label matching anime mode
         if (onSyncSubtitle != null) {
             rows.add(
                 RailTextRow(
-                    subtitleText(R.string.subtitles_sync),
+                    syncLabel(),
                     enabled = enabled,
                     onClick = { if (enabled) onSyncSubtitle?.invoke() },
                 )
@@ -437,9 +458,9 @@ class SubtitleRailController(
         val online = allSubs.filter { it.origin == SubtitleOrigin.URL && matchesFilter(it) }
         val local = allSubs.filter { it.origin == SubtitleOrigin.DOWNLOADED_FILE && matchesFilter(it) }
 
-        // 3. Embedded tracks
+        // 3. Embedded tracks — always show header (matches anime mode)
+        rows.add(RailTextRow("Embedded Tracks", header = true))
         if (embedded.isNotEmpty()) {
-            rows.add(RailTextRow("Embedded Tracks", header = true))
             embedded.forEach { sub ->
                 val selected = sub == current
                 rows.add(
@@ -455,79 +476,58 @@ class SubtitleRailController(
             }
         }
 
-        // 4. Online subtitles
-        if (online.isNotEmpty()) {
-            rows.add(RailTextRow(subtitleText(R.string.subtitles_from_online), header = true))
-            online.forEach { sub ->
-                val selected = sub == current
-                rows.add(
-                    RailTextRow(
-                        label = sub.name,
-                        badge = subtitleLanguage(sub),
-                        globe = true,
-                        selected = selected,
-                        enabled = enabled,
-                        language = sub.getIETF_tag()?.substringBefore('-') ?: sub.languageCode,
-                        onClick = { if (enabled) { onSubtitleSelected(sub); rebuild() } },
-                    )
+        // 4. Online — always show header (matches anime mode)
+        rows.add(RailTextRow("Online", header = true))
+        online.forEach { sub ->
+            val selected = sub == current
+            rows.add(
+                RailTextRow(
+                    label = sub.name,
+                    badge = subtitleLanguage(sub),
+                    globe = true,
+                    selected = selected,
+                    enabled = enabled,
+                    language = sub.getIETF_tag()?.substringBefore('-') ?: sub.languageCode,
+                    onClick = { if (enabled) { onSubtitleSelected(sub); rebuild() } },
                 )
-            }
+            )
         }
-
-        // 5. "+ Search Online Subtitles" action (under Online section)
+        // 5. "+ Search Online Subtitles" — always shown under Online (matches anime mode)
         if (onSearchOnline != null) {
             val searching = isSearchingOnlineProvider?.invoke() == true
             if (searching) {
                 rows.add(
-                    RailTextRow(
-                        subtitleText(R.string.searching),
-                        isStatus = true,
-                        enabled = enabled,
-                    )
+                    RailTextRow(subtitleText(R.string.searching), isStatus = true, enabled = enabled)
                 )
             } else {
                 rows.add(
-                    RailTextRow(
-                        "+ Search Online Subtitles",
-                        enabled = enabled,
-                        onClick = { if (enabled) onSearchOnline?.invoke() },
-                    )
+                    RailTextRow("+ Search Online Subtitles", enabled = enabled,
+                        onClick = { if (enabled) onSearchOnline?.invoke() })
                 )
             }
         }
 
-        // 6. Local subtitles
-        if (local.isNotEmpty()) {
-            rows.add(RailTextRow("Local", header = true))
-            local.forEach { sub ->
-                val selected = sub == current
-                rows.add(
-                    RailTextRow(
-                        label = sub.name,
-                        badge = subtitleLanguage(sub),
-                        selected = selected,
-                        enabled = enabled,
-                        language = sub.getIETF_tag()?.substringBefore('-') ?: sub.languageCode,
-                        onClick = { if (enabled) { onSubtitleSelected(sub); rebuild() } },
-                    )
-                )
-            }
-        }
-
-        // 7. "+ Add Local Subtitle" action
-        if (onAddLocalSubtitle != null) {
+        // 6. Local — always show header (matches anime mode)
+        rows.add(RailTextRow("Local", header = true))
+        local.forEach { sub ->
+            val selected = sub == current
             rows.add(
                 RailTextRow(
-                    "+ Add Local Subtitle",
+                    label = sub.name,
+                    badge = subtitleLanguage(sub),
+                    selected = selected,
                     enabled = enabled,
-                    onClick = { if (enabled) { close(); onAddLocalSubtitle?.invoke() } },
+                    language = sub.getIETF_tag()?.substringBefore('-') ?: sub.languageCode,
+                    onClick = { if (enabled) { onSubtitleSelected(sub); rebuild() } },
                 )
             )
         }
-
-        // Empty state
-        if (embedded.isEmpty() && online.isEmpty() && local.isEmpty()) {
-            rows.add(RailTextRow(subtitleText(R.string.no_subtitles), header = true))
+        // 7. "+ Add Local Subtitle" — always shown (matches anime mode)
+        if (onAddLocalSubtitle != null) {
+            rows.add(
+                RailTextRow("+ Add Local Subtitle", enabled = enabled,
+                    onClick = { if (enabled) { close(); onAddLocalSubtitle?.invoke() } })
+            )
         }
 
         adapter.submit(rows.toList())
