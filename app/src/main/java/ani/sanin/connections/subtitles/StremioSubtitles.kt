@@ -2,9 +2,7 @@ package ani.sanin.connections.subtitles
 
 import ani.sanin.Mapper
 import ani.sanin.okHttpClient
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import okhttp3.Request
 import ani.sanin.media.Media
@@ -47,10 +45,11 @@ object StremioSubtitles {
 
             val completed = java.util.concurrent.atomic.AtomicInteger(0)
             val totalCount = totalProviders.size
-            val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
+
+            val jobs = mutableListOf<Job>()
 
             fun launchProvider(name: String, block: suspend () -> List<StremioSub>) {
-                scope.launch {
+                jobs += launch(Dispatchers.IO) {
                     try {
                         val subs = block()
                         Logger.log("StremioSubtitles($name): ${subs.size} subs")
@@ -133,6 +132,9 @@ object StremioSubtitles {
                     SubDLSubtitles.getSubtitles(imdbId, season, episode)
                 }
             }
+
+            // Keep channel open until every provider coroutine finishes
+            jobs.joinAll()
         }
 
     /** Original blocking fetch — keeps anime-mode and other callers unchanged. */
