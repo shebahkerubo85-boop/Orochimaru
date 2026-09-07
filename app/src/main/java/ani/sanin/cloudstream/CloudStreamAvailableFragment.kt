@@ -190,6 +190,10 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
             holder.itemView.isFocusable = true
             holder.itemView.setOnClickListener { onOpen(item) }
             holder.itemView.setOnLongClickListener { onLongClick(item); true }
+            // Last item: DPAD_DOWN should go to search bar
+            if (position == itemCount - 1) {
+                holder.itemView.nextFocusDownId = ani.sanin.R.id.searchViewText
+            }
             FocusEffectUtil.applyFocusListener(holder.itemView)
         }
 

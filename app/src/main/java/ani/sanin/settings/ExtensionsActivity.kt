@@ -79,7 +79,12 @@ class ExtensionsActivity : AppCompatActivity() {
                     val rv = currentFragment?.view?.findViewById<androidx.recyclerview.widget.RecyclerView>(
                         R.id.allExtensionsRecyclerView
                     )
-                    rv?.requestFocus()
+                    if (rv != null) {
+                        val first = rv.findViewHolderForAdapterPosition(0)?.itemView
+                        if (first != null) {
+                            first.requestFocus()
+                        }
+                    }
                 }
             }
         }
@@ -91,11 +96,14 @@ class ExtensionsActivity : AppCompatActivity() {
                 override fun onTabSelected(tab: TabLayout.Tab) {
                     binding.searchViewText.setText("")
                     binding.searchViewText.clearFocus()
-                    tabLayout.clearFocus()
-                    viewPager.updateLayoutParams<ViewGroup.LayoutParams> {
-                        height = ViewGroup.LayoutParams.MATCH_PARENT
+                    viewPager.post {
+                        val currentFragment = supportFragmentManager.findFragmentByTag("f${viewPager.currentItem}")
+                        val rv = currentFragment?.view?.findViewById<androidx.recyclerview.widget.RecyclerView>(
+                            R.id.allExtensionsRecyclerView
+                        )
+                        val first = rv?.findViewHolderForAdapterPosition(0)?.itemView
+                        first?.requestFocus()
                     }
-                    // Focus listener on viewPager will forward into the RecyclerView
                 }
 
                 override fun onTabUnselected(tab: TabLayout.Tab) {
