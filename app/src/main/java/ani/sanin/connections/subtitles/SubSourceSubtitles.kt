@@ -13,6 +13,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 
 object SubSourceSubtitles {
     private const val API_URL = "https://api.subsource.net/api"
+    private const val API_KEY = "sk_079a24db284e32286abcd3e2a9a1576e0b0e99df6c0c07d139f042434e918712"
     private const val DOWNLOAD_ENDPOINT = "$API_URL/downloadSub"
     private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 
@@ -22,6 +23,7 @@ object SubSourceSubtitles {
                 val searchBody = """{"query":"$imdbId"}""".toRequestBody(JSON_MEDIA_TYPE)
                 val searchReq = Request.Builder()
                     .url("$API_URL/searchMovie")
+                    .addHeader("Authorization", "Bearer $API_KEY")
                     .post(searchBody)
                     .build()
                 val searchResp = okHttpClient.newCall(searchReq).execute()
@@ -38,6 +40,7 @@ object SubSourceSubtitles {
                 }
                 val movieReq = Request.Builder()
                     .url("$API_URL/getMovie")
+                    .addHeader("Authorization", "Bearer $API_KEY")
                     .post(movieBodyStr.toRequestBody(JSON_MEDIA_TYPE))
                     .build()
                 val movieResp = okHttpClient.newCall(movieReq).execute()
@@ -89,6 +92,7 @@ object SubSourceSubtitles {
                 val bodyStr = """{"movie":"${sub.movie}","lang":"${sub.lang}","id":"${sub.id}"}"""
                 val req = Request.Builder()
                     .url("$API_URL/getSub")
+                    .addHeader("Authorization", "Bearer $API_KEY")
                     .post(bodyStr.toRequestBody(JSON_MEDIA_TYPE))
                     .build()
                 val resp = okHttpClient.newCall(req).execute()
