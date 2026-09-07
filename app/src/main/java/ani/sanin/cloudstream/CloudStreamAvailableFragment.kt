@@ -25,6 +25,10 @@ import ani.sanin.util.customAlertDialog
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import java.io.File
 import java.util.Locale
 
 data class RepoUi(val name: String, val url: String, val count: Int, val iconUrl: String? = null) {
@@ -39,6 +43,26 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
 
     private var _binding: FragmentExtensionsBinding? = null
     private val binding get() = _binding!!
+
+    private val cacheJson = Json { ignoreUnknownKeys = true }
+    private fun cacheFile() = File(requireContext().cacheDir, "cs_repo_cache.json")
+
+    @Serializable
+    private data class CachedRepo(val name: String, val url: String, val count: Int, val iconUrl: String? = null)
+
+    private fun saveCache(list: List<RepoUi>) {
+        runCatching {
+            cacheFile().writeText(cacheJson.encodeToString(list.map { CachedRepo(it.name, it.url, it.count, it.iconUrl) }))
+        }
+    }
+
+    private fun loadCache(): List<RepoUi>? {
+        return runCatching {
+            val file = cacheFile()
+            if (!file.exists()) return null
+            cacheJson.decodeFromString<List<CachedRepo>>(file.readText()).map { RepoUi(it.name, it.url, it.count, it.iconUrl) }
+        }.getOrNull()
+    }
 
     private val adapter = RepoAdapter(
         onOpen = { repo -> openRepo(repo) },
@@ -65,8 +89,20 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
 
     private fun loadRepos() {
         val urls = CsRepos.repos().toList()
+        val urlSet = urls.toSet()
+
+        // Show cached data instantly so DPAD works immediately
+        loadCache()?.let { cached ->
+            val valid = cached.filter { it.url in urlSet }
+            if (valid.isNotEmpty()) {
+                repos = valid
+                adapter.submitList(valid.filter { it.matches(query) })
+            }
+        }
+
+        // Then fetch fresh data in background
         viewLifecycleOwner.lifecycleScope.launch {
-            repos = urls.map { url ->
+            val fresh = urls.map { url ->
                 async {
                     val manifest = runCatching { CsRepos.fetchManifest(url) }.getOrNull()
                     val plugins = if (manifest != null) CsRepos.getRepoPlugins(url) else emptyList()
@@ -81,18 +117,9 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
                     )
                 }
             }.awaitAll()
-            adapter.submitList(repos.filter { it.matches(query) })
-            // After async load completes, request focus on the RecyclerView so
-            // DPAD navigation works (the RecyclerView was empty when focus first
-            // tried to land, causing focus to fall through to the search bar).
-            view?.post {
-                val rv = view?.findViewById<androidx.recyclerview.widget.RecyclerView>(
-                    ani.sanin.R.id.allExtensionsRecyclerView
-                )
-                if (rv != null && !rv.hasFocus() && rv.adapter != null && rv.adapter!!.itemCount > 0) {
-                    rv.requestFocus()
-                }
-            }
+            repos = fresh
+            adapter.submitList(fresh.filter { it.matches(query) })
+            saveCache(fresh)
         }
     }
 
