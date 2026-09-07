@@ -1106,8 +1106,7 @@ class GeneratorPlayer : FullScreenPlayer() {
                 onSelect = { index ->
                     filteredLinks.getOrNull(index)?.let { displayLink ->
                         if (displayLink.link != currentSelectedLink) {
-                            isNextEpisode = true
-                            releasePlayer()
+                            // Server switch mid-stream: do NOT set isNextEpisode (that flag resets position to 0) and do NOT release the player here — CS3IPlayer.loadPlayer(sameEpisode=true) internally saves the current position and releases, preserving where we left off.
                             loadLink(displayLink.link, true)
                         }
                     }
@@ -1569,26 +1568,32 @@ class GeneratorPlayer : FullScreenPlayer() {
                 tvType = meta.tvType
             }
         }
-        context?.let { ctx ->
-            //Generate video title
-            val exoEpSelText = if (headerName != null) {
-                (headerName + if (tvType.isEpisodeBased() && episode != null) if (season == null) " - ${
-                    ctx.getString(
-                        R.string.episode
-                    )
-                } $episode"
-                else " \"${ctx.getString(R.string.season_short)}${season}:${
-                    ctx.getString(
-                        R.string.episode_short
-                    )
-                }${episode}\""
-                else "") + if (subName.isNullOrBlank() || subName == headerName) "" else " - $subName"
-            } else {
-                ""
-            }
-            return exoEpSelText
+        // Anime-mode format: "Episode X: The Rise"
+        val epStr = episode?.toString() ?: ""
+        val nameStr = subName?.takeIf { it.isNotBlank() && it != headerName } ?: ""
+        return if (tvType.isEpisodeBased() && episode != null) {
+            "Episode $epStr" + if (nameStr.isNotBlank()) ": $nameStr" else ""
+        } else {
+            headerName ?: ""
         }
-        return ""
+    }
+
+    private fun getShowTitleWithSeason(): String {
+        var headerName: String? = null
+        var season: Int? = null
+
+        when (val meta = currentMeta) {
+            is ResultEpisode -> {
+                headerName = meta.headerName
+                season = meta.season
+            }
+            is ExtractorUri -> {
+                headerName = meta.headerName
+                season = meta.season
+            }
+        }
+        val seasonLabel = if (season != null) " : Season $season" else ""
+        return "${headerName.orEmpty()}$seasonLabel".trim()
     }
 
     fun setTitle() {
@@ -1605,11 +1610,12 @@ class GeneratorPlayer : FullScreenPlayer() {
                 exoEpSelText = exoEpSelText.substring(0, limitTitle - 1) + "..."
             }
         }
-        val isFiller: Boolean? = (currentMeta as? ResultEpisode)?.isFiller
-
-        // playerEpisodeFillerHolder removed
         playerBinding?.exoEpSelText?.text = exoEpSelText
 
+        // Show title + season below, matching anime mode style
+        val epTitle = getShowTitleWithSeason()
+        playerBinding?.exoAnimeTitle?.text = epTitle
+        playerBinding?.exoAnimeTitle?.isVisible = epTitle.isNotBlank()
     }
 
     fun setPlayerDimen(widthHeight: Pair<Int, Int>?) {
@@ -1700,15 +1706,25 @@ class GeneratorPlayer : FullScreenPlayer() {
             audioCodec
         ).filter { !it.isNullOrBlank() }.joinToString(" • ")
 
+        // Always show quality; optionally append detailed codec stats
+        val qualityText = playerBinding?.exoVideoInfo?.text?.toString() ?: ""
         playerBinding?.exoVideoInfo?.apply {
-            text = stats
-            isVisible = showMediaInfo && stats.isNotBlank()
+            text = if (showMediaInfo && stats.isNotBlank()) {
+                "$qualityText • $stats"
+            } else {
+                qualityText
+            }
+            isVisible = qualityText.isNotBlank()
         }
     }
 
     override fun playerDimensionsLoaded(width: Int, height: Int) {
         super.playerDimensionsLoaded(width, height)
         setPlayerDimen(width to height)
+        // Show quality label below top-right buttons, matching anime mode
+        playerBinding?.exoVideoInfo?.text = getString(R.string.video_quality, height)
+        playerBinding?.exoVideoInfo?.isVisible = true
+        updatePlayerInfo()
     }
 
     private fun unwrapBundle(savedInstanceState: Bundle?) {
