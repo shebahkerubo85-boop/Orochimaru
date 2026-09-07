@@ -482,6 +482,7 @@ class SubtitleRailController(
         "wyzie", "wy" -> "WY"
         "stremio", "st", "online" -> "ST"
         "opensubtitles", "op" -> "OP"
+        "subdl", "dl" -> "DL"
         "subsource", "ss" -> "SS"
         else -> source.take(2).uppercase()
     }

@@ -65,6 +65,7 @@ import com.lagradost.cloudstream3.amap
 import ani.sanin.cloudstream.CsPlayerActivity
 import ani.sanin.databinding.DialogOnlineSubtitlesBinding
 import ani.sanin.media.anime.SubtitleSyncHost
+import ani.sanin.connections.subtitles.StremioSubtitles
 import ani.sanin.media.anime.SubtitleSyncDialogFragment
 import ani.sanin.media.anime.SyncCue
 import ani.sanin.settings.saving.PrefManager
@@ -865,7 +866,9 @@ class GeneratorPlayer : FullScreenPlayer() {
         //dialog.subtitles_search_year?.setText(currentTempMeta.year)
     }
 
-    /** Search online subtitle providers and add results to the rail (anime-style). */
+    /** Search online subtitle providers and add results to the rail (anime-style).
+     *  Uses the shared StremioSubtitles hub so all providers (Wyzie, OpenSubtitles,
+     *  SubDL, SubSource, Stremio) work here exactly like in anime mode. */
     private fun searchOnlineSubtitlesForRail() {
         if (searchingOnlineForRail) return
         searchingOnlineForRail = true
@@ -877,38 +880,30 @@ class GeneratorPlayer : FullScreenPlayer() {
             return
         }
         val loadResp = viewModel.state.generatorState?.meta as? com.lagradost.cloudstream3.LoadResponse
+        val imdbId = loadResp?.getImdbId()
+        val isTvSeries = meta.season != null && meta.season!! > 0
 
         viewModel.viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
-                val search = SubtitleSearch(
-                    query = query,
-                    imdbId = loadResp?.getImdbId(),
-                    tmdbId = loadResp?.getTMDbId()?.toInt(),
-                    epNumber = meta.episode,
-                    seasonNumber = meta.season,
+                val stremioSubs = StremioSubtitles.getSubtitles(
+                    imdbId = imdbId,
+                    season = meta.season ?: 0,
+                    episode = meta.episode ?: 0,
+                    isTvSeries = isTvSeries,
+                    queryText = query,
                 )
 
-                val newSubs = mutableListOf<SubtitleData>()
-                subsProviders.toList().amap { provider ->
-                    when (val result = Resource.fromResult(provider.search(search))) {
-                        is Resource.Success -> {
-                            for (entry in result.value) {
-                                val resources = provider.resource(entry).getOrNull() ?: continue
-                                newSubs.addAll(resources.getSubtitles().map { sub ->
-                                    SubtitleData(
-                                        originalName = sub.name ?: entry.name,
-                                        nameSuffix = "",
-                                        url = sub.url,
-                                        origin = sub.origin,
-                                        mimeType = sub.url.toSubtitleMimeType(),
-                                        headers = entry.headers,
-                                        languageCode = entry.lang,
-                                    )
-                                })
-                            }
-                        }
-                        else -> Unit
-                    }
+                val newSubs = stremioSubs.mapNotNull { stremio ->
+                    val url = stremio.url
+                    if (url.isBlank()) null else SubtitleData(
+                        originalName = stremio.label ?: stremio.lang,
+                        nameSuffix = "",
+                        url = url,
+                        origin = SubtitleOrigin.URL,
+                        mimeType = url.toSubtitleMimeType(),
+                        headers = stremio.headers,
+                        languageCode = stremio.lang,
+                    )
                 }
 
                 withContext(kotlinx.coroutines.Dispatchers.Main) {

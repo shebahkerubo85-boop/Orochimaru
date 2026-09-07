@@ -17,28 +17,31 @@ object StremioSubtitles {
 
     private const val BASE_URL = "https://opensubtitles-v3.strem.io/subtitles"
 
-    suspend fun getSubtitles(media: Media, season: Int, episode: Int): List<StremioSub> {
+    /** CS3-compatible overload — takes raw IDs instead of Media object. */
+    suspend fun getSubtitles(
+        imdbId: String?,
+        season: Int,
+        episode: Int,
+        isTvSeries: Boolean,
+        queryText: String? = null
+    ): List<StremioSub> {
         val enabled = PrefManager.getVal<Boolean>(PrefName.OnlineSubtitlesEnabled)
         if (!enabled) return emptyList()
 
         val providers = PrefManager.getVal<Set<String>>(PrefName.OnlineSubtitleProviders)
-        val imdbId = media.idIMDB
+        if (imdbId == null) return emptyList()
 
         return withContext(Dispatchers.IO) {
-            if (imdbId == null) return@withContext emptyList()
-
             val jobs = mutableListOf<kotlinx.coroutines.Deferred<List<StremioSub>>>()
 
             if (providers.contains("Wyzie")) {
                 jobs += async {
                     try {
-                        val wyzieSubs = WyzieSubtitles.getWyzieSubtitles(imdbId, season, episode)
-                        Logger.log("StremioSubtitles: Wyzie returned ${wyzieSubs.size} subs")
-                        wyzieSubs.map {
-                            StremioSub(id = it.id, url = it.url, lang = it.displayLabel, source = "wyzie")
-                        }
+                        val subs = WyzieSubtitles.getWyzieSubtitles(imdbId, season, episode)
+                        Logger.log("StremioSubtitles(Wyzie): ${subs.size} subs")
+                        subs.map { StremioSub(id = it.id, url = it.url, lang = it.displayLabel, source = "wyzie") }
                     } catch (e: Exception) {
-                        Logger.log("StremioSubtitles: Wyzie error - ${e.message}")
+                        Logger.log("StremioSubtitles(Wyzie): error - ${e.message}")
                         emptyList()
                     }
                 }
@@ -47,9 +50,7 @@ object StremioSubtitles {
             if (providers.contains("Stremio")) {
                 jobs += async {
                     try {
-                        Logger.log("StremioSubtitles: Fetching Stremio OpenSubtitles...")
-                        val isMovie = media.format == "MOVIE"
-                        val urlsToTry = if (isMovie) {
+                        val urlsToTry = if (!isTvSeries) {
                             listOf("$BASE_URL/movie/$imdbId.json")
                         } else {
                             listOf(
@@ -71,12 +72,13 @@ object StremioSubtitles {
                                     if (data.subtitles.isNotEmpty()) break
                                 }
                             } catch (e: Exception) {
-                                Logger.log("StremioSubtitles: url failed $url -> ${e.message}")
+                                Logger.log("StremioSubtitles(Stremio): url failed $url -> ${e.message}")
                             }
                         }
+                        Logger.log("StremioSubtitles(Stremio): ${result.size} subs")
                         result
                     } catch (e: Exception) {
-                        Logger.log("StremioSubtitles: Stremio error - ${e.message}")
+                        Logger.log("StremioSubtitles(Stremio): error - ${e.message}")
                         emptyList()
                     }
                 }
@@ -85,12 +87,11 @@ object StremioSubtitles {
             if (providers.contains("OpenSubtitles")) {
                 jobs += async {
                     try {
-                        Logger.log("StremioSubtitles: Fetching official OpenSubtitles...")
-                        val subs = OpenSubtitles.search(imdbId, season, episode, media.userPreferredName)
-                        Logger.log("OpenSubtitles: returned ${subs.size} subs")
+                        val subs = OpenSubtitles.search(imdbId, season, episode, queryText)
+                        Logger.log("StremioSubtitles(OpenSubtitles): ${subs.size} subs")
                         subs
                     } catch (e: Exception) {
-                        Logger.log("OpenSubtitles: Error - ${e.message}")
+                        Logger.log("StremioSubtitles(OpenSubtitles): error - ${e.message}")
                         emptyList()
                     }
                 }
@@ -99,9 +100,8 @@ object StremioSubtitles {
             if (providers.contains("SubSource")) {
                 jobs += async {
                     try {
-                        Logger.log("StremioSubtitles: Fetching SubSource...")
                         val subsourceSubs = SubSourceSubtitles.getSubtitles(imdbId, episode, season)
-                        Logger.log("SubSource: returned ${subsourceSubs.size} subs")
+                        Logger.log("StremioSubtitles(SubSource): ${subsourceSubs.size} subs")
                         subsourceSubs.mapNotNull { sub ->
                             val downloadUrl = runCatching { SubSourceSubtitles.getDownloadUrl(sub) }.getOrNull()
                             downloadUrl?.let {
@@ -109,7 +109,20 @@ object StremioSubtitles {
                             }
                         }
                     } catch (e: Exception) {
-                        Logger.log("SubSource: Error - ${e.message}")
+                        Logger.log("StremioSubtitles(SubSource): error - ${e.message}")
+                        emptyList()
+                    }
+                }
+            }
+
+            if (providers.contains("SubDL")) {
+                jobs += async {
+                    try {
+                        val subs = SubDLSubtitles.getSubtitles(imdbId, season, episode)
+                        Logger.log("StremioSubtitles(SubDL): ${subs.size} subs")
+                        subs
+                    } catch (e: Exception) {
+                        Logger.log("StremioSubtitles(SubDL): error - ${e.message}")
                         emptyList()
                     }
                 }
@@ -117,6 +130,18 @@ object StremioSubtitles {
 
             jobs.awaitAll().flatten()
         }
+    }
+
+    /** Anime-mode overload — unwraps Media and delegates. */
+    suspend fun getSubtitles(media: Media, season: Int, episode: Int): List<StremioSub> {
+        val enabled = PrefManager.getVal<Boolean>(PrefName.OnlineSubtitlesEnabled)
+        if (!enabled) return emptyList()
+
+        val imdbId = media.idIMDB
+        val isTvSeries = media.format != "MOVIE"
+        val queryText = media.userPreferredName
+
+        return getSubtitles(imdbId, season, episode, isTvSeries, queryText)
     }
 }
 

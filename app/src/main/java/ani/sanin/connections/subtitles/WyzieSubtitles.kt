@@ -22,7 +22,7 @@ object WyzieSubtitles {
                 val languages = PrefManager.getVal<Set<String>>(PrefName.OnlineSubtitleLanguages).joinToString(",")
 
                 suspend fun fetchWyzie(s: Int, e: Int): List<WyzieSub> {
-                    val url = "$BASE_URL?id=$imdbId&season=$s&episode=$e&language=$languages"
+                    val url = "$BASE_URL?id=$imdbId&season=$s&episode=$e&language=$languages&api_key=wyzie-o7k6nk8qlykqb5hniy1wq4xdeh26hzpa"
                     Logger.log("WyzieSubtitles: Fetching from $url")
                     val response = client.get(url)
                     val text = response.text
