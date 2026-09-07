@@ -22,6 +22,8 @@ import ani.sanin.databinding.ItemAvailableRepoBinding
 import ani.sanin.settings.SearchQueryHandler
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.customAlertDialog
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -65,18 +67,20 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
         val urls = CsRepos.repos().toList()
         viewLifecycleOwner.lifecycleScope.launch {
             repos = urls.map { url ->
-                val manifest = runCatching { CsRepos.fetchManifest(url) }.getOrNull()
-                val plugins = if (manifest != null) CsRepos.getRepoPlugins(url) else emptyList()
-                val iconUrl = manifest?.iconUrl?.let {
-                    if (it.startsWith("http")) it else CsRepos.sourceUrl(url, it)
+                async {
+                    val manifest = runCatching { CsRepos.fetchManifest(url) }.getOrNull()
+                    val plugins = if (manifest != null) CsRepos.getRepoPlugins(url) else emptyList()
+                    val iconUrl = manifest?.iconUrl?.let {
+                        if (it.startsWith("http")) it else CsRepos.sourceUrl(url, it)
+                    }
+                    RepoUi(
+                        name = manifest?.name ?: url.clean(),
+                        url = url,
+                        count = plugins.size,
+                        iconUrl = iconUrl
+                    )
                 }
-                RepoUi(
-                    name = manifest?.name ?: url.clean(),
-                    url = url,
-                    count = plugins.size,
-                    iconUrl = iconUrl
-                )
-            }
+            }.awaitAll()
             adapter.submitList(repos.filter { it.matches(query) })
             // After async load completes, request focus on the RecyclerView so
             // DPAD navigation works (the RecyclerView was empty when focus first
