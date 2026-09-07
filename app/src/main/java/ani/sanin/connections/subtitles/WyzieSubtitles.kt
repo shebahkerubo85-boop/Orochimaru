@@ -12,17 +12,19 @@ import kotlinx.serialization.Serializable
 
 object WyzieSubtitles {
 
-    private const val BASE_URL = "https://sub.wyzie.ru/search"
+    private const val BASE_URL = "https://sub.wyzie.io/search"
 
 
     suspend fun getWyzieSubtitles(imdbId: String, season: Int, episode: Int): List<WyzieSub> {
         return withContext(Dispatchers.IO) {
             try {
                 // Get languages from Prefs
-                val languages = PrefManager.getVal<Set<String>>(PrefName.OnlineSubtitleLanguages).joinToString(",")
+                val languages = PrefManager.getVal<Set<String>>(PrefName.OnlineSubtitleLanguages)
+                    .map { langToIso(it) }
+                    .joinToString(",")
 
                 suspend fun fetchWyzie(s: Int, e: Int): List<WyzieSub> {
-                    val url = "$BASE_URL?id=$imdbId&season=$s&episode=$e&language=$languages&api_key=wyzie-o7k6nk8qlykqb5hniy1wq4xdeh26hzpa"
+                    val url = "$BASE_URL?id=$imdbId&season=$s&episode=$e&language=$languages&key=wyzie-o7k6nk8qlykqb5hniy1wq4xdeh26hzpa"
                     Logger.log("WyzieSubtitles: Fetching from $url")
                     val response = client.get(url)
                     val text = response.text
@@ -72,6 +74,48 @@ object WyzieSubtitles {
                 emptyList()
             }
         }
+    }
+
+    private fun langToIso(lang: String): String = when (lang.lowercase().trim()) {
+        "english" -> "en"
+        "spanish" -> "es"
+        "portuguese" -> "pt"
+        "french" -> "fr"
+        "german" -> "de"
+        "italian" -> "it"
+        "japanese" -> "ja"
+        "korean" -> "ko"
+        "chinese" -> "zh"
+        "arabic" -> "ar"
+        "russian" -> "ru"
+        "turkish" -> "tr"
+        "dutch" -> "nl"
+        "polish" -> "pl"
+        "hindi" -> "hi"
+        "thai" -> "th"
+        "indonesian" -> "id"
+        "vietnamese" -> "vi"
+        "swedish" -> "sv"
+        "danish" -> "da"
+        "finnish" -> "fi"
+        "norwegian" -> "no"
+        "czech" -> "cs"
+        "romanian" -> "ro"
+        "hungarian" -> "hu"
+        "greek" -> "el"
+        "ukrainian" -> "uk"
+        "hebrew" -> "he"
+        "bulgarian" -> "bg"
+        "croatian" -> "hr"
+        "slovak" -> "sk"
+        "serbian" -> "sr"
+        "farsi" -> "fa"
+        "persian" -> "fa"
+        "bengali" -> "bn"
+        "malay" -> "ms"
+        "swahili" -> "sw"
+        // Already ISO code
+        else -> lang.lowercase().trim().take(2)
     }
 }
 

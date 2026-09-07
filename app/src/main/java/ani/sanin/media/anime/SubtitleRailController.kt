@@ -454,6 +454,9 @@ class SubtitleRailController(
                 val selectedEpisode = media.anime?.selectedEpisode ?: "1"
                 val episodeNum = selectedEpisode.toIntOrNull() ?: 1
                 val seasonEpisode = EpisodeMapper.mapEpisode(media, episodeNum, episode)
+                Logger.log("SubtitleRail: searching imdbId=$imdbId season=${seasonEpisode.season} episode=${seasonEpisode.episode} format=${media.format}")
+                val providers = PrefManager.getVal<Set<String>>(PrefName.OnlineSubtitleProviders)
+                Logger.log("SubtitleRail: enabled providers=$providers")
                 val subs = StremioSubtitles.getSubtitles(media, seasonEpisode.season, seasonEpisode.episode)
                 withContext(Dispatchers.Main) {
                     searchingOnline = false
