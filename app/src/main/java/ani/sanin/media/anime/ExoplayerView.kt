@@ -5089,6 +5089,25 @@ class ExoplayerView :
         when (event.keyCode) {
             KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
                 if (event.action == KeyEvent.ACTION_DOWN) ensureControllerVisible()
+                // Trap focus inside open rails/panels — prevent DPAD from leaking
+                // to background media buttons (same pattern as CS3 GeneratorPlayer).
+                val epOpen = episodeDrawer.isDrawerOpen(episodeDrawerContent)
+                val subOpen = binding.root.isDrawerOpen(subtitleDrawerContent)
+                val tracksOpen = trackRailController?.isOpen() == true
+                val commentOpen = episodeCommentPanel.visibility == View.VISIBLE
+                if (epOpen || subOpen || tracksOpen || commentOpen) {
+                    val focused = currentFocus
+                    if (focused != null) {
+                        val insideRail = isDescendantOf(focused, episodeDrawerContent) ||
+                            isDescendantOf(focused, subtitleDrawerContent) ||
+                            isDescendantOf(focused, tracksDrawerContent) ||
+                            isDescendantOf(focused, episodeCommentPanel)
+                        if (!insideRail) {
+                            // Focus escaped the rail — consume to prevent leaking
+                            return true
+                        }
+                    }
+                }
                 return false
             }
             KEYCODE_DPAD_LEFT, KEYCODE_DPAD_RIGHT -> {
@@ -5179,6 +5198,16 @@ class ExoplayerView :
             }
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    /** Walk the view parent chain to check if [view] is a descendant of [parent]. */
+    private fun isDescendantOf(view: View, parent: View): Boolean {
+        var v: android.view.ViewParent? = view.parent
+        while (v != null) {
+            if (v === parent) return true
+            v = v.parent
+        }
+        return false
     }
 
     private fun startExoPlayer() {
