@@ -6,6 +6,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lagradost.cloudstream3.LoadResponse
+import com.lagradost.cloudstream3.LoadResponse.Companion.getImdbId
 import com.lagradost.cloudstream3.mvvm.Resource
 import com.lagradost.cloudstream3.mvvm.launchSafe
 import com.lagradost.cloudstream3.mvvm.logError
@@ -40,6 +41,7 @@ data class GeneratorState(
     val response: LoadResponse?,
     val index: Int,
     val id: Int?,
+    val imdbId: String? = null,
 )
 
 data class DisplayLink(
@@ -391,13 +393,16 @@ class PlayerGeneratorViewModel : ViewModel() {
             VideoState(
                 loading = Resource.Loading(),
                 generatorState = generator?.let { gen ->
+                    val repoPage = (gen as? RepoLinkGenerator)?.page
+                    val tmdbImdb = (gen as? TmdbSyntheticGenerator)?.media?.idIMDB
                     GeneratorState(
                         meta = gen.videos.getOrNull(index),
                         nextMeta = gen.videos.getOrNull(index + 1),
                         id = gen.getId(index),
-                        response = (gen as? RepoLinkGenerator)?.page,
+                        response = repoPage,
                         index = index,
-                        allMeta = gen.videos
+                        allMeta = gen.videos,
+                        imdbId = repoPage?.getImdbId() ?: tmdbImdb,
                     )
                 },
                 instance = instance + 1

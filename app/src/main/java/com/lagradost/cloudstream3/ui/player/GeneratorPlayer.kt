@@ -55,7 +55,6 @@ import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
 import com.lagradost.cloudstream3.CommonActivity.showToast
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.LoadResponse.Companion.getAniListId
-import com.lagradost.cloudstream3.LoadResponse.Companion.getImdbId
 import com.lagradost.cloudstream3.LoadResponse.Companion.getMalId
 import com.lagradost.cloudstream3.LoadResponse.Companion.getTMDbId
 import com.lagradost.cloudstream3.MainActivity
@@ -879,9 +878,9 @@ class GeneratorPlayer : FullScreenPlayer() {
             searchingOnlineForRail = false
             return
         }
-        val loadResp = viewModel.state.generatorState?.meta as? com.lagradost.cloudstream3.LoadResponse
-        val imdbId = loadResp?.getImdbId()
+        val imdbId = viewModel.state.generatorState?.imdbId
         val isTvSeries = meta.season != null && meta.season!! > 0
+        android.util.Log.d("CS3SubSearch", "searchOnlineSubtitlesForRail: imdbId=$imdbId season=${meta.season} episode=${meta.episode} query=$query isTvSeries=$isTvSeries")
 
         viewModel.viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
