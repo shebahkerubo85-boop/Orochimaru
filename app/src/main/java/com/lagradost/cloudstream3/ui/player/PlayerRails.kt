@@ -261,6 +261,7 @@ class EpisodeRailController(
         recycler.adapter = adapter
         closeButton.nextFocusDownId = R.id.episodeDrawerList
         recycler.nextFocusUpId = R.id.episodeDrawerClose
+        recycler.nextFocusDownId = R.id.episodeDrawerClose
         FocusEffectUtil.applyFocusListener(closeButton)
         closeButton.setOnClickListener { close() }
     }
@@ -374,6 +375,7 @@ class SubtitleRailController(
         languageButton.nextFocusDownId = R.id.subtitleDrawerList
         closeButton.nextFocusDownId = R.id.subtitleDrawerList
         recycler.nextFocusUpId = R.id.subtitleDrawerClose
+        recycler.nextFocusDownId = R.id.subtitleDrawerClose
         FocusEffectUtil.applyFocusListener(languageButton)
         FocusEffectUtil.applyFocusListener(closeButton)
         languageButton.setOnClickListener { showLanguageDialog() }

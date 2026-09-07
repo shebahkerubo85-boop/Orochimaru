@@ -1045,7 +1045,11 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
             KeyEvent.KEYCODE_DPAD_CENTER,
             KeyEvent.KEYCODE_ENTER -> {
                 if (isShowing) {
-                    playerBinding?.root?.findFocus()?.performClick()
+                    // Search the full activity hierarchy so rail items (which live
+                    // in the DrawerLayout outside the PlayerView) get clicked.
+                    val focused = activity?.window?.decorView?.findFocus()
+                        ?: playerBinding?.root?.findFocus()
+                    focused?.performClick()
                         ?: playerBinding?.exoPlay?.performClick()
                 } else {
                     onClickChange()
