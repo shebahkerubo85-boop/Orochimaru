@@ -25,7 +25,7 @@ import eu.kanade.tachiyomi.animesource.model.Track
  */
 class TmdbSyntheticGenerator(
     context: Context,
-    private val media: Media,
+    val media: Media,
     rows: List<ResultEpisode>,
     private val episodeKeys: List<String>,
 ) : VideoGenerator<ResultEpisode>(rows) {
