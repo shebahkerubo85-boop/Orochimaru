@@ -476,16 +476,6 @@ class SettingsCommonActivity : AppCompatActivity() {
                                 PrefManager.setVal(PrefName.EpisodeNotifications, isChecked)
                             }
                         ),
-                        Settings(
-                            type = 2,
-                            name = "HTTP/Intent Interceptor",
-                            desc = "Block ad redirects from plugins",
-                            icon = R.drawable.ic_shield,
-                            isChecked = PrefManager.getVal(PrefName.AdBlockInterceptor),
-                            switch = { isChecked, _ ->
-                                PrefManager.setVal(PrefName.AdBlockInterceptor, isChecked)
-                            }
-                        ),
                     ),
                 )
             settingsRecyclerView.apply {

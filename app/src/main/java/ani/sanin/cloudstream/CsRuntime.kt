@@ -93,7 +93,7 @@ object CsRuntime {
                 instance.resources = buildPluginResources(context, file)
             }
             if (instance is Plugin) {
-                instance.load(AdBlockContextWrapper(context))
+                instance.load(context)
             } else {
                 instance.load()
             }

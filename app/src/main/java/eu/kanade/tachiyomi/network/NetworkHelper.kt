@@ -12,7 +12,6 @@ import eu.kanade.tachiyomi.network.interceptor.IgnoreGzipInterceptor
 import eu.kanade.tachiyomi.network.interceptor.RetryInterceptor
 import eu.kanade.tachiyomi.network.interceptor.UncaughtExceptionInterceptor
 import eu.kanade.tachiyomi.network.interceptor.UserAgentInterceptor
-import eu.kanade.tachiyomi.network.interceptor.AdBlockInterceptor
 import okhttp3.Cache
 import okhttp3.OkHttpClient
 import okhttp3.brotli.BrotliInterceptor
@@ -78,7 +77,6 @@ private fun setupSocks5Proxy() {
                 ),
             )
             .addInterceptor(UncaughtExceptionInterceptor())
-            .addInterceptor(AdBlockInterceptor())
             .addInterceptor(UserAgentInterceptor(::defaultUserAgentProvider))
             .addNetworkInterceptor(IgnoreGzipInterceptor())
             .addNetworkInterceptor(BrotliInterceptor)
