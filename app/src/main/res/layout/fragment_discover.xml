@@ -80,7 +80,7 @@
                     android:layout_height="40dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:focusable="true"
-                    android:focusableInTouchMode="true"
+                    android:focusableInTouchMode="false"
                     android:nextFocusDown="@id/genreChipGroup"
                     android:nextFocusLeft="@id/discoverSearchBar"
                     android:padding="2dp"
@@ -88,7 +88,7 @@
                     android:src="@drawable/ic_round_person_24"
                     android:backgroundTint="@null"
                     app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.Circle"
-                    app:tint="@android:color/transparent"
+                    app:tint="@null"
                     tools:ignore="ContentDescription" />
             </LinearLayout>
 

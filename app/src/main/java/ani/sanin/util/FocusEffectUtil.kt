@@ -145,11 +145,12 @@ object FocusEffectUtil {
         ).toInt()
         val cornerRadius = if (cardRadius > 0f) cardRadius.toInt() else defaultRadius
 
+        val circular = isCircular || isCircularAvatar(v)
         val borderDrawable = GradientDrawable().apply {
-            setShape(if (isCircular) GradientDrawable.OVAL else GradientDrawable.RECTANGLE)
+            setShape(if (circular) GradientDrawable.OVAL else GradientDrawable.RECTANGLE)
             setColor(Color.TRANSPARENT)
             setStroke(borderWidthPx, primaryColor)
-            if (!isCircular) setCornerRadius(cornerRadius.toFloat())
+            if (!circular) setCornerRadius(cornerRadius.toFloat())
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -190,6 +191,11 @@ object FocusEffectUtil {
                 id == R.id.tmdbDiscoveryAvatar ||
                 id == R.id.sheetMoviePluginArrow ||
                 id == R.id.exo_tracks
+    }
+
+    private fun isCircularAvatar(v: View): Boolean {
+        val id = v.id
+        return id == R.id.discoverAvatar || id == R.id.tmdbDiscoveryAvatar
     }
 
     private fun applyFocusGain(v: View) {

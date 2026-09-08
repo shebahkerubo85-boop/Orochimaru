@@ -50,8 +50,9 @@ class TmdbLibraryFragment : Fragment() {
         val primaryTextColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorPrimary)
         val secondaryTextColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorOutline)
 
-        // Follow CalendarActivity pattern: settingsContainer margin in immersive, fitsSystemWindows otherwise
+        // Follow CalendarActivity pattern
         if (PrefManager.getVal<Boolean>(PrefName.ImmersiveMode)) {
+            binding.tmdbLibSettingsContainer.setPadding(0, 0, 0, 0)
             binding.tmdbLibSettingsContainer.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
                 topMargin = statusBarHeight
             }
