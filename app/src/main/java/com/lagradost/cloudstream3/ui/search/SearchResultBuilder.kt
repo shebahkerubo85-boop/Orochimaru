@@ -85,24 +85,15 @@ object SearchResultBuilder {
         val showTitle = showCache[cardText?.context?.getString(R.string.show_title_key)] ?: false
         val showEpisodeText = showCache[cardText?.context?.getString(R.string.show_episode_text_key)] ?: false
         val showHd = showCache[textQuality?.context?.getString(R.string.show_hd_key)] ?: false
-        val showRatingView =
-            showCache[textQuality?.context?.getString(R.string.show_rating_key)] ?: false
-        if (card is SyncAPI.LibraryItem) {
-            val ratingText = card.personalRating?.toStringNull(0.1, 10, 1)
-            val showRating = !ratingText.isNullOrBlank()
-            rating?.isVisible = showRating
-            if (showRating) {
-                rating?.text = ratingText
-                Log.d("RatingBadge", "visible=${rating?.isVisible} bg=${rating?.background?.javaClass?.simpleName} text=$ratingText")
-            }
-        } else if (showRatingView) {
-            val ratingText = card.score?.toStringNull(0.1, 10, 1)
-            val showRating = !ratingText.isNullOrBlank()
-            rating?.isVisible = showRating
-            if (showRating) {
-                rating?.text = ratingText
-                Log.d("RatingBadge", "visible=${rating?.isVisible} bg=${rating?.background?.javaClass?.simpleName} text=$ratingText")
-            }
+        val ratingText = if (card is SyncAPI.LibraryItem) {
+            card.personalRating?.toStringNull(0.1, 10, 1)
+        } else {
+            card.score?.toStringNull(0.1, 10, 1)
+        }
+        val showRating = !ratingText.isNullOrBlank()
+        rating?.isVisible = showRating
+        if (showRating) {
+            rating?.text = ratingText
         }
 
         shadow?.isVisible = showTitle
