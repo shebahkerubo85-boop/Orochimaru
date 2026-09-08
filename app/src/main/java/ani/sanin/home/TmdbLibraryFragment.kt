@@ -1,6 +1,9 @@
 package ani.sanin.home
 
 import android.os.Bundle
+import ani.sanin.statusBarHeight
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -45,6 +48,13 @@ class TmdbLibraryFragment : Fragment() {
         val primaryColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorSurface)
         val primaryTextColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorPrimary)
         val secondaryTextColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorOutline)
+
+        // In immersive mode, push content below status bar (like CalendarActivity)
+        if (PrefManager.getVal<Boolean>(PrefName.ImmersiveMode)) {
+            binding.tmdbLibSettingsContainer.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+                topMargin = statusBarHeight
+            }
+        }
 
         binding.tmdbLibAppBar.setBackgroundColor(primaryColor)
         binding.tmdbLibTitle.setTextColor(primaryTextColor)

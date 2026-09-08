@@ -2,6 +2,7 @@ package ani.sanin.home
 
 import android.content.Context.INPUT_METHOD_SERVICE
 import android.os.Bundle
+import ani.sanin.statusBarHeight
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -54,6 +55,13 @@ class LibraryFragment : Fragment() {
         val primaryColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorSurface)
         val primaryTextColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorPrimary)
         val secondaryTextColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorOutline)
+
+        // In immersive mode, push content below status bar (like CalendarActivity)
+        if (PrefManager.getVal<Boolean>(PrefName.ImmersiveMode)) {
+            binding.settingsContainer.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+                topMargin = statusBarHeight
+            }
+        }
 
         binding.listTabLayout.setBackgroundColor(primaryColor)
         binding.listAppBar.setBackgroundColor(primaryColor)
