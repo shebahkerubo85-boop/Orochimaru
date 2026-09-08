@@ -102,6 +102,14 @@
 
 
         <TextView
+            android:id="@+id/text_rating"
+            style="@style/RatingButton"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="4dp"
+            android:layout_marginEnd="4dp"
+            tools:text="7.7" />
+
+        <TextView
             android:id="@+id/text_flag"
             style="@style/SearchBox"
             android:layout_gravity="end"
