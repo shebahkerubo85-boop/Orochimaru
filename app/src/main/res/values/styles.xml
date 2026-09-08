@@ -151,11 +151,6 @@
         <item name="android:text">@string/episode_text</item>
     </style>
 
-    <!--<style name="RatingButton" parent="@style/SearchBox">
-        <item name="android:background">@drawable/rating_bg_color</item>
-        <item name="android:textColor">@color/ratingColor</item>
-    </style>-->
-
     <style name="RatingButton">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>

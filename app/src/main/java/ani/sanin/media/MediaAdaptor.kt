@@ -192,10 +192,7 @@ class MediaAdaptor(
                     b.itemCompactScore.text =
                         ((if (media.userScore == 0) (media.meanScore
                             ?: 0) else media.userScore) / 10.0).toString()
-                    b.itemCompactScoreBG.background = ContextCompat.getDrawable(
-                        b.root.context,
-                        (if (media.userScore != 0) R.drawable.item_user_score else R.drawable.item_score)
-                    )
+                    b.itemCompactScoreBG.setBackgroundResource(R.drawable.bg_rating_pill)
                     b.itemCompactTitle.text = media.userPreferredName
                     if (media.anime != null) {
                         b.itemCompactUserProgress.text = (media.userProgress ?: "~").toString()
@@ -221,10 +218,7 @@ class MediaAdaptor(
                     b.itemCompactScore.text =
                         ((if (media.userScore == 0) (media.meanScore
                             ?: 0) else media.userScore) / 10.0).toString()
-                    b.itemCompactScoreBG.background = ContextCompat.getDrawable(
-                        b.root.context,
-                        (if (media.userScore != 0) R.drawable.item_user_score else R.drawable.item_score)
-                    )
+                    b.itemCompactScoreBG.setBackgroundResource(R.drawable.bg_rating_pill)
                     if (media.anime != null) {
                         val itemTotal = " " + if ((media.anime.totalEpisodes
                                 ?: 0) != 1
@@ -270,10 +264,7 @@ class MediaAdaptor(
                     b.itemCompactScore.text =
                         ((if (media.userScore == 0) (media.meanScore
                             ?: 0) else media.userScore) / 10.0).toString()
-                    b.itemCompactScoreBG.background = ContextCompat.getDrawable(
-                        b.root.context,
-                        (if (media.userScore != 0) R.drawable.item_user_score else R.drawable.item_score)
-                    )
+                    b.itemCompactScoreBG.setBackgroundResource(R.drawable.bg_rating_pill)
                     if (media.anime != null) {
                         b.itemTotal.text = " " + if ((media.anime.totalEpisodes
                                 ?: 0) != 1
@@ -316,10 +307,7 @@ class MediaAdaptor(
                     b.itemCompactScore.text =
                         ((if (media.userScore == 0) (media.meanScore
                             ?: 0) else media.userScore) / 10.0).toString()
-                    b.itemCompactScoreBG.background = ContextCompat.getDrawable(
-                        b.root.context,
-                        (if (media.userScore != 0) R.drawable.item_user_score else R.drawable.item_score)
-                    )
+                    b.itemCompactScoreBG.setBackgroundResource(R.drawable.bg_rating_pill)
                     media.genres.apply {
                         if (isNotEmpty()) {
                             var genres = ""
@@ -519,10 +507,7 @@ class MediaAdaptor(
                 media.status == currActivity()!!.getString(R.string.status_releasing)
             b.itemCompactScore.text =
                 ((if (media.userScore == 0) (media.meanScore ?: 0) else media.userScore) / 10.0).toString()
-            b.itemCompactScoreBG.background = ContextCompat.getDrawable(
-                b.root.context,
-                (if (media.userScore != 0) R.drawable.item_user_score else R.drawable.item_score)
-            )
+            b.itemCompactScoreBG.setBackgroundResource(R.drawable.bg_rating_pill)
 
             b.itemCompactImage.scaleType = ImageView.ScaleType.CENTER_CROP
             b.itemCompactImage.loadImage(media.cover)

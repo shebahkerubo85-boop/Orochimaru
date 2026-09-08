@@ -92,11 +92,9 @@
                     android:id="@+id/itemCompactScoreBG"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="bottom|end"
-                    android:background="@drawable/item_score"
-                    android:backgroundTint="#FFFFFF"
-                    android:backgroundTintMode="multiply"
-                    android:orientation="horizontal"
+                    android:layout_gravity="top|end"
+                    android:background="@drawable/bg_rating_pill"
+                android:orientation="horizontal"
                     android:paddingStart="8dp"
                     android:paddingEnd="6dp">
 
@@ -107,7 +105,7 @@
                         android:layout_marginStart="2dp"
                         android:fontFamily="@font/poppins_bold"
                         android:paddingTop="2dp"
-                        android:textColor="?attr/colorOnPrimary"
+                        android:textColor="@android:color/white"
                         android:textSize="12sp"
                         tools:ignore="TextContrastCheck"
                         tools:text="0.0" />
@@ -117,7 +115,7 @@
                         android:layout_width="12dp"
                         android:layout_height="match_parent"
                         app:srcCompat="@drawable/ic_round_star_24"
-                        app:tint="?attr/colorOnPrimary"
+                        app:tint="@android:color/white"
                         tools:ignore="ContentDescription" />
 
                 </LinearLayout>
