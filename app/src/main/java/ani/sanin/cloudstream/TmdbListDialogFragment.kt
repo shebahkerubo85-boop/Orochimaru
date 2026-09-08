@@ -95,7 +95,10 @@ class TmdbListDialogFragment : DialogFragment() {
         binding.mediaListScoreLayout.visibility = View.GONE
         binding.mediaListExpandable.visibility = View.GONE
 
-        if (totalEpisodes != null) {
+        // ── Progress field: enabled only for TV shows ──
+        if (totalEpisodes != null && type == "tv") {
+            binding.mediaListProgressLayout.visibility = View.VISIBLE
+            binding.mediaListIncrement.visibility = View.VISIBLE
             binding.mediaListProgress.setText("")
             binding.mediaListProgress.filters = arrayOf(
                 InputFilterMinMax(0.0, totalEpisodes.toDouble(), binding.mediaListStatusGroup),
@@ -115,12 +118,20 @@ class TmdbListDialogFragment : DialogFragment() {
             binding.mediaListIncrement.visibility = View.GONE
         }
 
+        // ── Load current status + progress from Simkl ──
         scope.launch(Dispatchers.IO) {
-            val current = runCatching {
+            val currentStatus = runCatching {
                 Simkl.getMediaStatus(type, tmdbId, imdbId, anilistId)
             }.getOrNull()
+            val currentProgress = if (type == "tv") {
+                runCatching {
+                    Simkl.getProgress(type, tmdbId, imdbId, anilistId)
+                }.getOrNull()
+            } else null
+
             withContext(Dispatchers.Main) {
-                val currentIdx = simklStatusToIndex(current)
+                // Populate status chips
+                val currentIdx = simklStatusToIndex(currentStatus)
                 binding.mediaListStatusGroup.removeAllViews()
                 statusStrings.forEachIndexed { index, label ->
                     val chip = Chip(requireContext()).apply {
@@ -138,9 +149,14 @@ class TmdbListDialogFragment : DialogFragment() {
                     *(0 until binding.mediaListStatusGroup.childCount)
                         .map { binding.mediaListStatusGroup.getChildAt(it) }.toTypedArray()
                 )
+                // Populate progress field
+                if (currentProgress != null && currentProgress > 0 && totalEpisodes != null && type == "tv") {
+                    binding.mediaListProgress.setText(currentProgress.toString())
+                }
             }
         }
 
+        // ── Save: status + progress ──
         binding.mediaListSave.setOnClickListener {
             val checkedId = binding.mediaListStatusGroup.checkedChipId
             val label = (if (checkedId != -1)
@@ -148,13 +164,28 @@ class TmdbListDialogFragment : DialogFragment() {
             else statusStrings[0]) ?: statusStrings[0]
             val idx = statusStrings.indexOf(label).coerceAtLeast(0)
             val simklStatus = SIMKL_STATUS_BY_INDEX[idx]
+            val progress = if (type == "tv" && totalEpisodes != null) {
+                binding.mediaListProgress.text.toString().toIntOrNull() ?: 0
+            } else 0
+
             scope.launch(Dispatchers.IO) {
+                // 1. Set the list status (watching / completed / etc.)
                 runCatching {
                     Simkl.setListStatus(
                         type = type, title = title, year = year,
                         tmdbId = tmdbId, imdbId = imdbId, status = simklStatus,
                         anilistId = anilistId
                     )
+                }
+                // 2. Sync episode progress if changed
+                if (type == "tv" && progress > 0) {
+                    runCatching {
+                        Simkl.setProgress(
+                            type = type, title = title, year = year,
+                            tmdbId = tmdbId, imdbId = imdbId,
+                            anilistId = anilistId, episodeNum = progress
+                        )
+                    }
                 }
                 withContext(Dispatchers.Main) {
                     onSaved?.invoke()
@@ -164,6 +195,7 @@ class TmdbListDialogFragment : DialogFragment() {
             }
         }
 
+        // ── Delete from Simkl list ──
         binding.mediaListDelete.setOnClickListener {
             scope.launch(Dispatchers.IO) {
                 runCatching { Simkl.removeFromList(type, tmdbId, imdbId, anilistId) }

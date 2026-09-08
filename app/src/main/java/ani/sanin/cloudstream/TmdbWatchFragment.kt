@@ -670,9 +670,14 @@ class TmdbWatchFragment : Fragment() {
         displayList(if (mediaType == "tv") episodes.take(EPISODE_CAP) else movieEpisodes)
 
     private fun loadEpisodesForSeason() {
+        // Compute cumulative episode offset for previous seasons
+        val cumulativeOffset = seasons.filter { it.seasonNumber < selectedSeason }
+            .sumOf { it.episodeCount }
+
         if (pluginMode) {
             episodes = pluginEpisodes[selectedSeason].orEmpty()
             headerBinding.tmdbWatchEpisodeCount.text = "${episodes.size} ${getString(R.string.episodes).trim()}"
+            episodeAdapter.setCumulativeOffset(cumulativeOffset)
             episodeAdapter.submitEpisodes(displayList(episodes.take(EPISODE_CAP)))
             updateContinueCard()
             return
@@ -681,15 +686,27 @@ class TmdbWatchFragment : Fragment() {
             val eps = Tmdb.episodes(mediaType, mediaId, selectedSeason)
             episodes = eps
             headerBinding.tmdbWatchEpisodeCount.text = "${eps.size} ${getString(R.string.episodes).trim()}"
+            episodeAdapter.setCumulativeOffset(cumulativeOffset)
             episodeAdapter.submitEpisodes(displayList(eps.take(EPISODE_CAP)))
             updateContinueCard()
         }
     }
 
     private fun buildAdapter() {
-        episodeAdapter = EpisodeListAdapter(episodeStyle, episodesOrMovie()) { episode ->
+        episodeAdapter = EpisodeListAdapter(episodeStyle, episodesOrMovie(), { episode ->
             onEpisodeClick(episode)
-        }
+        }, { cumulativeEp ->
+            // Long-click: set progress to this cumulative episode number
+            lifecycleScope.launch(Dispatchers.IO) {
+                Simkl.setProgress(type = mediaType, title = detail?.displayTitle ?: "", year = detail?.releaseDate?.take(4)?.toIntOrNull(),
+                    tmdbId = if (!pluginMode) mediaId else null, imdbId = detail?.externalIds?.imdbId,
+                    anilistId = null, episodeNum = cumulativeEp)
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    loadSimklWatched()
+                    snackString("Progress set to $cumulativeEp")
+                }
+            }
+        })
         binding.tmdbWatchRecycler.adapter = episodeAdapter
         // Header is a fixed first item owned by the adapter.
         episodeAdapter.setHeader(headerBinding.root)
@@ -1110,11 +1127,17 @@ class TmdbWatchFragment : Fragment() {
     private class EpisodeListAdapter(
         private var style: Int,
         private var items: List<TmdbEpisode>,
-        private val onClick: (TmdbEpisode) -> Unit
+        private val onClick: (TmdbEpisode) -> Unit,
+        private val onLongClick: (Int) -> Unit = {}
     ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
         private var header: View? = null
         private var watchedEpisodes: Set<Int> = emptySet()
+        private var cumulativeOffset = 0
+
+        fun setCumulativeOffset(offset: Int) {
+            cumulativeOffset = offset
+        }
 
         private val blurUnwatched: Boolean get() = PrefManager.getVal(PrefName.BlurUnwatchedEpisodes)
         private val greyWatched: Boolean get() = PrefManager.getVal(PrefName.GreyWatchedEpisodes)
@@ -1192,6 +1215,10 @@ class TmdbWatchFragment : Fragment() {
                         isWatched
                     )
                     holder.binding.root.setOnClickListener { onClick(ep) }
+                    holder.binding.root.setOnLongClickListener {
+                        onLongClick(cumulativeOffset + ep.episodeNumber)
+                        true
+                    }
                     FocusEffectUtil.applyFocusListener(holder.binding.root)
                 }
                 is ListVH -> {
@@ -1225,6 +1252,10 @@ class TmdbWatchFragment : Fragment() {
                         isWatched
                     )
                     holder.binding.root.setOnClickListener { onClick(ep) }
+                    holder.binding.root.setOnLongClickListener {
+                        onLongClick(cumulativeOffset + ep.episodeNumber)
+                        true
+                    }
                     FocusEffectUtil.applyFocusListener(holder.binding.root)
                 }
                 else -> {}

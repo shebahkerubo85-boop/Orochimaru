@@ -561,6 +561,119 @@ object Simkl {
         }
     }
 
+    /** Get the number of watched episodes for a show/movie. */
+    suspend fun getProgress(
+        type: String,
+        tmdbId: Int? = null,
+        imdbId: String? = null,
+        anilistId: Int? = null
+    ): Int? {
+        val t = token ?: return null
+        return try {
+            val items = if (type == "tv") getShowLibrary() else getMovieLibrary()
+            items.firstOrNull { item ->
+                val ids = item.ids
+                ids != null && (
+                    (tmdbId != null && ids.tmdb == tmdbId) ||
+                    (imdbId != null && ids.imdb == imdbId) ||
+                    (anilistId != null && ids.anilist == anilistId)
+                )
+            }?.totalWatched
+        } catch (e: Exception) {
+            ani.sanin.util.Logger.log("Simkl.getProgress: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Set the number of watched episodes for a TV show.  Marks episodes
+     * 1..episodeNum across seasons as watched via /sync/history.
+     */
+    suspend fun setProgress(
+        type: String,
+        title: String,
+        year: Int?,
+        tmdbId: Int? = null,
+        imdbId: String? = null,
+        anilistId: Int? = null,
+        episodeNum: Int
+    ) {
+        val t = token ?: return
+        if (type != "tv" || episodeNum <= 0) return
+        val idsObj = buildJsonObject {
+            if (tmdbId != null && tmdbId > 0) put("tmdb", JsonPrimitive(tmdbId.toString()))
+            if (!imdbId.isNullOrBlank()) put("imdb", JsonPrimitive(imdbId))
+            if (anilistId != null && anilistId > 0) put("anilist", JsonPrimitive(anilistId))
+        }
+        try {
+            // Build cumulative season+episode list from the TMDB episode count
+            val tmdbDetail = ani.sanin.connections.tmdb.Tmdb.detail("tv", tmdbId ?: 0)
+            val seasons = tmdbDetail?.seasons
+                ?.filter { it.seasonNumber > 0 }
+                ?.sortedBy { it.seasonNumber }
+                ?: emptyList()
+            val seasonsArr = buildJsonArray {
+                var remaining = episodeNum
+                for (season in seasons) {
+                    if (remaining <= 0) break
+                    val sNum = season.seasonNumber
+                    val eps = try {
+                        ani.sanin.connections.tmdb.Tmdb.episodes("tv", tmdbId ?: 0, sNum)
+                    } catch (_: Exception) { emptyList() }
+                    val count = minOf(remaining, eps.size)
+                    if (count > 0) {
+                        add(buildJsonObject {
+                            put("number", JsonPrimitive(sNum))
+                            put("episodes", buildJsonArray {
+                                for (i in 1..count) {
+                                    add(buildJsonObject { put("number", JsonPrimitive(i)) })
+                                }
+                            })
+                        })
+                        remaining -= count
+                    }
+                }
+                // Fallback if no seasons info: mark episodeNum in season 1
+                if (remaining == episodeNum && episodeNum > 0) {
+                    add(buildJsonObject {
+                        put("number", JsonPrimitive(1))
+                        put("episodes", buildJsonArray {
+                            for (i in 1..episodeNum) {
+                                add(buildJsonObject { put("number", JsonPrimitive(i)) })
+                            }
+                        })
+                    })
+                }
+            }
+            // Get previous status so we can restore it (history resets to "watching")
+            val prevStatus = getMediaStatus("tv", tmdbId, imdbId, anilistId)
+            val histBody = buildJsonObject {
+                put("shows", buildJsonArray {
+                    add(buildJsonObject {
+                        put("ids", idsObj)
+                        put("seasons", seasonsArr)
+                    })
+                })
+            }.toString()
+            val resp = okHttpClient.newCall(
+                Request.Builder()
+                    .url("$BASE/sync/history")
+                    .addHeader("Authorization", "Bearer $t")
+                    .addHeader("simkl-api-key", clientId)
+                    .addHeader("Content-Type", "application/json")
+                    .post(histBody.toRequestBody("application/json".toMediaType()))
+                    .build()
+            ).execute()
+            ani.sanin.util.Logger.log("Simkl.setProgress: HTTP ${resp.code} title=$title episodeNum=$episodeNum")
+            // Restore previous status if it was reset
+            if (resp.code == 200 && prevStatus != null && prevStatus != "watching") {
+                setListStatus("tv", title, year, tmdbId, imdbId, prevStatus, anilistId, skipHistory = true)
+            }
+        } catch (e: Exception) {
+            ani.sanin.util.Logger.log("Simkl.setProgress: ${e.message}")
+        }
+    }
+
         /** Get continue watching (in progress) items from Simkl library */
     suspend fun getContinueWatching(): List<SimklWatchedItem> {
         val t = token
