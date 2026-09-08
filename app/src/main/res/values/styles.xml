@@ -159,10 +159,16 @@
     <style name="RatingButton" parent="@style/SearchBox">
         <item name="android:background">@drawable/bg_rating_pill</item>
         <item name="android:textColor">@android:color/white</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:gravity">center</item>
         <item name="android:minWidth">40dp</item>
-        <item name="drawableTint">?attr/colorPrimary</item>
-        <item name="drawableSize">10sp</item>
-        <item name="drawableEndCompat">@drawable/kid_star_24px</item>
+        <item name="android:paddingLeft">6dp</item>
+        <item name="android:paddingRight">2dp</item>
+        <item name="android:paddingTop">3dp</item>
+        <item name="android:paddingBottom">3dp</item>
+        <item name="android:textSize">10sp</item>
+        <item name="android:drawableEnd">@drawable/kid_star_24px</item>
+        <item name="android:drawableTint">?attr/colorPrimary</item>
     </style>
 
     <style name="TypeButton" parent="@style/SearchBox">

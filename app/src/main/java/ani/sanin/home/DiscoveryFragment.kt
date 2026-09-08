@@ -181,9 +181,9 @@ class DiscoveryFragment : Fragment() {
     }
 
     private fun setupAvatar() {
-        val avatarUrl = if (ani.sanin.connections.anilist.Anilist.avatar != null)
-            ani.sanin.connections.anilist.Anilist.avatar else null
-        if (avatarUrl != null) {
+        val avatarUrl = ani.sanin.connections.anilist.Anilist.avatar
+            ?: ani.sanin.connections.simkl.Simkl.avatar
+        if (!avatarUrl.isNullOrBlank()) {
             binding.discoverAvatar.loadImage(avatarUrl)
         }
         binding.discoverAvatar.setOnClickListener {

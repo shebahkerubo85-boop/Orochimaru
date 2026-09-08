@@ -43,15 +43,18 @@
             android:layout_height="48dp"
             android:layout_weight="1"
             android:layout_marginEnd="8dp"
+            android:focusable="true"
+            android:nextFocusDown="@id/tmdbDiscoveryAvatar"
+            android:nextFocusRight="@id/tmdbDiscoveryAvatar"
             android:textColorHint="?attr/colorOnSurface"
             app:boxBackgroundColor="@android:color/transparent"
             app:boxCornerRadiusBottomEnd="24dp"
             app:boxCornerRadiusBottomStart="24dp"
             app:boxCornerRadiusTopEnd="24dp"
             app:boxCornerRadiusTopStart="24dp"
-            app:boxStrokeColor="?attr/colorPrimary"
+            app:boxStrokeColor="?attr/colorOnSurface"
             app:endIconDrawable="@drawable/ic_round_search_24"
-            app:endIconTint="?attr/colorPrimary"
+            app:endIconTint="?attr/colorOnSurface"
             app:hintAnimationEnabled="true">
 
             <AutoCompleteTextView
@@ -74,9 +77,13 @@
             android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:nextFocusDown="@id/tmdbGenreChips"
+            android:nextFocusLeft="@id/tmdbDiscoverySearchBar"
             android:padding="2dp"
             android:scaleType="centerCrop"
             android:src="@drawable/ic_round_person_24"
+                    android:backgroundTint="@null"
             app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.Circle"
             app:tint="?attr/colorPrimary"
             tools:ignore="ContentDescription" />
@@ -93,6 +100,9 @@
             android:id="@+id/tmdbGenreChips"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:focusable="true"
+            android:nextFocusUp="@id/tmdbDiscoverySearchBar"
+            android:nextFocusDown="@id/tmdbCategoryChips"
             app:singleSelection="true" />
     </HorizontalScrollView>
 
@@ -107,6 +117,9 @@
             android:id="@+id/tmdbCategoryChips"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:focusable="true"
+            android:nextFocusUp="@id/tmdbGenreChips"
+            android:nextFocusDown="@id/tmdbDiscoveryGrid"
             app:singleSelection="true" />
     </HorizontalScrollView>
 
@@ -122,6 +135,8 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"
+        android:focusable="true"
+        android:nextFocusUp="@id/tmdbCategoryChips"
         android:paddingStart="24dp"
         android:paddingEnd="24dp"
         android:paddingBottom="64dp" />

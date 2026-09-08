@@ -56,11 +56,13 @@ class LibraryFragment : Fragment() {
         val primaryTextColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorPrimary)
         val secondaryTextColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorOutline)
 
-        // In immersive mode, push content below status bar (like CalendarActivity)
+        // Push below status bar (like CalendarActivity)
         if (PrefManager.getVal<Boolean>(PrefName.ImmersiveMode)) {
-            binding.settingsContainer.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+            binding.listAppBar.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
                 topMargin = statusBarHeight
             }
+        } else {
+            binding.root.fitsSystemWindows = true
         }
 
         binding.listTabLayout.setBackgroundColor(primaryColor)

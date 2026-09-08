@@ -50,11 +50,13 @@ class TmdbLibraryFragment : Fragment() {
         val primaryTextColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorPrimary)
         val secondaryTextColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorOutline)
 
-        // In immersive mode, push content below status bar (like CalendarActivity)
+        // Push below status bar (like CalendarActivity)
         if (PrefManager.getVal<Boolean>(PrefName.ImmersiveMode)) {
-            binding.tmdbLibSettingsContainer.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+            binding.tmdbLibAppBar.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
                 topMargin = statusBarHeight
             }
+        } else {
+            binding.root.fitsSystemWindows = true
         }
 
         binding.tmdbLibAppBar.setBackgroundColor(primaryColor)

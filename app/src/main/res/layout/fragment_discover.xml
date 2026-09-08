@@ -45,6 +45,9 @@
                     android:layout_height="48dp"
                     android:layout_weight="1"
                     android:layout_marginEnd="8dp"
+                    android:focusable="true"
+                    android:nextFocusDown="@id/discoverAvatar"
+                    android:nextFocusRight="@id/discoverAvatar"
                     android:textColorHint="?attr/colorOnSurface"
                     android:transitionName="@string/search"
                     app:boxBackgroundColor="@android:color/transparent"
@@ -52,9 +55,9 @@
                     app:boxCornerRadiusBottomStart="24dp"
                     app:boxCornerRadiusTopEnd="24dp"
                     app:boxCornerRadiusTopStart="24dp"
-                    app:boxStrokeColor="?attr/colorPrimary"
+                    app:boxStrokeColor="?attr/colorOnSurface"
                     app:endIconDrawable="@drawable/ic_round_search_24"
-                    app:endIconTint="?attr/colorPrimary"
+                    app:endIconTint="?attr/colorOnSurface"
                     app:hintAnimationEnabled="true">
 
                     <AutoCompleteTextView
@@ -76,9 +79,13 @@
                     android:layout_height="40dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:nextFocusDown="@id/genreChipGroup"
+                    android:nextFocusLeft="@id/discoverSearchBar"
                     android:padding="2dp"
                     android:scaleType="centerCrop"
                     android:src="@drawable/ic_round_person_24"
+                    android:backgroundTint="@null"
                     app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.Circle"
                     app:tint="?attr/colorPrimary"
                     tools:ignore="ContentDescription" />
@@ -105,6 +112,9 @@
                     android:id="@+id/genreChipGroup"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:focusable="true"
+                    android:nextFocusUp="@id/discoverAvatar"
+                    android:nextFocusDown="@id/seasonChipGroup"
                     app:singleLine="true"
                     app:singleSelection="true" />
             </HorizontalScrollView>
@@ -131,6 +141,9 @@
                     android:id="@+id/seasonChipGroup"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:focusable="true"
+                    android:nextFocusUp="@id/genreChipGroup"
+                    android:nextFocusDown="@id/discoverRecyclerView"
                     app:singleLine="true"
                     app:singleSelection="true" />
             </HorizontalScrollView>
@@ -152,6 +165,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:clipToPadding="false"
+                android:focusable="true"
+                android:nextFocusUp="@id/seasonChipGroup"
                 android:padding="8dp" />
 
             <FrameLayout

@@ -90,6 +90,10 @@
                     android:layout_height="40dp"
                     android:background="?android:attr/selectableItemBackground"
                     android:contentDescription="@string/search"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:nextFocusRight="@id/tmdbLibFilter"
+                    android:nextFocusDown="@id/tmdbLibTabLayout"
                     app:srcCompat="@drawable/ic_round_search_24"
                     app:tint="?attr/colorOnBackground" />
 
@@ -99,6 +103,11 @@
                     android:layout_height="40dp"
                     android:background="?android:attr/selectableItemBackground"
                     android:contentDescription="@string/filter"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:nextFocusLeft="@id/tmdbLibSearch"
+                    android:nextFocusRight="@id/tmdbLibSort"
+                    android:nextFocusDown="@id/tmdbLibTabLayout"
                     app:srcCompat="@drawable/ic_round_filter_alt_24"
                     app:tint="?attr/colorOnBackground" />
 
@@ -109,6 +118,10 @@
                     android:layout_marginEnd="4dp"
                     android:background="?android:attr/selectableItemBackground"
                     android:contentDescription="@string/sort_by"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:nextFocusLeft="@id/tmdbLibFilter"
+                    android:nextFocusDown="@id/tmdbLibTabLayout"
                     app:srcCompat="@drawable/ic_round_sort_24"
                     app:tint="?attr/colorOnBackground" />
 
@@ -161,6 +174,10 @@
             android:id="@+id/tmdbLibTabLayout"
             android:layout_width="match_parent"
             android:layout_height="48dp"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:nextFocusUp="@id/tmdbLibSearch"
+            android:nextFocusDown="@id/tmdbLibViewPager"
             app:tabContentStart="32dp"
             app:tabMode="scrollable"
             app:tabPaddingEnd="16dp"
@@ -173,6 +190,9 @@
         android:id="@+id/tmdbLibViewPager"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:nextFocusUp="@id/tmdbLibTabLayout"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

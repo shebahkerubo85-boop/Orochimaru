@@ -60,6 +60,12 @@ class TmdbDiscoveryFragment : Fragment() {
             startActivity(Intent(requireContext(), TmdbSearchActivity::class.java))
         }
         FocusEffectUtil.applyFocusListener(binding.tmdbDiscoverySearchBar)
+        // Load real avatar image
+        val avatarUrl = ani.sanin.connections.simkl.Simkl.avatar
+            ?: ani.sanin.connections.anilist.Anilist.avatar
+        if (!avatarUrl.isNullOrBlank()) {
+            binding.tmdbDiscoveryAvatar.loadImage(avatarUrl)
+        }
         // Avatar: open right rail drawer
         binding.tmdbDiscoveryAvatar.setOnClickListener {
             val act = requireActivity()
