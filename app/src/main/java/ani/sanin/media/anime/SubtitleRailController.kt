@@ -622,8 +622,8 @@ class SubtitleRailController(
             // Globe icon replaces the old "[ONLINE]" text prefix
                 binding.subtitleGlobe.visibility = if (item.globe) View.VISIBLE else View.GONE
             if (item.globe) {
-                binding.subtitleGlobe.imageTintList =
-                    ColorStateList.valueOf(if (enabled) themePrimary else grey)
+                // Chrome icon uses its natural colors — no tint
+                binding.subtitleGlobe.imageTintList = null
             }
 
             // Flag background for online subtitles

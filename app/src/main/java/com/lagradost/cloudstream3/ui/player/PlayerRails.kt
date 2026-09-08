@@ -141,8 +141,8 @@ private class RailTextAdapter(private val rows: MutableList<RailTextRow>) :
 
         binding.subtitleGlobe.isVisible = row.globe
         if (row.globe) {
-            binding.subtitleGlobe.imageTintList =
-                ColorStateList.valueOf(if (row.enabled) themePrimary else grey)
+            // Chrome icon uses its natural colors — no tint
+            binding.subtitleGlobe.imageTintList = null
         }
 
         // Flag background for online subtitles
