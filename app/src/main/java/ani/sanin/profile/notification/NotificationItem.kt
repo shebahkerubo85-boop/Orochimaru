@@ -498,15 +498,32 @@ class NotificationItem(
 
             NotificationType.SUBSCRIPTION -> {
                 image(newRelease = true)
+                val isTmdb = !notification.tmdbType.isNullOrBlank()
                 binding.notificationCoverUser.setOnClickListener {
-                    clickCallback(
-                        notification.mediaId ?: 0, null, NotificationClickType.MEDIA
-                    )
+                    if (isTmdb) {
+                        clickCallback(
+                            notification.mediaId ?: 0,
+                            if (notification.tmdbType == "tv") 1 else 0,
+                            NotificationClickType.TMDB_MEDIA
+                        )
+                    } else {
+                        clickCallback(
+                            notification.mediaId ?: 0, null, NotificationClickType.MEDIA
+                        )
+                    }
                 }
                 binding.notificationBannerImage.setOnClickListener {
-                    clickCallback(
-                        notification.mediaId ?: 0, null, NotificationClickType.MEDIA
-                    )
+                    if (isTmdb) {
+                        clickCallback(
+                            notification.mediaId ?: 0,
+                            if (notification.tmdbType == "tv") 1 else 0,
+                            NotificationClickType.TMDB_MEDIA
+                        )
+                    } else {
+                        clickCallback(
+                            notification.mediaId ?: 0, null, NotificationClickType.MEDIA
+                        )
+                    }
                 }
             }
         }

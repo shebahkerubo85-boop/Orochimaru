@@ -12,6 +12,9 @@ import androidx.core.app.NotificationManagerCompat
 import ani.sanin.App
 import ani.sanin.FileUrl
 import ani.sanin.R
+import ani.sanin.connections.simkl.Simkl
+import ani.sanin.connections.tmdb.Tmdb
+import ani.sanin.cloudstream.TmdbDetailsActivity
 import ani.sanin.connections.anilist.UrlMedia
 import ani.sanin.hasNotificationPermission
 import ani.sanin.notifications.Task
@@ -45,129 +48,42 @@ class SubscriptionNotificationTask : Task {
                     currentlyPerforming = true
                     App.context = context
                     Logger.log("SubscriptionNotificationTask: execute")
-                    var timeout = 15_000L
-                    do {
-                        delay(1000)
-                        timeout -= 1000
-                    } while (timeout > 0 && !AnimeSources.isInitialized && !MangaSources.isInitialized)
-                    Logger.log("SubscriptionNotificationTask: timeout: $timeout")
-                    if (timeout <= 0) {
-                        currentlyPerforming = false
-                        return@withContext
-                    }
-                    val subscriptions = SubscriptionHelper.getSubscriptions()
-                    var i = 0
-                    val index = subscriptions.map { i++; it.key to i }.toMap()
+                    var newSubscriptionCount = 0
                     val notificationManager = NotificationManagerCompat.from(context)
 
-                    val progressEnabled: Boolean =
-                        PrefManager.getVal(PrefName.SubscriptionCheckingNotifications)
-                    val progressNotification = if (progressEnabled) getProgressNotification(
-                        context,
-                        subscriptions.size
-                    ) else null
-                    if (progressNotification != null && hasNotificationPermission(context)) {
-                        notificationManager.notify(
-                            ID_SUBSCRIPTION_CHECK_PROGRESS,
-                            progressNotification.build()
-                        )
-                        //Seems like if the parent coroutine scope gets cancelled, the notification stays
-                        //So adding this as a safeguard? dk if this will be useful
-                        CoroutineScope(Dispatchers.Main).launch {
-                            delay(5 * subscriptions.size * 1000L)
-                            notificationManager.cancel(ID_SUBSCRIPTION_CHECK_PROGRESS)
-                        }
+                    // ── TMDB (movie/tv) subscriptions ──
+                    // Merge local subs with Simkl "watching" shows (cross-device).
+                    runCatching {
+                        newSubscriptionCount += checkTmdbSubscriptions(context, notificationManager)
+                    }.onFailure {
+                        Logger.log("SubscriptionNotificationTask(TMDB): ${it.message}")
                     }
 
-                    fun progress(progress: Int, parser: String, media: String) {
-                        if (progressNotification != null && hasNotificationPermission(context))
-                            notificationManager.notify(
-                                ID_SUBSCRIPTION_CHECK_PROGRESS,
-                                progressNotification
-                                    .setProgress(subscriptions.size, progress, false)
-                                    .setContentText("$media on $parser")
-                                    .build()
+                    // ── Anime / manga subscriptions (require parsers) ──
+                    val subscriptions = SubscriptionHelper.getSubscriptions()
+                    if (subscriptions.isNotEmpty()) {
+                        var timeout = 15_000L
+                        do {
+                            delay(1000)
+                            timeout -= 1000
+                        } while (timeout > 0 && !AnimeSources.isInitialized && !MangaSources.isInitialized)
+                        Logger.log("SubscriptionNotificationTask: timeout: $timeout")
+                        if (timeout > 0) {
+                            newSubscriptionCount += checkAnimeAndMangaSubscriptions(
+                                context, notificationManager, subscriptions
                             )
-                    }
-
-                    var newSubscriptionCount = 0
-                    subscriptions.toList().map {
-                        val media = it.second
-                        val text = if (media.isAnime) {
-                            val parser =
-                                SubscriptionHelper.getAnimeParser(media.id)
-                            progress(index[it.first]!!, parser.name, media.name)
-                            val ep: Episode? =
-                                SubscriptionHelper.getEpisode(
-                                    parser,
-                                    media
-                                )
-                            if (ep != null) context.getString(R.string.episode) + "${ep.number}${
-                                if (ep.title != null) " : ${ep.title}" else ""
-                            }${
-                                if (ep.isFiller) " [Filler]" else ""
-                            } " + context.getString(R.string.just_released) to ep.thumbnail
-                            else null
-                        } else {
-                            val parser =
-                                SubscriptionHelper.getMangaParser(media.id)
-                            progress(index[it.first]!!, parser.name, media.name)
-                            val ep: MangaChapter? =
-                                SubscriptionHelper.getChapter(
-                                    parser,
-                                    media
-                                )
-                            if (ep != null) ep.number + " " + context.getString(R.string.just_released) to null
-                            else null
-                        } ?: return@map
-                        addSubscriptionToStore(
-                            SubscriptionStore(
-                                media.name,
-                                text.first,
-                                media.id,
-                                image = media.image,
-                                banner = media.banner
-                            )
-                        )
-                        newSubscriptionCount++
-                        val notification = createNotification(
-                            context.applicationContext,
-                            media,
-                            text.first,
-                            text.second
-                        )
-                        if (hasNotificationPermission(context)) {
-                            NotificationManagerCompat.from(context)
-                                .notify(
-                                    CHANNEL_SUBSCRIPTION_CHECK,
-                                    System.currentTimeMillis().toInt(),
-                                    notification
-                                )
-                        }
-                        if (PrefManager.getVal<Boolean>(PrefName.NotificationPopup) && !TvKeyboardUtil.isTv(context)) {
-                            App.currentActivity()?.let {
-                                val popupIntent = Intent(
-                                    context.applicationContext,
-                                    NotificationPopupActivity::class.java
-                                ).apply {
-                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION
-                                    putExtra("title", media.name)
-                                    putExtra("text", text.first)
-                                    putExtra("coverUrl", media.image)
-                                }
-                                context.startActivity(popupIntent)
-                            }
                         }
                     }
 
                     if (newSubscriptionCount > 0) {
-                        val currentSubsCount = PrefManager.getVal<Int>(PrefName.UnreadSubscriptionNotifications)
-                        PrefManager.setVal(PrefName.UnreadSubscriptionNotifications, currentSubsCount + newSubscriptionCount)
+                        val currentSubsCount =
+                            PrefManager.getVal<Int>(PrefName.UnreadSubscriptionNotifications)
+                        PrefManager.setVal(
+                            PrefName.UnreadSubscriptionNotifications,
+                            currentSubsCount + newSubscriptionCount
+                        )
                     }
 
-                    if (progressNotification != null) notificationManager.cancel(
-                        ID_SUBSCRIPTION_CHECK_PROGRESS
-                    )
                     currentlyPerforming = false
                 }
                 return true
@@ -179,6 +95,252 @@ class SubscriptionNotificationTask : Task {
         } else {
             return false
         }
+    }
+
+    // ── Anime / manga subscription checking (existing behaviour) ──
+
+    @SuppressLint("MissingPermission")
+    private suspend fun checkAnimeAndMangaSubscriptions(
+        context: Context,
+        notificationManager: NotificationManagerCompat,
+        subscriptions: Map<Int, SubscriptionHelper.Companion.SubscribeMedia>
+    ): Int {
+        var i = 0
+        val index = subscriptions.map { i++; it.key to i }.toMap()
+
+        val progressEnabled: Boolean =
+            PrefManager.getVal(PrefName.SubscriptionCheckingNotifications)
+        val progressNotification = if (progressEnabled) getProgressNotification(
+            context,
+            subscriptions.size
+        ) else null
+        if (progressNotification != null && hasNotificationPermission(context)) {
+            notificationManager.notify(
+                ID_SUBSCRIPTION_CHECK_PROGRESS,
+                progressNotification.build()
+            )
+            CoroutineScope(Dispatchers.Main).launch {
+                delay(5 * subscriptions.size * 1000L)
+                notificationManager.cancel(ID_SUBSCRIPTION_CHECK_PROGRESS)
+            }
+        }
+
+        fun progress(progress: Int, parser: String, media: String) {
+            if (progressNotification != null && hasNotificationPermission(context))
+                notificationManager.notify(
+                    ID_SUBSCRIPTION_CHECK_PROGRESS,
+                    progressNotification
+                        .setProgress(subscriptions.size, progress, false)
+                        .setContentText("$media on $parser")
+                        .build()
+                )
+        }
+
+        var newSubscriptionCount = 0
+        subscriptions.toList().map {
+            val media = it.second
+            val text = if (media.isAnime) {
+                val parser =
+                    SubscriptionHelper.getAnimeParser(media.id)
+                progress(index[it.first]!!, parser.name, media.name)
+                val ep: Episode? =
+                    SubscriptionHelper.getEpisode(
+                        parser,
+                        media
+                    )
+                if (ep != null) context.getString(R.string.episode) + "${ep.number}${
+                    if (ep.title != null) " : ${ep.title}" else ""
+                }${
+                    if (ep.isFiller) " [Filler]" else ""
+                } " + context.getString(R.string.just_released) to ep.thumbnail
+                else null
+            } else {
+                val parser =
+                    SubscriptionHelper.getMangaParser(media.id)
+                progress(index[it.first]!!, parser.name, media.name)
+                val ep: MangaChapter? =
+                    SubscriptionHelper.getChapter(
+                        parser,
+                        media
+                    )
+                if (ep != null) ep.number + " " + context.getString(R.string.just_released) to null
+                else null
+            } ?: return@map
+            addSubscriptionToStore(
+                SubscriptionStore(
+                    media.name,
+                    text.first,
+                    media.id,
+                    image = media.image,
+                    banner = media.banner
+                )
+            )
+            newSubscriptionCount++
+            val notification = createNotification(
+                context.applicationContext,
+                media,
+                text.first,
+                text.second
+            )
+            if (hasNotificationPermission(context)) {
+                notificationManager.notify(
+                    CHANNEL_SUBSCRIPTION_CHECK,
+                    System.currentTimeMillis().toInt(),
+                    notification
+                )
+            }
+            if (PrefManager.getVal<Boolean>(PrefName.NotificationPopup) && !TvKeyboardUtil.isTv(context)) {
+                App.currentActivity()?.let {
+                    val popupIntent = Intent(
+                        context.applicationContext,
+                        NotificationPopupActivity::class.java
+                    ).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION
+                        putExtra("title", media.name)
+                        putExtra("text", text.first)
+                        putExtra("coverUrl", media.image)
+                    }
+                    context.startActivity(popupIntent)
+                }
+            }
+        }
+        if (progressNotification != null) notificationManager.cancel(
+            ID_SUBSCRIPTION_CHECK_PROGRESS
+        )
+        return newSubscriptionCount
+    }
+
+    // ── TMDB (movie/tv) subscription checking ──
+    //
+    // Builds a merged set of:
+    //  1. Local subscriptions (TmdbSubscriptionHelper) — always present
+    //  2. Simkl "watching" shows (when logged in) — for cross-device sync
+    //
+    // For each TV show, fetches TMDB detail and compares lastEpisodeToAir
+    // with the locally stored last-notified episode.  On first encounter
+    // (lastSeason == 0) the current episode is recorded as baseline so only
+    // *future* episodes trigger a notification.
+
+    @SuppressLint("MissingPermission")
+    private suspend fun checkTmdbSubscriptions(
+        context: Context,
+        notificationManager: NotificationManagerCompat
+    ): Int {
+        val subs = TmdbSubscriptionHelper.getSubscriptions().toMutableMap()
+        // Cross-device: pull Simkl watching shows into the local map (no-op for
+        // already-known items since we merge by tmdb id and preserve existing
+        // lastSeason/lastEpisode).
+        if (Simkl.getSavedToken()) {
+            try {
+                val simklShows = Simkl.getShowLibrary()
+                val simklWatching = simklShows.filter {
+                    it.status?.lowercase() in setOf("watching", "current") && it.ids?.tmdb != null && it.show != null
+                }
+                for (item in simklWatching) {
+                    val tmdbId = item.ids!!.tmdb!!
+                    if (!subs.containsKey(tmdbId)) {
+                        val img = item.poster?.let { if (it.startsWith("http")) it else "https://simkl.in/posters/${it}_m.jpg" }
+                        subs[tmdbId] = TmdbSubscriptionHelper.Companion.TmdbSubscriptionItem(
+                            id = tmdbId,
+                            name = item.title ?: "Unknown",
+                            type = "tv",
+                            image = img,
+                            banner = img
+                        )
+                        Logger.log("SubscriptionNotificationTask(TMDB): imported Simkl watching '${item.title}' (tmdb=$tmdbId)")
+                    }
+                }
+            } catch (e: Exception) {
+                Logger.log("SubscriptionNotificationTask: Simkl show library fetch failed: ${e.message}")
+            }
+        }
+
+        if (subs.isEmpty()) return 0
+        Logger.log("SubscriptionNotificationTask: checking ${subs.size} TMDB subscriptions")
+
+        var newSubscriptionCount = 0
+        for ((id, item) in subs) {
+            if (item.type != "tv") continue
+            val detail = Tmdb.detail("tv", id) ?: run {
+                Logger.log("SubscriptionNotificationTask: TMDB detail unavailable for '$id'")
+                continue
+            }
+
+            // Prefer lastEpisodeToAir; fall back to nextEpisodeToAir whose
+            // airDate is today or in the past (has already aired).
+            var candidate = detail.lastEpisodeToAir
+            if (candidate == null && detail.nextEpisodeToAir != null) {
+                val airDate = detail.nextEpisodeToAir.airDate
+                if (!airDate.isNullOrBlank()) {
+                    val today = java.time.LocalDate.now()
+                    val aired = try {
+                        java.time.LocalDate.parse(airDate).isBefore(today) ||
+                            java.time.LocalDate.parse(airDate).isEqual(today)
+                    } catch (e: Exception) { false }
+                    if (aired) candidate = detail.nextEpisodeToAir
+                }
+            }
+            if (candidate == null) continue
+            val season = candidate.seasonNumber
+            val episode = candidate.episodeNumber
+
+            // First encounter: record baseline without notifying.
+            if (item.lastSeason == 0 && item.lastEpisode == 0) {
+                TmdbSubscriptionHelper.save(
+                    item.copy(lastSeason = season, lastEpisode = episode)
+                )
+                Logger.log("SubscriptionNotificationTask(TMDB): baseline for '$id' = S${season}E$episode")
+                continue
+            }
+
+            val isNewer = season > item.lastSeason ||
+                (season == item.lastSeason && episode > item.lastEpisode)
+            if (!isNewer) continue
+
+            val title = candidate.name
+            val text = context.getString(R.string.episode) + "$episode${
+                if (!title.isNullOrBlank()) " : $title" else ""
+            } " + context.getString(R.string.just_released)
+            Logger.log("SubscriptionNotificationTask(TMDB): new episode '$id' S${season}E$episode")
+
+            addSubscriptionToStore(
+                SubscriptionStore(
+                    item.name,
+                    text,
+                    id,
+                    image = item.image,
+                    banner = item.banner,
+                    tmdbType = item.type
+                )
+            )
+            newSubscriptionCount++
+            val notification = createTmdbNotification(context, item, text)
+            if (hasNotificationPermission(context)) {
+                notificationManager.notify(
+                    CHANNEL_SUBSCRIPTION_CHECK,
+                    System.currentTimeMillis().toInt(),
+                    notification
+                )
+            }
+            if (PrefManager.getVal<Boolean>(PrefName.NotificationPopup) && !TvKeyboardUtil.isTv(context)) {
+                App.currentActivity()?.let {
+                    val popupIntent = Intent(
+                        context.applicationContext,
+                        NotificationPopupActivity::class.java
+                    ).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION
+                        putExtra("title", item.name)
+                        putExtra("text", text)
+                        putExtra("coverUrl", item.image)
+                    }
+                    context.startActivity(popupIntent)
+                }
+            }
+
+            // Remember that we notified about this episode so we only fire once.
+            TmdbSubscriptionHelper.save(item.copy(lastSeason = season, lastEpisode = episode))
+        }
+        return newSubscriptionCount
     }
 
     @SuppressLint("MissingPermission")
@@ -208,7 +370,28 @@ class SubscriptionNotificationTask : Task {
         }
 
         return builder.build()
+    }
 
+    @SuppressLint("MissingPermission")
+    private fun createTmdbNotification(
+        context: Context,
+        media: TmdbSubscriptionHelper.Companion.TmdbSubscriptionItem,
+        text: String
+    ): android.app.Notification {
+        val builder = NotificationCompat.Builder(context, CHANNEL_SUBSCRIPTION_CHECK)
+            .setSmallIcon(R.drawable.ic_round_movie_filter_24)
+            .setContentTitle(media.name)
+            .setContentText(text)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setContentIntent(getTmdbIntent(context, media))
+            .setAutoCancel(true)
+
+        media.image?.let { url ->
+            val bitmap = getBitmapFromUrl(url)
+            if (bitmap != null) builder.setLargeIcon(bitmap)
+        }
+
+        return builder.build()
     }
 
     private fun getProgressNotification(
@@ -233,7 +416,6 @@ class SubscriptionNotificationTask : Task {
         }
     }
 
-
     private fun getIntent(context: Context, mediaId: Int): PendingIntent {
         val notifyIntent = Intent(context, UrlMedia::class.java)
             .putExtra("media", mediaId)
@@ -243,6 +425,27 @@ class SubscriptionNotificationTask : Task {
             }
         return PendingIntent.getActivity(
             context, mediaId, notifyIntent,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_ONE_SHOT
+            } else {
+                PendingIntent.FLAG_ONE_SHOT
+            }
+        )
+    }
+
+    private fun getTmdbIntent(
+        context: Context,
+        media: TmdbSubscriptionHelper.Companion.TmdbSubscriptionItem
+    ): PendingIntent {
+        val notifyIntent = Intent(context, TmdbDetailsActivity::class.java)
+            .putExtra(TmdbDetailsActivity.ARG_MEDIA_TYPE, media.type)
+            .putExtra(TmdbDetailsActivity.ARG_MEDIA_ID, media.id)
+            .setAction("tmdb_${media.type}_${media.id}")
+            .apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+        return PendingIntent.getActivity(
+            context, "tmdb_${media.type}_${media.id}".hashCode(), notifyIntent,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_ONE_SHOT
             } else {

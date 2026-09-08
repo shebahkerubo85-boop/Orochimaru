@@ -33,6 +33,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import jp.wasabeef.glide.transformations.BlurTransformation
 import ani.sanin.settings.saving.PrefManager
+import ani.sanin.notifications.subscription.TmdbSubscriptionHelper
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.snackString
 import ani.sanin.toast
@@ -514,10 +515,43 @@ class TmdbWatchFragment : Fragment() {
 
         updateNotifyIcon()
         h.tmdbWatchNotify.setOnClickListener {
-            val current = PrefManager.getNullableCustomVal("tmdb_notify_$mediaId", false, Boolean::class.java) ?: false
-            PrefManager.setCustomVal("tmdb_notify_$mediaId", !current)
-            updateNotifyIcon()
-            toast(getString(if (!current) R.string.tmdb_watch_notify_on else R.string.tmdb_watch_notify_off))
+            val currentlySubscribed = TmdbSubscriptionHelper.isSubscribed(mediaId)
+            val d = detail
+            if (currentlySubscribed) {
+                TmdbSubscriptionHelper.delete(mediaId)
+                updateNotifyIcon()
+                toast(getString(R.string.tmdb_watch_notify_off))
+                // Remove from Simkl watchlist so cross-device subs clear.
+                lifecycleScope.launch {
+                    TmdbSubscriptionHelper.unsyncFromSimkl(mediaId, mediaType)
+                }
+            } else {
+                // Save locally with show metadata and seed last-notified
+                // to the current last aired episode so we don't re-notify
+                // for it immediately.
+                val latest = d?.lastEpisodeToAir
+                TmdbSubscriptionHelper.save(
+                    TmdbSubscriptionHelper.Companion.TmdbSubscriptionItem(
+                        id = mediaId,
+                        name = d?.displayTitle ?: "",
+                        type = mediaType,
+                        image = d?.let { t -> Tmdb.imageUrl(t.posterPath ?: t.backdropPath, 342) },
+                        banner = d?.let { t -> Tmdb.imageUrl(t.backdropPath ?: t.posterPath, 780) },
+                        // If the show already has aired episodes, seed to the
+                        // latest so we only notify for the *next* one. When
+                        // nothing has aired yet (-1/-1 sentinel) the first
+                        // aired episode still fires a notification.
+                        lastSeason = latest?.seasonNumber ?: -1,
+                        lastEpisode = latest?.episodeNumber ?: -1
+                    )
+                )
+                updateNotifyIcon()
+                toast(getString(R.string.tmdb_watch_notify_on))
+                // Also add to Simkl watchlist for cross-device persistence.
+                lifecycleScope.launch {
+                    TmdbSubscriptionHelper.syncToSimkl(mediaId, mediaType)
+                }
+            }
         }
         FocusEffectUtil.applyFocusListener(h.tmdbWatchNotify)
 
@@ -560,7 +594,7 @@ class TmdbWatchFragment : Fragment() {
     }
 
     private fun updateNotifyIcon() {
-        val enabled = PrefManager.getNullableCustomVal("tmdb_notify_$mediaId", false, Boolean::class.java) ?: false
+        val enabled = TmdbSubscriptionHelper.isSubscribed(mediaId)
         headerBinding.tmdbWatchNotify.setImageResource(
             if (enabled) R.drawable.ic_round_notifications_active_24
             else R.drawable.ic_round_notifications_none_24

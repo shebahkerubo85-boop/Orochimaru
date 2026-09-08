@@ -113,6 +113,9 @@ data class Notification(
     val comment: ThreadComment? = null,
     val image: String? = null,
     val banner: String? = null,
+    // Nullable for local in-app TMDB subscription notifications.
+    // "tv" or "movie"; set by NotificationActivity SUBSCRIPTION tab mapping.
+    val tmdbType: String? = null,
 ) : java.io.Serializable
 
 @Serializable

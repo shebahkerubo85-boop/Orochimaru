@@ -32,6 +32,7 @@ import ani.sanin.connections.anilist.api.Notification
 import ani.sanin.databinding.ActivityNotificationBinding
 import ani.sanin.initActivity
 import ani.sanin.media.MediaDetailsActivity
+import ani.sanin.cloudstream.TmdbDetailsActivity
 import ani.sanin.notifications.comment.CommentStore
 import ani.sanin.notifications.subscription.SubscriptionStore
 import ani.sanin.profile.ProfileActivity
@@ -53,7 +54,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
-enum class NotificationClickType { USER, MEDIA, ACTIVITY, COMMENT, UNDEFINED }
+enum class NotificationClickType { USER, MEDIA, ACTIVITY, COMMENT, TMDB_MEDIA, UNDEFINED }
 enum class TabType { USER, MEDIA, SUBSCRIPTION, COMMENT, ONE }
 
 class NotificationActivity : AppCompatActivity() {
@@ -359,7 +360,8 @@ class NotificationActivity : AppCompatActivity() {
                         notificationType = it.type,
                         context = it.title + ": " + it.content,
                         createdAt = (it.time / 1000L).toInt(),
-                        image = it.image, banner = it.banner ?: it.image) }
+                        image = it.image, banner = it.banner ?: it.image,
+                        tmdbType = it.tmdbType) }
             }
             TabType.COMMENT -> {
                 val list = PrefManager.getNullableVal<List<CommentStore>>(
@@ -425,6 +427,10 @@ class NotificationActivity : AppCompatActivity() {
                 putExtra("FRAGMENT_TO_LOAD", "COMMENTS")
                 putExtra("mediaId", id)
                 putExtra("commentId", optional ?: -1)
+            }
+            NotificationClickType.TMDB_MEDIA -> Intent(this, TmdbDetailsActivity::class.java).apply {
+                putExtra(TmdbDetailsActivity.ARG_MEDIA_TYPE, optional?.let { if (it == 1) "tv" else "movie" } ?: "tv")
+                putExtra(TmdbDetailsActivity.ARG_MEDIA_ID, id)
             }
             NotificationClickType.UNDEFINED -> null
         }
