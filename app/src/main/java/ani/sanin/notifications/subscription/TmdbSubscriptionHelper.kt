@@ -122,7 +122,7 @@ class TmdbSubscriptionHelper {
             val shows = try { Simkl.getShowLibrary() } catch (e: Exception) { emptyList() }
             var added = 0
             val local = getSubscriptions().toMutableMap()
-            shows.filter { it.status?.lowercase() in setOf("watching", "current") }
+            shows.filter { it.status?.lowercase() in setOf("watching", "current", "paused", "hold", "plantowatch", "notinteresting") }
                 .forEach { item ->
                     val tmdbId = item.ids?.tmdb ?: return@forEach
                     val title = item.title ?: return@forEach

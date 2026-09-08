@@ -27,6 +27,7 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import ani.sanin.FadingEdgeRecyclerView
 import ani.sanin.R
+import ani.sanin.getThemeColor
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.anilist.api.Notification
 import ani.sanin.databinding.ActivityNotificationBinding
@@ -66,6 +67,9 @@ class NotificationActivity : AppCompatActivity() {
     private var subsCount = 0
     private var commentCount = 0
     private var getOne = -1
+    private var isMovieMode = false
+    /** Maps visible-button index → TabType. */
+    private lateinit var visibleTabTypes: List<TabType>
 
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val tabAdapter = GroupieAdapter()
@@ -129,22 +133,29 @@ class NotificationActivity : AppCompatActivity() {
 
         setupContent()
 
-        val navButtons = listOf(
-            binding.notificationNavUser,
-            binding.notificationNavMedia,
-            binding.notificationNavSubs,
-            binding.notificationNavComment,
+        isMovieMode = PrefManager.getVal<String>(PrefName.ContentMode) == "movie_tv"
+
+        // In movie/TMDB mode, only show Media + Subscriptions tabs.
+        // In anime mode, show all four tabs (User, Media, Subscriptions, Comment).
+        val allButtons = listOf(
+            TabType.USER to binding.notificationNavUser,
+            TabType.MEDIA to binding.notificationNavMedia,
+            TabType.SUBSCRIPTION to binding.notificationNavSubs,
+            TabType.COMMENT to binding.notificationNavComment,
         )
-        val visibleButtons = mutableListOf(
-            binding.notificationNavUser,
-            binding.notificationNavMedia,
-            binding.notificationNavSubs,
-        )
-        if (CommentsEnabled) {
-            visibleButtons.add(binding.notificationNavComment)
+        val visiblePairs = if (isMovieMode) {
+            allButtons.filter { it.first == TabType.MEDIA || it.first == TabType.SUBSCRIPTION }
         } else {
+            allButtons.filter { it.first != TabType.COMMENT || CommentsEnabled }
+        }
+        if (!isMovieMode && !CommentsEnabled) {
+            binding.notificationNavComment.visibility = View.GONE
+        } else if (isMovieMode) {
+            binding.notificationNavUser.visibility = View.GONE
             binding.notificationNavComment.visibility = View.GONE
         }
+        val navButtons = visiblePairs.map { it.second }
+        visibleTabTypes = visiblePairs.map { it.first }
 
         getOne = intent.getIntExtra("activityId", -1)
         if (getOne != -1) navButtons.forEach { it.visibility = View.GONE }
@@ -154,7 +165,7 @@ class NotificationActivity : AppCompatActivity() {
         navButtons.forEach { btn ->
             btn.setOnClickListener {
                 val idx = navButtons.indexOf(btn)
-                if (idx >= 0 && idx < visibleButtons.size) {
+                if (idx in visibleTabTypes.indices) {
                     selected = idx
                     selectTab(selected)
                     updateNavTints(navButtons, selected)
@@ -195,6 +206,7 @@ class NotificationActivity : AppCompatActivity() {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
             )
             isEnabled = false
+            setColorSchemeColors(getThemeColor(android.R.attr.colorPrimary))
             setOnRefreshListener { refreshCurrentTab() }
         }
 
@@ -281,7 +293,7 @@ class NotificationActivity : AppCompatActivity() {
         val state = tabStates[idx]
         tabAdapter.clear()
         tabAdapter.addAll(state.items.map { n ->
-            NotificationItem(n, TabType.entries[idx], tabAdapter, ::onNotificationClick)
+            NotificationItem(n, visibleTabTypes[idx], tabAdapter, ::onNotificationClick)
         })
         tabEmpty.visibility = if (tabAdapter.itemCount == 0) View.VISIBLE else View.GONE
         tabProgress.visibility = View.GONE
@@ -340,7 +352,7 @@ class NotificationActivity : AppCompatActivity() {
 
     private suspend fun fetchNotificationsForTab(idx: Int, page: Int): List<Notification> {
         val uid = Anilist.userid ?: PrefManager.getVal<String>(PrefName.AnilistUserId).toIntOrNull() ?: 0
-        return when (TabType.entries[idx]) {
+        return when (visibleTabTypes[idx]) {
             TabType.USER -> Anilist.query.getNotifications(uid, page, true, null)
                 ?.data?.page?.notifications?.filter {
                     it.media == null && it.notificationType != "RELATED_MEDIA_ADDITION"
@@ -350,11 +362,15 @@ class NotificationActivity : AppCompatActivity() {
                     it.media != null || it.notificationType == "MEDIA_DELETION"
                 } ?: listOf()
             TabType.SUBSCRIPTION -> {
+                val isMovieMode = PrefManager.getVal<String>(PrefName.ContentMode) == "movie_tv"
                 val list = PrefManager.getNullableVal<List<SubscriptionStore>>(
                     PrefName.SubscriptionNotificationStore, null
                 ) ?: listOf()
                 list.sortedByDescending { (it.time / 1000L).toInt() }
                     .filter { it.image != null }
+                    // In movie/TMDB mode, only show TMDB sub notifications;
+                    // in anime mode, only show anime sub notifications.
+                    .filter { if (isMovieMode) it.tmdbType != null else it.tmdbType == null }
                     .map { Notification(it.type, System.currentTimeMillis().toInt(),
                         commentId = it.mediaId, mediaId = it.mediaId,
                         notificationType = it.type,
@@ -400,7 +416,7 @@ class NotificationActivity : AppCompatActivity() {
                     state.loading = false
                     if (list.isNotEmpty()) {
                         tabAdapter.addAll(list.map { n ->
-                            NotificationItem(n, TabType.entries[selected], tabAdapter, ::onNotificationClick)
+                            NotificationItem(n, visibleTabTypes[selected], tabAdapter, ::onNotificationClick)
                         })
                     }
                 }
@@ -439,7 +455,7 @@ class NotificationActivity : AppCompatActivity() {
 
     private fun resetCountIfNeeded(idx: Int) {
         if (getOne != -1) return
-        when (TabType.entries[idx]) {
+        when (visibleTabTypes[idx]) {
             TabType.USER -> { userCount = 0; PrefManager.setVal(PrefName.UnreadUserNotifications, 0) }
             TabType.MEDIA -> { mediaCount = 0; PrefManager.setVal(PrefName.UnreadMediaNotifications, 0) }
             TabType.SUBSCRIPTION -> { subsCount = 0; PrefManager.setVal(PrefName.UnreadSubscriptionNotifications, 0) }
