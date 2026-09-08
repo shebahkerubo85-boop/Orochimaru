@@ -41,12 +41,13 @@
         android:textAllCaps="false"
         android:textSize="12sp"
         android:fontFamily="@font/poppins_semi_bold"
-        android:backgroundTint="?attr/colorPrimary"
-        android:textColor="?attr/colorOnPrimary"
+        android:background="@android:color/transparent"
+        android:textColor="?attr/colorOnSurface"
         android:paddingStart="14dp"
         android:paddingEnd="14dp"
         android:minWidth="0dp"
         android:minHeight="0dp"
-        android:focusable="true" />
+        android:focusable="true"
+        android:focusableInTouchMode="true" />
 
 </LinearLayout>

@@ -1,6 +1,7 @@
 package ani.sanin.settings
 
 import android.os.Bundle
+import android.view.KeyEvent
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.ViewGroup
@@ -33,6 +34,21 @@ class ExtensionsActivity : AppCompatActivity() {
 
     private var cloudStreamMode = false
     private var tabMediator: TabLayoutMediator? = null
+
+    /**
+     * Intercept DPAD DOWN when the ViewPager2 is focused so it reaches the
+     * Browse button instead of triggering ViewPager2's horizontal scroll.
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            val vp = binding.viewPager
+            if (vp.isFocused) {
+                focusFirstBrowseButton(vp)
+                return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -139,7 +155,7 @@ class ExtensionsActivity : AppCompatActivity() {
     }
 
     /** Focus the first Browse button in the current ViewPager page. */
-    private fun focusFirstBrowseButton(viewPager: ViewPager2) {
+    private fun focusFirstBrowseButton(viewPager: ViewPager2, attempt: Int = 0) {
         viewPager.postDelayed({
             val currentFragment = supportFragmentManager.findFragmentByTag("f${viewPager.currentItem}")
             val rv = currentFragment?.view?.findViewById<androidx.recyclerview.widget.RecyclerView>(
@@ -147,11 +163,14 @@ class ExtensionsActivity : AppCompatActivity() {
             )
             val browseBtn = rv?.findViewHolderForAdapterPosition(0)
                 ?.itemView?.findViewById<android.view.View>(R.id.repoBrowseButton)
-            // Try Browse button first; fall back to itemView if it's visible
-            if (browseBtn?.requestFocus() != true) {
+            if (browseBtn?.requestFocus() == true) return@postDelayed
+            // First attempt: retry once more (RecyclerView might not be laid out yet)
+            if (attempt == 0) {
+                focusFirstBrowseButton(viewPager, 1)
+            } else {
                 rv?.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
             }
-        }, 150) // 150ms gives ViewPager2 time to settle after tab switch
+        }, if (attempt == 0) 150 else 100)
     }
 
     private fun switchMode(cloudStream: Boolean) {

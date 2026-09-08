@@ -100,6 +100,7 @@
             android:layout_height="32dp"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_round_filter_alt_24"
+            android:tint="?attr/colorOnSurface"
             android:scaleType="centerInside"
             android:focusable="true"
             android:contentDescription="Filter" />
@@ -111,6 +112,7 @@
             android:layout_marginStart="10dp"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_round_translate_24"
+            android:tint="?attr/colorOnSurface"
             android:scaleType="centerInside"
             android:focusable="true"
             android:contentDescription="Language" />
