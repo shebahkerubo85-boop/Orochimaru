@@ -368,6 +368,8 @@ class SubtitleRailController(
     private val rows = mutableListOf<RailTextRow>()
     private val adapter = RailTextAdapter(rows)
     private var languageFilter: String? = null
+    private var searchingOnline: Boolean = false
+    private var lastFocusedPosition: Int = -1
 
     init {
         recycler.layoutManager = LinearLayoutManager(recycler.context)
@@ -400,7 +402,48 @@ class SubtitleRailController(
 
     /** Toggle the search-in-progress state and refresh the rail. */
     fun setSearchingOnline(searching: Boolean) {
+        val stateChanged = searchingOnline != searching
+        // Remember where the user was before we destroy the list.
+        if (stateChanged && searching) {
+            // Find the child that actually has focus (or is pressed)
+            // and remember its adapter position so we can restore later.
+            for (i in 0 until recycler.childCount) {
+                val child = recycler.getChildAt(i)
+                if (child?.isFocused == true || child?.isPressed == true) {
+                    val pos = recycler.getChildAdapterPosition(child)
+                    if (pos >= 0) lastFocusedPosition = pos
+                    break
+                }
+            }
+        }
+        searchingOnline = searching
         rebuild()
+        // After a state change the spinner rows are not focusable — focus
+        // escapes to nowhere and DPAD freezes.  Redirect to a useful target:
+        // - search start  → close button (so user can dismiss)
+        // - search done   → restore previous position, or first clickable row
+        // Intermediate result batches do NOT change the searching flag, so
+        // user navigation inside the rail is not stolen.
+        if (stateChanged && drawer.isDrawerOpen(content)) {
+            recycler.post {
+                if (searching) {
+                    // Search just started — focus close button (always focusable)
+                    closeButton.requestFocus()
+                } else {
+                    // Search just finished — restore previous position
+                    val restored = if (lastFocusedPosition >= 0) {
+                        val holder = recycler.findViewHolderForAdapterPosition(
+                            lastFocusedPosition
+                        )
+                        val item = rows.getOrNull(lastFocusedPosition)
+                        if (holder != null && item?.onClick != null) {
+                            holder.itemView.requestFocus(); true
+                        } else false
+                    } else false
+                    if (!restored) focusFirst()
+                }
+            }
+        }
     }
 
 
