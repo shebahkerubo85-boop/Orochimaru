@@ -29,6 +29,15 @@
                 android:scaleType="centerCrop"
                 tools:ignore="ContentDescription" />
 
+            <TextView
+                android:id="@+id/tmdbCardRating"
+                style="@style/RatingButton"
+                android:layout_gravity="top|end"
+                android:layout_marginTop="6dp"
+                android:layout_marginEnd="6dp"
+                android:visibility="gone"
+                tools:text="8.5" />
+
             <View
                 android:id="@+id/tmdbCardGradient"
                 android:layout_width="wrap_content"

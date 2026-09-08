@@ -5,6 +5,7 @@ import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import ani.sanin.connections.tmdb.Tmdb
@@ -57,7 +58,14 @@ object TmdbCards {
             width = w
             height = h
         }
-        binding.tmdbCard.radius = roundness()
+        val radius = roundness()
+        binding.tmdbCard.radius = radius
+        // Keep rating pill inset from the rounded corner so it never clips
+        val pillInset = radius.toInt().coerceIn(6, 14)
+        binding.tmdbCardRating.updateLayoutParams<FrameLayout.LayoutParams> {
+            topMargin = pillInset
+            marginEnd = pillInset
+        }
 
         val image = if (landscape) {
             Tmdb.imageUrl(item.backdropPath ?: item.posterPath, 780)
@@ -144,6 +152,16 @@ object TmdbCards {
         binding.tmdbCardYear.isVisible = false
         if (landscape && titlePosition == 0) {
             logo.isVisible = true  // Will be updated by async logo fetch
+        }
+
+        // ── Rating pill ──
+        val rating = binding.tmdbCardRating
+        val vote = item.voteAverage
+        if (vote > 0.0) {
+            rating.isVisible = true
+            rating.text = String.format("%.1f", vote)
+        } else {
+            rating.isVisible = false
         }
     }
 

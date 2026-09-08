@@ -157,10 +157,11 @@
     </style>-->
 
     <style name="RatingButton" parent="@style/SearchBox">
+        <item name="android:background">@drawable/bg_rating_pill</item>
+        <item name="android:textColor">@android:color/white</item>
         <item name="android:minWidth">40dp</item>
-        <item name="drawableTint">?attr/textColor</item>
+        <item name="drawableTint">?attr/colorPrimary</item>
         <item name="drawableSize">10sp</item>
-
         <item name="drawableEndCompat">@drawable/kid_star_24px</item>
     </style>
 
