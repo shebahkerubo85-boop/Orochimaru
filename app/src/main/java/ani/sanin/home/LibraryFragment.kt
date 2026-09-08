@@ -56,11 +56,12 @@ class LibraryFragment : Fragment() {
         val primaryTextColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorPrimary)
         val secondaryTextColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorOutline)
 
-        // Push below status bar (like CalendarActivity)
+        // Follow CalendarActivity pattern: settingsContainer margin in immersive, fitsSystemWindows otherwise
         if (PrefManager.getVal<Boolean>(PrefName.ImmersiveMode)) {
-            binding.listAppBar.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+            binding.settingsContainer.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
                 topMargin = statusBarHeight
             }
+            binding.root.fitsSystemWindows = false
         } else {
             binding.root.fitsSystemWindows = true
         }

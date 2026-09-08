@@ -50,12 +50,13 @@
                     android:nextFocusRight="@id/discoverAvatar"
                     android:textColorHint="?attr/colorOnSurface"
                     android:transitionName="@string/search"
-                    app:boxBackgroundColor="@android:color/transparent"
+                    app:boxBackgroundColor="@color/bg"
+                    app:boxBackgroundMode="outline"
                     app:boxCornerRadiusBottomEnd="24dp"
                     app:boxCornerRadiusBottomStart="24dp"
                     app:boxCornerRadiusTopEnd="24dp"
                     app:boxCornerRadiusTopStart="24dp"
-                    app:boxStrokeColor="?attr/colorOnSurface"
+                    app:boxStrokeColor="@color/text_input_layout_stroke_color"
                     app:endIconDrawable="@drawable/ic_round_search_24"
                     app:endIconTint="?attr/colorOnSurface"
                     app:hintAnimationEnabled="true">
@@ -87,7 +88,7 @@
                     android:src="@drawable/ic_round_person_24"
                     android:backgroundTint="@null"
                     app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.Circle"
-                    app:tint="?attr/colorPrimary"
+                    app:tint="@android:color/transparent"
                     tools:ignore="ContentDescription" />
             </LinearLayout>
 
