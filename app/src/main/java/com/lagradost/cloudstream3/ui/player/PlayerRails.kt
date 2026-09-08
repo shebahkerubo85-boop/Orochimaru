@@ -25,6 +25,7 @@ import ani.sanin.R
 import ani.sanin.databinding.ItemEpisodeRailBinding
 import ani.sanin.databinding.ItemSubtitleTextBinding
 import ani.sanin.util.FocusEffectUtil
+import ani.sanin.util.LanguageFlag
 import ani.sanin.connections.subtitles.StremioSub
 import ani.sanin.connections.subtitles.StremioSubtitles
 import ani.sanin.connections.subtitles.WyzieSub
