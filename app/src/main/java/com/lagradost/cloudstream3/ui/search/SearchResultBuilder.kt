@@ -1,6 +1,7 @@
 package com.lagradost.cloudstream3.ui.search
 
 import android.annotation.SuppressLint
+import android.util.Log
 import android.content.Context
 import android.content.res.ColorStateList
 import android.view.View
@@ -92,6 +93,7 @@ object SearchResultBuilder {
             rating?.isVisible = showRating
             if (showRating) {
                 rating?.text = ratingText
+                Log.d("RatingBadge", "visible=${rating?.isVisible} bg=${rating?.background?.javaClass?.simpleName} text=$ratingText")
             }
         } else if (showRatingView) {
             val ratingText = card.score?.toStringNull(0.1, 10, 1)
@@ -99,6 +101,7 @@ object SearchResultBuilder {
             rating?.isVisible = showRating
             if (showRating) {
                 rating?.text = ratingText
+                Log.d("RatingBadge", "visible=${rating?.isVisible} bg=${rating?.background?.javaClass?.simpleName} text=$ratingText")
             }
         }
 
