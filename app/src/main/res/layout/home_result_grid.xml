@@ -104,6 +104,7 @@
         <TextView
             android:id="@+id/text_rating"
             style="@style/RatingButton"
+            android:background="@drawable/bg_rating_pill"
             android:layout_gravity="top|end"
             android:layout_marginTop="4dp"
             android:layout_marginEnd="4dp"
