@@ -47,6 +47,7 @@ import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.Logger
 import ani.sanin.util.NavPillCustomizer
+import android.os.CountDownTimer
 import ani.sanin.util.GlassEffectManager
 import ani.sanin.util.GlassComponent
 import ani.sanin.settings.saving.PrefManager
@@ -79,6 +80,7 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
     private var detail: TmdbDetail? = null
     // 0 = Info, 1 = Watch, 2 = Comments
     private var selectedPill = 0
+    private var infoTimer: CountDownTimer? = null
 
     override fun onWatchBackPressed() {
         selectTab(0)
@@ -338,7 +340,8 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
                 binding.mediaInfoAired.visibility = View.GONE
             }
 
-            if (mediaType == "tv" && d.numberOfEpisodes > 0) {
+            val isComplete = d.status?.lowercase() in listOf("ended", "canceled")
+            if (mediaType == "tv" && d.numberOfEpisodes > 0 && !isComplete) {
                 val total = d.numberOfEpisodes
                 binding.mediaInfoReleased.text = total.toString() + " of " + total.toString()
                 lifecycleScope.launch {
@@ -352,8 +355,30 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
                         0, len, SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE
                     )
                     binding.mediaInfoWatchProgress.text = span
-                    val next = if (w < totalEps) w + 1 else 0
-                    binding.mediaInfoNextEpisode.text = if (next > 0) "Ep " + next else "—"
+                }
+                // Next episode: timer if airing, else episode number, else ???
+                val nextEp = d.nextEpisodeToAir
+                val airDateStr = nextEp?.airDate
+                if (airDateStr != null) {
+                    val airDateMillis = parseAirDateMillis(airDateStr)
+                    val now = System.currentTimeMillis()
+                    if (airDateMillis != null && airDateMillis > now) {
+                        // Currently airing — show episode info + countdown
+                        val epLabel = "Ep ${nextEp.episodeNumber}".trimEnd()
+                        binding.mediaInfoNextEpisode.text = epLabel
+                        startAiringTimer(airDateMillis)
+                    } else if (nextEp != null) {
+                        // Air date is past or unknown — just show episode number
+                        binding.mediaInfoNextEpisode.text = "Ep ${nextEp.episodeNumber}"
+                        binding.mediaInfoNextTimer.visibility = View.GONE
+                    } else {
+                        binding.mediaInfoNextEpisode.text = "???"
+                        binding.mediaInfoNextTimer.visibility = View.GONE
+                    }
+                } else {
+                    // No next episode data — show ???
+                    binding.mediaInfoNextEpisode.text = "???"
+                    binding.mediaInfoNextTimer.visibility = View.GONE
                 }
             } else {
                 binding.mediaInfoReleasedRow.visibility = View.GONE
@@ -397,6 +422,48 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
                 Color.parseColor("#F44336")
             else -> Color.WHITE
         }
+    }
+
+    /** Parse a TMDB air date "YYYY-MM-DD" into epoch millis, or null. */
+    private fun parseAirDateMillis(raw: String): Long? {
+        val parts = raw.split("-")
+        if (parts.size < 3) return null
+        val year = parts[0].toIntOrNull() ?: return null
+        val month = parts[1].toIntOrNull() ?: return null
+        val day = parts[2].toIntOrNull() ?: return null
+        return try {
+            val cal = java.util.Calendar.getInstance().apply {
+                set(year, month - 1, day, 20, 0, 0) // 8 PM default air time
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
+            cal.timeInMillis
+        } catch (_: Exception) { null }
+    }
+
+    /** Start a live countdown to the next episode air time. */
+    private fun startAiringTimer(airDateMillis: Long) {
+        infoTimer?.cancel()
+        val millisUntil = airDateMillis - System.currentTimeMillis()
+        if (millisUntil <= 0) {
+            binding.mediaInfoNextTimer.visibility = View.GONE
+            return
+        }
+        binding.mediaInfoNextTimer.visibility = View.VISIBLE
+        infoTimer = object : CountDownTimer(millisUntil, 1000) {
+            override fun onTick(millis: Long) {
+                val a = millis / 1000
+                binding.mediaInfoNextTimer.text = getString(
+                    ani.sanin.R.string.time_format,
+                    a / 86400,
+                    a % 86400 / 3600,
+                    a % 86400 % 3600 / 60,
+                    a % 86400 % 3600 % 60
+                )
+            }
+            override fun onFinish() {
+                binding.mediaInfoNextTimer.text = getString(ani.sanin.R.string.time_format, 0, 0, 0, 0)
+            }
+        }.start()
     }
 
     private fun formatAiredDate(raw: String): String? {
@@ -963,6 +1030,12 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
             h.b.root.contentDescription = m.displayTitle
             h.b.root.setOnClickListener { onClick(m) }
         }
+    }
+
+    override fun onDestroy() {
+        infoTimer?.cancel()
+        infoTimer = null
+        super.onDestroy()
     }
 
     class MyChrome : WebChromeClient() {
