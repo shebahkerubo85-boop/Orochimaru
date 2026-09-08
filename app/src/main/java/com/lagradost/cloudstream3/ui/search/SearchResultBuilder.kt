@@ -94,6 +94,7 @@ object SearchResultBuilder {
         rating?.isVisible = showRating
         if (showRating) {
             rating?.text = ratingText
+            rating?.setBackgroundResource(R.drawable.bg_rating_pill)
         }
 
         shadow?.isVisible = showTitle
