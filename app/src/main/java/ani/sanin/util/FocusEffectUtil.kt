@@ -186,6 +186,8 @@ object FocusEffectUtil {
         val id = v.id
         return id == R.id.mainCalendarContainer ||
                 id == R.id.mainUserAvatarContainer ||
+                id == R.id.discoverAvatar ||
+                id == R.id.tmdbDiscoveryAvatar ||
                 id == R.id.sheetMoviePluginArrow ||
                 id == R.id.exo_tracks
     }
