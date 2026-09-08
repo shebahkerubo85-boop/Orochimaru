@@ -34,6 +34,7 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.toast
 import ani.sanin.util.FocusEffectUtil
+import ani.sanin.util.LanguageFlag
 import ani.sanin.util.Logger
 import ani.sanin.util.customAlertDialog
 import com.google.android.material.color.MaterialColors
@@ -623,6 +624,16 @@ class SubtitleRailController(
             if (item.globe) {
                 binding.subtitleGlobe.imageTintList =
                     ColorStateList.valueOf(if (enabled) themePrimary else grey)
+            }
+
+            // Flag background for online subtitles
+            val flag = if (item.globe && !item.language.isNullOrBlank())
+                LanguageFlag.flagForLanguage(item.language) else ""
+            if (flag.isNotEmpty()) {
+                binding.subtitleFlag.text = flag
+                binding.subtitleFlag.visibility = View.VISIBLE
+            } else {
+                binding.subtitleFlag.visibility = View.GONE
             }
 
             // Source badge in primary color

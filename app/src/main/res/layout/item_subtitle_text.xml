@@ -10,6 +10,18 @@
     app:cardElevation="0dp"
     app:contentPadding="8dp">
 
+    <!-- Flag emoji behind content (online subs only) -->
+    <TextView
+        android:id="@+id/subtitleFlag"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:importantForAccessibility="no"
+        android:textSize="36sp"
+        android:alpha="0.3"
+        android:visibility="gone"
+        tools:text="🇯🇵" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"

@@ -145,6 +145,16 @@ private class RailTextAdapter(private val rows: MutableList<RailTextRow>) :
                 ColorStateList.valueOf(if (row.enabled) themePrimary else grey)
         }
 
+        // Flag background for online subtitles
+        val flag = if (row.globe && !row.language.isNullOrBlank())
+            LanguageFlag.flagForLanguage(row.language) else ""
+        if (flag.isNotEmpty()) {
+            binding.subtitleFlag.text = flag
+            binding.subtitleFlag.isVisible = true
+        } else {
+            binding.subtitleFlag.isVisible = false
+        }
+
         binding.subtitleBadge.isVisible = row.badge != null
         if (row.badge != null) {
             binding.subtitleBadge.text = row.badge
