@@ -156,7 +156,7 @@
         <item name="android:textColor">@color/ratingColor</item>
     </style>-->
 
-    <style name="RatingButton" parent="@style/SearchBox">
+    <style name="RatingButton">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:background">@drawable/bg_rating_pill</item>
