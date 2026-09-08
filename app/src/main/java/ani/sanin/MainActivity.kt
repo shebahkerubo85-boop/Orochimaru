@@ -378,8 +378,9 @@ class MainActivity : AppCompatActivity() {
             lifecycleScope.launch {
                 navPillsViewModel.currentTab.collect { tabIndex ->
                     switchTab(tabIndex)
+                    // Hide floating avatar+calendar on Discovery and Library tabs
                     binding.mainAvatarContainer.visibility =
-                        if (tabIndex == 3) View.GONE else View.VISIBLE
+                        if (tabIndex == 2 || tabIndex == 3) View.GONE else View.VISIBLE
                 }
             }
 

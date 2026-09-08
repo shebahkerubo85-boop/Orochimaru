@@ -18,24 +18,68 @@
         android:paddingTop="12dp">
 
         <TextView
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:fontFamily="@font/poppins_bold"
             android:text="Discover"
             android:textColor="?attr/colorOnSurface"
             android:textSize="20sp" />
+    </LinearLayout>
 
-        <ImageView
-            android:id="@+id/tmdbDiscoverySearch"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:background="?attr/selectableItemBackground"
-            android:contentDescription="Search"
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp">
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tmdbDiscoverySearchBar"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:textColorHint="?attr/colorOnSurface"
+            app:boxBackgroundColor="@android:color/transparent"
+            app:boxCornerRadiusBottomEnd="24dp"
+            app:boxCornerRadiusBottomStart="24dp"
+            app:boxCornerRadiusTopEnd="24dp"
+            app:boxCornerRadiusTopStart="24dp"
+            app:boxStrokeColor="?attr/colorPrimary"
+            app:endIconDrawable="@drawable/ic_round_search_24"
+            app:endIconTint="?attr/colorPrimary"
+            app:hintAnimationEnabled="true">
+
+            <AutoCompleteTextView
+                android:id="@+id/tmdbDiscoverySearchText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:focusable="false"
+                android:fontFamily="@font/poppins_bold"
+                android:hint="Search movies &amp; TV"
+                android:inputType="none"
+                android:padding="8dp"
+                android:textColor="?android:attr/textColorSecondary"
+                android:textSize="14sp"
+                tools:ignore="LabelFor,TextContrastCheck" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/tmdbDiscoveryAvatar"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
             android:focusable="true"
-            android:padding="10dp"
-            android:src="@drawable/ic_round_search_24"
-            app:tint="?attr/colorOnSurface" />
+            android:padding="2dp"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_round_person_24"
+            app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.Circle"
+            app:tint="?attr/colorPrimary"
+            tools:ignore="ContentDescription" />
     </LinearLayout>
 
     <HorizontalScrollView

@@ -56,10 +56,30 @@ class TmdbDiscoveryFragment : Fragment() {
         val cols = ((screenWidthPx - paddingPx) / (cardWidthPx + marginEndPx)).toInt().coerceAtLeast(2)
         binding.tmdbDiscoveryGrid.layoutManager = GridLayoutManager(requireContext(), cols)
         binding.tmdbDiscoveryGrid.adapter = adapter
-        binding.tmdbDiscoverySearch.setOnClickListener {
+        binding.tmdbDiscoverySearchText.setOnClickListener {
             startActivity(Intent(requireContext(), TmdbSearchActivity::class.java))
         }
-        FocusEffectUtil.applyFocusListener(binding.tmdbDiscoverySearch)
+        FocusEffectUtil.applyFocusListener(binding.tmdbDiscoverySearchBar)
+        // Avatar: open right rail drawer
+        binding.tmdbDiscoveryAvatar.setOnClickListener {
+            val act = requireActivity()
+            if (act is ani.sanin.MainActivity) {
+                val drawer = act.findViewById<androidx.drawerlayout.widget.DrawerLayout>(
+                    act.resources.getIdentifier("mainDrawer", "id", act.packageName))
+                if (drawer != null && !drawer.isDrawerOpen(android.view.Gravity.END)) {
+                    act.findViewById<android.widget.FrameLayout>(
+                        act.resources.getIdentifier("mainAvatarContainer", "id", act.packageName)
+                    )?.let {
+                        // Reuse the MainActivity's drawer population
+                        val popMethod = ani.sanin.MainActivity::class.java.getDeclaredMethod("populateRightRail")
+                        popMethod.isAccessible = true
+                        popMethod.invoke(act)
+                    }
+                    drawer.openDrawer(android.view.Gravity.END)
+                }
+            }
+        }
+        FocusEffectUtil.applyFocusListener(binding.tmdbDiscoveryAvatar)
         setupCategoryChips()
         viewLifecycleOwner.lifecycleScope.launch {
             genres = Tmdb.genres()

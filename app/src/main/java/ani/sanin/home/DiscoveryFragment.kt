@@ -31,6 +31,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import ani.sanin.loadImage
+import ani.sanin.util.FocusEffectUtil
 
 class DiscoverViewModel : ViewModel() {
     private val _selectedGenre = MutableStateFlow<String?>(null)
@@ -149,6 +151,7 @@ class DiscoveryFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupSearchBar()
+        setupAvatar()
         setupGenreChips()
         setupSeasonChips()
         setupResultsGrid()
@@ -175,6 +178,28 @@ class DiscoveryFragment : Fragment() {
                 )
             }
         }
+    }
+
+    private fun setupAvatar() {
+        val avatarUrl = if (ani.sanin.connections.anilist.Anilist.avatar != null)
+            ani.sanin.connections.anilist.Anilist.avatar else null
+        if (avatarUrl != null) {
+            binding.discoverAvatar.loadImage(avatarUrl)
+        }
+        binding.discoverAvatar.setOnClickListener {
+            val act = requireActivity()
+            if (act is ani.sanin.MainActivity) {
+                val drawer = act.findViewById<androidx.drawerlayout.widget.DrawerLayout>(
+                    act.resources.getIdentifier("mainDrawer", "id", act.packageName))
+                if (drawer != null && !drawer.isDrawerOpen(android.view.Gravity.END)) {
+                    val popMethod = ani.sanin.MainActivity::class.java.getDeclaredMethod("populateRightRail")
+                    popMethod.isAccessible = true
+                    popMethod.invoke(act)
+                    drawer.openDrawer(android.view.Gravity.END)
+                }
+            }
+        }
+        FocusEffectUtil.applyFocusListener(binding.discoverAvatar)
     }
 
     private fun setupGenreChips() {
