@@ -364,12 +364,12 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
                     val now = System.currentTimeMillis()
                     if (airDateMillis != null && airDateMillis > now) {
                         // Currently airing — show episode info + countdown
-                        val epLabel = "Ep ${nextEp.episodeNumber}".trimEnd()
+                        val epLabel = "SSN ${nextEp.seasonNumber} EP ${nextEp.episodeNumber}".trimEnd()
                         binding.mediaInfoNextEpisode.text = epLabel
                         startAiringTimer(airDateMillis)
                     } else if (nextEp != null) {
                         // Air date is past or unknown — just show episode number
-                        binding.mediaInfoNextEpisode.text = "Ep ${nextEp.episodeNumber}"
+                        binding.mediaInfoNextEpisode.text = "SSN ${nextEp.seasonNumber} EP ${nextEp.episodeNumber}"
                         binding.mediaInfoNextTimer.visibility = View.GONE
                     } else {
                         binding.mediaInfoNextEpisode.text = "???"

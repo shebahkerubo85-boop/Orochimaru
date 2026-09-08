@@ -1280,7 +1280,10 @@ class TmdbWatchFragment : Fragment() {
             isWatched: Boolean
         ) {
             if (url.isNullOrEmpty()) {
-                image.loadImage(url)
+                // Unreleased episodes have no still — show hourglass on black
+                image.setBackgroundColor(0xFF000000.toInt())
+                image.setImageResource(R.drawable.hourglass_24)
+                image.scaleType = android.widget.ImageView.ScaleType.CENTER
                 return
             }
             if (!isWatched && blurUnwatched) {
