@@ -66,6 +66,7 @@ import com.lagradost.cloudstream3.amap
 import ani.sanin.cloudstream.CsPlayerActivity
 import ani.sanin.cloudstream.TmdbStreamResolver
 import ani.sanin.connections.simkl.Simkl
+import ani.sanin.Refresh
 import ani.sanin.databinding.DialogOnlineSubtitlesBinding
 import ani.sanin.media.anime.SubtitleSyncHost
 import ani.sanin.connections.subtitles.StremioSubtitles
@@ -273,6 +274,47 @@ class GeneratorPlayer : FullScreenPlayer() {
         }
         if (player.getIsPlaying()) {
             viewModel.forceClearCache = false
+        }
+        // Simkl scrobble — mirrors anime mode's onIsPlayingChanged behavior.
+        // Start scrobble on play, stop on pause/end.  addToWatchlist once per
+        // session so the show appears in Simkl library immediately.
+        if (Simkl.token != null) {
+            if (currentPlayerStatus == CSPlayerLoading.IsPlaying) {
+                val meta = currentMeta as? ResultEpisode ?: return
+                val syntheticId = meta.parentId ?: return
+                val session = TmdbStreamResolver.sessionFor(syntheticId) ?: return
+                val d = session.detail
+                val tmdbId = d.id
+                val imdbId = d.externalIds?.imdbId
+                val year = d.year.toIntOrNull()
+                val type = if (session.mediaType == "tv") "tv" else "movie"
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                    Simkl.scrobbleStart(type, d.displayTitle, year, tmdbId, imdbId, meta.season, meta.episode)
+                    // Add to watchlist once per session so library/continue-watching works
+                    if (!simklAddedToWatchlist) {
+                        val curStatus = Simkl.getMediaStatus(type, tmdbId = tmdbId, imdbId = imdbId)
+                        if (curStatus != "completed" && curStatus != "dropped") {
+                            simklAddedToWatchlist = true
+                            Simkl.addToWatchlist(type, tmdbId, imdbId)
+                        } else {
+                            simklAddedToWatchlist = true
+                        }
+                    }
+                }
+            } else if (currentPlayerStatus == CSPlayerLoading.IsPaused ||
+                       currentPlayerStatus == CSPlayerLoading.IsEnded) {
+                val meta = currentMeta as? ResultEpisode ?: return
+                val syntheticId = meta.parentId ?: return
+                val session = TmdbStreamResolver.sessionFor(syntheticId) ?: return
+                val d = session.detail
+                val tmdbId = d.id
+                val imdbId = d.externalIds?.imdbId
+                val year = d.year.toIntOrNull()
+                val type = if (session.mediaType == "tv") "tv" else "movie"
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                    Simkl.scrobbleStop(type, d.displayTitle, year, tmdbId, imdbId, meta.season, meta.episode)
+                }
+            }
         }
     }
 
@@ -1386,6 +1428,24 @@ class GeneratorPlayer : FullScreenPlayer() {
     }
 
     override fun onDestroy() {
+        // Final scrobbleStop so Simkl stops "watching now"
+        if (Simkl.token != null) {
+            val meta = currentMeta as? ResultEpisode
+            val syntheticId = meta?.parentId
+            if (syntheticId != null) {
+                val session = TmdbStreamResolver.sessionFor(syntheticId)
+                if (session != null) {
+                    val d = session.detail
+                    val tmdbId = d.id
+                    val imdbId = d.externalIds?.imdbId
+                    val year = d.year.toIntOrNull()
+                    val type = if (session.mediaType == "tv") "tv" else "movie"
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                        Simkl.scrobbleStop(type, d.displayTitle, year, tmdbId, imdbId, meta.season, meta.episode)
+                    }
+                }
+            }
+        }
         ResultFragment.updateUI()
         currentVerifyLink?.cancel()
         super.onDestroy()
@@ -1394,6 +1454,7 @@ class GeneratorPlayer : FullScreenPlayer() {
     var maxEpisodeSet: Int? = null
     /** Episodes already pushed to Simkl history during this player session. */
     private val simklHistorySent = mutableSetOf<String>()
+    private var simklAddedToWatchlist = false
     var hasRequestedStamps: Boolean = false
     override fun playerPositionChanged(position: Long, duration: Long) {
         // Don't save livestream data
@@ -1462,6 +1523,9 @@ class GeneratorPlayer : FullScreenPlayer() {
                             Simkl.addToWatchlist(type, tmdbId, imdbId)
                         }
                         Simkl.addToHistory(type, title, year, tmdbId, imdbId, meta.season, meta.episode)
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            Refresh.all()
+                        }
                     }
                 }
 
