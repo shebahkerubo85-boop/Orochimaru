@@ -44,7 +44,7 @@ class SettingsExtrasActivity : AppCompatActivity() {
         binding.subscreenIcon.setImageResource(R.drawable.ic_settings_tools)
 
         SubscreenBuilder.build(this, binding.subscreenContent, listOf(
-            SubscreenBuilder.Section("Sources SubscreenBuilder.Section("Sources & Add-ons", R.drawable.ic_settings_tools, defaultExpanded = true, listOf( Add-ons", R.drawable.ic_settings_tools, entries = listOf(
+            SubscreenBuilder.Section("Sources", R.drawable.ic_settings_tools, entries = listOf(
                 SubscreenBuilder.Entry(
                     title = "Extension Manager",
                     desc = "Install & update content sources",

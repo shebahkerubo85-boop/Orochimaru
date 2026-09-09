@@ -19,6 +19,7 @@ import ani.sanin.restartApp
 import ani.sanin.savePrefsToDownloads
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
+import ani.sanin.settings.saving.internal.Location
 import ani.sanin.settings.saving.internal.PreferenceKeystore
 import ani.sanin.settings.saving.internal.PreferencePackager
 import ani.sanin.statusBarHeight
@@ -107,7 +108,7 @@ class SettingsCommonActivity : AppCompatActivity() {
                     title = "Export Settings",
                     desc = "Save config to downloads folder",
                     iconRes = R.drawable.ic_set_backup,
-                    onClick = { savePrefsToDownloads() },
+                    onClick = { savePrefsToDownloads("SaninSettings", PrefManager.exportAllPrefs(listOf(Location.General, Location.UI, Location.Player)), this@SettingsCommonActivity) },
                 ),
                 SubscreenBuilder.Entry(
                     title = "Import Settings",

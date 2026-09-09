@@ -401,17 +401,17 @@ class SettingsAppearanceActivity : AppCompatActivity() {
     private fun restartSwitch(pref: PrefName): Pair<Boolean, (Boolean) -> Unit> =
         PrefManager.getVal<Boolean>(pref) to { v: Boolean -> PrefManager.setVal(pref, v); restartApp() }
 
-    private fun glassSwitch(pref: PrefName) =
-        PrefManager.getVal<Boolean>(pref) to { PrefManager.setVal(pref, it) }
+    private fun glassSwitch(pref: PrefName): Pair<Boolean, (Boolean) -> Unit> =
+        PrefManager.getVal<Boolean>(pref) to { v: Boolean -> PrefManager.setVal(pref, v) }
 
     private fun floatChoice(title: String, labels: Array<String>, values: FloatArray, current: Float, onSelect: (Float) -> Unit) =
         SubscreenBuilder.Choice(title, labels,
-            values.indices.minByOrNull { kotlin.math.abs(values[it] - current) } ?: 0
+            values.indices.minByOrNull { idx -> kotlin.math.abs(values[idx]) - current } ?: 0
         ) { idx -> onSelect(values[idx]) }
 
     private fun intChoice(title: String, labels: Array<String>, values: IntArray, current: Int, onSelect: (Int) -> Unit) =
         SubscreenBuilder.Choice(title, labels,
-            values.indices.minByOrNull { kotlin.math.abs(values[it] - current) } ?: 0
+            values.indices.minByOrNull { idx -> kotlin.math.abs(values[idx]) - current } ?: 0
         ) { idx -> onSelect(values[idx]) }
 
     // ─── Color Pickers ──────────────────────────────────────────
