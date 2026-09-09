@@ -59,7 +59,7 @@
                     android:fontFamily="@font/poppins"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="12sp"
-                    android:text="Player, subtitles & behaviour" />
+                    android:text="Player, subtitles &amp; behaviour" />
             </LinearLayout>
 
             <ImageView
