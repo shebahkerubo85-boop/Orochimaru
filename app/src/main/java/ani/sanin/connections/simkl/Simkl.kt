@@ -695,7 +695,7 @@ object Simkl {
             ).execute()
             ani.sanin.util.Logger.log("Simkl.setProgress: HTTP ${resp.code} title=$title episodeNum=$episodeNum")
             // Restore previous status if it was reset
-            if ((resp.code == 200 || resp.code == 201) && prevStatus != null && prevStatus != "watching") {
+            if (resp.code == 200 && prevStatus != null && prevStatus != "watching") {
                 setListStatus("tv", title, year, tmdbId, imdbId, prevStatus, anilistId, skipHistory = true)
             }
         } catch (e: Exception) {
