@@ -165,9 +165,11 @@ class SelectorDialogFragment : DialogFragment() {
                 binding.selectorAutoProviderName.text = providerName ?: ""
 
                 fun fail(resId: Int){
-                    snackString(getString(resId))
-                    tryWith {
-                        dismissAllowingStateLoss()
+                    ContextCompat.getMainExecutor(context ?: currContext() ?: return).execute {
+                        snackString(getString(resId))
+                        tryWith {
+                            dismissAllowingStateLoss()
+                        }
                     }
                 }
                 fun initializeVideoServerSelector(ep: Episode, onEpisodeDownloadHandler: EpisodeDownloadHandler? = null) {
@@ -269,7 +271,10 @@ class SelectorDialogFragment : DialogFragment() {
                             }
                         }
                     } else {
-                        media!!.anime?.episodes?.set(media!!.anime?.selectedEpisode!!, ep)
+                        val epKey = media?.anime?.episodes?.getEpisodeKey(ep.number) ?: media?.anime?.selectedEpisode
+                        if (epKey != null) {
+                            media!!.anime?.episodes?.set(epKey, ep)
+                        }
                         adapter.addAll(ep.extractors)
                         if (ep.extractors?.size == 0) {
                             fail(R.string.stream_selection_empty)
@@ -283,7 +288,7 @@ class SelectorDialogFragment : DialogFragment() {
                 }
                 suspend fun loadEpisodeSingleServer(episodeName: String, selectedServerName: String): Boolean{
                     media?.anime?.selectedEpisode = episodeName
-                    val ep = media?.anime?.episodes?.get(media?.anime?.selectedEpisode)!!
+                    val ep = media?.anime?.episodes?.get(media?.anime?.selectedEpisode) ?: return false
                     episode = ep
 
                     var success = false

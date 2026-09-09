@@ -82,6 +82,7 @@ class MediaDetailsActivity : AppCompatActivity() {
 
         super.onCreate(savedInstanceState)
         var media: Media = intent.getSerialized("media") ?: mediaSingleton ?: emptyMedia()
+        intent.removeExtra("media")
         val id = intent.getIntExtra("mediaId", -1)
         if (id != -1) {
             val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)

@@ -1684,11 +1684,15 @@ class ExoplayerView :
                 }
                 episodeTitleText.text = episodeTitleArr.getOrElse(currentEpisodeIndex) { "" }
                 if (isInitialized) releasePlayer()
-                playbackPosition =
-                    PrefManager.getCustomVal(
-                        "${media.id}_${ep.number}",
-                        0,
-                    )
+                playbackPosition = if (changingServer) {
+                    PrefManager.getCustomVal("${media.id}_${ep.number}", 0L)
+                } else {
+                    val cleanEp = ep.number.let { MediaNameAdapter.findEpisodeNumber(it) }?.let {
+                        if (it % 1 == 0f) it.toInt().toString() else it.toString()
+                    }
+                    val savedEpPos = PrefManager.getCustomVal("${media.id}_${ep.number}", 0L)
+                    if (savedEpPos > 0L) savedEpPos else cleanEp?.let { PrefManager.getCustomVal("${media.id}_${it}", 0L) } ?: 0L
+                }
                 initPlayer()
                 preloading = false
                 updateProgress()
