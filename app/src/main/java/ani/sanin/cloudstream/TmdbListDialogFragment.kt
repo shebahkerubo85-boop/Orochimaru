@@ -156,8 +156,12 @@ class TmdbListDialogFragment : DialogFragment() {
             }
         }
 
-        // ── Save: status + progress ──
+        // ── Save: status + progress ── (debounced for D-pad double-fire) ──
+        var saving = false
         binding.mediaListSave.setOnClickListener {
+            if (saving) return@setOnClickListener
+            saving = true
+            binding.mediaListSave.isEnabled = false
             val checkedId = binding.mediaListStatusGroup.checkedChipId
             val label = (if (checkedId != -1)
                 binding.mediaListStatusGroup.findViewById<Chip>(checkedId)?.text?.toString()
@@ -183,7 +187,8 @@ class TmdbListDialogFragment : DialogFragment() {
                         Simkl.setProgress(
                             type = type, title = title, year = year,
                             tmdbId = tmdbId, imdbId = imdbId,
-                            anilistId = anilistId, episodeNum = progress
+                            anilistId = anilistId, episodeNum = progress,
+                            restoreStatus = simklStatus
                         )
                     }
                 }
@@ -195,8 +200,11 @@ class TmdbListDialogFragment : DialogFragment() {
             }
         }
 
-        // ── Delete from Simkl list ──
+        // ── Delete from Simkl list ── (debounced for D-pad double-fire) ──
         binding.mediaListDelete.setOnClickListener {
+            if (saving) return@setOnClickListener
+            saving = true
+            binding.mediaListDelete.isEnabled = false
             scope.launch(Dispatchers.IO) {
                 runCatching { Simkl.removeFromList(type, tmdbId, imdbId, anilistId) }
                 withContext(Dispatchers.Main) {
@@ -215,7 +223,7 @@ class TmdbListDialogFragment : DialogFragment() {
 
     companion object {
         private val SIMKL_STATUS_BY_INDEX =
-            arrayOf("plantowatch", "watching", "completed", "watching", "hold", "dropped")
+            arrayOf("plantowatch", "watching", "completed", "plantowatch", "hold", "dropped")
 
         fun simklStatusToIndex(s: String?): Int = when (s) {
             "watching" -> 1

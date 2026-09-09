@@ -446,6 +446,27 @@ object Simkl {
                             .build()
                     ).execute()
                     ani.sanin.util.Logger.log("Simkl.setListStatus: history HTTP ${histResp.code} for completed tv (${seasonsArr.size} seasons)")
+                    // /sync/history resets show status to watching — re-apply completed
+                    if (histResp.code == 200 || histResp.code == 201) {
+                        val reapplyBody = buildJsonObject {
+                            put("shows", buildJsonArray {
+                                add(buildJsonObject {
+                                    put("to", JsonPrimitive("completed"))
+                                    put("ids", idsObj)
+                                })
+                            })
+                        }.toString()
+                        val reapplyResp = okHttpClient.newCall(
+                            Request.Builder()
+                                .url("$BASE/sync/add-to-list")
+                                .addHeader("Authorization", "Bearer $t")
+                                .addHeader("simkl-api-key", clientId)
+                                .addHeader("Content-Type", "application/json")
+                                .post(reapplyBody.toRequestBody("application/json".toMediaType()))
+                                .build()
+                        ).execute()
+                        ani.sanin.util.Logger.log("Simkl.setListStatus: re-apply completed HTTP ${reapplyResp.code} title=$title")
+                    }
                 }
             } else {
                 val listBody = buildJsonObject {
@@ -522,8 +543,13 @@ object Simkl {
                 if (anilistId != null && anilistId > 0) put("anilist", JsonPrimitive(anilistId))
             }
             val body = buildJsonObject {
-                put(if (type == "tv") "shows" else "movies", buildJsonArray { add(idsObj) })
+                put(if (type == "tv") "shows" else "movies", buildJsonArray {
+                    add(buildJsonObject {
+                        put("ids", idsObj)
+                    })
+                })
             }.toString()
+            ani.sanin.util.Logger.log("Simkl.removeFromList: body=$body")
             val resp = okHttpClient.newCall(
                 Request.Builder()
                     .url("$BASE/sync/remove-from-list")
@@ -596,7 +622,8 @@ object Simkl {
         tmdbId: Int? = null,
         imdbId: String? = null,
         anilistId: Int? = null,
-        episodeNum: Int
+        episodeNum: Int,
+        restoreStatus: String? = null
     ) {
         val t = token ?: return
         if (type != "tv" || episodeNum <= 0) return
@@ -645,8 +672,10 @@ object Simkl {
                     })
                 }
             }
-            // Get previous status so we can restore it (history resets to "watching")
-            val prevStatus = getMediaStatus("tv", tmdbId, imdbId, anilistId)
+            // Use explicit restoreStatus if provided, else read from library
+            val prevStatus = restoreStatus ?: runCatching {
+                getMediaStatus("tv", tmdbId, imdbId, anilistId)
+            }.getOrNull()
             val histBody = buildJsonObject {
                 put("shows", buildJsonArray {
                     add(buildJsonObject {
