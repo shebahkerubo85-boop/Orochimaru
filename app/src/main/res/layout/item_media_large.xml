@@ -115,7 +115,7 @@
                         android:layout_width="12dp"
                         android:layout_height="match_parent"
                         app:srcCompat="@drawable/ic_round_star_24"
-                        app:tint="@android:color/white"
+                        app:tint="?attr/colorPrimary"
                         tools:ignore="ContentDescription" />
 
                 </LinearLayout>
