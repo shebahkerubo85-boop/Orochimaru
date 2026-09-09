@@ -42,7 +42,17 @@ class ExtensionsActivity : AppCompatActivity() {
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
             val vp = binding.viewPager
-            if (vp.isFocused) {
+            // Intercept DPAD DOWN from either the ViewPager or the TabLayout
+            // so focus always lands on the first Browse button instead of
+            // being swallowed by ViewPager2 scroll or TabLayout navigation.
+            val focused = currentFocus
+            var tabFocused = false
+            var p: android.view.ViewParent? = focused?.parent
+            while (p != null) {
+                if (p === binding.tabLayout) { tabFocused = true; break }
+                p = p.parent as? android.view.ViewParent
+            }
+            if (vp.isFocused || tabFocused) {
                 focusFirstBrowseButton(vp)
                 return true
             }
