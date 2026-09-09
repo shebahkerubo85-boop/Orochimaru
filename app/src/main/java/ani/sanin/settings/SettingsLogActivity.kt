@@ -6,9 +6,8 @@ import android.util.Log
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.updateLayoutParams
-import androidx.recyclerview.widget.LinearLayoutManager
 import ani.sanin.R
-import ani.sanin.databinding.ActivitySettingsLogBinding
+import ani.sanin.databinding.ActivitySettingsSubscreenBinding
 import ani.sanin.initActivity
 import ani.sanin.navBarHeight
 import ani.sanin.settings.saving.PrefManager
@@ -16,46 +15,40 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
 import ani.sanin.toast
-import ani.sanin.util.FocusEffectUtil
-import ani.sanin.util.LogcatBuffer
 import ani.sanin.util.Logger
+import ani.sanin.util.LogcatBuffer
 
 class SettingsLogActivity : AppCompatActivity() {
-    private lateinit var binding: ActivitySettingsLogBinding
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ThemeManager(this).applyTheme()
         initActivity(this)
-        val context = this
-        binding = ActivitySettingsLogBinding.inflate(layoutInflater)
+
+        val binding = ActivitySettingsSubscreenBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.apply {
-            settingsLogLayout.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                topMargin = statusBarHeight
-                bottomMargin = navBarHeight
-            }
-            logSettingsBack.isFocusable = true
-            logSettingsBack.setOnClickListener {
-                onBackPressedDispatcher.onBackPressed()
-            }
-            FocusEffectUtil.applyFocusListener(logSettingsBack)
+        binding.subscreenContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+            topMargin = statusBarHeight
+            bottomMargin = navBarHeight
+        }
+        binding.subscreenBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
+        binding.subscreenTitle.text = "App Log"
+        binding.subscreenSubtitle.text = "Logging, logcat & diagnostics"
+        binding.subscreenIcon.setImageResource(R.drawable.ic_round_edit_note_24)
 
-            val loggingEnabled = PrefManager.getVal<Boolean>(PrefName.LoggingEnabled)
-
-            settingsRecyclerView.adapter = SettingsAdapter(
-                arrayListOf(
-                    Settings(
-                        type = 2,
-                        name = "Logging",
-                        desc = "Master switch for all log capture features",
-                        icon = R.drawable.ic_round_edit_note_24,
-                        isChecked = loggingEnabled,
-                        switch = { isChecked, _ ->
+        SubscreenBuilder.build(this, binding.subscreenContent, listOf(
+            SubscreenBuilder.Section(
+                "Logging",
+                R.drawable.ic_round_edit_note_24,
+                entries = listOf(
+                    SubscreenBuilder.Entry(
+                        title = "Master Logging",
+                        desc = "Toggle all log capture features",
+                        iconRes = R.drawable.ic_round_edit_note_24,
+                        switch = PrefManager.getVal<Boolean>(PrefName.LoggingEnabled) to { isChecked ->
                             PrefManager.setVal(PrefName.LoggingEnabled, isChecked)
                             if (isChecked) {
-                                Logger.init(context)
+                                Logger.init(this)
                                 LogcatBuffer.start()
                                 Logger.log(Log.WARN, "Logging enabled manually")
                                 toast("Logging enabled")
@@ -67,53 +60,45 @@ class SettingsLogActivity : AppCompatActivity() {
                             recreate()
                         },
                     ),
-                    Settings(
-                        type = 1,
-                        name = "View Live Logcat",
-                        desc = "Open a screen showing live logcat output",
-                        icon = R.drawable.ic_round_view_list_24,
-                        onClick = {
-                            startActivity(Intent(this@SettingsLogActivity, LiveLogcatActivity::class.java))
-                        },
+                ),
+            ),
+
+            SubscreenBuilder.Section(
+                "Log Actions",
+                R.drawable.ic_round_history_24,
+                entries = listOf(
+                    SubscreenBuilder.Entry(
+                        title = "View Live Logcat",
+                        desc = "Real-time logcat output",
+                        iconRes = R.drawable.ic_round_view_list_24,
+                        onClick = { startActivity(Intent(this, LiveLogcatActivity::class.java)) },
                     ),
-                    Settings(
-                        type = 1,
-                        name = "Capture Last 2 Minutes",
-                        desc = "Read logcat entries from the past 2 minutes",
-                        icon = R.drawable.ic_round_history_24,
+                    SubscreenBuilder.Entry(
+                        title = "Capture Last 2 Minutes",
+                        desc = "Export recent logcat entries",
+                        iconRes = R.drawable.ic_round_history_24,
                         onClick = {
                             if (!PrefManager.getVal<Boolean>(PrefName.LoggingEnabled)) {
                                 toast("Enable Logging first")
                             } else {
-                                Logger.shareTextAsFile(context, Logger.readLogcatLastMinutes(2), "Logcat - Last 2 Minutes")
+                                Logger.shareTextAsFile(this, Logger.readLogcatLastMinutes(2), "Logcat - Last 2 Minutes")
                             }
                         },
                     ),
-                    Settings(
-                        type = 1,
-                        name = "Clear Log Cache",
+                    SubscreenBuilder.Entry(
+                        title = "Clear Log Cache",
                         desc = "Delete all stored log files",
-                        icon = R.drawable.ic_round_delete_24,
-                        onClick = {
-                            Logger.clearLog()
-                            toast("Log cache cleared")
-                        },
+                        iconRes = R.drawable.ic_round_delete_24,
+                        onClick = { Logger.clearLog(); toast("Log cache cleared") },
                     ),
-                    Settings(
-                        type = 1,
-                        name = "Share Log File",
-                        desc = "Share the saved log file with others",
-                        icon = R.drawable.ic_round_share_24,
-                        onClick = {
-                            Logger.shareLog(context)
-                        },
+                    SubscreenBuilder.Entry(
+                        title = "Share Log File",
+                        desc = "Send the saved log to others",
+                        iconRes = R.drawable.ic_round_share_24,
+                        onClick = { Logger.shareLog(this) },
                     ),
                 ),
-            )
-            settingsRecyclerView.apply {
-                layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
-                setHasFixedSize(true)
-            }
-        }
+            ),
+        ))
     }
 }

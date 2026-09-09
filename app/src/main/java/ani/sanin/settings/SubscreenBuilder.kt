@@ -1,12 +1,12 @@
 package ani.sanin.settings
 
 import android.animation.ObjectAnimator
-import android.app.AlertDialog
 import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AccelerateDecelerateInterpolator
+import com.google.android.material.slider.Slider
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -28,6 +28,16 @@ object SubscreenBuilder {
         val iconRes: Int,
         val entries: List<Entry>,
         val defaultExpanded: Boolean = false,
+        val desc: String? = null,
+    )
+
+    data class Slider(
+        val value: Float,
+        val valueFrom: Float,
+        val valueTo: Float,
+        val step: Float = 1f,
+        val suffix: String = "",
+        val onValueChange: (Float) -> Unit,
     )
 
     /** A single setting entry. */
@@ -36,10 +46,13 @@ object SubscreenBuilder {
         val desc: String? = null,
         val iconRes: Int = 0,
         val onClick: ((Context) -> Unit)? = null,
+        val onLongClick: ((Context) -> Unit)? = null,
         /** For switch entries: (initialValue, onToggle) */
         val switch: Pair<Boolean, (Boolean) -> Unit>? = null,
         /** For choice entries: title, options, currentIndex, onSelect */
         val choice: Choice? = null,
+        /** For slider entries */
+        val slider: Slider? = null,
     )
 
     data class Choice(
@@ -68,11 +81,16 @@ object SubscreenBuilder {
             val header = sectionView.findViewById<LinearLayout>(R.id.sectionHeader)
             val icon = sectionView.findViewById<ImageView>(R.id.sectionIcon)
             val title = sectionView.findViewById<TextView>(R.id.sectionTitle)
+            val desc = sectionView.findViewById<TextView>(R.id.sectionDesc)
             val chevron = sectionView.findViewById<ImageView>(R.id.sectionChevron)
             val items = sectionView.findViewById<LinearLayout>(R.id.sectionItems)
 
             icon.setImageResource(section.iconRes)
             title.text = section.title
+            if (section.desc != null) {
+                desc.text = section.desc
+                desc.visibility = View.VISIBLE
+            }
 
             // Populate entries
             section.entries.forEach { entry ->
@@ -89,8 +107,30 @@ object SubscreenBuilder {
                     sTitle.setOnClickListener {
                         sToggle.isChecked = !sToggle.isChecked
                     }
+                    if (entry.onLongClick != null) {
+                        switchView.setOnLongClickListener { entry.onLongClick!!.invoke(context); true }
+                    }
                     FocusEffectUtil.applyFocusListener(switchView)
                     items.addView(switchView)
+                } else if (entry.slider != null) {
+                    val sliderView = inflater.inflate(R.layout.item_settings_section_slider, items, false)
+                    val slTitle = sliderView.findViewById<TextView>(R.id.sliderTitle)
+                    val sl = sliderView.findViewById<Slider>(R.id.slider)
+                    val slValue = sliderView.findViewById<TextView>(R.id.sliderValue)
+                    slTitle.text = entry.title
+                    sl.valueFrom = entry.slider.valueFrom
+                    sl.valueTo = entry.slider.valueTo
+                    sl.stepSize = entry.slider.step
+                    sl.value = entry.slider.value
+                    slValue.text = "${entry.slider.value.toInt()}${entry.slider.suffix}"
+                    sl.addOnChangeListener { _, value, fromUser ->
+                        if (fromUser) {
+                            slValue.text = "${value.toInt()}${entry.slider.suffix}"
+                            entry.slider.onValueChange(value)
+                        }
+                    }
+                    FocusEffectUtil.applyFocusListener(sliderView)
+                    items.addView(sliderView)
                 } else {
                     val entryView = inflater.inflate(R.layout.item_settings_section_entry, items, false)
                     val eIcon = entryView.findViewById<ImageView>(R.id.entryIcon)
@@ -106,7 +146,11 @@ object SubscreenBuilder {
                     }
                     if (entry.onClick != null) {
                         entryView.setSafeOnClickListener { entry.onClick!!.invoke(context) }
-                    } else if (entry.choice != null) {
+                    }
+                    if (entry.onLongClick != null) {
+                        entryView.setOnLongClickListener { entry.onLongClick!!.invoke(context); true }
+                    }
+                    if (entry.choice != null) {
                         entryView.setSafeOnClickListener {
                             val c = entry.choice!!
                             context.customAlertDialog().apply {

@@ -44,6 +44,7 @@ private data class SettingsSection(
     val iconRes: Int,
     val entries: List<SectionEntry>,
     val defaultExpanded: Boolean = false,
+    val desc: String? = null,
 )
 
 /** An item inside a collapsible section. */
@@ -116,6 +117,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun buildSections(): List<SettingsSection> = listOf(
         SettingsSection(
             title = "Account",
+            desc = "Profiles, tracking & accounts",
             iconRes = R.drawable.ic_settings_account,
             entries = listOf(
                 SectionEntry(
@@ -128,6 +130,7 @@ class SettingsActivity : AppCompatActivity() {
         ),
         SettingsSection(
             title = "Look & Feel",
+            desc = "Colors, cards, blur & glass",
             iconRes = R.drawable.ic_set_theme,
             entries = listOf(
                 SectionEntry(
@@ -146,6 +149,7 @@ class SettingsActivity : AppCompatActivity() {
         ),
         SettingsSection(
             title = "Playback",
+            desc = "Player, decoder & sync",
             iconRes = R.drawable.ic_set_video,
             entries = listOf(
                 SectionEntry(
@@ -158,6 +162,7 @@ class SettingsActivity : AppCompatActivity() {
         ),
         SettingsSection(
             title = "Network & Data",
+            desc = "DNS, backup & restore",
             iconRes = R.drawable.ic_set_dns,
             entries = listOf(
                 SectionEntry(
@@ -170,6 +175,7 @@ class SettingsActivity : AppCompatActivity() {
         ),
         SettingsSection(
             title = "Extensions",
+            desc = "Sources, add-ons & diagnostics",
             iconRes = R.drawable.ic_settings_tools,
             entries = listOf(
                 SectionEntry(
@@ -196,6 +202,7 @@ class SettingsActivity : AppCompatActivity() {
             val header: LinearLayout = v.findViewById(R.id.sectionHeader)
             val icon: ImageView = v.findViewById(R.id.sectionIcon)
             val title: TextView = v.findViewById(R.id.sectionTitle)
+            val desc: TextView = v.findViewById(R.id.sectionDesc)
             val chevron: ImageView = v.findViewById(R.id.sectionChevron)
             val items: LinearLayout = v.findViewById(R.id.sectionItems)
         }
@@ -216,6 +223,14 @@ class SettingsActivity : AppCompatActivity() {
 
             holder.icon.setImageResource(section.iconRes)
             holder.title.text = section.title
+            holder.desc.apply {
+                if (section.desc != null) {
+                    text = section.desc
+                    visibility = View.VISIBLE
+                } else {
+                    visibility = View.GONE
+                }
+            }
 
             // Chevron rotation
             holder.chevron.rotation = if (isExpanded) 180f else 0f

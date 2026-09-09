@@ -4,7 +4,7 @@
     <!-- Bottom shadow -->
     <item android:bottom="3dp" android:left="2dp" android:right="2dp">
         <shape android:shape="rectangle">
-            <solid android:color="#18000000" />
+            <solid android:color="#33000000" />
             <corners android:radius="16dp" />
         </shape>
     </item>
@@ -13,17 +13,17 @@
     <item>
         <shape android:shape="rectangle">
             <gradient android:angle="270"
-                android:startColor="#44FFFFFF"
-                android:centerColor="#18FFFFFF"
+                android:startColor="#4DFFFFFF"
+                android:centerColor="#12FFFFFF"
                 android:endColor="#00000000" />
             <corners android:radius="16dp" />
         </shape>
     </item>
 
-    <!-- Card surface -->
+    <!-- Card surface: charcoal raised surface so the card stands out on the dark bg -->
     <item android:top="1dp">
         <shape android:shape="rectangle">
-            <solid android:color="?attr/colorSurface" />
+            <solid android:color="#2B2B2E" />
             <corners android:bottomLeftRadius="16dp" android:bottomRightRadius="16dp"
                 android:topLeftRadius="15dp" android:topRightRadius="15dp" />
         </shape>

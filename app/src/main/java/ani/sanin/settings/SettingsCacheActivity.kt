@@ -1,16 +1,14 @@
 package ani.sanin.settings
 
 import android.os.Bundle
-import android.view.View
 import android.view.ViewGroup
-import android.widget.SeekBar
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import ani.sanin.R
 import ani.sanin.connections.LogoApi
-import ani.sanin.databinding.ActivitySettingsCacheBinding
+import ani.sanin.databinding.ActivitySettingsSubscreenBinding
 import ani.sanin.initActivity
 import ani.sanin.media.anime.ExoplayerView
 import ani.sanin.navBarHeight
@@ -19,101 +17,115 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.snackString
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
-import ani.sanin.util.FocusEffectUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class SettingsCacheActivity : AppCompatActivity() {
-    private lateinit var binding: ActivitySettingsCacheBinding
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ThemeManager(this).applyTheme()
         initActivity(this)
 
-        binding = ActivitySettingsCacheBinding.inflate(layoutInflater)
+        val binding = ActivitySettingsSubscreenBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        binding.apply {
-            settingsCacheLayout.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                topMargin = statusBarHeight
-                bottomMargin = navBarHeight
-            }
-            cacheSettingsBack.isFocusable = true
-            cacheSettingsBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
-            FocusEffectUtil.applyFocusListener(cacheSettingsBack)
 
-            cacheClearButton.isFocusable = true
-            FocusEffectUtil.applyFocusListener(cacheClearButton)
-            cacheClearButton.setOnClickListener {
-                lifecycleScope.launch {
-                    try {
-                        Glide.get(this@SettingsCacheActivity).clearMemory()
-                        LogoApi.clearCache()
-                        withContext(Dispatchers.IO) {
-                            this@SettingsCacheActivity.cacheDir.deleteRecursively()
-                            this@SettingsCacheActivity.externalCacheDir?.deleteRecursively()
-                            Glide.get(this@SettingsCacheActivity).clearDiskCache()
-                            ExoplayerView.clearAllCaches()
-                        }
-                        snackString("Cache cleared")
-                    } catch (e: Exception) {
-                        snackString("Failed to clear cache: ${e.message}")
-                    }
-                }
-            }
-
-            cacheSmartTrim.isFocusable = true
-            FocusEffectUtil.applyFocusListener(cacheSmartTrim)
-            val isSmartTrimOn = PrefManager.getVal<Boolean>(PrefName.SmartTrim)
-            cacheSmartTrim.isChecked = isSmartTrimOn
-            cacheTrimSettings.visibility = if (isSmartTrimOn) View.VISIBLE else View.GONE
-            cacheSmartTrim.setOnCheckedChangeListener { _, isChecked ->
-                PrefManager.setVal(PrefName.SmartTrim, isChecked)
-                cacheTrimSettings.visibility = if (isChecked) View.VISIBLE else View.GONE
-            }
-
-            cacheCapSlider.isFocusable = true
-            val cap = PrefManager.getVal<Int>(PrefName.CacheCapMb)
-            cacheCapSlider.progress = cap - 70
-            cacheCapValue.text = cap.toString()
-            cacheCapSlider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    val value = progress + 70
-                    cacheCapValue.text = value.toString()
-                    PrefManager.setVal(PrefName.CacheCapMb, value)
-                }
-                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-            })
-
-            cacheIntervalSlider.isFocusable = true
-            val interval = PrefManager.getVal<Int>(PrefName.TrimIntervalMin)
-            cacheIntervalSlider.progress = interval - 5
-            cacheIntervalValue.text = interval.toString()
-            cacheIntervalSlider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    val value = progress + 5
-                    cacheIntervalValue.text = value.toString()
-                    PrefManager.setVal(PrefName.TrimIntervalMin, value)
-                }
-                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-            })
-
-            cacheIntensitySlider.isFocusable = true
-            val intensity = PrefManager.getVal<Int>(PrefName.TrimIntensity)
-            cacheIntensitySlider.progress = intensity - 40
-            cacheIntensityValue.text = intensity.toString()
-            cacheIntensitySlider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    val value = progress + 40
-                    cacheIntensityValue.text = value.toString()
-                    PrefManager.setVal(PrefName.TrimIntensity, value)
-                }
-                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-            })
+        binding.subscreenContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+            topMargin = statusBarHeight
+            bottomMargin = navBarHeight
         }
+        binding.subscreenBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
+        binding.subscreenTitle.text = "Cache"
+        binding.subscreenSubtitle.text = "Storage, trimming & limits"
+        binding.subscreenIcon.setImageResource(R.drawable.ic_baseline_storage_24)
+
+        SubscreenBuilder.build(this, binding.subscreenContent, listOf(
+            SubscreenBuilder.Section(
+                "Storage",
+                R.drawable.ic_baseline_storage_24,
+                entries = listOf(
+                    SubscreenBuilder.Entry(
+                        title = "Clear All Cache",
+                        desc = "Delete cached media, Glide & ExoPlayer data",
+                        iconRes = R.drawable.ic_round_delete_24,
+                        onClick = {
+                            lifecycleScope.launch {
+                                try {
+                                    Glide.get(this@SettingsCacheActivity).clearMemory()
+                                    LogoApi.clearCache()
+                                    withContext(Dispatchers.IO) {
+                                        this@SettingsCacheActivity.cacheDir.deleteRecursively()
+                                        this@SettingsCacheActivity.externalCacheDir?.deleteRecursively()
+                                        Glide.get(this@SettingsCacheActivity).clearDiskCache()
+                                        ExoplayerView.clearAllCaches()
+                                    }
+                                    snackString("Cache cleared")
+                                } catch (e: Exception) {
+                                    snackString("Failed to clear cache: ${e.message}")
+                                }
+                            }
+                        },
+                    ),
+                ),
+            ),
+
+            SubscreenBuilder.Section(
+                "Smart Trim",
+                R.drawable.ic_baseline_tune_24,
+                entries = listOf(
+                    SubscreenBuilder.Entry(
+                        title = "Enable Smart Trim",
+                        desc = "Automatically trim old cache files",
+                        iconRes = R.drawable.ic_baseline_tune_24,
+                        switch = PrefManager.getVal<Boolean>(PrefName.SmartTrim) to {
+                            PrefManager.setVal(PrefName.SmartTrim, it)
+                        },
+                    ),
+                ),
+            ),
+
+            SubscreenBuilder.Section(
+                "Trim Settings",
+                R.drawable.ic_baseline_tune_24,
+                entries = listOf(
+                    SubscreenBuilder.Entry(
+                        title = "Cache Cap",
+                        desc = "Maximum cache size in megabytes",
+                        iconRes = R.drawable.ic_baseline_storage_24,
+                        slider = SubscreenBuilder.Slider(
+                            value = PrefManager.getVal<Int>(PrefName.CacheCapMb).toFloat(),
+                            valueFrom = 70f,
+                            valueTo = 200f,
+                            step = 10f,
+                            suffix = " MB",
+                        ) { PrefManager.setVal(PrefName.CacheCapMb, it.toInt()) },
+                    ),
+                    SubscreenBuilder.Entry(
+                        title = "Trim Interval",
+                        desc = "Minutes between automatic trims",
+                        iconRes = R.drawable.ic_round_history_24,
+                        slider = SubscreenBuilder.Slider(
+                            value = PrefManager.getVal<Int>(PrefName.TrimIntervalMin).toFloat(),
+                            valueFrom = 5f,
+                            valueTo = 30f,
+                            step = 5f,
+                            suffix = " min",
+                        ) { PrefManager.setVal(PrefName.TrimIntervalMin, it.toInt()) },
+                    ),
+                    SubscreenBuilder.Entry(
+                        title = "Trim Intensity",
+                        desc = "How aggressively to trim old files",
+                        iconRes = R.drawable.ic_round_brightness_high_24,
+                        slider = SubscreenBuilder.Slider(
+                            value = PrefManager.getVal<Int>(PrefName.TrimIntensity).toFloat(),
+                            valueFrom = 40f,
+                            valueTo = 100f,
+                            step = 10f,
+                            suffix = "%",
+                        ) { PrefManager.setVal(PrefName.TrimIntensity, it.toInt()) },
+                    ),
+                ),
+            ),
+        ))
     }
 }

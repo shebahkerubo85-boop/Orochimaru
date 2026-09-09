@@ -11,11 +11,13 @@
     <LinearLayout
         android:id="@+id/sectionHeader"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="wrap_content"
+        android:minHeight="64dp"
         android:background="@drawable/bg_settings_card"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
         android:focusable="true">
 
         <ImageView
@@ -26,16 +28,33 @@
             app:tint="?attr/colorPrimary"
             tools:src="@drawable/ic_settings_account" />
 
-        <TextView
-            android:id="@+id/sectionTitle"
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="14dp"
             android:layout_weight="1"
-            android:fontFamily="@font/poppins_bold"
-            android:textColor="?attr/colorOnSurface"
-            android:textSize="16sp"
-            tools:text="Account" />
+            android:layout_marginStart="14dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/sectionTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_bold"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="16sp"
+                tools:text="Account" />
+
+            <TextView
+                android:id="@+id/sectionDesc"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:fontFamily="@font/poppins"
+                android:textColor="?attr/colorPrimary"
+                android:textSize="12sp"
+                android:visibility="gone"
+                tools:text="Manage your accounts" />
+        </LinearLayout>
 
         <ImageView
             android:id="@+id/sectionChevron"

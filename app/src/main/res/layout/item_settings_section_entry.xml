@@ -5,16 +5,17 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="center_vertical"
-    android:minHeight="68dp"
+    android:minHeight="76dp"
     android:orientation="horizontal"
     android:paddingHorizontal="16dp"
-    android:paddingVertical="12dp"
-    android:focusable="true">
+    android:paddingVertical="14dp"
+    android:focusable="true"
+    android:background="?attr/selectableItemBackground">
 
     <ImageView
         android:id="@+id/entryIcon"
-        android:layout_width="26dp"
-        android:layout_height="26dp"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
         android:layout_marginEnd="16dp"
         android:importantForAccessibility="no"
         app:tint="?attr/colorPrimary"
@@ -40,7 +41,7 @@
             android:id="@+id/entryDesc"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
+            android:layout_marginTop="3dp"
             android:fontFamily="@font/poppins"
             android:textColor="?attr/colorPrimary"
             android:textSize="12sp"
