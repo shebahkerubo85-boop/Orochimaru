@@ -101,8 +101,7 @@ class SettingsThemeActivity : AppCompatActivity() {
                                     "Pure AMOLED\nPure black background",
                                     "Glow Spots\nBlack + radial glow orbs",
                                     "Gradient\nBlack + primary color gradient",
-                                    "Vignette\nColored vignette from edges",
-                                    "Charcoal\nDark soft-UI neumorphic surfaces"
+                                    "Vignette\nColored vignette from edges"
                                 )
                                 singleChoiceItems(labels, PrefManager.getVal<Int>(PrefName.OledMode)) { index ->
                                     PrefManager.setVal(PrefName.OledMode, index)
