@@ -47,6 +47,7 @@ class SimklListDialogFragment : DialogFragment() {
         private const val ARG_COVER_URL = "coverUrl"
         private const val ARG_BACKDROP_URL = "backdropUrl"
         private const val ARG_CURRENT_STATUS = "currentStatus"
+        private const val ARG_CURRENT_RATING = "currentRating"
 
         fun newInstance(
             mediaType: String,
@@ -56,7 +57,8 @@ class SimklListDialogFragment : DialogFragment() {
             imdbId: String?,
             coverUrl: String?,
             backdropUrl: String? = null,
-            currentStatus: String?
+            currentStatus: String?,
+            currentRating: Int = 0
         ): SimklListDialogFragment {
             return SimklListDialogFragment().apply {
                 arguments = Bundle().apply {
@@ -68,6 +70,7 @@ class SimklListDialogFragment : DialogFragment() {
                     putString(ARG_COVER_URL, coverUrl)
                     putString(ARG_BACKDROP_URL, backdropUrl)
                     putString(ARG_CURRENT_STATUS, currentStatus)
+                    putInt(ARG_CURRENT_RATING, currentRating)
                 }
             }
         }
@@ -157,9 +160,21 @@ class SimklListDialogFragment : DialogFragment() {
             binding.mediaListStatusGroup.addView(chip)
         }
 
+        // Score — Simkl uses 0-10 scale
+        val currentRating = arguments?.getInt(ARG_CURRENT_RATING, 0) ?: 0
+        if (currentRating > 0) {
+            binding.mediaListScore.setText((currentRating / 10.0).toString())
+        }
+        binding.mediaListScore.filters = arrayOf(
+            ani.sanin.InputFilterMinMax(0.0, 10.0),
+            android.text.InputFilter.LengthFilter(4)
+        )
+        binding.mediaListScoreLayout.suffixTextView.updateLayoutParams<ViewGroup.LayoutParams> {
+            height = ViewGroup.LayoutParams.MATCH_PARENT
+        }
+        binding.mediaListScoreLayout.suffixTextView.gravity = Gravity.CENTER
+
         // Hide sections not relevant for Simkl
-        binding.mediaListScoreLayout.visibility = View.GONE
-        binding.mediaListScoreLayout.visibility = View.GONE
         binding.mediaListProgressLayout.visibility = View.GONE
         binding.mediaListVolumeProgressLayout.visibility = View.GONE
         binding.mediaListStartLayout.visibility = View.GONE
@@ -193,13 +208,17 @@ class SimklListDialogFragment : DialogFragment() {
             lifecycleScope.launch {
                 withContext(Dispatchers.IO) {
                     Logger.log("SimklListDialog: saving status=$selectedStatus for '$title' (tmdb=$mediaId)")
+                    val score = _binding?.mediaListScore?.text.toString().toDoubleOrNull()?.let {
+                        (it * 10).toInt().coerceIn(0, 100)
+                    } ?: 0
                     Simkl.setListStatus(
                         type = mediaType,
                         title = title,
                         year = year,
                         tmdbId = mediaId,
                         imdbId = imdbId,
-                        status = selectedStatus
+                        status = selectedStatus,
+                        rating = score
                     )
                 }
                 withContext(Dispatchers.Main) {

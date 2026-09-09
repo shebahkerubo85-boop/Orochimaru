@@ -366,7 +366,8 @@ object Simkl {
         imdbId: String? = null,
         status: String,
         anilistId: Int? = null,
-        skipHistory: Boolean = false
+        skipHistory: Boolean = false,
+        rating: Int = 0
     ) {
         tryWithSuspend {
             val t = token ?: return@tryWithSuspend

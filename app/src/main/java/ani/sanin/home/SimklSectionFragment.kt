@@ -26,6 +26,7 @@ import ani.sanin.util.FocusEffectUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.withContext
 
 class SimklSectionFragment : Fragment() {
@@ -95,7 +96,7 @@ class SimklSectionFragment : Fragment() {
 
     private fun updateAdapter(list: List<Simkl.SimklWatchedItem>) {
         if (!isAdded) return
-        recyclerView?.adapter = if (list.isEmpty()) null else SimklGridAdapter(list) { item ->
+        recyclerView?.adapter = if (list.isEmpty()) null else SimklGridAdapter(list, viewLifecycleOwner.lifecycleScope) { item ->
             val tmdbId = item.ids?.tmdb ?: return@SimklGridAdapter
             val mediaType = item.mediaType ?: "tv"
             startActivity(
@@ -113,12 +114,13 @@ class SimklSectionFragment : Fragment() {
 
     class SimklGridAdapter(
         private val items: List<Simkl.SimklWatchedItem>,
+        private val scope: CoroutineScope,
         private val onClick: (Simkl.SimklWatchedItem) -> Unit
     ) : RecyclerView.Adapter<SimklGridAdapter.VH>() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
             val b = ItemTmdbCardBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-            return VH(b)
+            return VH(b, scope)
         }
 
         override fun onBindViewHolder(holder: VH, position: Int) {
@@ -143,7 +145,7 @@ class SimklSectionFragment : Fragment() {
             b.tmdbCardYear.text = item.year?.toString() ?: ""
             b.tmdbCardYear.isVisible = item.year != null
 
-            // Rating pill
+            // Rating pill: user rating first, TMDB fallback
             val rating = b.tmdbCardRating
             val userRating = item.userRating
             if (userRating != null && userRating > 0) {
@@ -151,6 +153,24 @@ class SimklSectionFragment : Fragment() {
                 rating.text = String.format("%.1f", userRating / 10.0)
             } else {
                 rating.isVisible = false
+                // Async TMDB vote average fallback
+                val tmdbId = item.ids?.tmdb
+                val mt = item.mediaType ?: "tv"
+                if (tmdbId != null && tmdbId > 0) {
+                    holder.scope?.launch(Dispatchers.IO) {
+                        val vote = runCatching {
+                            ani.sanin.connections.tmdb.Tmdb.detail(mt, tmdbId)?.voteAverage
+                        }.getOrNull()
+                        if (vote != null && vote > 0) {
+                            withContext(Dispatchers.Main) {
+                                if (holder.adapterPosition == position) {
+                                    rating.isVisible = true
+                                    rating.text = String.format("%.1f", vote)
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             if (landscape) {
@@ -237,7 +257,7 @@ class SimklSectionFragment : Fragment() {
             return binding.tmdbCardTitle.text == item.title
         }
 
-        class VH(val binding: ItemTmdbCardBinding) : RecyclerView.ViewHolder(binding.root)
+        class VH(val binding: ItemTmdbCardBinding, val scope: CoroutineScope) : RecyclerView.ViewHolder(binding.root)
     }
 
     companion object {
