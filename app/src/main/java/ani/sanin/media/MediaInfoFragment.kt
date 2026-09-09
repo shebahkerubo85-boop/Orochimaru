@@ -185,11 +185,22 @@ class MediaInfoFragment : Fragment() {
                     }
                 }
 
-                // Logo art / Title fallback
+                // Logo art: AniZip → TMDB fallback → plain title
                 binding.mediaInfoLogo.visibility = View.GONE
                 binding.mediaInfoTitle.visibility = View.GONE
                 lifecycleScope.launch(Dispatchers.Main) {
-                    val logoUrl = LogoApi.getLogoUrl(media.id)
+                    var logoUrl = LogoApi.getLogoUrl(media.id)
+                    if (logoUrl.isNullOrBlank()) {
+                        // TMDB fallback: search by title, grab clear logo
+                        val title = media.userPreferredName ?: media.name
+                        if (!title.isNullOrBlank()) {
+                            logoUrl = runCatching {
+                                val results = ani.sanin.connections.tmdb.Tmdb.search(title)
+                                val match = results.firstOrNull()
+                                if (match != null) ani.sanin.connections.tmdb.Tmdb.logoUrl(match.type, match.id) else null
+                            }.getOrNull()
+                        }
+                    }
                     if (!logoUrl.isNullOrBlank()) {
                         binding.mediaInfoLogo.visibility = View.VISIBLE
                         binding.mediaInfoLogo.loadImage(logoUrl)
