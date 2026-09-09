@@ -31,7 +31,7 @@ object SubscreenBuilder {
         val desc: String? = null,
     )
 
-    data class Slider(
+    data class SliderOption(
         val value: Float,
         val valueFrom: Float,
         val valueTo: Float,
@@ -52,7 +52,7 @@ object SubscreenBuilder {
         /** For choice entries: title, options, currentIndex, onSelect */
         val choice: Choice? = null,
         /** For slider entries */
-        val slider: Slider? = null,
+        val slider: SliderOption? = null,
     )
 
     data class Choice(

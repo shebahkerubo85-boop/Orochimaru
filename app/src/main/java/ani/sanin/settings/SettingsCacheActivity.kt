@@ -92,7 +92,7 @@ class SettingsCacheActivity : AppCompatActivity() {
                         title = "Cache Cap",
                         desc = "Maximum cache size in megabytes",
                         iconRes = R.drawable.ic_baseline_storage_24,
-                        slider = SubscreenBuilder.Slider(
+                        slider = SubscreenBuilder.SliderOption(
                             value = PrefManager.getVal<Int>(PrefName.CacheCapMb).toFloat(),
                             valueFrom = 70f,
                             valueTo = 200f,
@@ -104,7 +104,7 @@ class SettingsCacheActivity : AppCompatActivity() {
                         title = "Trim Interval",
                         desc = "Minutes between automatic trims",
                         iconRes = R.drawable.ic_round_history_24,
-                        slider = SubscreenBuilder.Slider(
+                        slider = SubscreenBuilder.SliderOption(
                             value = PrefManager.getVal<Int>(PrefName.TrimIntervalMin).toFloat(),
                             valueFrom = 5f,
                             valueTo = 30f,
@@ -116,7 +116,7 @@ class SettingsCacheActivity : AppCompatActivity() {
                         title = "Trim Intensity",
                         desc = "How aggressively to trim old files",
                         iconRes = R.drawable.ic_round_brightness_high_24,
-                        slider = SubscreenBuilder.Slider(
+                        slider = SubscreenBuilder.SliderOption(
                             value = PrefManager.getVal<Int>(PrefName.TrimIntensity).toFloat(),
                             valueFrom = 40f,
                             valueTo = 100f,
