@@ -14,6 +14,24 @@
         <item name="colorSurface">@color/darkest_Black</item>
         <item name="colorSurfaceVariant">@color/nav_bg</item>
     </style>
+    <style name="AppTheme.Charcoal" parent="">
+        <!-- Core charcoal surface palette -->
+        <item name="android:colorBackground">@color/charcoal_bg</item>
+        <item name="colorSurface">@color/charcoal_surface</item>
+        <item name="colorSurfaceVariant">@color/charcoal_card</item>
+        <item name="colorPrimaryContainer">@color/charcoal_card</item>
+        <item name="colorSecondaryContainer">@color/charcoal_surface</item>
+        <item name="colorOnSurface">@color/charcoal_text</item>
+        <item name="colorOnSurfaceVariant">@color/charcoal_text_secondary</item>
+        <item name="colorOnPrimaryContainer">@color/charcoal_text</item>
+        <item name="colorOnSecondaryContainer">@color/charcoal_text_secondary</item>
+        <item name="colorOutline">@color/charcoal_highlight</item>
+
+        <!-- Neumorphic shadow system: soft diffuse shadows -->
+        <item name="android:ambientShadowAlpha">0.35</item>
+        <item name="android:spotShadowAlpha">0.25</item>
+    </style>
+
 
 
     <style name="Suffix">

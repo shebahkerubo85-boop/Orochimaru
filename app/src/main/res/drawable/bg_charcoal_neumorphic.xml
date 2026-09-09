@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Neumorphic card: dark charcoal surface with soft diffuse shadow below
+  and a subtle highlight on top-left to simulate a raised molded surface.
+  Shadow side: #151515 at low opacity via gradient.
+  Highlight side: #343434 via gradient.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Shadow layer: soft dark diffuse shadow offset bottom-right -->
+    <item
+        android:bottom="2dp"
+        android:right="1dp"
+        android:left="1dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#181818" />
+            <corners android:radius="18dp" />
+        </shape>
+    </item>
+
+    <!-- Highlight layer: subtle lighter edge on top-left -->
+    <item
+        android:top="1dp"
+        android:bottom="0dp"
+        android:left="0dp"
+        android:right="0dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#2D2D2D" />
+            <corners android:radius="18dp" />
+            <stroke
+                android:width="1dp"
+                android:color="#0D343434" />
+        </shape>
+    </item>
+
+    <!-- Main card surface -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/charcoal_card" />
+            <corners android:radius="18dp" />
+        </shape>
+    </item>
+
+</layer-list>

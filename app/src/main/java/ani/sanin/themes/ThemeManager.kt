@@ -44,19 +44,26 @@ class ThemeManager(private val context: Activity) {
                 useMaterial,
                 context,
                 useOLED,
+                oledMode,
                 fromImage,
                 useCustom = effectiveCustom
             )
             if (!returnedEarly && effectiveCustom == null) return
         } else if (accentColorIndex > 0 && !useCustomTheme) {
             // Accent color only — skip DynamicColors (no-op or interfering on TV),
-            // the mapped hardcoded theme is applied below via setTheme()
+            // the mapped hardcoded theme is applied below via setTheme().
+            // Exception: charcoal mode still needs its overlay applied.
+            if (oledMode == 5) {
+                val returnedEarly =
+                    applyDynamicColors(useMaterial, context, useOLED, oledMode, useCustom = null)
+                if (!returnedEarly) return
+            }
         } else if (useCustomTheme) {
             val returnedEarly =
-                applyDynamicColors(useMaterial, context, useOLED, useCustom = effectiveCustom)
+                applyDynamicColors(useMaterial, context, useOLED, oledMode, useCustom = effectiveCustom)
             if (!returnedEarly && effectiveCustom == null) return
         } else {
-            val returnedEarly = applyDynamicColors(useMaterial, context, useOLED, useCustom = null)
+            val returnedEarly = applyDynamicColors(useMaterial, context, useOLED, oledMode, useCustom = null)
             if (!returnedEarly) return
         }
         val theme: String = if (accentColorIndex > 0 && !useSource && !useCustomTheme) {
@@ -65,17 +72,20 @@ class ThemeManager(private val context: Activity) {
             PrefManager.getVal(PrefName.Theme)
         }
 
+        // Charcoal mode uses the normal theme (not OLED variants) — the Charcoal
+        // overlay applied via DynamicColors provides the dark-soft-UI surface colors.
+        val isCharcoal = oledMode == 5
         val themeToApply = when (theme) {
-            "SANIN" -> if (useOLED) R.style.Theme_Sanin_SaninOLED else R.style.Theme_Sanin_Sanin
-            "OCEAN" -> if (useOLED) R.style.Theme_Sanin_OceanOLED else R.style.Theme_Sanin_Ocean
-            "BLOOD" -> if (useOLED) R.style.Theme_Sanin_BloodOLED else R.style.Theme_Sanin_Blood
-            "LIME" -> if (useOLED) R.style.Theme_Sanin_LimeOLED else R.style.Theme_Sanin_Lime
-            "SUN" -> if (useOLED) R.style.Theme_Sanin_SunOLED else R.style.Theme_Sanin_Sun
-            "KURAMA" -> if (useOLED) R.style.Theme_Sanin_KuramaOLED else R.style.Theme_Sanin_Kurama
-            "SAIKOU" -> if (useOLED) R.style.Theme_Sanin_SaikouOLED else R.style.Theme_Sanin_Saikou
-            "INDIGO" -> if (useOLED) R.style.Theme_Sanin_IndigoOLED else R.style.Theme_Sanin_Indigo
-            "MONOCHROME" -> if (useOLED) R.style.Theme_Sanin_MonochromeOLED else R.style.Theme_Sanin_Monochrome
-            else -> if (useOLED) R.style.Theme_Sanin_SaninOLED else R.style.Theme_Sanin_Sanin
+            "SANIN" -> if (isCharcoal) R.style.Theme_Sanin_Sanin else if (useOLED) R.style.Theme_Sanin_SaninOLED else R.style.Theme_Sanin_Sanin
+            "OCEAN" -> if (isCharcoal) R.style.Theme_Sanin_Ocean else if (useOLED) R.style.Theme_Sanin_OceanOLED else R.style.Theme_Sanin_Ocean
+            "BLOOD" -> if (isCharcoal) R.style.Theme_Sanin_Blood else if (useOLED) R.style.Theme_Sanin_BloodOLED else R.style.Theme_Sanin_Blood
+            "LIME" -> if (isCharcoal) R.style.Theme_Sanin_Lime else if (useOLED) R.style.Theme_Sanin_LimeOLED else R.style.Theme_Sanin_Lime
+            "SUN" -> if (isCharcoal) R.style.Theme_Sanin_Sun else if (useOLED) R.style.Theme_Sanin_SunOLED else R.style.Theme_Sanin_Sun
+            "KURAMA" -> if (isCharcoal) R.style.Theme_Sanin_Kurama else if (useOLED) R.style.Theme_Sanin_KuramaOLED else R.style.Theme_Sanin_Kurama
+            "SAIKOU" -> if (isCharcoal) R.style.Theme_Sanin_Saikou else if (useOLED) R.style.Theme_Sanin_SaikouOLED else R.style.Theme_Sanin_Saikou
+            "INDIGO" -> if (isCharcoal) R.style.Theme_Sanin_Indigo else if (useOLED) R.style.Theme_Sanin_IndigoOLED else R.style.Theme_Sanin_Indigo
+            "MONOCHROME" -> if (isCharcoal) R.style.Theme_Sanin_Monochrome else if (useOLED) R.style.Theme_Sanin_MonochromeOLED else R.style.Theme_Sanin_Monochrome
+            else -> if (isCharcoal) R.style.Theme_Sanin_Sanin else if (useOLED) R.style.Theme_Sanin_SaninOLED else R.style.Theme_Sanin_Sanin
         }
 
         val window = context.window
@@ -88,13 +98,18 @@ class ThemeManager(private val context: Activity) {
         context.setTheme(themeToApply)
         window.decorView.layoutDirection = View.LAYOUT_DIRECTION_LTR
 
-        if (oledMode == 2 || oledMode == 3 || oledMode == 4) {
+        if (oledMode == 5) {
+            OledBackgroundManager.remove(context)
+            CharcoalBackgroundManager.apply(context)
+        } else if (oledMode == 2 || oledMode == 3 || oledMode == 4) {
+            CharcoalBackgroundManager.remove(context)
             val tv = TypedValue()
             context.theme.resolveAttribute(com.google.android.material.R.attr.colorPrimary, tv, true)
             val gradientDir: Int = PrefManager.getVal(PrefName.GradientDirection)
             OledBackgroundManager.apply(context, oledMode, tv.data, gradientDir)
         } else {
             OledBackgroundManager.remove(context)
+            CharcoalBackgroundManager.remove(context)
         }
     }
 
@@ -120,6 +135,7 @@ class ThemeManager(private val context: Activity) {
         useMaterialYou: Boolean,
         context: Context,
         useOLED: Boolean,
+        oledMode: Int = 0,
         bitmap: Bitmap? = null,
         useCustom: Int? = null
     ): Boolean {
@@ -135,7 +151,7 @@ class ThemeManager(private val context: Activity) {
         }
 
         if (useOLED) {
-            builder.setThemeOverlay(R.style.AppTheme_Amoled)
+            builder.setThemeOverlay(if (oledMode == 5) R.style.AppTheme_Charcoal else R.style.AppTheme_Amoled)
         }
         if (needMaterial && !useMaterialYou) return true
 

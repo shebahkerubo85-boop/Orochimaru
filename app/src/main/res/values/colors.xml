@@ -581,4 +581,14 @@
     <color name="colorTestFail">#ea596e</color>
     <color name="colorTestWarning">#FF9800</color>
     <color name="playIconBackground">#B3000000</color>
+    <!-- Charcoal neumorphic palette -->
+    <color name="charcoal_bg">#212121</color>
+    <color name="charcoal_surface">#272727</color>
+    <color name="charcoal_elevated">#2D2D2D</color>
+    <color name="charcoal_shadow">#151515</color>
+    <color name="charcoal_highlight">#303030</color>
+    <color name="charcoal_text">#E0E0E0</color>
+    <color name="charcoal_text_secondary">#9E9E9E</color>
+    <color name="charcoal_card">#2A2A2A</color>
+    <color name="charcoal_card_focused">#343434</color>
 </resources>
