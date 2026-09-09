@@ -35,7 +35,7 @@ class SettingsAnimeActivity : AppCompatActivity() {
         binding.subscreenIcon.setImageResource(R.drawable.ic_set_video)
 
         SubscreenBuilder.build(this, binding.subscreenContent, listOf(
-            SubscreenBuilder.Section("Player", R.drawable.ic_set_video, defaultExpanded = true, listOf(
+            SubscreenBuilder.Section("Player", R.drawable.ic_set_video, entries = listOf(
                 SubscreenBuilder.Entry(
                     title = "Player Settings",
                     desc = "Advanced player configuration",

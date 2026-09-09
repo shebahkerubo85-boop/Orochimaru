@@ -398,8 +398,8 @@ class SettingsAppearanceActivity : AppCompatActivity() {
 
     // ─── Helpers ─────────────────────────────────────────────────
 
-    private fun restartSwitch(pref: PrefName) =
-        PrefManager.getVal<Boolean>(pref) to { PrefManager.setVal(pref, it); restartApp() }
+    private fun restartSwitch(pref: PrefName): Pair<Boolean, (Boolean) -> Unit> =
+        PrefManager.getVal<Boolean>(pref) to { v: Boolean -> PrefManager.setVal(pref, v); restartApp() }
 
     private fun glassSwitch(pref: PrefName) =
         PrefManager.getVal<Boolean>(pref) to { PrefManager.setVal(pref, it) }
