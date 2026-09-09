@@ -30,106 +30,99 @@ class SettingsAnimationActivity : AppCompatActivity() {
             bottomMargin = navBarHeight
         }
         binding.subscreenBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
-        binding.subscreenTitle.text = getString(R.string.animation)
-        binding.subscreenSubtitle.text = getString(R.string.animation_desc)
+        binding.subscreenTitle.text = "Motion"
+        binding.subscreenSubtitle.text = "Tweak how things move"
         binding.subscreenIcon.setImageResource(R.drawable.ic_set_motion)
 
         SubscreenBuilder.build(this, binding.subscreenContent, listOf(
-            // ─── Master Control ─────────────────────────────────
             SubscreenBuilder.Section(
-                "Master Control", R.drawable.ic_set_motion,
+                "Animation Engine", R.drawable.ic_set_motion,
                 defaultExpanded = true,
                 entries = listOf(
                     SubscreenBuilder.Entry(
-                        title = "Enable Animations",
-                        desc = "Master toggle for all animations",
+                        title = "Master Toggle",
+                        desc = "Enable or disable all motion globally",
                         switch = PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) to {
                             PrefManager.setVal(PrefName.AnimationsEnabled, it); restartApp()
                         },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Animation Speed",
-                        desc = "Overall animation playback speed",
+                        title = "Playback Speed",
+                        desc = "How fast animations play",
                         choice = SubscreenBuilder.Choice(
-                            title = "Animation Speed",
-                            options = arrayOf("0.5×", "0.75×", "1× (Normal)", "1.25×", "1.5×", "1.75×", "2×"),
+                            title = "Playback Speed",
+                            options = arrayOf("Frozen (0×)", "Crawl (0.5×)", "Smooth (0.75×)", "Normal (1×)", "Snappy (1.25×)", "Swift (1.5×)", "Instant (1.75×)", "Blink (2×)"),
                             currentIndex = speedToIndex(PrefManager.getVal(PrefName.AnimationSpeed)),
                         ) { idx -> PrefManager.setVal(PrefName.AnimationSpeed, indexToSpeed(idx)) },
                     ),
                 ),
             ),
 
-            // ─── Home & Feed ───────────────────────────────────
             SubscreenBuilder.Section(
-                "Home & Feed", R.drawable.ic_set_home,
+                "Feed & Scrolling", R.drawable.ic_set_home,
                 entries = listOf(
-                    switchEntry(PrefName.BannerAnimations, "Banner Animations"),
-                    switchEntry(PrefName.LayoutAnimations, "Layout Animations"),
-                    switchEntry(PrefName.TrendingScroller, "Trending Scroller"),
-                    switchEntry(PrefName.HomeAnimations, "Home Section Animations"),
-                    switchEntry(PrefName.ProfileAnimations, "Profile Animations"),
-                    switchEntry(PrefName.LiveSideRail, "Live Side Rail"),
+                    entry(PrefName.BannerAnimations, "Banner Transitions"),
+                    entry(PrefName.LayoutAnimations, "Layout Shuffles"),
+                    entry(PrefName.TrendingScroller, "Trending Carousel"),
+                    entry(PrefName.HomeAnimations, "Home Section Flows"),
+                    entry(PrefName.ProfileAnimations, "Profile Entrance"),
+                    entry(PrefName.LiveSideRail, "Live Side Rail"),
                 ),
             ),
 
-            // ─── Player & Playback ─────────────────────────────
             SubscreenBuilder.Section(
-                "Player & Playback", R.drawable.ic_set_video,
+                "Player Motion", R.drawable.ic_set_video,
                 entries = listOf(
-                    switchEntry(PrefName.PlayerGestureAnimations, "Gesture Animations"),
-                    switchEntry(PrefName.PlayerControllerAnimations, "Controller Animations"),
-                    switchEntry(PrefName.PlayerOverlayAnimations, "Overlay Animations"),
-                    switchEntry(PrefName.DoubleTapAnimations, "Double-Tap Feedback"),
-                    switchEntry(PrefName.SeekBarAnimations, "Seek Bar Animations"),
-                    switchEntry(PrefName.ProgressShakeAnimations, "Progress Shake"),
+                    entry(PrefName.PlayerGestureAnimations, "Gesture Feedback"),
+                    entry(PrefName.PlayerControllerAnimations, "Controller Fade"),
+                    entry(PrefName.PlayerOverlayAnimations, "Overlay Slide"),
+                    entry(PrefName.DoubleTapAnimations, "Double-Tap Ripple"),
+                    entry(PrefName.SeekBarAnimations, "Seek Bar Glide"),
+                    entry(PrefName.ProgressShakeAnimations, "Progress Wiggle"),
                 ),
             ),
 
-            // ─── Navigation & Focus ────────────────────────────
             SubscreenBuilder.Section(
-                "Navigation & Focus", R.drawable.ic_set_focus,
+                "Focus & Transit", R.drawable.ic_set_focus,
                 entries = listOf(
-                    switchEntry(PrefName.NavRailAnimations, "Nav Rail Animations"),
-                    switchEntry(PrefName.FocusAnimations, "Focus Effects"),
-                    switchEntry(PrefName.KeyboardKeyAnimations, "Keyboard Key Press"),
+                    entry(PrefName.NavRailAnimations, "Nav Rail Slide"),
+                    entry(PrefName.FocusAnimations, "Focus Glow"),
+                    entry(PrefName.KeyboardKeyAnimations, "Key Press Pop"),
                 ),
             ),
 
-            // ─── Overlays & Dialogs ────────────────────────────
             SubscreenBuilder.Section(
-                "Overlays & Dialogs", R.drawable.ic_set_overlay,
+                "Popups & Chrome", R.drawable.ic_set_overlay,
                 entries = listOf(
-                    switchEntry(PrefName.TransitionAnimations, "Screen Transitions"),
-                    switchEntry(PrefName.NotificationPopupAnimations, "Notification Popups"),
-                    switchEntry(PrefName.CommentInputAnimations, "Comment Input"),
-                    switchEntry(PrefName.ImageDialogAnimations, "Image Dialogs"),
-                    switchEntry(PrefName.SplashAnimations, "Splash Screen"),
-                    switchEntry(PrefName.LikeButtonAnimations, "Like Button"),
+                    entry(PrefName.TransitionAnimations, "Screen Crossfade"),
+                    entry(PrefName.NotificationPopupAnimations, "Toast Float"),
+                    entry(PrefName.CommentInputAnimations, "Comment Expand"),
+                    entry(PrefName.ImageDialogAnimations, "Image Zoom"),
+                    entry(PrefName.SplashAnimations, "Splash Reveal"),
+                    entry(PrefName.LikeButtonAnimations, "Heart Burst"),
                 ),
             ),
 
-            // ─── Functional & Misc ─────────────────────────────
             SubscreenBuilder.Section(
-                "Functional & Misc", R.drawable.ic_set_misc,
+                "Micro-Interactions", R.drawable.ic_set_misc,
                 entries = listOf(
-                    switchEntry(PrefName.IncognitoBannerAnimations, "Incognito Banner"),
-                    switchEntry(PrefName.SearchHeaderAnimations, "Search Header"),
-                    switchEntry(PrefName.ScrollToTopAnimations, "Scroll-to-Top"),
-                    switchEntry(PrefName.InstallSpinnerAnimations, "Install Spinner"),
-                    switchEntry(PrefName.FilterResetAnimations, "Filter Reset"),
-                    switchEntry(PrefName.DescriptionExpandAnimations, "Description Expand"),
-                    switchEntry(PrefName.InfoPageAnimations, "Info Page"),
-                    switchEntry(PrefName.NoInternetAnimations, "No-Internet Splash"),
-                    switchEntry(PrefName.XpandableAnimations, "Expandable Lists"),
-                    switchEntry(PrefName.AnimatedVectorDrawables, "Animated Vector Drawables"),
-                    switchEntry(PrefName.MiscUiAnimations, "Miscellaneous UI"),
+                    entry(PrefName.IncognitoBannerAnimations, "Incognito Drop"),
+                    entry(PrefName.SearchHeaderAnimations, "Search Bounce"),
+                    entry(PrefName.ScrollToTopAnimations, "Scroll-to-Top Float"),
+                    entry(PrefName.InstallSpinnerAnimations, "Install Spinner"),
+                    entry(PrefName.FilterResetAnimations, "Filter Snap-back"),
+                    entry(PrefName.DescriptionExpandAnimations, "Description Unfold"),
+                    entry(PrefName.InfoPageAnimations, "Info Page Fade"),
+                    entry(PrefName.NoInternetAnimations, "Offline Splash"),
+                    entry(PrefName.XpandableAnimations, "Expandable Lists"),
+                    entry(PrefName.AnimatedVectorDrawables, "Vector Animations"),
+                    entry(PrefName.MiscUiAnimations, "Everything Else"),
                 ),
             ),
         ))
     }
 
-    /** Wrap a PrefName boolean into a SubscreenBuilder switch entry. */
-    private fun switchEntry(pref: PrefName, title: String) = SubscreenBuilder.Entry(
+    private fun entry(pref: PrefName, title: String) = SubscreenBuilder.Entry(
         title = title,
         switch = PrefManager.getVal<Boolean>(pref) to { PrefManager.setVal(pref, it) },
     )

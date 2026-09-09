@@ -30,51 +30,51 @@ class SettingsAnimeActivity : AppCompatActivity() {
             bottomMargin = navBarHeight
         }
         binding.subscreenBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
-        binding.subscreenTitle.text = getString(R.string.anime)
-        binding.subscreenSubtitle.text = getString(R.string.anime_desc)
-        binding.subscreenIcon.setImageResource(R.drawable.ic_set_anime)
+        binding.subscreenTitle.text = "Playback"
+        binding.subscreenSubtitle.text = "Player, decoding & sync"
+        binding.subscreenIcon.setImageResource(R.drawable.ic_set_video)
 
         SubscreenBuilder.build(this, binding.subscreenContent, listOf(
-            SubscreenBuilder.Section("Playback", R.drawable.ic_set_video, listOf(
+            SubscreenBuilder.Section("Player", R.drawable.ic_set_video, defaultExpanded = true, listOf(
                 SubscreenBuilder.Entry(
-                    title = getString(R.string.player_settings),
-                    desc = getString(R.string.player_settings_desc),
+                    title = "Player Settings",
+                    desc = "Advanced player configuration",
                     iconRes = R.drawable.ic_set_video,
                     onClick = { startActivity(Intent(this, PlayerSettingsActivity::class.java)) },
                 ),
                 SubscreenBuilder.Entry(
-                    title = getString(R.string.prefer_dub),
-                    desc = getString(R.string.prefer_dub_desc),
+                    title = "Prefer Dubbed Audio",
+                    desc = "Use dub track when available",
                     switch = PrefManager.getVal<Boolean>(PrefName.PreferDub) to {
                         PrefManager.setVal(PrefName.PreferDub, it)
                     },
                 ),
                 SubscreenBuilder.Entry(
                     title = "Pause Overlay",
-                    desc = "Show pause overlay when video is paused",
+                    desc = "Show overlay when paused",
                     switch = PrefManager.getVal<Boolean>(PrefName.PauseOverlay) to {
                         PrefManager.setVal(PrefName.PauseOverlay, it)
                     },
                 ),
                 SubscreenBuilder.Entry(
                     title = "Gesture Sliders",
-                    desc = "Brightness/volume sliders via vertical gestures",
+                    desc = "Brightness & volume via swipe",
                     switch = PrefManager.getVal<Boolean>(PrefName.GestureSliders) to {
                         PrefManager.setVal(PrefName.GestureSliders, it)
                     },
                 ),
                 SubscreenBuilder.Entry(
-                    title = "Auto-Hide Timeout",
-                    desc = "Seconds before player controls auto-hide",
+                    title = "Auto-Hide Delay",
+                    desc = "Seconds before controls vanish",
                     choice = SubscreenBuilder.Choice(
-                        title = "Auto-Hide Timeout",
+                        title = "Auto-Hide Delay",
                         options = arrayOf("2s", "3s", "4s", "5s", "6s", "8s", "10s"),
                         currentIndex = PrefManager.getVal<Int>(PrefName.AutoHideTimeout) - 2,
                     ) { idx -> PrefManager.setVal(PrefName.AutoHideTimeout, idx + 2) },
                 ),
                 SubscreenBuilder.Entry(
                     title = "Buffer Size",
-                    desc = "Video buffer size in MB",
+                    desc = "Video buffer in megabytes",
                     choice = SubscreenBuilder.Choice(
                         title = "Buffer Size",
                         options = arrayOf("16 MB", "32 MB", "64 MB", "128 MB"),
@@ -84,36 +84,36 @@ class SettingsAnimeActivity : AppCompatActivity() {
                     ) { idx -> PrefManager.setVal(PrefName.BufferSize, intArrayOf(16, 32, 64, 128)[idx]) },
                 ),
                 SubscreenBuilder.Entry(
-                    title = "Decoding Mode",
-                    desc = "Hardware or Software decoder",
+                    title = "Decoder",
+                    desc = "Hardware or software decoding",
                     choice = SubscreenBuilder.Choice(
-                        title = "Decoding Mode",
+                        title = "Decoder",
                         options = arrayOf("Hardware (MediaCodec)", "Software (FFmpeg)"),
                         currentIndex = PrefManager.getVal<Int>(PrefName.DecodingMode),
                     ) { idx -> PrefManager.setVal(PrefName.DecodingMode, idx) },
                 ),
                 SubscreenBuilder.Entry(
-                    title = "Subtitle Render Mode",
-                    desc = "Canvas=CPU (TV), OpenGL=GPU (Phone)",
+                    title = "Subtitle Renderer",
+                    desc = "CPU canvas or GPU OpenGL",
                     choice = SubscreenBuilder.Choice(
-                        title = "Subtitle Render Mode",
-                        options = arrayOf("Canvas (TV default)", "OpenGL (Phone default)"),
+                        title = "Subtitle Renderer",
+                        options = arrayOf("Canvas (TV)", "OpenGL (Phone)"),
                         currentIndex = PrefManager.getVal<Int>(PrefName.SubtitleRenderMode),
                     ) { idx -> PrefManager.setVal(PrefName.SubtitleRenderMode, idx) },
                 ),
-            ), defaultExpanded = true),
+            )),
 
-            SubscreenBuilder.Section("Library", R.drawable.ic_set_anime, listOf(
+            SubscreenBuilder.Section("Library Sync", R.drawable.ic_set_anime, listOf(
                 SubscreenBuilder.Entry(
-                    title = getString(R.string.include_list),
-                    desc = getString(R.string.include_list_anime_desc),
+                    title = "Include in Library",
+                    desc = "Show anime list in library tab",
                     switch = PrefManager.getVal<Boolean>(PrefName.IncludeAnimeList) to {
                         PrefManager.setVal(PrefName.IncludeAnimeList, it); restartApp()
                     },
                 ),
                 SubscreenBuilder.Entry(
-                    title = "Smart Source Persistence",
-                    desc = "Remember source selection across sessions",
+                    title = "Smart Source Memory",
+                    desc = "Remember last source across sessions",
                     switch = PrefManager.getVal<Boolean>(PrefName.SmartSourcePersistence) to {
                         PrefManager.setVal(PrefName.SmartSourcePersistence, it)
                     },

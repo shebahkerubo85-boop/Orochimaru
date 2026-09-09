@@ -1,2 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<include layout="@layout/activity_settings_subscreen" />
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
+    <include layout="@layout/activity_settings_subscreen" />
+</merge>

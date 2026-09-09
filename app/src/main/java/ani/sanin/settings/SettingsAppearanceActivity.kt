@@ -38,20 +38,19 @@ class SettingsAppearanceActivity : AppCompatActivity() {
         }
         binding.subscreenBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
         binding.subscreenTitle.text = "Appearance"
-        binding.subscreenSubtitle.text = "Theme, cards, blur & glass"
+        binding.subscreenSubtitle.text = "Colors, cards, blur & glass"
         binding.subscreenIcon.setImageResource(R.drawable.ic_set_theme)
 
         SubscreenBuilder.build(this, binding.subscreenContent, listOf(
-            // ─── Theme & Colors ────────────────────────────────
             SubscreenBuilder.Section(
-                "Theme & Colors", R.drawable.ic_set_theme,
+                "Theme & Palette", R.drawable.ic_set_theme,
                 defaultExpanded = true,
                 entries = listOf(
                     SubscreenBuilder.Entry(
-                        title = "Theme Mode",
-                        desc = "Light or dark background",
+                        title = "Light or Dark",
+                        desc = "Choose the base theme",
                         choice = SubscreenBuilder.Choice(
-                            title = "Theme Mode",
+                            title = "Light or Dark",
                             options = arrayOf("Light", "Dark"),
                             currentIndex = PrefManager.getVal<Int>(PrefName.DarkMode),
                         ) { idx ->
@@ -65,36 +64,30 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                     ),
                     SubscreenBuilder.Entry(
                         title = "OLED Background",
-                        desc = "Pure black or dark surface style",
+                        desc = "Deep black or dark surface style",
                         choice = SubscreenBuilder.Choice(
                             title = "OLED Background",
-                            options = arrayOf(
-                                "Off", "Pure AMOLED", "Glow Spots",
-                                "Gradient", "Vignette",
-                            ),
+                            options = arrayOf("Off", "Pure AMOLED", "Glow Spots", "Gradient", "Vignette"),
                             currentIndex = PrefManager.getVal<Int>(PrefName.OledMode),
-                        ) { idx ->
-                            PrefManager.setVal(PrefName.OledMode, idx); restartApp()
-                        },
+                        ) { idx -> PrefManager.setVal(PrefName.OledMode, idx); restartApp() },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Accent Color",
-                        desc = "App-wide accent tint",
+                        title = "Accent Tint",
+                        desc = "App-wide color accent",
                         iconRes = R.drawable.ic_set_theme,
                         onClick = { showAccentColorPicker() },
                     ),
                 ),
             ),
 
-            // ─── Home Feed ─────────────────────────────────────
             SubscreenBuilder.Section(
-                "Home Feed", R.drawable.ic_set_home,
+                "Home Screen", R.drawable.ic_set_home,
                 entries = listOf(
                     SubscreenBuilder.Entry(
-                        title = "Banner Mode",
-                        desc = "Home screen banner style",
+                        title = "Banner Style",
+                        desc = "How the home banner behaves",
                         choice = SubscreenBuilder.Choice(
-                            title = "Banner Mode",
+                            title = "Banner Style",
                             options = arrayOf(
                                 getString(R.string.home_banner_carousel),
                                 getString(R.string.home_banner_profile),
@@ -105,103 +98,80 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                         ) { idx -> PrefManager.setVal(PrefName.HomeBannerMode, idx) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Hero Card Image",
-                        desc = "Show artwork in hero card",
+                        title = "Hero Artwork",
+                        desc = "Show artwork in the hero card",
                         switch = PrefManager.getVal<Boolean>(PrefName.HeroCardImage) to {
                             PrefManager.setVal(PrefName.HeroCardImage, it)
                         },
                     ),
-                    SubscreenBuilder.Entry(
-                        title = "Continue Watching",
-                        switch = restartSwitch(PrefName.ShowContinueWatching),
-                    ),
-                    SubscreenBuilder.Entry(
-                        title = "Planned",
-                        switch = restartSwitch(PrefName.ShowPlanned),
-                    ),
-                    SubscreenBuilder.Entry(
-                        title = "Recommendations",
-                        switch = restartSwitch(PrefName.ShowRecommendations),
-                    ),
-                    SubscreenBuilder.Entry(
-                        title = "Trending",
-                        switch = restartSwitch(PrefName.ShowTrending),
-                    ),
-                    SubscreenBuilder.Entry(
-                        title = "Popular",
-                        switch = restartSwitch(PrefName.ShowPopular),
-                    ),
-                    SubscreenBuilder.Entry(
-                        title = "Recent",
-                        switch = restartSwitch(PrefName.ShowRecent),
-                    ),
+                    SubscreenBuilder.Entry(title = "Continue Watching", switch = restartSwitch(PrefName.ShowContinueWatching)),
+                    SubscreenBuilder.Entry(title = "Planned", switch = restartSwitch(PrefName.ShowPlanned)),
+                    SubscreenBuilder.Entry(title = "Recommendations", switch = restartSwitch(PrefName.ShowRecommendations)),
+                    SubscreenBuilder.Entry(title = "Trending", switch = restartSwitch(PrefName.ShowTrending)),
+                    SubscreenBuilder.Entry(title = "Popular", switch = restartSwitch(PrefName.ShowPopular)),
+                    SubscreenBuilder.Entry(title = "Recent", switch = restartSwitch(PrefName.ShowRecent)),
                 ),
             ),
 
-            // ─── Cards & Layout ────────────────────────────────
             SubscreenBuilder.Section(
-                "Cards & Layout", R.drawable.ic_set_cards,
+                "Card Design", R.drawable.ic_set_cards,
                 entries = listOf(
                     SubscreenBuilder.Entry(
-                        title = "Card Size",
-                        desc = "Scale of card elements",
+                        title = "Scale",
+                        desc = "How big cards appear",
                         choice = floatChoice(
-                            "Card Size",
-                            arrayOf("Small (0.5×)", "Medium (0.75×)", "Normal (1×)", "Large (1.25×)", "X-Large (1.5×)", "XX-Large (1.75×)", "XXX-Large (2.0×)"),
+                            "Scale", arrayOf("Tiny (0.5×)", "Small (0.75×)", "Default (1×)", "Big (1.25×)", "Large (1.5×)", "XL (1.75×)", "XXL (2.0×)"),
                             floatArrayOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f),
                             PrefManager.getVal<Float>(PrefName.CardSize),
                         ) { PrefManager.setVal(PrefName.CardSize, it); restartApp() },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Card Style",
-                        desc = "Corner rounding style",
+                        title = "Shape",
+                        desc = "Rounded or compact",
                         choice = SubscreenBuilder.Choice(
-                            title = "Card Style",
-                            options = arrayOf("Rounded", "Compact"),
+                            title = "Shape", options = arrayOf("Rounded", "Compact"),
                             currentIndex = PrefManager.getVal<Int>(PrefName.CardStyle).coerceAtMost(1),
                         ) { idx -> PrefManager.setVal(PrefName.CardStyle, idx); restartApp() },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Card Orientation",
+                        title = "Orientation",
                         desc = "Landscape or portrait cards",
                         choice = SubscreenBuilder.Choice(
-                            title = "Card Orientation",
-                            options = arrayOf("Landscape", "Portrait"),
+                            title = "Orientation", options = arrayOf("Landscape", "Portrait"),
                             currentIndex = PrefManager.getVal<Int>(PrefName.CardOrientation),
                         ) { idx -> PrefManager.setVal(PrefName.CardOrientation, idx); restartApp() },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Title Position",
-                        desc = "Where the card title appears",
+                        title = "Title Placement",
+                        desc = "Where the card title sits",
                         choice = SubscreenBuilder.Choice(
-                            title = "Title Position",
-                            options = arrayOf("Bottom Overlay", "Below Card", "Hidden"),
+                            title = "Title Placement", options = arrayOf("Overlay Bottom", "Below Card", "Hidden"),
                             currentIndex = PrefManager.getVal<Int>(PrefName.CardTitlePosition),
                         ) { idx -> PrefManager.setVal(PrefName.CardTitlePosition, idx); restartApp() },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Card Roundness",
-                        desc = "Corner radius of standard cards",
+                        title = "Corner Radius",
+                        desc = "Roundness of standard cards",
                         choice = intChoice(
-                            "Card Roundness",
-                            arrayOf("None (0)", "Slight (20)", "Moderate (40)", "Standard (50)", "Rounded (60)", "Very Rounded (80)", "Pill (100)"),
+                            "Corner Radius",
+                            arrayOf("Sharp (0)", "Slight (20)", "Soft (40)", "Standard (50)", "Round (60)", "Very Round (80)", "Pill (100)"),
                             intArrayOf(0, 20, 40, 50, 60, 80, 100),
                             PrefManager.getVal<Int>(PrefName.StandardCardRoundness),
                         ) { PrefManager.setVal(PrefName.StandardCardRoundness, it); restartApp() },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Continue-Watching Roundness",
-                        desc = "Corner radius of continue-watching card",
+                        title = "Continue-Watch Radius",
+                        desc = "Roundness of the continue card",
                         choice = intChoice(
-                            "Continue-Watching Roundness",
-                            arrayOf("None (0)", "Slight (20)", "Moderate (40)", "Standard (50)", "Rounded (60)", "Very Rounded (80)", "Pill (100)"),
+                            "Continue-Watch Radius",
+                            arrayOf("Sharp (0)", "Slight (20)", "Soft (40)", "Standard (50)", "Round (60)", "Very Round (80)", "Pill (100)"),
                             intArrayOf(0, 20, 40, 50, 60, 80, 100),
                             PrefManager.getVal<Int>(PrefName.ContinueWatchingCardRoundness),
                         ) { PrefManager.setVal(PrefName.ContinueWatchingCardRoundness, it); restartApp() },
                     ),
                     SubscreenBuilder.Entry(
                         title = "Hide Notification Dot",
-                        desc = "Remove the red dot on notification icon",
+                        desc = "Remove the red badge on bell icon",
                         switch = !PrefManager.getVal<Boolean>(PrefName.ShowNotificationRedDot) to {
                             PrefManager.setVal(PrefName.ShowNotificationRedDot, !it)
                         },
@@ -209,53 +179,48 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                 ),
             ),
 
-            // ─── Banners & Blur ────────────────────────────────
             SubscreenBuilder.Section(
-                "Banners & Blur", R.drawable.ic_set_blur,
+                "Banner & Blur", R.drawable.ic_set_blur,
                 entries = listOf(
                     SubscreenBuilder.Entry(
                         title = "Blur Banners",
-                        desc = "Apply blur effect to home banners",
+                        desc = "Apply blur to home banners",
                         switch = PrefManager.getVal<Boolean>(PrefName.BlurBanners) to {
                             PrefManager.setVal(PrefName.BlurBanners, it)
                         },
                     ),
                     SubscreenBuilder.Entry(
                         title = "Blur Radius",
-                        desc = "Intensity of the blur effect",
-                        choice = floatChoice(
-                            "Blur Radius",
+                        desc = "How strong the blur is",
+                        choice = floatChoice("Blur Radius",
                             arrayOf("1", "2", "4", "6", "8", "10", "15", "20", "25", "30"),
                             floatArrayOf(1f, 2f, 4f, 6f, 8f, 10f, 15f, 20f, 25f, 30f),
                             PrefManager.getVal<Float>(PrefName.BlurRadius),
                         ) { PrefManager.setVal(PrefName.BlurRadius, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Blur Sampling",
-                        desc = "Down-sample factor for blur performance",
-                        choice = floatChoice(
-                            "Blur Sampling",
-                            arrayOf("1", "2", "3", "4", "5", "6", "8"),
+                        title = "Down-sample",
+                        desc = "Performance vs quality trade-off",
+                        choice = floatChoice("Down-sample",
+                            arrayOf("1×", "2×", "3×", "4×", "5×", "6×", "8×"),
                             floatArrayOf(1f, 2f, 3f, 4f, 5f, 6f, 8f),
                             PrefManager.getVal<Float>(PrefName.BlurSampling),
                         ) { PrefManager.setVal(PrefName.BlurSampling, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Banner Brightness",
-                        desc = "Darkness overlay on banners",
-                        choice = floatChoice(
-                            "Banner Brightness",
-                            arrayOf("0%", "10%", "15%", "20%", "25%", "30%", "40%", "50%", "60%", "80%"),
+                        title = "Banner Darkness",
+                        desc = "Dark overlay on banners",
+                        choice = floatChoice("Banner Darkness",
+                            arrayOf("None", "10%", "15%", "20%", "25%", "30%", "40%", "50%", "60%", "80%"),
                             floatArrayOf(0f, 0.10f, 0.15f, 0.20f, 0.25f, 0.30f, 0.40f, 0.50f, 0.60f, 0.80f),
                             PrefManager.getVal<Float>(PrefName.BannerBrightness),
                         ) { PrefManager.setVal(PrefName.BannerBrightness, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Gradient Intensity",
-                        desc = "Strength of card gradient overlay",
-                        choice = floatChoice(
-                            "Gradient Intensity",
-                            arrayOf("0%", "10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "100%"),
+                        title = "Gradient Strength",
+                        desc = "How visible the card gradient is",
+                        choice = floatChoice("Gradient Strength",
+                            arrayOf("None", "10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "Full"),
                             floatArrayOf(0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f),
                             PrefManager.getVal<Float>(PrefName.CardGradientIntensity),
                         ) { PrefManager.setVal(PrefName.CardGradientIntensity, it) },
@@ -263,158 +228,114 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                 ),
             ),
 
-            // ─── Glass Effect ──────────────────────────────────
             SubscreenBuilder.Section(
-                "Glass Effect", R.drawable.ic_set_glass,
+                "Glass Layers", R.drawable.ic_set_glass,
                 entries = listOf(
                     SubscreenBuilder.Entry(
-                        title = "Enable Glass Effect",
+                        title = "Enable Glass",
                         desc = "Master toggle for glassmorphism",
                         switch = PrefManager.getVal<Boolean>(PrefName.GlassEffectEnabled) to {
                             PrefManager.setVal(PrefName.GlassEffectEnabled, it); restartApp()
                         },
                     ),
-                    SubscreenBuilder.Entry(
-                        title = "Nav Pills",
-                        switch = glassSwitch(PrefName.GlassEffectNavPills),
-                    ),
-                    SubscreenBuilder.Entry(
-                        title = "Side Rail",
-                        switch = glassSwitch(PrefName.GlassEffectSideRail),
-                    ),
-                    SubscreenBuilder.Entry(
-                        title = "Server Sheet",
-                        switch = glassSwitch(PrefName.GlassEffectServerSheet),
-                    ),
-                    SubscreenBuilder.Entry(
-                        title = "List Editor",
-                        switch = glassSwitch(PrefName.GlassEffectListEditor),
-                    ),
-                    SubscreenBuilder.Entry(
-                        title = "Source Selector",
-                        switch = glassSwitch(PrefName.GlassEffectSourceSelector),
-                    ),
-                    SubscreenBuilder.Entry(
-                        title = "Episode Drawer",
-                        switch = glassSwitch(PrefName.GlassEffectEpisodeDrawer),
-                    ),
-                    SubscreenBuilder.Entry(
-                        title = "Subtitle Sync",
-                        switch = glassSwitch(PrefName.GlassEffectSubtitleSync),
-                    ),
-                    SubscreenBuilder.Entry(
-                        title = "Keyboard",
-                        switch = glassSwitch(PrefName.GlassEffectKeyboard),
-                    ),
+                    SubscreenBuilder.Entry(title = "Nav Pills", switch = glassSwitch(PrefName.GlassEffectNavPills)),
+                    SubscreenBuilder.Entry(title = "Side Rail", switch = glassSwitch(PrefName.GlassEffectSideRail)),
+                    SubscreenBuilder.Entry(title = "Server Sheet", switch = glassSwitch(PrefName.GlassEffectServerSheet)),
+                    SubscreenBuilder.Entry(title = "List Editor", switch = glassSwitch(PrefName.GlassEffectListEditor)),
+                    SubscreenBuilder.Entry(title = "Source Picker", switch = glassSwitch(PrefName.GlassEffectSourceSelector)),
+                    SubscreenBuilder.Entry(title = "Episode Drawer", switch = glassSwitch(PrefName.GlassEffectEpisodeDrawer)),
+                    SubscreenBuilder.Entry(title = "Subtitle Sync", switch = glassSwitch(PrefName.GlassEffectSubtitleSync)),
+                    SubscreenBuilder.Entry(title = "Keyboard", switch = glassSwitch(PrefName.GlassEffectKeyboard)),
                 ),
             ),
 
-            // ─── Glass Tuning ──────────────────────────────────
             SubscreenBuilder.Section(
                 "Glass Tuning", R.drawable.ic_set_glass,
                 entries = listOf(
                     SubscreenBuilder.Entry(
-                        title = "Blur Radius",
-                        desc = "How blurry the glass is",
-                        choice = floatChoice(
-                            "Glass Blur Radius",
+                        title = "Blur Amount", desc = "How blurry the glass is",
+                        choice = floatChoice("Blur Amount",
                             arrayOf("5", "10", "15", "20", "25", "30", "40", "50", "60", "80"),
                             floatArrayOf(5f, 10f, 15f, 20f, 25f, 30f, 40f, 50f, 60f, 80f),
                             PrefManager.getVal<Float>(PrefName.GlassEffectBlurRadius),
                         ) { PrefManager.setVal(PrefName.GlassEffectBlurRadius, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Tint Opacity",
-                        desc = "Color overlay strength",
-                        choice = floatChoice(
-                            "Tint Opacity",
-                            arrayOf("10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "100%"),
+                        title = "Tint Strength", desc = "Color overlay opacity",
+                        choice = floatChoice("Tint Strength",
+                            arrayOf("10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "Full"),
                             floatArrayOf(0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f),
                             PrefManager.getVal<Float>(PrefName.GlassEffectTintOpacity),
                         ) { PrefManager.setVal(PrefName.GlassEffectTintOpacity, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Vibrancy",
-                        desc = "Color saturation boost",
-                        choice = floatChoice(
-                            "Vibrancy",
-                            arrayOf("0.1×", "0.3×", "0.5×", "0.7×", "1.0×", "1.25×", "1.5×", "1.75×", "2.0×"),
-                            floatArrayOf(0.1f, 0.3f, 0.5f, 0.7f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f),
+                        title = "Color Pop", desc = "Vibrancy boost",
+                        choice = floatChoice("Color Pop",
+                            arrayOf("Flat", "Subtle", "Soft", "Normal", "Bright", "Vivid", "Punchy", "Intense"),
+                            floatArrayOf(0.1f, 0.3f, 0.5f, 0.7f, 1.0f, 1.25f, 1.5f, 2.0f),
                             PrefManager.getVal<Float>(PrefName.GlassEffectVibrancy),
                         ) { PrefManager.setVal(PrefName.GlassEffectVibrancy, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Refraction Height",
-                        choice = floatChoice(
-                            "Refraction Height",
-                            arrayOf("Off", "0.25", "0.5", "0.75", "1.0"),
+                        title = "Refraction Height", choice = floatChoice("Refraction Height",
+                            arrayOf("Off", "Low", "Medium", "High", "Max"),
                             floatArrayOf(0f, 0.25f, 0.5f, 0.75f, 1.0f),
                             PrefManager.getVal<Float>(PrefName.GlassEffectRefractionHeight),
                         ) { PrefManager.setVal(PrefName.GlassEffectRefractionHeight, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Refraction Amount",
-                        choice = floatChoice(
-                            "Refraction Amount",
-                            arrayOf("Off", "0.25", "0.5", "0.75", "1.0"),
+                        title = "Refraction Amount", choice = floatChoice("Refraction Amount",
+                            arrayOf("Off", "Low", "Medium", "High", "Max"),
                             floatArrayOf(0f, 0.25f, 0.5f, 0.75f, 1.0f),
                             PrefManager.getVal<Float>(PrefName.GlassEffectRefractionAmount),
                         ) { PrefManager.setVal(PrefName.GlassEffectRefractionAmount, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Chromatic Aberration",
-                        choice = floatChoice(
-                            "Chromatic Aberration",
-                            arrayOf("Off", "0.25", "0.5", "0.75", "1.0"),
+                        title = "Fringe Effect", desc = "Chromatic aberration at edges",
+                        choice = floatChoice("Fringe Effect",
+                            arrayOf("Off", "Low", "Medium", "High", "Max"),
                             floatArrayOf(0f, 0.25f, 0.5f, 0.75f, 1.0f),
                             PrefManager.getVal<Float>(PrefName.GlassEffectChromaticAberration),
                         ) { PrefManager.setVal(PrefName.GlassEffectChromaticAberration, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Depth",
-                        desc = "3D depth effect",
+                        title = "3D Depth", desc = "Parallax depth on glass",
                         switch = PrefManager.getVal<Boolean>(PrefName.GlassEffectDepth) to {
                             PrefManager.setVal(PrefName.GlassEffectDepth, it)
                         },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Surface Tint Color",
-                        desc = "Overlay tint for glass surface",
+                        title = "Surface Tint", desc = "Color overlay on glass",
                         iconRes = R.drawable.ic_set_theme,
-                        onClick = { showGlassColorPicker("Surface Tint", PrefName.GlassEffectSurfaceTint) },
+                        onClick = { showColorGrid("Surface Tint", PrefName.GlassEffectSurfaceTint) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Text Color",
-                        desc = "Text color on glass surfaces",
+                        title = "Text on Glass", desc = "Text color over glass",
                         iconRes = R.drawable.ic_set_theme,
-                        onClick = { showGlassColorPicker("Glass Text Color", PrefName.GlassEffectTextColor) },
+                        onClick = { showColorGrid("Text on Glass", PrefName.GlassEffectTextColor) },
                     ),
                 ),
             ),
 
-            // ─── Navigation & Focus ────────────────────────────
             SubscreenBuilder.Section(
-                "Navigation & Focus", R.drawable.ic_set_nav,
+                "Side Rail & Focus", R.drawable.ic_set_nav,
                 entries = listOf(
                     SubscreenBuilder.Entry(
-                        title = "Persist Side Rail",
-                        desc = "Keep side rail visible across screens",
+                        title = "Pin Side Rail", desc = "Keep rail visible on all screens",
                         switch = PrefManager.getVal<Boolean>(PrefName.SideRailPersist) to {
                             PrefManager.setVal(PrefName.SideRailPersist, it)
                         },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Auto Side Rail",
-                        desc = "Show/hide rail on scroll",
+                        title = "Auto-Hide Rail", desc = "Hide rail while scrolling",
                         switch = PrefManager.getVal<Boolean>(PrefName.SideRailAutoOrientation) to {
                             PrefManager.setVal(PrefName.SideRailAutoOrientation, it)
                         },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Focus Effect",
-                        desc = "Visual effect on focused elements",
+                        title = "Focus Style", desc = "Visual ring on focused items",
                         choice = SubscreenBuilder.Choice(
-                            title = "Focus Effect",
+                            title = "Focus Style",
                             options = arrayOf("Glow", "Breathing", "Pulse", "Shaking", "None"),
                             currentIndex = PrefManager.getVal<Int>(PrefName.FocusEffect),
                         ) { idx -> PrefManager.setVal(PrefName.FocusEffect, idx) },
@@ -422,65 +343,53 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                 ),
             ),
 
-            // ─── Nav Pill Tuning ───────────────────────────────
             SubscreenBuilder.Section(
-                "Nav Pill Tuning", R.drawable.ic_set_nav,
+                "Navigation Pills", R.drawable.ic_set_nav,
                 entries = listOf(
                     SubscreenBuilder.Entry(
-                        title = "Pill Height",
-                        desc = "Height of navigation pill buttons",
-                        choice = intChoice(
-                            "Pill Height",
+                        title = "Pill Height", desc = "Button height",
+                        choice = intChoice("Pill Height",
                             arrayOf("36dp", "42dp", "48dp", "52dp", "58dp", "64dp", "72dp"),
                             intArrayOf(36, 42, 48, 52, 58, 64, 72),
                             PrefManager.getVal<Int>(PrefName.NavPillHeight).coerceIn(36, 72),
                         ) { PrefManager.setVal(PrefName.NavPillHeight, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Pill Width",
-                        desc = "Width of navigation pill buttons",
-                        choice = intChoice(
-                            "Pill Width",
+                        title = "Pill Width", desc = "Button width",
+                        choice = intChoice("Pill Width",
                             arrayOf("36dp", "42dp", "48dp", "52dp", "58dp", "64dp", "72dp"),
                             intArrayOf(36, 42, 48, 52, 58, 64, 72),
                             PrefManager.getVal<Int>(PrefName.NavPillWidth).coerceIn(36, 72),
                         ) { PrefManager.setVal(PrefName.NavPillWidth, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Pill Spacing",
-                        desc = "Gap between pill buttons",
-                        choice = intChoice(
-                            "Pill Spacing",
-                            arrayOf("12dp", "16dp", "20dp", "26dp", "32dp", "40dp"),
+                        title = "Gap Between", desc = "Space between buttons",
+                        choice = intChoice("Gap Between",
+                            arrayOf("Tight (12dp)", "Compact (16dp)", "Default (20dp)", "Relaxed (26dp)", "Spacious (32dp)", "Wide (40dp)"),
                             intArrayOf(12, 16, 20, 26, 32, 40),
                             PrefManager.getVal<Int>(PrefName.NavPillSpacing).coerceIn(12, 40),
                         ) { PrefManager.setVal(PrefName.NavPillSpacing, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Icon Size",
-                        desc = "Size of icons inside pill buttons",
-                        choice = intChoice(
-                            "Icon Size",
-                            arrayOf("12dp", "16dp", "20dp", "23dp", "28dp"),
+                        title = "Icon Size", desc = "Size of icons inside pills",
+                        choice = intChoice("Icon Size",
+                            arrayOf("Tiny (12dp)", "Small (16dp)", "Medium (20dp)", "Default (23dp)", "Large (28dp)"),
                             intArrayOf(12, 16, 20, 23, 28),
                             PrefManager.getVal<Int>(PrefName.NavPillIconSize).coerceIn(8, 28),
                         ) { PrefManager.setVal(PrefName.NavPillIconSize, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Corner Radius",
-                        desc = "Rounding of pill corners",
-                        choice = intChoice(
-                            "Corner Radius",
-                            arrayOf("0 (Square)", "6", "12", "18 (Default)", "24", "32", "48 (Pill)"),
+                        title = "Corner Round", desc = "How round the pill corners are",
+                        choice = intChoice("Corner Round",
+                            arrayOf("Square (0)", "Slight (6)", "Soft (12)", "Default (18)", "Round (24)", "Very Round (32)", "Full Pill (48)"),
                             intArrayOf(0, 6, 12, 18, 24, 32, 48),
                             PrefManager.getVal<Int>(PrefName.NavPillCornerRadius).coerceIn(0, 48),
                         ) { PrefManager.setVal(PrefName.NavPillCornerRadius, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Icon Color",
-                        desc = "Tint color of pill icons",
+                        title = "Icon Tint", desc = "Color of pill icons",
                         iconRes = R.drawable.ic_set_theme,
-                        onClick = { showNavPillColorPicker() },
+                        onClick = { showColorGrid("Icon Tint", PrefName.NavPillIconColor) },
                     ),
                 ),
             ),
@@ -489,94 +398,67 @@ class SettingsAppearanceActivity : AppCompatActivity() {
 
     // ─── Helpers ─────────────────────────────────────────────────
 
-    /** Switch that restarts the app on change. */
     private fun restartSwitch(pref: PrefName) =
         PrefManager.getVal<Boolean>(pref) to { PrefManager.setVal(pref, it); restartApp() }
 
-    /** Switch for glass sub-toggles (no restart needed). */
     private fun glassSwitch(pref: PrefName) =
         PrefManager.getVal<Boolean>(pref) to { PrefManager.setVal(pref, it) }
 
-    /** Build a Choice from float arrays: find closest match. */
-    private fun floatChoice(
-        title: String, labels: Array<String>, values: FloatArray, current: Float,
-        onSelect: (Float) -> Unit,
-    ) = SubscreenBuilder.Choice(
-        title = title,
-        options = labels,
-        currentIndex = values.indices.minByOrNull { kotlin.math.abs(values[it] - current) } ?: 0,
-    ) { idx -> onSelect(values[idx]) }
+    private fun floatChoice(title: String, labels: Array<String>, values: FloatArray, current: Float, onSelect: (Float) -> Unit) =
+        SubscreenBuilder.Choice(title, labels,
+            values.indices.minByOrNull { kotlin.math.abs(values[it] - current) } ?: 0
+        ) { idx -> onSelect(values[idx]) }
 
-    /** Build a Choice from int arrays: find closest match. */
-    private fun intChoice(
-        title: String, labels: Array<String>, values: IntArray, current: Int,
-        onSelect: (Int) -> Unit,
-    ) = SubscreenBuilder.Choice(
-        title = title,
-        options = labels,
-        currentIndex = values.indices.minByOrNull { kotlin.math.abs(values[it] - current) } ?: 0,
-    ) { idx -> onSelect(values[idx]) }
+    private fun intChoice(title: String, labels: Array<String>, values: IntArray, current: Int, onSelect: (Int) -> Unit) =
+        SubscreenBuilder.Choice(title, labels,
+            values.indices.minByOrNull { kotlin.math.abs(values[it] - current) } ?: 0
+        ) { idx -> onSelect(values[idx]) }
 
     // ─── Color Pickers ──────────────────────────────────────────
 
-    private val accentColorMap = intArrayOf(
-        0, 1, 2, 3, 4, 5, 6, 7, 8
-    )
-    private val accentColorLabels = arrayOf(
-        "Sanin", "Ocean", "Blood", "Lime",
-        "Sun", "Kurama", "Saikou", "Indigo", "Monochrome",
-    )
-
     private fun showAccentColorPicker() {
+        val labels = arrayOf("Sanin", "Ocean", "Blood", "Lime", "Sun", "Kurama", "Saikou", "Indigo", "Monochrome")
         customAlertDialog().apply {
-            setTitle("Accent Color")
-            singleChoiceItems(
-                accentColorLabels,
-                PrefManager.getVal<Int>(PrefName.AccentColor),
-            ) { idx ->
-                PrefManager.setVal(PrefName.AccentColor, accentColorMap[idx]); restartApp()
+            setTitle("Accent Tint")
+            singleChoiceItems(labels, PrefManager.getVal<Int>(PrefName.AccentColor)) { idx ->
+                PrefManager.setVal(PrefName.AccentColor, idx); restartApp()
             }
             show()
         }
     }
 
-    private val gridColors = intArrayOf(
+    private val paletteColors = intArrayOf(
         Color.WHITE, Color.BLACK, Color.RED, Color.parseColor("#FF9800"),
         Color.YELLOW, Color.GREEN, Color.CYAN, Color.BLUE,
         Color.parseColor("#9C27B0"), Color.parseColor("#E91E63"),
         Color.GRAY, Color.parseColor("#607D8B"), Color.parseColor("#795548"),
-        Color.parseColor("#4CAF50"), Color.parseColor("#03A9F4"),
-        Color.parseColor("#FF5722"),
+        Color.parseColor("#4CAF50"), Color.parseColor("#03A9F4"), Color.parseColor("#FF5722"),
     )
-    private val gridColorNames = arrayOf(
-        "White", "Black", "Red", "Orange",
-        "Yellow", "Green", "Cyan", "Blue",
-        "Purple", "Pink",
-        "Grey", "Blue Grey", "Brown",
-        "Green 500", "Light Blue", "Deep Orange",
+    private val paletteNames = arrayOf(
+        "White", "Black", "Red", "Orange", "Yellow", "Green",
+        "Cyan", "Blue", "Purple", "Pink", "Grey", "Blue Grey",
+        "Brown", "Green 500", "Light Blue", "Deep Orange",
     )
 
-    private fun showGlassColorPicker(title: String, pref: PrefName) {
-        val current = PrefManager.getVal<Int>(pref)
+    private fun showColorGrid(title: String, pref: PrefName) {
         val dp = resources.displayMetrics.density
         val chipSize = (48 * dp).toInt()
         val margin = (4 * dp).toInt()
         val grid = GridLayout(this).apply {
-            columnCount = 4; rowCount = (gridColors.size + 3) / 4
+            columnCount = 4; rowCount = (paletteColors.size + 3) / 4
             setPadding(margin, margin, margin, margin)
         }
-        for (i in gridColors.indices) {
+        for (i in paletteColors.indices) {
             val chip = ImageButton(this).apply {
                 background = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL; setColor(gridColors[i])
-                    setStroke(if (gridColors[i] == Color.BLACK) 2 else 0,
-                        if (gridColors[i] == Color.BLACK) Color.GRAY else Color.TRANSPARENT)
+                    shape = GradientDrawable.OVAL; setColor(paletteColors[i])
+                    setStroke(if (paletteColors[i] == Color.BLACK) 2 else 0,
+                        if (paletteColors[i] == Color.BLACK) Color.GRAY else Color.TRANSPARENT)
                 }
                 layoutParams = GridLayout.LayoutParams().apply {
-                    width = chipSize; height = chipSize
-                    setMargins(margin, margin, margin, margin)
+                    width = chipSize; height = chipSize; setMargins(margin, margin, margin, margin)
                 }
-                contentDescription = gridColorNames[i]; isFocusable = true
+                contentDescription = paletteNames[i]; isFocusable = true
             }
             grid.addView(chip)
         }
@@ -584,13 +466,9 @@ class SettingsAppearanceActivity : AppCompatActivity() {
             .setNegativeButton("Cancel", null).show().also { dialog ->
                 for (i in 0 until grid.childCount) {
                     grid.getChildAt(i).setOnClickListener {
-                        PrefManager.setVal(pref, gridColors[i]); dialog.dismiss()
+                        PrefManager.setVal(pref, paletteColors[i]); dialog.dismiss()
                     }
                 }
             }
-    }
-
-    private fun showNavPillColorPicker() {
-        showGlassColorPicker("Nav Pill Icon Color", PrefName.NavPillIconColor)
     }
 }
