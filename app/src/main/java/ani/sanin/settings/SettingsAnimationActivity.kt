@@ -1,14 +1,11 @@
 package ani.sanin.settings
 
 import android.os.Bundle
-import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageButton
-import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.updateLayoutParams
 import ani.sanin.R
-import ani.sanin.databinding.ActivitySettingsAnimationBinding
+import ani.sanin.databinding.ActivitySettingsSubscreenBinding
 import ani.sanin.initActivity
 import ani.sanin.navBarHeight
 import ani.sanin.restartApp
@@ -16,204 +13,133 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
-import ani.sanin.util.FocusEffectUtil
 
 class SettingsAnimationActivity : AppCompatActivity() {
-    lateinit var binding: ActivitySettingsAnimationBinding
+
+    private lateinit var binding: ActivitySettingsSubscreenBinding
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ThemeManager(this).applyTheme()
-        binding = ActivitySettingsAnimationBinding.inflate(layoutInflater)
-        setContentView(binding.root)
         initActivity(this)
-        binding.animationContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+        binding = ActivitySettingsSubscreenBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        binding.subscreenContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             topMargin = statusBarHeight
             bottomMargin = navBarHeight
         }
-        binding.animationBack.isFocusable = true
-        binding.animationBack.setOnClickListener {
-            onBackPressedDispatcher.onBackPressed()
-        }
+        binding.subscreenBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
+        binding.subscreenTitle.text = getString(R.string.animation)
+        binding.subscreenSubtitle.text = getString(R.string.animation_desc)
+        binding.subscreenIcon.setImageResource(R.drawable.ic_set_motion)
 
-        binding.animationEnabled.isChecked = PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled)
-        binding.animationEnabled.setOnCheckedChangeListener { _, isChecked ->
-            PrefManager.setVal(PrefName.AnimationsEnabled, isChecked)
-            restartApp()
-        }
+        SubscreenBuilder.build(this, binding.subscreenContent, listOf(
+            // ─── Master Control ─────────────────────────────────
+            SubscreenBuilder.Section(
+                "Master Control", R.drawable.ic_set_motion,
+                defaultExpanded = true,
+                entries = listOf(
+                    SubscreenBuilder.Entry(
+                        title = "Enable Animations",
+                        desc = "Master toggle for all animations",
+                        switch = PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) to {
+                            PrefManager.setVal(PrefName.AnimationsEnabled, it); restartApp()
+                        },
+                    ),
+                    SubscreenBuilder.Entry(
+                        title = "Animation Speed",
+                        desc = "Overall animation playback speed",
+                        choice = SubscreenBuilder.Choice(
+                            title = "Animation Speed",
+                            options = arrayOf("0.5×", "0.75×", "1× (Normal)", "1.25×", "1.5×", "1.75×", "2×"),
+                            currentIndex = speedToIndex(PrefManager.getVal(PrefName.AnimationSpeed)),
+                        ) { idx -> PrefManager.setVal(PrefName.AnimationSpeed, indexToSpeed(idx)) },
+                    ),
+                ),
+            ),
 
-        binding.animationBanner.isChecked = PrefManager.getVal<Boolean>(PrefName.BannerAnimations)
-        binding.animationBanner.setOnCheckedChangeListener { _, isChecked ->
-            PrefManager.setVal(PrefName.BannerAnimations, isChecked)
-            restartApp()
-        }
+            // ─── Home & Feed ───────────────────────────────────
+            SubscreenBuilder.Section(
+                "Home & Feed", R.drawable.ic_set_home,
+                entries = listOf(
+                    switchEntry(PrefName.BannerAnimations, "Banner Animations"),
+                    switchEntry(PrefName.LayoutAnimations, "Layout Animations"),
+                    switchEntry(PrefName.TrendingScroller, "Trending Scroller"),
+                    switchEntry(PrefName.HomeAnimations, "Home Section Animations"),
+                    switchEntry(PrefName.ProfileAnimations, "Profile Animations"),
+                    switchEntry(PrefName.LiveSideRail, "Live Side Rail"),
+                ),
+            ),
 
-        binding.animationLayout.isChecked = PrefManager.getVal<Boolean>(PrefName.LayoutAnimations)
-        binding.animationLayout.setOnCheckedChangeListener { _, isChecked ->
-            PrefManager.setVal(PrefName.LayoutAnimations, isChecked)
-            restartApp()
-        }
+            // ─── Player & Playback ─────────────────────────────
+            SubscreenBuilder.Section(
+                "Player & Playback", R.drawable.ic_set_video,
+                entries = listOf(
+                    switchEntry(PrefName.PlayerGestureAnimations, "Gesture Animations"),
+                    switchEntry(PrefName.PlayerControllerAnimations, "Controller Animations"),
+                    switchEntry(PrefName.PlayerOverlayAnimations, "Overlay Animations"),
+                    switchEntry(PrefName.DoubleTapAnimations, "Double-Tap Feedback"),
+                    switchEntry(PrefName.SeekBarAnimations, "Seek Bar Animations"),
+                    switchEntry(PrefName.ProgressShakeAnimations, "Progress Shake"),
+                ),
+            ),
 
-        binding.animationTrending.isChecked = PrefManager.getVal<Boolean>(PrefName.TrendingScroller)
-        binding.animationTrending.setOnCheckedChangeListener { _, isChecked ->
-            PrefManager.setVal(PrefName.TrendingScroller, isChecked)
-        }
+            // ─── Navigation & Focus ────────────────────────────
+            SubscreenBuilder.Section(
+                "Navigation & Focus", R.drawable.ic_set_focus,
+                entries = listOf(
+                    switchEntry(PrefName.NavRailAnimations, "Nav Rail Animations"),
+                    switchEntry(PrefName.FocusAnimations, "Focus Effects"),
+                    switchEntry(PrefName.KeyboardKeyAnimations, "Keyboard Key Press"),
+                ),
+            ),
 
-        binding.animationLiveSideRail.isChecked = PrefManager.getVal<Boolean>(PrefName.LiveSideRail)
-        binding.animationLiveSideRail.setOnCheckedChangeListener { _, isChecked ->
-            PrefManager.setVal(PrefName.LiveSideRail, isChecked)
-        }
+            // ─── Overlays & Dialogs ────────────────────────────
+            SubscreenBuilder.Section(
+                "Overlays & Dialogs", R.drawable.ic_set_overlay,
+                entries = listOf(
+                    switchEntry(PrefName.TransitionAnimations, "Screen Transitions"),
+                    switchEntry(PrefName.NotificationPopupAnimations, "Notification Popups"),
+                    switchEntry(PrefName.CommentInputAnimations, "Comment Input"),
+                    switchEntry(PrefName.ImageDialogAnimations, "Image Dialogs"),
+                    switchEntry(PrefName.SplashAnimations, "Splash Screen"),
+                    switchEntry(PrefName.LikeButtonAnimations, "Like Button"),
+                ),
+            ),
 
-        binding.animationPlayerGesture.isChecked = PrefManager.getVal<Boolean>(PrefName.PlayerGestureAnimations)
-        binding.animationPlayerGesture.setOnCheckedChangeListener { _, isChecked ->
-            PrefManager.setVal(PrefName.PlayerGestureAnimations, isChecked)
-        }
-
-        binding.animationPlayerController.isChecked = PrefManager.getVal<Boolean>(PrefName.PlayerControllerAnimations)
-        binding.animationPlayerController.setOnCheckedChangeListener { _, isChecked ->
-            PrefManager.setVal(PrefName.PlayerControllerAnimations, isChecked)
-        }
-
-        binding.animationProfile.isChecked = PrefManager.getVal<Boolean>(PrefName.ProfileAnimations)
-        binding.animationProfile.setOnCheckedChangeListener { _, isChecked ->
-            PrefManager.setVal(PrefName.ProfileAnimations, isChecked)
-            restartApp()
-        }
-
-        binding.animationHome.isChecked = PrefManager.getVal<Boolean>(PrefName.HomeAnimations)
-        binding.animationHome.setOnCheckedChangeListener { _, isChecked ->
-            PrefManager.setVal(PrefName.HomeAnimations, isChecked)
-            restartApp()
-        }
-
-        val map = mapOf(
-            2f to 0.5f,
-            1.75f to 0.625f,
-            1.5f to 0.75f,
-            1.25f to 0.875f,
-            1f to 1f,
-            0.75f to 1.25f,
-            0.5f to 1.5f,
-            0.25f to 1.75f,
-            0f to 0f
-        )
-        val mapReverse = map.map { it.value to it.key }.toMap()
-        binding.animationSpeed.value =
-            mapReverse[PrefManager.getVal(PrefName.AnimationSpeed)] ?: 1f
-        binding.animationSpeed.addOnChangeListener { _, value, _ ->
-            PrefManager.setVal(PrefName.AnimationSpeed, map[value] ?: 1f)
-        }
-
-        setupCollapsibleSection(
-            binding.animationSectionDisplay,
-            binding.animationSectionDisplayContent
-        )
-        setupCollapsibleSection(
-            binding.animationSectionNavigation,
-            binding.animationSectionNavigationContent
-        )
-        setupCollapsibleSection(
-            binding.animationSectionPlayer,
-            binding.animationSectionPlayerContent
-        )
-        setupCollapsibleSection(
-            binding.animationSectionFocus,
-            binding.animationSectionFocusContent
-        )
-        setupCollapsibleSection(
-            binding.animationSectionDialogs,
-            binding.animationSectionDialogsContent
-        )
-        setupCollapsibleSection(
-            binding.animationSectionOther,
-            binding.animationSectionOtherContent
-        )
-
-        bindSwitch(binding.animationNavRail, PrefName.NavRailAnimations)
-        bindSwitch(binding.animationPlayerOverlay, PrefName.PlayerOverlayAnimations)
-        bindSwitch(binding.animationDoubleTap, PrefName.DoubleTapAnimations)
-        bindSwitch(binding.animationSeekBar, PrefName.SeekBarAnimations)
-        bindSwitch(binding.animationProgressShake, PrefName.ProgressShakeAnimations)
-        bindSwitch(binding.animationFocusEffects, PrefName.FocusAnimations)
-        bindSwitch(binding.animationKeyboardKey, PrefName.KeyboardKeyAnimations)
-        bindSwitch(binding.animationTransitions, PrefName.TransitionAnimations)
-        bindSwitch(binding.animationNotificationPopup, PrefName.NotificationPopupAnimations)
-        bindSwitch(binding.animationCommentInput, PrefName.CommentInputAnimations)
-        bindSwitch(binding.animationImageDialog, PrefName.ImageDialogAnimations)
-        bindSwitch(binding.animationSplash, PrefName.SplashAnimations)
-        bindSwitch(binding.animationLikeButton, PrefName.LikeButtonAnimations)
-        bindSwitch(binding.animationIncognitoBanner, PrefName.IncognitoBannerAnimations)
-        bindSwitch(binding.animationSearchHeader, PrefName.SearchHeaderAnimations)
-        bindSwitch(binding.animationScrollToTop, PrefName.ScrollToTopAnimations)
-        bindSwitch(binding.animationInstallSpinner, PrefName.InstallSpinnerAnimations)
-        bindSwitch(binding.animationFilterReset, PrefName.FilterResetAnimations)
-        bindSwitch(binding.animationDescriptionExpand, PrefName.DescriptionExpandAnimations)
-        bindSwitch(binding.animationInfoPage, PrefName.InfoPageAnimations)
-        bindSwitch(binding.animationNoInternet, PrefName.NoInternetAnimations)
-        bindSwitch(binding.animationXpandable, PrefName.XpandableAnimations)
-        bindSwitch(binding.animationAnimatedVectors, PrefName.AnimatedVectorDrawables)
-        bindSwitch(binding.animationMisc, PrefName.MiscUiAnimations)
-
-        FocusEffectUtil.applyFocusListener(
-            binding.animationBack,
-            binding.animationEnabled,
-            binding.animationBanner,
-            binding.animationLayout,
-            binding.animationTrending,
-            binding.animationLiveSideRail,
-            binding.animationPlayerGesture,
-            binding.animationPlayerController,
-            binding.animationProfile,
-            binding.animationHome,
-            binding.animationNavRail,
-            binding.animationPlayerOverlay,
-            binding.animationDoubleTap,
-            binding.animationSeekBar,
-            binding.animationProgressShake,
-            binding.animationFocusEffects,
-            binding.animationKeyboardKey,
-            binding.animationTransitions,
-            binding.animationNotificationPopup,
-            binding.animationCommentInput,
-            binding.animationImageDialog,
-            binding.animationSplash,
-            binding.animationLikeButton,
-            binding.animationIncognitoBanner,
-            binding.animationSearchHeader,
-            binding.animationScrollToTop,
-            binding.animationInstallSpinner,
-            binding.animationFilterReset,
-            binding.animationDescriptionExpand,
-            binding.animationInfoPage,
-            binding.animationNoInternet,
-            binding.animationXpandable,
-            binding.animationAnimatedVectors,
-            binding.animationMisc,
-            binding.animationSectionDisplay,
-            binding.animationSectionNavigation,
-            binding.animationSectionPlayer,
-            binding.animationSectionFocus,
-            binding.animationSectionDialogs,
-            binding.animationSectionOther,
-        )
+            // ─── Functional & Misc ─────────────────────────────
+            SubscreenBuilder.Section(
+                "Functional & Misc", R.drawable.ic_set_misc,
+                entries = listOf(
+                    switchEntry(PrefName.IncognitoBannerAnimations, "Incognito Banner"),
+                    switchEntry(PrefName.SearchHeaderAnimations, "Search Header"),
+                    switchEntry(PrefName.ScrollToTopAnimations, "Scroll-to-Top"),
+                    switchEntry(PrefName.InstallSpinnerAnimations, "Install Spinner"),
+                    switchEntry(PrefName.FilterResetAnimations, "Filter Reset"),
+                    switchEntry(PrefName.DescriptionExpandAnimations, "Description Expand"),
+                    switchEntry(PrefName.InfoPageAnimations, "Info Page"),
+                    switchEntry(PrefName.NoInternetAnimations, "No-Internet Splash"),
+                    switchEntry(PrefName.XpandableAnimations, "Expandable Lists"),
+                    switchEntry(PrefName.AnimatedVectorDrawables, "Animated Vector Drawables"),
+                    switchEntry(PrefName.MiscUiAnimations, "Miscellaneous UI"),
+                ),
+            ),
+        ))
     }
 
-    private fun bindSwitch(switch: com.google.android.material.materialswitch.MaterialSwitch, pref: PrefName) {
-        switch.isChecked = PrefManager.getVal<Boolean>(pref)
-        switch.setOnCheckedChangeListener { _, isChecked ->
-            PrefManager.setVal(pref, isChecked)
-        }
+    /** Wrap a PrefName boolean into a SubscreenBuilder switch entry. */
+    private fun switchEntry(pref: PrefName, title: String) = SubscreenBuilder.Entry(
+        title = title,
+        switch = PrefManager.getVal<Boolean>(pref) to { PrefManager.setVal(pref, it) },
+    )
+
+    private fun speedToIndex(speed: Float): Int = when (speed) {
+        0f -> 0; 0.625f -> 1; 1f -> 2; 1.25f -> 3
+        1.5f -> 4; 1.75f -> 5; 2f -> 6; else -> 2
     }
 
-    private fun setupCollapsibleSection(header: TextView, content: View) {
-        header.isFocusable = true
-        header.setOnClickListener {
-            val expanded = content.visibility == View.VISIBLE
-            content.visibility = if (expanded) View.GONE else View.VISIBLE
-            header.setCompoundDrawablesRelativeWithIntrinsicBounds(
-                if (expanded) R.drawable.ic_round_keyboard_arrow_up_24
-                else R.drawable.ic_round_keyboard_arrow_down_24,
-                0, 0, 0
-            )
-        }
-    }
+    private fun indexToSpeed(idx: Int): Float = floatArrayOf(
+        0f, 0.625f, 1f, 1.25f, 1.5f, 1.75f, 2f
+    ).getOrElse(idx) { 1f }
 }
