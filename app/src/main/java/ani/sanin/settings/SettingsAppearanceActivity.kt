@@ -44,7 +44,6 @@ class SettingsAppearanceActivity : AppCompatActivity() {
         SubscreenBuilder.build(this, binding.subscreenContent, listOf(
             SubscreenBuilder.Section(
                 "Theme & Palette", R.drawable.ic_set_theme,
-                defaultExpanded = true,
                 entries = listOf(
                     SubscreenBuilder.Entry(
                         title = "Light or Dark",

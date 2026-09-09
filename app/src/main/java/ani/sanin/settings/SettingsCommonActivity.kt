@@ -53,6 +53,12 @@ class SettingsCommonActivity : AppCompatActivity() {
         }
     }
 
+    private val dnsNames = arrayOf(
+        "None", "Cloudflare", "Google", "AdGuard", "Quad9",
+        "AliDNS", "DNSPod", "360", "Quad101", "Mullvad",
+        "Controld", "Njalla", "Shecan", "Libre",
+    )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ThemeManager(this).applyTheme()
@@ -65,18 +71,18 @@ class SettingsCommonActivity : AppCompatActivity() {
         }
         binding.subscreenBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
         binding.subscreenTitle.text = "Network & Data"
-        binding.subscreenSubtitle.text = "Connection, backup & alerts"
+        binding.subscreenSubtitle.text = "Connection, behavior & backup"
         binding.subscreenIcon.setImageResource(R.drawable.ic_set_dns)
 
         SubscreenBuilder.build(this, binding.subscreenContent, listOf(
-            SubscreenBuilder.Section("Connection", R.drawable.ic_set_dns, listOf(
+            SubscreenBuilder.Section("Connection", R.drawable.ic_set_dns, entries = listOf(
                 SubscreenBuilder.Entry(
                     title = "DNS Provider",
-                    desc = "Resolve extension connections",
+                    desc = dnsNames[PrefManager.getVal<Int>(PrefName.DohProvider)],
                     iconRes = R.drawable.ic_set_dns,
                     choice = SubscreenBuilder.Choice(
                         title = "DNS Provider",
-                        options = arrayOf("None", "Google", "Cloudflare", "OpenDNS"),
+                        options = dnsNames,
                         currentIndex = PrefManager.getVal<Int>(PrefName.DohProvider),
                     ) { idx -> PrefManager.setVal(PrefName.DohProvider, idx) },
                 ),
@@ -88,14 +94,90 @@ class SettingsCommonActivity : AppCompatActivity() {
                 ),
             )),
 
-            SubscreenBuilder.Section("Interface", R.drawable.ic_set_theme, listOf(
+            SubscreenBuilder.Section("Behavior", R.drawable.ic_set_misc, entries = listOf(
+                SubscreenBuilder.Entry(
+                    title = "Startup Tab",
+                    desc = "Which tab opens on launch",
+                    choice = SubscreenBuilder.Choice(
+                        title = "Startup Tab",
+                        options = arrayOf("Home", "Search", "Library", "Extensions"),
+                        currentIndex = PrefManager.getVal<Int>(PrefName.DefaultStartUpTab).coerceIn(0, 3),
+                    ) { idx -> PrefManager.setVal(PrefName.DefaultStartUpTab, idx) },
+                ),
+                SubscreenBuilder.Entry(
+                    title = "Continue Media",
+                    desc = "Auto-resume from last position",
+                    switch = PrefManager.getVal<Boolean>(PrefName.ContinueMedia) to { v: Boolean -> PrefManager.setVal(PrefName.ContinueMedia, v) },
+                ),
+                SubscreenBuilder.Entry(
+                    title = "Hide Private Sources",
+                    desc = "Hide NSFW extensions from lists",
+                    switch = PrefManager.getVal<Boolean>(PrefName.HidePrivate) to { v: Boolean -> PrefManager.setVal(PrefName.HidePrivate, v) },
+                ),
+                SubscreenBuilder.Entry(
+                    title = "Adult Content",
+                    desc = "Show adult-only sources",
+                    switch = PrefManager.getVal<Boolean>(PrefName.AdultOnly) to { v: Boolean -> PrefManager.setVal(PrefName.AdultOnly, v) },
+                ),
+                SubscreenBuilder.Entry(
+                    title = "Search All Sources",
+                    desc = "Search across all installed sources",
+                    switch = PrefManager.getVal<Boolean>(PrefName.SearchSources) to { v: Boolean -> PrefManager.setVal(PrefName.SearchSources, v) },
+                ),
+                SubscreenBuilder.Entry(
+                    title = "Recently Updated Only",
+                    desc = "Only show recently updated entries",
+                    switch = PrefManager.getVal<Boolean>(PrefName.RecentlyListOnly) to { v: Boolean -> PrefManager.setVal(PrefName.RecentlyListOnly, v) },
+                ),
+                SubscreenBuilder.Entry(
+                    title = "Keyboard Mode",
+                    desc = "System keyboard or in-app toggle",
+                    choice = SubscreenBuilder.Choice(
+                        title = "Keyboard Mode",
+                        options = arrayOf("System Keyboard", "In-App Toggle"),
+                        currentIndex = if (PrefManager.getVal<Int>(PrefName.KeyboardMode) == 2) 1 else 0,
+                    ) { idx -> PrefManager.setVal(PrefName.KeyboardMode, if (idx == 1) 2 else 0) },
+                ),
+                SubscreenBuilder.Entry(
+                    title = "Server Timeout",
+                    desc = "Seconds before server load timeout",
+                    choice = SubscreenBuilder.Choice(
+                        title = "Server Timeout",
+                        options = arrayOf("4s", "8s", "12s (Default)", "16s", "20s", "30s"),
+                        
+                        currentIndex = when (PrefManager.getVal<Int>(PrefName.ServerLoadTimeoutSeconds)) {
+                            4 -> 0; 8 -> 1; 12 -> 2; 16 -> 3; 20 -> 4; 30 -> 5; else -> 2
+                        },
+                    ) { idx -> PrefManager.setVal(PrefName.ServerLoadTimeoutSeconds, intArrayOf(4, 8, 12, 16, 20, 30)[idx]) },
+                ),
+            )),
+
+            SubscreenBuilder.Section("Sync", R.drawable.ic_set_anime, entries = listOf(
+                SubscreenBuilder.Entry(
+                    title = "Auto-Sync AniList",
+                    desc = "Keep AniList library in sync",
+                    switch = PrefManager.getVal<Boolean>(PrefName.AutoSyncAniList) to { v: Boolean -> PrefManager.setVal(PrefName.AutoSyncAniList, v) },
+                ),
+                SubscreenBuilder.Entry(
+                    title = "Auto-Update Progress",
+                    desc = "Push episode progress to AniList",
+                    switch = PrefManager.getVal<Boolean>(PrefName.UpdateProgressAutomatically) to { v: Boolean -> PrefManager.setVal(PrefName.UpdateProgressAutomatically, v) },
+                ),
+                SubscreenBuilder.Entry(
+                    title = "Auto-Update Extensions",
+                    desc = "Update extensions on startup",
+                    switch = PrefManager.getVal<Boolean>(PrefName.AutoUpdateExtensions) to { v: Boolean -> PrefManager.setVal(PrefName.AutoUpdateExtensions, v) },
+                ),
+            )),
+
+            SubscreenBuilder.Section("Interface", R.drawable.ic_set_theme, entries = listOf(
                 SubscreenBuilder.Entry(
                     title = "UI Scale",
                     desc = "Resize all interface elements",
                     iconRes = R.drawable.ic_set_theme,
                     choice = SubscreenBuilder.Choice(
                         title = "UI Scale",
-                        options = arrayOf("0.75×", "0.85×", "1.0× Default", "1.15×", "1.25×"),
+                        options = arrayOf("0.75x", "0.85x", "1.0x Default", "1.15x", "1.25x"),
                         currentIndex = when (PrefManager.getVal<Float>(PrefName.UIScale)) {
                             0.75f -> 0; 0.85f -> 1; 1.15f -> 3; 1.25f -> 4; else -> 2
                         },
@@ -103,7 +185,7 @@ class SettingsCommonActivity : AppCompatActivity() {
                 ),
             )),
 
-            SubscreenBuilder.Section("Backup & Restore", R.drawable.ic_set_backup, listOf(
+            SubscreenBuilder.Section("Backup & Restore", R.drawable.ic_set_backup, entries = listOf(
                 SubscreenBuilder.Entry(
                     title = "Export Settings",
                     desc = "Save config to downloads folder",
@@ -118,20 +200,16 @@ class SettingsCommonActivity : AppCompatActivity() {
                 ),
             )),
 
-            SubscreenBuilder.Section("Alerts", R.drawable.ic_set_overlay, listOf(
+            SubscreenBuilder.Section("Alerts", R.drawable.ic_set_overlay, entries = listOf(
                 SubscreenBuilder.Entry(
                     title = "AniList Count",
                     desc = "Fetch notification count from AniList",
-                    switch = PrefManager.getVal<Boolean>(PrefName.AnilistNotifications) to {
-                        PrefManager.setVal(PrefName.AnilistNotifications, it)
-                    },
+                    switch = PrefManager.getVal<Boolean>(PrefName.AnilistNotifications) to { v: Boolean -> PrefManager.setVal(PrefName.AnilistNotifications, v) },
                 ),
                 SubscreenBuilder.Entry(
                     title = "New Episode Alerts",
                     desc = "Notify when new episodes drop",
-                    switch = PrefManager.getVal<Boolean>(PrefName.EpisodeNotifications) to {
-                        PrefManager.setVal(PrefName.EpisodeNotifications, it)
-                    },
+                    switch = PrefManager.getVal<Boolean>(PrefName.EpisodeNotifications) to { v: Boolean -> PrefManager.setVal(PrefName.EpisodeNotifications, v) },
                 ),
             )),
         ))

@@ -33,7 +33,6 @@ class SettingsHomeActivity : AppCompatActivity() {
         binding.subscreenIcon.setImageResource(R.drawable.ic_set_home)
 
         SubscreenBuilder.build(this, binding.subscreenContent, listOf(
-            SubscreenBuilder.Section("Banner", R.drawable.ic_set_home, defaultExpanded = true, entries = listOf(
                 SubscreenBuilder.Entry(
                     title = getString(R.string.home_banner_mode),
                     desc = getString(R.string.home_banner_mode_desc),

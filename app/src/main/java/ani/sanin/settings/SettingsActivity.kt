@@ -117,11 +117,10 @@ class SettingsActivity : AppCompatActivity() {
         SettingsSection(
             title = "Account",
             iconRes = R.drawable.ic_settings_account,
-            defaultExpanded = true,
             entries = listOf(
                 SectionEntry(
                     title = getString(R.string.accounts),
-                    desc = getString(R.string.accounts_desc),
+                    desc = "AniList, MAL & Simkl profiles",
                     iconRes = R.drawable.ic_settings_account,
                     onClick = { startActivity(Intent(this, SettingsAccountActivity::class.java)) },
                 ),
@@ -130,17 +129,16 @@ class SettingsActivity : AppCompatActivity() {
         SettingsSection(
             title = "Look & Feel",
             iconRes = R.drawable.ic_set_theme,
-            defaultExpanded = false,
             entries = listOf(
                 SectionEntry(
                     title = "Appearance",
-                    desc = "Theme, cards, blur & glass",
+                    desc = "Colors, cards, blur & glass",
                     iconRes = R.drawable.ic_set_theme,
                     onClick = { startActivity(Intent(this, SettingsAppearanceActivity::class.java)) },
                 ),
                 SectionEntry(
                     title = "Motion",
-                    desc = "Tweak how things move",
+                    desc = "Animations & motion effects",
                     iconRes = R.drawable.ic_set_motion,
                     onClick = { startActivity(Intent(this, SettingsAnimationActivity::class.java)) },
                 ),
@@ -149,11 +147,10 @@ class SettingsActivity : AppCompatActivity() {
         SettingsSection(
             title = "Playback",
             iconRes = R.drawable.ic_set_video,
-            defaultExpanded = false,
             entries = listOf(
                 SectionEntry(
                     title = "Player & Sync",
-                    desc = "Player, decoding & library sync",
+                    desc = "Player, buffer, decoder & library sync",
                     iconRes = R.drawable.ic_set_video,
                     onClick = { startActivity(Intent(this, SettingsAnimeActivity::class.java)) },
                 ),
@@ -162,11 +159,10 @@ class SettingsActivity : AppCompatActivity() {
         SettingsSection(
             title = "Network & Data",
             iconRes = R.drawable.ic_set_dns,
-            defaultExpanded = false,
             entries = listOf(
                 SectionEntry(
                     title = "Connection & Backup",
-                    desc = "DNS, user agent, export & import",
+                    desc = "DNS, user agent, backup & restore",
                     iconRes = R.drawable.ic_set_dns,
                     onClick = { startActivity(Intent(this, SettingsCommonActivity::class.java)) },
                 ),
@@ -175,11 +171,10 @@ class SettingsActivity : AppCompatActivity() {
         SettingsSection(
             title = "Extensions",
             iconRes = R.drawable.ic_settings_tools,
-            defaultExpanded = false,
             entries = listOf(
                 SectionEntry(
                     title = "Sources & Add-ons",
-                    desc = "Install, update & manage extensions",
+                    desc = "Sources, add-ons & diagnostics",
                     iconRes = R.drawable.ic_settings_tools,
                     onClick = { startActivity(Intent(this, SettingsExtrasActivity::class.java)) },
                 ),

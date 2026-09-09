@@ -37,7 +37,6 @@ class SettingsAnimationActivity : AppCompatActivity() {
         SubscreenBuilder.build(this, binding.subscreenContent, listOf(
             SubscreenBuilder.Section(
                 "Animation Engine", R.drawable.ic_set_motion,
-                defaultExpanded = true,
                 entries = listOf(
                     SubscreenBuilder.Entry(
                         title = "Master Toggle",

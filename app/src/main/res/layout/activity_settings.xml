@@ -71,7 +71,7 @@
                 android:layout_height="52dp"
                 android:background="@drawable/bg_settings_logo_circle"
                 android:padding="10dp"
-                android:src="@drawable/splash_logo"
+                android:src="@drawable/sanin_emblem"
                 tools:ignore="ContentDescription" />
         </LinearLayout>
 
