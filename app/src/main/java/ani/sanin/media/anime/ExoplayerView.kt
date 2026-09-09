@@ -5012,24 +5012,7 @@ class ExoplayerView :
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN) markInteracted()
         if (!isInitialized) return super.dispatchKeyEvent(event)
-        // Subtitle rail: focus is trapped inside. DPAD right dismisses it (it is
-        // a left-side rail), left stays trapped, back/escape closes it too.
-        if (this::subtitleDrawerContent.isInitialized && binding.root.isDrawerOpen(subtitleDrawerContent)) {
-            when (event.keyCode) {
-                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                    if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-                        binding.root.closeDrawer(subtitleDrawerContent)
-                    }
-                    return true
-                }
-                KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
-                    if (event.action == KeyEvent.ACTION_DOWN) {
-                        binding.root.closeDrawer(subtitleDrawerContent)
-                    }
-                    return true
-                }
-            }
-        }
+
         // Tracks rail (right side): DPAD left closes it (right stays trapped), and
         // back/escape closes it too — mirrors the episode rail, mirrored sides.
         if (this::tracksDrawerContent.isInitialized &&

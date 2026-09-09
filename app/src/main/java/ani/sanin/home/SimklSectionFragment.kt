@@ -143,6 +143,16 @@ class SimklSectionFragment : Fragment() {
             b.tmdbCardYear.text = item.year?.toString() ?: ""
             b.tmdbCardYear.isVisible = item.year != null
 
+            // Rating pill
+            val rating = b.tmdbCardRating
+            val userRating = item.userRating
+            if (userRating != null && userRating > 0) {
+                rating.isVisible = true
+                rating.text = String.format("%.1f", userRating / 10.0)
+            } else {
+                rating.isVisible = false
+            }
+
             if (landscape) {
                 b.tmdbCardGradient.isVisible = true
                 setGradient(b.tmdbCardGradient)
