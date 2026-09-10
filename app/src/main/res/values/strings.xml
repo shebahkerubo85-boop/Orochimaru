@@ -13,6 +13,9 @@
     <string name="sanin" translatable="false">https://dantotsu.app/</string>
     <string name="discord" translatable="false">https://discord.gg/QCc5xbgbsA</string>
     <string name="join_discord">Join our Discord</string>
+    <string name="join_telegram">Join our Telegram</string>
+    <string name="join_telegram_button">Join Telegram</string>
+    <string name="community">Community</string>
     <string name="github" translatable="false">https://github.com/rebelonion/Sanin</string>
     <string name="telegram" translatable="false" tools:ignore="Typos">https://t.me/+gzBCQExtLQo1YTNh </string>
     <string name="coffee" translatable="false">https://github.com/sponsors/rebelonion</string>
@@ -2566,4 +2569,10 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
 <string name="player_is_live">Live</string>
 
     <string name="time">Time</string>
+    <string name="link_simkl">Link Simkl</string>
+    <string name="unlink_simkl">Unlink</string>
+    <string name="link_anilist">Link AniList</string>
+    <string name="unlink_anilist">Unlink</string>
+    <string name="link_mal">Link MAL</string>
+    <string name="unlink_mal">Unlink</string>
 </resources>

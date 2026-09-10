@@ -78,43 +78,25 @@ class SettingsAccountActivity : AppCompatActivity() {
 
             fun reload() {
                 settingsAnilistLogin.isFocusable = true
-                settingsAnilistAvatar.isFocusable = true
                 settingsAnilistTokenExpiry.isFocusable = true
                 settingsMALLogin.isFocusable = true
-                settingsMALAvatar.isFocusable = true
                 FocusEffectUtil.applyFocusListener(
-                    settingsAnilistLogin, settingsAnilistAvatar, settingsAnilistTokenExpiry,
-                    settingsMALLogin, settingsMALAvatar,
-                    settingsSimklLogin, settingsSimklAvatar
+                    settingsAnilistLogin, settingsAnilistTokenExpiry,
+                    settingsMALLogin,
+                    settingsSimklLogin
                 )
                 if (Anilist.token != null) {
-                    settingsAnilistLogin.setText(R.string.logout)
+                    settingsAnilistLogin.setText(R.string.unlink_anilist)
                     settingsAnilistLogin.setOnClickListener {
                         Anilist.removeSavedToken()
                         restartMainActivity.isEnabled = true
                         reload()
                     }
+                    settingsAnilistAvatar.loadImage(Anilist.avatar)
+                    settingsAnilistAvatarContainer.visibility = View.VISIBLE
                     settingsAnilistUsername.visibility = View.VISIBLE
                     settingsAnilistUsername.text = Anilist.username
-                    settingsAnilistAvatar.loadImage(Anilist.avatar)
-                    settingsAnilistAvatar.setOnClickListener {
-                        it.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                        val anilistLink = getString(
-                            R.string.anilist_link,
-                            PrefManager.getVal<String>(PrefName.AnilistUserName)
-                        )
-                        openLinkInBrowser(anilistLink)
-                    }
 
-                    if (Anilist.bg != null) {
-                        settingsAnilistBanner.visibility = View.VISIBLE
-                        settingsAnilistScrim.visibility = View.VISIBLE
-                        settingsAnilistBanner.loadImage(Anilist.bg)
-                    } else {
-                        settingsAnilistBanner.visibility = View.GONE
-                        settingsAnilistScrim.visibility = View.GONE
-                    }
-                    
                     val daysLeft = Anilist.getTokenExpiryDays()
                     if (daysLeft != null) {
                         settingsAnilistTokenExpiry.visibility = View.VISIBLE
@@ -134,35 +116,30 @@ class SettingsAccountActivity : AppCompatActivity() {
                     settingsMALUsername.visibility = View.VISIBLE
 
                     if (MAL.token != null) {
-                        settingsMALLogin.setText(R.string.logout)
+                        settingsMALLogin.setText(R.string.unlink_mal)
                         settingsMALLogin.setOnClickListener {
                             MAL.removeSavedToken()
                             restartMainActivity.isEnabled = true
                             reload()
                         }
+                        settingsMALAvatar.loadImage(MAL.avatar)
+                        settingsMALAvatarContainer.visibility = View.VISIBLE
                         settingsMALUsername.visibility = View.VISIBLE
                         settingsMALUsername.text = MAL.username
-                        settingsMALAvatar.loadImage(MAL.avatar)
-                        settingsMALAvatar.setOnClickListener {
-                            it.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                            openLinkInBrowser(getString(R.string.myanilist_link, MAL.username))
-                        }
                     } else {
-                        settingsMALAvatar.setImageResource(R.drawable.ic_round_person_24)
+                        settingsMALAvatarContainer.visibility = View.GONE
                         settingsMALUsername.visibility = View.GONE
-                        settingsMALLogin.setText(R.string.login)
+                        settingsMALLogin.setText(R.string.link_mal)
                         settingsMALLogin.setOnClickListener {
                             MAL.loginIntent(context)
                         }
                     }
                 } else {
-                    settingsAnilistAvatar.setImageResource(R.drawable.ic_round_person_24)
+                    settingsAnilistAvatarContainer.visibility = View.GONE
                     settingsAnilistUsername.visibility = View.GONE
                     settingsAnilistTokenExpiry.visibility = View.GONE
-                    settingsAnilistBanner.visibility = View.GONE
-                    settingsAnilistScrim.visibility = View.GONE
                     settingsRecyclerView.visibility = View.GONE
-                    settingsAnilistLogin.setText(R.string.login)
+                    settingsAnilistLogin.setText(R.string.link_anilist)
                     settingsAnilistLogin.setOnClickListener {
                         context.customAlertDialog().apply {
                             setTitle(getString(R.string.login_to_anilist))
@@ -203,22 +180,23 @@ class SettingsAccountActivity : AppCompatActivity() {
                     settingsMALUsername.visibility = View.GONE
                 }
 
-            // Simkl tracking
+            // Simkl tracking — Nuvio-style gradient card
             settingsSimklLogin.isFocusable = true
             if (Simkl.token != null) {
-                settingsSimklLogin.setText(R.string.logout)
+                settingsSimklLogin.setText(R.string.unlink_simkl)
                 settingsSimklLogin.setOnClickListener {
                     Simkl.removeSavedToken()
                     restartMainActivity.isEnabled = true
                     reload()
                 }
-                settingsSimklUsername.visibility = View.VISIBLE
-                settingsSimklUsername.text = Simkl.username
                 settingsSimklAvatar.loadImage(Simkl.avatar)
+                settingsSimklAvatarContainer.visibility = View.VISIBLE
+                settingsSimklUsername.text = Simkl.username
+                (settingsSimklUsername.parent as? View)?.visibility = View.VISIBLE
             } else {
-                settingsSimklUsername.visibility = View.GONE
-                settingsSimklAvatar.setImageResource(R.drawable.ic_round_person_24)
-                settingsSimklLogin.setText(R.string.login)
+                (settingsSimklUsername.parent as? View)?.visibility = View.GONE
+                settingsSimklAvatarContainer.visibility = View.GONE
+                settingsSimklLogin.setText(R.string.link_simkl)
                 settingsSimklLogin.setOnClickListener {
                     Simkl.loginIntent(this@SettingsAccountActivity)
                 }
@@ -230,6 +208,11 @@ class SettingsAccountActivity : AppCompatActivity() {
         FocusEffectUtil.applyFocusListener(binding.settingsDiscordLogin)
         binding.settingsDiscordLogin.setOnClickListener {
             openLinkInBrowser(getString(R.string.discord))
+        }
+        binding.settingsTelegramLogin.isFocusable = true
+        FocusEffectUtil.applyFocusListener(binding.settingsTelegramLogin)
+        binding.settingsTelegramLogin.setOnClickListener {
+            openLinkInBrowser(getString(R.string.telegram))
         }
         binding.settingsRecyclerView.adapter = SettingsAdapter(
             arrayListOf(
