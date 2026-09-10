@@ -422,13 +422,15 @@ class OtherDetailsViewModel : ViewModel() {
                 // Fuzzy match TVmaze: exact -> strip parenthetical -> contains
                 val lowerName = showTitle.lowercase()
                 val strippedName = lowerName.replace(Regex("\\s*\\(.*?\\)$"), "").trim()
-                val mazeInfo = tvmazeSchedule[lowerName]
+                val mazeInfo: MutableList<Triple<Int, Int, String>>? =
+                    tvmazeSchedule[lowerName]
                     ?: tvmazeSchedule[strippedName]
                     ?: tvmazeSchedule.entries.firstOrNull { (k, _) ->
                         k.contains(strippedName) || strippedName.contains(k)
-                    }?.value?.firstOrNull()
-                val relation = if (mazeInfo != null) {
-                    "S${mazeInfo.first}E${mazeInfo.second}\n${mazeInfo.third}"
+                    }?.value
+                val relation = if (mazeInfo != null && mazeInfo.isNotEmpty()) {
+                    val t = mazeInfo.first()
+                    "S${t.first}E${t.second}\n${t.third}"
                 } else "New episode"
                 addEntry(label, tmdbId, showTitle, entry[2] as String?, relation, "tv")
             }
