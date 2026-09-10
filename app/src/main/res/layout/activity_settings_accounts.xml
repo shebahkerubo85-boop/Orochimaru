@@ -73,9 +73,7 @@
             android:layout_height="140dp"
             android:layout_marginTop="16dp"
             android:layout_marginBottom="8dp"
-            android:background="@drawable/bg_anilist_gradient"
-            android:focusable="true"
-            android:foreground="?android:attr/selectableItemBackground">
+            android:background="@drawable/bg_anilist_gradient">
 
             <ImageView
                 android:id="@+id/settingsAnilistGlyph"
@@ -102,7 +100,6 @@
                 <ImageView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="top|start"
                     android:alpha="0.9"
                     android:contentDescription="@null"
                     android:src="@drawable/ic_anilist"
@@ -152,20 +149,21 @@
 
             </LinearLayout>
 
-            <TextView
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/settingsAnilistLogin"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="match_parent"
-                android:layout_height="40dp"
+                android:layout_height="wrap_content"
                 android:layout_gravity="bottom"
                 android:layout_marginStart="20dp"
                 android:layout_marginEnd="20dp"
                 android:layout_marginBottom="16dp"
                 android:backgroundTint="?attr/colorPrimary"
                 android:fontFamily="@font/poppins_bold"
-                android:gravity="center"
                 android:text="@string/link_anilist"
                 android:textColor="@android:color/white"
-                android:textSize="13sp" />
+                android:textAllCaps="false"
+                app:cornerRadius="24dp" />
 
         </FrameLayout>
 
@@ -175,9 +173,7 @@
             android:layout_width="match_parent"
             android:layout_height="140dp"
             android:layout_marginBottom="8dp"
-            android:background="@drawable/bg_mal_gradient"
-            android:focusable="true"
-            android:foreground="?android:attr/selectableItemBackground">
+            android:background="@drawable/bg_mal_gradient">
 
             <ImageView
                 android:id="@+id/settingsMalGlyph"
@@ -204,7 +200,6 @@
                 <ImageView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="top|start"
                     android:alpha="0.9"
                     android:contentDescription="@null"
                     android:src="@drawable/ic_myanimelist"
@@ -252,20 +247,21 @@
 
             </LinearLayout>
 
-            <TextView
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/settingsMALLogin"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="match_parent"
-                android:layout_height="40dp"
+                android:layout_height="wrap_content"
                 android:layout_gravity="bottom"
                 android:layout_marginStart="20dp"
                 android:layout_marginEnd="20dp"
                 android:layout_marginBottom="16dp"
                 android:backgroundTint="#FF26448D"
                 android:fontFamily="@font/poppins_bold"
-                android:gravity="center"
                 android:text="@string/link_mal"
                 android:textColor="@android:color/white"
-                android:textSize="13sp" />
+                android:textAllCaps="false"
+                app:cornerRadius="24dp" />
 
             <ImageView
                 android:id="@+id/settingsAccountHelp"
@@ -287,9 +283,7 @@
             android:layout_height="140dp"
             android:layout_marginTop="16dp"
             android:layout_marginBottom="8dp"
-            android:background="@drawable/bg_simkl_gradient"
-            android:focusable="true"
-            android:foreground="?android:attr/selectableItemBackground">
+            android:background="@drawable/bg_simkl_gradient">
 
             <ImageView
                 android:id="@+id/settingsSimklGlyph"
@@ -298,7 +292,7 @@
                 android:layout_gravity="bottom|end"
                 android:layout_marginEnd="12dp"
                 android:layout_marginBottom="12dp"
-                android:alpha="0.08"
+                android:alpha="0.12"
                 android:contentDescription="@null"
                 app:srcCompat="@drawable/ic_simkl"
                 app:tint="@android:color/white"
@@ -316,7 +310,6 @@
                 <ImageView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="top|start"
                     android:alpha="0.9"
                     android:contentDescription="@null"
                     android:src="@drawable/simkl_logo"
@@ -355,20 +348,21 @@
 
             </LinearLayout>
 
-            <TextView
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/settingsSimklLogin"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="match_parent"
-                android:layout_height="40dp"
+                android:layout_height="wrap_content"
                 android:layout_gravity="bottom"
                 android:layout_marginStart="20dp"
                 android:layout_marginEnd="20dp"
                 android:layout_marginBottom="16dp"
                 android:backgroundTint="?attr/colorPrimary"
                 android:fontFamily="@font/poppins_bold"
-                android:gravity="center"
                 android:text="@string/link_simkl"
                 android:textColor="@android:color/white"
-                android:textSize="13sp" />
+                android:textAllCaps="false"
+                app:cornerRadius="24dp" />
 
         </FrameLayout>
 
@@ -391,9 +385,7 @@
             android:layout_height="140dp"
             android:layout_marginTop="4dp"
             android:layout_marginBottom="8dp"
-            android:background="@drawable/bg_discord_gradient"
-            android:focusable="true"
-            android:foreground="?android:attr/selectableItemBackground">
+            android:background="@drawable/bg_discord_gradient">
 
             <ImageView
                 android:layout_width="130dp"
@@ -437,20 +429,21 @@
 
             </LinearLayout>
 
-            <TextView
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/settingsDiscordJoin"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="match_parent"
-                android:layout_height="40dp"
+                android:layout_height="wrap_content"
                 android:layout_gravity="bottom"
                 android:layout_marginStart="20dp"
                 android:layout_marginEnd="20dp"
                 android:layout_marginBottom="16dp"
                 android:backgroundTint="@android:color/white"
                 android:fontFamily="@font/poppins_bold"
-                android:gravity="center"
                 android:text="@string/join_discord"
                 android:textColor="#FF5865F2"
-                android:textSize="13sp" />
+                android:textAllCaps="false"
+                app:cornerRadius="24dp" />
 
         </FrameLayout>
 
@@ -460,9 +453,7 @@
             android:layout_width="match_parent"
             android:layout_height="140dp"
             android:layout_marginBottom="8dp"
-            android:background="@drawable/bg_telegram_gradient"
-            android:focusable="true"
-            android:foreground="?android:attr/selectableItemBackground">
+            android:background="@drawable/bg_telegram_gradient">
 
             <ImageView
                 android:layout_width="130dp"
@@ -470,10 +461,10 @@
                 android:layout_gravity="bottom|end"
                 android:layout_marginEnd="12dp"
                 android:layout_marginBottom="12dp"
-                android:alpha="0.08"
+                android:alpha="0.15"
                 android:contentDescription="@null"
                 app:srcCompat="@drawable/ic_telegram"
-                app:tint="@android:color/white"
+                app:tint="#FF000000"
                 tools:ignore="ContentDescription" />
 
             <LinearLayout
@@ -486,11 +477,12 @@
                 android:paddingTop="20dp">
 
                 <ImageView
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:alpha="0.95"
                     android:contentDescription="@null"
                     android:src="@drawable/ic_telegram"
+                    android:tint="@android:color/white"
                     app:tint="@android:color/white"
                     tools:ignore="ContentDescription" />
 
@@ -506,20 +498,21 @@
 
             </LinearLayout>
 
-            <TextView
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/settingsTelegramJoin"
+                style="@style/Widget.Material3.Button"
                 android:layout_width="match_parent"
-                android:layout_height="40dp"
+                android:layout_height="wrap_content"
                 android:layout_gravity="bottom"
                 android:layout_marginStart="20dp"
                 android:layout_marginEnd="20dp"
                 android:layout_marginBottom="16dp"
                 android:backgroundTint="#FF2AABEE"
                 android:fontFamily="@font/poppins_bold"
-                android:gravity="center"
                 android:text="@string/join_telegram_button"
                 android:textColor="@android:color/white"
-                android:textSize="13sp" />
+                android:textAllCaps="false"
+                app:cornerRadius="24dp" />
 
         </FrameLayout>
 

@@ -204,14 +204,14 @@ class SettingsAccountActivity : AppCompatActivity() {
             }
             reload()
         }
-        binding.settingsDiscordLogin.isFocusable = true
-        FocusEffectUtil.applyFocusListener(binding.settingsDiscordLogin)
-        binding.settingsDiscordLogin.setOnClickListener {
+        binding.settingsDiscordJoin.isFocusable = true
+        FocusEffectUtil.applyFocusListener(binding.settingsDiscordJoin)
+        binding.settingsDiscordJoin.setOnClickListener {
             openLinkInBrowser(getString(R.string.discord))
         }
-        binding.settingsTelegramLogin.isFocusable = true
-        FocusEffectUtil.applyFocusListener(binding.settingsTelegramLogin)
-        binding.settingsTelegramLogin.setOnClickListener {
+        binding.settingsTelegramJoin.isFocusable = true
+        FocusEffectUtil.applyFocusListener(binding.settingsTelegramJoin)
+        binding.settingsTelegramJoin.setOnClickListener {
             openLinkInBrowser(getString(R.string.telegram))
         }
         binding.settingsRecyclerView.adapter = SettingsAdapter(
