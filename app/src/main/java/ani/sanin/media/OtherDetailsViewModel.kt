@@ -18,6 +18,9 @@ import ani.sanin.media.anime.Anime
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.simkl.Simkl
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import ani.sanin.connections.tmdb.TmdbMedia
 
 class OtherDetailsViewModel : ViewModel() {
@@ -307,9 +310,12 @@ class OtherDetailsViewModel : ViewModel() {
         val df = DateFormat.getDateInstance(DateFormat.FULL)
         val dayFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
-        // Fetch Simkl library for status info
-        val simklShows = try { Simkl.getShowLibrary() } catch (_: Exception) { emptyList() }
-        val simklMovies = try { Simkl.getMovieLibrary() } catch (_: Exception) { emptyList() }
+        // Fetch Simkl library for status info (parallel)
+        val (simklShows, simklMovies) = coroutineScope {
+            val shows = async { try { Simkl.getShowLibrary() } catch (_: Exception) { emptyList<Simkl.SimklWatchedItem>() } }
+            val movies = async { try { Simkl.getMovieLibrary() } catch (_: Exception) { emptyList<Simkl.SimklWatchedItem>() } }
+            shows.await() to movies.await()
+        }
         val simklIdMap = mutableMapOf<Int, String>() // tmdbId -> status
         val simklItemMap = mutableMapOf<Int, Simkl.SimklWatchedItem>() // tmdbId -> full item
         simklShows.filter { it.status != null }.forEach { item ->
@@ -377,70 +383,95 @@ class OtherDetailsViewModel : ViewModel() {
             val day = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, offset) }
             return dayFmt.format(day.time) to df.format(day.time)
         }
-        val weekDays = (-7..6).map { dayKey(it) }
+        val allWeekDays = (-7..6).map { dayKey(it) }
 
-        // TVmaze schedule map: lowerName -> list of (season, ep, time) per day
-        val tvmazeSchedule = mutableMapOf<String, MutableList<Triple<Int, Int, String>>>()
-        for ((iso, _) in weekDays) {
-            val schedBody = try {
-                val conn = java.net.URL("https://api.tvmaze.com/schedule?date=$iso&country=US")
-                    .openConnection() as java.net.HttpURLConnection
-                conn.connectTimeout = 5000
-                conn.readTimeout = 5000
-                conn.inputStream.bufferedReader().use { it.readText() }
-            } catch (_: Exception) { "[]" }
-            try {
-                val arr = org.json.JSONArray(schedBody)
-                for (i in 0 until arr.length()) {
-                    val ep = arr.getJSONObject(i)
-                    val showName = ep.optJSONObject("show")?.optString("name", "")?.lowercase() ?: continue
-                    val season = ep.optInt("season", 0)
-                    val number = ep.optInt("number", 0)
-                    val airtime = ep.optString("airtime", "").ifBlank { null } ?: continue
-                    if (season > 0 && number > 0) {
-                        tvmazeSchedule.getOrPut(showName) { mutableListOf() }
-                            .add(Triple(season, number, airtime))
+        // Helper to fetch a batch of days (parallel TVmaze + TMDB)
+        suspend fun fetchDays(days: List<Pair<String, String>>): Map<String, MutableList<Media>> {
+            val batchMap = LinkedHashMap<String, MutableList<Media>>()
+            val batchSeen = mutableSetOf<Int>()
+
+            fun addBatchEntry(dayKey: String, tmdbId: Int, title: String, posterPath: String?, relation: String, type: String) {
+                if (!batchSeen.add(tmdbId)) return
+                val media = Media(
+                    id = tmdbId, name = title, nameRomaji = title, userPreferredName = title,
+                    isAdult = false, anime = null,
+                    cover = Tmdb.imageUrl(posterPath, 300), banner = Tmdb.imageUrl(posterPath, 780),
+                    status = simklIdMap[tmdbId]
+                )
+                media.tmdbType = type; media.relation = relation
+                val simklItem = simklItemMap[tmdbId]
+                if (simklItem != null) media.userStatus = simklItem.status
+                batchMap.getOrPut(dayKey) { mutableListOf() }.add(media)
+            }
+
+            coroutineScope {
+                val tvmazeDeferred = days.map { (iso, _) ->
+                    async {
+                        val schedBody = try {
+                            val conn = java.net.URL("https://api.tvmaze.com/schedule?date=$iso&country=US")
+                                .openConnection() as java.net.HttpURLConnection
+                            conn.connectTimeout = 3000; conn.readTimeout = 3000
+                            conn.inputStream.bufferedReader().use { it.readText() }
+                        } catch (_: Exception) { "[]" }
+                        parseTvmazeSchedule(schedBody)
                     }
                 }
-            } catch (_: Exception) {}
-        }
+                val tmdbDeferred = days.map { (iso, label) ->
+                    async {
+                        val body = try {
+                            Tmdb.get("/discover/tv", "air_date.gte" to iso, "air_date.lte" to iso, "sort_by" to "popularity.desc", "include_empty" to "false")
+                        } catch (_: Exception) { null }
+                        label to parseResults(body ?: "")
+                    }
+                }
 
-        // TV: TMDB discover for show IDs + posters, TVmaze for episode info
-        for ((iso, label) in weekDays) {
-            val body = try {
-                Tmdb.get(
-                    "/discover/tv",
-                    "air_date.gte" to iso,
-                    "air_date.lte" to iso,
-                    "sort_by" to "popularity.desc",
-                    "include_empty" to "false"
-                )
-            } catch (_: Exception) { null }
-            parseResults(body ?: "").forEach { entry ->
-                val tmdbId = entry[0] as Int
-                val showTitle = entry[1] as String
-                // Fuzzy match TVmaze: exact -> strip parenthetical -> contains
-                val lowerName = showTitle.lowercase()
-                val strippedName = lowerName.replace(Regex("\\s*\\(.*?\\)$"), "").trim()
-                val mazeInfo: MutableList<Triple<Int, Int, String>>? =
-                    tvmazeSchedule[lowerName]
-                    ?: tvmazeSchedule[strippedName]
-                    ?: tvmazeSchedule.entries.firstOrNull { (k, _) ->
-                        k.contains(strippedName) || strippedName.contains(k)
-                    }?.value
-                val relation = if (mazeInfo != null && mazeInfo.isNotEmpty()) {
-                    val t = mazeInfo.first()
-                    "S${t.first}E${t.second}\n${t.third}"
-                } else "New episode"
-                addEntry(label, tmdbId, showTitle, entry[2] as String?, relation, "tv")
+                val tvmazeSchedule = mutableMapOf<String, MutableList<Triple<Int, Int, String>>>()
+                tvmazeDeferred.awaitAll().flatten().forEach { (name, triple) ->
+                    tvmazeSchedule.getOrPut(name) { mutableListOf() }.add(triple)
+                }
+
+                tmdbDeferred.awaitAll().forEach { (label, results) ->
+                    results.forEach { entry ->
+                        val tmdbId = entry[0] as Int; val showTitle = entry[1] as String
+                        val lowerName = showTitle.lowercase()
+                        val strippedName = lowerName.replace(Regex("\\s*\\(.*?\\)$"), "").trim()
+                        val mazeInfo: MutableList<Triple<Int, Int, String>>? =
+                            tvmazeSchedule[lowerName] ?: tvmazeSchedule[strippedName]
+                            ?: tvmazeSchedule.entries.firstOrNull { (k, _) -> k.contains(strippedName) || strippedName.contains(k) }?.value
+                        val relation = if (mazeInfo != null && mazeInfo.isNotEmpty()) {
+                            val t = mazeInfo.first(); "S${t.first}E${t.second}\n${t.third}"
+                        } else "New episode"
+                        addBatchEntry(label, tmdbId, showTitle, entry[2] as String?, relation, "tv")
+                    }
+                }
             }
+            return batchMap
         }
 
-        // Movies releasing within the same week
-        val upcomingBody = try { Tmdb.get("/movie/upcoming") } catch (_: Exception) { null }
-        parseResults(upcomingBody ?: "").forEach { entry ->
+        // Step 1: Load first 2 days (today + tomorrow) and show immediately
+        val initialDays = allWeekDays.filter { (iso, _) ->
+            val d = try { dayFmt.parse(iso) } catch (_: Exception) { null }
+            d != null && (d.time >= today.timeInMillis - 86400000L)
+        }.take(2)
+
+        if (initialDays.isNotEmpty()) {
+            val initial = fetchDays(initialDays)
+            initial.forEach { (k, v) -> allMap.getOrPut(k) { mutableListOf() }.addAll(v) }
+            calendar.postValue(LinkedHashMap(allMap))
+        }
+
+        // Step 2: Load remaining days
+        val remainingDays = allWeekDays.toSet() - initialDays.toSet()
+        if (remainingDays.isNotEmpty()) {
+            val remaining = fetchDays(remainingDays.toList())
+            remaining.forEach { (k, v) -> allMap.getOrPut(k) { mutableListOf() }.addAll(v) }
+        }
+
+        // Step 3: Load upcoming movies
+        val moviesBody = try { Tmdb.get("/movie/upcoming") } catch (_: Exception) { null }
+        parseResults(moviesBody ?: "").forEach { entry ->
             val dateIso = entry[3] as String? ?: return@forEach
-            weekDays.firstOrNull { it.first == dateIso }?.let { (_, label) ->
+            allWeekDays.firstOrNull { it.first == dateIso }?.let { (_, label) ->
                 addEntry(label, entry[0] as Int, entry[1] as String, entry[2] as String?, "Movie\n${dateIso}", "movie")
             }
         }
@@ -448,6 +479,24 @@ class OtherDetailsViewModel : ViewModel() {
         cachedAllCalendarData = allMap
         cachedLibraryCalendarData = allMap
         calendar.postValue(allMap)
+    }
+
+    private fun parseTvmazeSchedule(json: String): List<Pair<String, Triple<Int, Int, String>>> {
+        val result = mutableListOf<Pair<String, Triple<Int, Int, String>>>()
+        try {
+            val arr = org.json.JSONArray(json)
+            for (i in 0 until arr.length()) {
+                val ep = arr.getJSONObject(i)
+                val showName = ep.optJSONObject("show")?.optString("name", "")?.lowercase() ?: continue
+                val season = ep.optInt("season", 0)
+                val number = ep.optInt("number", 0)
+                val airtime = ep.optString("airtime", "").ifBlank { null } ?: continue
+                if (season > 0 && number > 0) {
+                    result.add(showName to Triple(season, number, airtime))
+                }
+            }
+        } catch (_: Exception) {}
+        return result
     }
 
     private suspend fun loadCalendarFromAnilist(showOnlyLibrary: Boolean) {
