@@ -145,7 +145,7 @@ class SettingsThemeActivity : AppCompatActivity() {
                             }
                             customAlertDialog().apply {
                                 setTitle("OLED Intensity")
-                                setView(container)
+                                setCustomView(container)
                                 setPosButton(R.string.ok) {
                                     PrefManager.setVal(PrefName.OledIntensity, seekBar.progress / 100f)
                                     restartApp()
