@@ -16,13 +16,8 @@ import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.customAlertDialog
 import com.google.android.material.materialswitch.MaterialSwitch
 
-/**
- * Programmatic builder for card-based settings subscreens.
- * Each section gets a top-rim card header + collapsible card body.
- */
 object SubscreenBuilder {
 
-    /** A collapsible section containing settings entries. */
     data class Section(
         val title: String,
         val iconRes: Int,
@@ -40,19 +35,23 @@ object SubscreenBuilder {
         val onValueChange: (Float) -> Unit,
     )
 
-    /** A single setting entry. */
     data class Entry(
         val title: String,
         val desc: String? = null,
         val iconRes: Int = 0,
         val onClick: ((Context) -> Unit)? = null,
-        val onLongClick: ((Context) -> Unit)? = null,
-        /** For switch entries: (initialValue, onToggle) */
+        val onLongClick: (() -> Unit)? = null,
         val switch: Pair<Boolean, (Boolean) -> Unit>? = null,
-        /** For choice entries: title, options, currentIndex, onSelect */
         val choice: Choice? = null,
-        /** For slider entries */
         val slider: SliderOption? = null,
+        /** When set on a choice entry, a slider appears below it, expanding when choice index != expandSlider.showOnIndex */
+        val expandSlider: ExpandSlider? = null,
+    )
+
+    data class ExpandSlider(
+        val slider: SliderOption,
+        /** The slider is shown when choice index != this value. Default 0 = "Off". */
+        val showOnIndex: Int = 0,
     )
 
     data class Choice(
@@ -62,12 +61,6 @@ object SubscreenBuilder {
         val onSelect: (Int) -> Unit,
     )
 
-    /**
-     * Populate a container with collapsible card sections.
-     * @param context Activity context
-     * @param container The LinearLayout inside the subscreen content area
-     * @param sections List of sections to render
-     */
     fun build(
         context: Context,
         container: LinearLayout,
@@ -92,7 +85,6 @@ object SubscreenBuilder {
                 desc.visibility = View.VISIBLE
             }
 
-            // Populate entries
             section.entries.forEach { entry ->
                 if (entry.switch != null) {
                     val switchView = inflater.inflate(R.layout.item_settings_section_switch, items, false)
@@ -104,14 +96,13 @@ object SubscreenBuilder {
                     sTitle.text = entry.title
                     sToggle.isChecked = entry.switch!!.first
                     sToggle.setOnCheckedChangeListener { _, isChecked -> entry.switch.second(isChecked) }
-                    sTitle.setOnClickListener {
-                        sToggle.isChecked = !sToggle.isChecked
-                    }
+                    sTitle.setOnClickListener { sToggle.isChecked = !sToggle.isChecked }
                     if (entry.onLongClick != null) {
-                        switchView.setOnLongClickListener { entry.onLongClick!!.invoke(context); true }
+                        switchView.setOnLongClickListener { entry.onLongClick!!.invoke(); true }
                     }
                     FocusEffectUtil.applyFocusListener(switchView)
                     items.addView(switchView)
+
                 } else if (entry.slider != null) {
                     val sliderView = inflater.inflate(R.layout.item_settings_section_slider, items, false)
                     val slTitle = sliderView.findViewById<TextView>(R.id.sliderTitle)
@@ -131,6 +122,7 @@ object SubscreenBuilder {
                     }
                     FocusEffectUtil.applyFocusListener(sliderView)
                     items.addView(sliderView)
+
                 } else {
                     val entryView = inflater.inflate(R.layout.item_settings_section_entry, items, false)
                     val eIcon = entryView.findViewById<ImageView>(R.id.entryIcon)
@@ -144,30 +136,75 @@ object SubscreenBuilder {
                         eDesc.text = entry.desc
                         eDesc.visibility = View.VISIBLE
                     }
-                    if (entry.onClick != null) {
-                        entryView.setSafeOnClickListener { entry.onClick!!.invoke(context) }
+
+                    // Inline expandable slider (e.g. OLED intensity)
+                    var expandSliderView: View? = null
+                    var expandSlider: Slider? = null
+
+                    if (entry.expandSlider != null) {
+                        expandSliderView = inflater.inflate(R.layout.item_settings_section_slider, items, false)
+                        val slTitle2 = expandSliderView.findViewById<TextView>(R.id.sliderTitle)
+                        val sl2 = expandSliderView.findViewById<Slider>(R.id.slider)
+                        val slValue2 = expandSliderView.findViewById<TextView>(R.id.sliderValue)
+                        expandSlider = sl2
+
+                        val es = entry.expandSlider!!
+                        slTitle2.text = "Intensity"
+                        sl2.valueFrom = es.slider.valueFrom
+                        sl2.valueTo = es.slider.valueTo
+                        sl2.stepSize = es.slider.step
+                        sl2.value = es.slider.value
+                        slValue2.text = "${es.slider.value.toInt()}${es.slider.suffix}"
+                        sl2.addOnChangeListener { _, value, fromUser ->
+                            if (fromUser) {
+                                slValue2.text = "${value.toInt()}${es.slider.suffix}"
+                                es.slider.onValueChange(value)
+                            }
+                        }
+                        expandSliderView.visibility = if (entry.expandSlider!!.showOnIndex != entry.choice?.currentIndex) View.VISIBLE else View.GONE
+                        FocusEffectUtil.applyFocusListener(expandSliderView)
+                        items.addView(expandSliderView)
                     }
-                    if (entry.onLongClick != null) {
-                        entryView.setOnLongClickListener { entry.onLongClick!!.invoke(context); true }
-                    }
+
                     if (entry.choice != null) {
                         entryView.setSafeOnClickListener {
                             val c = entry.choice!!
                             context.customAlertDialog().apply {
                                 setTitle(c.title)
-                                singleChoiceItems(c.options, c.currentIndex) { idx -> c.onSelect(idx) }
+                                singleChoiceItems(c.options, c.currentIndex) { idx ->
+                                    c.onSelect(idx)
+                                    // Show/hide expandable slider based on selection
+                                    if (entry.expandSlider != null && expandSliderView != null) {
+                                        val shouldShow = idx != entry.expandSlider!!.showOnIndex
+                                        if (shouldShow) {
+                                            expandSliderView.visibility = View.VISIBLE
+                                            expandSliderView.alpha = 0f
+                                            expandSliderView.animate().alpha(1f).setDuration(200).start()
+                                        } else {
+                                            expandSliderView.animate().alpha(0f).setDuration(150).withEndAction {
+                                                expandSliderView.visibility = View.GONE
+                                            }.start()
+                                        }
+                                    }
+                                }
                                 show()
                             }
                         }
+                    } else if (entry.onClick != null) {
+                        entryView.setSafeOnClickListener { entry.onClick!!.invoke(context) }
                     } else {
                         eChevron.visibility = View.GONE
+                    }
+
+                    if (entry.onLongClick != null) {
+                        entryView.setOnLongClickListener { entry.onLongClick!!.invoke(); true }
                     }
                     FocusEffectUtil.applyFocusListener(entryView)
                     items.addView(entryView)
                 }
             }
 
-            // Expand/collapse
+            // Expand/collapse sections
             val expanded = mutableSetOf<Int>()
             if (section.defaultExpanded) expanded.add(sIdx)
 
@@ -198,7 +235,6 @@ object SubscreenBuilder {
 
             container.addView(sectionView)
 
-            // Add spacing between sections
             if (sIdx < sections.lastIndex) {
                 val spacer = View(context).apply {
                     layoutParams = LinearLayout.LayoutParams(

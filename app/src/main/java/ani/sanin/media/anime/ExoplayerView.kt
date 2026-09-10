@@ -1889,7 +1889,10 @@ class ExoplayerView :
             updateTimeStamp()
         }
 
-        // OLED effect is now part of decorView background, no overlay to hide
+        window.decorView.post {
+            val oledView = ani.sanin.themes.OledBackgroundManager.getOverlayView()
+            oledView?.let { it.visibility = View.GONE }
+        }
     }
 
     private fun initPlayer() {

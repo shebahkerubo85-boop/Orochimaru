@@ -69,6 +69,16 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                             options = arrayOf("Off", "Pure AMOLED", "Glow Spots", "Gradient", "Vignette"),
                             currentIndex = PrefManager.getVal<Int>(PrefName.OledMode),
                         ) { idx -> PrefManager.setVal(PrefName.OledMode, idx); restartApp() },
+                        expandSlider = SubscreenBuilder.ExpandSlider(
+                            slider = SubscreenBuilder.SliderOption(
+                                value = PrefManager.getVal<Float>(PrefName.OledIntensity) * 100f,
+                                valueFrom = 0f,
+                                valueTo = 100f,
+                                step = 5f,
+                                suffix = "%",
+                            ) { PrefManager.setVal(PrefName.OledIntensity, it / 100f) },
+                            showOnIndex = 0,
+                        ),
                     ),
                     SubscreenBuilder.Entry(
                         title = "Accent Tint",
