@@ -43,6 +43,7 @@ class CalendarActivity : AppCompatActivity() {
     private val dateFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
     private val fullDayFmt = SimpleDateFormat("EEEE, MMMM d", Locale.US)
     private val monthDayFmt = SimpleDateFormat("MMM d", Locale.US)
+    private var allCalendarData: Map<String, MutableList<Media>> = emptyMap()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -87,7 +88,10 @@ class CalendarActivity : AppCompatActivity() {
         }
 
         model.getCalendar().observe(this) { data ->
-            if (data != null) refreshDisplay(data)
+            if (data != null) {
+                allCalendarData = data
+                refreshDisplay(data)
+            }
         }
     }
 
@@ -95,16 +99,14 @@ class CalendarActivity : AppCompatActivity() {
         val today = Calendar.getInstance()
         currentWeekStart = (today.clone() as Calendar).apply {
             set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
         }
         selectedDate = today.clone() as Calendar
         buildWeekStrip()
         updateWeekLabel()
         updateDayLabel()
-        model.getCalendar().value?.let { refreshDisplay(it) }
+        allCalendarData.let { refreshDisplay(it) }
     }
 
     private fun setupWeekNav() {
@@ -114,7 +116,7 @@ class CalendarActivity : AppCompatActivity() {
             buildWeekStrip()
             updateWeekLabel()
             updateDayLabel()
-            model.getCalendar().value?.let { refreshDisplay(it) }
+            allCalendarData.let { refreshDisplay(it) }
         }
         FocusEffectUtil.applyFocusListener(binding.calendarPrevWeek)
 
@@ -124,7 +126,7 @@ class CalendarActivity : AppCompatActivity() {
             buildWeekStrip()
             updateWeekLabel()
             updateDayLabel()
-            model.getCalendar().value?.let { refreshDisplay(it) }
+            allCalendarData.let { refreshDisplay(it) }
         }
         FocusEffectUtil.applyFocusListener(binding.calendarNextWeek)
     }
@@ -165,9 +167,7 @@ class CalendarActivity : AppCompatActivity() {
                 textSize = 14f
                 gravity = Gravity.CENTER
                 typeface = Typeface.create(resources.getFont(R.font.poppins_bold), Typeface.BOLD)
-                layoutParams = LinearLayout.LayoutParams(dpToPx(36), dpToPx(36)).apply {
-                    topMargin = dpToPx(2)
-                }
+                layoutParams = LinearLayout.LayoutParams(dpToPx(36), dpToPx(36)).apply { topMargin = dpToPx(2) }
                 when {
                     isSel -> {
                         setTextColor(ContextCompat.getColor(this@CalendarActivity, R.color.bg_black))
@@ -198,7 +198,7 @@ class CalendarActivity : AppCompatActivity() {
         selectedDate = cal
         buildWeekStrip()
         updateDayLabel()
-        model.getCalendar().value?.let { refreshDisplay(it) }
+        allCalendarData.let { refreshDisplay(it) }
     }
 
     private fun updateWeekLabel() {
@@ -216,12 +216,14 @@ class CalendarActivity : AppCompatActivity() {
         val selectedIso = dateFmt.format(selectedDate.time)
         val allEpisodes = mutableListOf<Media>()
 
+        // Collect episodes for selected day
         for ((key, list) in data) {
             val keyDate = try { dateFmt.parse(key) } catch (_: Exception) { null }
             val isoMatch = key == selectedIso || (keyDate != null && dateFmt.format(keyDate) == selectedIso)
             if (isoMatch) allEpisodes.addAll(list)
         }
 
+        // Fallback: try matching by formatted date string
         if (allEpisodes.isEmpty()) {
             val selectedDoy = selectedDate.get(Calendar.DAY_OF_YEAR)
             val selectedYear = selectedDate.get(Calendar.YEAR)
@@ -242,6 +244,7 @@ class CalendarActivity : AppCompatActivity() {
             allEpisodes.filter { it.userProgress != null || it.userStatus != null }
         } else allEpisodes
 
+        // === Portrait cards for scheduled episodes ===
         val epContainer = binding.calendarDayEpisodes
         epContainer.removeAllViews()
         if (filtered.isEmpty()) {
@@ -251,29 +254,21 @@ class CalendarActivity : AppCompatActivity() {
             binding.calendarEmpty.visibility = View.GONE
             epContainer.visibility = View.VISIBLE
             for (media in filtered) {
-                val v = LayoutInflater.from(this).inflate(R.layout.item_calendar_episode, epContainer, false)
-                v.findViewById<android.widget.ImageView>(R.id.calendarEpPoster).loadImage(media.cover)
-                v.findViewById<TextView>(R.id.calendarEpTitle).text = media.name
+                val v = LayoutInflater.from(this).inflate(R.layout.item_calendar_poster, epContainer, false)
+                v.findViewById<android.widget.ImageView>(R.id.calendarPoster).loadImage(media.cover)
+                v.findViewById<TextView>(R.id.calendarTitle).text = media.name
 
-                val badge = v.findViewById<TextView>(R.id.calendarEpBadge)
-                val infoTv = v.findViewById<TextView>(R.id.calendarEpInfo)
+                val badge = v.findViewById<TextView>(R.id.calendarBadge)
                 val rel = media.relation ?: ""
                 val epNum = Regex("""Episode\s+(\d+)""").find(rel)?.groupValues?.get(1)
                 val timeStr = if (rel.contains("\n")) rel.lines().getOrNull(1)?.trim() else null
                 val isMovie = media.tmdbType == "movie"
 
-                if (isMovie) {
-                    badge.text = "Movie"
-                    infoTv.text = media.name
-                } else {
-                    badge.text = if (epNum != null && !timeStr.isNullOrBlank()) {
-                        "Ep $epNum \u00b7 $timeStr"
-                    } else if (epNum != null) {
-                        "Ep $epNum"
-                    } else {
-                        "New"
-                    }
-                    infoTv.text = rel.replace("\n", " \u00b7 ")
+                badge.text = when {
+                    isMovie -> "Movie"
+                    epNum != null && !timeStr.isNullOrBlank() -> "Ep $epNum \u00b7 $timeStr"
+                    epNum != null -> "Ep $epNum"
+                    else -> "New"
                 }
 
                 FocusEffectUtil.applyFocusListener(v)
@@ -281,18 +276,48 @@ class CalendarActivity : AppCompatActivity() {
             }
         }
 
-        val todayIso = dateFmt.format(Date())
-        val upcoming = data.entries.filter { it.key > todayIso }.flatMap { it.value }
-            .distinctBy { it.id }.take(20)
-        binding.calendarUpcomingSection.visibility = if (upcoming.isNotEmpty()) View.VISIBLE else View.GONE
+        // === Upcoming list episodes (landscape) — only when list-only is ON ===
+        if (showOnlyList) {
+            val todayIso = dateFmt.format(Date())
+            val upcomingList = mutableListOf<Media>()
+            for ((key, list) in data) {
+                if (key > todayIso) {
+                    for (media in list) {
+                        if (media.userProgress != null || media.userStatus != null) {
+                            upcomingList.add(media)
+                        }
+                    }
+                }
+            }
+            val distinct = upcomingList.distinctBy { it.id }.take(20)
 
-        val weekIsos = (0..6).map { offset ->
-            dateFmt.format((currentWeekStart.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, offset) }.time)
+            if (distinct.isNotEmpty()) {
+                binding.calendarUpcomingSection.visibility = View.VISIBLE
+                val container = binding.calendarUpcomingRecycler
+                container.removeAllViews()
+                for (media in distinct) {
+                    val v = LayoutInflater.from(this).inflate(R.layout.item_calendar_landscape, container, false)
+                    // Episode thumbnail fallback to poster
+                    v.findViewById<android.widget.ImageView>(R.id.calendarLandscapeImg).loadImage(media.cover)
+
+                    // Episode title below image
+                    val rel = media.relation ?: ""
+                    val epTitle = rel.lines().firstOrNull()?.trim()
+                    val titleTv = v.findViewById<TextView>(R.id.calendarLandscapeTitle)
+                    val animeTv = v.findViewById<TextView>(R.id.calendarLandscapeAnime)
+
+                    titleTv.text = if (!epTitle.isNullOrBlank()) epTitle else media.name
+                    animeTv.text = media.name
+
+                    FocusEffectUtil.applyFocusListener(v)
+                    container.addView(v)
+                }
+            } else {
+                binding.calendarUpcomingSection.visibility = View.GONE
+            }
+        } else {
+            binding.calendarUpcomingSection.visibility = View.GONE
         }
-        val scheduledIds = data.entries.filter { it.key in weekIsos }.flatMap { it.value }.map { it.id }.toSet()
-        val allThisWeek = data.values.flatten().distinctBy { it.id }
-        val missing = allThisWeek.filter { it.id !in scheduledIds }.take(20)
-        binding.calendarMissingSection.visibility = if (missing.isNotEmpty()) View.VISIBLE else View.GONE
     }
 
     private fun showFilterSheet() {
@@ -303,7 +328,7 @@ class CalendarActivity : AppCompatActivity() {
                 PrefManager.setVal(PrefName.CalendarListOnly, checked[0])
             }
             setPosButton(R.string.ok) {
-                model.getCalendar().value?.let { refreshDisplay(it) }
+                allCalendarData.let { refreshDisplay(it) }
             }
             setNegButton(R.string.cancel)
         }.show()

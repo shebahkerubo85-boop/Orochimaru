@@ -182,14 +182,15 @@
                 android:textSize="14sp" />
         </LinearLayout>
 
-        <!-- Episode list for selected day -->
-        <LinearLayout
+        <!-- Episode list for selected day (portrait cards, wrapping grid) -->
+        <com.google.android.material.flexbox.FlexboxLayout
             android:id="@+id/calendarDayEpisodes"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
             android:paddingHorizontal="12dp"
-            android:visibility="gone" />
+            android:visibility="gone"
+            app:flexWrap="wrap"
+            app:justifyContent="flex_start" />
 
         <!-- Upcoming shelf -->
         <LinearLayout
@@ -210,45 +211,22 @@
                 android:textSize="14sp"
                 android:text="Upcoming Episodes" />
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/calendarUpcomingRecycler"
+            <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:clipToPadding="false"
-                android:nestedScrollingEnabled="false"
                 android:overScrollMode="never"
-                android:paddingHorizontal="12dp" />
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/calendarUpcomingRecycler"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="12dp" />
+            </HorizontalScrollView>
         </LinearLayout>
 
-        <!-- Missing shelf -->
-        <LinearLayout
-            android:id="@+id/calendarMissingSection"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="24dp"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="16dp"
-                android:layout_marginBottom="8dp"
-                android:fontFamily="@font/poppins_semi_bold"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="14sp"
-                android:text="Missing Episodes" />
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/calendarMissingRecycler"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:clipToPadding="false"
-                android:nestedScrollingEnabled="false"
-                android:overScrollMode="never"
-                android:paddingHorizontal="12dp" />
-        </LinearLayout>
-
+        
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>
