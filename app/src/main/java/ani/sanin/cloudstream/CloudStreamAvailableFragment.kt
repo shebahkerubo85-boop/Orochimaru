@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
 import ani.sanin.copyToClipboard
+import ani.sanin.getThemeColor
 import ani.sanin.others.svg.SvgImageLoader
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
@@ -83,6 +84,18 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
         }.getOrNull()
     }
 
+
+    /** Extract GitHub owner avatar from a raw.githubusercontent.com repo URL. */
+    private fun githubOwnerAvatar(repoUrl: String): String? {
+        val raw = "raw.githubusercontent.com/"
+        val idx = repoUrl.indexOf(raw)
+        if (idx < 0) return null
+        val rest = repoUrl.substring(idx + raw.length)
+        val owner = rest.substringBefore('/')
+        if (owner.isBlank() || owner == "index.json") return null
+        return "https://github.com/$owner.png"
+    }
+
     private val adapter = RepoAdapter(
         onOpen = { repo -> openRepo(repo) },
         onLongClick = { repo -> showRepoShortcuts(repo) }
@@ -123,9 +136,11 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
                 async {
                     val manifest = runCatching { CsRepos.fetchManifest(url) }.getOrNull()
                     val plugins = if (manifest != null) CsRepos.getRepoPlugins(url) else emptyList()
-                    val iconUrl = manifest?.iconUrl?.let {
+                    // Prefer manifest icon; fall back to the repo owner's GitHub avatar
+                    val manifestIcon = manifest?.iconUrl?.let {
                         if (it.startsWith("http")) it else CsRepos.sourceUrl(url, it)
                     }
+                    val iconUrl = manifestIcon ?: githubOwnerAvatar(url)
                     val contentTypes = plugins.map { it.typeLabel }.distinct().sorted()
                     val languages = plugins.map { it.lang.uppercase(Locale.ROOT) }.distinct().sorted()
                     RepoUi(
@@ -254,8 +269,9 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
             }
 
             // Set card gradient from logo via Palette, fallback to theme primary
+            val primaryColor = ctx.getThemeColor(com.google.android.material.R.attr.colorPrimary)
             val defaultTop = if (isDark) Color.BLACK else Color.WHITE
-            val defaultBot = if (isDark) Color.parseColor("#1A1A1A") else Color.parseColor("#666666")
+            val defaultBot = blendWithSurface(primaryColor, if (isDark) 0.55f else 0.35f)
             applyGradient(holder.binding.repoCardRoot, defaultTop, defaultBot)
 
             // Load logo via Palette
