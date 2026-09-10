@@ -1,5 +1,6 @@
 package ani.sanin.media
 
+import android.content.Intent
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.Gravity
@@ -59,18 +60,17 @@ class CalendarActivity : AppCompatActivity() {
         binding.calendarBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
         FocusEffectUtil.applyFocusListener(binding.calendarBack)
 
-        binding.calendarSettings.setOnClickListener { showFilterSheet() }
-        FocusEffectUtil.applyFocusListener(binding.calendarSettings)
-
+        // Today button
         binding.calendarTodayBtn.setOnClickListener { goToToday() }
         FocusEffectUtil.applyFocusListener(binding.calendarTodayBtn)
 
-        currentWeekStart.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-        currentWeekStart.set(Calendar.HOUR_OF_DAY, 0)
-        currentWeekStart.set(Calendar.MINUTE, 0)
-        currentWeekStart.set(Calendar.SECOND, 0)
-        currentWeekStart.set(Calendar.MILLISECOND, 0)
-        selectedDate = currentWeekStart.clone() as Calendar
+        // Start on today, not Monday
+        currentWeekStart = (Calendar.getInstance().clone() as Calendar).apply {
+            set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }
+        selectedDate = Calendar.getInstance() // today
 
         setupWeekNav()
         buildWeekStrip()
@@ -106,7 +106,7 @@ class CalendarActivity : AppCompatActivity() {
         buildWeekStrip()
         updateWeekLabel()
         updateDayLabel()
-        allCalendarData.let { refreshDisplay(it) }
+        refreshDisplay(allCalendarData)
     }
 
     private fun setupWeekNav() {
@@ -116,7 +116,7 @@ class CalendarActivity : AppCompatActivity() {
             buildWeekStrip()
             updateWeekLabel()
             updateDayLabel()
-            allCalendarData.let { refreshDisplay(it) }
+            refreshDisplay(allCalendarData)
         }
         FocusEffectUtil.applyFocusListener(binding.calendarPrevWeek)
 
@@ -126,7 +126,7 @@ class CalendarActivity : AppCompatActivity() {
             buildWeekStrip()
             updateWeekLabel()
             updateDayLabel()
-            allCalendarData.let { refreshDisplay(it) }
+            refreshDisplay(allCalendarData)
         }
         FocusEffectUtil.applyFocusListener(binding.calendarNextWeek)
     }
@@ -198,7 +198,7 @@ class CalendarActivity : AppCompatActivity() {
         selectedDate = cal
         buildWeekStrip()
         updateDayLabel()
-        allCalendarData.let { refreshDisplay(it) }
+        refreshDisplay(allCalendarData)
     }
 
     private fun updateWeekLabel() {
@@ -216,14 +216,14 @@ class CalendarActivity : AppCompatActivity() {
         val selectedIso = dateFmt.format(selectedDate.time)
         val allEpisodes = mutableListOf<Media>()
 
-        // Collect episodes for selected day
+        // Collect episodes for selected day — ISO match
         for ((key, list) in data) {
             val keyDate = try { dateFmt.parse(key) } catch (_: Exception) { null }
             val isoMatch = key == selectedIso || (keyDate != null && dateFmt.format(keyDate) == selectedIso)
             if (isoMatch) allEpisodes.addAll(list)
         }
 
-        // Fallback: try matching by formatted date string
+        // Fallback: formatted date string match (movie mode uses "September 10, 2026")
         if (allEpisodes.isEmpty()) {
             val selectedDoy = selectedDate.get(Calendar.DAY_OF_YEAR)
             val selectedYear = selectedDate.get(Calendar.YEAR)
@@ -244,7 +244,6 @@ class CalendarActivity : AppCompatActivity() {
             allEpisodes.filter { it.userProgress != null || it.userStatus != null }
         } else allEpisodes
 
-        // === Portrait cards for scheduled episodes ===
         val epContainer = binding.calendarDayEpisodes
         epContainer.removeAllViews()
         if (filtered.isEmpty()) {
@@ -256,7 +255,7 @@ class CalendarActivity : AppCompatActivity() {
             for (media in filtered) {
                 val v = LayoutInflater.from(this).inflate(R.layout.item_calendar_poster, epContainer, false)
                 v.findViewById<android.widget.ImageView>(R.id.calendarPoster).loadImage(media.cover)
-                v.findViewById<TextView>(R.id.calendarTitle).text = media.name
+                v.findViewById<TextView>(R.id.calendarTitle).text = media.name ?: media.nameRomaji
 
                 val badge = v.findViewById<TextView>(R.id.calendarBadge)
                 val rel = media.relation ?: ""
@@ -271,68 +270,28 @@ class CalendarActivity : AppCompatActivity() {
                     else -> "New"
                 }
 
+                // Card click → info screen
+                v.setOnClickListener {
+                    val isAnime = media.anime != null
+                    val intent = if (isAnime) {
+                        Intent(this, MediaDetailsActivity::class.java).apply {
+                            putExtra("mediaId", media.id)
+                        }
+                    } else {
+                        Intent(this, ani.sanin.cloudstream.TmdbDetailsActivity::class.java).apply {
+                            putExtra("mediaId", media.id)
+                            putExtra("mediaType", media.tmdbType ?: "tv")
+                        }
+                    }
+                    startActivity(intent)
+                }
+
                 FocusEffectUtil.applyFocusListener(v)
                 epContainer.addView(v)
             }
         }
-
-        // === Upcoming list episodes (landscape) — only when list-only is ON ===
-        if (showOnlyList) {
-            val todayIso = dateFmt.format(Date())
-            val upcomingList = mutableListOf<Media>()
-            for ((key, list) in data) {
-                if (key > todayIso) {
-                    for (media in list) {
-                        if (media.userProgress != null || media.userStatus != null) {
-                            upcomingList.add(media)
-                        }
-                    }
-                }
-            }
-            val distinct = upcomingList.distinctBy { it.id }.take(20)
-
-            if (distinct.isNotEmpty()) {
-                binding.calendarUpcomingSection.visibility = View.VISIBLE
-                val container = binding.calendarUpcomingRecycler
-                container.removeAllViews()
-                for (media in distinct) {
-                    val v = LayoutInflater.from(this).inflate(R.layout.item_calendar_landscape, container, false)
-                    // Episode thumbnail fallback to poster
-                    v.findViewById<android.widget.ImageView>(R.id.calendarLandscapeImg).loadImage(media.cover)
-
-                    // Episode title below image
-                    val rel = media.relation ?: ""
-                    val epTitle = rel.lines().firstOrNull()?.trim()
-                    val titleTv = v.findViewById<TextView>(R.id.calendarLandscapeTitle)
-                    val animeTv = v.findViewById<TextView>(R.id.calendarLandscapeAnime)
-
-                    titleTv.text = if (!epTitle.isNullOrBlank()) epTitle else media.name
-                    animeTv.text = media.name
-
-                    FocusEffectUtil.applyFocusListener(v)
-                    container.addView(v)
-                }
-            } else {
-                binding.calendarUpcomingSection.visibility = View.GONE
-            }
-        } else {
-            binding.calendarUpcomingSection.visibility = View.GONE
-        }
     }
 
-    private fun showFilterSheet() {
-        val listOnly = PrefManager.getVal<Boolean>(PrefName.CalendarListOnly)
-        this.customAlertDialog().apply {
-            setTitle(R.string.release_calendar)
-            multiChoiceItems(arrayOf("List only"), booleanArrayOf(listOnly)) { checked ->
-                PrefManager.setVal(PrefName.CalendarListOnly, checked[0])
-            }
-            setPosButton(R.string.ok) {
-                allCalendarData.let { refreshDisplay(it) }
-            }
-            setNegButton(R.string.cancel)
-        }.show()
-    }
 
     private fun dpToPx(dp: Int): Int = (dp * resources.displayMetrics.density).toInt()
 }

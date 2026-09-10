@@ -4,41 +4,39 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:layout_margin="6dp"
-    android:focusable="true"
-    android:gravity="center_horizontal">
+    android:layout_marginStart="-8dp"
+    android:layout_marginEnd="-8dp"
+    android:clipToPadding="false"
+    android:gravity="center_horizontal"
+    android:orientation="vertical">
 
     <FrameLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginTop="-4dp"
+        android:layout_marginBottom="-4dp"
         android:clipToPadding="false"
+        android:clipChildren="false"
         android:padding="18dp">
 
-        <androidx.cardview.widget.CardView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:translationZ="8dp"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="4dp">
+        <android.widget.ImageView
+            android:id="@+id/calendarPoster"
+            android:layout_width="102dp"
+            android:layout_height="154dp"
+            android:scaleType="centerCrop"
+            android:background="?attr/primaryGrayBackground"
+            app:shapeAppearanceOverlay="@style/roundedImageView"
+            tools:ignore="ContentDescription,ImageContrastCheck" />
 
-            <android.widget.ImageView
-                android:id="@+id/calendarPoster"
-                android:layout_width="102dp"
-                android:layout_height="154dp"
-                android:scaleType="centerCrop"
-                tools:ignore="ContentDescription,ImageContrastCheck" />
-
-        </androidx.cardview.widget.CardView>
-
-        <!-- Badge: centered at top of card -->
+        <!-- Badge: top-center of poster -->
         <TextView
             android:id="@+id/calendarBadge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="top|center_horizontal"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="2dp"
             android:background="@drawable/bg_calendar_badge"
+            android:elevation="10dp"
             android:fontFamily="@font/poppins_bold"
             android:gravity="center"
             android:paddingHorizontal="8dp"
@@ -50,15 +48,15 @@
 
     <TextView
         android:id="@+id/calendarTitle"
-        android:layout_width="110dp"
+        android:layout_width="102dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
         android:ellipsize="end"
         android:fontFamily="@font/poppins_semi_bold"
         android:gravity="center"
         android:maxLines="2"
         android:textColor="?attr/colorOnSurface"
         android:textSize="12sp"
+        android:textAlignment="center"
         tools:text="One Piece" />
 
 </LinearLayout>

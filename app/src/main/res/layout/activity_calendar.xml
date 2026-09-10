@@ -37,7 +37,6 @@
                 app:tint="?attr/colorOnSurface"
                 tools:ignore="ContentDescription" />
 
-            <!-- Go to today -->
             <ImageButton
                 android:id="@+id/calendarTodayBtn"
                 android:layout_width="44dp"
@@ -77,16 +76,15 @@
                     android:text="Episodes this week" />
             </LinearLayout>
 
-            <ImageButton
-                android:id="@+id/calendarSettings"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:background="@drawable/bg_settings_logo_circle"
+            <!-- List only toggle -->
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/calendarListToggle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="List"
+                android:textSize="11sp"
                 android:focusable="true"
-                android:padding="10dp"
-                app:srcCompat="@drawable/ic_baseline_tune_24"
-                app:tint="?attr/colorOnSurface"
-                android:contentDescription="Calendar settings" />
+                android:contentDescription="Toggle list only" />
         </LinearLayout>
 
         <!-- Week Navigation -->
@@ -98,6 +96,7 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
+            <!-- Prev: use same chevron as next, just rotated -->
             <ImageButton
                 android:id="@+id/calendarPrevWeek"
                 android:layout_width="36dp"
@@ -105,7 +104,8 @@
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:focusable="true"
                 android:padding="6dp"
-                app:srcCompat="@drawable/ic_arrow_left"
+                android:rotation="180"
+                app:srcCompat="@drawable/ic_arrow_right"
                 app:tint="?attr/colorOnSurface"
                 android:contentDescription="Previous week" />
 
@@ -182,7 +182,7 @@
                 android:textSize="14sp" />
         </LinearLayout>
 
-        <!-- Episode list for selected day (portrait cards, wrapping grid) -->
+        <!-- Episode cards (wrapping grid) -->
         <com.google.android.flexbox.FlexboxLayout
             android:id="@+id/calendarDayEpisodes"
             android:layout_width="match_parent"
@@ -192,41 +192,5 @@
             app:flexWrap="wrap"
             app:justifyContent="flex_start" />
 
-        <!-- Upcoming shelf -->
-        <LinearLayout
-            android:id="@+id/calendarUpcomingSection"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="16dp"
-                android:layout_marginBottom="8dp"
-                android:fontFamily="@font/poppins_semi_bold"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="14sp"
-                android:text="Upcoming Episodes" />
-
-            <HorizontalScrollView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:clipToPadding="false"
-                android:overScrollMode="never"
-                android:scrollbars="none">
-
-                <LinearLayout
-                    android:id="@+id/calendarUpcomingRecycler"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="12dp" />
-            </HorizontalScrollView>
-        </LinearLayout>
-
-        
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>
