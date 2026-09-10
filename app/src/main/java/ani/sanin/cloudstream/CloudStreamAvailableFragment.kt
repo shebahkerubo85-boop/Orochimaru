@@ -23,7 +23,6 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.databinding.FragmentExtensionsBinding
 import ani.sanin.databinding.ItemRepoCardBinding
 import ani.sanin.settings.SearchQueryHandler
-import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.customAlertDialog
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
@@ -293,7 +292,6 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
                 setOnClickListener { onOpen(item) }
                 isFocusable = true
                 isFocusableInTouchMode = true
-                FocusEffectUtil.applyFocusListener(this)
             }
 
             // Card itself: not focusable, only long-press
