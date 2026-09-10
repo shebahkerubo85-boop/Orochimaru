@@ -183,7 +183,7 @@
         </LinearLayout>
 
         <!-- Episode list for selected day (portrait cards, wrapping grid) -->
-        <com.google.android.material.flexbox.FlexboxLayout
+        <com.google.android.flexbox.FlexboxLayout
             android:id="@+id/calendarDayEpisodes"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
