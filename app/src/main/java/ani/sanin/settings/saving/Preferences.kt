@@ -130,6 +130,7 @@ enum class PrefName(val data: Pref) {
     ShowNotificationRedDot(Pref(Location.UI, Boolean::class, true)),
 
     OledMode(Pref(Location.UI, Int::class, 1)),
+    OledIntensity(Pref(Location.UI, Float::class, 1.0f)),
     GradientDirection(Pref(Location.UI, Int::class, 0)),
     Emoji(Pref(Location.UI, Boolean::class, true)),
     AnimationsEnabled(Pref(Location.UI, Boolean::class, true)),

@@ -17,6 +17,8 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
+import android.widget.SeekBar
+import android.widget.TextView
 import ani.sanin.util.customAlertDialog
 
 class SettingsThemeActivity : AppCompatActivity() {
@@ -107,6 +109,48 @@ class SettingsThemeActivity : AppCompatActivity() {
                                     PrefManager.setVal(PrefName.OledMode, index)
                                     restartApp()
                                 }
+                                show()
+                            }
+                        },
+                    ),
+                    Settings(
+                        type = 1,
+                        name = "OLED Intensity",
+                        desc = "Adjust effect strength",
+                        icon = R.drawable.ic_round_brightness_low_24,
+                        onClick = {
+                            val currentIntensity = PrefManager.getVal<Float>(PrefName.OledIntensity)
+                            val progress = (currentIntensity * 100).toInt()
+                            val seekBar = SeekBar(this@SettingsThemeActivity).apply {
+                                max = 100
+                                this.progress = progress
+                                setPadding(64, 32, 64, 16)
+                            }
+                            val label = TextView(this@SettingsThemeActivity).apply {
+                                text = "${progress}%"
+                                setPadding(64, 0, 0, 0)
+                                textSize = 14f
+                            }
+                            seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                                override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {
+                                    label.text = "${p}%"
+                                }
+                                override fun onStartTrackingTouch(sb: SeekBar?) {}
+                                override fun onStopTrackingTouch(sb: SeekBar?) {}
+                            })
+                            val container = android.widget.LinearLayout(this@SettingsThemeActivity).apply {
+                                orientation = android.widget.LinearLayout.VERTICAL
+                                addView(label)
+                                addView(seekBar)
+                            }
+                            customAlertDialog().apply {
+                                setTitle("OLED Intensity")
+                                setView(container)
+                                setPosButton(R.string.ok) {
+                                    PrefManager.setVal(PrefName.OledIntensity, seekBar.progress / 100f)
+                                    restartApp()
+                                }
+                                setNegButton(R.string.cancel)
                                 show()
                             }
                         },
