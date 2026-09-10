@@ -93,7 +93,7 @@ class SettingsAccountActivity : AppCompatActivity() {
                         reload()
                     }
                     settingsAnilistAvatar.loadImage(Anilist.avatar)
-                    settingsAnilistAvatarContainer.visibility = View.VISIBLE
+                    settingsAnilistAvatarRow.visibility = View.VISIBLE
                     settingsAnilistUsername.visibility = View.VISIBLE
                     settingsAnilistUsername.text = Anilist.username
 
@@ -123,11 +123,11 @@ class SettingsAccountActivity : AppCompatActivity() {
                             reload()
                         }
                         settingsMALAvatar.loadImage(MAL.avatar)
-                        settingsMALAvatarContainer.visibility = View.VISIBLE
+                        settingsMalAvatarRow.visibility = View.VISIBLE
                         settingsMALUsername.visibility = View.VISIBLE
                         settingsMALUsername.text = MAL.username
                     } else {
-                        settingsMALAvatarContainer.visibility = View.GONE
+                        settingsMalAvatarRow.visibility = View.GONE
                         settingsMALUsername.visibility = View.GONE
                         settingsMALLogin.setText(R.string.link_mal)
                         settingsMALLogin.setOnClickListener {
@@ -135,7 +135,7 @@ class SettingsAccountActivity : AppCompatActivity() {
                         }
                     }
                 } else {
-                    settingsAnilistAvatarContainer.visibility = View.GONE
+                    settingsAnilistAvatarRow.visibility = View.GONE
                     settingsAnilistUsername.visibility = View.GONE
                     settingsAnilistTokenExpiry.visibility = View.GONE
                     settingsRecyclerView.visibility = View.GONE
@@ -190,12 +190,12 @@ class SettingsAccountActivity : AppCompatActivity() {
                     reload()
                 }
                 settingsSimklAvatar.loadImage(Simkl.avatar)
-                settingsSimklAvatarContainer.visibility = View.VISIBLE
+                settingsSimklAvatarRow.visibility = View.VISIBLE
                 settingsSimklUsername.text = Simkl.username
-                (settingsSimklUsername.parent as? View)?.visibility = View.VISIBLE
+                settingsSimklUsername.visibility = View.VISIBLE
             } else {
-                (settingsSimklUsername.parent as? View)?.visibility = View.GONE
-                settingsSimklAvatarContainer.visibility = View.GONE
+                settingsSimklUsername.visibility = View.GONE
+                settingsSimklAvatarRow.visibility = View.GONE
                 settingsSimklLogin.setText(R.string.link_simkl)
                 settingsSimklLogin.setOnClickListener {
                     Simkl.loginIntent(this@SettingsAccountActivity)

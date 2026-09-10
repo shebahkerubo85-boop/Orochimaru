@@ -17,7 +17,7 @@
     <string name="join_telegram_button">Join Telegram</string>
     <string name="community">Community</string>
     <string name="github" translatable="false">https://github.com/rebelonion/Sanin</string>
-    <string name="telegram" translatable="false" tools:ignore="Typos">https://t.me/+gzBCQExtLQo1YTNh </string>
+    <string name="telegram" translatable="false" tools:ignore="Typos">https://t.me/anisanin</string>
     <string name="coffee" translatable="false">https://github.com/sponsors/rebelonion</string>
 
     <string name="anilist_link">https://anilist.co/user/%1$s/</string>

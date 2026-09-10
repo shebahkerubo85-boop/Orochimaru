@@ -13,7 +13,7 @@
         android:id="@+id/settingsAccountsLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-    android:background="?attr/colorSurface"
+        android:background="?attr/colorSurface"
         android:orientation="vertical"
         android:paddingStart="32dp"
         android:paddingEnd="32dp">
@@ -42,7 +42,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-    android:background="?attr/colorSurface"
+            android:background="?attr/colorSurface"
             android:orientation="horizontal"
             tools:ignore="UseCompoundDrawables">
 
@@ -66,10 +66,11 @@
 
         </LinearLayout>
 
+        <!-- ========== ANILIST CARD ========== -->
         <FrameLayout
             android:id="@+id/settingsAnilistCard"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="140dp"
             android:layout_marginTop="16dp"
             android:layout_marginBottom="8dp"
             android:background="@drawable/bg_anilist_gradient"
@@ -78,8 +79,8 @@
 
             <ImageView
                 android:id="@+id/settingsAnilistGlyph"
-                android:layout_width="150dp"
-                android:layout_height="150dp"
+                android:layout_width="130dp"
+                android:layout_height="130dp"
                 android:layout_gravity="bottom|end"
                 android:layout_marginEnd="12dp"
                 android:layout_marginBottom="12dp"
@@ -92,8 +93,11 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_gravity="top"
                 android:orientation="vertical"
-                android:padding="20dp">
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                android:paddingTop="20dp">
 
                 <ImageView
                     android:layout_width="wrap_content"
@@ -107,28 +111,22 @@
                     tools:ignore="ContentDescription" />
 
                 <LinearLayout
+                    android:id="@+id/settingsAnilistAvatarRow"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
                     android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:orientation="horizontal"
+                    android:visibility="gone">
 
-                    <com.google.android.material.card.MaterialCardView
-                        android:id="@+id/settingsAnilistAvatarContainer"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:backgroundTint="@android:color/transparent"
-                        app:cardCornerRadius="20dp">
-
-                        <com.google.android.material.imageview.ShapeableImageView
-                            android:id="@+id/settingsAnilistAvatar"
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:scaleType="centerCrop"
-                            app:srcCompat="@drawable/ic_round_person_24"
-                            app:tint="@android:color/white"
-                            tools:ignore="ContentDescription,ImageContrastCheck" />
-                    </com.google.android.material.card.MaterialCardView>
+                    <com.google.android.material.imageview.ShapeableImageView
+                        android:id="@+id/settingsAnilistAvatar"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:scaleType="centerCrop"
+                        app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Full"
+                        tools:src="@drawable/ic_round_person_24"
+                        tools:ignore="ContentDescription,ImageContrastCheck" />
 
                     <TextView
                         android:id="@+id/settingsAnilistUsername"
@@ -138,7 +136,7 @@
                         android:fontFamily="@font/poppins_bold"
                         android:text="@string/username"
                         android:textColor="@android:color/white"
-                        android:textSize="16sp" />
+                        android:textSize="15sp" />
                 </LinearLayout>
 
                 <TextView
@@ -149,31 +147,33 @@
                     android:fontFamily="@font/poppins"
                     android:textColor="@android:color/white"
                     android:alpha="0.6"
-                    android:textSize="12sp"
-                    android:visibility="gone"
-                    tools:text="Reconnect in 30 days"
-                    tools:visibility="visible" />
-
-                <TextView
-                    android:id="@+id/settingsAnilistLogin"
-                    android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:layout_marginTop="14dp"
-                    android:backgroundTint="?attr/colorPrimary"
-                    android:fontFamily="@font/poppins_bold"
-                    android:gravity="center"
-                    android:text="@string/link_anilist"
-                    android:textColor="@android:color/white"
-                    android:textSize="14sp" />
+                    android:textSize="11sp"
+                    android:visibility="gone" />
 
             </LinearLayout>
 
+            <TextView
+                android:id="@+id/settingsAnilistLogin"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_gravity="bottom"
+                android:layout_marginStart="20dp"
+                android:layout_marginEnd="20dp"
+                android:layout_marginBottom="16dp"
+                android:backgroundTint="?attr/colorPrimary"
+                android:fontFamily="@font/poppins_bold"
+                android:gravity="center"
+                android:text="@string/link_anilist"
+                android:textColor="@android:color/white"
+                android:textSize="13sp" />
+
         </FrameLayout>
 
+        <!-- ========== MAL CARD ========== -->
         <FrameLayout
             android:id="@+id/settingsMalLoginContainer"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="140dp"
             android:layout_marginBottom="8dp"
             android:background="@drawable/bg_mal_gradient"
             android:focusable="true"
@@ -181,8 +181,8 @@
 
             <ImageView
                 android:id="@+id/settingsMalGlyph"
-                android:layout_width="150dp"
-                android:layout_height="150dp"
+                android:layout_width="130dp"
+                android:layout_height="130dp"
                 android:layout_gravity="bottom|end"
                 android:layout_marginEnd="12dp"
                 android:layout_marginBottom="12dp"
@@ -195,8 +195,11 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_gravity="top"
                 android:orientation="vertical"
-                android:padding="20dp">
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                android:paddingTop="20dp">
 
                 <ImageView
                     android:layout_width="wrap_content"
@@ -208,28 +211,22 @@
                     tools:ignore="ContentDescription" />
 
                 <LinearLayout
+                    android:id="@+id/settingsMalAvatarRow"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
                     android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:orientation="horizontal"
+                    android:visibility="gone">
 
-                    <com.google.android.material.card.MaterialCardView
-                        android:id="@+id/settingsMALAvatarContainer"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:backgroundTint="@android:color/transparent"
-                        app:cardCornerRadius="20dp">
-
-                        <com.google.android.material.imageview.ShapeableImageView
-                            android:id="@+id/settingsMALAvatar"
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:scaleType="centerCrop"
-                            app:srcCompat="@drawable/ic_round_person_24"
-                            app:tint="#FF111111"
-                            tools:ignore="ContentDescription,ImageContrastCheck" />
-                    </com.google.android.material.card.MaterialCardView>
+                    <com.google.android.material.imageview.ShapeableImageView
+                        android:id="@+id/settingsMALAvatar"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:scaleType="centerCrop"
+                        app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Full"
+                        tools:src="@drawable/ic_round_person_24"
+                        tools:ignore="ContentDescription,ImageContrastCheck" />
 
                     <TextView
                         android:id="@+id/settingsMALUsername"
@@ -239,7 +236,7 @@
                         android:fontFamily="@font/poppins_bold"
                         android:text="@string/username"
                         android:textColor="#FF111111"
-                        android:textSize="16sp" />
+                        android:textSize="15sp" />
                 </LinearLayout>
 
                 <TextView
@@ -253,19 +250,22 @@
                     android:textColor="#FF111111"
                     android:visibility="gone" />
 
-                <TextView
-                    android:id="@+id/settingsMALLogin"
-                    android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:layout_marginTop="14dp"
-                    android:backgroundTint="#FF26448D"
-                    android:fontFamily="@font/poppins_bold"
-                    android:gravity="center"
-                    android:text="@string/link_mal"
-                    android:textColor="@android:color/white"
-                    android:textSize="14sp" />
-
             </LinearLayout>
+
+            <TextView
+                android:id="@+id/settingsMALLogin"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_gravity="bottom"
+                android:layout_marginStart="20dp"
+                android:layout_marginEnd="20dp"
+                android:layout_marginBottom="16dp"
+                android:backgroundTint="#FF26448D"
+                android:fontFamily="@font/poppins_bold"
+                android:gravity="center"
+                android:text="@string/link_mal"
+                android:textColor="@android:color/white"
+                android:textSize="13sp" />
 
             <ImageView
                 android:id="@+id/settingsAccountHelp"
@@ -280,11 +280,11 @@
 
         </FrameLayout>
 
-
+        <!-- ========== SIMKL CARD ========== -->
         <FrameLayout
             android:id="@+id/settingsSimklCard"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="140dp"
             android:layout_marginTop="16dp"
             android:layout_marginBottom="8dp"
             android:background="@drawable/bg_simkl_gradient"
@@ -293,8 +293,8 @@
 
             <ImageView
                 android:id="@+id/settingsSimklGlyph"
-                android:layout_width="150dp"
-                android:layout_height="150dp"
+                android:layout_width="130dp"
+                android:layout_height="130dp"
                 android:layout_gravity="bottom|end"
                 android:layout_marginEnd="12dp"
                 android:layout_marginBottom="12dp"
@@ -307,8 +307,11 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_gravity="top"
                 android:orientation="vertical"
-                android:padding="20dp">
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                android:paddingTop="20dp">
 
                 <ImageView
                     android:layout_width="wrap_content"
@@ -316,12 +319,13 @@
                     android:layout_gravity="top|start"
                     android:alpha="0.9"
                     android:contentDescription="@null"
-                    android:src="@drawable/ic_simkl"
+                    android:src="@drawable/simkl_logo"
                     android:tint="@android:color/white"
                     app:tint="@android:color/white"
                     tools:ignore="ContentDescription" />
 
                 <LinearLayout
+                    android:id="@+id/settingsSimklAvatarRow"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
@@ -329,22 +333,14 @@
                     android:orientation="horizontal"
                     android:visibility="gone">
 
-                    <com.google.android.material.card.MaterialCardView
-                        android:id="@+id/settingsSimklAvatarContainer"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:backgroundTint="@android:color/transparent"
-                        app:cardCornerRadius="20dp">
-
-                        <com.google.android.material.imageview.ShapeableImageView
-                            android:id="@+id/settingsSimklAvatar"
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
-                            android:scaleType="centerCrop"
-                            app:srcCompat="@drawable/ic_round_person_24"
-                            app:tint="@android:color/white"
-                            tools:ignore="ContentDescription,ImageContrastCheck" />
-                    </com.google.android.material.card.MaterialCardView>
+                    <com.google.android.material.imageview.ShapeableImageView
+                        android:id="@+id/settingsSimklAvatar"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:scaleType="centerCrop"
+                        app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Full"
+                        tools:src="@drawable/ic_round_person_24"
+                        tools:ignore="ContentDescription,ImageContrastCheck" />
 
                     <TextView
                         android:id="@+id/settingsSimklUsername"
@@ -354,25 +350,29 @@
                         android:fontFamily="@font/poppins_bold"
                         android:text="@string/username"
                         android:textColor="@android:color/white"
-                        android:textSize="16sp" />
+                        android:textSize="15sp" />
                 </LinearLayout>
-
-                <TextView
-                    android:id="@+id/settingsSimklLogin"
-                    android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:layout_marginTop="14dp"
-                    android:backgroundTint="?attr/colorPrimary"
-                    android:fontFamily="@font/poppins_bold"
-                    android:gravity="center"
-                    android:text="@string/link_simkl"
-                    android:textColor="@android:color/white"
-                    android:textSize="14sp" />
 
             </LinearLayout>
 
+            <TextView
+                android:id="@+id/settingsSimklLogin"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_gravity="bottom"
+                android:layout_marginStart="20dp"
+                android:layout_marginEnd="20dp"
+                android:layout_marginBottom="16dp"
+                android:backgroundTint="?attr/colorPrimary"
+                android:fontFamily="@font/poppins_bold"
+                android:gravity="center"
+                android:text="@string/link_simkl"
+                android:textColor="@android:color/white"
+                android:textSize="13sp" />
+
         </FrameLayout>
 
+        <!-- ========== COMMUNITY SECTION ========== -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -384,19 +384,20 @@
             android:textSize="18sp"
             android:alpha="0.7" />
 
+        <!-- ========== DISCORD CARD ========== -->
         <FrameLayout
             android:id="@+id/settingsDiscordLogin"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_height="140dp"
+            android:layout_marginTop="4dp"
             android:layout_marginBottom="8dp"
             android:background="@drawable/bg_discord_gradient"
             android:focusable="true"
             android:foreground="?android:attr/selectableItemBackground">
 
             <ImageView
-                android:layout_width="150dp"
-                android:layout_height="150dp"
+                android:layout_width="130dp"
+                android:layout_height="130dp"
                 android:layout_gravity="bottom|end"
                 android:layout_marginEnd="12dp"
                 android:layout_marginBottom="12dp"
@@ -406,27 +407,18 @@
                 app:tint="@android:color/white"
                 tools:ignore="ContentDescription" />
 
-            <ImageView
-                android:layout_width="100dp"
-                android:layout_height="100dp"
-                android:layout_gravity="center_vertical|end"
-                android:layout_marginEnd="24dp"
-                android:alpha="0.3"
-                android:contentDescription="@null"
-                app:srcCompat="@drawable/ic_launcher_foreground"
-                app:tint="@android:color/white"
-                tools:ignore="ContentDescription" />
-
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_gravity="top"
                 android:orientation="vertical"
-                android:padding="20dp">
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                android:paddingTop="20dp">
 
                 <ImageView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="top|start"
                     android:alpha="0.9"
                     android:contentDescription="@null"
                     android:src="@drawable/ic_discord"
@@ -443,50 +435,40 @@
                     android:textSize="14sp"
                     android:alpha="0.8" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:layout_marginTop="14dp"
-                    android:backgroundTint="@android:color/white"
-                    android:fontFamily="@font/poppins_bold"
-                    android:gravity="center"
-                    android:text="@string/join_discord"
-                    android:textColor="#FF5865F2"
-                    android:textSize="14sp" />
-
             </LinearLayout>
+
+            <TextView
+                android:id="@+id/settingsDiscordJoin"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_gravity="bottom"
+                android:layout_marginStart="20dp"
+                android:layout_marginEnd="20dp"
+                android:layout_marginBottom="16dp"
+                android:backgroundTint="@android:color/white"
+                android:fontFamily="@font/poppins_bold"
+                android:gravity="center"
+                android:text="@string/join_discord"
+                android:textColor="#FF5865F2"
+                android:textSize="13sp" />
 
         </FrameLayout>
 
+        <!-- ========== TELEGRAM CARD ========== -->
         <FrameLayout
             android:id="@+id/settingsTelegramLogin"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_height="140dp"
             android:layout_marginBottom="8dp"
             android:background="@drawable/bg_telegram_gradient"
             android:focusable="true"
             android:foreground="?android:attr/selectableItemBackground">
 
-            <!-- SANIN emblem watermark on the white side -->
             <ImageView
-                android:layout_width="150dp"
-                android:layout_height="150dp"
+                android:layout_width="130dp"
+                android:layout_height="130dp"
                 android:layout_gravity="bottom|end"
                 android:layout_marginEnd="12dp"
-                android:layout_marginBottom="12dp"
-                android:alpha="0.15"
-                android:contentDescription="@null"
-                app:srcCompat="@drawable/ic_launcher_foreground"
-                app:tint="#FF000000"
-                tools:ignore="ContentDescription" />
-
-            <!-- Telegram glyph watermark -->
-            <ImageView
-                android:layout_width="100dp"
-                android:layout_height="100dp"
-                android:layout_gravity="bottom|start"
-                android:layout_marginStart="12dp"
                 android:layout_marginBottom="12dp"
                 android:alpha="0.08"
                 android:contentDescription="@null"
@@ -497,21 +479,21 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_gravity="top"
                 android:orientation="vertical"
-                android:padding="20dp">
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                android:paddingTop="20dp">
 
-                <!-- Telegram logo header (white on black side) -->
                 <ImageView
                     android:layout_width="40dp"
                     android:layout_height="40dp"
-                    android:layout_gravity="top|start"
                     android:alpha="0.95"
                     android:contentDescription="@null"
                     android:src="@drawable/ic_telegram"
                     app:tint="@android:color/white"
                     tools:ignore="ContentDescription" />
 
-                <!-- Tagline -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -522,20 +504,22 @@
                     android:textSize="14sp"
                     android:alpha="0.95" />
 
-                <!-- Join button -->
-                <TextView
-                    android:id="@+id/settingsTelegramJoin"
-                    android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:layout_marginTop="14dp"
-                    android:backgroundTint="#FF2AABEE"
-                    android:fontFamily="@font/poppins_bold"
-                    android:gravity="center"
-                    android:text="@string/join_telegram_button"
-                    android:textColor="@android:color/white"
-                    android:textSize="14sp" />
-
             </LinearLayout>
+
+            <TextView
+                android:id="@+id/settingsTelegramJoin"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_gravity="bottom"
+                android:layout_marginStart="20dp"
+                android:layout_marginEnd="20dp"
+                android:layout_marginBottom="16dp"
+                android:backgroundTint="#FF2AABEE"
+                android:fontFamily="@font/poppins_bold"
+                android:gravity="center"
+                android:text="@string/join_telegram_button"
+                android:textColor="@android:color/white"
+                android:textSize="13sp" />
 
         </FrameLayout>
 
@@ -543,7 +527,7 @@
             android:id="@+id/settingsRecyclerView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-    android:background="?attr/colorSurface"
+            android:background="?attr/colorSurface"
             android:nestedScrollingEnabled="false"
             android:requiresFadingEdge="vertical"
             tools:itemCount="1"
