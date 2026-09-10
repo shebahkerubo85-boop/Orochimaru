@@ -117,7 +117,7 @@ class SettingsThemeActivity : AppCompatActivity() {
                         type = 1,
                         name = "OLED Intensity",
                         desc = "Adjust effect strength",
-                        icon = R.drawable.ic_round_brightness_low_24,
+                        icon = R.drawable.ic_round_brightness_4_24,
                         onClick = {
                             val currentIntensity = PrefManager.getVal<Float>(PrefName.OledIntensity)
                             val progress = (currentIntensity * 100).toInt()
