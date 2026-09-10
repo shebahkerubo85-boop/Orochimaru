@@ -78,10 +78,8 @@ class SettingsAccountActivity : AppCompatActivity() {
 
             fun reload() {
                 settingsAnilistLogin.isFocusable = true
-                settingsAnilistTokenExpiry.isFocusable = true
                 settingsMALLogin.isFocusable = true
                 FocusEffectUtil.applyFocusListener(
-                    settingsAnilistLogin, settingsAnilistTokenExpiry,
                     settingsMALLogin,
                     settingsSimklLogin
                 )
@@ -96,20 +94,6 @@ class SettingsAccountActivity : AppCompatActivity() {
                     settingsAnilistAvatarRow.visibility = View.VISIBLE
                     settingsAnilistUsername.visibility = View.VISIBLE
                     settingsAnilistUsername.text = Anilist.username
-
-                    val daysLeft = Anilist.getTokenExpiryDays()
-                    if (daysLeft != null) {
-                        settingsAnilistTokenExpiry.visibility = View.VISIBLE
-                        settingsAnilistTokenExpiry.text = when {
-                            daysLeft <= 0 -> "Reconnect Now"
-                            else -> "Reconnect in $daysLeft days"
-                        }
-                        settingsAnilistTokenExpiry.setOnClickListener {
-                            Anilist.loginIntent(context)
-                        }
-                    } else {
-                        settingsAnilistTokenExpiry.visibility = View.GONE
-                    }
 
                     settingsMALLoginRequired.visibility = View.GONE
                     settingsMALLogin.visibility = View.VISIBLE
@@ -137,7 +121,6 @@ class SettingsAccountActivity : AppCompatActivity() {
                 } else {
                     settingsAnilistAvatarRow.visibility = View.GONE
                     settingsAnilistUsername.visibility = View.GONE
-                    settingsAnilistTokenExpiry.visibility = View.GONE
                     settingsRecyclerView.visibility = View.GONE
                     settingsAnilistLogin.setText(R.string.link_anilist)
                     settingsAnilistLogin.setOnClickListener {
