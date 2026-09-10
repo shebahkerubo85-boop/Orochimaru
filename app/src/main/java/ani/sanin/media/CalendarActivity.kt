@@ -15,6 +15,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.lifecycleScope
+import android.text.SpannableString
+import android.text.style.ForegroundColorSpan
 import ani.sanin.R
 import ani.sanin.Refresh
 import ani.sanin.databinding.ActivityCalendarBinding
@@ -27,6 +29,7 @@ import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.customAlertDialog
+import com.google.android.flexbox.FlexboxLayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -59,6 +62,14 @@ class CalendarActivity : AppCompatActivity() {
 
         binding.calendarBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
         FocusEffectUtil.applyFocusListener(binding.calendarBack)
+
+        // List-only toggle
+        binding.calendarListToggle.isChecked = PrefManager.getVal<Boolean>(PrefName.CalendarListOnly)
+        binding.calendarListToggle.setOnCheckedChangeListener { _, isChecked ->
+            PrefManager.setVal(PrefName.CalendarListOnly, isChecked)
+            refreshDisplay(allCalendarData)
+        }
+        FocusEffectUtil.applyFocusListener(binding.calendarListToggle)
 
         // Today button
         binding.calendarTodayBtn.setOnClickListener { goToToday() }
@@ -255,22 +266,52 @@ class CalendarActivity : AppCompatActivity() {
             for (media in filtered) {
                 val v = LayoutInflater.from(this).inflate(R.layout.item_calendar_poster, epContainer, false)
                 v.findViewById<android.widget.ImageView>(R.id.calendarPoster).loadImage(media.cover)
-                v.findViewById<TextView>(R.id.calendarTitle).text = media.name ?: media.nameRomaji
+                v.findViewById<TextView>(R.id.calendarTitle).text = media.userPreferredName.ifBlank { media.name ?: media.nameRomaji }
+                // Dynamic card size based on screen width
+                val screenW = resources.displayMetrics.widthPixels
+                val cols = when {
+                    screenW / resources.displayMetrics.density >= 600 -> 4
+                    screenW / resources.displayMetrics.density >= 400 -> 3
+                    else -> 2
+                }
+                val cardW = (screenW - dpToPx(24)) / cols
+                val cardH = (cardW * 1.5f).toInt()
+                v.layoutParams = FlexboxLayout.LayoutParams(cardW, LinearLayout.LayoutParams.WRAP_CONTENT)
+                v.findViewById<android.widget.ImageView>(R.id.calendarPoster).let { img ->
+                    img.layoutParams = android.widget.FrameLayout.LayoutParams(
+                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT, cardH
+                    )
+                }
+                v.findViewById<TextView>(R.id.calendarTitle).layoutParams =
+                    android.widget.LinearLayout.LayoutParams(cardW, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT)
 
                 val badge = v.findViewById<TextView>(R.id.calendarBadge)
                 val rel = media.relation ?: ""
                 val epNum = Regex("""Episode\s+(\d+)""").find(rel)?.groupValues?.get(1)
+                val sxeNum = Regex("""S(\d+)E(\d+)""").find(rel)?.groupValues?.let { "S${it[1]}E${it[2]}" }
                 val timeStr = if (rel.contains("\n")) rel.lines().getOrNull(1)?.trim() else null
-                val isMovie = media.tmdbType == "movie"
-
-                badge.text = when {
-                    isMovie -> "Movie"
+                val isMovie = media.tmdbType == "movie" || media.format == "MOVIE"
+                val primaryColor = ContextCompat.getColor(this@CalendarActivity, getThemeColor(com.google.android.material.R.attr.colorPrimary))
+                val badgeText = when {
+                    isMovie -> {
+                        val dateLine = rel.lines().firstOrNull { it != "Movie" && it.isNotBlank() }
+                        if (dateLine != null && dateLine.length >= 10) {
+                            val parts = dateLine.split("-")
+                            if (parts.size >= 3) "Movie \u00b7 ${parts[1]}/${parts[2]} \u00b7 12:00AM" else "Movie"
+                        } else "Movie"
+                    }
+                    sxeNum != null && !timeStr.isNullOrBlank() -> "Ssn${sxeNum.substringAfter("S").substringBefore("E")} Ep ${sxeNum.substringAfter("E")} \u00b7 $timeStr"
+                    sxeNum != null -> "Ssn${sxeNum.substringAfter("S").substringBefore("E")} Ep ${sxeNum.substringAfter("E")}"
                     epNum != null && !timeStr.isNullOrBlank() -> "Ep $epNum \u00b7 $timeStr"
                     epNum != null -> "Ep $epNum"
                     else -> "New"
                 }
-
-                // Card click → info screen
+                val spannable = SpannableString(badgeText)
+                Regex("\\d+").findAll(badgeText).forEach { match ->
+                    spannable.setSpan(ForegroundColorSpan(primaryColor), match.range.first, match.range.last + 1, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
+                badge.text = spannable
+// Card click → info screen
                 v.setOnClickListener {
                     val isAnime = media.anime != null
                     val intent = if (isAnime) {

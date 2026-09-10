@@ -4,37 +4,32 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:layout_marginStart="-8dp"
-    android:layout_marginEnd="-8dp"
-    android:clipToPadding="false"
+    android:layout_marginHorizontal="4dp"
+    android:layout_marginVertical="4dp"
     android:gravity="center_horizontal"
     android:orientation="vertical">
 
     <FrameLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="-4dp"
-        android:layout_marginBottom="-4dp"
-        android:clipToPadding="false"
-        android:clipChildren="false"
-        android:padding="18dp">
+        android:clipChildren="false">
 
-        <android.widget.ImageView
+        <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/calendarPoster"
-            android:layout_width="102dp"
-            android:layout_height="154dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:scaleType="centerCrop"
+            android:adjustViewBounds="true"
             android:background="?attr/primaryGrayBackground"
             app:shapeAppearanceOverlay="@style/roundedImageView"
-            tools:ignore="ContentDescription,ImageContrastCheck" />
+            tools:ignore="ContentDescription,ImageContrastCheck"  />
 
-        <!-- Badge: top-center of poster -->
         <TextView
             android:id="@+id/calendarBadge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="top|center_horizontal"
-            android:layout_marginTop="2dp"
+            android:layout_marginTop="4dp"
             android:background="@drawable/bg_calendar_badge"
             android:elevation="10dp"
             android:fontFamily="@font/poppins_bold"
@@ -43,13 +38,14 @@
             android:paddingVertical="3dp"
             android:textColor="@android:color/white"
             android:textSize="10sp"
-            tools:text="Ep 10" />
+            tools:text="Ep 10"  />
     </FrameLayout>
 
     <TextView
         android:id="@+id/calendarTitle"
-        android:layout_width="102dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
         android:ellipsize="end"
         android:fontFamily="@font/poppins_semi_bold"
         android:gravity="center"

@@ -311,11 +311,12 @@ class OtherDetailsViewModel : ViewModel() {
         val simklShows = try { Simkl.getShowLibrary() } catch (_: Exception) { emptyList() }
         val simklMovies = try { Simkl.getMovieLibrary() } catch (_: Exception) { emptyList() }
         val simklIdMap = mutableMapOf<Int, String>() // tmdbId -> status
+        val simklItemMap = mutableMapOf<Int, Simkl.SimklWatchedItem>() // tmdbId -> full item
         simklShows.filter { it.status != null }.forEach { item ->
-            item.ids?.tmdb?.let { simklIdMap[it] = item.status!! }
+            item.ids?.tmdb?.let { simklIdMap[it] = item.status!!; simklItemMap[it] = item }
         }
         simklMovies.filter { it.status != null }.forEach { item ->
-            item.ids?.tmdb?.let { simklIdMap[it] = item.status!! }
+            item.ids?.tmdb?.let { simklIdMap[it] = item.status!!; simklItemMap[it] = item }
         }
 
         // (tmdbId, title, posterPath, date "yyyy-MM-dd" when applicable)
@@ -360,6 +361,11 @@ class OtherDetailsViewModel : ViewModel() {
             )
             media.tmdbType = type
             media.relation = relation
+            // Set userStatus so list-only filter works
+            val simklItem = simklItemMap[tmdbId]
+            if (simklItem != null) {
+                media.userStatus = simklItem.status
+            }
             allMap.getOrPut(dayKey) { mutableListOf() }.add(media)
         }
 
@@ -371,9 +377,31 @@ class OtherDetailsViewModel : ViewModel() {
             val day = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, offset) }
             return dayFmt.format(day.time) to df.format(day.time)
         }
-        val weekDays = (0..6).map { dayKey(it) }
+        val weekDays = (-7..6).map { dayKey(it) }
 
-        // TV: one /discover/tv call per day → shows that actually have an episode airing that day
+        // Build TVmaze schedule map: showName -> (season, ep, time) for each day
+        val tvmazeSchedule = mutableMapOf<String, Triple<Int, Int, String>>() // lowerName -> season, ep, time
+        for ((iso, _) in weekDays) {
+            val schedBody = try {
+                java.net.URL("https://api.tvmaze.com/schedule?date=$iso&country=US")
+                    .readText()
+            } catch (_: Exception) { "[]" }
+            try {
+                val arr = org.json.JSONArray(schedBody)
+                for (i in 0 until arr.length()) {
+                    val ep = arr.getJSONObject(i)
+                    val showName = ep.optJSONObject("show")?.optString("name", "")?.lowercase() ?: continue
+                    val season = ep.optInt("season", 0)
+                    val number = ep.optInt("number", 0)
+                    val airtime = ep.optString("airtime", "").ifBlank { null } ?: continue
+                    if (season > 0 && number > 0) {
+                        tvmazeSchedule[showName] = Triple(season, number, airtime)
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        // TV: TMDB discover for show IDs + posters, TVmaze for episode info
         for ((iso, label) in weekDays) {
             val body = try {
                 Tmdb.get(
@@ -385,7 +413,15 @@ class OtherDetailsViewModel : ViewModel() {
                 )
             } catch (_: Exception) { null }
             parseResults(body ?: "").forEach { entry ->
-                addEntry(label, entry[0] as Int, entry[1] as String, entry[2] as String?, "New episode", "tv")
+                val tmdbId = entry[0] as Int
+                val showTitle = entry[1] as String
+                // Look up TVmaze for episode number + air time
+                val lowerName = showTitle.lowercase()
+                val mazeInfo = tvmazeSchedule[lowerName]
+                val relation = if (mazeInfo != null) {
+                    "S${mazeInfo.first}E${mazeInfo.second}\n${mazeInfo.third}"
+                } else "New episode"
+                addEntry(label, tmdbId, showTitle, entry[2] as String?, relation, "tv")
             }
         }
 
@@ -394,7 +430,7 @@ class OtherDetailsViewModel : ViewModel() {
         parseResults(upcomingBody ?: "").forEach { entry ->
             val dateIso = entry[3] as String? ?: return@forEach
             weekDays.firstOrNull { it.first == dateIso }?.let { (_, label) ->
-                addEntry(label, entry[0] as Int, entry[1] as String, entry[2] as String?, "Movie release", "movie")
+                addEntry(label, entry[0] as Int, entry[1] as String, entry[2] as String?, "Movie\n${dateIso}", "movie")
             }
         }
 
@@ -406,7 +442,7 @@ class OtherDetailsViewModel : ViewModel() {
     private suspend fun loadCalendarFromAnilist(showOnlyLibrary: Boolean) {
         if (cachedAllCalendarData == null || cachedLibraryCalendarData == null) {
             val curr = System.currentTimeMillis() / 1000
-            val res = Anilist.query.recentlyUpdated(curr - 86400, curr + (86400 * 6))
+            val res = Anilist.query.recentlyUpdated(curr - (86400 * 7), curr + (86400 * 7))
             val df = DateFormat.getDateInstance(DateFormat.FULL)
             val tf = DateFormat.getTimeInstance(DateFormat.SHORT)
             val allMap = mutableMapOf<String, MutableList<Media>>()
@@ -481,7 +517,7 @@ class OtherDetailsViewModel : ViewModel() {
                 }
             }
 
-            for (offsetDay in -1..6) {
+            for (offsetDay in -7..6) {
                 val cal = Calendar.getInstance()
                 cal.add(Calendar.DAY_OF_YEAR, offsetDay)
                 val dayName = dayNames[cal.get(Calendar.DAY_OF_WEEK) - 1]
