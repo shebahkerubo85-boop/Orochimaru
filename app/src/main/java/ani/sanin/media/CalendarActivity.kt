@@ -28,8 +28,6 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
-import ani.sanin.util.customAlertDialog
-import com.google.android.flexbox.FlexboxLayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -98,7 +96,9 @@ class CalendarActivity : AppCompatActivity() {
             }
         }
 
+        binding.calendarSpinner.visibility = View.VISIBLE
         model.getCalendar().observe(this) { data ->
+            binding.calendarSpinner.visibility = View.GONE
             if (data != null) {
                 allCalendarData = data
                 refreshDisplay(data)
@@ -267,23 +267,6 @@ class CalendarActivity : AppCompatActivity() {
                 val v = LayoutInflater.from(this).inflate(R.layout.item_calendar_poster, epContainer, false)
                 v.findViewById<android.widget.ImageView>(R.id.calendarPoster).loadImage(media.cover)
                 v.findViewById<TextView>(R.id.calendarTitle).text = media.userPreferredName.ifBlank { media.name ?: media.nameRomaji }
-                // Dynamic card size based on screen width
-                val screenW = resources.displayMetrics.widthPixels
-                val cols = when {
-                    screenW / resources.displayMetrics.density >= 600 -> 4
-                    screenW / resources.displayMetrics.density >= 400 -> 3
-                    else -> 2
-                }
-                val cardW = (screenW - dpToPx(24)) / cols
-                val cardH = (cardW * 1.5f).toInt()
-                v.layoutParams = FlexboxLayout.LayoutParams(cardW, LinearLayout.LayoutParams.WRAP_CONTENT)
-                v.findViewById<android.widget.ImageView>(R.id.calendarPoster).let { img ->
-                    img.layoutParams = android.widget.FrameLayout.LayoutParams(
-                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT, cardH
-                    )
-                }
-                v.findViewById<TextView>(R.id.calendarTitle).layoutParams =
-                    android.widget.LinearLayout.LayoutParams(cardW, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT)
 
                 val badge = v.findViewById<TextView>(R.id.calendarBadge)
                 val rel = media.relation ?: ""

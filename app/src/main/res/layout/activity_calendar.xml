@@ -154,6 +154,20 @@
             android:visibility="gone"
             tools:text="Monday, September 1" />
 
+        <!-- Loading spinner -->
+        <com.google.android.material.progressindicator.CircularProgressIndicator
+            android:id="@+id/calendarSpinner"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="48dp"
+            android:indeterminate="true"
+            android:indeterminateTint="?attr/colorPrimary"
+            app:indicatorSize="36dp"
+            app:trackThickness="3dp"
+            app:trackCornerRadius="2dp"
+            android:visibility="gone" />
+
         <!-- Empty state -->
         <LinearLayout
             android:id="@+id/calendarEmpty"
