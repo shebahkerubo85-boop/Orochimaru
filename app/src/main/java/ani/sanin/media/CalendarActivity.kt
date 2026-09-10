@@ -61,6 +61,9 @@ class CalendarActivity : AppCompatActivity() {
         binding.calendarSettings.setOnClickListener { showFilterSheet() }
         FocusEffectUtil.applyFocusListener(binding.calendarSettings)
 
+        binding.calendarTodayBtn.setOnClickListener { goToToday() }
+        FocusEffectUtil.applyFocusListener(binding.calendarTodayBtn)
+
         currentWeekStart.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
         currentWeekStart.set(Calendar.HOUR_OF_DAY, 0)
         currentWeekStart.set(Calendar.MINUTE, 0)
@@ -86,6 +89,22 @@ class CalendarActivity : AppCompatActivity() {
         model.getCalendar().observe(this) { data ->
             if (data != null) refreshDisplay(data)
         }
+    }
+
+    private fun goToToday() {
+        val today = Calendar.getInstance()
+        currentWeekStart = (today.clone() as Calendar).apply {
+            set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        selectedDate = today.clone() as Calendar
+        buildWeekStrip()
+        updateWeekLabel()
+        updateDayLabel()
+        model.getCalendar().value?.let { refreshDisplay(it) }
     }
 
     private fun setupWeekNav() {
@@ -115,7 +134,7 @@ class CalendarActivity : AppCompatActivity() {
         strip.removeAllViews()
         val todayIso = dateFmt.format(Date())
         val selectedIso = dateFmt.format(selectedDate.time)
-        val dayNames = arrayOf("M", "T", "W", "T", "F", "S", "S")
+        val dayNames = arrayOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
         val screenW = resources.displayMetrics.widthPixels
         val dayW = (screenW - dpToPx(24)) / 7
 
@@ -146,15 +165,23 @@ class CalendarActivity : AppCompatActivity() {
                 textSize = 14f
                 gravity = Gravity.CENTER
                 typeface = Typeface.create(resources.getFont(R.font.poppins_bold), Typeface.BOLD)
-                layoutParams = LinearLayout.LayoutParams(dpToPx(32), dpToPx(32)).apply {
+                layoutParams = LinearLayout.LayoutParams(dpToPx(36), dpToPx(36)).apply {
                     topMargin = dpToPx(2)
                 }
-                if (isSel) {
-                    setTextColor(ContextCompat.getColor(this@CalendarActivity, R.color.bg_black))
-                    setBackgroundColor(getThemeColor(com.google.android.material.R.attr.colorPrimary))
-                } else {
-                    setTextColor(ContextCompat.getColor(this@CalendarActivity, R.color.bg_white))
-                    if (!isToday) alpha = 0.5f
+                when {
+                    isSel -> {
+                        setTextColor(ContextCompat.getColor(this@CalendarActivity, R.color.bg_black))
+                        setBackgroundResource(R.drawable.bg_calendar_day_selected)
+                    }
+                    isToday -> {
+                        setTextColor(ContextCompat.getColor(this@CalendarActivity, R.color.bg_white))
+                        setBackgroundResource(R.drawable.bg_calendar_day_today)
+                    }
+                    else -> {
+                        setTextColor(ContextCompat.getColor(this@CalendarActivity, R.color.bg_white))
+                        setBackgroundColor(0)
+                        alpha = 0.5f
+                    }
                 }
             }
 
@@ -227,20 +254,26 @@ class CalendarActivity : AppCompatActivity() {
                 val v = LayoutInflater.from(this).inflate(R.layout.item_calendar_episode, epContainer, false)
                 v.findViewById<android.widget.ImageView>(R.id.calendarEpPoster).loadImage(media.cover)
                 v.findViewById<TextView>(R.id.calendarEpTitle).text = media.name
-                v.findViewById<TextView>(R.id.calendarEpInfo).text = media.relation ?: ""
 
                 val badge = v.findViewById<TextView>(R.id.calendarEpBadge)
+                val infoTv = v.findViewById<TextView>(R.id.calendarEpInfo)
                 val rel = media.relation ?: ""
                 val epNum = Regex("""Episode\s+(\d+)""").find(rel)?.groupValues?.get(1)
                 val timeStr = if (rel.contains("\n")) rel.lines().getOrNull(1)?.trim() else null
+                val isMovie = media.tmdbType == "movie"
 
-                badge.text = if (epNum != null && !timeStr.isNullOrBlank()) {
-                    "Ep $epNum \u00b7 $timeStr"
-                } else if (epNum != null) {
-                    "Ep $epNum"
+                if (isMovie) {
+                    badge.text = "Movie"
+                    infoTv.text = media.name
                 } else {
-                    val type = media.tmdbType
-                    if (type == "movie") "Movie" else "New"
+                    badge.text = if (epNum != null && !timeStr.isNullOrBlank()) {
+                        "Ep $epNum \u00b7 $timeStr"
+                    } else if (epNum != null) {
+                        "Ep $epNum"
+                    } else {
+                        "New"
+                    }
+                    infoTv.text = rel.replace("\n", " \u00b7 ")
                 }
 
                 FocusEffectUtil.applyFocusListener(v)

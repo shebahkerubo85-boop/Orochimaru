@@ -1,34 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
+    android:layout_marginBottom="12dp"
     android:background="@drawable/bg_settings_card"
     android:focusable="true"
-    android:minHeight="88dp"
-    android:orientation="horizontal"
-    android:gravity="center_vertical"
-    android:padding="10dp">
+    android:orientation="vertical"
+    android:padding="8dp">
 
-    <!-- Poster with badge overlay -->
+    <!-- Thumbnail with centered badge -->
     <FrameLayout
-        android:layout_width="56dp"
-        android:layout_height="80dp"
-        android:layout_gravity="start|center_vertical"
-        android:layout_marginEnd="12dp">
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipToOutline="true">
 
-        <ImageView
+        <android.widget.ImageView
             android:id="@+id/calendarEpPoster"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="160dp"
             android:importantForAccessibility="no"
             android:scaleType="centerCrop"
-            android:adjustViewBounds="true"
-            tools:src="@drawable/ic_round_calendar_today_24" />
+            
+            tools:ignore="ContentDescription" />
 
-        <!-- Badge: centered on poster -->
+        <!-- Badge: centered on thumbnail -->
         <TextView
             android:id="@+id/calendarEpBadge"
             android:layout_width="wrap_content"
@@ -36,11 +33,11 @@
             android:layout_gravity="center"
             android:background="@drawable/bg_calendar_badge"
             android:fontFamily="@font/poppins_bold"
-            android:paddingHorizontal="8dp"
-            android:paddingVertical="4dp"
+            android:gravity="center"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="5dp"
             android:textColor="@android:color/white"
             android:textSize="11sp"
-            android:gravity="center"
             tools:text="Ep 9 · 10:56pm" />
     </FrameLayout>
 
@@ -48,13 +45,14 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="center_vertical"
-        android:layout_marginStart="68dp"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:paddingHorizontal="4dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="4dp">
 
         <TextView
             android:id="@+id/calendarEpTitle"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:fontFamily="@font/poppins_semi_bold"
@@ -65,7 +63,7 @@
 
         <TextView
             android:id="@+id/calendarEpInfo"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
             android:ellipsize="end"
@@ -73,6 +71,6 @@
             android:maxLines="1"
             android:textColor="?attr/colorPrimary"
             android:textSize="12sp"
-            tools:text="Episode 1087" />
+            tools:text="Episode 1087 · 11:30pm" />
     </LinearLayout>
-</FrameLayout>
+</LinearLayout>
