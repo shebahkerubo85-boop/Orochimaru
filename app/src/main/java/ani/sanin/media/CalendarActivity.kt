@@ -6,7 +6,6 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.viewModels
@@ -62,7 +61,6 @@ class CalendarActivity : AppCompatActivity() {
         binding.calendarSettings.setOnClickListener { showFilterSheet() }
         FocusEffectUtil.applyFocusListener(binding.calendarSettings)
 
-        // Start week on Monday
         currentWeekStart.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
         currentWeekStart.set(Calendar.HOUR_OF_DAY, 0)
         currentWeekStart.set(Calendar.MINUTE, 0)
@@ -97,7 +95,7 @@ class CalendarActivity : AppCompatActivity() {
             buildWeekStrip()
             updateWeekLabel()
             updateDayLabel()
-            model.getCalendar()?.let { refreshDisplay(it) }
+            model.getCalendar().value?.let { refreshDisplay(it) }
         }
         FocusEffectUtil.applyFocusListener(binding.calendarPrevWeek)
 
@@ -107,7 +105,7 @@ class CalendarActivity : AppCompatActivity() {
             buildWeekStrip()
             updateWeekLabel()
             updateDayLabel()
-            model.getCalendar()?.let { refreshDisplay(it) }
+            model.getCalendar().value?.let { refreshDisplay(it) }
         }
         FocusEffectUtil.applyFocusListener(binding.calendarNextWeek)
     }
@@ -173,7 +171,7 @@ class CalendarActivity : AppCompatActivity() {
         selectedDate = cal
         buildWeekStrip()
         updateDayLabel()
-        model.getCalendar()?.let { refreshDisplay(it) }
+        model.getCalendar().value?.let { refreshDisplay(it) }
     }
 
     private fun updateWeekLabel() {
@@ -188,19 +186,15 @@ class CalendarActivity : AppCompatActivity() {
 
     private fun refreshDisplay(data: Map<String, MutableList<Media>>) {
         val showOnlyList = PrefManager.getVal<Boolean>(PrefName.CalendarListOnly)
-
-        // Flatten all entries and find episodes for selected day by ISO
         val selectedIso = dateFmt.format(selectedDate.time)
         val allEpisodes = mutableListOf<Media>()
+
         for ((key, list) in data) {
-            // Key could be ISO date or formatted date string
             val keyDate = try { dateFmt.parse(key) } catch (_: Exception) { null }
             val isoMatch = key == selectedIso || (keyDate != null && dateFmt.format(keyDate) == selectedIso)
             if (isoMatch) allEpisodes.addAll(list)
         }
 
-        // If the data uses full formatted keys (e.g., "September 1, 2026") instead of ISO,
-        // try matching by comparing day-of-year in current week
         if (allEpisodes.isEmpty()) {
             val selectedDoy = selectedDate.get(Calendar.DAY_OF_YEAR)
             val selectedYear = selectedDate.get(Calendar.YEAR)
@@ -218,13 +212,9 @@ class CalendarActivity : AppCompatActivity() {
         }
 
         val filtered = if (showOnlyList) {
-            allEpisodes.filter { media ->
-                val isMovieMode = PrefManager.getVal<String>(PrefName.ContentMode) == "movie_tv"
-                if (isMovieMode) media.status != null else media.anime?.userProgress != null || media.status != null
-            }
+            allEpisodes.filter { it.userProgress != null || it.userStatus != null }
         } else allEpisodes
 
-        // Day episodes
         val epContainer = binding.calendarDayEpisodes
         epContainer.removeAllViews()
         if (filtered.isEmpty()) {
@@ -238,39 +228,31 @@ class CalendarActivity : AppCompatActivity() {
                 v.findViewById<android.widget.ImageView>(R.id.calendarEpPoster).loadImage(media.cover)
                 v.findViewById<TextView>(R.id.calendarEpTitle).text = media.name
                 v.findViewById<TextView>(R.id.calendarEpInfo).text = media.relation ?: ""
-                
-                // Build badge: "Ep 10" or "Ep 10 · 10:56pm"
+
                 val badge = v.findViewById<TextView>(R.id.calendarEpBadge)
                 val rel = media.relation ?: ""
-                val epNum = Regex("Episode\s+(\d+)").find(rel)?.groupValues?.get(1)
-                    ?: rel.lines().firstOrNull()?.trim()
+                val epNum = Regex("""Episode\s+(\d+)""").find(rel)?.groupValues?.get(1)
                 val timeStr = if (rel.contains("\n")) rel.lines().getOrNull(1)?.trim() else null
-                
-                badge.text = if (epNum != null && timeStr != null && timeStr.isNotBlank()) {
-                    "Ep $epNum · $timeStr"
+
+                badge.text = if (epNum != null && !timeStr.isNullOrBlank()) {
+                    "Ep $epNum \u00b7 $timeStr"
                 } else if (epNum != null) {
                     "Ep $epNum"
                 } else {
-                    // movie mode or unknown
                     val type = media.tmdbType
                     if (type == "movie") "Movie" else "New"
                 }
-                
+
                 FocusEffectUtil.applyFocusListener(v)
                 epContainer.addView(v)
             }
         }
 
-        // Upcoming shelf: entries for future dates
         val todayIso = dateFmt.format(Date())
-        val upcoming = data.entries
-            .filter { it.key > todayIso }
-            .flatMap { it.value }
-            .distinctBy { it.id }
-            .take(20)
+        val upcoming = data.entries.filter { it.key > todayIso }.flatMap { it.value }
+            .distinctBy { it.id }.take(20)
         binding.calendarUpcomingSection.visibility = if (upcoming.isNotEmpty()) View.VISIBLE else View.GONE
 
-        // Missing shelf: episodes not airing this week
         val weekIsos = (0..6).map { offset ->
             dateFmt.format((currentWeekStart.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, offset) }.time)
         }
@@ -281,20 +263,17 @@ class CalendarActivity : AppCompatActivity() {
     }
 
     private fun showFilterSheet() {
-        // Build a simple filter dialog
-        val builder = this.customAlertDialog()
         val listOnly = PrefManager.getVal<Boolean>(PrefName.CalendarListOnly)
-        builder.setTitle(R.string.release_calendar)
-        val items = arrayOf("List only")
-        val checked = booleanArrayOf(listOnly)
-        builder.multiChoiceItems(items, checked) { _, which, isChecked ->
-            if (which == 0) PrefManager.setVal(PrefName.CalendarListOnly, isChecked)
-        }
-        builder.setPosButton(R.string.ok) {
-            model.getCalendar()?.let { refreshDisplay(it) }
-        }
-        builder.setNegButton(R.string.cancel)
-        builder.show()
+        this.customAlertDialog().apply {
+            setTitle(R.string.release_calendar)
+            multiChoiceItems(arrayOf("List only"), booleanArrayOf(listOnly)) { checked ->
+                PrefManager.setVal(PrefName.CalendarListOnly, checked[0])
+            }
+            setPosButton(R.string.ok) {
+                model.getCalendar().value?.let { refreshDisplay(it) }
+            }
+            setNegButton(R.string.cancel)
+        }.show()
     }
 
     private fun dpToPx(dp: Int): Int = (dp * resources.displayMetrics.density).toInt()

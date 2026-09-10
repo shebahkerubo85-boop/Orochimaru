@@ -365,5 +365,5 @@ enum class PrefName(val data: Pref) {
     LastLoginTimestamp(Pref(Location.Irrelevant, Long::class, 0L)),
     LoginMethod(Pref(Location.Irrelevant, String::class, "UNKNOWN")),
     LoginAppVersion(Pref(Location.Irrelevant, String::class, "")),
-    CalendarListOnly(Pref(Location.App, Boolean::class, false)),
+    CalendarListOnly(Pref(Location.General, Boolean::class, false)),
 }
