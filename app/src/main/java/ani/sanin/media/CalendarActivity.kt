@@ -291,7 +291,7 @@ class CalendarActivity : AppCompatActivity() {
                 val sxeNum = Regex("""S(\d+)E(\d+)""").find(rel)?.groupValues?.let { "S${it[1]}E${it[2]}" }
                 val timeStr = if (rel.contains("\n")) rel.lines().getOrNull(1)?.trim() else null
                 val isMovie = media.tmdbType == "movie" || media.format == "MOVIE"
-                val primaryColor = ContextCompat.getColor(this@CalendarActivity, getThemeColor(com.google.android.material.R.attr.colorPrimary))
+                val primaryColor = getThemeColor(com.google.android.material.R.attr.colorPrimary)
                 val badgeText = when {
                     isMovie -> {
                         val dateLine = rel.lines().firstOrNull { it != "Movie" && it.isNotBlank() }

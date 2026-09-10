@@ -379,12 +379,15 @@ class OtherDetailsViewModel : ViewModel() {
         }
         val weekDays = (-7..6).map { dayKey(it) }
 
-        // Build TVmaze schedule map: showName -> (season, ep, time) for each day
-        val tvmazeSchedule = mutableMapOf<String, Triple<Int, Int, String>>() // lowerName -> season, ep, time
+        // TVmaze schedule map: lowerName -> list of (season, ep, time) per day
+        val tvmazeSchedule = mutableMapOf<String, MutableList<Triple<Int, Int, String>>>()
         for ((iso, _) in weekDays) {
             val schedBody = try {
-                java.net.URL("https://api.tvmaze.com/schedule?date=$iso&country=US")
-                    .readText()
+                val conn = java.net.URL("https://api.tvmaze.com/schedule?date=$iso&country=US")
+                    .openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 5000
+                conn.readTimeout = 5000
+                conn.inputStream.bufferedReader().use { it.readText() }
             } catch (_: Exception) { "[]" }
             try {
                 val arr = org.json.JSONArray(schedBody)
@@ -395,7 +398,8 @@ class OtherDetailsViewModel : ViewModel() {
                     val number = ep.optInt("number", 0)
                     val airtime = ep.optString("airtime", "").ifBlank { null } ?: continue
                     if (season > 0 && number > 0) {
-                        tvmazeSchedule[showName] = Triple(season, number, airtime)
+                        tvmazeSchedule.getOrPut(showName) { mutableListOf() }
+                            .add(Triple(season, number, airtime))
                     }
                 }
             } catch (_: Exception) {}
@@ -415,9 +419,14 @@ class OtherDetailsViewModel : ViewModel() {
             parseResults(body ?: "").forEach { entry ->
                 val tmdbId = entry[0] as Int
                 val showTitle = entry[1] as String
-                // Look up TVmaze for episode number + air time
+                // Fuzzy match TVmaze: exact -> strip parenthetical -> contains
                 val lowerName = showTitle.lowercase()
+                val strippedName = lowerName.replace(Regex("\\s*\\(.*?\\)$"), "").trim()
                 val mazeInfo = tvmazeSchedule[lowerName]
+                    ?: tvmazeSchedule[strippedName]
+                    ?: tvmazeSchedule.entries.firstOrNull { (k, _) ->
+                        k.contains(strippedName) || strippedName.contains(k)
+                    }?.value?.firstOrNull()
                 val relation = if (mazeInfo != null) {
                     "S${mazeInfo.first}E${mazeInfo.second}\n${mazeInfo.third}"
                 } else "New episode"
