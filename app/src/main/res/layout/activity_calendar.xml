@@ -156,7 +156,7 @@
                 android:layout_height="64dp"
                 android:alpha="0.3"
                 android:importantForAccessibility="no"
-                app:srcCompat="@drawable/ic_baseline_calendar_today_24"
+                app:srcCompat="@drawable/ic_round_calendar_today_24"
                 app:tint="?attr/colorOnSurface" />
 
             <TextView

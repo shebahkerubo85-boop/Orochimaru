@@ -238,6 +238,24 @@ class CalendarActivity : AppCompatActivity() {
                 v.findViewById<android.widget.ImageView>(R.id.calendarEpPoster).loadImage(media.cover)
                 v.findViewById<TextView>(R.id.calendarEpTitle).text = media.name
                 v.findViewById<TextView>(R.id.calendarEpInfo).text = media.relation ?: ""
+                
+                // Build badge: "Ep 10" or "Ep 10 · 10:56pm"
+                val badge = v.findViewById<TextView>(R.id.calendarEpBadge)
+                val rel = media.relation ?: ""
+                val epNum = Regex("Episode\s+(\d+)").find(rel)?.groupValues?.get(1)
+                    ?: rel.lines().firstOrNull()?.trim()
+                val timeStr = if (rel.contains("\n")) rel.lines().getOrNull(1)?.trim() else null
+                
+                badge.text = if (epNum != null && timeStr != null && timeStr.isNotBlank()) {
+                    "Ep $epNum · $timeStr"
+                } else if (epNum != null) {
+                    "Ep $epNum"
+                } else {
+                    // movie mode or unknown
+                    val type = media.tmdbType
+                    if (type == "movie") "Movie" else "New"
+                }
+                
                 FocusEffectUtil.applyFocusListener(v)
                 epContainer.addView(v)
             }
