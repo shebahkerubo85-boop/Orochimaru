@@ -16,10 +16,10 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
 import ani.sanin.copyToClipboard
+import ani.sanin.others.LanguageMapper
 import ani.sanin.databinding.ActivityAnimeRepoDetailBinding
 import ani.sanin.databinding.ItemExtensionAllBinding
 import ani.sanin.initActivity
-import ani.sanin.others.LanguageMapper
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.themes.ThemeManager
@@ -32,10 +32,12 @@ import kotlinx.coroutines.launch
 import rx.android.schedulers.AndroidSchedulers
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import java.util.Locale
 
 /**
  * Per-repo extension list for aniyomi repos (opened from the repo card Browse pill).
  * Shows only extensions belonging to [ARG_REPO_URL] with install buttons.
+ * Filter + language chips match the CloudStream repo detail pattern.
  */
 class AnimeRepoDetailActivity : AppCompatActivity() {
 
@@ -43,6 +45,8 @@ class AnimeRepoDetailActivity : AppCompatActivity() {
     private val animeExtensionManager: AnimeExtensionManager = Injekt.get()
     private val adapter = SourceAdapter(::onInstallClick)
     private var repoUrl: String = ""
+    private var allExtensions: List<eu.kanade.tachiyomi.extension.anime.model.AnimeExtension.Available> = emptyList()
+    private var filterOptions: List<String> = listOf("All")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,7 +62,6 @@ class AnimeRepoDetailActivity : AppCompatActivity() {
         FocusEffectUtil.applyFocusListener(binding.animeRepoBack)
         binding.animeRepoTitle.text = repoUrl.clean()
 
-        // GitHub avatar as repo icon (aniyomi repos have no manifest icon)
         githubOwnerAvatar(repoUrl)?.let { avatar ->
             Glide.with(this).load(avatar).into(binding.animeRepoIcon)
         }
@@ -72,7 +75,7 @@ class AnimeRepoDetailActivity : AppCompatActivity() {
                     val repos =
                         PrefManager.getVal<Set<String>>(PrefName.AnimeExtensionRepos) - repoUrl
                     PrefManager.setVal(PrefName.AnimeExtensionRepos, repos)
-                    lifecycleScope.launch { animeExtensionManager.findAvailableExtensions() } // force refresh
+                    lifecycleScope.launch { animeExtensionManager.findAvailableExtensions() }
                     finish()
                 }
                 setNegButton("Cancel")
@@ -82,6 +85,37 @@ class AnimeRepoDetailActivity : AppCompatActivity() {
         FocusEffectUtil.applyFocusListener(binding.animeRepoCopy)
         FocusEffectUtil.applyFocusListener(binding.animeRepoDelete)
 
+        // Filter chip
+        binding.animeRepoFilterChip.setOnClickListener {
+            AnimeTypeFilter.show(this, filterOptions) { refreshList() }
+        }
+        FocusEffectUtil.applyFocusListener(binding.animeRepoFilterChip)
+
+        // Language chip
+        binding.animeRepoLangChip.setOnClickListener {
+            val languageOptions =
+                LanguageMapper.Companion.Language.entries.map { entry ->
+                    entry.name.lowercase().replace("_", " ")
+                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
+                }.toTypedArray()
+            val listOrder: String = PrefManager.getVal(PrefName.AnimeLangSort)
+            val index = LanguageMapper.Companion.Language.entries.toTypedArray()
+                .indexOfFirst { it.code == listOrder }
+            customAlertDialog().apply {
+                setTitle("Language")
+                singleChoiceItems(languageOptions, index) { selected ->
+                    PrefManager.setVal(
+                        PrefName.AnimeLangSort,
+                        LanguageMapper.Companion.Language.entries[selected].code
+                    )
+                    refreshList()
+                }
+                setNegButton("Cancel")
+                show()
+            }
+        }
+        FocusEffectUtil.applyFocusListener(binding.animeRepoLangChip)
+
         binding.animeRepoRecyclerView.adapter = adapter
         binding.animeRepoRecyclerView.layoutManager = LinearLayoutManager(this)
 
@@ -89,13 +123,31 @@ class AnimeRepoDetailActivity : AppCompatActivity() {
             binding.animeRepoProgressBar.visibility = View.VISIBLE
             binding.animeRepoRecyclerView.visibility = View.GONE
             animeExtensionManager.availableExtensionsFlow.collectLatest { available ->
-                val filtered = available.filter { it.repository == repoUrl }
+                allExtensions = available.filter { it.repository == repoUrl }
+                filterOptions = AnimeTypeFilter.optionsFor(allExtensions)
+                // Reset a stale filter (e.g. from another repo) if it no longer applies.
+                if (AnimeTypeFilter.current() !in filterOptions) {
+                    PrefManager.setVal(PrefName.AnimeTypeFilter, "All")
+                }
                 binding.animeRepoProgressBar.visibility = View.GONE
                 binding.animeRepoRecyclerView.visibility = View.VISIBLE
-                binding.animeRepoEmptyText.isVisible = filtered.isEmpty()
-                adapter.submitList(filtered)
+                refreshList()
             }
         }
+    }
+
+    private fun refreshList() {
+        val lang = PrefManager.getVal<String>(PrefName.AnimeLangSort)
+        val filtered = allExtensions.filter { ext ->
+            AnimeTypeFilter.matches(ext) &&
+                (lang == "all" || ext.lang?.lowercase(Locale.ROOT) == lang)
+        }
+        binding.animeRepoEmptyText.isVisible = filtered.isEmpty()
+        if (filtered.isEmpty()) {
+            binding.animeRepoEmptyText.text = "No extensions match the current filter"
+        }
+        adapter.submitList(filtered)
+        if (filtered.isNotEmpty()) binding.animeRepoRecyclerView.requestFocus()
     }
 
     private fun onInstallClick(extension: eu.kanade.tachiyomi.extension.anime.model.AnimeExtension.Available) {
