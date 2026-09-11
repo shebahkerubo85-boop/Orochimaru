@@ -178,19 +178,6 @@ class SettingsActivity : AppCompatActivity() {
             ),
         ),
         SettingsSection(
-            title = "Shorts",
-            desc = "YouTube & Reddit anime shorts",
-            iconRes = R.drawable.format_youtube_24,
-            entries = listOf(
-                SectionEntry(
-                    title = "Watch Shorts",
-                    desc = "Browse YouTube & Reddit anime shorts",
-                    iconRes = R.drawable.format_youtube_24,
-                    onClick = { startActivity(Intent(this, ani.sanin.youtube.YouTubeShortsActivity::class.java)) },
-                ),
-            ),
-        ),
-        SettingsSection(
             title = "Extensions",
             desc = "Sources, add-ons & diagnostics",
             iconRes = R.drawable.ic_settings_tools,
