@@ -43,63 +43,18 @@ class SettingsAnimeActivity : AppCompatActivity() {
                     onClick = { startActivity(Intent(this, PlayerSettingsActivity::class.java)) },
                 ),
                 SubscreenBuilder.Entry(
-                    title = "Prefer Dubbed Audio",
-                    desc = "Use dub track when available",
-                    switch = PrefManager.getVal<Boolean>(PrefName.PreferDub) to {
-                        PrefManager.setVal(PrefName.PreferDub, it)
+                    title = "Blur Unwatched Episodes",
+                    desc = "Blur episodes you haven't seen",
+                    switch = PrefManager.getVal<Boolean>(PrefName.BlurUnwatchedEpisodes) to {
+                        PrefManager.setVal(PrefName.BlurUnwatchedEpisodes, it)
                     },
                 ),
                 SubscreenBuilder.Entry(
-                    title = "Pause Overlay",
-                    desc = "Show overlay when paused",
-                    switch = PrefManager.getVal<Boolean>(PrefName.PauseOverlay) to {
-                        PrefManager.setVal(PrefName.PauseOverlay, it)
+                    title = "Grey Watched Episodes",
+                    desc = "Grey out episodes you've watched",
+                    switch = PrefManager.getVal<Boolean>(PrefName.GreyWatchedEpisodes) to {
+                        PrefManager.setVal(PrefName.GreyWatchedEpisodes, it)
                     },
-                ),
-                SubscreenBuilder.Entry(
-                    title = "Gesture Sliders",
-                    desc = "Brightness & volume via swipe",
-                    switch = PrefManager.getVal<Boolean>(PrefName.GestureSliders) to {
-                        PrefManager.setVal(PrefName.GestureSliders, it)
-                    },
-                ),
-                SubscreenBuilder.Entry(
-                    title = "Auto-Hide Delay",
-                    desc = "Seconds before controls vanish",
-                    choice = SubscreenBuilder.Choice(
-                        title = "Auto-Hide Delay",
-                        options = arrayOf("2s", "3s", "4s", "5s", "6s", "8s", "10s"),
-                        currentIndex = PrefManager.getVal<Int>(PrefName.AutoHideTimeout) - 2,
-                    ) { idx -> PrefManager.setVal(PrefName.AutoHideTimeout, idx + 2) },
-                ),
-                SubscreenBuilder.Entry(
-                    title = "Buffer Size",
-                    desc = "Video buffer in megabytes",
-                    choice = SubscreenBuilder.Choice(
-                        title = "Buffer Size",
-                        options = arrayOf("16 MB", "32 MB", "64 MB", "128 MB"),
-                        currentIndex = when (PrefManager.getVal<Int>(PrefName.BufferSize)) {
-                            16 -> 0; 32 -> 1; 64 -> 2; 128 -> 3; else -> 1
-                        },
-                    ) { idx -> PrefManager.setVal(PrefName.BufferSize, intArrayOf(16, 32, 64, 128)[idx]) },
-                ),
-                SubscreenBuilder.Entry(
-                    title = "Decoder",
-                    desc = "Hardware or software decoding",
-                    choice = SubscreenBuilder.Choice(
-                        title = "Decoder",
-                        options = arrayOf("Hardware (MediaCodec)", "Software (FFmpeg)"),
-                        currentIndex = PrefManager.getVal<Int>(PrefName.DecodingMode),
-                    ) { idx -> PrefManager.setVal(PrefName.DecodingMode, idx) },
-                ),
-                SubscreenBuilder.Entry(
-                    title = "Subtitle Renderer",
-                    desc = "CPU canvas or GPU OpenGL",
-                    choice = SubscreenBuilder.Choice(
-                        title = "Subtitle Renderer",
-                        options = arrayOf("Canvas (TV)", "OpenGL (Phone)"),
-                        currentIndex = PrefManager.getVal<Int>(PrefName.SubtitleRenderMode),
-                    ) { idx -> PrefManager.setVal(PrefName.SubtitleRenderMode, idx) },
                 ),
             )),
 

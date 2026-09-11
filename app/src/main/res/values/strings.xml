@@ -1064,6 +1064,8 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="disclaimer_desc">Something to keep in mind</string>
 
     <string name="player_settings_desc">All the player related settings</string>
+    <string name="confirm_player_exit">Confirm Player Exit</string>
+    <string name="subtitle_render_mode">Subtitle Renderer</string>
     <string name="purge_anime_downloads_desc">Delete all downloaded Anime</string>
     <string name="prefer_dub_desc">Select Dub media by default</string>
     <string name="include_list_anime_desc">Include list items in Anime explore page</string>
