@@ -41,7 +41,7 @@ class SettingsAppearanceActivity : AppCompatActivity() {
         binding.subscreenSubtitle.text = "Colors, cards, blur & glass"
         binding.subscreenIcon.setImageResource(R.drawable.ic_set_theme)
 
-        SubscreenBuilder.build(this, binding.subscreenContent, listOf(
+        buildSections = { SubscreenBuilder.build(this, binding.subscreenContent, listOf(
             SubscreenBuilder.Section(
                 "Theme & Palette", R.drawable.ic_set_theme,
                 entries = listOf(
@@ -129,8 +129,8 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                         title = "Scale",
                         desc = "How big cards appear",
                         choice = floatChoice(
-                            "Scale", arrayOf("Tiny (0.5×)", "Small (0.75×)", "Default (1×)", "Big (1.25×)", "Large (1.5×)", "XL (1.75×)", "XXL (2.0×)"),
-                            floatArrayOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f),
+                            "Scale", arrayOf("Tiny (1×)", "Small (1.25×)", "Default (1.5×)", "Big (1.75×)", "Large (2×)", "XL (2.25×)", "XXL (2.5×)"),
+                            floatArrayOf(1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.25f, 2.5f),
                             PrefManager.getVal<Float>(PrefName.CardSize),
                         ) { PrefManager.setVal(PrefName.CardSize, it); restartApp() },
                     ),
@@ -244,17 +244,17 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                         title = "Enable Glass",
                         desc = "Master toggle for glassmorphism",
                         switch = PrefManager.getVal<Boolean>(PrefName.GlassEffectEnabled) to {
-                            PrefManager.setVal(PrefName.GlassEffectEnabled, it); restartApp()
+                            PrefManager.setVal(PrefName.GlassEffectEnabled, it); rebuildSubscreen()
                         },
                     ),
-                    SubscreenBuilder.Entry(title = "Nav Pills", switch = glassSwitch(PrefName.GlassEffectNavPills)),
-                    SubscreenBuilder.Entry(title = "Side Rail", switch = glassSwitch(PrefName.GlassEffectSideRail)),
-                    SubscreenBuilder.Entry(title = "Server Sheet", switch = glassSwitch(PrefName.GlassEffectServerSheet)),
-                    SubscreenBuilder.Entry(title = "List Editor", switch = glassSwitch(PrefName.GlassEffectListEditor)),
-                    SubscreenBuilder.Entry(title = "Source Picker", switch = glassSwitch(PrefName.GlassEffectSourceSelector)),
-                    SubscreenBuilder.Entry(title = "Episode Drawer", switch = glassSwitch(PrefName.GlassEffectEpisodeDrawer)),
-                    SubscreenBuilder.Entry(title = "Subtitle Sync", switch = glassSwitch(PrefName.GlassEffectSubtitleSync)),
-                    SubscreenBuilder.Entry(title = "Keyboard", switch = glassSwitch(PrefName.GlassEffectKeyboard)),
+                    SubscreenBuilder.Entry(title = "Nav Pills", switch = glassSwitch(PrefName.GlassEffectNavPills), isEnabled = PrefManager.getVal<Boolean>(PrefName.GlassEffectEnabled)),
+                    SubscreenBuilder.Entry(title = "Side Rail", switch = glassSwitch(PrefName.GlassEffectSideRail), isEnabled = PrefManager.getVal<Boolean>(PrefName.GlassEffectEnabled)),
+                    SubscreenBuilder.Entry(title = "Server Sheet", switch = glassSwitch(PrefName.GlassEffectServerSheet), isEnabled = PrefManager.getVal<Boolean>(PrefName.GlassEffectEnabled)),
+                    SubscreenBuilder.Entry(title = "List Editor", switch = glassSwitch(PrefName.GlassEffectListEditor), isEnabled = PrefManager.getVal<Boolean>(PrefName.GlassEffectEnabled)),
+                    SubscreenBuilder.Entry(title = "Source Picker", switch = glassSwitch(PrefName.GlassEffectSourceSelector), isEnabled = PrefManager.getVal<Boolean>(PrefName.GlassEffectEnabled)),
+                    SubscreenBuilder.Entry(title = "Episode Drawer", switch = glassSwitch(PrefName.GlassEffectEpisodeDrawer), isEnabled = PrefManager.getVal<Boolean>(PrefName.GlassEffectEnabled)),
+                    SubscreenBuilder.Entry(title = "Subtitle Sync", switch = glassSwitch(PrefName.GlassEffectSubtitleSync), isEnabled = PrefManager.getVal<Boolean>(PrefName.GlassEffectEnabled)),
+                    SubscreenBuilder.Entry(title = "Keyboard", switch = glassSwitch(PrefName.GlassEffectKeyboard), isEnabled = PrefManager.getVal<Boolean>(PrefName.GlassEffectEnabled)),
                 ),
             ),
 
@@ -262,7 +262,7 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                 "Glass Tuning", R.drawable.ic_set_glass,
                 entries = listOf(
                     SubscreenBuilder.Entry(
-                        title = "Blur Amount", desc = "How blurry the glass is",
+                        title = "Blur Amount", desc = "How blurry the glass is", isEnabled = PrefManager.getVal<Boolean>(PrefName.GlassEffectEnabled),
                         choice = floatChoice("Blur Amount",
                             arrayOf("5", "10", "15", "20", "25", "30", "40", "50", "60", "80"),
                             floatArrayOf(5f, 10f, 15f, 20f, 25f, 30f, 40f, 50f, 60f, 80f),
@@ -270,7 +270,7 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                         ) { PrefManager.setVal(PrefName.GlassEffectBlurRadius, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Tint Strength", desc = "Color overlay opacity",
+                        title = "Tint Strength", isEnabled = PrefManager.getVal<Boolean>(PrefName.GlassEffectEnabled), desc = "Color overlay opacity",
                         choice = floatChoice("Tint Strength",
                             arrayOf("10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "Full"),
                             floatArrayOf(0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f),
@@ -278,7 +278,7 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                         ) { PrefManager.setVal(PrefName.GlassEffectTintOpacity, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Color Pop", desc = "Vibrancy boost",
+                        title = "Color Pop", isEnabled = PrefManager.getVal<Boolean>(PrefName.GlassEffectEnabled), desc = "Vibrancy boost",
                         choice = floatChoice("Color Pop",
                             arrayOf("Flat", "Subtle", "Soft", "Normal", "Bright", "Vivid", "Punchy", "Intense"),
                             floatArrayOf(0.1f, 0.3f, 0.5f, 0.7f, 1.0f, 1.25f, 1.5f, 2.0f),
@@ -286,21 +286,21 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                         ) { PrefManager.setVal(PrefName.GlassEffectVibrancy, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Refraction Height", choice = floatChoice("Refraction Height",
+                        title = "Refraction Height", isEnabled = PrefManager.getVal<Boolean>(PrefName.GlassEffectEnabled), choice = floatChoice("Refraction Height",
                             arrayOf("Off", "Low", "Medium", "High", "Max"),
                             floatArrayOf(0f, 0.25f, 0.5f, 0.75f, 1.0f),
                             PrefManager.getVal<Float>(PrefName.GlassEffectRefractionHeight),
                         ) { PrefManager.setVal(PrefName.GlassEffectRefractionHeight, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Refraction Amount", choice = floatChoice("Refraction Amount",
+                        title = "Refraction Amount", isEnabled = PrefManager.getVal<Boolean>(PrefName.GlassEffectEnabled), choice = floatChoice("Refraction Amount",
                             arrayOf("Off", "Low", "Medium", "High", "Max"),
                             floatArrayOf(0f, 0.25f, 0.5f, 0.75f, 1.0f),
                             PrefManager.getVal<Float>(PrefName.GlassEffectRefractionAmount),
                         ) { PrefManager.setVal(PrefName.GlassEffectRefractionAmount, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Fringe Effect", desc = "Chromatic aberration at edges",
+                        title = "Fringe Effect", isEnabled = PrefManager.getVal<Boolean>(PrefName.GlassEffectEnabled), desc = "Chromatic aberration at edges",
                         choice = floatChoice("Fringe Effect",
                             arrayOf("Off", "Low", "Medium", "High", "Max"),
                             floatArrayOf(0f, 0.25f, 0.5f, 0.75f, 1.0f),
@@ -308,18 +308,18 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                         ) { PrefManager.setVal(PrefName.GlassEffectChromaticAberration, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "3D Depth", desc = "Parallax depth on glass",
+                        title = "3D Depth", isEnabled = PrefManager.getVal<Boolean>(PrefName.GlassEffectEnabled), desc = "Parallax depth on glass",
                         switch = PrefManager.getVal<Boolean>(PrefName.GlassEffectDepth) to {
                             PrefManager.setVal(PrefName.GlassEffectDepth, it)
                         },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Surface Tint", desc = "Color overlay on glass",
+                        title = "Surface Tint", isEnabled = PrefManager.getVal<Boolean>(PrefName.GlassEffectEnabled), desc = "Color overlay on glass",
                         iconRes = R.drawable.ic_set_theme,
                         onClick = { showColorGrid("Surface Tint", PrefName.GlassEffectSurfaceTint) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Text on Glass", desc = "Text color over glass",
+                        title = "Text on Glass", desc = "Text color over glass", isEnabled = PrefManager.getVal<Boolean>(PrefName.GlassEffectEnabled),
                         iconRes = R.drawable.ic_set_theme,
                         onClick = { showColorGrid("Text on Glass", PrefName.GlassEffectTextColor) },
                     ),
@@ -402,10 +402,17 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                     ),
                 ),
             ),
-        ))
+        )) }
+        buildSections?.invoke()
     }
 
     // ─── Helpers ─────────────────────────────────────────────────
+
+    private var buildSections: (() -> Unit)? = null
+
+    private fun rebuildSubscreen() {
+        buildSections?.invoke()
+    }
 
     private fun restartSwitch(pref: PrefName): Pair<Boolean, (Boolean) -> Unit> =
         PrefManager.getVal<Boolean>(pref) to { v: Boolean -> PrefManager.setVal(pref, v); restartApp() }
@@ -415,12 +422,12 @@ class SettingsAppearanceActivity : AppCompatActivity() {
 
     private fun floatChoice(title: String, labels: Array<String>, values: FloatArray, current: Float, onSelect: (Float) -> Unit) =
         SubscreenBuilder.Choice(title, labels,
-            values.indices.minByOrNull { idx -> kotlin.math.abs(values[idx]) - current } ?: 0
+            values.indices.minByOrNull { idx -> kotlin.math.abs(values[idx] - current) } ?: 0
         ) { idx -> onSelect(values[idx]) }
 
     private fun intChoice(title: String, labels: Array<String>, values: IntArray, current: Int, onSelect: (Int) -> Unit) =
         SubscreenBuilder.Choice(title, labels,
-            values.indices.minByOrNull { idx -> kotlin.math.abs(values[idx]) - current } ?: 0
+            values.indices.minByOrNull { idx -> kotlin.math.abs(values[idx] - current) } ?: 0
         ) { idx -> onSelect(values[idx]) }
 
     // ─── Color Pickers ──────────────────────────────────────────

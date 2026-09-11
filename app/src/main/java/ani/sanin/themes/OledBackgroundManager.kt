@@ -10,69 +10,51 @@ import android.graphics.PixelFormat
 import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.graphics.drawable.Drawable
-import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import androidx.core.view.doOnLayout
 
 object OledBackgroundManager {
 
-    private var overlayView: View? = null
+    private var appliedActivity: Activity? = null
+    private var originalBackground: android.graphics.drawable.Drawable? = null
 
     fun apply(activity: Activity, oledMode: Int, primaryColor: Int, gradientDir: Int = 0, intensity: Float = 1f) {
         val drawable = when (oledMode) {
+            1 -> SolidBlackDrawable()
             2 -> GlowSpotsDrawable(primaryColor, intensity)
             3 -> GradientBgDrawable(primaryColor, gradientDir, intensity)
             4 -> VignetteBgDrawable(primaryColor, intensity)
             else -> return
         }
-        activity.window.decorView.doOnLayout { decor ->
-            val w = decor.width
-            val h = decor.height
-            if (w <= 0 || h <= 0) return@doOnLayout
 
-            drawable.setBounds(0, 0, w, h)
+        // Save original background so we can restore later
+        if (appliedActivity == null) {
+            originalBackground = activity.window.decorView.background
+        }
 
-            // Set pure black background for OLED
-            decor.setBackgroundColor(Color.BLACK)
+        // Apply as the window background — renders BEHIND all content views
+        activity.window.setBackgroundDrawable(drawable)
+        appliedActivity = activity
+    }
 
-            // Remove old overlay if present
-            val decorGroup = decor as? ViewGroup
-            if (overlayView != null && decorGroup != null && overlayView?.parent == decorGroup) {
-                decorGroup.removeView(overlayView)
-                overlayView = null
-            }
-
-            // Add overlay at index 0 — BEHIND all content views
-            // Content views with opaque backgrounds will cover the effect naturally
-            val overlay = object : View(activity) {
-                override fun onDraw(canvas: Canvas) {
-                    drawable.draw(canvas)
-                }
-            }
-            overlay.setWillNotDraw(false)
-            overlay.layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                Gravity.TOP or Gravity.START
-            )
-            overlay.isClickable = false
-            overlay.isFocusable = false
-            overlay.isFocusableInTouchMode = false
-            overlay.id = View.generateViewId()
-            decorGroup?.addView(overlay, 0)
-            overlayView = overlay
+    fun remove(activity: Activity) {
+        if (appliedActivity == activity) {
+            // Restore original background
+            activity.window.setBackgroundDrawable(originalBackground)
+            originalBackground = null
+            appliedActivity = null
         }
     }
 
-    fun getOverlayView(): View? = overlayView
-
-    fun remove(activity: Activity) {
-        if (overlayView != null && overlayView?.parent == activity.window.decorView) {
-            (activity.window.decorView as? ViewGroup)?.removeView(overlayView)
-            overlayView = null
+    /** Stub for mode 1 (Pure AMOLED) — just pure black, no overlay needed. */
+    private class SolidBlackDrawable : Drawable() {
+        override fun draw(canvas: Canvas) {
+            canvas.drawColor(Color.BLACK)
         }
+        override fun setAlpha(alpha: Int) {}
+        override fun setColorFilter(cf: ColorFilter?) { }
+        override fun getOpacity() = PixelFormat.OPAQUE
     }
 
     private class GlowSpotsDrawable(
@@ -81,19 +63,19 @@ object OledBackgroundManager {
     ) : Drawable() {
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         private var cachedBounds: android.graphics.Rect? = null
-        private val cachedShaders = arrayOfNulls<Shader>(3)
-
         private val spots = listOf(
             floatArrayOf(0.50f, 0.10f, 0.45f),
             floatArrayOf(0.90f, 0.18f, 0.36f),
             floatArrayOf(0.10f, 0.82f, 0.38f),
         )
+        private val cachedShaders = arrayOfNulls<Shader>(3)
 
         override fun draw(canvas: Canvas) {
             val b = bounds
             val w = b.width().toFloat()
             val h = b.height().toFloat()
             if (w <= 0 || h <= 0) return
+            canvas.drawColor(Color.BLACK)
             if (cachedBounds != b) {
                 cachedBounds = android.graphics.Rect(b)
                 val r = Color.red(primaryColor)
@@ -101,11 +83,8 @@ object OledBackgroundManager {
                 val bl = Color.blue(primaryColor)
                 for (i in spots.indices) {
                     val spot = spots[i]
-                    val cx = spot[0] * w
-                    val cy = spot[1] * h
-                    val radius = spot[2] * minOf(w, h)
                     cachedShaders[i] = RadialGradient(
-                        cx, cy, radius,
+                        spot[0] * w, spot[1] * h, spot[2] * minOf(w, h),
                         intArrayOf(
                             scaleAlpha(Color.argb(90, r, g, bl)),
                             scaleAlpha(Color.argb(40, r, g, bl)),
@@ -146,12 +125,12 @@ object OledBackgroundManager {
             val w = b.width().toFloat()
             val h = b.height().toFloat()
             if (w <= 0 || h <= 0) return
+            canvas.drawColor(Color.BLACK)
             if (cachedBounds != b) {
                 cachedBounds = android.graphics.Rect(b)
                 val r = Color.red(primaryColor)
                 val g = Color.green(primaryColor)
                 val bl = Color.blue(primaryColor)
-
                 val x0: Float; val y0: Float; val x1: Float; val y1: Float
                 when (direction) {
                     1 -> { x0 = w / 2f; y0 = h; x1 = w / 2f; y1 = h * 0.30f }
@@ -159,7 +138,6 @@ object OledBackgroundManager {
                     3 -> { x0 = w; y0 = h / 2f; x1 = w * 0.30f; y1 = h / 2f }
                     else -> { x0 = w / 2f; y0 = 0f; x1 = w / 2f; y1 = h * 0.70f }
                 }
-
                 cachedShader = LinearGradient(
                     x0, y0, x1, y1,
                     intArrayOf(
@@ -198,6 +176,7 @@ object OledBackgroundManager {
             val w = b.width().toFloat()
             val h = b.height().toFloat()
             if (w <= 0 || h <= 0) return
+            canvas.drawColor(Color.BLACK)
             if (cachedBounds != b) {
                 cachedBounds = android.graphics.Rect(b)
                 val r = Color.red(primaryColor)

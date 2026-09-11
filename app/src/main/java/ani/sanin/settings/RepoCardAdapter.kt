@@ -157,6 +157,25 @@ class RepoCardAdapter(
             setOnClickListener { onOpen(item) }
             isFocusable = true
             isFocusableInTouchMode = true
+            val onPrimary = ctx.getThemeColor(com.google.android.material.R.attr.colorOnPrimary)
+            val onSurface = ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface)
+            setOnFocusChangeListener { v, hasFocus ->
+                if (hasFocus) {
+                    v.background = android.graphics.drawable.GradientDrawable().apply {
+                        shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                        setColor(ctx.getThemeColor(com.google.android.material.R.attr.colorPrimary))
+                        cornerRadius = 24f * v.resources.displayMetrics.density
+                    }
+                    setTextColor(onPrimary)
+                } else {
+                    v.background = android.graphics.drawable.GradientDrawable().apply {
+                        shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                        setColor(android.graphics.Color.argb(51, 255, 255, 255))  // 20% white
+                        cornerRadius = 24f * v.resources.displayMetrics.density
+                    }
+                    setTextColor(onSurface)
+                }
+            }
         }
 
         // Card: not focusable, only long-press

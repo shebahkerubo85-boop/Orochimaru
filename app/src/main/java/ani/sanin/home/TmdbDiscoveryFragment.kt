@@ -100,6 +100,7 @@ class TmdbDiscoveryFragment : Fragment() {
             isCheckable = true
             isChecked = checked
             isFocusable = true
+            setTextColor(ani.sanin.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
             setOnClickListener { onClick() }
             FocusEffectUtil.applyFocusListener(this)
         }

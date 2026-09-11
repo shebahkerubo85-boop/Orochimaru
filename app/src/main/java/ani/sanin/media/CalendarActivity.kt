@@ -74,6 +74,24 @@ class CalendarActivity : AppCompatActivity() {
         binding.calendarTodayBtn.setOnClickListener { goToToday() }
         FocusEffectUtil.applyFocusListener(binding.calendarTodayBtn)
 
+        // --- Focus chain ---
+        // Up from toggle → back arrow
+        binding.calendarListToggle.nextFocusUpId = R.id.calendarBack
+        // Down from toggle → prev week button
+        binding.calendarListToggle.nextFocusDownId = R.id.calendarPrevWeek
+        // Prev week: up → toggle, right → next week
+        binding.calendarPrevWeek.nextFocusUpId = R.id.calendarListToggle
+        binding.calendarPrevWeek.nextFocusRightId = R.id.calendarNextWeek
+        // Next week: up → toggle, left → prev week
+        binding.calendarNextWeek.nextFocusUpId = R.id.calendarListToggle
+        binding.calendarNextWeek.nextFocusLeftId = R.id.calendarPrevWeek
+        // Down from prev/next → first date in strip
+        binding.calendarPrevWeek.nextFocusDownId = R.id.calendarWeekStrip
+        binding.calendarNextWeek.nextFocusDownId = R.id.calendarWeekStrip
+
+        // Start with toggle focused on open
+        binding.calendarListToggle.post { binding.calendarListToggle.requestFocus() }
+
         // Start on today, not Monday
         currentWeekStart = (Calendar.getInstance().clone() as Calendar).apply {
             set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
@@ -234,6 +252,7 @@ class CalendarActivity : AppCompatActivity() {
             }
 
             val onSurface = getThemeColor(com.google.android.material.R.attr.colorOnSurface)
+            val onPrimary = getThemeColor(com.google.android.material.R.attr.colorOnPrimary)
             val nameTv = TextView(this).apply {
                 text = dayNames[i]
                 textSize = 11f
@@ -250,11 +269,11 @@ class CalendarActivity : AppCompatActivity() {
                 layoutParams = LinearLayout.LayoutParams(dpToPx(36), dpToPx(36)).apply { topMargin = dpToPx(2) }
                 when {
                     isSel -> {
-                        setTextColor(onSurface)
+                        setTextColor(onPrimary)
                         setBackgroundResource(R.drawable.bg_calendar_day_selected)
                     }
                     isToday -> {
-                        setTextColor(onSurface)
+                        setTextColor(onPrimary)
                         setBackgroundResource(R.drawable.bg_calendar_day_today)
                     }
                     else -> {

@@ -18,13 +18,16 @@
 
         <FrameLayout
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:clipChildren="true"
+            android:clipToPadding="true">
 
             <ImageView
                 android:id="@+id/tmdbCardPoster"
                 android:layout_width="120dp"
                 android:layout_height="170dp"
-                android:background="?attr/colorSurface"
+                android:clipToOutline="true"
+                android:outlineProvider="background"
                 android:focusable="true"
                 android:scaleType="centerCrop"
                 tools:ignore="ContentDescription" />

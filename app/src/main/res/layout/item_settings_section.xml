@@ -12,7 +12,7 @@
         android:id="@+id/sectionHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:minHeight="64dp"
+        android:minHeight="72dp"
         android:background="@drawable/bg_settings_card"
         android:gravity="center_vertical"
         android:orientation="horizontal"

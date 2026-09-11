@@ -46,6 +46,8 @@ object SubscreenBuilder {
         val slider: SliderOption? = null,
         /** When set on a choice entry, a slider appears below it, expanding when choice index != expandSlider.showOnIndex */
         val expandSlider: ExpandSlider? = null,
+        /** When false, the entry is dimmed and non-interactive */
+        val isEnabled: Boolean = true,
     )
 
     data class ExpandSlider(
@@ -96,6 +98,13 @@ object SubscreenBuilder {
                     sTitle.text = entry.title
                     sToggle.isChecked = entry.switch!!.first
                     sToggle.setOnCheckedChangeListener { _, isChecked -> entry.switch.second(isChecked) }
+                    if (!entry.isEnabled) {
+                        switchView.alpha = 0.35f
+                        switchView.isClickable = false
+                        switchView.isFocusable = false
+                        sToggle.isEnabled = false
+                        sTitle.isClickable = false
+                    }
                     sTitle.setOnClickListener { sToggle.isChecked = !sToggle.isChecked }
                     if (entry.onLongClick != null) {
                         switchView.setOnLongClickListener { entry.onLongClick!!.invoke(); true }
@@ -166,7 +175,13 @@ object SubscreenBuilder {
                         items.addView(expandSliderView)
                     }
 
-                    if (entry.choice != null) {
+                    if (!entry.isEnabled) {
+                        entryView.alpha = 0.35f
+                        entryView.isClickable = false
+                        entryView.isFocusable = false
+                        eChevron.visibility = View.GONE
+                    }
+                    if (entry.choice != null && entry.isEnabled) {
                         entryView.setSafeOnClickListener {
                             val c = entry.choice!!
                             context.customAlertDialog().apply {

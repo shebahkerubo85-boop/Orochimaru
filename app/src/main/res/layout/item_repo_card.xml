@@ -114,19 +114,19 @@
     <!-- Browse pill button (bottom overlay) -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/repoBrowseButton"
-        style="@style/Widget.Material3.Button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:layout_marginStart="20dp"
         android:layout_marginEnd="20dp"
         android:layout_marginBottom="2dp"
-        android:backgroundTint="@android:color/white"
+        android:background="@drawable/bg_repo_browse_button"
         android:focusable="true"
+        android:focusableInTouchMode="true"
         android:fontFamily="@font/poppins_bold"
         android:text="Browse"
         android:textAllCaps="false"
-        android:textColor="#FF1A1A1A"
+        android:textColor="?attr/colorOnSurface"
         android:textSize="13sp"
         app:cornerRadius="24dp" />
 

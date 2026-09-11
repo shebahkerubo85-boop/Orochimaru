@@ -203,11 +203,13 @@ class DiscoveryFragment : Fragment() {
     }
 
     private fun setupGenreChips() {
+        val onSurface = ani.sanin.getThemeColor(com.google.android.material.R.attr.colorOnSurface)
         animeGenres.forEach { genre ->
             val chip = Chip(requireContext()).apply {
                 text = genre
                 isCheckable = true
                 isChecked = (genre == "All" && discoverViewModel.selectedGenre.value == null)
+                setTextColor(onSurface)
                 setOnClickListener {
                     binding.genreChipGroup.clearCheck()
                     isChecked = true
@@ -219,6 +221,7 @@ class DiscoveryFragment : Fragment() {
     }
 
     private fun setupSeasonChips() {
+        val onSurface = ani.sanin.getThemeColor(com.google.android.material.R.attr.colorOnSurface)
         val seasons = DiscoverSeason.seasons()
         val currentSeason = discoverViewModel.selectedSeason.value
         seasons.forEach { season ->
@@ -226,6 +229,7 @@ class DiscoveryFragment : Fragment() {
                 text = season.label
                 isCheckable = true
                 isChecked = (season.apiValue == currentSeason.apiValue && season.year == currentSeason.year)
+                setTextColor(onSurface)
                 setOnClickListener {
                     binding.seasonChipGroup.clearCheck()
                     isChecked = true

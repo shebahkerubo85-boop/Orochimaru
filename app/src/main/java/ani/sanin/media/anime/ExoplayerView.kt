@@ -1889,10 +1889,7 @@ class ExoplayerView :
             updateTimeStamp()
         }
 
-        window.decorView.post {
-            val oledView = ani.sanin.themes.OledBackgroundManager.getOverlayView()
-            oledView?.let { it.visibility = View.GONE }
-        }
+        // OLED is now window background — no overlay to hide
     }
 
     private fun initPlayer() {

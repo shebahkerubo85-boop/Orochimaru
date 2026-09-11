@@ -140,13 +140,30 @@ object TmdbCards {
                 }
             }
         } else {
-            // Portrait: always title below, no gradient
-            gradient.isVisible = false
-            overlayTitle.isVisible = false
-            logo.isVisible = false
+            // Portrait: respect CardTitlePosition setting
+            when (titlePosition) {
+                0 -> {
+                    gradient.isVisible = true
+                    gradient.updateLayoutParams<ViewGroup.LayoutParams> { width = w; height = h }
+                    overlayTitle.isVisible = true
+                    overlayTitle.text = item.displayTitle
+                    setCardGradient(gradient)
+                    logo.isVisible = false
+                }
+                1 -> {
+                    gradient.isVisible = false
+                    overlayTitle.isVisible = false
+                    logo.isVisible = false
+                }
+                else -> {
+                    gradient.isVisible = false
+                    overlayTitle.isVisible = false
+                    logo.isVisible = false
+                }
+            }
         }
 
-        val showTitleBelow = !landscape || titlePosition != 0 && titlePosition != 2
+        val showTitleBelow = titlePosition == 1 || (!landscape && titlePosition == 0)
         binding.tmdbCardTitle.isVisible = showTitleBelow
         binding.tmdbCardTitle.text = item.displayTitle
         binding.tmdbCardYear.isVisible = false

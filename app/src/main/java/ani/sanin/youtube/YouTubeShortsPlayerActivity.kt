@@ -1,7 +1,6 @@
 package ani.sanin.youtube
 
 import android.annotation.SuppressLint
-import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -16,11 +15,6 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
-import androidx.media3.common.MediaItem
-import androidx.media3.common.PlaybackException
-import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.PlayerView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSnapHelper
 import androidx.recyclerview.widget.RecyclerView
@@ -46,13 +40,11 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         val videoIds = intent.getStringArrayListExtra(EXTRA_VIDEO_IDS) ?: arrayListOf()
         val startIdx = intent.getIntExtra(EXTRA_START_INDEX, 0)
         val titles = intent.getStringArrayListExtra(EXTRA_TITLES) ?: arrayListOf()
-        val isReddit = (intent.getStringArrayListExtra(EXTRA_IS_REDDIT) ?: arrayListOf()).map { it.toBoolean() }
-        val redditVideos = intent.getStringArrayListExtra(EXTRA_REDDIT_VIDEO) ?: arrayListOf()
 
         if (videoIds.isEmpty()) { finish(); return }
 
         recycler = findViewById(R.id.shortsRecyclerView)
-        adapter = ShortsAdapter(videoIds, titles, isReddit, redditVideos)
+        adapter = ShortsAdapter(videoIds, titles)
         recycler.layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
         recycler.adapter = adapter
 
@@ -88,12 +80,9 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
 
     inner class ShortsAdapter(
         private val videoIds: List<String>,
-        private val titles: List<String>,
-        private val isReddit: List<Boolean>,
-        private val redditVideos: List<String>
+        private val titles: List<String>
     ) : RecyclerView.Adapter<ShortsAdapter.VH>() {
 
-        private val exoPlayers = mutableMapOf<Int, ExoPlayer>()
         private val webViews = mutableMapOf<Int, WebView>()
         private var currentPos = -1
         private val liked = mutableSetOf<Int>()
@@ -109,9 +98,8 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             val videoId = videoIds[position]
-            val reddit = isReddit.getOrElse(position) { false }
             holder.titleText.text = titles.getOrElse(position) { "" }
-            holder.channelText.text = if (reddit) "r/Animeedits" else "Aniphex"
+            holder.channelText.text = "Aniphex"
 
             holder.btnLike.setColorFilter(
                 if (position in liked) android.graphics.Color.parseColor("#FF4CAF50")
@@ -122,87 +110,35 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
                 else android.graphics.Color.WHITE
             )
 
-            holder.btnLike.setOnClickListener { toggleLike(position, holder) }
-            holder.btnDislike.setOnClickListener { toggleDislike(position, holder) }
+            holder.btnLike.setOnClickListener {
+                if (position in liked) liked.remove(position)
+                else { liked.add(position); disliked.remove(position) }
+                notifyItemChanged(position)
+            }
+            holder.btnDislike.setOnClickListener {
+                if (position in disliked) disliked.remove(position)
+                else { disliked.add(position); liked.remove(position) }
+                notifyItemChanged(position)
+            }
             holder.btnComments.setOnClickListener {
                 holder.commentsPanel.visibility =
                     if (holder.commentsPanel.isVisible) View.GONE else View.VISIBLE
             }
             holder.btnShare.setOnClickListener {
-                val intent = if (reddit) {
-                    Intent(Intent.ACTION_VIEW,
-                        android.net.Uri.parse("https://www.reddit.com${redditVideos.getOrElse(position) { "" }}"))
-                } else {
-                    Intent(Intent.ACTION_VIEW,
-                        android.net.Uri.parse("https://www.youtube.com/watch?v=$videoId"))
-                }
-                startActivity(intent)
+                startActivity(android.content.Intent(
+                    android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse("https://www.youtube.com/watch?v=$videoId")
+                ))
             }
 
-            // Show/hide player types
-            if (reddit) {
-                holder.youtubeWebView.visibility = View.GONE
-                holder.redditPlayer.visibility = View.VISIBLE
-                setupRedditPlayer(holder, position)
-            } else {
-                holder.redditPlayer.visibility = View.GONE
-                holder.youtubeWebView.visibility = View.VISIBLE
-                setupWebView(holder, videoId, position)
-            }
+            setupWebView(holder, videoId, position)
         }
 
         override fun onViewRecycled(holder: VH) {
             super.onViewRecycled(holder)
             val pos = holder.adapterPosition
-            exoPlayers[pos]?.release()
-            exoPlayers.remove(pos)
             webViews[pos]?.destroy()
             webViews.remove(pos)
-        }
-
-        private fun toggleLike(position: Int, holder: VH) {
-            if (position in liked) {
-                liked.remove(position)
-            } else {
-                liked.add(position)
-                disliked.remove(position)
-            }
-            notifyItemChanged(position)
-        }
-
-        private fun toggleDislike(position: Int, holder: VH) {
-            if (position in disliked) {
-                disliked.remove(position)
-            } else {
-                disliked.add(position)
-                liked.remove(position)
-            }
-            notifyItemChanged(position)
-        }
-
-        private fun setupRedditPlayer(holder: VH, position: Int) {
-            val url = redditVideos.getOrElse(position) { "" }
-            if (url.isBlank()) {
-                holder.loading.visibility = View.GONE
-                return
-            }
-            holder.loading.visibility = View.VISIBLE
-            val player = ExoPlayer.Builder(holder.itemView.context).build()
-            holder.redditPlayer.player = player
-            val mediaItem = MediaItem.fromUri(url)
-            player.setMediaItem(mediaItem)
-            player.addListener(object : Player.Listener {
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    if (playbackState == Player.STATE_READY) {
-                        holder.loading.visibility = View.GONE
-                    }
-                }
-                override fun onPlayerError(error: PlaybackException) {
-                    holder.loading.visibility = View.GONE
-                }
-            })
-            player.prepare()
-            exoPlayers[position] = player
         }
 
         @SuppressLint("SetJavaScriptEnabled")
@@ -222,9 +158,7 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
                     holder.loading.visibility = View.GONE
-                    if (position == currentPos) {
-                        playCurrent()
-                    }
+                    if (position == currentPos) playCurrent()
                 }
             }
             webView.setBackgroundColor(android.graphics.Color.BLACK)
@@ -249,37 +183,22 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
 
         fun playCurrent() {
             if (currentPos < 0 || currentPos >= videoIds.size) return
-            val position = currentPos
-            // Pause all ExoPlayers except current
-            exoPlayers.forEach { (pos, player) ->
-                if (pos != position) player.pause()
-            }
-            // Pause all WebViews except current
             webViews.forEach { (pos, webView) ->
-                if (pos != position) {
+                if (pos != currentPos) {
                     webView.evaluateJavascript(
                         "document.querySelector('iframe')?.contentWindow?.postMessage('{\"event\":\"command\",\"func\":\"pauseVideo\",\"args\":[]}', '*')",
                         null
                     )
                 }
             }
-            // Play current
-            exoPlayers[position]?.let {
-                if (it.playbackState == Player.STATE_READY || it.playbackState == Player.STATE_ENDED) {
-                    it.play()
-                }
-            }
-            webViews[position]?.let {
-                it.evaluateJavascript(
-                    "document.querySelector('iframe')?.contentWindow?.postMessage('{\"event\":\"command\",\"func\":\"playVideo\",\"args\":[]}', '*')",
-                    null
-                )
-            }
+            webViews[currentPos]?.evaluateJavascript(
+                "document.querySelector('iframe')?.contentWindow?.postMessage('{\"event\":\"command\",\"func\":\"playVideo\",\"args\":[]}', '*')",
+                null
+            )
         }
 
         fun pauseCurrent() {
             if (currentPos < 0) return
-            exoPlayers[currentPos]?.pause()
             webViews[currentPos]?.evaluateJavascript(
                 "document.querySelector('iframe')?.contentWindow?.postMessage('{\"event\":\"command\",\"func\":\"pauseVideo\",\"args\":[]}', '*')",
                 null
@@ -287,15 +206,12 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         }
 
         fun destroyAll() {
-            exoPlayers.values.forEach { it.release() }
-            exoPlayers.clear()
             webViews.values.forEach { it.destroy() }
             webViews.clear()
         }
 
         inner class VH(view: View) : RecyclerView.ViewHolder(view) {
             val youtubeWebView: WebView = view.findViewById(R.id.youtubeWebView)
-            val redditPlayer: PlayerView = view.findViewById(R.id.redditPlayer)
             val titleText: TextView = view.findViewById(R.id.shortTitleText)
             val channelText: TextView = view.findViewById(R.id.shortChannelText)
             val btnLike: ImageButton = view.findViewById(R.id.btnLike)
@@ -311,7 +227,5 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         const val EXTRA_VIDEO_IDS = "video_ids"
         const val EXTRA_START_INDEX = "start_index"
         const val EXTRA_TITLES = "titles"
-        const val EXTRA_IS_REDDIT = "is_reddit"
-        const val EXTRA_REDDIT_VIDEO = "reddit_video"
     }
 }

@@ -163,6 +163,15 @@ class SettingsAccountActivity : AppCompatActivity() {
                     settingsMALUsername.visibility = View.GONE
                 }
 
+            // AniList gear icon → AniList settings
+            settingsAnilistGear.setOnClickListener {
+                lifecycleScope.launch {
+                    Anilist.query.getUserData()
+                    startActivity(Intent(context, AnilistSettingsActivity::class.java))
+                }
+            }
+            FocusEffectUtil.applyFocusListener(settingsAnilistGear)
+
             // Simkl tracking — Nuvio-style gradient card
             settingsSimklLogin.isFocusable = true
             if (Simkl.token != null) {
@@ -202,45 +211,37 @@ class SettingsAccountActivity : AppCompatActivity() {
 
                 Settings(
                     type = 1,
-                    name = getString(R.string.anilist_settings),
-                    desc = getString(R.string.alsettings_desc),
-                    icon = R.drawable.ic_anilist,
-                    onClick = {
-                        lifecycleScope.launch {
-                            Anilist.query.getUserData()
-                            startActivity(Intent(context, AnilistSettingsActivity::class.java))
-                        }
-                    },
-                    isActivity = true
-                ),
-                Settings(
-                    type = 2,
-                    name = getString(R.string.comments_button),
-                    desc = getString(R.string.comments_button_desc),
+                    name = "Comments",
+                    desc = "Choose comment sources",
                     icon = R.drawable.ic_round_comment_24,
-                    isChecked = PrefManager.getVal<Int>(PrefName.CommentsEnabled) == 1,
-                    switch = { isChecked, _ ->
-                        PrefManager.setVal(PrefName.CommentsEnabled, if (isChecked) 1 else 2)
-                        reload()
-                    },
+                    onClick = { showCommentsDialog() },
                     isVisible = Anilist.token != null
-                ),
-                Settings(
-                    type = 2,
-                    name = "Anikoto Comments",
-                    desc = "Show comments from anikoto.cz in the comments tab",
-                    icon = R.drawable.ic_round_comment_24,
-                    isChecked = PrefManager.getVal<Int>(PrefName.AnikotoCommentsEnabled) == 1,
-                    switch = { isChecked, _ ->
-                        PrefManager.setVal(PrefName.AnikotoCommentsEnabled, if (isChecked) 1 else 0)
-                    },
-                    isVisible = true
                 ),
             )
         )
         binding.settingsRecyclerView.layoutManager =
             LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
 
+    }
+
+    private fun showCommentsDialog() {
+        val saninChecked = PrefManager.getVal<Int>(PrefName.CommentsEnabled) == 1
+        val anikotoChecked = PrefManager.getVal<Int>(PrefName.AnikotoCommentsEnabled) == 1
+        val items = arrayOf("Sanin", "Anikoto")
+        val checked = booleanArrayOf(saninChecked, anikotoChecked)
+
+        customAlertDialog().apply {
+            setTitle("Comment Sources")
+            multiChoiceItems(items, checked) { result ->
+                for (i in result.indices) checked[i] = result[i]
+            }
+            setPosButton("OK") {
+                PrefManager.setVal(PrefName.CommentsEnabled, if (checked[0]) 1 else 2)
+                PrefManager.setVal(PrefName.AnikotoCommentsEnabled, if (checked[1]) 1 else 0)
+                reload()
+            }
+            setNegButton("Cancel")
+        }.show()
     }
 
     fun reload() {

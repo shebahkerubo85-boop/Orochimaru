@@ -44,8 +44,6 @@ class YouTubeShortsFragment : Fragment() {
             putStringArrayListExtra(YouTubeShortsPlayerActivity.EXTRA_VIDEO_IDS, ArrayList(shorts.map { it.id }))
             putStringArrayListExtra(YouTubeShortsPlayerActivity.EXTRA_TITLES, ArrayList(shorts.map { it.title }))
             putExtra(YouTubeShortsPlayerActivity.EXTRA_START_INDEX, startIndex)
-            putStringArrayListExtra(YouTubeShortsPlayerActivity.EXTRA_IS_REDDIT, ArrayList(shorts.map { it.isReddit.toString() }))
-            putStringArrayListExtra(YouTubeShortsPlayerActivity.EXTRA_REDDIT_VIDEO, ArrayList(shorts.map { it.redditVideoUrl ?: "" }))
         }
         startActivity(intent)
     }
@@ -57,8 +55,8 @@ class YouTubeShortsFragment : Fragment() {
         b.shortsErrorText.visibility = View.GONE
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val shorts = YouTubeApi.fetchAllShorts()
-                Log.d("YouTubeShorts", "Loaded ${shorts.size} items")
+                val shorts = YouTubeApi.fetchYouTubeShorts()
+                Log.d("YouTubeShorts", "Loaded ${shorts.size} shorts")
                 val bind = _binding ?: return@launch
                 bind.shortsProgressBar.visibility = View.GONE
                 if (shorts.isEmpty()) {

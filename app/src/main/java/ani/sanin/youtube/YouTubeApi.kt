@@ -11,17 +11,13 @@ import java.io.InputStreamReader
 import java.net.URL
 import javax.net.ssl.HttpsURLConnection
 
-/** Unified item for both YouTube shorts and Reddit video posts. */
 data class YouTubeShort(
     val id: String,
     val title: String,
     val thumbnailUrl: String,
     val duration: Long,
     val viewCount: Long,
-    val publishedAt: String,
-    val isReddit: Boolean = false,
-    val redditVideoUrl: String? = null,
-    val redditPermalink: String? = null
+    val publishedAt: String
 )
 
 data class YouTubeComment(
@@ -40,10 +36,7 @@ object YouTubeApi {
     private fun channelId(): String = PrefManager.getVal(PrefName.YouTubeChannelId)
 
     private suspend fun uploadsPlaylistId(): String = withContext(Dispatchers.IO) {
-        val apiKey = key()
-        val cid = channelId()
-        Log.d(TAG, "Fetching uploads for channel: $cid")
-        val url = URL("$BASE/channels?part=contentDetails&id=$cid&key=$apiKey")
+        val url = URL("$BASE/channels?part=contentDetails&id=${channelId()}&key=${key()}")
         val json = request(url)
         json.getJSONArray("items")
             .getJSONObject(0)
@@ -52,10 +45,8 @@ object YouTubeApi {
             .getString("uploads")
     }
 
-    /** Fetch ALL YouTube shorts — paginates entire uploads playlist. */
     suspend fun fetchYouTubeShorts(): List<YouTubeShort> = withContext(Dispatchers.IO) {
         val playlistId = uploadsPlaylistId()
-        Log.d(TAG, "Fetching all YouTube shorts from: $playlistId")
         val shorts = mutableListOf<YouTubeShort>()
         var pageToken: String? = null
 
@@ -67,7 +58,6 @@ object YouTubeApi {
             )
             val json = request(url)
             val items = json.getJSONArray("items")
-            Log.d(TAG, "YouTube page: ${items.length()} items, ${shorts.size} shorts so far")
 
             val videoIds = (0 until items.length())
                 .map { items.getJSONObject(it).getJSONObject("contentDetails").getString("videoId") }
@@ -97,33 +87,10 @@ object YouTubeApi {
             pageToken = json.optString("nextPageToken", "").ifEmpty { null }
         } while (pageToken != null)
 
-        Log.d(TAG, "Total YouTube shorts: ${shorts.size}")
         shorts
     }
 
-    /** Fetch all shorts merged with Reddit posts. */
-    suspend fun fetchAllShorts(): List<YouTubeShort> {
-        val ytShorts = fetchYouTubeShorts()
-        val redditPosts = try { RedditApi.fetchPosts() } catch (e: Exception) { emptyList() }
-        Log.d(TAG, "YouTube: ${ytShorts.size}, Reddit: ${redditPosts.size}")
-
-        val redditShorts = redditPosts
-            .filter { it.videoUrl != null }
-            .map { post ->
-                YouTubeShort(
-                    id = "reddit_${post.id}", title = post.title,
-                    thumbnailUrl = post.thumbnail, duration = 0, viewCount = 0,
-                    publishedAt = "", isReddit = true,
-                    redditVideoUrl = post.videoUrl, redditPermalink = post.permalink
-                )
-            }
-
-        return ytShorts + redditShorts
-    }
-
-    /** Fetch top comments for a YouTube video. */
     suspend fun fetchComments(videoId: String, maxResults: Int = 20): List<YouTubeComment> = withContext(Dispatchers.IO) {
-        if (videoId.startsWith("reddit_")) return@withContext emptyList()
         try {
             val url = URL(
                 "$BASE/commentThreads?part=snippet&videoId=$videoId" +
