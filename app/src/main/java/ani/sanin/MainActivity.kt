@@ -630,7 +630,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateNavPillForMode() {
         val anime = isAnimeMode()
         binding.homeNavAnime.visibility = if (anime) View.VISIBLE else View.GONE
-        binding.homeNavShorts.visibility = View.VISIBLE // always visible
+        binding.homeNavShorts!!.visibility = View.VISIBLE // always visible
         if (anime) {
             binding.homeNavHome.nextFocusDownId = R.id.homeNavAnime
             binding.homeNavAnime.nextFocusUpId = R.id.homeNavHome
@@ -641,8 +641,8 @@ class MainActivity : AppCompatActivity() {
             binding.homeNavDiscovery.nextFocusUpId = R.id.homeNavHome
         }
         binding.homeNavDiscovery.nextFocusDownId = R.id.homeNavShorts
-        binding.homeNavShorts.nextFocusUpId = R.id.homeNavDiscovery
-        binding.homeNavShorts.nextFocusDownId = R.id.homeNavLibrary
+        binding.homeNavShorts!!.nextFocusUpId = R.id.homeNavDiscovery
+        binding.homeNavShorts!!.nextFocusDownId = R.id.homeNavLibrary
         binding.homeNavLibrary.nextFocusUpId = R.id.homeNavShorts
         binding.homeNavLibrary.nextFocusDownId = R.id.homeNavHome
         binding.homeNavHome.nextFocusUpId = R.id.homeNavLibrary
@@ -872,11 +872,11 @@ class MainActivity : AppCompatActivity() {
             updateHomeNavIconTints()
         }
 
-        val pills = listOf(binding.homeNavHome, binding.homeNavAnime, binding.homeNavDiscovery, binding.homeNavShorts, binding.homeNavLibrary)
+        val pills = listOfNotNull(binding.homeNavHome, binding.homeNavAnime, binding.homeNavDiscovery, binding.homeNavShorts, binding.homeNavLibrary)
         val isMonochrome = PrefManager.getVal<String>(PrefName.Theme).contains("MONOCHROME", ignoreCase = true)
         val isDarkMode = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
         val navFocusColor = if (isMonochrome && isDarkMode) android.graphics.Color.WHITE else if (isMonochrome) android.graphics.Color.BLACK else null
-        navPillAnimator = NavPillAnimator(binding.homeNavRail, pills)
+        navPillAnimator = NavPillAnimator(binding.homeNavRail, pills.filterNotNull())
         pills.forEachIndexed { index, pill ->
             pill.setOnClickListener {
                 navPillsViewModel.setTab(index)
@@ -913,7 +913,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateHomeNavIconTints() {
         val bg = binding.homeNavRailBg
         if (bg.height <= 0) return
-        val pills = listOf(binding.homeNavHome, binding.homeNavAnime, binding.homeNavDiscovery, binding.homeNavShorts, binding.homeNavLibrary)
+        val pills = listOfNotNull(binding.homeNavHome, binding.homeNavAnime, binding.homeNavDiscovery, binding.homeNavShorts, binding.homeNavLibrary)
         val customColor = NavPillCustomizer.getIconColor()
         pills.forEachIndexed { i, pill ->
             pill.imageTintList = android.content.res.ColorStateList.valueOf(customColor)
@@ -922,7 +922,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setHomeNavPillsFocusable(focusable: Boolean) {
-        listOf(binding.homeNavHome, binding.homeNavAnime, binding.homeNavDiscovery, binding.homeNavShorts, binding.homeNavLibrary).forEach {
+        listOfNotNull(binding.homeNavHome, binding.homeNavAnime, binding.homeNavDiscovery, binding.homeNavShorts, binding.homeNavLibrary).forEach {
             it.isFocusable = focusable
             it.isFocusableInTouchMode = false
         }
