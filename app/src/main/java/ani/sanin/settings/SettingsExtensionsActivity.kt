@@ -111,7 +111,7 @@ class SettingsExtensionsActivity : AppCompatActivity() {
             ),
 
             SubscreenBuilder.Section(
-                "Installers",
+                "Preferences",
                 R.drawable.ic_round_new_releases_24,
                 entries = listOf(
                     SubscreenBuilder.Entry(
@@ -140,6 +140,11 @@ class SettingsExtensionsActivity : AppCompatActivity() {
                         switch = PrefManager.getVal<Boolean>(PrefName.NSFWExtension) to {
                             PrefManager.setVal(PrefName.NSFWExtension, it)
                         },
+                    ),
+                    SubscreenBuilder.Entry(
+                        title = "Auto-Update Extensions",
+                        desc = "Update extensions on startup",
+                        switch = PrefManager.getVal<Boolean>(PrefName.AutoUpdateExtensions) to { v: Boolean -> PrefManager.setVal(PrefName.AutoUpdateExtensions, v) },
                     ),
                 ),
             ),

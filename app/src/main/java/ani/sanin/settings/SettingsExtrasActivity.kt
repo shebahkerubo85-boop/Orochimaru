@@ -95,13 +95,7 @@ class SettingsExtrasActivity : AppCompatActivity() {
                         PrefManager.setVal(PrefName.SmallView, it); restartApp()
                     },
                 ),
-                SubscreenBuilder.Entry(
-                    title = "Emoji Support",
-                    desc = "Enable emoji rendering",
-                    switch = PrefManager.getVal<Boolean>(PrefName.Emoji) to {
-                        PrefManager.setVal(PrefName.Emoji, it)
-                    },
-                ),
+
             )),
 
             SubscreenBuilder.Section("Home Customization", R.drawable.ic_set_home, listOf(

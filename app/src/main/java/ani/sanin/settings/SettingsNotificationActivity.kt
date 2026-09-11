@@ -393,6 +393,18 @@ class SettingsNotificationActivity : AppCompatActivity() {
                         },
                     ),
                     SubscreenBuilder.Entry(
+                        title = "AniList Count",
+                        desc = "Fetch notification count from AniList and display it as a badge on the bell icon",
+                        iconRes = R.drawable.ic_anilist,
+                        switch = PrefManager.getVal<Boolean>(PrefName.AnilistNotifications) to { v: Boolean -> PrefManager.setVal(PrefName.AnilistNotifications, v) },
+                    ),
+                    SubscreenBuilder.Entry(
+                        title = "New Episode Alerts",
+                        desc = "Notify when new episodes air for shows you are tracking",
+                        iconRes = R.drawable.ic_round_notifications_active_24,
+                        switch = PrefManager.getVal<Boolean>(PrefName.EpisodeNotifications) to { v: Boolean -> PrefManager.setVal(PrefName.EpisodeNotifications, v) },
+                    ),
+                    SubscreenBuilder.Entry(
                         title = "Test Notification",
                         desc = "Show a test notification popup",
                         iconRes = R.drawable.ic_round_notifications_active_24,

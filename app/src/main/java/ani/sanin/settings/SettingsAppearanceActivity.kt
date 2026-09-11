@@ -402,6 +402,23 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                     ),
                 ),
             ),
+            SubscreenBuilder.Section(
+                "Interface", R.drawable.ic_set_theme,
+                entries = listOf(
+                    SubscreenBuilder.Entry(
+                        title = "UI Scale",
+                        desc = "Resize all interface elements",
+                        iconRes = R.drawable.ic_set_theme,
+                        choice = SubscreenBuilder.Choice(
+                            title = "UI Scale",
+                            options = arrayOf("0.75x", "0.85x", "1.0x Default", "1.15x", "1.25x"),
+                            currentIndex = when (PrefManager.getVal<Float>(PrefName.UIScale)) {
+                                0.75f -> 0; 0.85f -> 1; 1.15f -> 3; 1.25f -> 4; else -> 2
+                            },
+                        ) { idx -> PrefManager.setVal(PrefName.UIScale, floatArrayOf(0.75f, 0.85f, 1f, 1.15f, 1.25f)[idx]) },
+                    ),
+                ),
+            ),
         )) }
         buildSections?.invoke()
     }
