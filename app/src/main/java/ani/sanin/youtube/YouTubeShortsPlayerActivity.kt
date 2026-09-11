@@ -132,52 +132,80 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
                 mediaPlaybackRequiresUserGesture = false
                 loadWithOverviewMode = true
                 useWideViewPort = true
+                domStorageEnabled = true
+                allowFileAccess = true
+                mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                userAgentString = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36"
             }
             webView.webChromeClient = WebChromeClient()
             webView.webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
                     viewHolders[position]?.loading?.visibility = View.GONE
-                    if (position == currentPage) {
-                        webView.postDelayed({
-                            webView.evaluateJavascript("document.querySelector('iframe')?.contentWindow?.postMessage('{\"event\":\"command\",\"func\":\"playVideo\",\"args\":[]}', '*')", null)
-                        }, 500)
-                    }
                 }
             }
             webView.setBackgroundColor(android.graphics.Color.BLACK)
 
-            // YouTube embed — autoplay, loop, controls hidden, fullscreen disabled
+            // Use YouTube nocookie embed domain for better WebView compatibility
             val html = """
                 <html>
                 <head>
                 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
                 <style>
-                    body { margin: 0; padding: 0; background: black; overflow: hidden; }
-                    iframe { width: 100%; height: 100%; border: none; }
+                    * { margin: 0; padding: 0; }
+                    html, body { width: 100%; height: 100%; background: #000; overflow: hidden; }
+                    #player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
                 </style>
                 </head>
                 <body>
-                <iframe
-                    src="https://www.youtube.com/embed/$videoId?autoplay=0&controls=1&modestbranding=1&rel=0&showinfo=0&fs=0&iv_load_policy=3&playsinline=1&enablejsapi=1"
-                    allow="autoplay; encrypted-media; picture-in-picture"
-                    allowfullscreen>
-                </iframe>
+                <div id="player"></div>
+                <script>
+                    var tag = document.createElement('script');
+                    tag.src = "https://www.youtube.com/iframe_api";
+                    document.head.appendChild(tag);
+                    var player;
+                    function onYouTubeIframeAPIReady() {
+                        player = new YT.Player('player', {
+                            height: '100%',
+                            width: '100%',
+                            videoId: '$videoId',
+                            playerVars: {
+                                'autoplay': 0,
+                                'controls': 1,
+                                'modestbranding': 1,
+                                'rel': 0,
+                                'showinfo': 0,
+                                'fs': 0,
+                                'iv_load_policy': 3,
+                                'playsinline': 1,
+                                'disablekb': 0,
+                                'origin': 'https://www.youtube.com'
+                            },
+                            events: {
+                                'onReady': function(e) {
+                                    e.target.playVideo();
+                                }
+                            }
+                        });
+                    }
+                </script>
                 </body>
                 </html>
             """.trimIndent()
-            webView.loadDataWithBaseURL("https://www.youtube.com", html, "text/html", "UTF-8", null)
+            webView.loadDataWithBaseURL("https://www.youtube.com", html, "text/html", "UTF-8", "https://www.youtube.com/")
             webViews[position] = webView
         }
 
         fun playPage(position: Int) {
             playingPos = position
-            webViews[position]?.evaluateJavascript("document.querySelector('iframe')?.contentWindow?.postMessage('{\"event\":\"command\",\"func\":\"playVideo\",\"args\":[]}', '*')", null)
+            webViews[position]?.evaluateJavascript(
+                "if(typeof player !== 'undefined' && player && player.playVideo) player.playVideo();", null)
         }
 
         fun pauseAll() {
             if (playingPos >= 0) {
-                webViews[playingPos]?.evaluateJavascript("document.querySelector('iframe')?.contentWindow?.postMessage('{\"event\":\"command\",\"func\":\"pauseVideo\",\"args\":[]}', '*')", null)
+                webViews[playingPos]?.evaluateJavascript(
+                    "if(typeof player !== 'undefined' && player && player.pauseVideo) player.pauseVideo();", null)
             }
             playingPos = -1
         }
