@@ -44,7 +44,7 @@ class YouTubeShortsFragment : Fragment() {
             putStringArrayListExtra(YouTubeShortsPlayerActivity.EXTRA_VIDEO_IDS, ArrayList(shorts.map { it.id }))
             putStringArrayListExtra(YouTubeShortsPlayerActivity.EXTRA_TITLES, ArrayList(shorts.map { it.title }))
             putExtra(YouTubeShortsPlayerActivity.EXTRA_START_INDEX, startIndex)
-            putBooleanArrayListExtra(YouTubeShortsPlayerActivity.EXTRA_IS_REDDIT, ArrayList(shorts.map { it.isReddit }))
+            putStringArrayListExtra(YouTubeShortsPlayerActivity.EXTRA_IS_REDDIT, ArrayList(shorts.map { it.isReddit.toString() }))
             putStringArrayListExtra(YouTubeShortsPlayerActivity.EXTRA_REDDIT_VIDEO, ArrayList(shorts.map { it.redditVideoUrl ?: "" }))
         }
         startActivity(intent)

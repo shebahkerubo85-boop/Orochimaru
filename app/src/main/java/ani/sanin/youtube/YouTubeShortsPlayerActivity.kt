@@ -46,7 +46,7 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         val videoIds = intent.getStringArrayListExtra(EXTRA_VIDEO_IDS) ?: arrayListOf()
         val startIdx = intent.getIntExtra(EXTRA_START_INDEX, 0)
         val titles = intent.getStringArrayListExtra(EXTRA_TITLES) ?: arrayListOf()
-        val isReddit = intent.getBooleanArrayListExtra(EXTRA_IS_REDDIT) ?: arrayListOf()
+        val isReddit = (intent.getStringArrayListExtra(EXTRA_IS_REDDIT) ?: arrayListOf()).map { it.toBoolean() }
         val redditVideos = intent.getStringArrayListExtra(EXTRA_REDDIT_VIDEO) ?: arrayListOf()
 
         if (videoIds.isEmpty()) { finish(); return }
@@ -223,7 +223,7 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
                     super.onPageFinished(view, url)
                     holder.loading.visibility = View.GONE
                     if (position == currentPos) {
-                        playPage(position)
+                        playCurrent()
                     }
                 }
             }
