@@ -5,11 +5,11 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.util.Log
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import ani.sanin.databinding.FragmentYoutubeShortsBinding
-import android.util.Log
 import kotlinx.coroutines.launch
 
 class YouTubeShortsFragment : Fragment() {
@@ -26,13 +26,13 @@ class YouTubeShortsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        val spanCount = if (resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT) 2 else 4
+        val cols = if (resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT) 2 else 4
         shortAdapter = YouTubeShortsAdapter { short ->
             lastSelectedId = short.id
             openPlayer()
         }
         binding.shortsRecyclerView.adapter = shortAdapter
-        binding.shortsRecyclerView.layoutManager = GridLayoutManager(requireContext(), spanCount)
+        binding.shortsRecyclerView.layoutManager = GridLayoutManager(requireContext(), cols)
         loadShorts()
     }
 
@@ -41,15 +41,11 @@ class YouTubeShortsFragment : Fragment() {
         if (shorts.isEmpty()) return
         val startIndex = shorts.indexOfFirst { it.id == lastSelectedId }.coerceAtLeast(0)
         val intent = Intent(requireContext(), YouTubeShortsPlayerActivity::class.java).apply {
-            putStringArrayListExtra(
-                YouTubeShortsPlayerActivity.EXTRA_VIDEO_IDS,
-                java.util.ArrayList(shorts.map { it.id })
-            )
-            putStringArrayListExtra(
-                YouTubeShortsPlayerActivity.EXTRA_TITLES,
-                java.util.ArrayList(shorts.map { it.title })
-            )
+            putStringArrayListExtra(YouTubeShortsPlayerActivity.EXTRA_VIDEO_IDS, ArrayList(shorts.map { it.id }))
+            putStringArrayListExtra(YouTubeShortsPlayerActivity.EXTRA_TITLES, ArrayList(shorts.map { it.title }))
             putExtra(YouTubeShortsPlayerActivity.EXTRA_START_INDEX, startIndex)
+            putBooleanArrayListExtra(YouTubeShortsPlayerActivity.EXTRA_IS_REDDIT, ArrayList(shorts.map { it.isReddit }))
+            putStringArrayListExtra(YouTubeShortsPlayerActivity.EXTRA_REDDIT_VIDEO, ArrayList(shorts.map { it.redditVideoUrl ?: "" }))
         }
         startActivity(intent)
     }
@@ -59,11 +55,10 @@ class YouTubeShortsFragment : Fragment() {
         b.shortsProgressBar.visibility = View.VISIBLE
         b.shortsRecyclerView.visibility = View.GONE
         b.shortsErrorText.visibility = View.GONE
-
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val shorts = YouTubeApi.fetchShorts()
-                Log.d("YouTubeShorts", "Fetched ${shorts.size} shorts")
+                val shorts = YouTubeApi.fetchAllShorts()
+                Log.d("YouTubeShorts", "Loaded ${shorts.size} items")
                 val bind = _binding ?: return@launch
                 bind.shortsProgressBar.visibility = View.GONE
                 if (shorts.isEmpty()) {
@@ -74,7 +69,6 @@ class YouTubeShortsFragment : Fragment() {
                     shortAdapter?.submitList(shorts)
                 }
             } catch (e: Exception) {
-                Log.d("YouTubeShorts", "Error: ${e.message}")
                 val bind = _binding ?: return@launch
                 bind.shortsProgressBar.visibility = View.GONE
                 bind.shortsErrorText.visibility = View.VISIBLE

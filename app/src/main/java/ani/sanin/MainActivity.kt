@@ -60,7 +60,6 @@ import ani.sanin.home.LibraryFragment
 import ani.sanin.home.TmdbDiscoveryFragment
 import ani.sanin.home.TmdbHomeFragment
 import ani.sanin.home.TmdbLibraryFragment
-import ani.sanin.youtube.YouTubeShortsFragment
 import ani.sanin.media.MediaDetailsActivity
 import ani.sanin.notifications.TaskScheduler
 import ani.sanin.others.calc.CalcActivity
@@ -116,8 +115,7 @@ class MainActivity : AppCompatActivity() {
         0 to "home",
         1 to "anime",
         2 to "discovery",
-        3 to "shorts",
-        4 to "library"
+        3 to "library"
     )
 
     private fun isAnimeMode(): Boolean =
@@ -127,8 +125,7 @@ class MainActivity : AppCompatActivity() {
         0 -> if (isAnimeMode()) HomeFragment() else TmdbHomeFragment()
         1 -> if (isAnimeMode()) AnimeFragment() else TmdbDiscoveryFragment()
         2 -> if (isAnimeMode()) DiscoveryFragment() else TmdbDiscoveryFragment()
-        3 -> ani.sanin.youtube.YouTubeShortsFragment()
-        4 -> if (isAnimeMode()) LibraryFragment() else TmdbLibraryFragment()
+        3 -> if (isAnimeMode()) LibraryFragment() else TmdbLibraryFragment()
         else -> if (isAnimeMode()) HomeFragment() else TmdbHomeFragment()
     }
 
@@ -630,7 +627,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateNavPillForMode() {
         val anime = isAnimeMode()
         binding.homeNavAnime.visibility = if (anime) View.VISIBLE else View.GONE
-        binding.homeNavShorts!!.visibility = View.VISIBLE // always visible
+        
         if (anime) {
             binding.homeNavHome.nextFocusDownId = R.id.homeNavAnime
             binding.homeNavAnime.nextFocusUpId = R.id.homeNavHome
@@ -640,10 +637,8 @@ class MainActivity : AppCompatActivity() {
             binding.homeNavHome.nextFocusDownId = R.id.homeNavDiscovery
             binding.homeNavDiscovery.nextFocusUpId = R.id.homeNavHome
         }
-        binding.homeNavDiscovery.nextFocusDownId = R.id.homeNavShorts
-        binding.homeNavShorts!!.nextFocusUpId = R.id.homeNavDiscovery
-        binding.homeNavShorts!!.nextFocusDownId = R.id.homeNavLibrary
-        binding.homeNavLibrary.nextFocusUpId = R.id.homeNavShorts
+        binding.homeNavDiscovery.nextFocusDownId = R.id.homeNavLibrary
+        binding.homeNavLibrary.nextFocusUpId = R.id.homeNavDiscovery
         binding.homeNavLibrary.nextFocusDownId = R.id.homeNavHome
         binding.homeNavHome.nextFocusUpId = R.id.homeNavLibrary
         updateHomeNavIconTints()
@@ -872,7 +867,7 @@ class MainActivity : AppCompatActivity() {
             updateHomeNavIconTints()
         }
 
-        val pills = listOfNotNull(binding.homeNavHome, binding.homeNavAnime, binding.homeNavDiscovery, binding.homeNavShorts, binding.homeNavLibrary)
+        val pills = listOfNotNull(binding.homeNavHome, binding.homeNavAnime, binding.homeNavDiscovery, binding.homeNavLibrary)
         val isMonochrome = PrefManager.getVal<String>(PrefName.Theme).contains("MONOCHROME", ignoreCase = true)
         val isDarkMode = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
         val navFocusColor = if (isMonochrome && isDarkMode) android.graphics.Color.WHITE else if (isMonochrome) android.graphics.Color.BLACK else null
@@ -913,7 +908,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateHomeNavIconTints() {
         val bg = binding.homeNavRailBg
         if (bg.height <= 0) return
-        val pills = listOfNotNull(binding.homeNavHome, binding.homeNavAnime, binding.homeNavDiscovery, binding.homeNavShorts, binding.homeNavLibrary)
+        val pills = listOfNotNull(binding.homeNavHome, binding.homeNavAnime, binding.homeNavDiscovery, binding.homeNavLibrary)
         val customColor = NavPillCustomizer.getIconColor()
         pills.forEachIndexed { i, pill ->
             pill.imageTintList = android.content.res.ColorStateList.valueOf(customColor)
@@ -922,7 +917,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setHomeNavPillsFocusable(focusable: Boolean) {
-        listOfNotNull(binding.homeNavHome, binding.homeNavAnime, binding.homeNavDiscovery, binding.homeNavShorts, binding.homeNavLibrary).forEach {
+        listOfNotNull(binding.homeNavHome, binding.homeNavAnime, binding.homeNavDiscovery, binding.homeNavLibrary).forEach {
             it.isFocusable = focusable
             it.isFocusableInTouchMode = false
         }

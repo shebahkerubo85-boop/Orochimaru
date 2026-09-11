@@ -10,6 +10,13 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <androidx.media3.ui.PlayerView
+        android:id="@+id/redditPlayer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"
+        app:use_controller="false" />
+
     <View
         android:layout_width="match_parent"
         android:layout_height="200dp"

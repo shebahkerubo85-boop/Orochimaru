@@ -85,6 +85,10 @@ class SettingsActivity : AppCompatActivity() {
             }
             FocusEffectUtil.applyFocusListener(settingsBack)
 
+            settingsLogo.setOnLongClickListener {
+                startActivity(Intent(this@SettingsActivity, ani.sanin.youtube.YouTubeShortsActivity::class.java))
+                true
+            }
             settingsLogo.setSafeOnClickListener {
                 cursedCounter++
                 (settingsLogo.drawable as? Animatable)?.start()
@@ -170,6 +174,19 @@ class SettingsActivity : AppCompatActivity() {
                     desc = "DNS, user agent, backup & restore",
                     iconRes = R.drawable.ic_set_dns,
                     onClick = { startActivity(Intent(this, SettingsCommonActivity::class.java)) },
+                ),
+            ),
+        ),
+        SettingsSection(
+            title = "Shorts",
+            desc = "YouTube & Reddit anime shorts",
+            iconRes = R.drawable.format_youtube_24,
+            entries = listOf(
+                SectionEntry(
+                    title = "Watch Shorts",
+                    desc = "Browse YouTube & Reddit anime shorts",
+                    iconRes = R.drawable.format_youtube_24,
+                    onClick = { startActivity(Intent(this, ani.sanin.youtube.YouTubeShortsActivity::class.java)) },
                 ),
             ),
         ),

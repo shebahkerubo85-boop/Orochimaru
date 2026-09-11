@@ -11,13 +11,17 @@ import java.io.InputStreamReader
 import java.net.URL
 import javax.net.ssl.HttpsURLConnection
 
+/** Unified item for both YouTube shorts and Reddit video posts. */
 data class YouTubeShort(
     val id: String,
     val title: String,
     val thumbnailUrl: String,
     val duration: Long,
     val viewCount: Long,
-    val publishedAt: String
+    val publishedAt: String,
+    val isReddit: Boolean = false,
+    val redditVideoUrl: String? = null,
+    val redditPermalink: String? = null
 )
 
 data class YouTubeComment(
@@ -48,30 +52,26 @@ object YouTubeApi {
             .getString("uploads")
     }
 
-    /** Fetch ALL shorts — paginates through entire uploads playlist, 50 per batch. */
-    suspend fun fetchShorts(): List<YouTubeShort> = withContext(Dispatchers.IO) {
+    /** Fetch ALL YouTube shorts — paginates entire uploads playlist. */
+    suspend fun fetchYouTubeShorts(): List<YouTubeShort> = withContext(Dispatchers.IO) {
         val playlistId = uploadsPlaylistId()
-        Log.d(TAG, "Fetching all shorts from playlist: $playlistId")
+        Log.d(TAG, "Fetching all YouTube shorts from: $playlistId")
         val shorts = mutableListOf<YouTubeShort>()
         var pageToken: String? = null
-        var pageNum = 0
 
         do {
-            pageNum++
             val tokenParam = pageToken?.let { "&pageToken=$it" } ?: ""
             val url = URL(
                 "$BASE/playlistItems?part=snippet,contentDetails&playlistId=$playlistId" +
                     "&maxResults=50&key=${key()}$tokenParam"
             )
-            Log.d(TAG, "Page $pageNum — fetching...")
             val json = request(url)
             val items = json.getJSONArray("items")
-            Log.d(TAG, "Page $pageNum — ${items.length()} items")
+            Log.d(TAG, "YouTube page: ${items.length()} items, ${shorts.size} shorts so far")
 
             val videoIds = (0 until items.length())
                 .map { items.getJSONObject(it).getJSONObject("contentDetails").getString("videoId") }
                 .filter { it.isNotBlank() }
-
             val durations = fetchDurations(videoIds)
 
             for (i in 0 until items.length()) {
@@ -87,30 +87,43 @@ object YouTubeApi {
                         ?: thumb.optJSONObject("high")?.getString("url")
                         ?: thumb.optJSONObject("medium")?.getString("url")
                         ?: ""
-                    shorts.add(
-                        YouTubeShort(
-                            id = videoId,
-                            title = snippet.optString("title", "Untitled"),
-                            thumbnailUrl = thumbUrl,
-                            duration = sec,
-                            viewCount = 0,
-                            publishedAt = snippet.optString("publishedAt", "")
-                        )
-                    )
+                    shorts.add(YouTubeShort(
+                        id = videoId, title = snippet.optString("title", "Untitled"),
+                        thumbnailUrl = thumbUrl, duration = sec, viewCount = 0,
+                        publishedAt = snippet.optString("publishedAt", "")
+                    ))
                 }
             }
-
-            pageToken = json.optString("nextPageToken", "")
-            if (pageToken.isNullOrEmpty()) pageToken = null
-            Log.d(TAG, "Page $pageNum done, ${shorts.size} shorts so far, nextToken=${pageToken != null}")
+            pageToken = json.optString("nextPageToken", "").ifEmpty { null }
         } while (pageToken != null)
 
-        Log.d(TAG, "Total shorts: ${shorts.size}")
+        Log.d(TAG, "Total YouTube shorts: ${shorts.size}")
         shorts
     }
 
-    /** Fetch top comments for a video. */
+    /** Fetch all shorts merged with Reddit posts. */
+    suspend fun fetchAllShorts(): List<YouTubeShort> {
+        val ytShorts = fetchYouTubeShorts()
+        val redditPosts = try { RedditApi.fetchPosts() } catch (e: Exception) { emptyList() }
+        Log.d(TAG, "YouTube: ${ytShorts.size}, Reddit: ${redditPosts.size}")
+
+        val redditShorts = redditPosts
+            .filter { it.videoUrl != null }
+            .map { post ->
+                YouTubeShort(
+                    id = "reddit_${post.id}", title = post.title,
+                    thumbnailUrl = post.thumbnail, duration = 0, viewCount = 0,
+                    publishedAt = "", isReddit = true,
+                    redditVideoUrl = post.videoUrl, redditPermalink = post.permalink
+                )
+            }
+
+        return ytShorts + redditShorts
+    }
+
+    /** Fetch top comments for a YouTube video. */
     suspend fun fetchComments(videoId: String, maxResults: Int = 20): List<YouTubeComment> = withContext(Dispatchers.IO) {
+        if (videoId.startsWith("reddit_")) return@withContext emptyList()
         try {
             val url = URL(
                 "$BASE/commentThreads?part=snippet&videoId=$videoId" +
@@ -120,8 +133,7 @@ object YouTubeApi {
             val items = json.getJSONArray("items")
             (0 until items.length()).map { i ->
                 val snippet = items.getJSONObject(i).getJSONObject("snippet")
-                    .getJSONObject("topLevelComment")
-                    .getJSONObject("snippet")
+                    .getJSONObject("topLevelComment").getJSONObject("snippet")
                 YouTubeComment(
                     authorName = snippet.optString("authorDisplayName", ""),
                     authorThumb = snippet.optString("authorProfileImageUrl", ""),
@@ -129,10 +141,7 @@ object YouTubeApi {
                     likeCount = snippet.optInt("likeCount", 0)
                 )
             }
-        } catch (e: Exception) {
-            Log.d(TAG, "Comments failed: ${e.message}")
-            emptyList()
-        }
+        } catch (e: Exception) { emptyList() }
     }
 
     private suspend fun fetchDurations(ids: List<String>): Map<String, Long> = withContext(Dispatchers.IO) {
@@ -140,32 +149,28 @@ object YouTubeApi {
         val result = mutableMapOf<String, Long>()
         ids.chunked(50).forEach { chunk ->
             try {
-                val url = URL(
+                val json = request(URL(
                     "$BASE/videos?part=contentDetails&id=${chunk.joinToString(",")}&key=${key()}"
-                )
-                val json = request(url)
+                ))
                 for (i in 0 until json.getJSONArray("items").length()) {
                     val item = json.getJSONArray("items").getJSONObject(i)
-                    val id = item.optString("id", "")
-                    val iso = item.getJSONObject("contentDetails").optString("duration", "PT0S")
-                    result[id] = parseIsoDuration(iso)
+                    result[item.optString("id")] = parseIsoDuration(
+                        item.getJSONObject("contentDetails").optString("duration", "PT0S")
+                    )
                 }
-            } catch (e: Exception) {
-                Log.d(TAG, "Duration fetch failed: ${e.message}")
-            }
+            } catch (_: Exception) {}
         }
         result
     }
 
     private fun parseIsoDuration(iso: String): Long {
-        val m = Regex("""PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?""").find(iso) ?: return 0L
+        val m = Regex("""PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?""").find(iso) ?: return 0
         return (m.groupValues[1].toLongOrNull() ?: 0) * 3600 +
             (m.groupValues[2].toLongOrNull() ?: 0) * 60 +
             (m.groupValues[3].toLongOrNull() ?: 0)
     }
 
     private fun request(url: URL): JSONObject {
-        Log.d(TAG, "Request: $url")
         val conn = url.openConnection() as HttpsURLConnection
         conn.requestMethod = "GET"
         conn.connectTimeout = 15000
@@ -174,10 +179,7 @@ object YouTubeApi {
         val stream = if (code in 200..299) conn.inputStream else conn.errorStream
         val text = stream?.bufferedReader()?.use(BufferedReader::readText) ?: "{}"
         conn.disconnect()
-        if (code !in 200..299) {
-            Log.d(TAG, "API Error $code: $text")
-            throw Exception("YouTube API error $code")
-        }
+        if (code !in 200..299) throw Exception("API error $code")
         return JSONObject(text)
     }
 }

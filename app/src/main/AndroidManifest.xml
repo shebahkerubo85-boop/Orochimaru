@@ -492,6 +492,10 @@
             android:theme="@style/Theme.AppCompat"
             android:screenOrientation="portrait"
             android:configChanges="orientation|screenSize" />
+
+        <activity
+            android:name=".youtube.YouTubeShortsActivity"
+            android:theme="@style/Theme.AppCompat" />
     </application>
 
 </manifest>
