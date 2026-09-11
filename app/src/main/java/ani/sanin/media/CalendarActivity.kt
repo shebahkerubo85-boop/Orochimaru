@@ -104,6 +104,62 @@ class CalendarActivity : AppCompatActivity() {
                 refreshDisplay(data)
             }
         }
+        setupDaySwipe()
+    }
+
+
+    private fun setupDaySwipe() {
+        val container = binding.calendarRoot
+        var startX = 0f
+        val swipeThreshold = 100 * resources.displayMetrics.density
+
+        container.setOnTouchListener(object : android.view.View.OnTouchListener {
+            private var downX = 0f
+            private var downY = 0f
+            private var isDragging = false
+
+            override fun onTouch(v: android.view.View, event: android.view.MotionEvent): Boolean {
+                when (event.action) {
+                    android.view.MotionEvent.ACTION_DOWN -> {
+                        downX = event.x
+                        downY = event.y
+                        isDragging = false
+                        return false
+                    }
+                    android.view.MotionEvent.ACTION_MOVE -> {
+                        val dx = event.x - downX
+                        val dy = event.y - downY
+                        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 30 * resources.displayMetrics.density) {
+                            isDragging = true
+                        }
+                        return false
+                    }
+                    android.view.MotionEvent.ACTION_UP -> {
+                        if (isDragging) {
+                            val dx = event.x - downX
+                            if (Math.abs(dx) > swipeThreshold) {
+                                if (dx < 0) {
+                                    // Swipe left → next day
+                                    selectedDate.add(Calendar.DAY_OF_YEAR, 1)
+                                    buildWeekStrip()
+                                    updateDayLabel()
+                                    refreshDisplay(allCalendarData)
+                                } else {
+                                    // Swipe right → previous day
+                                    selectedDate.add(Calendar.DAY_OF_YEAR, -1)
+                                    buildWeekStrip()
+                                    updateDayLabel()
+                                    refreshDisplay(allCalendarData)
+                                }
+                                return true
+                            }
+                        }
+                        return false
+                    }
+                }
+                return false
+            }
+        })
     }
 
     private fun goToToday() {

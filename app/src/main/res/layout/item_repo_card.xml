@@ -76,14 +76,20 @@
                 tools:text="12 plugins" />
         </LinearLayout>
 
-        <!-- Content types row -->
-        <com.google.android.material.chip.ChipGroup
-            android:id="@+id/repoContentTypes"
+        <!-- Content types row (scrollable, not focusable) -->
+        <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            app:chipSpacingHorizontal="6dp"
-            app:singleLine="true" />
+            android:scrollbars="none"
+            android:focusable="false"
+            android:clickable="false">
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/repoContentTypes"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:chipSpacingHorizontal="6dp" />
+        </HorizontalScrollView>
 
         <!-- Language chips row -->
         <com.google.android.material.chip.ChipGroup

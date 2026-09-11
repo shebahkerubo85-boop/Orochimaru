@@ -37,12 +37,14 @@
                 tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
         </androidx.cardview.widget.CardView>
 
-        <ImageView
+        <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/animeRepoIcon"
             android:layout_width="36dp"
             android:layout_height="36dp"
             android:layout_marginStart="12dp"
+            android:scaleType="centerCrop"
             android:importantForAccessibility="no"
+            app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.CircularImageView"
             tools:ignore="ContentDescription" />
 
         <TextView
