@@ -10,7 +10,6 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import ani.sanin.R
-import ani.sanin.cloudstream.AnimeRepoDetailActivity
 import ani.sanin.copyToClipboard
 import ani.sanin.databinding.FragmentExtensionsBinding
 import ani.sanin.settings.saving.PrefManager
