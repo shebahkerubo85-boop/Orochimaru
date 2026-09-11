@@ -10,7 +10,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import ani.sanin.databinding.FragmentYoutubeShortsBinding
-import ani.sanin.util.Logger
+import android.util.Log
 import kotlinx.coroutines.launch
 
 class YouTubeShortsFragment : Fragment() {
@@ -37,7 +37,7 @@ class YouTubeShortsFragment : Fragment() {
     }
 
     private fun loadShorts() {
-        Logger.d("YouTubeShorts", "loadShorts called")
+        Log.d("YouTubeShorts", "loadShorts called")
         val b = _binding ?: return
         b.shortsProgressBar.visibility = View.VISIBLE
         b.shortsRecyclerView.visibility = View.GONE
@@ -45,9 +45,9 @@ class YouTubeShortsFragment : Fragment() {
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                Logger.d("YouTubeShorts", "Fetching shorts from API...")
+                Log.d("YouTubeShorts", "Fetching shorts from API...")
                 val shorts = YouTubeApi.fetchShorts(50)
-                Logger.d("YouTubeShorts", "Fetched ${shorts.size} shorts")
+                Log.d("YouTubeShorts", "Fetched ${shorts.size} shorts")
                 val bind = _binding ?: return@launch
                 bind.shortsProgressBar.visibility = View.GONE
                 if (shorts.isEmpty()) {
@@ -58,7 +58,7 @@ class YouTubeShortsFragment : Fragment() {
                     shortAdapter?.submitList(shorts)
                 }
             } catch (e: Exception) {
-                Logger.d("YouTubeShorts", "Error: ${e.message}")
+                Log.d("YouTubeShorts", "Error: ${e.message}")
                 val bind = _binding ?: return@launch
                 bind.shortsProgressBar.visibility = View.GONE
                 bind.shortsErrorText.visibility = View.VISIBLE

@@ -2,7 +2,7 @@ package ani.sanin.youtube
 
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
-import ani.sanin.util.Logger
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -31,22 +31,22 @@ object YouTubeApi {
     private suspend fun uploadsPlaylistId(): String = withContext(Dispatchers.IO) {
         val apiKey = key()
         val cid = channelId()
-        Logger.d(TAG, "Fetching uploads for channel: $cid, key length: ${apiKey.length}")
+        Log.d(TAG, "Fetching uploads for channel: $cid, key length: ${apiKey.length}")
         val url = URL("$BASE/channels?part=contentDetails&id=$cid&key=$apiKey")
         val json = request(url)
-        Logger.d(TAG, "Channel response: $json")
+        Log.d(TAG, "Channel response: $json")
         val playlistId = json.getJSONArray("items")
             .getJSONObject(0)
             .getJSONObject("contentDetails")
             .getJSONObject("relatedPlaylists")
             .getString("uploads")
-        Logger.d(TAG, "Uploads playlist: $playlistId")
+        Log.d(TAG, "Uploads playlist: $playlistId")
         playlistId
     }
 
     suspend fun fetchShorts(maxResults: Int = 50): List<YouTubeShort> = withContext(Dispatchers.IO) {
         val playlistId = uploadsPlaylistId()
-        Logger.d(TAG, "Fetching shorts from playlist: $playlistId")
+        Log.d(TAG, "Fetching shorts from playlist: $playlistId")
         val shorts = mutableListOf<YouTubeShort>()
         var pageToken: String? = null
         var remaining = maxResults * 2
@@ -57,18 +57,18 @@ object YouTubeApi {
                 "$BASE/playlistItems?part=snippet,contentDetails&playlistId=$playlistId" +
                     "&maxResults=50&key=${key()}$tokenParam"
             )
-            Logger.d(TAG, "Fetching playlist page...")
+            Log.d(TAG, "Fetching playlist page...")
             val json = request(url)
             val items = json.getJSONArray("items")
-            Logger.d(TAG, "Got ${items.length()} items from playlist")
+            Log.d(TAG, "Got ${items.length()} items from playlist")
 
             val videoIds = (0 until items.length())
                 .map { i -> items.getJSONObject(i).getJSONObject("contentDetails").getString("videoId") }
                 .filter { it.isNotBlank() }
-            Logger.d(TAG, "Video IDs: $videoIds")
+            Log.d(TAG, "Video IDs: $videoIds")
 
             val durations = fetchDurations(videoIds)
-            Logger.d(TAG, "Durations: $durations")
+            Log.d(TAG, "Durations: $durations")
 
             (0 until items.length()).forEach { i ->
                 val item = items.getJSONObject(i)
@@ -76,7 +76,7 @@ object YouTubeApi {
                 if (videoId.isBlank()) return@forEach
                 val snippet = item.getJSONObject("snippet")
                 val second = durations[videoId] ?: 0L
-                Logger.d(TAG, "Video $videoId duration=${second}s")
+                Log.d(TAG, "Video $videoId duration=${second}s")
                 if (second in 1..60) {
                     val thumb = snippet.getJSONObject("thumbnails")
                     val thumbUrl = thumb.optJSONObject("high")?.getString("url")
@@ -98,11 +98,11 @@ object YouTubeApi {
             }
 
             pageToken = json.optString("nextPageToken", null ?: "")
-            Logger.d(TAG, "Next page token: $pageToken")
+            Log.d(TAG, "Next page token: $pageToken")
             remaining -= videoIds.size
         } while (!pageToken.isNullOrBlank() && remaining > 0)
 
-        Logger.d(TAG, "Total shorts found: ${shorts.size}")
+        Log.d(TAG, "Total shorts found: ${shorts.size}")
         shorts
     }
 
@@ -116,7 +116,7 @@ object YouTubeApi {
                 "$BASE/videos?part=contentDetails,statistics&id=$idParam&key=${key()}"
             )
             try {
-                Logger.d(TAG, "Fetching durations for ${chunk.size} videos")
+                Log.d(TAG, "Fetching durations for ${chunk.size} videos")
                 val json = request(url)
                 (0 until json.getJSONArray("items").length()).forEach { i ->
                     val item = json.getJSONArray("items").getJSONObject(i)
@@ -125,7 +125,7 @@ object YouTubeApi {
                     result[id] = parseIsoDuration(iso)
                 }
             } catch (e: Exception) {
-                Logger.d(TAG, "Duration fetch failed: ${e.message}")
+                Log.d(TAG, "Duration fetch failed: ${e.message}")
             }
         }
         result
@@ -141,18 +141,18 @@ object YouTubeApi {
     }
 
     private fun request(url: URL): JSONObject {
-        Logger.d(TAG, "Request: $url")
+        Log.d(TAG, "Request: $url")
         val conn = url.openConnection() as HttpsURLConnection
         conn.requestMethod = "GET"
         conn.connectTimeout = 15000
         conn.readTimeout = 15000
         val code = conn.responseCode
-        Logger.d(TAG, "Response code: $code")
+        Log.d(TAG, "Response code: $code")
         val stream = if (code in 200..299) conn.inputStream else conn.errorStream
         val text = stream?.bufferedReader()?.use(BufferedReader::readText) ?: "{}"
         conn.disconnect()
         if (code !in 200..299) {
-            Logger.d(TAG, "API Error: $text")
+            Log.d(TAG, "API Error: $text")
             throw Exception("YouTube API error $code")
         }
         return JSONObject(text)
