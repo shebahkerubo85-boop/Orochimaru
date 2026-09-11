@@ -2,26 +2,31 @@ package ani.sanin.youtube
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.ImageButton
+import android.widget.LinearLayout
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.isVisible
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.LinearSnapHelper
 import androidx.recyclerview.widget.RecyclerView
-import androidx.viewpager2.widget.ViewPager2
 import ani.sanin.R
 import ani.sanin.themes.ThemeManager
+import com.bumptech.glide.Glide
+import kotlinx.coroutines.launch
 
 class YouTubeShortsPlayerActivity : AppCompatActivity() {
 
-    private lateinit var viewPager: ViewPager2
+    private lateinit var recycler: RecyclerView
+    private lateinit var adapter: ShortsAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,70 +35,63 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
 
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = (
-            View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
             )
         window.statusBarColor = android.graphics.Color.TRANSPARENT
 
         val videoIds = intent.getStringArrayListExtra(EXTRA_VIDEO_IDS) ?: arrayListOf()
         val startIdx = intent.getIntExtra(EXTRA_START_INDEX, 0)
         val titles = intent.getStringArrayListExtra(EXTRA_TITLES) ?: arrayListOf()
-        val channels = intent.getStringArrayListExtra(EXTRA_CHANNELS) ?: arrayListOf()
 
-        if (videoIds.isEmpty()) {
-            Toast.makeText(this, "No videos", Toast.LENGTH_SHORT).show()
-            finish()
-            return
-        }
+        if (videoIds.isEmpty()) { finish(); return }
 
-        viewPager = findViewById(R.id.shortsViewPager)
-        viewPager.adapter = ShortsPagerAdapter(videoIds, titles, channels)
-        viewPager.setCurrentItem(startIdx, false)
-        viewPager.offscreenPageLimit = 1
+        recycler = findViewById(R.id.shortsRecyclerView)
+        adapter = ShortsAdapter(videoIds, titles)
+        recycler.layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
+        recycler.adapter = adapter
 
-        // Sync WebView playback with page
-        viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-            override fun onPageSelected(position: Int) {
-                super.onPageSelected(position)
-                val adapter = viewPager.adapter as? ShortsPagerAdapter
-                adapter?.currentPage = position
-                notifyPageChanged(position)
+        // Smooth snap-to-full like YouTube Shorts
+        LinearSnapHelper().attachToRecyclerView(recycler)
+
+        // Auto-play current page when snappped
+        recycler.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                super.onScrollStateChanged(recyclerView, newState)
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    val pos = (recyclerView.layoutManager as LinearLayoutManager)
+                        .findFirstVisibleItemPosition()
+                    adapter.setCurrent(pos)
+                }
             }
         })
 
+        recycler.post { recycler.scrollToPosition(startIdx); adapter.setCurrent(startIdx) }
         findViewById<ImageButton>(R.id.closeBtn).setOnClickListener { finish() }
-    }
-
-    private fun notifyPageChanged(position: Int) {
-        // Pause all, play current
-        val adapter = viewPager.adapter as? ShortsPagerAdapter ?: return
-        adapter.pauseAll()
-        adapter.playPage(position)
     }
 
     override fun onPause() {
         super.onPause()
-        (viewPager.adapter as? ShortsPagerAdapter)?.pauseAll()
+        adapter.pauseCurrent()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        (viewPager.adapter as? ShortsPagerAdapter)?.destroyAll()
+        adapter.destroyAll()
     }
 
-    inner class ShortsPagerAdapter(
+    inner class ShortsAdapter(
         private val videoIds: List<String>,
-        private val titles: List<String>,
-        private val channels: List<String>
-    ) : RecyclerView.Adapter<ShortsPagerAdapter.VH>() {
+        private val titles: List<String>
+    ) : RecyclerView.Adapter<ShortsAdapter.VH>() {
 
         private val webViews = mutableMapOf<Int, WebView>()
-        private val viewHolders = mutableMapOf<Int, VH>()
-        private var playingPos = -1
-        var currentPage = 0
+        private var currentPos = 0
+        private val liked = mutableSetOf<Int>()
+        private val disliked = mutableSetOf<Int>()
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-            val view = layoutInflater.inflate(R.layout.item_youtube_short_player, parent, false)
+            val view = LayoutInflater.from(parent.context)
+                .inflate(R.layout.item_youtube_short_player, parent, false)
             return VH(view)
         }
 
@@ -101,16 +99,32 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             val videoId = videoIds[position]
-            val title = titles.getOrElse(position) { "" }
-            val channel = channels.getOrElse(position) { "" }
+            holder.titleText.text = titles.getOrElse(position) { "" }
+            holder.channelText.text = "Aniphex"
 
-            holder.titleText.text = title
-            holder.channelText.text = channel
+            // Like / dislike state
+            holder.btnLike.setColorFilter(if (position in liked) android.graphics.Color.parseColor("#FF4CAF50") else android.graphics.Color.WHITE)
+            holder.btnDislike.setColorFilter(if (position in disliked) android.graphics.Color.parseColor("#FFE53935") else android.graphics.Color.WHITE)
 
             holder.btnLike.setOnClickListener {
-                Toast.makeText(this@YouTubeShortsPlayerActivity, "Liked!", Toast.LENGTH_SHORT).show()
+                if (position in liked) liked.remove(position) else { liked.add(position); disliked.remove(position) }
+                holder.btnLike.setColorFilter(if (position in liked) android.graphics.Color.parseColor("#FF4CAF50") else android.graphics.Color.WHITE)
+                holder.btnDislike.setColorFilter(if (position in disliked) android.graphics.Color.parseColor("#FFE53935") else android.graphics.Color.WHITE)
+            }
+            holder.btnDislike.setOnClickListener {
+                if (position in disliked) disliked.remove(position) else { disliked.add(position); liked.remove(position) }
+                holder.btnLike.setColorFilter(if (position in liked) android.graphics.Color.parseColor("#FF4CAF50") else android.graphics.Color.WHITE)
+                holder.btnDislike.setColorFilter(if (position in disliked) android.graphics.Color.parseColor("#FFE53935") else android.graphics.Color.WHITE)
             }
 
+            // Comments toggle
+            holder.btnComments.setOnClickListener {
+                val show = holder.commentsPanel.visibility != View.VISIBLE
+                holder.commentsPanel.visibility = if (show) View.VISIBLE else View.GONE
+                if (show) loadComments(holder, videoId)
+            }
+
+            // Share
             holder.btnShare.setOnClickListener {
                 val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                     type = "text/plain"
@@ -119,14 +133,13 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
                 startActivity(android.content.Intent.createChooser(shareIntent, "Share"))
             }
 
-            viewHolders[position] = holder
-
-            // WebView YouTube embed
-            setupWebView(holder.webView, videoId, position)
+            // WebView — exact trailer pattern
+            setupWebView(holder, videoId, position)
         }
 
         @SuppressLint("SetJavaScriptEnabled")
-        private fun setupWebView(webView: WebView, videoId: String, position: Int) {
+        private fun setupWebView(holder: VH, videoId: String, position: Int) {
+            val webView = holder.webView
             webView.settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
@@ -137,18 +150,19 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
                     mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                 }
-                userAgentString = null
             }
             webView.webChromeClient = WebChromeClient()
             webView.webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
-                    viewHolders[position]?.loading?.visibility = View.GONE
+                    holder.loading.visibility = View.GONE
+                    if (position == currentPos) {
+                        // Keep playing current
+                    }
                 }
             }
             webView.setBackgroundColor(android.graphics.Color.BLACK)
 
-            // Exact same pattern as the working trailer WebView
             val html = """
                 <!DOCTYPE html>
                 <html><head>
@@ -165,14 +179,23 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
             webViews[position] = webView
         }
 
-        fun playPage(position: Int) {
-            playingPos = position
-            // Direct iframe autoplay handles playback
+        private fun loadComments(holder: VH, videoId: String) {
+            holder.commentsRecycler.layoutManager = LinearLayoutManager(this@YouTubeShortsPlayerActivity)
+            lifecycleScope.launch {
+                val comments = YouTubeApi.fetchComments(videoId)
+                holder.commentsRecycler.adapter = CommentsAdapter(comments)
+                holder.commentsRecycler.adapter?.notifyDataSetChanged()
+            }
         }
 
-        fun pauseAll() {
-            // Direct iframes handle their own lifecycle
-            playingPos = -1
+        fun setCurrent(position: Int) {
+            currentPos = position
+        }
+
+        fun pauseCurrent() {
+            webViews[currentPos]?.let { webView ->
+                webView.evaluateJavascript("document.querySelector('iframe')?.contentWindow?.postMessage('{\"event\":\"command\",\"func\":\"pauseVideo\",\"args\":[]}', '*')", null)
+            }
         }
 
         fun destroyAll() {
@@ -180,19 +203,17 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
             webViews.clear()
         }
 
-
         inner class VH(view: View) : RecyclerView.ViewHolder(view) {
             val webView: WebView = view.findViewById(R.id.youtubeWebView)
             val titleText: TextView = view.findViewById(R.id.shortTitleText)
             val channelText: TextView = view.findViewById(R.id.shortChannelText)
             val btnLike: ImageButton = view.findViewById(R.id.btnLike)
+            val btnDislike: ImageButton = view.findViewById(R.id.btnDislike)
+            val btnComments: ImageButton = view.findViewById(R.id.btnComments)
             val btnShare: ImageButton = view.findViewById(R.id.btnShare)
             val loading: ProgressBar = view.findViewById(R.id.playerLoading)
-
-            init {
-                view.tag = "page_$adapterPosition"
-                loading.isVisible = true
-            }
+            val commentsPanel: LinearLayout = view.findViewById(R.id.commentsPanel)
+            val commentsRecycler: RecyclerView = view.findViewById(R.id.commentsRecycler)
         }
     }
 

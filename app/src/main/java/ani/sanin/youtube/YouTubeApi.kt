@@ -1,8 +1,8 @@
 package ani.sanin.youtube
 
+import android.util.Log
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -20,6 +20,13 @@ data class YouTubeShort(
     val publishedAt: String
 )
 
+data class YouTubeComment(
+    val authorName: String,
+    val authorThumb: String,
+    val text: String,
+    val likeCount: Int
+)
+
 object YouTubeApi {
 
     private const val BASE = "https://www.googleapis.com/youtube/v3"
@@ -31,94 +38,113 @@ object YouTubeApi {
     private suspend fun uploadsPlaylistId(): String = withContext(Dispatchers.IO) {
         val apiKey = key()
         val cid = channelId()
-        Log.d(TAG, "Fetching uploads for channel: $cid, key length: ${apiKey.length}")
+        Log.d(TAG, "Fetching uploads for channel: $cid")
         val url = URL("$BASE/channels?part=contentDetails&id=$cid&key=$apiKey")
         val json = request(url)
-        Log.d(TAG, "Channel response: $json")
-        val playlistId = json.getJSONArray("items")
+        json.getJSONArray("items")
             .getJSONObject(0)
             .getJSONObject("contentDetails")
             .getJSONObject("relatedPlaylists")
             .getString("uploads")
-        Log.d(TAG, "Uploads playlist: $playlistId")
-        playlistId
     }
 
-    suspend fun fetchShorts(maxResults: Int = 50): List<YouTubeShort> = withContext(Dispatchers.IO) {
+    /** Fetch ALL shorts — paginates through entire uploads playlist, 50 per batch. */
+    suspend fun fetchShorts(): List<YouTubeShort> = withContext(Dispatchers.IO) {
         val playlistId = uploadsPlaylistId()
-        Log.d(TAG, "Fetching shorts from playlist: $playlistId")
+        Log.d(TAG, "Fetching all shorts from playlist: $playlistId")
         val shorts = mutableListOf<YouTubeShort>()
         var pageToken: String? = null
-        var remaining = maxResults * 2
+        var pageNum = 0
 
         do {
+            pageNum++
             val tokenParam = pageToken?.let { "&pageToken=$it" } ?: ""
             val url = URL(
                 "$BASE/playlistItems?part=snippet,contentDetails&playlistId=$playlistId" +
                     "&maxResults=50&key=${key()}$tokenParam"
             )
-            Log.d(TAG, "Fetching playlist page...")
+            Log.d(TAG, "Page $pageNum — fetching...")
             val json = request(url)
             val items = json.getJSONArray("items")
-            Log.d(TAG, "Got ${items.length()} items from playlist")
+            Log.d(TAG, "Page $pageNum — ${items.length()} items")
 
             val videoIds = (0 until items.length())
-                .map { i -> items.getJSONObject(i).getJSONObject("contentDetails").getString("videoId") }
+                .map { items.getJSONObject(it).getJSONObject("contentDetails").getString("videoId") }
                 .filter { it.isNotBlank() }
-            Log.d(TAG, "Video IDs: $videoIds")
 
             val durations = fetchDurations(videoIds)
-            Log.d(TAG, "Durations: $durations")
 
-            (0 until items.length()).forEach { i ->
+            for (i in 0 until items.length()) {
                 val item = items.getJSONObject(i)
                 val videoId = item.getJSONObject("contentDetails").optString("videoId", "")
-                if (videoId.isBlank()) return@forEach
+                if (videoId.isBlank()) continue
                 val snippet = item.getJSONObject("snippet")
-                val second = durations[videoId] ?: 0L
-                Log.d(TAG, "Video $videoId duration=${second}s")
-                if (second in 1..60) {
+                val sec = durations[videoId] ?: 0L
+                if (sec in 1..180) {
                     val thumb = snippet.getJSONObject("thumbnails")
-                    val thumbUrl = thumb.optJSONObject("high")?.getString("url")
+                    val thumbUrl = thumb.optJSONObject("maxres")?.getString("url")
+                        ?: thumb.optJSONObject("standard")?.getString("url")
+                        ?: thumb.optJSONObject("high")?.getString("url")
                         ?: thumb.optJSONObject("medium")?.getString("url")
-                        ?: thumb.optJSONObject("default")?.getString("url")
                         ?: ""
                     shorts.add(
                         YouTubeShort(
                             id = videoId,
                             title = snippet.optString("title", "Untitled"),
                             thumbnailUrl = thumbUrl,
-                            duration = second,
+                            duration = sec,
                             viewCount = 0,
                             publishedAt = snippet.optString("publishedAt", "")
                         )
                     )
                 }
-                if (shorts.size >= maxResults) return@withContext shorts
             }
 
-            pageToken = json.optString("nextPageToken", null ?: "")
-            Log.d(TAG, "Next page token: $pageToken")
-            remaining -= videoIds.size
-        } while (!pageToken.isNullOrBlank() && remaining > 0)
+            pageToken = json.optString("nextPageToken", "")
+            if (pageToken.isNullOrEmpty()) pageToken = null
+            Log.d(TAG, "Page $pageNum done, ${shorts.size} shorts so far, nextToken=${pageToken != null}")
+        } while (pageToken != null)
 
-        Log.d(TAG, "Total shorts found: ${shorts.size}")
+        Log.d(TAG, "Total shorts: ${shorts.size}")
         shorts
+    }
+
+    /** Fetch top comments for a video. */
+    suspend fun fetchComments(videoId: String, maxResults: Int = 20): List<YouTubeComment> = withContext(Dispatchers.IO) {
+        try {
+            val url = URL(
+                "$BASE/commentThreads?part=snippet&videoId=$videoId" +
+                    "&maxResults=$maxResults&order=relevance&key=${key()}"
+            )
+            val json = request(url)
+            val items = json.getJSONArray("items")
+            (0 until items.length()).map { i ->
+                val snippet = items.getJSONObject(i).getJSONObject("snippet")
+                    .getJSONObject("topLevelComment")
+                    .getJSONObject("snippet")
+                YouTubeComment(
+                    authorName = snippet.optString("authorDisplayName", ""),
+                    authorThumb = snippet.optString("authorProfileImageUrl", ""),
+                    text = snippet.optString("textDisplay", ""),
+                    likeCount = snippet.optInt("likeCount", 0)
+                )
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "Comments failed: ${e.message}")
+            emptyList()
+        }
     }
 
     private suspend fun fetchDurations(ids: List<String>): Map<String, Long> = withContext(Dispatchers.IO) {
         if (ids.isEmpty()) return@withContext emptyMap()
-        val chunked = ids.chunked(50)
         val result = mutableMapOf<String, Long>()
-        chunked.forEach { chunk ->
-            val idParam = chunk.joinToString(",")
-            val url = URL(
-                "$BASE/videos?part=contentDetails,statistics&id=$idParam&key=${key()}"
-            )
+        ids.chunked(50).forEach { chunk ->
             try {
-                Log.d(TAG, "Fetching durations for ${chunk.size} videos")
+                val url = URL(
+                    "$BASE/videos?part=contentDetails&id=${chunk.joinToString(",")}&key=${key()}"
+                )
                 val json = request(url)
-                (0 until json.getJSONArray("items").length()).forEach { i ->
+                for (i in 0 until json.getJSONArray("items").length()) {
                     val item = json.getJSONArray("items").getJSONObject(i)
                     val id = item.optString("id", "")
                     val iso = item.getJSONObject("contentDetails").optString("duration", "PT0S")
@@ -132,12 +158,10 @@ object YouTubeApi {
     }
 
     private fun parseIsoDuration(iso: String): Long {
-        val regex = Regex("""PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?""")
-        val m = regex.find(iso) ?: return 0L
-        val h = m.groupValues[1].toLongOrNull() ?: 0L
-        val min = m.groupValues[2].toLongOrNull() ?: 0L
-        val s = m.groupValues[3].toLongOrNull() ?: 0L
-        return h * 3600 + min * 60 + s
+        val m = Regex("""PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?""").find(iso) ?: return 0L
+        return (m.groupValues[1].toLongOrNull() ?: 0) * 3600 +
+            (m.groupValues[2].toLongOrNull() ?: 0) * 60 +
+            (m.groupValues[3].toLongOrNull() ?: 0)
     }
 
     private fun request(url: URL): JSONObject {
@@ -147,12 +171,11 @@ object YouTubeApi {
         conn.connectTimeout = 15000
         conn.readTimeout = 15000
         val code = conn.responseCode
-        Log.d(TAG, "Response code: $code")
         val stream = if (code in 200..299) conn.inputStream else conn.errorStream
         val text = stream?.bufferedReader()?.use(BufferedReader::readText) ?: "{}"
         conn.disconnect()
         if (code !in 200..299) {
-            Log.d(TAG, "API Error: $text")
+            Log.d(TAG, "API Error $code: $text")
             throw Exception("YouTube API error $code")
         }
         return JSONObject(text)

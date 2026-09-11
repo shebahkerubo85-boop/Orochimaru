@@ -1,5 +1,6 @@
 package ani.sanin.youtube
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -39,7 +40,7 @@ class YouTubeShortsFragment : Fragment() {
         val shorts = (shortAdapter?.currentList).orEmpty()
         if (shorts.isEmpty()) return
         val startIndex = shorts.indexOfFirst { it.id == lastSelectedId }.coerceAtLeast(0)
-        val intent = android.content.Intent(requireContext(), YouTubeShortsPlayerActivity::class.java).apply {
+        val intent = Intent(requireContext(), YouTubeShortsPlayerActivity::class.java).apply {
             putStringArrayListExtra(
                 YouTubeShortsPlayerActivity.EXTRA_VIDEO_IDS,
                 java.util.ArrayList(shorts.map { it.id })
@@ -48,17 +49,12 @@ class YouTubeShortsFragment : Fragment() {
                 YouTubeShortsPlayerActivity.EXTRA_TITLES,
                 java.util.ArrayList(shorts.map { it.title })
             )
-            putStringArrayListExtra(
-                YouTubeShortsPlayerActivity.EXTRA_CHANNELS,
-                java.util.ArrayList(shorts.map { "Aniphex" })
-            )
             putExtra(YouTubeShortsPlayerActivity.EXTRA_START_INDEX, startIndex)
         }
         startActivity(intent)
     }
 
     private fun loadShorts() {
-        Log.d("YouTubeShorts", "loadShorts called")
         val b = _binding ?: return
         b.shortsProgressBar.visibility = View.VISIBLE
         b.shortsRecyclerView.visibility = View.GONE
@@ -66,8 +62,7 @@ class YouTubeShortsFragment : Fragment() {
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                Log.d("YouTubeShorts", "Fetching shorts from API...")
-                val shorts = YouTubeApi.fetchShorts(50)
+                val shorts = YouTubeApi.fetchShorts()
                 Log.d("YouTubeShorts", "Fetched ${shorts.size} shorts")
                 val bind = _binding ?: return@launch
                 bind.shortsProgressBar.visibility = View.GONE
