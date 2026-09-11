@@ -58,7 +58,7 @@ class AnilistSettingsActivity : AppCompatActivity() {
         val mergeTimeIdx = activityMergeTimeMap.keys.indexOf(mergeTimeKey).coerceAtLeast(0)
         val rowOrderIdx = rowOrderMap.entries
             .firstOrNull { it.value == Anilist.rowOrder }?.key?.let { rowOrderMap.keys.indexOf(it) }?.coerceAtLeast(0) ?: 0
-        val scoreFmtIdx = scoreFormats.indexOfFirst { it.value == Anilist.scoreFormat }.coerceAtLeast(0)
+        val scoreFmtIdx = ScoreFormat.entries.indexOfFirst { it.name == Anilist.scoreFormat }.coerceAtLeast(0)
 
         SubscreenBuilder.build(this, binding.subscreenContent, listOf(
             SubscreenBuilder.Section(
@@ -68,7 +68,7 @@ class AnilistSettingsActivity : AppCompatActivity() {
                         title = "Title Language",
                         desc = "How anime titles appear",
                         choice = SubscreenBuilder.Choice(
-                            "Title Language", titleLang, titleLangIdx
+                            "Title Language", titleLang.toTypedArray(), titleLangIdx
                         ) { idx ->
                             lifecycleScope.launch {
                                 anilistMutations.updateSettings(titleLanguage = UserTitleLanguage.entries[idx].name)
@@ -81,7 +81,7 @@ class AnilistSettingsActivity : AppCompatActivity() {
                         title = "Staff Names",
                         desc = "How staff names appear",
                         choice = SubscreenBuilder.Choice(
-                            "Staff Names", staffNameLang, staffLangIdx
+                            "Staff Names", staffNameLang.toTypedArray(), staffLangIdx
                         ) { idx ->
                             lifecycleScope.launch {
                                 anilistMutations.updateSettings(staffNameLanguage = UserStaffNameLanguage.entries[idx].name)
@@ -94,12 +94,12 @@ class AnilistSettingsActivity : AppCompatActivity() {
                         title = "Score Format",
                         desc = "How you rate anime",
                         choice = SubscreenBuilder.Choice(
-                            "Score Format", scoreFormats.map { it.value }.toTypedArray(), scoreFmtIdx
+                            "Score Format", scoreFormats.toTypedArray(), scoreFmtIdx
                         ) { idx ->
                             lifecycleScope.launch {
                                 val fmt = ScoreFormat.entries[idx]
-                                anilistMutations.updateSettings(scoreFormat = fmt)
-                                Anilist.scoreFormat = fmt
+                                anilistMutations.updateSettings(scoreFormat = fmt.name)
+                                Anilist.scoreFormat = fmt.name
                                 restartApp()
                             }
                         },

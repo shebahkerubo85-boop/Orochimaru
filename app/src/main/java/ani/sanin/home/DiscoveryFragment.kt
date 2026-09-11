@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import ani.sanin.getThemeColor
 import ani.sanin.loadImage
 import ani.sanin.util.FocusEffectUtil
 
@@ -203,7 +204,7 @@ class DiscoveryFragment : Fragment() {
     }
 
     private fun setupGenreChips() {
-        val onSurface = ani.sanin.getThemeColor(com.google.android.material.R.attr.colorOnSurface)
+        val onSurface = requireContext().getThemeColor(com.google.android.material.R.attr.colorOnSurface)
         animeGenres.forEach { genre ->
             val chip = Chip(requireContext()).apply {
                 text = genre
@@ -221,7 +222,7 @@ class DiscoveryFragment : Fragment() {
     }
 
     private fun setupSeasonChips() {
-        val onSurface = ani.sanin.getThemeColor(com.google.android.material.R.attr.colorOnSurface)
+        val onSurface = requireContext().getThemeColor(com.google.android.material.R.attr.colorOnSurface)
         val seasons = DiscoverSeason.seasons()
         val currentSeason = discoverViewModel.selectedSeason.value
         seasons.forEach { season ->

@@ -19,6 +19,7 @@ import ani.sanin.connections.tmdb.TmdbGenre
 import ani.sanin.connections.tmdb.TmdbMedia
 import ani.sanin.databinding.FragmentTmdbDiscoveryBinding
 import ani.sanin.databinding.ItemTmdbCardBinding
+import ani.sanin.getThemeColor
 import ani.sanin.loadImage
 import ani.sanin.util.FocusEffectUtil
 import kotlinx.coroutines.launch
@@ -100,7 +101,7 @@ class TmdbDiscoveryFragment : Fragment() {
             isCheckable = true
             isChecked = checked
             isFocusable = true
-            setTextColor(ani.sanin.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            setTextColor(requireContext().getThemeColor(com.google.android.material.R.attr.colorOnSurface))
             setOnClickListener { onClick() }
             FocusEffectUtil.applyFocusListener(this)
         }
