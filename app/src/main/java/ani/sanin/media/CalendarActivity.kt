@@ -165,11 +165,12 @@ class CalendarActivity : AppCompatActivity() {
                 setPadding(0, dpToPx(4), 0, dpToPx(4))
             }
 
+            val onSurface = getThemeColor(com.google.android.material.R.attr.colorOnSurface)
             val nameTv = TextView(this).apply {
                 text = dayNames[i]
                 textSize = 11f
                 gravity = Gravity.CENTER
-                setTextColor(ContextCompat.getColor(this@CalendarActivity, R.color.bg_white))
+                setTextColor(onSurface)
                 alpha = if (isSel || isToday) 1f else 0.4f
             }
 
@@ -181,15 +182,15 @@ class CalendarActivity : AppCompatActivity() {
                 layoutParams = LinearLayout.LayoutParams(dpToPx(36), dpToPx(36)).apply { topMargin = dpToPx(2) }
                 when {
                     isSel -> {
-                        setTextColor(ContextCompat.getColor(this@CalendarActivity, R.color.bg_black))
+                        setTextColor(onSurface)
                         setBackgroundResource(R.drawable.bg_calendar_day_selected)
                     }
                     isToday -> {
-                        setTextColor(ContextCompat.getColor(this@CalendarActivity, R.color.bg_white))
+                        setTextColor(onSurface)
                         setBackgroundResource(R.drawable.bg_calendar_day_today)
                     }
                     else -> {
-                        setTextColor(ContextCompat.getColor(this@CalendarActivity, R.color.bg_white))
+                        setTextColor(onSurface)
                         setBackgroundColor(0)
                         alpha = 0.5f
                     }

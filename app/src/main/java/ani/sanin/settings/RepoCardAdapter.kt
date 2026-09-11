@@ -71,14 +71,17 @@ class RepoCardAdapter(
 
         // Content type chips
         holder.binding.repoContentTypes.removeAllViews()
+        val chipTextColor = ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface)
         item.contentTypes.forEach { type ->
             val chip = com.google.android.material.chip.Chip(ctx).apply {
                 text = type
                 isClickable = false
                 isFocusable = false
                 textSize = 11f
-                setTextColor(Color.WHITE)
-                chipBackgroundColor = android.content.res.ColorStateList.valueOf(Color.parseColor("#40FFFFFF"))
+                setTextColor(chipTextColor)
+                chipBackgroundColor = android.content.res.ColorStateList.valueOf(
+                    if (isDark) Color.parseColor("#40FFFFFF") else Color.parseColor("#1A000000")
+                )
                 chipCornerRadius = 10f * ctx.resources.displayMetrics.density
                 chipMinHeight = 24f * ctx.resources.displayMetrics.density
                 setPadding(
@@ -99,8 +102,10 @@ class RepoCardAdapter(
                 isClickable = false
                 isFocusable = false
                 textSize = 11f
-                setTextColor(Color.WHITE)
-                chipBackgroundColor = android.content.res.ColorStateList.valueOf(Color.parseColor("#30FFFFFF"))
+                setTextColor(chipTextColor)
+                chipBackgroundColor = android.content.res.ColorStateList.valueOf(
+                    if (isDark) Color.parseColor("#30FFFFFF") else Color.parseColor("#1A000000")
+                )
                 chipCornerRadius = 10f * ctx.resources.displayMetrics.density
                 chipMinHeight = 24f * ctx.resources.displayMetrics.density
                 setPadding(

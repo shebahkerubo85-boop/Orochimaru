@@ -20,7 +20,7 @@
         android:alpha="0.08"
         android:contentDescription="@null"
         app:srcCompat="@drawable/ic_github"
-        app:tint="@android:color/white" />
+        app:tint="?attr/colorOnSurface" />
 
     <!-- Content -->
     <LinearLayout
@@ -56,7 +56,7 @@
                 android:ellipsize="end"
                 android:fontFamily="@font/poppins_bold"
                 android:maxLines="1"
-                android:textColor="@android:color/white"
+                android:textColor="?attr/colorOnSurface"
                 android:textSize="16sp"
                 tools:text="CnC Verse" />
 
@@ -71,7 +71,7 @@
                 android:paddingTop="2dp"
                 android:paddingEnd="8dp"
                 android:paddingBottom="2dp"
-                android:textColor="@android:color/white"
+                android:textColor="?attr/colorOnSurface"
                 android:textSize="11sp"
                 tools:text="12 plugins" />
         </LinearLayout>

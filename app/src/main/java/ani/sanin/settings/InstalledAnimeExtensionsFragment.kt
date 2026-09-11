@@ -338,7 +338,9 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
                 ctx.theme.resolveAttribute(android.R.attr.colorPrimary, typedValue, true)
                 typedValue.data
             } else {
-                Color.WHITE
+                val typedVal = android.util.TypedValue()
+                ctx.theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurface, typedVal, true)
+                typedVal.data
             }
             holder.dragUpArrow.setColorFilter(tintColor)
             holder.dragDownArrow.setColorFilter(tintColor)
