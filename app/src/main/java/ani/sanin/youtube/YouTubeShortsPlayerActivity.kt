@@ -19,6 +19,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
+import androidx.lifecycle.lifecycleScope
 import ani.sanin.themes.ThemeManager
 import com.bumptech.glide.Glide
 import kotlinx.coroutines.launch
@@ -181,7 +182,7 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
 
         private fun loadComments(holder: VH, videoId: String) {
             holder.commentsRecycler.layoutManager = LinearLayoutManager(this@YouTubeShortsPlayerActivity)
-            lifecycleScope.launch {
+            this@YouTubeShortsPlayerActivity.lifecycleScope.launch {
                 val comments = YouTubeApi.fetchComments(videoId)
                 holder.commentsRecycler.adapter = CommentsAdapter(comments)
                 holder.commentsRecycler.adapter?.notifyDataSetChanged()
