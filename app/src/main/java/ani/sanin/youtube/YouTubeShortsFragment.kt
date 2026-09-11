@@ -9,8 +9,8 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
-import ani.sanin.R
 import ani.sanin.databinding.FragmentYoutubeShortsBinding
+import ani.sanin.util.Logger
 import kotlinx.coroutines.launch
 
 class YouTubeShortsFragment : Fragment() {
@@ -29,21 +29,24 @@ class YouTubeShortsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        Logger.d("YouTubeShorts", "Fragment created, setting up RecyclerView")
         binding.shortsRecyclerView.adapter = adapter
         val spanCount = if (resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT) 2 else 4
         binding.shortsRecyclerView.layoutManager = GridLayoutManager(requireContext(), spanCount)
-
         loadShorts()
     }
 
     private fun loadShorts() {
+        Logger.d("YouTubeShorts", "loadShorts called")
         binding.shortsProgressBar.visibility = View.VISIBLE
         binding.shortsRecyclerView.visibility = View.GONE
         binding.shortsErrorText.visibility = View.GONE
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
+                Logger.d("YouTubeShorts", "Fetching shorts from API...")
                 val shorts = YouTubeApi.fetchShorts(50)
+                Logger.d("YouTubeShorts", "Fetched ${shorts.size} shorts")
                 binding.shortsProgressBar.visibility = View.GONE
                 if (shorts.isEmpty()) {
                     binding.shortsErrorText.visibility = View.VISIBLE
@@ -53,6 +56,8 @@ class YouTubeShortsFragment : Fragment() {
                     adapter.submitList(shorts)
                 }
             } catch (e: Exception) {
+                Logger.d("YouTubeShorts", "Error: ${e.message}")
+                e.printStackTrace()
                 binding.shortsProgressBar.visibility = View.GONE
                 binding.shortsErrorText.visibility = View.VISIBLE
                 binding.shortsErrorText.text = "Failed to load: ${e.message}"
