@@ -34,6 +34,8 @@
     <string name="info">Info</string>
     <string name="watch">Watch</string>
     <string name="play">Play</string>
+    <string name="shorts">Shorts</string>
+    <string name="video_thumbnail">Video thumbnail</string>
     <string name="watch_now">Watch Now</string>
     <string name="continue_watching_short">Continue</string>
     <string name="read">Read</string>

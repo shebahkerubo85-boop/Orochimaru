@@ -48,6 +48,8 @@ enum class PrefName(val data: Pref) {
     AnimeLangSort(Pref(Location.General, String::class, "all")),
     ContentMode(Pref(Location.General, String::class, "anime")),
     TmdbApiKey(Pref(Location.General, String::class, "3075f2db53ed0690a350d3559ac9cd8c")),
+    YouTubeApiKey(Pref(Location.General, String::class, "AIzaSyDdQwsx0lYEU8ZnAke0ghcqoS1G5VxM2BE")),
+    YouTubeChannelId(Pref(Location.General, String::class, "UC7oi5vkTHCwl3sS9NPBFCZg")),
     TmdbSearchHistory(Pref(Location.General, List::class, listOf<String>())),
     ContentSource(Pref(Location.General, String::class, "tmdb")),
     SelectedMediaType(Pref(Location.General, Int::class, 0)),  // 0=anime, 1=movie

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical"
+    android:paddingTop="12dp">
+
+    <TextView
+        android:id="@+id/shortsHeader"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/poppins_bold"
+        android:text="@string/shorts"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="20sp"
+        android:paddingStart="16dp"
+        android:paddingBottom="10dp" />
+
+    <ProgressBar
+        android:id="@+id/shortsProgressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginTop="48dp"
+        android:visibility="visible" />
+
+    <TextView
+        android:id="@+id/shortsErrorText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:padding="32dp"
+        android:fontFamily="@font/poppins_semi_bold"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="14sp"
+        android:visibility="gone"
+        tools:text="Failed to load shorts" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/shortsRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingHorizontal="8dp"
+        android:paddingBottom="16dp"
+        android:visibility="gone"
+        tools:listitem="@layout/item_youtube_short" />
+</LinearLayout>
