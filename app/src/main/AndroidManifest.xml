@@ -486,6 +486,12 @@
         <meta-data
             android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
             android:value="androidx.media3.cast.DefaultCastOptionsProvider" />
+
+        <activity
+            android:name=".youtube.YouTubeShortsPlayerActivity"
+            android:theme="@style/Theme.AppCompat"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize" />
     </application>
 
 </manifest>

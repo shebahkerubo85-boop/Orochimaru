@@ -1,7 +1,5 @@
 package ani.sanin.youtube
 
-import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -18,6 +16,7 @@ class YouTubeShortsFragment : Fragment() {
     private var _binding: FragmentYoutubeShortsBinding? = null
     private val binding get() = _binding!!
     private var shortAdapter: YouTubeShortsAdapter? = null
+    private var lastSelectedId: String? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentYoutubeShortsBinding.inflate(inflater, container, false)
@@ -28,12 +27,34 @@ class YouTubeShortsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         val spanCount = if (resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT) 2 else 4
         shortAdapter = YouTubeShortsAdapter { short ->
-            val url = "https://www.youtube.com/watch?v=${short.id}"
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            lastSelectedId = short.id
+            openPlayer()
         }
         binding.shortsRecyclerView.adapter = shortAdapter
         binding.shortsRecyclerView.layoutManager = GridLayoutManager(requireContext(), spanCount)
         loadShorts()
+    }
+
+    private fun openPlayer() {
+        val shorts = (shortAdapter?.currentList).orEmpty()
+        if (shorts.isEmpty()) return
+        val startIndex = shorts.indexOfFirst { it.id == lastSelectedId }.coerceAtLeast(0)
+        val intent = android.content.Intent(requireContext(), YouTubeShortsPlayerActivity::class.java).apply {
+            putStringArrayListExtra(
+                YouTubeShortsPlayerActivity.EXTRA_VIDEO_IDS,
+                java.util.ArrayList(shorts.map { it.id })
+            )
+            putStringArrayListExtra(
+                YouTubeShortsPlayerActivity.EXTRA_TITLES,
+                java.util.ArrayList(shorts.map { it.title })
+            )
+            putStringArrayListExtra(
+                YouTubeShortsPlayerActivity.EXTRA_CHANNELS,
+                java.util.ArrayList(shorts.map { "Aniphex" })
+            )
+            putExtra(YouTubeShortsPlayerActivity.EXTRA_START_INDEX, startIndex)
+        }
+        startActivity(intent)
     }
 
     private fun loadShorts() {
