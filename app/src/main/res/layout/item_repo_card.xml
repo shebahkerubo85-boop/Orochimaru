@@ -10,6 +10,15 @@
     android:layout_marginBottom="12dp"
     android:foreground="?android:attr/selectableItemBackground">
 
+    <!-- Top rim gradient (like settings cards) -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="24dp"
+        android:layout_gravity="top"
+        android:background="@drawable/bg_repo_card_rim"
+        android:clickable="false"
+        android:focusable="false" />
+
     <!-- GitHub glyph watermark (bottom-right) -->
     <ImageView
         android:layout_width="130dp"

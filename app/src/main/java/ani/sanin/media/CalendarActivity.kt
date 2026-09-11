@@ -4,6 +4,7 @@ import android.content.Intent
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.Gravity
+import android.view.VelocityTracker
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -89,6 +90,8 @@ class CalendarActivity : AppCompatActivity() {
         val live = Refresh.activity.getOrPut(this.hashCode()) { MutableLiveData(true) }
         live.observe(this) {
             if (it) {
+                binding.calendarSpinner.visibility = View.VISIBLE
+                binding.calendarDayEpisodes.visibility = android.view.View.GONE
                 lifecycleScope.launch {
                     withContext(Dispatchers.IO) { model.loadCalendar() }
                     live.postValue(false)
@@ -96,7 +99,6 @@ class CalendarActivity : AppCompatActivity() {
             }
         }
 
-        binding.calendarSpinner.visibility = View.VISIBLE
         model.getCalendar().observe(this) { data ->
             binding.calendarSpinner.visibility = View.GONE
             if (data != null) {
@@ -108,58 +110,68 @@ class CalendarActivity : AppCompatActivity() {
     }
 
 
+
+
     private fun setupDaySwipe() {
-        val container = binding.calendarRoot
-        var startX = 0f
-        val swipeThreshold = 100 * resources.displayMetrics.density
+        val container = binding.calendarDayEpisodes
+        var velocityTracker: VelocityTracker? = null
+        var downX = 0f
+        var downY = 0f
+        var isDragging = false
+        val touchSlop = android.view.ViewConfiguration.get(this).scaledTouchSlop
 
-        container.setOnTouchListener(object : android.view.View.OnTouchListener {
-            private var downX = 0f
-            private var downY = 0f
-            private var isDragging = false
-
-            override fun onTouch(v: android.view.View, event: android.view.MotionEvent): Boolean {
-                when (event.action) {
-                    android.view.MotionEvent.ACTION_DOWN -> {
-                        downX = event.x
-                        downY = event.y
-                        isDragging = false
-                        return false
+        container.setOnTouchListener { _, event ->
+            when (event.action) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    velocityTracker?.recycle()
+                    velocityTracker = VelocityTracker.obtain()
+                    velocityTracker?.addMovement(event)
+                    downX = event.x
+                    downY = event.y
+                    isDragging = false
+                    false
+                }
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    velocityTracker?.addMovement(event)
+                    val dx = event.x - downX
+                    val dy = event.y - downY
+                    if (!isDragging && Math.abs(dx) > touchSlop && Math.abs(dx) > Math.abs(dy)) {
+                        isDragging = true
                     }
-                    android.view.MotionEvent.ACTION_MOVE -> {
-                        val dx = event.x - downX
-                        val dy = event.y - downY
-                        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 30 * resources.displayMetrics.density) {
-                            isDragging = true
+                    false
+                }
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                    velocityTracker?.addMovement(event)
+                    velocityTracker?.computeCurrentVelocity(1000)
+                    val vx = velocityTracker?.xVelocity ?: 0f
+                    val dx = event.x - downX
+                    val threshold = 80 * resources.displayMetrics.density
+                    if (isDragging && (Math.abs(dx) > threshold || Math.abs(vx) > 500f)) {
+                        if (dx < 0 || vx < -500f) {
+                            // Swipe left / fling left → next day
+                            selectedDate.add(Calendar.DAY_OF_YEAR, 1)
+                            buildWeekStrip()
+                            updateDayLabel()
+                            refreshDisplay(allCalendarData)
+                        } else {
+                            // Swipe right / fling right → previous day
+                            selectedDate.add(Calendar.DAY_OF_YEAR, -1)
+                            buildWeekStrip()
+                            updateDayLabel()
+                            refreshDisplay(allCalendarData)
                         }
-                        return false
-                    }
-                    android.view.MotionEvent.ACTION_UP -> {
-                        if (isDragging) {
-                            val dx = event.x - downX
-                            if (Math.abs(dx) > swipeThreshold) {
-                                if (dx < 0) {
-                                    // Swipe left → next day
-                                    selectedDate.add(Calendar.DAY_OF_YEAR, 1)
-                                    buildWeekStrip()
-                                    updateDayLabel()
-                                    refreshDisplay(allCalendarData)
-                                } else {
-                                    // Swipe right → previous day
-                                    selectedDate.add(Calendar.DAY_OF_YEAR, -1)
-                                    buildWeekStrip()
-                                    updateDayLabel()
-                                    refreshDisplay(allCalendarData)
-                                }
-                                return true
-                            }
-                        }
-                        return false
+                        velocityTracker?.recycle()
+                        velocityTracker = null
+                        true
+                    } else {
+                        velocityTracker?.recycle()
+                        velocityTracker = null
+                        false
                     }
                 }
-                return false
+                else -> false
             }
-        })
+        }
     }
 
     private fun goToToday() {
