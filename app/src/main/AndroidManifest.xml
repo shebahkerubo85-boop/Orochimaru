@@ -173,6 +173,9 @@
             android:name=".cloudstream.CloudStreamRepoDetailActivity"
             android:parentActivityName=".settings.ExtensionsActivity" />
         <activity
+            android:name=".settings.AnimeRepoDetailActivity"
+            android:parentActivityName=".settings.ExtensionsActivity" />
+        <activity
             android:name=".util.ActivityMarkdownCreator"
             android:windowSoftInputMode="adjustResize|stateVisible" />
         <activity android:name=".parsers.ParserTestActivity" />

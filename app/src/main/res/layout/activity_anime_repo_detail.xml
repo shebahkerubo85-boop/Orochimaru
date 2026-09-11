@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical"
+    tools:context=".settings.AnimeRepoDetailActivity">
+
+    <!-- Header row: back, icon, title, copy/delete -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingTop="16dp"
+        android:paddingEnd="16dp">
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="@color/nav_bg_inv"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp">
+
+            <ImageButton
+                android:id="@+id/animeRepoBack"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:background="@color/nav_bg_inv"
+                android:focusable="true"
+                android:padding="16dp"
+                app:srcCompat="@drawable/ic_round_arrow_back_ios_new_24"
+                app:tint="?attr/colorOnBackground"
+                tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
+        </androidx.cardview.widget.CardView>
+
+        <ImageView
+            android:id="@+id/animeRepoIcon"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="12dp"
+            android:importantForAccessibility="no"
+            tools:ignore="ContentDescription" />
+
+        <TextView
+            android:id="@+id/animeRepoTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:fontFamily="@font/poppins_bold"
+            android:maxLines="2"
+            android:textSize="20sp"
+            android:textColor="?attr/colorOnSurface"
+            tools:text="cursedyomi" />
+
+        <ImageButton
+            android:id="@+id/animeRepoCopy"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="8dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:focusable="true"
+            android:padding="6dp"
+            app:srcCompat="@drawable/format_link_24"
+            app:tint="?attr/colorOnBackground"
+            tools:ignore="ContentDescription" />
+
+        <ImageButton
+            android:id="@+id/animeRepoDelete"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="4dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:focusable="true"
+            android:padding="6dp"
+            app:srcCompat="@drawable/ic_delete"
+            app:tint="?attr/colorOnBackground"
+            tools:ignore="ContentDescription" />
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/animeRepoProgressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginTop="48dp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/animeRepoRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginHorizontal="24dp"
+        android:clipToPadding="false"
+        android:focusable="true"
+        android:paddingBottom="64dp" />
+
+    <TextView
+        android:id="@+id/animeRepoEmptyText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:fontFamily="@font/poppins_semi_bold"
+        android:gravity="center"
+        android:padding="32dp"
+        android:textSize="15sp"
+        android:textColor="?attr/colorOnSurface"
+        android:visibility="gone"
+        tools:text="No extensions in this repo" />
+</LinearLayout>
