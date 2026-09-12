@@ -10,7 +10,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.TextView
-import androidx.appcompat.widget.PopupMenu
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.core.widget.addTextChangedListener
@@ -22,6 +21,7 @@ import ani.sanin.R
 import ani.sanin.Refresh
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.databinding.FragmentTmdbLibraryBinding
+import ani.sanin.util.FocusEffectUtil
 import ani.sanin.getThemeColor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -62,7 +62,6 @@ class TmdbLibraryFragment : Fragment() {
         }
 
         binding.tmdbLibAppBar.setBackgroundColor(primaryColor)
-        binding.tmdbLibTitle.setTextColor(primaryTextColor)
         binding.tmdbLibTabLayout.setBackgroundColor(primaryColor)
         binding.tmdbLibTabLayout.setTabTextColors(secondaryTextColor, primaryTextColor)
         binding.tmdbLibTabLayout.setSelectedTabIndicatorColor(primaryTextColor)
@@ -87,79 +86,81 @@ class TmdbLibraryFragment : Fragment() {
         val live = Refresh.activity.getOrPut(requireActivity().hashCode()) { androidx.lifecycle.MutableLiveData(true) }
         live.observe(viewLifecycleOwner) { if (it == true) { loadLibrary(); live.postValue(false) } }
 
-        binding.tmdbLibSort.setOnClickListener {
-            val popup = PopupMenu(requireContext(), it)
-            popup.setOnMenuItemClickListener { item ->
-                val sort = when (item.itemId) {
-                    R.id.score -> "score"
-                    R.id.title -> "title"
-                    R.id.updated -> "updated"
-                    R.id.release -> "year"
-                    else -> null
-                }
-                if (sort != null) {
-                    sectionFragments.forEach { it.sort(sort) }
-                }
-                true
-            }
-            popup.inflate(R.menu.list_sort_menu)
-            popup.show()
-        }
-
-        binding.tmdbLibFilter.setOnClickListener {
-            val statuses = listOf(
+        // Settings → bottom sheet (sort + status filter, no NSFW for movie mode)
+        FocusEffectUtil.applyFocusListener(binding.tmdbLibSettings)
+        binding.tmdbLibSettings.setOnClickListener {
+            val tmdbStatuses = listOf(
                 "All", "Completed Movies", "Completed TV", "Watching",
                 "Planning", "Paused", "Dropped", "Favourites"
             )
-            val popup = PopupMenu(requireContext(), it)
-            statuses.forEach { popup.menu.add(it) }
-            popup.setOnMenuItemClickListener { menuItem ->
-                val selected = menuItem.title.toString()
-                if (selected == "All") {
-                    showSections(allItems)
-                } else {
-                    val filtered = when (selected) {
-                        "Completed Movies" -> allItems.filter {
-                            it.status?.lowercase() == "completed" && it.mediaType == "movie"
-                        }
-                        "Completed TV" -> allItems.filter {
-                            it.status?.lowercase() == "completed" && it.mediaType == "tv"
-                        }
-                        "Watching" -> allItems.filter {
-                            it.status?.lowercase() == "watching" || it.status?.lowercase() == "current"
-                        }
-                        "Planning" -> allItems.filter {
-                            it.status?.lowercase() == "plantowatch" || it.status?.lowercase() == "planning"
-                        }
-                        "Paused" -> allItems.filter {
-                            it.status?.lowercase() == "hold" || it.status?.lowercase() == "onhold" || it.status?.lowercase() == "paused"
-                        }
-                        "Dropped" -> allItems.filter {
-                            it.status?.lowercase() == "dropped"
-                        }
-                        "Favourites" -> allItems.filter { (it.userRating ?: 0) > 0 }
-                        else -> allItems
+            LibrarySettingsBottomSheet.newInstance(
+                currentSort = "updated",
+                filterItems = tmdbStatuses,
+                showNsfw = false,
+                onSortChanged = { sort ->
+                    val mapped = when (sort) {
+                        "updatedAt" -> "updated"; "release" -> "year"; else -> sort
                     }
-                    showFilteredSections(filtered, selected)
-                }
-                true
-            }
-            popup.show()
+                    sectionFragments.forEach { it.sort(mapped) }
+                },
+                onGenreFilterChanged = { selected ->
+                    if (selected.isBlank() || selected == "All") {
+                        showSections(allItems)
+                    } else {
+                        val filtered = when (selected) {
+                            "Completed Movies" -> allItems.filter {
+                                it.status?.lowercase() == "completed" && it.mediaType == "movie"
+                            }
+                            "Completed TV" -> allItems.filter {
+                                it.status?.lowercase() == "completed" && it.mediaType == "tv"
+                            }
+                            "Watching" -> allItems.filter {
+                                it.status?.lowercase() == "watching" || it.status?.lowercase() == "current"
+                            }
+                            "Planning" -> allItems.filter {
+                                it.status?.lowercase() == "plantowatch" || it.status?.lowercase() == "planning"
+                            }
+                            "Paused" -> allItems.filter {
+                                it.status?.lowercase() == "hold" || it.status?.lowercase() == "onhold" || it.status?.lowercase() == "paused"
+                            }
+                            "Dropped" -> allItems.filter {
+                                it.status?.lowercase() == "dropped"
+                            }
+                            "Favourites" -> allItems.filter { (it.userRating ?: 0) > 0 }
+                            else -> allItems
+                        }
+                        showFilteredSections(filtered, selected)
+                    }
+                },
+                onNsfwChanged = null
+            ).show(childFragmentManager, LibrarySettingsBottomSheet.TAG)
         }
 
-        binding.tmdbLibSearch.setOnClickListener {
-            toggleSearchView(binding.tmdbLibSearchView.isVisible)
-            if (!binding.tmdbLibSearchView.isVisible) {
-                sectionFragments.forEach { it.filter("") }
-            }
-        }
-
+        // Search → inline bar
+        FocusEffectUtil.applyFocusListener(binding.tmdbLibSearchBar)
         binding.tmdbLibSearchText.addTextChangedListener { editable ->
             val query = editable?.toString() ?: ""
             sectionFragments.forEach { it.filter(query) }
         }
-    }
 
+        // Avatar → open side rail
+        FocusEffectUtil.applyFocusListener(binding.tmdbLibAvatar)
+        binding.tmdbLibAvatar.setOnClickListener {
+            val act = requireActivity()
+            if (act is ani.sanin.MainActivity) {
+                val drawer = act.findViewById<androidx.drawerlayout.widget.DrawerLayout>(
+                    act.resources.getIdentifier("mainDrawer", "id", act.packageName))
+                if (drawer != null && !drawer.isDrawerOpen(android.view.Gravity.END)) {
+                    val popMethod = ani.sanin.MainActivity::class.java.getDeclaredMethod("populateRightRail")
+                    popMethod.isAccessible = true
+                    popMethod.invoke(act)
+                    drawer.openDrawer(android.view.Gravity.END)
+                }
+            }
+        }
+
+
+    }
     private fun loadLibrary() {
         viewLifecycleOwner.lifecycleScope.launch {
             val movies = withContext(Dispatchers.IO) { Simkl.getMovieLibrary() }
@@ -288,17 +289,6 @@ class TmdbLibraryFragment : Fragment() {
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
         ).apply { gravity = Gravity.CENTER }
         (binding.root as? ViewGroup)?.addView(msg, lp)
-    }
-
-    private fun toggleSearchView(isVisible: Boolean) {
-        if (isVisible) {
-            binding.tmdbLibSearchView.visibility = View.GONE
-            binding.tmdbLibSearchText.text.clear()
-            sectionFragments.forEach { it.filter("") }
-        } else {
-            binding.tmdbLibSearchView.visibility = View.VISIBLE
-            binding.tmdbLibSearchText.requestFocus()
-        }
     }
 
     override fun onDestroyView() {

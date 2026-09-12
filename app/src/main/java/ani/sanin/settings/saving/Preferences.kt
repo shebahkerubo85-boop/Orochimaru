@@ -340,6 +340,10 @@ enum class PrefName(val data: Pref) {
     LocalDir(Pref(Location.Irrelevant, String::class, "")),
     OC(Pref(Location.Irrelevant, Boolean::class, false)),
 
+    // Library settings
+    LibraryNsfw(Pref(Location.UI, Boolean::class, false)),
+    LibraryGenreFilter(Pref(Location.UI, String::class, "")),
+
 
 
     //Protected
