@@ -22,6 +22,7 @@
             android:id="@+id/itemCompactCard"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:clipToOutline="true"
             android:translationZ="8dp"
             app:cardCornerRadius="16dp"
             app:cardElevation="4dp">
@@ -35,6 +36,43 @@
                 app:shapeAppearanceOverlay="@style/roundedImageView"
                 tools:ignore="ContentDescription,ImageContrastCheck"
                 tools:srcCompat="@tools:sample/backgrounds/scenic" />
+
+            <View
+                android:id="@+id/itemCompactOverlay"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/itemCompactClearlogo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|start"
+                android:layout_marginStart="6dp"
+                android:layout_marginEnd="6dp"
+                android:layout_marginBottom="6dp"
+                android:adjustViewBounds="true"
+                android:maxWidth="88dp"
+                android:maxHeight="30dp"
+                android:scaleType="fitStart"
+                android:visibility="gone"
+                tools:ignore="ContentDescription" />
+
+            <TextView
+                android:id="@+id/itemCompactOverlayTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|start"
+                android:layout_marginStart="6dp"
+                android:layout_marginEnd="6dp"
+                android:layout_marginBottom="6dp"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textColor="#F3F3F3"
+                android:textSize="11sp"
+                android:visibility="gone"
+                tools:ignore="SpUsage"
+                tools:text="Title" />
 
             <LinearLayout
                 android:id="@+id/itemCompactScoreBG"

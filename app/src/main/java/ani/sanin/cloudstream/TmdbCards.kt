@@ -163,7 +163,7 @@ object TmdbCards {
             }
         }
 
-        val showTitleBelow = titlePosition == 1 || (!landscape && titlePosition == 0)
+        val showTitleBelow = titlePosition == 1
         binding.tmdbCardTitle.isVisible = showTitleBelow
         binding.tmdbCardTitle.text = item.displayTitle
         binding.tmdbCardYear.isVisible = false

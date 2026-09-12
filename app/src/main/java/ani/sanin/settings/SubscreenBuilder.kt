@@ -115,9 +115,14 @@ object SubscreenBuilder {
                 } else if (entry.slider != null) {
                     val sliderView = inflater.inflate(R.layout.item_settings_section_slider, items, false)
                     val slTitle = sliderView.findViewById<TextView>(R.id.sliderTitle)
+                    val slDesc = sliderView.findViewById<TextView>(R.id.sliderDesc)
                     val sl = sliderView.findViewById<Slider>(R.id.slider)
                     val slValue = sliderView.findViewById<TextView>(R.id.sliderValue)
                     slTitle.text = entry.title
+                    if (entry.desc != null) {
+                        slDesc.text = entry.desc
+                        slDesc.visibility = View.VISIBLE
+                    }
                     sl.valueFrom = entry.slider.valueFrom
                     sl.valueTo = entry.slider.valueTo
                     sl.stepSize = entry.slider.step

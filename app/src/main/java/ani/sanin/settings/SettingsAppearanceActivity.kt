@@ -217,22 +217,22 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                         ) { PrefManager.setVal(PrefName.BlurSampling, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Banner Darkness",
-                        desc = "Dark overlay on banners",
-                        choice = floatChoice("Banner Darkness",
-                            arrayOf("None", "10%", "15%", "20%", "25%", "30%", "40%", "50%", "60%", "80%"),
-                            floatArrayOf(0f, 0.10f, 0.15f, 0.20f, 0.25f, 0.30f, 0.40f, 0.50f, 0.60f, 0.80f),
-                            PrefManager.getVal<Float>(PrefName.BannerBrightness),
-                        ) { PrefManager.setVal(PrefName.BannerBrightness, it) },
+                        title = "Banner Brightness",
+                        desc = "Brightness of the info-page banner. 0 keeps a plain surface, 100% shows the art fully.",
+                        slider = SubscreenBuilder.SliderOption(
+                            value = PrefManager.getVal<Float>(PrefName.BannerBrightness) * 100f,
+                            valueFrom = 0f, valueTo = 100f, step = 1f,
+                            suffix = "%"
+                        ) { PrefManager.setVal(PrefName.BannerBrightness, it / 100f) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Gradient Strength",
-                        desc = "How visible the card gradient is",
-                        choice = floatChoice("Gradient Strength",
-                            arrayOf("None", "10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "Full"),
-                            floatArrayOf(0f, 0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f),
-                            PrefManager.getVal<Float>(PrefName.CardGradientIntensity),
-                        ) { PrefManager.setVal(PrefName.CardGradientIntensity, it) },
+                        title = "Gradient Intensity",
+                        desc = "How dark the gradient behind the card title is. Lower looks cleaner.",
+                        slider = SubscreenBuilder.SliderOption(
+                            value = PrefManager.getVal<Float>(PrefName.CardGradientIntensity) * 100f,
+                            valueFrom = 0f, valueTo = 100f, step = 1f,
+                            suffix = "%"
+                        ) { PrefManager.setVal(PrefName.CardGradientIntensity, it / 100f) },
                     ),
                 ),
             ),

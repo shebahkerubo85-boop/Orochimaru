@@ -370,9 +370,27 @@ class TmdbSearchActivity : AppCompatActivity() {
                     }
                 }
             } else {
-                b.tmdbCardGradient.isVisible = false
-                b.tmdbCardTitle.isVisible = true
-                b.tmdbCardTitle.text = item.name
+                when (titlePos) {
+                    0 -> {
+                        b.tmdbCardGradient.isVisible = true
+                        b.tmdbCardGradient.updateLayoutParams<ViewGroup.LayoutParams> { width = w; height = h }
+                        TmdbCards.setCardGradient(b.tmdbCardGradient)
+                        b.tmdbCardOverlayTitle.isVisible = true
+                        b.tmdbCardOverlayTitle.text = item.name
+                        b.tmdbCardTitle.isVisible = false
+                    }
+                    2 -> {
+                        b.tmdbCardGradient.isVisible = false
+                        b.tmdbCardOverlayTitle.isVisible = false
+                        b.tmdbCardTitle.isVisible = false
+                    }
+                    else -> {
+                        b.tmdbCardGradient.isVisible = false
+                        b.tmdbCardOverlayTitle.isVisible = false
+                        b.tmdbCardTitle.isVisible = true
+                        b.tmdbCardTitle.text = item.name
+                    }
+                }
                 b.tmdbCardYear.isVisible = false
             }
 

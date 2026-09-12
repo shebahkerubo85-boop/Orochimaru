@@ -195,7 +195,7 @@ enum class PrefName(val data: Pref) {
     ContinueWatchingCardRoundness(Pref(Location.UI, Int::class, 60)),
     CardTitlePosition(Pref(Location.UI, Int::class, 0)),
     CardSize(Pref(Location.UI, Float::class, 1.5f)),
-    BannerBrightness(Pref(Location.UI, Float::class, 0.20f)),
+    BannerBrightness(Pref(Location.UI, Float::class, 1.0f)),
     ShowNewEpisodeBadge(Pref(Location.UI, Boolean::class, true)),
     ShowReleasingIndicator(Pref(Location.UI, Boolean::class, true)),
     CardGradientIntensity(Pref(Location.UI, Float::class, 0.7f)),

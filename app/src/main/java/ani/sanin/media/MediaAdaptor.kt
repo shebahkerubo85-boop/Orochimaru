@@ -194,6 +194,31 @@ class MediaAdaptor(
                             ?: 0) else media.userScore) / 10.0).toString()
                     b.itemCompactScoreBG.setBackgroundResource(R.drawable.bg_rating_pill)
                     b.itemCompactTitle.text = media.userPreferredName
+
+                    val titlePos = cachedCardTitlePosition
+                    when (titlePos) {
+                        0 -> {
+                            b.itemCompactOverlay.visibility = View.VISIBLE
+                            setGradient(b.itemCompactOverlay)
+                            b.itemCompactTitle.visibility = View.GONE
+                            bindLogo(b.itemCompactClearlogo, b.itemCompactOverlayTitle, media, position)
+                        }
+                        1 -> {
+                            b.itemCompactOverlay.visibility = View.GONE
+                            b.itemCompactClearlogo.visibility = View.GONE
+                            b.itemCompactOverlayTitle.visibility = View.GONE
+                            logoJobs[position]?.cancel()
+                            b.itemCompactTitle.visibility = View.VISIBLE
+                        }
+                        else -> {
+                            b.itemCompactOverlay.visibility = View.GONE
+                            b.itemCompactClearlogo.visibility = View.GONE
+                            b.itemCompactOverlayTitle.visibility = View.GONE
+                            logoJobs[position]?.cancel()
+                            b.itemCompactTitle.visibility = View.GONE
+                        }
+                    }
+
                     if (media.anime != null) {
                         b.itemCompactUserProgress.text = (media.userProgress ?: "~").toString()
                         b.itemCompactTotal.text =
