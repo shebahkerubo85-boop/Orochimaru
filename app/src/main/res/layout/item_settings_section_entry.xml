@@ -5,10 +5,10 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="center_vertical"
-    android:minHeight="76dp"
+    android:minHeight="56dp"
     android:orientation="horizontal"
     android:paddingHorizontal="16dp"
-    android:paddingVertical="14dp"
+    android:paddingVertical="10dp"
     android:focusable="true"
     android:background="?attr/selectableItemBackground">
 
