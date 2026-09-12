@@ -10,14 +10,13 @@ import android.graphics.PixelFormat
 import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.graphics.drawable.Drawable
-import android.view.View
 import android.view.ViewGroup
-import android.widget.FrameLayout
 
 object OledBackgroundManager {
 
     private var appliedActivity: Activity? = null
     private var originalBackground: android.graphics.drawable.Drawable? = null
+    private var originalContentBackground: android.graphics.drawable.Drawable? = null
 
     fun apply(activity: Activity, oledMode: Int, primaryColor: Int, gradientDir: Int = 0, intensity: Float = 1f) {
         val drawable = when (oledMode) {
@@ -28,23 +27,50 @@ object OledBackgroundManager {
             else -> return
         }
 
-        // Save original background so we can restore later
-        if (appliedActivity == null) {
+        // Save original backgrounds so we can restore later
+        if (appliedActivity != activity) {
             originalBackground = activity.window.decorView.background
+            originalContentBackground = null
         }
 
         // Apply as the window background — renders BEHIND all content views
         activity.window.setBackgroundDrawable(drawable)
         appliedActivity = activity
+
+        // Modes 2-4: reveal the effect by making the opaque content root transparent.
+        // Runs after setContentView() has attached the root layout.
+        if (oledMode >= 2) {
+            activity.window.decorView.post {
+                clearContentBackground(activity)
+            }
+        }
     }
 
     fun remove(activity: Activity) {
         if (appliedActivity == activity) {
-            // Restore original background
+            // Restore the content root background, if we cleared it
+            activity.window.decorView.post {
+                val content = activity.findViewById<ViewGroup>(android.R.id.content)
+                val root = content?.getChildAt(0)
+                if (root != null && originalContentBackground != null) {
+                    root.background = originalContentBackground
+                }
+            }
+            // Restore original window background
             activity.window.setBackgroundDrawable(originalBackground)
+            originalContentBackground = null
             originalBackground = null
             appliedActivity = null
         }
+    }
+
+    private fun clearContentBackground(activity: Activity) {
+        val content = activity.findViewById<ViewGroup>(android.R.id.content) ?: return
+        val root = content.getChildAt(0) ?: return
+        if (originalContentBackground == null) {
+            originalContentBackground = root.background
+        }
+        root.background = null
     }
 
     /** Stub for mode 1 (Pure AMOLED) — just pure black, no overlay needed. */
@@ -53,7 +79,7 @@ object OledBackgroundManager {
             canvas.drawColor(Color.BLACK)
         }
         override fun setAlpha(alpha: Int) {}
-        override fun setColorFilter(cf: ColorFilter?) { }
+        override fun setColorFilter(cf: ColorFilter?) {}
         override fun getOpacity() = PixelFormat.OPAQUE
     }
 
