@@ -14,6 +14,8 @@ import androidx.lifecycle.lifecycleScope
 import ani.sanin.R
 import ani.sanin.databinding.ItemNotificationEpisodeBinding
 import ani.sanin.connections.anilist.api.Notification
+import android.util.Log
+import ani.sanin.util.Logger
 import ani.sanin.loadImage
 import ani.sanin.notifications.subscription.SubscriptionStore
 import ani.sanin.profile.activity.ActivityItemBuilder
@@ -142,7 +144,7 @@ class EpisodeNotificationItem(
         val episode = notification.episode
             ?: notification.context
                 ?.let { Regex("Episode\\s+(\\d+)").find(it)?.groupValues?.get(1)?.toIntOrNull() }
-        val knownTitle = notification.episodeTitle
+        val knownTitle = notification.episodeTitle?.takeIf { it.isNotBlank() }
         val knownDuration = notification.durationMinutes
         val knownAirDate = notification.airDate
         val fallbackTitle = episode?.let { "Episode $it" }
@@ -154,8 +156,13 @@ class EpisodeNotificationItem(
             notification.airTimeMillis ?: notification.createdAt.toLong() * 1000L
         )
 
+        Logger.log(Log.INFO, "EpNotifItem [${episode}] knownTitle=$knownTitle mediaId=${notification.mediaId} context=${notification.context?.take(40)}")
+
+        // Apply gradient synchronously so it is ALWAYS visible.
+        binding.episodeGradient.background = EpisodeCardGradient.build(binding.root.context)
+
         // Async enrichment: resolver (anizip -> tmdb -> kitsu) fills missing
-        // title/duration/date/thumbnail, then colour gradient.
+        // title/duration/date/thumbnail, then swaps in episode still.
         val owner = binding.root.findViewTreeLifecycleOwner() ?: return
         loadJob = owner.lifecycleScope.launch {
             val isAnime = notification.tmdbType.isNullOrBlank()
@@ -192,7 +199,7 @@ class EpisodeNotificationItem(
                 if (displayUrl != null) {
                     binding.episodeThumb.loadImage(displayUrl)
                 }
-                binding.episodeGradient.background = EpisodeCardGradient.build(binding.root.context)
+                Logger.log(Log.INFO, "EpNotifItem resolved: title=$title thumb=${displayUrl != null}")
             }
         }
     }

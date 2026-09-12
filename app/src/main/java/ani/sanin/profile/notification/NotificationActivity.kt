@@ -37,6 +37,7 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
+import ani.sanin.util.Logger
 import com.airbnb.lottie.LottieAnimationView
 import com.xwray.groupie.GroupieAdapter
 import kotlinx.coroutines.CoroutineScope
@@ -276,6 +277,7 @@ class NotificationActivity : AppCompatActivity() {
         val isEpisode = tab == TabType.SUBSCRIPTION ||
             (tab == TabType.MEDIA &&
                 (n.notificationType == "AIRING" || n.notificationType == "SUBSCRIPTION"))
+        Logger.log("NotifyItem tab=$tab type=${n.notificationType} isEpisode=$isEpisode mediaId=${n.mediaId} ep=${n.episode} epTitle=${n.episodeTitle}")
         return if (isEpisode) {
             EpisodeNotificationItem(n, tab, tabAdapter, ::onNotificationClick)
         } else {

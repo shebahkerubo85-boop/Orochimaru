@@ -4,6 +4,8 @@ import ani.sanin.Mapper
 import ani.sanin.okHttpClient
 import ani.sanin.connections.anizip.AniZip
 import ani.sanin.connections.tmdb.Tmdb
+import ani.sanin.util.Logger
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -105,6 +107,7 @@ object EpisodeNotificationResolver {
             }
         }
 
+        Logger.log(Log.INFO, "EpisodeResolver [$anilistId/$episode] thumb=${thumbnail != null} title=$title dur=$duration air=$airDate")
         return EpisodeExtra(thumbnail, title, duration, airDate, backdrop)
     }
 
