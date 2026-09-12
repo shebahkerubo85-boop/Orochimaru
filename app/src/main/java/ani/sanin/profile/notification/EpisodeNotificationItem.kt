@@ -69,6 +69,15 @@ class EpisodeNotificationItem(
     // ── Top pill ──────────────────────────────────────────────────
 
     private fun bindPill() {
+        // Pill: white slab on dark mode, black slab on light mode; text adapts.
+        val dark = isDarkMode()
+        binding.episodePill.setBackgroundResource(
+            if (dark) R.drawable.bg_episode_pill_dark else R.drawable.bg_episode_pill_light
+        )
+        val pillTextColor = if (dark) Color.BLACK else Color.WHITE
+        binding.episodePillText.setTextColor(pillTextColor)
+        binding.episodePillTime.setTextColor(pillTextColor)
+
         // Round poster (anime poster, not the episode thumbnail).
         val poster = notification.image ?: notification.media?.coverImage?.large
         if (!poster.isNullOrBlank()) {
@@ -86,12 +95,13 @@ class EpisodeNotificationItem(
         val contextApp = binding.root.context
         val primary = contextApp.getThemeColor(com.google.android.material.R.attr.colorPrimary)
         val episode = notification.episode
-        val title = notification.media?.title?.userPreferred
+        val title = notification.media?.title?.english
+            ?: notification.media?.title?.userPreferred
             ?: notification.context?.substringBefore(":").orEmpty().trim()
 
         val episodeLabel = if (episode != null) "Episode $episode" else "New episode"
         val builder = SpannableStringBuilder()
-        builder.append(contextApp.getString(R.string.episode_airing_prefix, episodeLabel))
+        builder.append("$episodeLabel of ")
         val titleStart = builder.length
         builder.append(if (title.isBlank()) contextApp.getString(R.string.episode_airing_unknown_title) else title)
         builder.setSpan(
@@ -106,7 +116,7 @@ class EpisodeNotificationItem(
             builder.length,
             Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
         )
-        builder.append(contextApp.getString(R.string.episode_airing_suffix))
+        builder.append(" has aired")
         return builder
     }
 
@@ -130,8 +140,9 @@ class EpisodeNotificationItem(
         val knownTitle = notification.episodeTitle
         val knownDuration = notification.durationMinutes
         val knownAirDate = notification.airDate
-        binding.episodeTitle.text = knownTitle.orEmpty()
-        binding.episodeTitle.isVisible = !knownTitle.isNullOrBlank()
+        val fallbackTitle = notification.episode?.let { "Episode $it" }
+        binding.episodeTitle.text = knownTitle ?: fallbackTitle
+        binding.episodeTitle.isVisible = knownTitle != null || fallbackTitle != null
         applyMeta(
             knownDuration,
             knownAirDate,

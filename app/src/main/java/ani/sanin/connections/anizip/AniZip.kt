@@ -35,14 +35,23 @@ data class AniZipEpisode(
 )
 
 @Serializable
-data class AniZipMappings(
-    val images: List<AniZipImage>? = null,
+data class AniZipMappingIds(
     @SerialName("kitsu_id") val kitsuId: Int? = null,
     @SerialName("themoviedb_id") val tmdbId: String? = null,
     @SerialName("thetvdb_id") val tvdbId: Int? = null,
+)
+
+@Serializable
+data class AniZipMappings(
+    val images: List<AniZipImage>? = null,
+    // External ids live in the nested "mappings" object of the AniZip payload.
+    val mappings: AniZipMappingIds? = null,
     @SerialName("episodeCount") val episodeCount: Int? = null,
     val episodes: Map<String, AniZipEpisode>? = null,
 ) {
+    val kitsuId: Int? get() = mappings?.kitsuId
+    val tmdbId: String? get() = mappings?.tmdbId
+    val tvdbId: Int? get() = mappings?.tvdbId
     /** Episode entry for a (usually numeric) episode number. */
     fun episode(number: Int?): AniZipEpisode? {
         if (number == null) return null
