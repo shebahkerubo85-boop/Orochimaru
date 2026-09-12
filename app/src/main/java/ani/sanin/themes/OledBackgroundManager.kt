@@ -9,16 +9,29 @@ import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.RadialGradient
 import android.graphics.Shader
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
+import android.os.Build
+import android.util.TypedValue
+import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 
 object OledBackgroundManager {
 
     private var appliedActivity: Activity? = null
-    private var originalBackground: android.graphics.drawable.Drawable? = null
-    private var originalContentBackground: android.graphics.drawable.Drawable? = null
+    private var originalBackground: Drawable? = null
+    private val clearedBackgrounds = linkedMapOf<View, Drawable?>()
+    private var installed = false
+    private var pageListenerAttached = false
 
-    fun apply(activity: Activity, oledMode: Int, primaryColor: Int, gradientDir: Int = 0, intensity: Float = 1f) {
+    fun apply(
+        activity: Activity,
+        oledMode: Int,
+        primaryColor: Int,
+        gradientDir: Int = 0,
+        intensity: Float = 1f
+    ) {
         val drawable = when (oledMode) {
             1 -> SolidBlackDrawable()
             2 -> GlowSpotsDrawable(primaryColor, intensity)
@@ -27,50 +40,125 @@ object OledBackgroundManager {
             else -> return
         }
 
-        // Save original backgrounds so we can restore later
         if (appliedActivity != activity) {
-            originalBackground = activity.window.decorView.background
-            originalContentBackground = null
+            clearedBackgrounds.clear()
+            originalBackground = null
+            pageListenerAttached = false
         }
 
-        // Apply as the window background — renders BEHIND all content views
+        originalBackground = activity.window.decorView.background
         activity.window.setBackgroundDrawable(drawable)
         appliedActivity = activity
+        installed = true
 
-        // Modes 2-4: reveal the effect by making the opaque content root transparent.
-        // Runs after setContentView() has attached the root layout.
-        if (oledMode >= 2) {
+        if (!pageListenerAttached) {
+            pageListenerAttached = true
             activity.window.decorView.post {
-                clearContentBackground(activity)
+                if (!installed || appliedActivity != activity) return@post
+                clearPageBackground(activity)
+
+                // Keep clearing page roots that get attached later (fragments, tabs,
+                // on-demand screens) — no-op when the walk finds nothing new.
+                val content = activity.findViewById<ViewGroup>(android.R.id.content) ?: return@post
+                content.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+                    override fun onGlobalLayout() {
+                        if (!installed || appliedActivity != activity) {
+                            content.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                            return
+                        }
+                        clearPageBackground(activity)
+                    }
+                })
             }
         }
     }
 
     fun remove(activity: Activity) {
         if (appliedActivity == activity) {
-            // Restore the content root background, if we cleared it
+            installed = false
+            pageListenerAttached = false
             activity.window.decorView.post {
-                val content = activity.findViewById<ViewGroup>(android.R.id.content)
-                val root = content?.getChildAt(0)
-                if (root != null && originalContentBackground != null) {
-                    root.background = originalContentBackground
-                }
+                restorePageBackgrounds()
+                activity.window.setBackgroundDrawable(originalBackground)
+                originalBackground = null
+                appliedActivity = null
             }
-            // Restore original window background
-            activity.window.setBackgroundDrawable(originalBackground)
-            originalContentBackground = null
-            originalBackground = null
-            appliedActivity = null
         }
     }
 
-    private fun clearContentBackground(activity: Activity) {
+    /**
+     * Removes the opaque "page" backgrounds (the theme colorBackground/colorSurface
+     * fills on full-bleed containers) so the OLED window drawable shows through in
+     * the gaps — cards, banners and drawable surfaces are left untouched.
+     */
+    private fun clearPageBackground(activity: Activity) {
         val content = activity.findViewById<ViewGroup>(android.R.id.content) ?: return
         val root = content.getChildAt(0) ?: return
-        if (originalContentBackground == null) {
-            originalContentBackground = root.background
+        val pageColors = resolvePageColors(activity)
+        if (pageColors.isEmpty()) return
+        if (root.background is ColorDrawable && matchesPageColor(root.background as ColorDrawable, pageColors)) {
+            rememberBackground(root)
+            root.background = null
         }
-        root.background = null
+        clearPageBelow(root, pageColors, 0)
+    }
+
+    private fun clearPageBelow(view: ViewGroup, pageColors: Set<Int>, depth: Int) {
+        if (depth > 8) return
+        val parentW = view.width
+        val parentH = view.height
+        for (i in 0 until view.childCount) {
+            val child = view.getChildAt(i)
+            if (child !is ViewGroup) continue
+            val bg = child.background
+            if (bg is ColorDrawable && matchesPageColor(bg, pageColors)) {
+                // Only full-bleed containers are page backgrounds — card-sized
+                // surfaces (rows, sections) keep their own background.
+                if (parentW > 0 && child.width < parentW - 4) continue
+                if (parentH > 0 && child.height < parentH - 4) continue
+                rememberBackground(child)
+                child.background = null
+                clearPageBelow(child, pageColors, depth + 1)
+                continue
+            }
+            if (bg == null) {
+                clearPageBelow(child, pageColors, depth + 1)
+            }
+        }
+    }
+
+    private fun rememberBackground(view: View) {
+        if (view !in clearedBackgrounds) {
+            clearedBackgrounds[view] = view.background
+        }
+    }
+
+    private fun restorePageBackgrounds() {
+        for ((view, bg) in clearedBackgrounds) {
+            view.background = bg
+        }
+        clearedBackgrounds.clear()
+    }
+
+    private fun matchesPageColor(bg: ColorDrawable, pageColors: Set<Int>): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return false
+        return bg.color in pageColors
+    }
+
+    private fun resolvePageColors(activity: Activity): Set<Int> {
+        val colors = mutableSetOf<Int>()
+        val tv = TypedValue()
+        if (activity.theme.resolveAttribute(android.R.attr.colorBackground, tv, true)) {
+            if (tv.type >= TypedValue.TYPE_FIRST_COLOR_INT && tv.type <= TypedValue.TYPE_LAST_COLOR_INT) {
+                colors.add(tv.data)
+            }
+        }
+        if (activity.theme.resolveAttribute(com.google.android.material.R.attr.colorSurface, tv, true)) {
+            if (tv.type >= TypedValue.TYPE_FIRST_COLOR_INT && tv.type <= TypedValue.TYPE_LAST_COLOR_INT) {
+                colors.add(tv.data)
+            }
+        }
+        return colors
     }
 
     /** Stub for mode 1 (Pure AMOLED) — just pure black, no overlay needed. */
@@ -89,6 +177,7 @@ object OledBackgroundManager {
     ) : Drawable() {
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         private var cachedBounds: android.graphics.Rect? = null
+        private var cachedIntensity: Float = -1f
         private val spots = listOf(
             floatArrayOf(0.50f, 0.10f, 0.45f),
             floatArrayOf(0.90f, 0.18f, 0.36f),
@@ -102,7 +191,7 @@ object OledBackgroundManager {
             val h = b.height().toFloat()
             if (w <= 0 || h <= 0) return
             canvas.drawColor(Color.BLACK)
-            if (cachedBounds != b) {
+            if (cachedBounds != b || cachedIntensity != intensity) {
                 cachedBounds = android.graphics.Rect(b)
                 val r = Color.red(primaryColor)
                 val g = Color.green(primaryColor)
@@ -144,6 +233,7 @@ object OledBackgroundManager {
     ) : Drawable() {
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         private var cachedBounds: android.graphics.Rect? = null
+        private var cachedIntensity: Float = -1f
         private var cachedShader: Shader? = null
 
         override fun draw(canvas: Canvas) {
@@ -152,7 +242,7 @@ object OledBackgroundManager {
             val h = b.height().toFloat()
             if (w <= 0 || h <= 0) return
             canvas.drawColor(Color.BLACK)
-            if (cachedBounds != b) {
+            if (cachedBounds != b || cachedIntensity != intensity) {
                 cachedBounds = android.graphics.Rect(b)
                 val r = Color.red(primaryColor)
                 val g = Color.green(primaryColor)
@@ -195,6 +285,7 @@ object OledBackgroundManager {
     ) : Drawable() {
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         private var cachedBounds: android.graphics.Rect? = null
+        private var cachedIntensity: Float = -1f
         private var cachedShader: Shader? = null
 
         override fun draw(canvas: Canvas) {
@@ -203,7 +294,7 @@ object OledBackgroundManager {
             val h = b.height().toFloat()
             if (w <= 0 || h <= 0) return
             canvas.drawColor(Color.BLACK)
-            if (cachedBounds != b) {
+            if (cachedBounds != b || cachedIntensity != intensity) {
                 cachedBounds = android.graphics.Rect(b)
                 val r = Color.red(primaryColor)
                 val g = Color.green(primaryColor)

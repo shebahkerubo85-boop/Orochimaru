@@ -9,6 +9,7 @@ import android.view.animation.AccelerateDecelerateInterpolator
 import com.google.android.material.slider.Slider
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.RadioButton
 import android.widget.TextView
 import ani.sanin.R
 import ani.sanin.setSafeOnClickListener
@@ -46,6 +47,8 @@ object SubscreenBuilder {
         val slider: SliderOption? = null,
         /** When set on a choice entry, a slider appears below it, expanding when choice index != expandSlider.showOnIndex */
         val expandSlider: ExpandSlider? = null,
+        /** When set on a choice entry, the slider is shown INSIDE the choice dialog */
+        val dialogSlider: SliderOption? = null,
         /** When false, the entry is dimmed and non-interactive */
         val isEnabled: Boolean = true,
     )
@@ -189,6 +192,58 @@ object SubscreenBuilder {
                     if (entry.choice != null && entry.isEnabled) {
                         entryView.setSafeOnClickListener {
                             val c = entry.choice!!
+                            val dialogSlider = entry.dialogSlider
+                            if (dialogSlider != null) {
+                                val picked = intArrayOf(c.currentIndex)
+                                val startValue = dialogSlider.value
+
+                                val dialogContent = LinearLayout(context).apply {
+                                    orientation = LinearLayout.VERTICAL
+                                    setPadding(48, 8, 48, 8)
+                                }
+                                c.options.forEachIndexed { i, label ->
+                                    val rb = RadioButton(context).apply {
+                                        text = label
+                                        isChecked = i == c.currentIndex
+                                        setPadding(0, 16, 0, 16)
+                                        textSize = 14f
+                                        isFocusable = true
+                                        setOnClickListener { picked[0] = i }
+                                    }
+                                    dialogContent.addView(rb)
+                                }
+
+                                val sliderView = LayoutInflater.from(context)
+                                    .inflate(R.layout.item_settings_section_slider, dialogContent, false)
+                                val slTitle = sliderView.findViewById<TextView>(R.id.sliderTitle)
+                                val sl = sliderView.findViewById<Slider>(R.id.slider)
+                                val slValue = sliderView.findViewById<TextView>(R.id.sliderValue)
+                                slTitle.text = "Intensity"
+                                sl.valueFrom = dialogSlider.valueFrom
+                                sl.valueTo = dialogSlider.valueTo
+                                sl.stepSize = dialogSlider.step
+                                sl.value = dialogSlider.value
+                                slValue.text = "${dialogSlider.value.toInt()}${dialogSlider.suffix}"
+                                sl.addOnChangeListener { _, value, fromUser ->
+                                    if (fromUser) {
+                                        slValue.text = "${value.toInt()}${dialogSlider.suffix}"
+                                        dialogSlider.onValueChange(value)
+                                    }
+                                }
+                                dialogContent.addView(sliderView)
+
+                                context.customAlertDialog().apply {
+                                    setTitle(c.title)
+                                    setCustomView(dialogContent)
+                                    setPosButton(android.R.string.ok) {
+                                        c.onSelect(picked[0])
+                                    }
+                                    setNegButton(android.R.string.cancel) {
+                                        dialogSlider.onValueChange(startValue)
+                                    }
+                                    show()
+                                }
+                            } else {
                             context.customAlertDialog().apply {
                                 setTitle(c.title)
                                 singleChoiceItems(c.options, c.currentIndex) { idx ->
@@ -208,6 +263,7 @@ object SubscreenBuilder {
                                     }
                                 }
                                 show()
+                            }
                             }
                         }
                     } else if (entry.onClick != null) {

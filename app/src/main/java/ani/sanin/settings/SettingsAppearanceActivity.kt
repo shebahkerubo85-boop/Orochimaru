@@ -4,6 +4,7 @@ import android.app.AlertDialog
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.util.TypedValue
 import android.view.ViewGroup
 import android.widget.GridLayout
 import android.widget.ImageButton
@@ -18,6 +19,7 @@ import ani.sanin.restartApp
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
+import ani.sanin.themes.OledBackgroundManager
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.customAlertDialog
 
@@ -63,22 +65,22 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                     ),
                     SubscreenBuilder.Entry(
                         title = "OLED Background",
-                        desc = "Deep black or dark surface style",
+                        desc = "Dark surface + glow behind content, on light and dark themes",
                         choice = SubscreenBuilder.Choice(
-                            title = "OLED Background",
+                            title = "OLED Background Mode",
                             options = arrayOf("Off", "Pure AMOLED", "Glow Spots", "Gradient", "Vignette"),
                             currentIndex = PrefManager.getVal<Int>(PrefName.OledMode),
                         ) { idx -> PrefManager.setVal(PrefName.OledMode, idx); restartApp() },
-                        expandSlider = SubscreenBuilder.ExpandSlider(
-                            slider = SubscreenBuilder.SliderOption(
-                                value = PrefManager.getVal<Float>(PrefName.OledIntensity) * 100f,
-                                valueFrom = 0f,
-                                valueTo = 100f,
-                                step = 5f,
-                                suffix = "%",
-                            ) { PrefManager.setVal(PrefName.OledIntensity, it / 100f) },
-                            showOnIndex = 0,
-                        ),
+                        dialogSlider = SubscreenBuilder.SliderOption(
+                            value = PrefManager.getVal<Float>(PrefName.OledIntensity) * 100f,
+                            valueFrom = 0f,
+                            valueTo = 100f,
+                            step = 5f,
+                            suffix = "%",
+                        ) {
+                            PrefManager.setVal(PrefName.OledIntensity, it / 100f)
+                            liveApplyOled()
+                        },
                     ),
                     SubscreenBuilder.Entry(
                         title = "Accent Tint",
@@ -503,5 +505,21 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                     }
                 }
             }
+    }
+
+    /** Re-applies the OLED window background with the current intensity for a live preview. */
+    private fun liveApplyOled() {
+        val mode = PrefManager.getVal<Int>(PrefName.OledMode)
+        if (mode in 1..4) {
+            val tv = TypedValue()
+            theme.resolveAttribute(com.google.android.material.R.attr.colorPrimary, tv, true)
+            OledBackgroundManager.apply(
+                this, mode, tv.data,
+                PrefManager.getVal(PrefName.GradientDirection),
+                PrefManager.getVal(PrefName.OledIntensity)
+            )
+        } else {
+            OledBackgroundManager.remove(this)
+        }
     }
 }

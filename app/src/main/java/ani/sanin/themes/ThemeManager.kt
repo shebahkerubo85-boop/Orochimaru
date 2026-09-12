@@ -23,7 +23,8 @@ class ThemeManager(private val context: Activity) {
     fun applyTheme(fromImage: Bitmap? = null) {
         applyUIScale()
         val darkTheme = isDarkThemeActive(context)
-        val oledMode: Int = if (darkTheme) PrefManager.getVal(PrefName.OledMode) else 0
+        // OLED backgrounds apply in both light and dark mode
+        val oledMode: Int = PrefManager.getVal(PrefName.OledMode)
         val useOLED = oledMode >= 1
         val useCustomTheme: Boolean = PrefManager.getVal(PrefName.UseCustomTheme)
         val customTheme: Int = PrefManager.getVal(PrefName.CustomThemeInt)
@@ -65,17 +66,20 @@ class ThemeManager(private val context: Activity) {
             PrefManager.getVal(PrefName.Theme)
         }
 
+        // OLED theme styles are dark-only; in light mode keep the light theme and
+        // let the OLED window background provide the effect.
+        val useOledTheme = useOLED && darkTheme
         val themeToApply = when (theme) {
-            "SANIN" -> if (useOLED) R.style.Theme_Sanin_SaninOLED else R.style.Theme_Sanin_Sanin
-            "OCEAN" -> if (useOLED) R.style.Theme_Sanin_OceanOLED else R.style.Theme_Sanin_Ocean
-            "BLOOD" -> if (useOLED) R.style.Theme_Sanin_BloodOLED else R.style.Theme_Sanin_Blood
-            "LIME" -> if (useOLED) R.style.Theme_Sanin_LimeOLED else R.style.Theme_Sanin_Lime
-            "SUN" -> if (useOLED) R.style.Theme_Sanin_SunOLED else R.style.Theme_Sanin_Sun
-            "KURAMA" -> if (useOLED) R.style.Theme_Sanin_KuramaOLED else R.style.Theme_Sanin_Kurama
-            "SAIKOU" -> if (useOLED) R.style.Theme_Sanin_SaikouOLED else R.style.Theme_Sanin_Saikou
-            "INDIGO" -> if (useOLED) R.style.Theme_Sanin_IndigoOLED else R.style.Theme_Sanin_Indigo
-            "MONOCHROME" -> if (useOLED) R.style.Theme_Sanin_MonochromeOLED else R.style.Theme_Sanin_Monochrome
-            else -> if (useOLED) R.style.Theme_Sanin_SaninOLED else R.style.Theme_Sanin_Sanin
+            "SANIN" -> if (useOledTheme) R.style.Theme_Sanin_SaninOLED else R.style.Theme_Sanin_Sanin
+            "OCEAN" -> if (useOledTheme) R.style.Theme_Sanin_OceanOLED else R.style.Theme_Sanin_Ocean
+            "BLOOD" -> if (useOledTheme) R.style.Theme_Sanin_BloodOLED else R.style.Theme_Sanin_Blood
+            "LIME" -> if (useOledTheme) R.style.Theme_Sanin_LimeOLED else R.style.Theme_Sanin_Lime
+            "SUN" -> if (useOledTheme) R.style.Theme_Sanin_SunOLED else R.style.Theme_Sanin_Sun
+            "KURAMA" -> if (useOledTheme) R.style.Theme_Sanin_KuramaOLED else R.style.Theme_Sanin_Kurama
+            "SAIKOU" -> if (useOledTheme) R.style.Theme_Sanin_SaikouOLED else R.style.Theme_Sanin_Saikou
+            "INDIGO" -> if (useOledTheme) R.style.Theme_Sanin_IndigoOLED else R.style.Theme_Sanin_Indigo
+            "MONOCHROME" -> if (useOledTheme) R.style.Theme_Sanin_MonochromeOLED else R.style.Theme_Sanin_Monochrome
+            else -> if (useOledTheme) R.style.Theme_Sanin_SaninOLED else R.style.Theme_Sanin_Sanin
         }
 
         val window = context.window
@@ -88,7 +92,7 @@ class ThemeManager(private val context: Activity) {
         context.setTheme(themeToApply)
         window.decorView.layoutDirection = View.LAYOUT_DIRECTION_LTR
 
-        if (oledMode == 2 || oledMode == 3 || oledMode == 4) {
+        if (useOLED) {
             val tv = TypedValue()
             context.theme.resolveAttribute(com.google.android.material.R.attr.colorPrimary, tv, true)
             val gradientDir: Int = PrefManager.getVal(PrefName.GradientDirection)
@@ -135,7 +139,7 @@ class ThemeManager(private val context: Activity) {
             needMaterial = false
         }
 
-        if (useOLED) {
+        if (useOLED && isDarkThemeActive(context)) {
             builder.setThemeOverlay(R.style.AppTheme_Amoled)
         }
         if (needMaterial && !useMaterialYou) return true
