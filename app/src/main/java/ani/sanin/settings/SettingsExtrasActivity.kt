@@ -92,3 +92,4 @@ class SettingsExtrasActivity : AppCompatActivity() {
     }
 
     override fun onResume() { ThemeManager(this).applyTheme(); super.onResume() }
+}

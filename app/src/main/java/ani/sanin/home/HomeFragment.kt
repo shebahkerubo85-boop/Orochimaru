@@ -698,12 +698,14 @@ class HomeFragment : Fragment() {
                 })
             }
         }
-        // Wire only sections that actually have visible content
-        val wired = sections.filter {
-            it.container.visibility == View.VISIBLE &&
-                it.rv.visibility == View.VISIBLE &&
-                it.title.visibility == View.VISIBLE
-        }
+        // Wire only visible sections, in their on-screen order (reorder-aware)
+        val wired = homeSections()
+            .filter {
+                it.container.visibility == View.VISIBLE &&
+                    it.rv.visibility == View.VISIBLE &&
+                    it.title.visibility == View.VISIBLE
+            }
+            .sortedBy { binding.homeContainer.indexOfChild(it.container) }
         for (i in wired.indices) {
             val sec = wired[i]
             val row = sec.container.getChildAt(0)
@@ -726,11 +728,13 @@ class HomeFragment : Fragment() {
 
     private fun wireSectionItem(view: View) {
         val parentRv = view.parent as? RecyclerView ?: return
-        val wired = homeSections().filter {
-            it.container.visibility == View.VISIBLE &&
-                it.rv.visibility == View.VISIBLE &&
-                it.title.visibility == View.VISIBLE
-        }
+        val wired = homeSections()
+            .filter {
+                it.container.visibility == View.VISIBLE &&
+                    it.rv.visibility == View.VISIBLE &&
+                    it.title.visibility == View.VISIBLE
+            }
+            .sortedBy { binding.homeContainer.indexOfChild(it.container) }
         val idx = wired.indexOfFirst { it.rv == parentRv }
         if (idx < 0) return
         val prev = wired.getOrNull(idx - 1)
@@ -1284,6 +1288,29 @@ class HomeFragment : Fragment() {
     override fun onResume() {
         if (!model.loaded) Refresh.activity[1]!!.postValue(true)
         super.onResume()
+        reapplyHomeLayout()
+    }
+
+    /** Re-applies home section visibility/order from prefs without refetching data. */
+    private fun reapplyHomeLayout() {
+        if (_binding == null || PrefManager.getVal(PrefName.RescueMode)) return
+        val homeLayoutShow = PrefManager.getVal<List<Boolean>>(PrefName.HomeLayout)
+        val order = PrefManager.getVal<List<Int>>(PrefName.HomeLayoutOrder)
+        if (order.isEmpty()) return
+        val containers = homeSections().map { it.container }
+        containers.forEachIndexed { i, c ->
+            c.visibility = if (homeLayoutShow.getOrElse(i) { true }) View.VISIBLE else View.GONE
+        }
+        var insertIndex = binding.homeContainer.indexOfChild(binding.homeHiddenItemsContainer) + 1
+        order.forEach { i ->
+            val container = containers.getOrNull(i)
+            if (container != null) {
+                binding.homeContainer.removeView(container)
+                binding.homeContainer.addView(container, insertIndex)
+                insertIndex++
+            }
+        }
+        setupSectionFocusChain()
     }
 
     override fun onPause() {
