@@ -1,7 +1,7 @@
 package ani.sanin.profile.notification
 
 import ani.sanin.Mapper
-import ani.sanin.client
+import ani.sanin.okHttpClient
 import ani.sanin.connections.anizip.AniZip
 import ani.sanin.connections.tmdb.Tmdb
 import kotlinx.coroutines.Dispatchers
@@ -170,7 +170,7 @@ object EpisodeNotificationResolver {
                     .url("https://kitsu.io/api/edge/anime/$kitsuId/episodes?filter%5Bnumber%5D=$episode")
                     .header("Accept", "application/vnd.api+json")
                     .build()
-                val body = client.newCall(request).execute().use { it.body?.string() } ?: return@withContext null
+                val body = okHttpClient.newCall(request).execute().use { it.body?.string() } ?: return@withContext null
                 val data = Mapper.json.decodeFromString<KitsuResponse>(body).data.firstOrNull() ?: return@withContext null
                 val a = data.attributes
                 Quad(

@@ -39,7 +39,7 @@ object EpisodeCardGradient {
         val color = withContext(Dispatchers.IO) {
             try {
                 val request = Request.Builder().url(url).build()
-                val bytes = ani.sanin.client.newCall(request).execute().use { it.body?.bytes() }
+                val bytes = ani.sanin.okHttpClient.newCall(request).execute().use { it.body?.bytes() }
                     ?: return@withContext null
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
@@ -79,13 +79,21 @@ object EpisodeCardGradient {
         val isDark = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
             Configuration.UI_MODE_NIGHT_YES
         val right = if (isDark) Color.BLACK else Color.WHITE
-        return GradientDrawable(
+        val drawable = GradientDrawable(
             GradientDrawable.Orientation.LEFT_RIGHT,
             intArrayOf(
                 ColorUtils.setAlphaComponent(mid, 0),
                 ColorUtils.setAlphaComponent(mid, 210),
                 right
             )
-        ).apply { positions = floatArrayOf(0f, 0.55f, 1f) }
+        )
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            drawable.setColors(intArrayOf(
+                    ColorUtils.setAlphaComponent(mid, 0),
+                    ColorUtils.setAlphaComponent(mid, 210),
+                    right
+                ), floatArrayOf(0f, 0.55f, 1f))
+        }
+        return drawable
     }
 }

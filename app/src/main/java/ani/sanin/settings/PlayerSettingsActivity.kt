@@ -1,6 +1,7 @@
 package ani.sanin.settings
 
 import android.content.res.Resources
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.util.TypedValue
@@ -33,18 +34,10 @@ import ani.sanin.util.customAlertDialog
 import com.google.android.material.slider.Slider.OnChangeListener
 import com.google.android.material.tabs.TabLayout
 import kotlin.math.roundToInt
-import eltos.simpledialogfragment.SimpleDialog
-import eltos.simpledialogfragment.color.SimpleColorWheelDialog
 
 class PlayerSettingsActivity :
-    AppCompatActivity(),
-    SimpleDialog.OnDialogResultListener {
+    AppCompatActivity() {
 
-    interface ColorPickerCallback {
-        fun onColorSelected(color: Int)
-    }
-
-    private var colorPickerCallback: ColorPickerCallback? = null
     private var previewBinding: ItemSubtitlePreviewBinding? = null
 
     lateinit var binding: ActivityPlayerSettingsBinding
@@ -622,26 +615,31 @@ class PlayerSettingsActivity :
     // ──────────────────────────────────────────────
     // COLOR PICKER
     // ──────────────────────────────────────────────
-    private fun showColorPicker(originalColor: Int, title: String, callback: (Int) -> Unit) {
-        colorPickerCallback = object : ColorPickerCallback {
-            override fun onColorSelected(color: Int) { callback(color) }
-        }
-        SimpleColorWheelDialog()
-            .title(title)
-            .color(originalColor)
-            .alpha(true)
-            .neg()
-            .theme(R.style.MyPopup)
-            .show(this, "colorPicker")
-    }
+    private val presetColorNames = arrayOf(
+        "White", "Yellow", "Green", "Cyan", "Blue", "Magenta", "Red", "Orange", "Black", "Grey"
+    )
+    private val presetColors = intArrayOf(
+        Color.WHITE,
+        Color.parseColor("#FFFF00"),
+        Color.parseColor("#00FF00"),
+        Color.parseColor("#00FFFF"),
+        Color.parseColor("#0080FF"),
+        Color.parseColor("#FF00FF"),
+        Color.RED,
+        Color.parseColor("#FF8C00"),
+        Color.BLACK,
+        Color.GRAY
+    )
 
-    override fun onResult(dialogTag: String, which: Int, extras: Bundle): Boolean {
-        if (dialogTag == "colorPicker" && which == SimpleDialog.OnDialogResultListener.BUTTON_POSITIVE) {
-            val color = extras.getInt(SimpleColorWheelDialog.COLOR)
-            colorPickerCallback?.onColorSelected(color)
-            return true
+    private fun showColorPicker(originalColor: Int, title: String, callback: (Int) -> Unit) {
+        val current = presetColors.indexOf(originalColor).coerceAtLeast(0)
+        customAlertDialog().apply {
+            setTitle(title)
+            singleChoiceItems(presetColorNames, current) { idx ->
+                callback(presetColors[idx])
+            }
+            show()
         }
-        return false
     }
 
     // ──────────────────────────────────────────────

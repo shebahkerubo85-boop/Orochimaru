@@ -13,6 +13,7 @@ import androidx.lifecycle.findViewTreeLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import ani.sanin.R
 import ani.sanin.databinding.ItemNotificationEpisodeBinding
+import ani.sanin.connections.anilist.api.Notification
 import ani.sanin.getThemeColor
 import ani.sanin.loadImage
 import ani.sanin.notifications.subscription.SubscriptionStore
@@ -120,7 +121,7 @@ class EpisodeNotificationItem(
         val dark = isDarkMode()
         // Top rim: dark gradient in dark mode, white gradient in light mode.
         binding.episodeRim.setBackgroundResource(
-            if (dark) R.drawable.bg_repo_card_rim else R.drawable.bg_episode_card_rim_light
+            if (dark) R.drawable.bg_episode_card_rim_light else R.drawable.bg_repo_card_rim
         )
         val onRight = if (dark) Color.WHITE else Color.BLACK
         binding.episodeTitle.setTextColor(onRight)

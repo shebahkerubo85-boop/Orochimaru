@@ -140,6 +140,9 @@ class SubscriptionNotificationTask : Task {
         var newSubscriptionCount = 0
         subscriptions.toList().map {
             val media = it.second
+            var episodeNumber: Int? = null
+            var episodeTitle: String? = null
+            var episodeThumbnail: String? = null
             val text = if (media.isAnime) {
                 val parser =
                     SubscriptionHelper.getAnimeParser(media.id)
@@ -149,11 +152,16 @@ class SubscriptionNotificationTask : Task {
                         parser,
                         media
                     )
-                if (ep != null) context.getString(R.string.episode) + "${ep.number}${
-                    if (ep.title != null) " : ${ep.title}" else ""
-                }${
-                    if (ep.isFiller) " [Filler]" else ""
-                } " + context.getString(R.string.just_released) to ep.thumbnail
+                if (ep != null) {
+                    episodeNumber = ep.number.toIntOrNull()
+                    episodeTitle = ep.title
+                    episodeThumbnail = ep.thumbnail?.url
+                    context.getString(R.string.episode) + "${ep.number}${
+                        if (ep.title != null) " : ${ep.title}" else ""
+                    }${
+                        if (ep.isFiller) " [Filler]" else ""
+                    } " + context.getString(R.string.just_released) to ep.thumbnail
+                }
                 else null
             } else {
                 val parser =
@@ -164,7 +172,10 @@ class SubscriptionNotificationTask : Task {
                         parser,
                         media
                     )
-                if (ep != null) ep.number + " " + context.getString(R.string.just_released) to null
+                if (ep != null) {
+                    episodeNumber = ep.number.toIntOrNull()
+                    ep.number + " " + context.getString(R.string.just_released) to null
+                }
                 else null
             } ?: return@map
             addSubscriptionToStore(
@@ -174,9 +185,9 @@ class SubscriptionNotificationTask : Task {
                     media.id,
                     image = media.image,
                     banner = media.banner,
-                    episodeNumber = ep.number.toIntOrNull(),
-                    episodeTitle = ep.title,
-                    thumbnail = ep.thumbnail?.url
+                    episodeNumber = episodeNumber,
+                    episodeTitle = episodeTitle,
+                    thumbnail = episodeThumbnail
                 )
             )
             newSubscriptionCount++
