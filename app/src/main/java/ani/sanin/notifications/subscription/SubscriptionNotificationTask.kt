@@ -173,7 +173,10 @@ class SubscriptionNotificationTask : Task {
                     text.first,
                     media.id,
                     image = media.image,
-                    banner = media.banner
+                    banner = media.banner,
+                    episodeNumber = ep.number.toIntOrNull(),
+                    episodeTitle = ep.title,
+                    thumbnail = ep.thumbnail?.url
                 )
             )
             newSubscriptionCount++
@@ -311,7 +314,11 @@ class SubscriptionNotificationTask : Task {
                     id,
                     image = item.image,
                     banner = item.banner,
-                    tmdbType = item.type
+                    tmdbType = item.type,
+                    episodeNumber = episode,
+                    episodeTitle = title,
+                    thumbnail = candidate.stillPath?.let { Tmdb.imageUrl(it, 500) },
+                    airDate = candidate.airDate
                 )
             )
             newSubscriptionCount++

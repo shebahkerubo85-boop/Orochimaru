@@ -14,8 +14,14 @@ data class SubscriptionStore(
     // Present only for movie/tv (TMDB) subscription notifications so the
     // notification screen can open the right detail screen (TmdbDetailsActivity).
     val tmdbType: String? = null,
+    // Extra episode metadata used by the compact episode notification card.
+    val episodeNumber: Int? = null,
+    val episodeTitle: String? = null,
+    val thumbnail: String? = null,
+    val durationMinutes: Int? = null,
+    val airDate: String? = null,
 ) : java.io.Serializable {
     companion object {
-        private const val serialVersionUID = 1L
+        private const val serialVersionUID = 2L
     }
 }

@@ -116,6 +116,12 @@ data class Notification(
     // Nullable for local in-app TMDB subscription notifications.
     // "tv" or "movie"; set by NotificationActivity SUBSCRIPTION tab mapping.
     val tmdbType: String? = null,
+    // Optional extra episode metadata used by the compact episode card.
+    val episodeTitle: String? = null,
+    val thumbnail: String? = null,
+    val durationMinutes: Int? = null,
+    val airDate: String? = null,
+    val airTimeMillis: Long? = null,
 ) : java.io.Serializable
 
 @Serializable

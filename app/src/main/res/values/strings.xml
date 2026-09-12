@@ -860,6 +860,10 @@
     <string name="comments_button_desc">Sanin\'s very own comments server</string>
 
     <string name="comments">Comments</string>
+    <string name="comments_activity">Comments Activity</string>
+    <string name="episode_airing_prefix">%1$s of </string>
+    <string name="episode_airing_unknown_title">this show</string>
+    <string name="episode_airing_suffix"> has aired</string>
     <string name="episode_comments">Ep %1$s — Comments</string>
     <string name="no_episode_comments">No comments for episode %1$s yet</string>
     <string name="newest">Newest</string>

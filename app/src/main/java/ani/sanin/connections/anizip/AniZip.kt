@@ -4,7 +4,12 @@ import ani.sanin.Mapper
 import ani.sanin.client
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
 @Serializable
 data class AniZipImage(
@@ -13,9 +18,54 @@ data class AniZipImage(
 )
 
 @Serializable
+data class AniZipEpisode(
+    /**
+     * Either a localized map (`{"en": "...", "ja": "..."}`) or a plain string
+     * depending on whether the entry came from TVDB or AniDB.
+     */
+    val title: JsonElement? = null,
+    val airDate: String? = null,
+    val airDateUtc: String? = null,
+    val airdate: String? = null,
+    val runtime: Int? = null,
+    val length: Int? = null,
+    val image: String? = null,
+    @SerialName("episodeNumber") val episodeNumber: Int? = null,
+    @SerialName("absoluteEpisodeNumber") val absoluteEpisodeNumber: Int? = null,
+)
+
+@Serializable
 data class AniZipMappings(
     val images: List<AniZipImage>? = null,
-)
+    @SerialName("kitsu_id") val kitsuId: Int? = null,
+    @SerialName("themoviedb_id") val tmdbId: String? = null,
+    @SerialName("thetvdb_id") val tvdbId: Int? = null,
+    @SerialName("episodeCount") val episodeCount: Int? = null,
+    val episodes: Map<String, AniZipEpisode>? = null,
+) {
+    /** Episode entry for a (usually numeric) episode number. */
+    fun episode(number: Int?): AniZipEpisode? {
+        if (number == null) return null
+        return episodes?.get(number.toString())
+    }
+
+    /** First non-blank localized title for an episode. */
+    fun episodeTitle(number: Int?): String? = titleOf(episode(number)?.title)
+
+    companion object {
+        fun titleOf(title: JsonElement?): String? = when (title) {
+            is JsonObject -> title["en"]?.jsonContent()
+                ?: title["x-jat"]?.jsonContent()
+                ?: title["ja"]?.jsonContent()
+                ?: title.values.firstNotNullOfOrNull { it.jsonContent() }
+            is JsonPrimitive -> title.contentOrNull?.takeIf { it.isNotBlank() }
+            else -> null
+        }
+
+        private fun JsonElement.jsonContent(): String? =
+            (this as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+    }
+}
 
 data class AniZipImages(
     val backdropUrl: String? = null,
@@ -25,21 +75,38 @@ data class AniZipImages(
 
 object AniZip {
     private const val BASE_URL = "https://api.ani.zip"
+    private const val MAX_CACHE = 64
+
+    // Small in-memory cache so a notification screen does not re-fetch the
+    // same mapping document for every row (bounded, drop-oldest).
+    private val mappingsCache = object : LinkedHashMap<Int, AniZipMappings?>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Int, AniZipMappings?>?): Boolean =
+            size > MAX_CACHE
+    }
+
+    suspend fun getMappings(anilistId: Int): AniZipMappings? {
+        synchronized(mappingsCache) {
+            if (mappingsCache.containsKey(anilistId)) return mappingsCache[anilistId]
+        }
+        val parsed = try {
+            val response = client.get("$BASE_URL/mappings?anilist_id=$anilistId")
+            Mapper.json.decodeFromString<AniZipMappings>(response.text)
+        } catch (_: Exception) {
+            null
+        }
+        synchronized(mappingsCache) { mappingsCache[anilistId] = parsed }
+        return parsed
+    }
 
     suspend fun getImages(anilistId: Int): AniZipImages {
-        return try {
-            val response = client.get("$BASE_URL/mappings?anilist_id=$anilistId")
-            val mappings = Mapper.json.decodeFromString<AniZipMappings>(response.text)
-            val images = mappings.images.orEmpty()
-            AniZipImages(
-                backdropUrl = images.firstOrNull { it.coverType == "Fanart" }?.url
-                    ?: images.firstOrNull { it.coverType == "Banner" }?.url,
-                logoUrl = images.firstOrNull { it.coverType == "Clearlogo" }?.url,
-                posterUrl = images.firstOrNull { it.coverType == "Poster" }?.url,
-            )
-        } catch (_: Exception) {
-            AniZipImages()
-        }
+        val mappings = getMappings(anilistId) ?: return AniZipImages()
+        val images = mappings.images.orEmpty()
+        return AniZipImages(
+            backdropUrl = images.firstOrNull { it.coverType == "Fanart" }?.url
+                ?: images.firstOrNull { it.coverType == "Banner" }?.url,
+            logoUrl = images.firstOrNull { it.coverType == "Clearlogo" }?.url,
+            posterUrl = images.firstOrNull { it.coverType == "Poster" }?.url,
+        )
     }
 
     suspend fun getImagesBatch(ids: List<Int>): Map<Int, AniZipImages> = coroutineScope {

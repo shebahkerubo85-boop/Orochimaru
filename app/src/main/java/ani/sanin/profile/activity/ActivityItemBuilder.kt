@@ -110,22 +110,32 @@ class ActivityItemBuilder {
 
             val currentDate = Date()
             val difference = currentDate.time - targetDate.time
+            val daysDifference = difference / (1000 * 60 * 60 * 24)
 
-            return when (val daysDifference = difference / (1000 * 60 * 60 * 24)) {
-                0L -> {
+            return when {
+                daysDifference == 0L -> {
                     val hoursDifference = difference / (1000 * 60 * 60)
                     val minutesDifference = (difference / (1000 * 60)) % 60
-
                     when {
                         hoursDifference > 0 -> "$hoursDifference hour${if (hoursDifference > 1) "s" else ""} ago"
                         minutesDifference > 0 -> "$minutesDifference minute${if (minutesDifference > 1) "s" else ""} ago"
                         else -> "Just now"
                     }
                 }
-
-                1L -> "1 day ago"
-                in 2..6 -> "$daysDifference days ago"
-                else -> SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(targetDate)
+                daysDifference == 1L -> "1 day ago"
+                daysDifference in 2..6 -> "$daysDifference days ago"
+                daysDifference < 31 -> {
+                    val weeks = daysDifference / 7
+                    "$weeks week${if (weeks != 1L) "s" else ""} ago"
+                }
+                daysDifference < 365 -> {
+                    val months = daysDifference / 30
+                    "$months month${if (months != 1L) "s" else ""} ago"
+                }
+                else -> {
+                    val years = daysDifference / 365
+                    "$years year${if (years != 1L) "s" else ""} ago"
+                }
             }
         }
     }

@@ -1,29 +1,23 @@
 package ani.sanin.profile.notification
 
-import android.animation.ObjectAnimator
-import android.content.res.ColorStateList
 import android.content.res.TypedArray
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.Gravity
-import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.updateLayoutParams
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.tabs.TabLayout
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import ani.sanin.FadingEdgeRecyclerView
 import ani.sanin.R
@@ -43,10 +37,6 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
-import ani.sanin.util.GlassComponent
-import ani.sanin.util.GlassEffectManager
-import ani.sanin.util.NavPillCustomizer
-import ani.sanin.ui.components.NavPillAnimator
 import com.airbnb.lottie.LottieAnimationView
 import com.xwray.groupie.GroupieAdapter
 import kotlinx.coroutines.CoroutineScope
@@ -68,7 +58,7 @@ class NotificationActivity : AppCompatActivity() {
     private var commentCount = 0
     private var getOne = -1
     private var isMovieMode = false
-    /** Maps visible-button index → TabType. */
+    /** Maps visible-tab index → TabType. */
     private lateinit var visibleTabTypes: List<TabType>
 
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -97,94 +87,53 @@ class NotificationActivity : AppCompatActivity() {
         binding.notificationToolbar.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             topMargin = statusBarHeight
         }
-        binding.notificationNavRailBg.live = PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.LiveSideRail)
-        if (GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)) {
-            GlassEffectManager.applyGlass(
-                binding.notificationNavRail,
-                GlassComponent.NavPills,
-                28f
-            )
-        } else {
-            GlassEffectManager.removeGlass(binding.notificationNavRail)
-        }
         FocusEffectUtil.applyFocusListener(binding.notificationBack)
-        val cornerPx = NavPillCustomizer.getCornerRadiusDp() * resources.displayMetrics.density
-        binding.notificationNavRail.outlineProvider = object : android.view.ViewOutlineProvider() {
-            override fun getOutline(view: View, outline: android.graphics.Outline) {
-                outline.setRoundRect(0, 0, view.width, view.height, cornerPx)
-            }
-        }
-        binding.notificationNavRail.elevation = 10f
-        binding.notificationNavRail.clipToOutline = true
-        binding.notificationNavRail.let { frame ->
-            frame.findViewWithTag<LinearLayout>("pill_list")?.let {
-                NavPillCustomizer.applyToPillList(it)
-            }
-            // Push nav rail up when system navigation bar is visible
-            ViewCompat.setOnApplyWindowInsetsListener(frame) { v, insets ->
-                val bottomInset = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
-                (v.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
-                    lp.bottomMargin = (16 * resources.displayMetrics.density).toInt() + bottomInset
-                    v.layoutParams = lp
-                }
-                insets
-            }
-        }
 
         setupContent()
 
         isMovieMode = PrefManager.getVal<String>(PrefName.ContentMode) == "movie_tv"
 
-        // In movie/TMDB mode, only show Media + Subscriptions tabs.
-        // In anime mode, show all four tabs (User, Media, Subscriptions, Comment).
-        val allButtons = listOf(
-            TabType.USER to binding.notificationNavUser,
-            TabType.MEDIA to binding.notificationNavMedia,
-            TabType.SUBSCRIPTION to binding.notificationNavSubs,
-            TabType.COMMENT to binding.notificationNavComment,
-        )
-        val visiblePairs = if (isMovieMode) {
-            allButtons.filter { it.first == TabType.MEDIA || it.first == TabType.SUBSCRIPTION }
-        } else {
-            allButtons.filter { it.first != TabType.COMMENT || CommentsEnabled }
-        }
-        if (!isMovieMode && !CommentsEnabled) {
-            binding.notificationNavComment.visibility = View.GONE
-        } else if (isMovieMode) {
-            binding.notificationNavUser.visibility = View.GONE
-            binding.notificationNavComment.visibility = View.GONE
-        }
-        val navButtons = visiblePairs.map { it.second }
-        visibleTabTypes = visiblePairs.map { it.first }
+        setupTabs()
 
         getOne = intent.getIntExtra("activityId", -1)
-        if (getOne != -1) navButtons.forEach { it.visibility = View.GONE }
+        if (getOne != -1) binding.notificationTabLayout.visibility = View.GONE
 
         updateCounts()
-        val navAnimator = NavPillAnimator(binding.notificationNavRail, navButtons)
-        navButtons.forEach { btn ->
-            btn.setOnClickListener {
-                val idx = navButtons.indexOf(btn)
-                if (idx in visibleTabTypes.indices) {
-                    selected = idx
-                    selectTab(selected)
-                    updateNavTints(navButtons, selected)
-                    navAnimator.select(selected)
-                }
-            }
-            FocusEffectUtil.applyFocusListener(btn)
-        }
         binding.notificationBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
-
-        selectTab(selected)
-        updateNavTints(navButtons, selected)
-        navAnimator.select(selected)
-        if (PrefManager.getVal<Boolean>(PrefName.SideRailPersist)) {
-            showNotificationNavRail()
-        } else {
-            binding.notificationNavRail.visibility = View.GONE
-        }
     }
+
+    private fun setupTabs() {
+        val tabs: List<Pair<String, TabType>> = if (isMovieMode) {
+            // Movie/TMDB mode: a single, centrally placed Subscriptions tab.
+            listOf(getString(R.string.subscriptions) to TabType.SUBSCRIPTION)
+        } else {
+            buildList {
+                add(getString(R.string.anilist) to TabType.USER)
+                add(getString(R.string.media) to TabType.MEDIA)
+                add(getString(R.string.subscriptions) to TabType.SUBSCRIPTION)
+                if (CommentsEnabled) add(getString(R.string.comments_activity) to TabType.COMMENT)
+            }
+        }
+        visibleTabTypes = tabs.map { it.second }
+        tabs.forEach { (label, _) ->
+            binding.notificationTabLayout.addTab(binding.notificationTabLayout.newTab().setText(label))
+        }
+        binding.notificationTabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) {
+                selected = tab.position
+                selectTab(selected)
+            }
+            override fun onTabUnselected(tab: TabLayout.Tab) {}
+            override fun onTabReselected(tab: TabLayout.Tab) {
+                selectTab(tab.position)
+            }
+        })
+        if (isMovieMode) {
+            binding.notificationTabLayout.tabGravity = TabLayout.GRAVITY_CENTER
+        }
+        binding.notificationTabLayout.getTabAt(0)?.select()
+    }
+
 
     private fun tomoe(sizeDp: Float, speed: Float, rot: Float, grav: Int): LottieAnimationView {
         val s = (sizeDp * resources.displayMetrics.density).toInt()
@@ -293,7 +242,7 @@ class NotificationActivity : AppCompatActivity() {
         val state = tabStates[idx]
         tabAdapter.clear()
         tabAdapter.addAll(state.items.map { n ->
-            NotificationItem(n, visibleTabTypes[idx], tabAdapter, ::onNotificationClick)
+            newNotificationItem(n, visibleTabTypes[idx])
         })
         tabEmpty.visibility = if (tabAdapter.itemCount == 0) View.VISIBLE else View.GONE
         tabProgress.visibility = View.GONE
@@ -316,6 +265,22 @@ class NotificationActivity : AppCompatActivity() {
         }
 
         tabRecycler.post { tabRecycler.requestFocus() }
+    }
+
+    /**
+     * Episode notifications (compact pill + card) for the Subscriptions tab and
+     * for episode-aired (AIRING/SUBSCRIPTION) items in the Media tab. Everything
+     * else keeps the classic notification card.
+     */
+    private fun newNotificationItem(n: Notification, tab: TabType): com.xwray.groupie.Item<*> {
+        val isEpisode = tab == TabType.SUBSCRIPTION ||
+            (tab == TabType.MEDIA &&
+                (n.notificationType == "AIRING" || n.notificationType == "SUBSCRIPTION"))
+        return if (isEpisode) {
+            EpisodeNotificationItem(n, tab, tabAdapter, ::onNotificationClick)
+        } else {
+            NotificationItem(n, tab, tabAdapter, ::onNotificationClick)
+        }
     }
 
     private fun loadTab(idx: Int, force: Boolean = false) {
@@ -377,7 +342,13 @@ class NotificationActivity : AppCompatActivity() {
                         context = it.title + ": " + it.content,
                         createdAt = (it.time / 1000L).toInt(),
                         image = it.image, banner = it.banner ?: it.image,
-                        tmdbType = it.tmdbType) }
+                        tmdbType = it.tmdbType,
+                        episode = it.episodeNumber,
+                        episodeTitle = it.episodeTitle,
+                        thumbnail = it.thumbnail,
+                        durationMinutes = it.durationMinutes,
+                        airDate = it.airDate,
+                        airTimeMillis = it.time) }
             }
             TabType.COMMENT -> {
                 val list = PrefManager.getNullableVal<List<CommentStore>>(
@@ -416,7 +387,7 @@ class NotificationActivity : AppCompatActivity() {
                     state.loading = false
                     if (list.isNotEmpty()) {
                         tabAdapter.addAll(list.map { n ->
-                            NotificationItem(n, visibleTabTypes[selected], tabAdapter, ::onNotificationClick)
+                            newNotificationItem(n, visibleTabTypes[selected])
                         })
                     }
                 }
@@ -465,121 +436,6 @@ class NotificationActivity : AppCompatActivity() {
         saveCounts()
     }
 
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_DOWN) {
-            when (event.keyCode) {
-                KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
-                    if (binding.notificationNavRail.visibility == View.VISIBLE) {
-                        hideNotificationNavRail()
-                    }
-                }
-                KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                    if (currentFocus?.id in setOf(R.id.notificationNavUser, R.id.notificationNavMedia,
-                            R.id.notificationNavSubs, R.id.notificationNavComment)) {
-                        if (PrefManager.getVal<Boolean>(PrefName.SideRailPersist)) return false
-                        hideNotificationNavRail()
-                        return true
-                    }
-                }
-                KeyEvent.KEYCODE_DPAD_LEFT -> {
-                    if (currentFocus?.id in setOf(R.id.notificationNavUser, R.id.notificationNavMedia,
-                            R.id.notificationNavSubs, R.id.notificationNavComment)) return true
-                    if (binding.notificationNavRail.visibility != View.VISIBLE) {
-                        val focus = currentFocus
-                        if (focus != null) {
-                            var p = focus.parent
-                            var inHorizontalRv = false
-                            while (p != null) {
-                                if (p is RecyclerView) {
-                                    val lm = p.layoutManager
-                                    if (lm != null && lm.canScrollHorizontally()) {
-                                        inHorizontalRv = p.findContainingViewHolder(focus)?.let {
-                                            it.bindingAdapterPosition > 0
-                                        } == true || p.canScrollHorizontally(-1)
-                                    }
-                                    break
-                                }
-                                p = (p as? View)?.parent
-                            }
-                            if (!inHorizontalRv) {
-                                val railW = (60f * resources.displayMetrics.density).toInt()
-                                if (focus.left <= railW || focus.focusSearch(View.FOCUS_LEFT) == null) {
-                                    showNotificationNavRail()
-                                    return true
-                                }
-                            }
-                        }
-                    }
-                }
-                KeyEvent.KEYCODE_MENU -> {
-                    if (binding.notificationNavRail.visibility != View.VISIBLE) {
-                        showNotificationNavRail()
-                        return true
-                    }
-                }
-            }
-        }
-        return super.dispatchKeyEvent(event)
-    }
-
-    private fun showNotificationNavRail() {
-        val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-        binding.notificationNavRail.apply {
-            visibility = View.VISIBLE
-            alpha = 0f
-            if (isLandscape) {
-                pivotY = 0f; translationX = -60f * resources.displayMetrics.density; scaleY = 0.3f
-            } else {
-                translationY = 60f * resources.displayMetrics.density; scaleX = 0.3f
-            }
-        }
-        binding.notificationNavRail.post {
-            if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.NavRailAnimations)) {
-                if (isLandscape) {
-                    ObjectAnimator.ofFloat(binding.notificationNavRail, View.SCALE_Y, 1f).apply {
-                        interpolator = OvershootInterpolator(); duration = 500
-                    }.start()
-                    binding.notificationNavRail.animate()
-                        .translationX(0f).alpha(1f)
-                        .setInterpolator(DecelerateInterpolator()).setDuration(500).start()
-                } else {
-                    ObjectAnimator.ofFloat(binding.notificationNavRail, View.SCALE_X, 1f).apply {
-                        interpolator = OvershootInterpolator(); duration = 500
-                    }.start()
-                    binding.notificationNavRail.animate()
-                        .translationY(0f).alpha(1f)
-                        .setInterpolator(DecelerateInterpolator()).setDuration(500).start()
-                }
-            } else {
-                binding.notificationNavRail.translationX = 0f
-                binding.notificationNavRail.translationY = 0f
-                binding.notificationNavRail.scaleX = 1f
-                binding.notificationNavRail.scaleY = 1f
-                binding.notificationNavRail.alpha = 1f
-            }
-        }
-        val id = when (selected) {
-            0 -> R.id.notificationNavUser; 1 -> R.id.notificationNavMedia
-            2 -> R.id.notificationNavSubs; 3 -> R.id.notificationNavComment
-            else -> R.id.notificationNavUser
-        }
-        binding.root.findViewById<View>(id)?.requestFocus()
-    }
-
-    private fun hideNotificationNavRail() {
-        if (PrefManager.getVal<Boolean>(PrefName.SideRailPersist)) return
-        binding.notificationNavRail.visibility = View.GONE
-        tabRecycler.requestFocus()
-    }
-
-    private fun updateNavTints(buttons: List<ImageButton>, selectedIndex: Int) {
-        val customColor = NavPillCustomizer.getIconColor()
-        buttons.forEachIndexed { i, btn ->
-            btn.imageTintList = ColorStateList.valueOf(customColor)
-            btn.alpha = 1f
-        }
-    }
-
     private fun updateCounts() {
         userCount = PrefManager.getVal(PrefName.UnreadUserNotifications, 0)
         mediaCount = PrefManager.getVal(PrefName.UnreadMediaNotifications, 0)
@@ -598,8 +454,6 @@ class NotificationActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         updateCounts()
-        if (PrefManager.getVal<Boolean>(PrefName.SideRailPersist))
-            binding.notificationNavRail.visibility = View.VISIBLE
     }
 
     override fun onDestroy() {

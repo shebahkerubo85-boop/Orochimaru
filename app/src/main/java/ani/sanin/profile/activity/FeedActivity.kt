@@ -38,6 +38,8 @@ class FeedActivity : AppCompatActivity() {
         binding = ActivityNotificationBinding.inflate(layoutInflater)
         setContentView(binding.root)
         binding.notificationTitle.text = getString(R.string.activities)
+        // Notification screen uses tabs; the feed screen does not.
+        binding.notificationTabLayout.visibility = View.GONE
         binding.notificationToolbar.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             topMargin = statusBarHeight
         }
