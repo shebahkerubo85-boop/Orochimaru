@@ -14,7 +14,6 @@ import androidx.lifecycle.lifecycleScope
 import ani.sanin.R
 import ani.sanin.databinding.ItemNotificationEpisodeBinding
 import ani.sanin.connections.anilist.api.Notification
-import ani.sanin.getThemeColor
 import ani.sanin.loadImage
 import ani.sanin.notifications.subscription.SubscriptionStore
 import ani.sanin.profile.activity.ActivityItemBuilder
@@ -93,7 +92,7 @@ class EpisodeNotificationItem(
 
     private fun pillText(): CharSequence {
         val contextApp = binding.root.context
-        val primary = contextApp.getThemeColor(com.google.android.material.R.attr.colorPrimary)
+        val accent = if (isDarkMode()) Color.BLACK else Color.WHITE
         val episode = notification.episode
         val title = notification.media?.title?.english
             ?: notification.media?.title?.userPreferred
@@ -105,7 +104,7 @@ class EpisodeNotificationItem(
         val titleStart = builder.length
         builder.append(if (title.isBlank()) contextApp.getString(R.string.episode_airing_unknown_title) else title)
         builder.setSpan(
-            ForegroundColorSpan(primary),
+            ForegroundColorSpan(accent),
             titleStart,
             builder.length,
             Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -137,10 +136,16 @@ class EpisodeNotificationItem(
         binding.episodeTitle.setTextColor(onRight)
         bindMetaColors(onRight)
 
+        // Old subscription rows have no stored episode number; parse it from
+        // the notification text ("... Episode 1116 ...") so enrichment + the
+        // "Episode N" fallback still work for them.
+        val episode = notification.episode
+            ?: notification.context
+                ?.let { Regex("Episode\\s+(\\d+)").find(it)?.groupValues?.get(1)?.toIntOrNull() }
         val knownTitle = notification.episodeTitle
         val knownDuration = notification.durationMinutes
         val knownAirDate = notification.airDate
-        val fallbackTitle = notification.episode?.let { "Episode $it" }
+        val fallbackTitle = episode?.let { "Episode $it" }
         binding.episodeTitle.text = knownTitle ?: fallbackTitle
         binding.episodeTitle.isVisible = knownTitle != null || fallbackTitle != null
         applyMeta(
@@ -159,12 +164,11 @@ class EpisodeNotificationItem(
             var airDate = knownAirDate
             var thumb = notification.thumbnail
             var anizipBackdrop: String? = null
-            var bannerForGradient = banner
 
-            if (isAnime && notification.mediaId != null && notification.episode != null) {
+            if (isAnime && notification.mediaId != null && episode != null) {
                 val extra = EpisodeNotificationResolver.resolve(
                     notification.mediaId,
-                    notification.episode,
+                    episode,
                     fallbackTitle = knownTitle
                 )
                 if (!extra.isEmpty) {
@@ -187,10 +191,8 @@ class EpisodeNotificationItem(
                     ?: anizipBackdrop?.takeIf { it.isNotBlank() }
                 if (displayUrl != null) {
                     binding.episodeThumb.loadImage(displayUrl)
-                    bannerForGradient = displayUrl
                 }
-                val dominant = EpisodeCardGradient.dominantColor(displayUrl ?: bannerForGradient)
-                binding.episodeGradient.background = EpisodeCardGradient.build(binding.root.context, dominant)
+                binding.episodeGradient.background = EpisodeCardGradient.build(binding.root.context)
             }
         }
     }
