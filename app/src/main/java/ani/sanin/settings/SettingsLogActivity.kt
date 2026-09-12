@@ -32,7 +32,7 @@ class SettingsLogActivity : AppCompatActivity() {
             bottomMargin = navBarHeight
         }
         binding.subscreenBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
-        binding.subscreenTitle.text = "App Log"
+        binding.subscreenTitle.text = "Log Manager"
         binding.subscreenSubtitle.text = "Logging, logcat & diagnostics"
         binding.subscreenIcon.setImageResource(R.drawable.ic_round_edit_note_24)
 

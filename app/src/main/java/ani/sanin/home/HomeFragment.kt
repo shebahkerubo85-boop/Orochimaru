@@ -618,21 +618,10 @@ class HomeFragment : Fragment() {
                         homeLayoutOrder = containers.indices.toList()
                     }
 
-                    val sectionVisibilityOverrides = listOf<Boolean>(
-                        PrefManager.getVal(PrefName.ShowContinueWatching),
-                        PrefManager.getVal(PrefName.ShowPlanned),
-                    )
-                    val sectionVisibilityMap = mapOf(
-                        0 to 0, // ContinueWatching -> ShowContinueWatching
-                        2 to 1, // PlannedAnime -> ShowPlanned
-                    )
-
                     withContext(Dispatchers.Main) {
                         containers.indices.forEach { i ->
                             val show = homeLayoutShow.getOrElse(i) { true }
-                            val overrideIdx = sectionVisibilityMap[i]
-                            val overridden = if (overrideIdx != null) sectionVisibilityOverrides.getOrElse(overrideIdx) { true } else true
-                            if (show && overridden) {
+                            if (show) {
                                 empty = false
                             } else {
                                 containers[i].visibility = View.GONE

@@ -2,16 +2,9 @@ package ani.sanin.settings
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.updateLayoutParams
-import androidx.recyclerview.widget.ItemTouchHelper
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
 import ani.sanin.databinding.ActivitySettingsSubscreenBinding
 import ani.sanin.initActivity
@@ -21,8 +14,6 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
-import ani.sanin.util.customAlertDialog
-import com.google.android.material.materialswitch.MaterialSwitch
 
 class SettingsExtrasActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySettingsSubscreenBinding
@@ -44,29 +35,29 @@ class SettingsExtrasActivity : AppCompatActivity() {
         binding.subscreenIcon.setImageResource(R.drawable.ic_settings_tools)
 
         SubscreenBuilder.build(this, binding.subscreenContent, listOf(
-            SubscreenBuilder.Section("Sources", R.drawable.ic_settings_tools, entries = listOf(
+            SubscreenBuilder.Section("Management", R.drawable.ic_settings_tools, entries = listOf(
                 SubscreenBuilder.Entry(
                     title = "Extension Manager",
                     desc = "Install & update content sources",
-                    iconRes = R.drawable.ic_settings_tools,
+                    iconRes = R.drawable.ic_baseline_extension_24,
                     onClick = { startActivity(Intent(this, SettingsExtensionsActivity::class.java)) },
                 ),
                 SubscreenBuilder.Entry(
                     title = "Add-ons",
                     desc = "Plugins & community extensions",
-                    iconRes = R.drawable.ic_settings_tools,
+                    iconRes = R.drawable.ic_widgets,
                     onClick = { startActivity(Intent(this, SettingsAddonActivity::class.java)) },
                 ),
                 SubscreenBuilder.Entry(
-                    title = "Clear Cache",
+                    title = "Cache Manager",
                     desc = "Free up storage space",
                     iconRes = R.drawable.ic_set_backup,
                     onClick = { startActivity(Intent(this, SettingsCacheActivity::class.java)) },
                 ),
                 SubscreenBuilder.Entry(
-                    title = "App Logs",
+                    title = "Log Manager",
                     desc = "Diagnostics & error logs",
-                    iconRes = R.drawable.ic_set_dns,
+                    iconRes = R.drawable.ic_bug_report,
                     onClick = { startActivity(Intent(this, SettingsLogActivity::class.java)) },
                 ),
             )),
@@ -97,89 +88,7 @@ class SettingsExtrasActivity : AppCompatActivity() {
                 ),
 
             )),
-
-            SubscreenBuilder.Section("Home Customization", R.drawable.ic_set_home, listOf(
-                SubscreenBuilder.Entry(
-                    title = "Arrange Sections",
-                    desc = "Show, hide & reorder home feed rows",
-                    iconRes = R.drawable.ic_set_home,
-                    onClick = { showHomeLayoutDialog() },
-                ),
-            )),
         ))
     }
 
-    private fun showHomeLayoutDialog() {
-        val currentVisibility = PrefManager.getVal<List<Boolean>>(PrefName.HomeLayout).toMutableList()
-        var currentOrder = PrefManager.getVal<List<Int>>(PrefName.HomeLayoutOrder).toMutableList()
-        val views = resources.getStringArray(R.array.home_layouts)
-
-        if (currentVisibility.size < views.size) repeat(views.size - currentVisibility.size) { currentVisibility.add(true) }
-        else if (currentVisibility.size > views.size) currentVisibility.subList(views.size, currentVisibility.size).clear()
-
-        val allIndices = views.indices.toList()
-        if (currentOrder.isEmpty()) currentOrder = allIndices.toMutableList()
-        else {
-            val sanitizedOrder = currentOrder.filter { it in allIndices }.distinct().toMutableList()
-            sanitizedOrder.addAll(allIndices.filterNot { it in sanitizedOrder })
-            currentOrder = sanitizedOrder
-        }
-        val displayList = currentOrder.toMutableList()
-
-        val recyclerView = RecyclerView(this).apply {
-            layoutManager = LinearLayoutManager(this@SettingsExtrasActivity)
-            setPadding(0, 32, 0, 0); clipToPadding = false
-        }
-        val adapter = HomeLayoutAdapter(displayList, views, currentVisibility)
-        recyclerView.adapter = adapter
-
-        ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0) {
-            override fun onMove(rv: RecyclerView, vh: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean {
-                val from = vh.bindingAdapterPosition; val to = target.bindingAdapterPosition
-                val item = displayList.removeAt(from); displayList.add(to, item)
-                adapter.notifyItemMoved(from, to); return true
-            }
-            override fun onSwiped(vh: RecyclerView.ViewHolder, direction: Int) {}
-            override fun clearView(rv: RecyclerView, vh: RecyclerView.ViewHolder) { super.clearView(rv, vh); vh.itemView.elevation = 0f }
-            override fun onSelectedChanged(vh: RecyclerView.ViewHolder?, state: Int) {
-                super.onSelectedChanged(vh, state); if (state == ItemTouchHelper.ACTION_STATE_DRAG) vh?.itemView?.elevation = 8f
-            }
-        }).attachToRecyclerView(recyclerView)
-
-        customAlertDialog().apply {
-            setTitle(getString(R.string.home_layout_show))
-            setCustomView(recyclerView)
-            setPosButton(R.string.ok) {
-                PrefManager.setVal(PrefName.HomeLayout, currentVisibility)
-                PrefManager.setVal(PrefName.HomeLayoutOrder, displayList.drop(1))
-                restartApp()
-            }
-            setNegButton(R.string.cancel, null)
-            show()
-        }
-    }
-
     override fun onResume() { ThemeManager(this).applyTheme(); super.onResume() }
-
-    inner class HomeLayoutAdapter(
-        private val displayList: MutableList<Int>, private val views: Array<String>,
-        private val currentVisibility: MutableList<Boolean>,
-    ) : RecyclerView.Adapter<HomeLayoutAdapter.ViewHolder>() {
-        inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-            val dragHandle: ImageView = view.findViewById(R.id.itemHomeLayoutDragHandle)
-            val title: TextView = view.findViewById(R.id.itemHomeLayoutTitle)
-            val switch: MaterialSwitch = view.findViewById(R.id.itemHomeLayoutSwitch)
-        }
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
-            ViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.item_home_layout, parent, false))
-        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            val idx = displayList[position]
-            holder.title.text = views[idx]
-            holder.switch.setOnCheckedChangeListener(null)
-            holder.switch.isChecked = currentVisibility[idx]
-            holder.switch.setOnCheckedChangeListener { _, isChecked -> currentVisibility[idx] = isChecked }
-            holder.dragHandle.visibility = if (position == 0) View.INVISIBLE else View.VISIBLE
-        }
-        override fun getItemCount() = displayList.size
-    }
-}

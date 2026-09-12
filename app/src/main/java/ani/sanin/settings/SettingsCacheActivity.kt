@@ -35,7 +35,7 @@ class SettingsCacheActivity : AppCompatActivity() {
             bottomMargin = navBarHeight
         }
         binding.subscreenBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
-        binding.subscreenTitle.text = "Cache"
+        binding.subscreenTitle.text = "Cache Manager"
         binding.subscreenSubtitle.text = "Storage, trimming & limits"
         binding.subscreenIcon.setImageResource(R.drawable.ic_baseline_storage_24)
 

@@ -1,12 +1,20 @@
 package ani.sanin.settings
 
+import android.animation.ObjectAnimator
 import android.app.AlertDialog
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.util.TypedValue
+import android.view.KeyEvent
+import android.view.MotionEvent
+import android.view.View
 import android.view.ViewGroup
 import android.widget.GridLayout
 import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.view.updateLayoutParams
@@ -19,7 +27,9 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
+import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.customAlertDialog
+import com.google.android.material.materialswitch.MaterialSwitch
 
 class SettingsAppearanceActivity : AppCompatActivity() {
 
@@ -88,40 +98,9 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                     ),
                 ),
             ),
-
-            SubscreenBuilder.Section(
-                "Home Screen", R.drawable.ic_set_home,
-                entries = listOf(
-                    SubscreenBuilder.Entry(
-                        title = "Banner Style",
-                        desc = "How the home banner behaves",
-                        choice = SubscreenBuilder.Choice(
-                            title = "Banner Style",
-                            options = arrayOf(
-                                getString(R.string.home_banner_carousel),
-                                getString(R.string.home_banner_profile),
-                                getString(R.string.home_banner_navigating),
-                                getString(R.string.home_banner_off),
-                            ),
-                            currentIndex = PrefManager.getVal<Int>(PrefName.HomeBannerMode),
-                        ) { idx -> PrefManager.setVal(PrefName.HomeBannerMode, idx) },
-                    ),
-                    SubscreenBuilder.Entry(
-                        title = "Hero Artwork",
-                        desc = "Show artwork in the hero card",
-                        switch = PrefManager.getVal<Boolean>(PrefName.HeroCardImage) to {
-                            PrefManager.setVal(PrefName.HeroCardImage, it)
-                        },
-                    ),
-                    SubscreenBuilder.Entry(title = "Continue Watching", switch = restartSwitch(PrefName.ShowContinueWatching)),
-                    SubscreenBuilder.Entry(title = "Planned", switch = restartSwitch(PrefName.ShowPlanned)),
-                    SubscreenBuilder.Entry(title = "Recommendations", switch = restartSwitch(PrefName.ShowRecommendations)),
-                    SubscreenBuilder.Entry(title = "Trending", switch = restartSwitch(PrefName.ShowTrending)),
-                    SubscreenBuilder.Entry(title = "Popular", switch = restartSwitch(PrefName.ShowPopular)),
-                    SubscreenBuilder.Entry(title = "Recent", switch = restartSwitch(PrefName.ShowRecent)),
-                ),
-            ),
-
+        ))
+            addHomeScreenSection(binding.subscreenContent)
+            SubscreenBuilder.build(this, binding.subscreenContent, listOf(
             SubscreenBuilder.Section(
                 "Card Design", R.drawable.ic_set_cards,
                 entries = listOf(
@@ -419,7 +398,7 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                     ),
                 ),
             ),
-        )) }
+        ), clear = false) }
         buildSections?.invoke()
     }
 
@@ -431,11 +410,253 @@ class SettingsAppearanceActivity : AppCompatActivity() {
         buildSections?.invoke()
     }
 
-    private fun restartSwitch(pref: PrefName): Pair<Boolean, (Boolean) -> Unit> =
-        PrefManager.getVal<Boolean>(pref) to { v: Boolean -> PrefManager.setVal(pref, v); restartApp() }
-
     private fun glassSwitch(pref: PrefName): Pair<Boolean, (Boolean) -> Unit> =
         PrefManager.getVal<Boolean>(pref) to { v: Boolean -> PrefManager.setVal(pref, v) }
+
+    // ─── Home Screen: toggle + reorder (touch & dpad) ───────────
+
+    private val homeSectionTitles = arrayOf(
+        "Continue Watching", "Favorite", "Planned", "Missed Sequels", "Recommended"
+    )
+    private val homeSectionDescs = arrayOf(
+        "Resume where you left off",
+        "Your favourite anime",
+        "What you plan to watch next",
+        "Sequels you haven't caught up on",
+        "Picks based on your taste",
+    )
+
+    private fun homeOrderList(): MutableList<Int> =
+        PrefManager.getVal<List<Int>>(PrefName.HomeLayoutOrder).toMutableList().apply {
+            val valid = filter { it in homeSectionTitles.indices }.distinct()
+            clear(); addAll(valid)
+            addAll(homeSectionTitles.indices.filterNot { it in valid })
+        }
+
+    private fun homeVisibilityList(): MutableList<Boolean> =
+        PrefManager.getVal<List<Boolean>>(PrefName.HomeLayout).toMutableList().apply {
+            while (size < homeSectionTitles.size) add(true)
+            if (size > homeSectionTitles.size) subList(homeSectionTitles.size, size).clear()
+        }
+
+    private fun showBannerStyleDialog() {
+        customAlertDialog().apply {
+            setTitle("Banner Style")
+            singleChoiceItems(
+                arrayOf(
+                    getString(R.string.home_banner_carousel),
+                    getString(R.string.home_banner_profile),
+                    getString(R.string.home_banner_navigating),
+                    getString(R.string.home_banner_off),
+                ),
+                PrefManager.getVal<Int>(PrefName.HomeBannerMode),
+            ) { idx -> PrefManager.setVal(PrefName.HomeBannerMode, idx) }
+            show()
+        }
+    }
+
+    private fun addHomeScreenSection(container: LinearLayout) {
+        val inflater = layoutInflater
+        val sectionView = inflater.inflate(R.layout.item_settings_section, container, false)
+        val header = sectionView.findViewById<LinearLayout>(R.id.sectionHeader)
+        val icon = sectionView.findViewById<ImageView>(R.id.sectionIcon)
+        val title = sectionView.findViewById<TextView>(R.id.sectionTitle)
+        val desc = sectionView.findViewById<TextView>(R.id.sectionDesc)
+        val chevron = sectionView.findViewById<ImageView>(R.id.sectionChevron)
+        val items = sectionView.findViewById<LinearLayout>(R.id.sectionItems)
+
+        icon.setImageResource(R.drawable.ic_set_home)
+        title.text = "Home Screen"
+        desc.text = "Show, hide & reorder home feed sections"
+        desc.visibility = View.VISIBLE
+
+        // Banner Style row
+        val bannerRow = inflater.inflate(R.layout.item_settings_section_entry, items, false)
+        bannerRow.findViewById<ImageView>(R.id.entryIcon).setImageResource(R.drawable.ic_set_home)
+        bannerRow.findViewById<TextView>(R.id.entryTitle).text = "Banner Style"
+        bannerRow.findViewById<TextView>(R.id.entryDesc).apply {
+            text = "How the home banner behaves"
+            visibility = View.VISIBLE
+        }
+        FocusEffectUtil.applyFocusListener(bannerRow)
+        bannerRow.setOnClickListener { showBannerStyleDialog() }
+        items.addView(bannerRow)
+
+        val hintDefault = "Drag to reorder \u2014 hold the arrows and move, or press UP/DOWN"
+        val hint = TextView(this).apply {
+            text = hintDefault
+            setPadding(16, 12, 16, 8)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+            val tvColor = TypedValue()
+            theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurface, tvColor, true)
+            setTextColor(tvColor.data)
+            alpha = 0.72f
+        }
+
+        val order = homeOrderList()
+        val visibility = homeVisibilityList()
+        val rows = mutableListOf<View>()
+        var dragRow: Int? = null
+        var keyboardRow: Int? = null
+
+        fun saveOrder() {
+            PrefManager.setVal(PrefName.HomeLayoutOrder, order.toList())
+        }
+
+        fun tintArrows(row: View, active: Boolean) {
+            val tv = TypedValue()
+            theme.resolveAttribute(
+                if (active) com.google.android.material.R.attr.colorPrimary else com.google.android.material.R.attr.colorOnSurface,
+                tv, true
+            )
+            row.findViewById<ImageView>(R.id.homeRowUpArrow).setColorFilter(tv.data)
+            row.findViewById<ImageView>(R.id.homeRowDownArrow).setColorFilter(tv.data)
+        }
+
+        fun refreshArrows() {
+            rows.forEachIndexed { pos, row -> tintArrows(row, dragRow == pos || keyboardRow == pos) }
+        }
+
+        fun moveRow(fromPos: Int, toPos: Int) {
+            if (fromPos == toPos) return
+            order.add(toPos, order.removeAt(fromPos))
+            val row = rows.removeAt(fromPos)
+            rows.add(toPos, row)
+            items.removeViewAt(fromPos + 1)   // +1 = skip banner row
+            items.addView(row, toPos + 1)
+        }
+
+        order.forEach { idx ->
+            val row = inflater.inflate(R.layout.item_home_section_row, items, false)
+            row.findViewById<TextView>(R.id.homeRowTitle).text = homeSectionTitles[idx]
+            row.findViewById<TextView>(R.id.homeRowDesc).text = homeSectionDescs[idx]
+            val dragHandle = row.findViewById<LinearLayout>(R.id.homeRowDragHandle)
+            val switch = row.findViewById<MaterialSwitch>(R.id.homeRowSwitch)
+            switch.isChecked = visibility[idx]
+            tintArrows(row, false)
+
+            switch.setOnCheckedChangeListener { _, checked ->
+                visibility[idx] = checked
+                PrefManager.setVal(PrefName.HomeLayout, visibility.toList())
+                restartApp()
+            }
+            row.findViewById<TextView>(R.id.homeRowTitle).setOnClickListener {
+                switch.isChecked = !switch.isChecked
+            }
+
+            // Click handle -> enter/exit keyboard reorder mode
+            dragHandle.setOnClickListener {
+                val pos = rows.indexOf(row)
+                if (keyboardRow == pos) {
+                    keyboardRow = null
+                    hint.text = hintDefault
+                    refreshArrows()
+                    saveOrder()
+                } else {
+                    keyboardRow = pos
+                    hint.text = "Press UP/DOWN to reorder, ENTER to confirm"
+                    refreshArrows()
+                }
+            }
+
+            // Dpad reorder while mode active
+            dragHandle.setOnKeyListener { _, keyCode, event ->
+                if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+                val pos = rows.indexOf(row)
+                if (keyboardRow != pos) return@setOnKeyListener false
+                when (keyCode) {
+                    KeyEvent.KEYCODE_DPAD_UP -> {
+                        if (pos > 0) { moveRow(pos, pos - 1); keyboardRow = pos - 1; refreshArrows() }
+                        true
+                    }
+                    KeyEvent.KEYCODE_DPAD_DOWN -> {
+                        if (pos < rows.size - 1) { moveRow(pos, pos + 1); keyboardRow = pos + 1; refreshArrows() }
+                        true
+                    }
+                    else -> false
+                }
+            }
+
+            // Touch drag via long-press on the handle (like the extensions screen)
+            dragHandle.setOnLongClickListener {
+                val pos = rows.indexOf(row)
+                if (pos == -1) return@setOnLongClickListener false
+                keyboardRow = null
+                dragRow = pos
+                row.elevation = 8f
+                hint.text = "Release to drop"
+                refreshArrows()
+                dragHandle.parent?.requestDisallowInterceptTouchEvent(true)
+                true
+            }
+
+            dragHandle.setOnTouchListener { v, event ->
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_MOVE -> {
+                        if (dragRow != null) {
+                            val rawY = event.rawY
+                            var target = dragRow!!
+                            rows.forEach { r ->
+                                val arr = IntArray(2)
+                                r.getLocationOnScreen(arr)
+                                if (rawY >= arr[1] && rawY <= arr[1] + r.height) target = rows.indexOf(r)
+                            }
+                            if (target != dragRow) {
+                                moveRow(dragRow!!, target)
+                                dragRow = target
+                                refreshArrows()
+                            }
+                            true
+                        } else false
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        if (dragRow != null) {
+                            row.elevation = 0f
+                            dragRow = null
+                            hint.text = hintDefault
+                            refreshArrows()
+                            saveOrder()
+                            v.parent?.requestDisallowInterceptTouchEvent(false)
+                        }
+                        false
+                    }
+                    else -> false
+                }
+            }
+
+            FocusEffectUtil.applyFocusListener(row)
+            FocusEffectUtil.applyFocusListener(dragHandle)
+            rows.add(row)
+            items.addView(row)
+        }
+
+        items.addView(hint)
+
+        // Expand/collapse like the other settings cards
+        var expanded = false
+        fun toggleSection() {
+            expanded = !expanded
+            ObjectAnimator.ofFloat(
+                chevron, "rotation",
+                if (expanded) 0f else 180f,
+                if (expanded) 180f else 0f
+            ).apply { duration = 250; start() }
+            if (expanded) {
+                items.visibility = View.VISIBLE
+                items.animate().alpha(1f).setDuration(200).start()
+            } else {
+                items.animate().alpha(0f).setDuration(150).withEndAction {
+                    items.visibility = View.GONE
+                }.start()
+            }
+        }
+        header.setOnClickListener { toggleSection() }
+        FocusEffectUtil.applyFocusListener(header)
+        chevron.rotation = 0f
+        items.visibility = View.GONE
+
+        container.addView(sectionView)
+    }
 
     private fun floatChoice(title: String, labels: Array<String>, values: FloatArray, current: Float, onSelect: (Float) -> Unit) =
         SubscreenBuilder.Choice(title, labels,

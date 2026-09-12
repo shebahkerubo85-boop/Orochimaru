@@ -67,9 +67,10 @@ object SubscreenBuilder {
         context: Context,
         container: LinearLayout,
         sections: List<Section>,
+        clear: Boolean = true,
     ) {
         val inflater = LayoutInflater.from(context)
-        container.removeAllViews()
+        if (clear) container.removeAllViews()
 
         sections.forEachIndexed { sIdx, section ->
             val sectionView = inflater.inflate(R.layout.item_settings_section, container, false)

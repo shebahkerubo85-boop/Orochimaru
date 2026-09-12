@@ -48,13 +48,6 @@ class SettingsHomeActivity : AppCompatActivity() {
                         currentIndex = PrefManager.getVal<Int>(PrefName.HomeBannerMode),
                     ) { idx -> PrefManager.setVal(PrefName.HomeBannerMode, idx) },
                 ),
-                SubscreenBuilder.Entry(
-                    title = getString(R.string.hero_card_image),
-                    desc = getString(R.string.hero_card_image_desc),
-                    switch = PrefManager.getVal<Boolean>(PrefName.HeroCardImage) to {
-                        PrefManager.setVal(PrefName.HeroCardImage, it)
-                    },
-                ),
             )),
             SubscreenBuilder.Section("Sections", R.drawable.ic_set_cards, entries = listOf(
                 SubscreenBuilder.Entry(title = "Continue Watching", switch = restartSwitch(PrefName.ShowContinueWatching)),

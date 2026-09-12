@@ -222,7 +222,6 @@ enum class PrefName(val data: Pref) {
 
     //Home
     HomeBannerMode(Pref(Location.UI, Int::class, 2)),
-    HeroCardImage(Pref(Location.UI, Boolean::class, false)),
     ShowContinueWatching(Pref(Location.UI, Boolean::class, true)),
     ShowPlanned(Pref(Location.UI, Boolean::class, true)),
     ShowRecommendations(Pref(Location.UI, Boolean::class, true)),

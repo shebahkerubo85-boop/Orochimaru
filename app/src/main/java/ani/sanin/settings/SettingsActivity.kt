@@ -178,13 +178,13 @@ class SettingsActivity : AppCompatActivity() {
             ),
         ),
         SettingsSection(
-            title = "Extensions",
-            desc = "Sources, add-ons & diagnostics",
+            title = "Utilities",
+            desc = "Add-ons, cache & diagnostics",
             iconRes = R.drawable.ic_settings_tools,
             entries = listOf(
                 SectionEntry(
-                    title = "Sources & Add-ons",
-                    desc = "Sources, add-ons & diagnostics",
+                    title = "Management",
+                    desc = "Add-ons, cache & diagnostics",
                     iconRes = R.drawable.ic_settings_tools,
                     onClick = { startActivity(Intent(this, SettingsExtrasActivity::class.java)) },
                 ),

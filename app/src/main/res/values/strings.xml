@@ -250,8 +250,6 @@
     <string name="home_banner_profile">Profile</string>
     <string name="home_banner_navigating">Navigating</string>
     <string name="home_banner_off">Off</string>
-    <string name="hero_card_image">Hero Card Image</string>
-    <string name="hero_card_image_desc">Show screenshot instead of cover art on the hero card</string>
     <string name="common">Common</string>
     <string name="theme">Theme</string>
     <string name="ui_settings">UI Settings</string>
