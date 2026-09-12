@@ -1138,33 +1138,17 @@ class TmdbHomeFragment : Fragment() {
                 }
             } else {
                 b.tmdbCardPoster.loadImage(item.posterUrl, 300)
+                // Portrait: bottom overlay is landscape-only — title below unless hidden
+                b.tmdbCardGradient.isVisible = false
+                b.tmdbCardOverlayTitle.isVisible = false
                 b.tmdbCardLogo.isVisible = false
-                when (titlePos) {
-                    0 -> {
-                        b.tmdbCardGradient.isVisible = true
-                        b.tmdbCardGradient.updateLayoutParams<ViewGroup.LayoutParams> {
-                            width = w; height = h
-                        }
-                        TmdbCards.setCardGradient(b.tmdbCardGradient)
-                        b.tmdbCardOverlayTitle.isVisible = true
-                        b.tmdbCardOverlayTitle.text = item.name
-                        b.tmdbCardOverlayTitle.updateLayoutParams<ViewGroup.LayoutParams> { width = w }
-                        b.tmdbCardTitle.isVisible = false
-                        b.tmdbCardYear.isVisible = false
-                    }
-                    2 -> {
-                        b.tmdbCardGradient.isVisible = false
-                        b.tmdbCardOverlayTitle.isVisible = false
-                        b.tmdbCardTitle.isVisible = false
-                        b.tmdbCardYear.isVisible = false
-                    }
-                    else -> {
-                        b.tmdbCardGradient.isVisible = false
-                        b.tmdbCardOverlayTitle.isVisible = false
-                        b.tmdbCardTitle.isVisible = true
-                        b.tmdbCardTitle.text = item.name
-                        b.tmdbCardYear.isVisible = false
-                    }
+                if (titlePos == 2) {
+                    b.tmdbCardTitle.isVisible = false
+                    b.tmdbCardYear.isVisible = false
+                } else {
+                    b.tmdbCardTitle.isVisible = true
+                    b.tmdbCardTitle.text = item.name
+                    b.tmdbCardYear.isVisible = false
                 }
             }
 

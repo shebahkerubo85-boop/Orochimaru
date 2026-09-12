@@ -154,7 +154,7 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                         title = "Title Placement",
                         desc = "Where the card title sits",
                         choice = SubscreenBuilder.Choice(
-                            title = "Title Placement", options = arrayOf("Overlay Bottom", "Below Card", "Hidden"),
+                            title = "Title Placement", options = arrayOf("Overlay Bottom (Landscape)", "Below Card", "Hidden"),
                             currentIndex = PrefManager.getVal<Int>(PrefName.CardTitlePosition),
                         ) { idx -> PrefManager.setVal(PrefName.CardTitlePosition, idx); restartApp() },
                     ),

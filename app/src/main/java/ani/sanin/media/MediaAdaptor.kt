@@ -195,32 +195,14 @@ class MediaAdaptor(
                     b.itemCompactScoreBG.setBackgroundResource(R.drawable.bg_rating_pill)
                     b.itemCompactTitle.text = media.userPreferredName
 
-                    val titlePos = cachedCardTitlePosition
-                    when (titlePos) {
-                        0 -> {
-                            b.itemCompactOverlay.visibility = View.VISIBLE
-                            setGradient(b.itemCompactOverlay)
-                            b.itemCompactTitle.visibility = View.GONE
-                            val overlayW = if (finalW > 12) finalW - 12 else finalW
-                            b.itemCompactOverlayTitle.updateLayoutParams { width = overlayW }
-                            b.itemCompactClearlogo.updateLayoutParams { width = overlayW }
-                            bindLogo(b.itemCompactClearlogo, b.itemCompactOverlayTitle, media, position)
-                        }
-                        1 -> {
-                            b.itemCompactOverlay.visibility = View.GONE
-                            b.itemCompactClearlogo.visibility = View.GONE
-                            b.itemCompactOverlayTitle.visibility = View.GONE
-                            logoJobs[position]?.cancel()
-                            b.itemCompactTitle.visibility = View.VISIBLE
-                        }
-                        else -> {
-                            b.itemCompactOverlay.visibility = View.GONE
-                            b.itemCompactClearlogo.visibility = View.GONE
-                            b.itemCompactOverlayTitle.visibility = View.GONE
-                            logoJobs[position]?.cancel()
-                            b.itemCompactTitle.visibility = View.GONE
-                        }
-                    }
+                    // Bottom overlay is landscape-only; portrait cards always
+                    // show the title below unless it's set to Hidden.
+                    b.itemCompactOverlay.visibility = View.GONE
+                    b.itemCompactClearlogo.visibility = View.GONE
+                    b.itemCompactOverlayTitle.visibility = View.GONE
+                    logoJobs[position]?.cancel()
+                    b.itemCompactTitle.visibility =
+                        if (cachedCardTitlePosition == 2) View.GONE else View.VISIBLE
 
                     if (media.anime != null) {
                         b.itemCompactUserProgress.text = (media.userProgress ?: "~").toString()
