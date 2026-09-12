@@ -147,6 +147,7 @@ object TmdbCards {
                     gradient.updateLayoutParams<ViewGroup.LayoutParams> { width = w; height = h }
                     overlayTitle.isVisible = true
                     overlayTitle.text = item.displayTitle
+                    overlayTitle.updateLayoutParams<ViewGroup.LayoutParams> { width = w }
                     setCardGradient(gradient)
                     logo.isVisible = false
                 }

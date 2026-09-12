@@ -354,6 +354,7 @@ class TmdbSearchActivity : AppCompatActivity() {
                         TmdbCards.setCardGradient(b.tmdbCardGradient)
                         b.tmdbCardOverlayTitle.isVisible = true
                         b.tmdbCardOverlayTitle.text = item.name
+                        b.tmdbCardOverlayTitle.updateLayoutParams<ViewGroup.LayoutParams> { width = w }
                         b.tmdbCardTitle.isVisible = false
                         b.tmdbCardYear.isVisible = false
                     }
@@ -377,6 +378,7 @@ class TmdbSearchActivity : AppCompatActivity() {
                         TmdbCards.setCardGradient(b.tmdbCardGradient)
                         b.tmdbCardOverlayTitle.isVisible = true
                         b.tmdbCardOverlayTitle.text = item.name
+                        b.tmdbCardOverlayTitle.updateLayoutParams<ViewGroup.LayoutParams> { width = w }
                         b.tmdbCardTitle.isVisible = false
                     }
                     2 -> {

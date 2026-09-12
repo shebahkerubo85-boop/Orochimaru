@@ -201,6 +201,9 @@ class MediaAdaptor(
                             b.itemCompactOverlay.visibility = View.VISIBLE
                             setGradient(b.itemCompactOverlay)
                             b.itemCompactTitle.visibility = View.GONE
+                            val overlayW = if (finalW > 12) finalW - 12 else finalW
+                            b.itemCompactOverlayTitle.updateLayoutParams { width = overlayW }
+                            b.itemCompactClearlogo.updateLayoutParams { width = overlayW }
                             bindLogo(b.itemCompactClearlogo, b.itemCompactOverlayTitle, media, position)
                         }
                         1 -> {
@@ -244,6 +247,12 @@ class MediaAdaptor(
                         ((if (media.userScore == 0) (media.meanScore
                             ?: 0) else media.userScore) / 10.0).toString()
                     b.itemCompactScoreBG.setBackgroundResource(R.drawable.bg_rating_pill)
+                    val largeStyleRadius = when (rawCardStyle) {
+                        4 -> 24f
+                        6 -> 4f
+                        else -> cardRoundness
+                    }
+                    b.itemCompactCard.radius = largeStyleRadius
                     if (media.anime != null) {
                         val itemTotal = " " + if ((media.anime.totalEpisodes
                                 ?: 0) != 1
@@ -527,7 +536,12 @@ class MediaAdaptor(
         val b = holder.binding
         val media = mediaList?.getOrNull(position)
         if (media != null) {
-            b.itemCompactCard.radius = cardRoundness
+            val landStyleRadius = when (rawCardStyle) {
+                4 -> 24f
+                6 -> 4f
+                else -> cardRoundness
+            }
+            b.itemCompactCard.radius = landStyleRadius
             b.itemCompactOngoing.isVisible =
                 media.status == currActivity()!!.getString(R.string.status_releasing)
             b.itemCompactScore.text =

@@ -24,13 +24,12 @@
             app:cardCornerRadius="16dp"
             app:cardElevation="0dp">
 
-            <com.google.android.material.imageview.ShapeableImageView
+            <ImageView
                 android:id="@+id/itemCompactImage"
                 android:layout_width="260dp"
                 android:layout_height="148dp"
                 android:scaleType="centerCrop"
                 android:transitionName="mediaCover"
-                app:shapeAppearanceOverlay="@style/roundedImageView"
                 tools:ignore="ContentDescription,ImageContrastCheck"
                 tools:srcCompat="@tools:sample/backgrounds/scenic" />
 
