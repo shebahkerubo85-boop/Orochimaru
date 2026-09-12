@@ -516,15 +516,30 @@ class PlayerSettingsActivity :
                     },
                 ),
                 SubscreenBuilder.Entry(
-                    title = "Disappear after 5 seconds",
-                    desc = "Auto-hide timestamps overlay",
+                    title = getString(R.string.timestamp_proxy),
+                    desc = getString(R.string.timestamp_proxy_desc),
+                    switch = PrefManager.getVal<Boolean>(PrefName.UseProxyForTimeStamps) to {
+                        PrefManager.setVal(PrefName.UseProxyForTimeStamps, it)
+                    },
+                ),
+                SubscreenBuilder.Entry(
+                    title = getString(R.string.show_skip_time_stamp_button),
+                    desc = "Show the skip button over the timeline",
+                    switch = PrefManager.getVal<Boolean>(PrefName.ShowTimeStampButton) to {
+                        PrefManager.setVal(PrefName.ShowTimeStampButton, it)
+                    },
+                ),
+                SubscreenBuilder.Entry(
+                    title = getString(R.string.hide_skip_button),
+                    desc = "Auto-hide timestamps overlay after 5 seconds",
                     switch = PrefManager.getVal<Boolean>(PrefName.AutoHideTimeStamps) to {
                         PrefManager.setVal(PrefName.AutoHideTimeStamps, it)
                     },
+                    isEnabled = PrefManager.getVal<Boolean>(PrefName.ShowTimeStampButton),
                 ),
             )),
 
-            SubscreenBuilder.Section("Automatons", R.drawable.ic_set_misc, entries = listOf(
+            SubscreenBuilder.Section("Automations", R.drawable.ic_set_misc, entries = listOf(
                 SubscreenBuilder.Entry(
                     title = getString(R.string.auto_skip_op_ed),
                     desc = "Auto skip opening & ending",
