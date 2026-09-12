@@ -93,7 +93,7 @@ object OledBackgroundManager {
      */
     private fun clearPageBackground(activity: Activity) {
         val content = activity.findViewById<ViewGroup>(android.R.id.content) ?: return
-        val root = content.getChildAt(0) ?: return
+        val root = content.getChildAt(0) as? ViewGroup ?: return
         val pageColors = resolvePageColors(activity)
         if (pageColors.isEmpty()) return
         if (root.background is ColorDrawable && matchesPageColor(root.background as ColorDrawable, pageColors)) {
