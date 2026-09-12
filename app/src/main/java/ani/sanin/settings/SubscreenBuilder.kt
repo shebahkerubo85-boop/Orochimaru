@@ -93,10 +93,15 @@ object SubscreenBuilder {
                     val switchView = inflater.inflate(R.layout.item_settings_section_switch, items, false)
                     val sIcon = switchView.findViewById<ImageView>(R.id.switchIcon)
                     val sTitle = switchView.findViewById<TextView>(R.id.switchTitle)
+                    val sDesc = switchView.findViewById<TextView>(R.id.switchDesc)
                     val sToggle = switchView.findViewById<MaterialSwitch>(R.id.switchToggle)
 
                     if (entry.iconRes != 0) sIcon.setImageResource(entry.iconRes) else sIcon.visibility = View.GONE
                     sTitle.text = entry.title
+                    if (entry.desc != null) {
+                        sDesc.text = entry.desc
+                        sDesc.visibility = View.VISIBLE
+                    }
                     sToggle.isChecked = entry.switch!!.first
                     sToggle.setOnCheckedChangeListener { _, isChecked -> entry.switch.second(isChecked) }
                     if (!entry.isEnabled) {
@@ -105,8 +110,10 @@ object SubscreenBuilder {
                         switchView.isFocusable = false
                         sToggle.isEnabled = false
                         sTitle.isClickable = false
+                        sDesc.isClickable = false
                     }
                     sTitle.setOnClickListener { sToggle.isChecked = !sToggle.isChecked }
+                    sDesc.setOnClickListener { sToggle.isChecked = !sToggle.isChecked }
                     if (entry.onLongClick != null) {
                         switchView.setOnLongClickListener { entry.onLongClick!!.invoke(); true }
                     }
@@ -134,6 +141,12 @@ object SubscreenBuilder {
                             slValue.text = "${value.toInt()}${entry.slider.suffix}"
                             entry.slider.onValueChange(value)
                         }
+                    }
+                    if (!entry.isEnabled) {
+                        sliderView.alpha = 0.35f
+                        sliderView.isClickable = false
+                        sliderView.isFocusable = false
+                        sl.isEnabled = false
                     }
                     FocusEffectUtil.applyFocusListener(sliderView)
                     items.addView(sliderView)

@@ -22,15 +22,33 @@
         tools:src="@drawable/ic_settings_display"
         tools:ignore="ContentDescription" />
 
-    <TextView
-        android:id="@+id/switchTitle"
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:fontFamily="@font/poppins_semi_bold"
-        android:textColor="?attr/colorOnSurface"
-        android:textSize="15sp"
-        tools:text="Dark Mode" />
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/switchTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/poppins_semi_bold"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="15sp"
+            tools:text="Dark Mode" />
+
+        <TextView
+            android:id="@+id/switchDesc"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:fontFamily="@font/poppins"
+            android:textColor="?attr/colorPrimary"
+            android:textSize="12sp"
+            android:visibility="gone"
+            tools:text="A short description"
+            tools:visibility="visible" />
+    </LinearLayout>
 
     <com.google.android.material.materialswitch.MaterialSwitch
         android:id="@+id/switchToggle"

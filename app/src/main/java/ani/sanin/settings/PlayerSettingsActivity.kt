@@ -466,12 +466,13 @@ class PlayerSettingsActivity :
                     isEnabled = subtitlesEnabled,
                     switch = PrefManager.getVal<Boolean>(PrefName.TextviewSubtitles) to {
                         PrefManager.setVal(PrefName.TextviewSubtitles, it)
+                        binding.tabLayout.getTabAt(1)?.select()
                     },
                 ),
                 SubscreenBuilder.Entry(
                     title = getString(R.string.textview_sub_stroke),
                     desc = "Subtitle stroke width",
-                    isEnabled = subtitlesEnabled,
+                    isEnabled = subtitlesEnabled && PrefManager.getVal<Boolean>(PrefName.TextviewSubtitles),
                     slider = SubscreenBuilder.SliderOption(
                         value = PrefManager.getVal(PrefName.SubStroke),
                         valueFrom = 0f, valueTo = 10f, step = 1f, suffix = ""
@@ -480,7 +481,7 @@ class PlayerSettingsActivity :
                 SubscreenBuilder.Entry(
                     title = getString(R.string.textview_sub_bottom_margin),
                     desc = "Bottom margin for subtitles",
-                    isEnabled = subtitlesEnabled,
+                    isEnabled = subtitlesEnabled && PrefManager.getVal<Boolean>(PrefName.TextviewSubtitles),
                     slider = SubscreenBuilder.SliderOption(
                         value = PrefManager.getVal(PrefName.SubBottomMargin),
                         valueFrom = 0f, valueTo = 100f, step = 1f, suffix = ""
@@ -513,11 +514,13 @@ class PlayerSettingsActivity :
                             PrefManager.setVal(PrefName.UseProxyForTimeStamps, true)
                             PrefManager.setVal(PrefName.ShowTimeStampButton, true)
                         }
+                        binding.tabLayout.getTabAt(2)?.select()
                     },
                 ),
                 SubscreenBuilder.Entry(
                     title = getString(R.string.timestamp_proxy),
                     desc = getString(R.string.timestamp_proxy_desc),
+                    isEnabled = PrefManager.getVal<Boolean>(PrefName.TimeStampsEnabled),
                     switch = PrefManager.getVal<Boolean>(PrefName.UseProxyForTimeStamps) to {
                         PrefManager.setVal(PrefName.UseProxyForTimeStamps, it)
                     },
@@ -525,6 +528,7 @@ class PlayerSettingsActivity :
                 SubscreenBuilder.Entry(
                     title = getString(R.string.show_skip_time_stamp_button),
                     desc = "Show the skip button over the timeline",
+                    isEnabled = PrefManager.getVal<Boolean>(PrefName.TimeStampsEnabled),
                     switch = PrefManager.getVal<Boolean>(PrefName.ShowTimeStampButton) to {
                         PrefManager.setVal(PrefName.ShowTimeStampButton, it)
                     },
@@ -532,10 +536,10 @@ class PlayerSettingsActivity :
                 SubscreenBuilder.Entry(
                     title = getString(R.string.hide_skip_button),
                     desc = "Auto-hide timestamps overlay after 5 seconds",
+                    isEnabled = PrefManager.getVal<Boolean>(PrefName.TimeStampsEnabled) && PrefManager.getVal<Boolean>(PrefName.ShowTimeStampButton),
                     switch = PrefManager.getVal<Boolean>(PrefName.AutoHideTimeStamps) to {
                         PrefManager.setVal(PrefName.AutoHideTimeStamps, it)
                     },
-                    isEnabled = PrefManager.getVal<Boolean>(PrefName.ShowTimeStampButton),
                 ),
             )),
 
