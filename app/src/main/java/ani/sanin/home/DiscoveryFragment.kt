@@ -164,7 +164,7 @@ class DiscoveryFragment : Fragment() {
 
     private fun setupSearchBar() {
         binding.discoverSearchBar.hint = getString(R.string.search)
-        binding.discoverSearchText.setOnClickListener {
+        val openSearch = {
             val ctx = requireContext()
             if (Anilist.token != null) {
                 ContextCompat.startActivity(
@@ -179,6 +179,13 @@ class DiscoveryFragment : Fragment() {
                 )
             }
         }
+        binding.discoverSearchText.setOnClickListener { openSearch() }
+        // D-pad focus lands on the pill (TextInputLayout) — make the whole
+        // pill behave like one button so OK/Enter opens search, not just touch.
+        binding.discoverSearchBar.isClickable = true
+        binding.discoverSearchBar.isFocusableInTouchMode = true
+        binding.discoverSearchBar.setOnClickListener { openSearch() }
+        FocusEffectUtil.applyFocusListener(binding.discoverSearchBar)
     }
 
     private fun setupAvatar() {

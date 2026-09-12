@@ -136,6 +136,8 @@ object EpisodeNotificationResolver {
                     ?: eps.getOrNull(episode - cumStart)
                     ?: return@withContext null
                 Triple(target.name, target.airDate, target.stillPath)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (_: Exception) {
                 null
             }
@@ -182,6 +184,8 @@ object EpisodeNotificationResolver {
                     a.length,
                     a.airdate
                 )
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (_: Exception) {
                 null
             }

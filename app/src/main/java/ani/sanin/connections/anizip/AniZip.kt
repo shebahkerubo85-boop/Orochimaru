@@ -10,6 +10,9 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import android.util.Log
+import ani.sanin.util.Logger
+import kotlinx.coroutines.CompletableDeferred
 
 @Serializable
 data class AniZipImage(
@@ -93,18 +96,43 @@ object AniZip {
             size > MAX_CACHE
     }
 
+    // Deduplicates concurrent fetches of the same mappings document (several
+    // rows for the same show, or a row being rebound while still loading).
+    private val inFlight = HashMap<Int, CompletableDeferred<AniZipMappings?>>()
+
     suspend fun getMappings(anilistId: Int): AniZipMappings? {
         synchronized(mappingsCache) {
             if (mappingsCache.containsKey(anilistId)) return mappingsCache[anilistId]
         }
-        val parsed = try {
-            val response = client.get("$BASE_URL/mappings?anilist_id=$anilistId")
-            Mapper.json.decodeFromString<AniZipMappings>(response.text)
-        } catch (_: Exception) {
-            null
+
+        val mine = CompletableDeferred<AniZipMappings?>()
+        val pending = synchronized(inFlight) {
+            inFlight.putIfAbsent(anilistId, mine) ?: mine
         }
-        synchronized(mappingsCache) { mappingsCache[anilistId] = parsed }
+        if (pending !== mine) return pending.await()
+
+        val parsed = fetchMappings(anilistId)
+        synchronized(inFlight) { inFlight.remove(anilistId) }
+        mine.complete(parsed)
+
+        // Only cache successful responses; transient failures (rate limits,
+        // timeouts) must be retried on the next bind so thumbnails/titles
+        // eventually resolve instead of being permanently poisoned for the
+        // session.
+        if (parsed != null) {
+            synchronized(mappingsCache) { mappingsCache[anilistId] = parsed }
+        }
         return parsed
+    }
+
+    private suspend fun fetchMappings(anilistId: Int): AniZipMappings? = try {
+        val response = client.get("$BASE_URL/mappings?anilist_id=$anilistId")
+        Mapper.json.decodeFromString<AniZipMappings>(response.text)
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Logger.log(Log.WARN, "AniZip getMappings $anilistId failed: ${e.message}")
+        null
     }
 
     suspend fun getImages(anilistId: Int): AniZipImages {

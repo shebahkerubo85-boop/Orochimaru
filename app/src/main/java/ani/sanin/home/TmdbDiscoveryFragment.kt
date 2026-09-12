@@ -57,9 +57,13 @@ class TmdbDiscoveryFragment : Fragment() {
         val cols = ((screenWidthPx - paddingPx) / (cardWidthPx + marginEndPx)).toInt().coerceAtLeast(2)
         binding.tmdbDiscoveryGrid.layoutManager = GridLayoutManager(requireContext(), cols)
         binding.tmdbDiscoveryGrid.adapter = adapter
-        binding.tmdbDiscoverySearchText.setOnClickListener {
-            startActivity(Intent(requireContext(), TmdbSearchActivity::class.java))
-        }
+        val openSearch = { startActivity(Intent(requireContext(), TmdbSearchActivity::class.java)) }
+        binding.tmdbDiscoverySearchText.setOnClickListener { openSearch() }
+        // D-pad focus lands on the pill (TextInputLayout) — make the whole
+        // pill behave like one button so OK/Enter opens search, not just touch.
+        binding.tmdbDiscoverySearchBar.isClickable = true
+        binding.tmdbDiscoverySearchBar.isFocusableInTouchMode = true
+        binding.tmdbDiscoverySearchBar.setOnClickListener { openSearch() }
         FocusEffectUtil.applyFocusListener(binding.tmdbDiscoverySearchBar)
         // Load real avatar image
         val avatarUrl = ani.sanin.connections.simkl.Simkl.avatar
@@ -144,15 +148,20 @@ class TmdbDiscoveryFragment : Fragment() {
     private fun load() {
         viewLifecycleOwner.lifecycleScope.launch {
             binding.tmdbDiscoveryProgress.isVisible = true
-            val items = when (selectedCategory) {
-                "Trending" -> Tmdb.trending("all", "week")
-                "Latest Releases" -> Tmdb.latestMovies() + Tmdb.latestSeries()
-                "Top Rated" -> Tmdb.topRated()
-                "Popular" -> Tmdb.popular()
-                else -> Tmdb.discover(
-                    genres = selectedGenre?.id?.toString(),
-                    sort = "popularity.desc"
-                )
+            // A selected genre overrides the category: category endpoints have
+            // no genre filter, so route through discover (movie + TV) instead.
+            val items = if (selectedGenre != null) {
+                val genreId = selectedGenre!!.id.toString()
+                Tmdb.discover(mediaType = "movie", genres = genreId, sort = "popularity.desc") +
+                    Tmdb.discover(mediaType = "tv", genres = genreId, sort = "popularity.desc")
+            } else {
+                when (selectedCategory) {
+                    "Trending" -> Tmdb.trending("all", "week")
+                    "Latest Releases" -> Tmdb.latestMovies() + Tmdb.latestSeries()
+                    "Top Rated" -> Tmdb.topRated()
+                    "Popular" -> Tmdb.popular()
+                    else -> emptyList()
+                }
             }
             binding.tmdbDiscoveryProgress.isVisible = false
             adapter.submit(items)

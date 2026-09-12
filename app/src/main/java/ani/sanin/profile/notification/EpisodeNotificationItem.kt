@@ -9,8 +9,6 @@ import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
 import android.view.View
 import androidx.core.view.isVisible
-import androidx.lifecycle.findViewTreeLifecycleOwner
-import androidx.lifecycle.lifecycleScope
 import ani.sanin.R
 import ani.sanin.databinding.ItemNotificationEpisodeBinding
 import ani.sanin.connections.anilist.api.Notification
@@ -26,11 +24,23 @@ import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.customAlertDialog
 import com.xwray.groupie.GroupieAdapter
 import com.xwray.groupie.viewbinding.BindableItem
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+/**
+ * Shared background scope for per-row enrichment. Deliberately NOT tied to a
+ * row or screen lifecycle: rebinding/scroll-away must never cancel the
+ * AniZip/TMDB/Kitsu network calls in flight (cancellation showed up as
+ * "IOException: Canceled" bursts and meant thumbnails + episode titles never
+ * resolved). Stale writes are instead guarded by a per-view generation tag.
+ */
+private val enrichmentScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
 /**
  * Compact "episode aired" notification: a thin top pill (round poster + message
@@ -47,7 +57,6 @@ class EpisodeNotificationItem(
 ) : BindableItem<ItemNotificationEpisodeBinding>() {
 
     private lateinit var binding: ItemNotificationEpisodeBinding
-    private var loadJob: Job? = null
 
     override fun getLayout(): Int = R.layout.item_notification_episode
 
@@ -56,11 +65,15 @@ class EpisodeNotificationItem(
 
     override fun bind(viewBinding: ItemNotificationEpisodeBinding, position: Int) {
         binding = viewBinding
-        loadJob?.cancel()
+        // Per-view generation tag: in-flight enrichment from a previously
+        // displayed row must not paint stale data onto a recycled view. We do
+        // NOT cancel the coroutine — that was killing the network calls.
+        val generation = ((viewBinding.root.getTag(R.id.episode_enrichment_gen) as? Int) ?: 0) + 1
+        viewBinding.root.setTag(R.id.episode_enrichment_gen, generation)
         setAnimation(binding.root.context, binding.root)
 
         bindPill()
-        bindCard()
+        bindCard(generation)
 
         binding.episodeWatch.setOnClickListener { open() }
         FocusEffectUtil.applyFocusListener(binding.episodeWatch)
@@ -123,19 +136,23 @@ class EpisodeNotificationItem(
 
     // ── Episode card ──────────────────────────────────────────────
 
-    private fun bindCard() {
+    private fun bindCard(generation: Int) {
+        // Capture the binding: the item's `binding` property may be reassigned
+        // while the coroutine is in flight (recycled view), so all async UI
+        // writes go through this captured reference.
+        val viewBinding = binding
         // Full-bleed background: banner immediately, thumbnail swaps in once known.
         val banner = notification.banner ?: notification.image
             ?: notification.media?.bannerImage ?: notification.media?.coverImage?.large
-        if (!banner.isNullOrBlank()) binding.episodeThumb.loadImage(banner)
+        if (!banner.isNullOrBlank()) viewBinding.episodeThumb.loadImage(banner)
 
         val dark = isDarkMode()
         // Top rim: dark gradient in dark mode, white gradient in light mode.
-        binding.episodeRim.setBackgroundResource(
+        viewBinding.episodeRim.setBackgroundResource(
             if (dark) R.drawable.bg_episode_card_rim_light else R.drawable.bg_repo_card_rim
         )
         val onRight = if (dark) Color.WHITE else Color.BLACK
-        binding.episodeTitle.setTextColor(onRight)
+        viewBinding.episodeTitle.setTextColor(onRight)
         bindMetaColors(onRight)
 
         // Old subscription rows have no stored episode number; parse it from
@@ -148,9 +165,9 @@ class EpisodeNotificationItem(
         val knownDuration = notification.durationMinutes
         val knownAirDate = notification.airDate
         val fallbackTitle = episode?.let { "Episode $it" }
-        binding.episodeTitle.text = knownTitle ?: fallbackTitle
-        binding.episodeTitle.isVisible = knownTitle != null || fallbackTitle != null
-        applyMeta(
+        viewBinding.episodeTitle.text = knownTitle ?: fallbackTitle
+        viewBinding.episodeTitle.isVisible = knownTitle != null || fallbackTitle != null
+        applyMeta(viewBinding,
             knownDuration,
             knownAirDate,
             notification.airTimeMillis ?: notification.createdAt.toLong() * 1000L
@@ -159,12 +176,12 @@ class EpisodeNotificationItem(
         Logger.log(Log.INFO, "EpNotifItem [${episode}] knownTitle=$knownTitle mediaId=${notification.mediaId} context=${notification.context?.take(40)}")
 
         // Apply gradient synchronously so it is ALWAYS visible.
-        binding.episodeGradient.background = EpisodeCardGradient.build(binding.root.context)
+        viewBinding.episodeGradient.background = EpisodeCardGradient.build(viewBinding.root.context)
 
         // Async enrichment: resolver (anizip -> tmdb -> kitsu) fills missing
-        // title/duration/date/thumbnail, then swaps in episode still.
-        val owner = binding.root.findViewTreeLifecycleOwner() ?: return
-        loadJob = owner.lifecycleScope.launch {
+        // title/duration/date/thumbnail, then swaps in episode still. Runs in
+        // the shared non-cancellable scope so scrolling never kills the fetch.
+        enrichmentScope.launch {
             val isAnime = notification.tmdbType.isNullOrBlank()
             var title = knownTitle
             var duration = knownDuration
@@ -187,19 +204,31 @@ class EpisodeNotificationItem(
                 }
             }
 
-            run {
-                if (!title.isNullOrBlank() && knownTitle.isNullOrBlank()) {
-                    binding.episodeTitle.text = title
-                    binding.episodeTitle.isVisible = true
-                }
-                applyMeta(duration, airDate, notification.airTimeMillis ?: notification.createdAt.toLong() * 1000L)
+            val resolvedTitle = title
+            val resolvedDuration = duration
+            val resolvedAirDate = airDate
+            val resolvedThumb = thumb
+            val resolvedBackdrop = anizipBackdrop
 
-                val displayUrl = thumb?.takeIf { it.isNotBlank() }
-                    ?: anizipBackdrop?.takeIf { it.isNotBlank() }
-                if (displayUrl != null) {
-                    binding.episodeThumb.loadImage(displayUrl)
+            withContext(Dispatchers.Main) {
+                // Recycled view (or rebound row): drop the stale result.
+                if (generation != viewBinding.root.getTag(R.id.episode_enrichment_gen)) {
+                    Logger.log(Log.INFO, "EpNotifItem skipped: view rebound (gen=$generation)")
+                    return@withContext
                 }
-                Logger.log(Log.INFO, "EpNotifItem resolved: title=$title thumb=${displayUrl != null}")
+                if (!resolvedTitle.isNullOrBlank() && knownTitle.isNullOrBlank()) {
+                    viewBinding.episodeTitle.text = resolvedTitle
+                    viewBinding.episodeTitle.isVisible = true
+                }
+                applyMeta(viewBinding, resolvedDuration, resolvedAirDate,
+                    notification.airTimeMillis ?: notification.createdAt.toLong() * 1000L)
+
+                val displayUrl = resolvedThumb?.takeIf { it.isNotBlank() }
+                    ?: resolvedBackdrop?.takeIf { it.isNotBlank() }
+                if (displayUrl != null) {
+                    viewBinding.episodeThumb.loadImage(displayUrl)
+                }
+                Logger.log(Log.INFO, "EpNotifItem resolved: title=$resolvedTitle thumb=${displayUrl != null}")
             }
         }
     }
@@ -212,7 +241,7 @@ class EpisodeNotificationItem(
     }
 
     /** duration (minutes), ISO date, and local release time — one ellipsizing line. */
-    private fun applyMeta(durationMinutes: Int?, airDate: String?, airTimeMillis: Long) {
+    private fun applyMeta(viewBinding: ItemNotificationEpisodeBinding, durationMinutes: Int?, airDate: String?, airTimeMillis: Long) {
         val date = airDate ?: if (airTimeMillis > 0)
             SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(airTimeMillis)) else null
         val time = if (airTimeMillis > 0)
@@ -222,8 +251,8 @@ class EpisodeNotificationItem(
         if (durationMinutes != null) parts += "${durationMinutes}m"
         if (date != null) parts += date
         if (time != null) parts += time
-        binding.episodeMetaText.text = parts.joinToString("  ·  ")
-        binding.episodeMetaText.isVisible = parts.isNotEmpty()
+        viewBinding.episodeMetaText.text = parts.joinToString("  ·  ")
+        viewBinding.episodeMetaText.isVisible = parts.isNotEmpty()
     }
 
     private fun isDarkMode(): Boolean =

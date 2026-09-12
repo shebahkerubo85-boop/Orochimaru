@@ -1,21 +1,27 @@
 package ani.sanin.home
 
-import android.app.AlertDialog
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.graphics.ColorUtils
+import ani.sanin.BottomSheetDialogFragment
 import ani.sanin.R
 import ani.sanin.databinding.BottomSheetLibrarySettingsBinding
 import ani.sanin.getThemeColor
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.util.FocusEffectUtil
-import com.google.android.material.bottomsheet.BottomSheetDialogFragment
-import com.google.android.material.button.MaterialButton
+import com.google.android.material.chip.Chip
 
+/**
+ * Library sort / filter panel. Clean Material sheet (no clay): sort tiles in a
+ * 2x2 grid, an inline single-select chip row for genre/status (no nested
+ * dialog), and an 18+ toggle for anime mode. Everything is D-pad focusable.
+ */
 class LibrarySettingsBottomSheet : BottomSheetDialogFragment() {
 
     private var _binding: BottomSheetLibrarySettingsBinding? = null
@@ -35,21 +41,21 @@ class LibrarySettingsBottomSheet : BottomSheetDialogFragment() {
             onSortChanged: (String) -> Unit,
             onGenreFilterChanged: (String) -> Unit,
             onNsfwChanged: ((Boolean) -> Unit)? = null
-        ): LibrarySettingsBottomSheet {
-            return LibrarySettingsBottomSheet().apply {
-                this.onSortChanged = onSortChanged
-                this.onGenreFilterChanged = onGenreFilterChanged
-                this.onNsfwChanged = onNsfwChanged
-                arguments = Bundle().apply {
-                    putString("sort", currentSort)
-                    putBoolean("showNsfw", showNsfw)
-                    putStringArrayList("filters", ArrayList(filterItems ?: emptyList()))
-                }
+        ): LibrarySettingsBottomSheet = LibrarySettingsBottomSheet().apply {
+            this.onSortChanged = onSortChanged
+            this.onGenreFilterChanged = onGenreFilterChanged
+            this.onNsfwChanged = onNsfwChanged
+            arguments = Bundle().apply {
+                putString("sort", currentSort)
+                putBoolean("showNsfw", showNsfw)
+                putStringArrayList("filters", ArrayList(filterItems ?: emptyList()))
             }
         }
     }
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
+    ): View {
         _binding = BottomSheetLibrarySettingsBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -57,69 +63,91 @@ class LibrarySettingsBottomSheet : BottomSheetDialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val currentSort = arguments?.getString("sort") ?: "updatedAt"
-        val showNsfw = arguments?.getBoolean("showNsfw") ?: true
+        val ctx = requireContext()
+        val primary = ctx.getThemeColor(com.google.android.material.R.attr.colorPrimary)
+        val onSurface = ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface)
+        val outline = ctx.getThemeColor(com.google.android.material.R.attr.colorOutline)
+        val density = resources.displayMetrics.density
 
-        // NSFW toggle visibility
-        if (!showNsfw || onNsfwChanged == null) {
-            binding.nsfwToggle.visibility = View.GONE
-        } else {
-            binding.nsfwToggle.isChecked = PrefManager.getVal<Boolean>(PrefName.LibraryNsfw)
-            FocusEffectUtil.applyFocusListener(binding.nsfwToggle)
-            binding.nsfwToggle.setOnCheckedChangeListener { _, isChecked ->
-                PrefManager.setVal(PrefName.LibraryNsfw, isChecked)
-                onNsfwChanged?.invoke(isChecked)
-            }
+        // Header: primary-tinted rounded square behind the tune icon.
+        binding.sheetHeaderIconBg.background = GradientDrawable().apply {
+            cornerRadius = 14 * density
+            setColor(ColorUtils.setAlphaComponent(primary, 40))
         }
+        binding.sheetHeaderIcon.imageTintList = ColorStateList.valueOf(primary)
 
-        // Sort buttons
-        val sortButtons = mapOf(
+        val currentSort = arguments?.getString("sort") ?: "updatedAt"
+
+        // Sort: 2x2 tiles, selected tile gets a primary fill.
+        val sortButtons = linkedMapOf(
             binding.sortRecent to "updatedAt",
             binding.sortScore to "score",
             binding.sortTitle to "title",
             binding.sortRelease to "release"
         )
-        updateSortHighlight(currentSort)
         sortButtons.forEach { (btn, sortKey) ->
             FocusEffectUtil.applyFocusListener(btn)
             btn.setOnClickListener {
                 PrefManager.setVal(PrefName.AnimeListSortOrder, sortKey)
-                updateSortHighlight(sortKey)
+                updateSortHighlight(sortKey, primary, onSurface, outline)
                 onSortChanged?.invoke(sortKey)
-                dismiss()
             }
         }
+        updateSortHighlight(currentSort, primary, onSurface, outline)
 
-        // Genre filter button (anime: genres; movie: statuses provided by the fragment)
-        FocusEffectUtil.applyFocusListener(binding.genreFilterBtn)
-        binding.genreFilterBtn.setOnClickListener {
-            showFilterDialog()
+        // Filter: inline single-select chips — no extra dialog.
+        buildFilterChips()
+
+        // 18+: anime mode only.
+        val showNsfw = arguments?.getBoolean("showNsfw") ?: true
+        if (!showNsfw || onNsfwChanged == null) {
+            binding.nsfwRow.visibility = View.GONE
+        } else {
+            binding.nsfwToggle.isChecked = PrefManager.getVal<Boolean>(PrefName.LibraryNsfw)
+            FocusEffectUtil.applyFocusListener(binding.nsfwToggle)
+            binding.nsfwRow.setOnClickListener {
+                binding.nsfwToggle.isChecked = !binding.nsfwToggle.isChecked
+            }
+            binding.nsfwToggle.setOnCheckedChangeListener { _, isChecked ->
+                PrefManager.setVal(PrefName.LibraryNsfw, isChecked)
+                onNsfwChanged?.invoke(isChecked)
+            }
         }
     }
 
-    private fun showFilterDialog() {
-        val items = mutableListOf("All") + genres()
-        val current = binding.genreFilterBtn.text.toString()
-        val checked = items.indexOf(current).coerceAtLeast(0)
-        AlertDialog.Builder(requireContext(), R.style.MyPopup)
-            .setTitle("Filter by Genre")
-            .setSingleChoiceItems(items.toTypedArray(), checked) { dialog, which ->
-                val selected = items[which]
-                binding.genreFilterBtn.text = selected
+    private fun buildFilterChips() {
+        val items = mutableListOf("All") + filterItems().filterNot { it.equals("All", true) }
+        val current = PrefManager.getVal<String>(PrefName.LibraryGenreFilter)
+        items.forEach { genre ->
+            val chip = Chip(requireContext()).apply {
+                text = genre
+                isCheckable = true
+                isFocusable = true
+                isFocusableInTouchMode = true
+                isChecked = if (genre == "All") current.isBlank() else genre == current
+            }
+            chip.setOnCheckedChangeListener { _, isChecked ->
+                if (!isChecked) return@setOnCheckedChangeListener
+                val selected = chip.text?.toString() ?: "All"
                 PrefManager.setVal(PrefName.LibraryGenreFilter, if (selected == "All") "" else selected)
                 onGenreFilterChanged?.invoke(selected)
-                dialog.dismiss()
             }
-            .show()
+            FocusEffectUtil.applyFocusListener(chip)
+            binding.genreChipGroup.addView(chip)
+        }
+        // Always keep a selection (defaults to "All").
+        if (binding.genreChipGroup.checkedChipId == View.NO_ID && binding.genreChipGroup.childCount > 0) {
+            (binding.genreChipGroup.getChildAt(0) as? Chip)?.isChecked = true
+        }
     }
 
     /** Filter items: genres for anime mode, status categories for movie mode. */
-    private fun genres(): List<String> {
+    private fun filterItems(): List<String> {
         arguments?.getStringArrayList("filters")?.takeIf { it.isNotEmpty() }?.let { return it }
         val stored = PrefManager.getVal<Set<String>>(PrefName.GenresList)
         return if (stored.isNullOrEmpty()) {
             listOf(
-                "Completed Movies", "Completed TV", "Watching",
+                "All", "Completed Movies", "Completed TV", "Watching",
                 "Planning", "Paused", "Dropped", "Favourites"
             )
         } else {
@@ -127,22 +155,21 @@ class LibrarySettingsBottomSheet : BottomSheetDialogFragment() {
         }
     }
 
-    private fun updateSortHighlight(activeKey: String) {
+    private fun updateSortHighlight(activeKey: String, primary: Int, onSurface: Int, outline: Int) {
         val mapping = mapOf(
             binding.sortRecent to "updatedAt",
             binding.sortScore to "score",
             binding.sortTitle to "title",
             binding.sortRelease to "release"
         )
-        val ctx = requireContext()
+        val density = resources.displayMetrics.density
         mapping.forEach { (btn, key) ->
             val active = key == activeKey
-            btn.backgroundTintList = if (active) {
-                ColorStateList.valueOf(ctx.getThemeColor(com.google.android.material.R.attr.colorPrimary))
-            } else {
-                null
-            }
-            btn.setTextColor(if (active) Color.WHITE else ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            btn.backgroundTintList = ColorStateList.valueOf(if (active) primary else Color.TRANSPARENT)
+            btn.setTextColor(if (active) Color.WHITE else onSurface)
+            btn.iconTint = ColorStateList.valueOf(if (active) Color.WHITE else onSurface)
+            btn.strokeColor = ColorStateList.valueOf(if (active) primary else outline)
+            btn.strokeWidth = if (active) 0 else (1 * density).toInt()
         }
     }
 

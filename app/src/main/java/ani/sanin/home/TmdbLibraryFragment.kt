@@ -22,6 +22,7 @@ import ani.sanin.Refresh
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.databinding.FragmentTmdbLibraryBinding
 import ani.sanin.util.FocusEffectUtil
+import ani.sanin.util.TvKeyboardUtil
 import ani.sanin.getThemeColor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -137,6 +138,8 @@ class TmdbLibraryFragment : Fragment() {
         }
 
         // Search → inline bar
+        TvKeyboardUtil.setupTvInput(binding.tmdbLibSearchText)
+        binding.tmdbLibSearchBar.setOnClickListener { binding.tmdbLibSearchText.requestFocus() }
         FocusEffectUtil.applyFocusListener(binding.tmdbLibSearchBar)
         binding.tmdbLibSearchText.addTextChangedListener { editable ->
             val query = editable?.toString() ?: ""

@@ -111,6 +111,9 @@ class LibraryFragment : Fragment() {
         }
 
         TvKeyboardUtil.setupTvInput(binding.searchViewText)
+        // Tapping the pill's padding (outside the field) still routes focus to
+        // the input so the keyboard comes up on both touch and dpad.
+        binding.searchBar.setOnClickListener { binding.searchViewText.requestFocus() }
 
         // Settings: bottom sheet with sort / genre / 18+ toggles
         FocusEffectUtil.applyFocusListener(binding.listSettings)
