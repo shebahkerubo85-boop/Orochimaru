@@ -125,7 +125,7 @@
                         android:background="?android:attr/selectableItemBackgroundBorderless"
                         android:focusable="true"
                         android:padding="6dp"
-                        app:srcCompat="@drawable/ic_set_theme"
+                        app:srcCompat="@drawable/ic_ios_settings"
                         app:tint="@android:color/white"
                         android:contentDescription="AniList Settings" />
                 </LinearLayout>

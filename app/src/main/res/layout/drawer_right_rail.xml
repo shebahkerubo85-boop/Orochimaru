@@ -221,7 +221,7 @@
                 android:text="Settings"
                 android:textColor="@android:color/white"
                 android:textSize="15sp"
-                app:drawableStartCompat="@drawable/ic_round_settings_24"
+                app:drawableStartCompat="@drawable/ic_ios_settings"
                 app:drawableTint="@android:color/white" />
 
             <TextView
