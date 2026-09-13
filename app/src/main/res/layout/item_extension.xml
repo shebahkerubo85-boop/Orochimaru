@@ -128,7 +128,7 @@
         android:layout_gravity="center_vertical"
         android:layout_marginEnd="10dp"
         android:layout_weight="0"
-        android:src="@drawable/ic_round_dots_vertical_24"
+        android:src="@drawable/ic_baseline_tune_24"
         android:focusable="true"
         android:nextFocusLeft="@id/deleteTextView"
         android:nextFocusRight="@id/extensionCardView"

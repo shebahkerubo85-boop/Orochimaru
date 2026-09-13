@@ -99,7 +99,7 @@
                     android:layout_height="40dp"
                     android:background="?android:attr/selectableItemBackground"
                     android:contentDescription="@string/listed_in_library"
-                    app:srcCompat="@drawable/ic_round_library_books_24"
+                    app:srcCompat="@drawable/ic_library_shelves_24"
                     app:tint="?attr/colorOnBackground" />
 
                 <ImageButton

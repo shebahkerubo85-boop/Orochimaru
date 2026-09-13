@@ -305,6 +305,9 @@ class ExtensionsActivity : AppCompatActivity() {
             setColor(android.graphics.Color.WHITE)
             cornerRadii = thumbRound
         }
+        binding.modeToggleThumbIcon.setImageResource(
+            if (cloudStream) R.drawable.ic_toggle_cloudstream else R.drawable.ic_toggle_aniyomi
+        )
     }
 
     /** Focus the first Browse button in the current ViewPager page. */

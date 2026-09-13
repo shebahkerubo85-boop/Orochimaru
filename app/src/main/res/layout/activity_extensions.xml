@@ -61,11 +61,20 @@
                     android:textColor="@android:color/white"
                     android:textSize="15sp" />
 
-                <View
+                <FrameLayout
                     android:id="@+id/modeToggleThumb"
                     android:layout_width="30dp"
                     android:layout_height="30dp"
-                    android:layout_gravity="center_vertical" />
+                    android:layout_gravity="center_vertical">
+
+                    <ImageView
+                        android:id="@+id/modeToggleThumbIcon"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_gravity="center"
+                        android:importantForAccessibility="no"
+                        android:scaleType="fitCenter" />
+                </FrameLayout>
             </FrameLayout>
         </FrameLayout>
 

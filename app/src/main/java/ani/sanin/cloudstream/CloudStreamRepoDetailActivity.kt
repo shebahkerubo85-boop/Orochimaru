@@ -1,12 +1,15 @@
 package ani.sanin.cloudstream
 
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
+import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -21,7 +24,10 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.databinding.ActivityCsRepoDetailBinding
 import ani.sanin.databinding.ItemCsSourceBinding
 import ani.sanin.initActivity
+import ani.sanin.statusBarHeight
 import ani.sanin.util.FocusEffectUtil
+import ani.sanin.util.SearchBarAnimator
+import ani.sanin.util.TvKeyboardUtil
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.customAlertDialog
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +40,8 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
     private lateinit var binding: ActivityCsRepoDetailBinding
     private val adapter = SourceAdapter(::onInstallClick, ::onSettingsClick, { installedIds }) { repoUrl }
     private var installedIds: Set<String> = emptySet()
+    private var searchQuery: String = ""
+    private lateinit var searchAnimator: SearchBarAnimator
     private var repoUrl: String = ""
     private var cachedManifest: CsRepoManifest? = null
     private var cachedPlugins: List<CsSource> = emptyList()
@@ -44,6 +52,10 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
         binding = ActivityCsRepoDetailBinding.inflate(layoutInflater)
         setContentView(binding.root)
         initActivity(this)
+
+        binding.root.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+            topMargin = statusBarHeight
+        }
 
         val repoUrl = intent.getStringExtra(ARG_REPO_URL) ?: run {
             finish()
@@ -105,6 +117,26 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
         }
         FocusEffectUtil.applyFocusListener(binding.csRepoLangChip)
 
+        // Search icon + inline search bar
+        searchAnimator = SearchBarAnimator(
+            binding.csRepoSearchView,
+            binding.csRepoSearchViewText,
+            binding.csRepoSearchIcon,
+            R.drawable.ic_round_search_24,
+            R.drawable.ic_round_close_24
+        )
+        binding.csRepoSearchIcon.setOnClickListener { searchAnimator.toggle() }
+        FocusEffectUtil.applyFocusListener(binding.csRepoSearchIcon)
+        TvKeyboardUtil.setupTvInput(binding.csRepoSearchViewText)
+        binding.csRepoSearchViewText.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                val q = s?.toString()?.trim() ?: ""
+                if (q != searchQuery) { searchQuery = q; refreshList(cachedPlugins) }
+            }
+        })
+
         binding.csRepoRecyclerView.adapter = adapter
         binding.csRepoRecyclerView.layoutManager = LinearLayoutManager(this)
 
@@ -150,9 +182,11 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
 
     private fun refreshList(sources: List<CsSource>) {
         val lang = PrefManager.getVal<String>(PrefName.LangSort)
+        val query = searchQuery
         val filtered = sources.filter { source ->
             CsTypeFilter.matches(source.type) &&
-                (lang == "all" || source.lang.equals(lang, true))
+                (lang == "all" || source.lang.equals(lang, true)) &&
+                (query.isEmpty() || source.name.contains(query, ignoreCase = true))
         }
         binding.csRepoEmptyText.visibility = if (filtered.isEmpty()) View.VISIBLE else View.GONE
         if (filtered.isEmpty()) binding.csRepoEmptyText.text = "No extensions match the current filter"

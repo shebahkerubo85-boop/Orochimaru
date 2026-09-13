@@ -252,7 +252,7 @@
                     android:layout_width="44dp"
                     android:layout_height="44dp"
                     android:padding="12dp"
-                    android:src="@drawable/ic_round_library_books_24"
+                    android:src="@drawable/ic_library_shelves_24"
                     android:scaleType="fitCenter"
                     android:background="@android:color/transparent"
                     android:focusable="true"

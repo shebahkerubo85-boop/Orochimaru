@@ -3,12 +3,15 @@ package ani.sanin.settings
 import android.app.NotificationManager
 import android.content.Context
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
+import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -20,10 +23,13 @@ import ani.sanin.others.LanguageMapper
 import ani.sanin.databinding.ActivityAnimeRepoDetailBinding
 import ani.sanin.databinding.ItemExtensionAllBinding
 import ani.sanin.initActivity
+import ani.sanin.statusBarHeight
+import ani.sanin.util.FocusEffectUtil
+import ani.sanin.util.SearchBarAnimator
+import ani.sanin.util.TvKeyboardUtil
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.themes.ThemeManager
-import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.customAlertDialog
 import com.bumptech.glide.Glide
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
@@ -34,16 +40,13 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.util.Locale
 
-/**
- * Per-repo extension list for aniyomi repos (opened from the repo card Browse pill).
- * Shows only extensions belonging to [ARG_REPO_URL] with install buttons.
- * Filter + language chips match the CloudStream repo detail pattern.
- */
 class AnimeRepoDetailActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityAnimeRepoDetailBinding
     private val animeExtensionManager: AnimeExtensionManager = Injekt.get()
     private val adapter = SourceAdapter(::onInstallClick)
+    private var searchQuery: String = ""
+    private lateinit var searchAnimator: SearchBarAnimator
     private var repoUrl: String = ""
     private var allExtensions: List<eu.kanade.tachiyomi.extension.anime.model.AnimeExtension.Available> = emptyList()
     private var filterOptions: List<String> = listOf("All")
@@ -54,6 +57,10 @@ class AnimeRepoDetailActivity : AppCompatActivity() {
         binding = ActivityAnimeRepoDetailBinding.inflate(layoutInflater)
         setContentView(binding.root)
         initActivity(this)
+
+        binding.root.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+            topMargin = statusBarHeight
+        }
 
         val repoUrl = intent.getStringExtra(ARG_REPO_URL) ?: run { finish(); return }
         this.repoUrl = repoUrl
@@ -116,6 +123,26 @@ class AnimeRepoDetailActivity : AppCompatActivity() {
         }
         FocusEffectUtil.applyFocusListener(binding.animeRepoLangChip)
 
+        // Search icon + inline search bar
+        searchAnimator = SearchBarAnimator(
+            binding.animeRepoSearchView,
+            binding.animeRepoSearchViewText,
+            binding.animeRepoSearchIcon,
+            R.drawable.ic_round_search_24,
+            R.drawable.ic_round_close_24
+        )
+        binding.animeRepoSearchIcon.setOnClickListener { searchAnimator.toggle() }
+        FocusEffectUtil.applyFocusListener(binding.animeRepoSearchIcon)
+        TvKeyboardUtil.setupTvInput(binding.animeRepoSearchViewText)
+        binding.animeRepoSearchViewText.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                val q = s?.toString()?.trim() ?: ""
+                if (q != searchQuery) { searchQuery = q; refreshList() }
+            }
+        })
+
         binding.animeRepoRecyclerView.adapter = adapter
         binding.animeRepoRecyclerView.layoutManager = LinearLayoutManager(this)
 
@@ -138,9 +165,11 @@ class AnimeRepoDetailActivity : AppCompatActivity() {
 
     private fun refreshList() {
         val lang = PrefManager.getVal<String>(PrefName.AnimeLangSort)
+        val query = searchQuery
         val filtered = allExtensions.filter { ext ->
             AnimeTypeFilter.matches(ext) &&
-                (lang == "all" || ext.lang?.lowercase(Locale.ROOT) == lang)
+                (lang == "all" || ext.lang?.lowercase(Locale.ROOT) == lang) &&
+                (query.isEmpty() || ext.name.contains(query, ignoreCase = true))
         }
         binding.animeRepoEmptyText.isVisible = filtered.isEmpty()
         if (filtered.isEmpty()) {

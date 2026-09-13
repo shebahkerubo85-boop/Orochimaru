@@ -58,7 +58,7 @@
         android:scaleX="0.8"
         android:scaleY="0.8"
         android:visibility="gone"
-        app:srcCompat="@drawable/ic_round_dots_vertical_24"
+        app:srcCompat="@drawable/ic_baseline_tune_24"
         app:tint="?attr/colorOnBackground"
         tools:ignore="ContentDescription" />
 
@@ -72,8 +72,8 @@
         android:focusable="true"
         android:nextFocusLeft="@id/sourceSettingsImageView"
         android:nextFocusRight="@id/sourceCardView"
-        android:scaleX="0.8"
-        android:scaleY="0.8"
+        android:scaleX="0.6"
+        android:scaleY="0.6"
         app:srcCompat="@drawable/ic_download_24"
         app:tint="?attr/colorOnBackground"
         tools:ignore="ContentDescription" />

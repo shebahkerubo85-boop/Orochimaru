@@ -49,7 +49,7 @@ private val TAB_ICONS = mapOf(
     "home" to R.drawable.ic_round_home_24,
     "anime" to R.drawable.ic_round_movie_filter_24,
     "discovery" to R.drawable.ic_round_filter_list_24,
-    "library" to R.drawable.ic_round_library_books_24
+    "library" to R.drawable.ic_library_shelves_24
 )
 private val TAB_LABELS = mapOf(
     "home" to "Home",
