@@ -256,35 +256,33 @@ class ExtensionsActivity : AppCompatActivity() {
     private fun updateToggleUI(cloudStream: Boolean, animate: Boolean) {
         val density = resources.displayMetrics.density
         val thumbStart = 3f * density
-        val thumbEnd = (200 - 30 - 3) * density
-        val targetAlpha = if (cloudStream) 1f else 0f
-        binding.modeToggleLabel.text = if (cloudStream) "CLOUDSTREAM" else "Aniyomi"
+        val thumbEnd = (160 - 30 - 3) * density
+        binding.modeToggleLabel.text = if (cloudStream) "CloudStream" else "Aniyomi"
         styleToggleDrawables(cloudStream)
         if (!animate || !PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled)) {
-            binding.modeToggleFill.alpha = targetAlpha
             binding.modeToggleThumb.translationX = if (cloudStream) thumbEnd else thumbStart
             return
         }
         modeToggleAnimating = true
-        val startAlpha = binding.modeToggleFill.alpha
+        val currentX = binding.modeToggleThumb.translationX
+        val targetX = if (cloudStream) thumbEnd else thumbStart
         ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 180
             interpolator = DecelerateInterpolator(1.5f)
             var labelSwapped = false
             addUpdateListener { anim ->
                 val t = anim.animatedValue as Float
-                binding.modeToggleThumb.translationX = thumbStart + (thumbEnd - thumbStart) * t
-                binding.modeToggleFill.alpha = startAlpha + (targetAlpha - startAlpha) * t
+                binding.modeToggleThumb.translationX = currentX + (targetX - currentX) * t
                 if (!labelSwapped && t > 0.4f) {
                     labelSwapped = true
-                    binding.modeToggleLabel.text = if (cloudStream) "CLOUDSTREAM" else "Aniyomi"
+                    binding.modeToggleLabel.text = if (cloudStream) "CloudStream" else "Aniyomi"
                 }
             }
             addListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: Animator) {
                     modeToggleAnimating = false
-                    binding.modeToggleFill.alpha = targetAlpha
-                    binding.modeToggleLabel.text = if (cloudStream) "CLOUDSTREAM" else "Aniyomi"
+                    binding.modeToggleThumb.translationX = targetX
+                    binding.modeToggleLabel.text = if (cloudStream) "CloudStream" else "Aniyomi"
                 }
             })
             start()

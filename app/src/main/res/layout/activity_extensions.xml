@@ -19,7 +19,7 @@
 
         <FrameLayout
             android:id="@+id/modeToggle"
-            android:layout_width="200dp"
+            android:layout_width="160dp"
             android:layout_height="36dp"
             android:layout_gravity="center"
             android:background="@drawable/bg_mode_toggle_track"
@@ -29,7 +29,7 @@
 
             <View
                 android:id="@+id/modeToggleFill"
-                android:layout_width="200dp"
+                android:layout_width="160dp"
                 android:layout_height="36dp" />
 
             <TextView
@@ -45,7 +45,8 @@
             <View
                 android:id="@+id/modeToggleThumb"
                 android:layout_width="30dp"
-                android:layout_height="30dp" />
+                android:layout_height="30dp"
+                android:layout_gravity="center_vertical" />
         </FrameLayout>
     </FrameLayout>
 
