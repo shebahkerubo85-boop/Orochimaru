@@ -8,6 +8,7 @@ import android.text.SpannableStringBuilder
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
 import android.view.View
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import ani.sanin.R
 import ani.sanin.databinding.ItemNotificationEpisodeBinding
@@ -236,11 +237,22 @@ class EpisodeNotificationItem(
 
     /** Clock/calendar meta icons render smaller than their 24dp intrinsic size. */
     private fun shrinkMetaIcons(viewBinding: ItemNotificationEpisodeBinding) {
-        val sizePx = (12 * viewBinding.root.resources.displayMetrics.density).toInt()
-        listOf(viewBinding.episodeMetaDuration, viewBinding.episodeMetaDate).forEach { tv ->
-            val drawable = tv.compoundDrawables.getOrNull(0) ?: return@forEach
+        val sizePx = (8 * viewBinding.root.resources.displayMetrics.density).toInt()
+        listOf(
+            viewBinding.episodeMetaDuration to R.drawable.ic_baseline_clock_24,
+            viewBinding.episodeMetaDate to R.drawable.ic_round_calendar_today_24
+        ).forEach { (tv, res) ->
+            // Reuse the already-tinted drawable when present; otherwise create one
+            // and fall back to the text colour so the icon is never invisible.
+            val prev = tv.compoundDrawables.getOrNull(0)
+            val drawable = prev
+                ?: ContextCompat.getDrawable(viewBinding.root.context, res)
+                ?: return@forEach
+            if (prev == null) {
+                drawable.tintList = android.content.res.ColorStateList.valueOf(tv.currentTextColor)
+            }
             drawable.setBounds(0, 0, sizePx, sizePx)
-            tv.setCompoundDrawables(drawable, null, null, null)
+            tv.setCompoundDrawablesRelative(drawable, null, null, null)
         }
     }
 

@@ -34,6 +34,47 @@ object CsRepos {
         json.decodeFromString<CsRepoManifest>(body)
     }
 
+    /**
+     * Resolves CloudStream short codes (a single bare token) through the same
+     * shorteners the real CloudStream app uses: cutt.ly, or py.md for "!" codes.
+     * Full URLs pass through unchanged; anything else returns null so callers
+     * keep their normalized URL.
+     */
+    suspend fun resolveRepoUrl(input: String): String? = withContext(Dispatchers.IO) {
+        val trimmed = input.trim()
+        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+            return@withContext trimmed
+        }
+        if (!trimmed.matches(Regex("^[a-zA-Z0-9!_-]+$"))) {
+            return@withContext null
+        }
+        val shortener = if (trimmed.startsWith("!")) {
+            "https://py.md/" + trimmed.removePrefix("!")
+        } else {
+            "https://cutt.ly/$trimmed"
+        }
+        runCatching {
+            val noRedirectClient = client.newBuilder()
+                .followRedirects(false)
+                .followSslRedirects(false)
+                .build()
+            noRedirectClient.newCall(Request.Builder().url(shortener).build()).execute().use { response ->
+                val location = response.header("Location") ?: return@runCatching null
+                if (location.startsWith("https://py.md/404") ||
+                    location.removeSuffix("/") == "https://py.md"
+                ) {
+                    return@runCatching null
+                }
+                if (location.startsWith("https://cutt.ly/404") ||
+                    location.removeSuffix("/") == "https://cutt.ly"
+                ) {
+                    return@runCatching null
+                }
+                location
+            }
+        }.getOrNull()
+    }
+
     suspend fun fetchPlugins(pluginListUrl: String): List<CsSource> = withContext(Dispatchers.IO) {
         runCatching {
             val request = Request.Builder().url(pluginListUrl).build()

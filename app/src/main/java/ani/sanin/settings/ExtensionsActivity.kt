@@ -3,8 +3,6 @@ package ani.sanin.settings
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
-import android.content.res.ColorStateList
-import android.graphics.Color
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
@@ -83,13 +81,17 @@ class ExtensionsActivity : AppCompatActivity() {
         initActivity(this)
         AndroidBug5497Workaround.assistActivity(this) { }
 
-        // Segmented mode toggle: Aniyomi (checked) <-> CloudStream.
-        binding.modeToggleGroup.check(R.id.modeButtonAniyomi)
-        FocusEffectUtil.applyFocusListener(binding.modeButtonAniyomi, binding.modeButtonCloudstream)
-        binding.modeToggleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
-            if (isChecked) switchMode(checkedId == R.id.modeButtonCloudstream)
-        }
-        styleModeButtons()
+        // Mode switch: real toggle like the watch tab dub/sub, enlarged with labels.
+        binding.modeSwitch.isChecked = cloudStreamMode
+        FocusEffectUtil.applyFocusListener(
+            binding.modeSwitch,
+            binding.modeLabelAniyomi,
+            binding.modeLabelCloudstream
+        )
+        binding.modeSwitch.setOnCheckedChangeListener { _, checked -> switchMode(checked) }
+        binding.modeLabelAniyomi.setOnClickListener { binding.modeSwitch.isChecked = false }
+        binding.modeLabelCloudstream.setOnClickListener { binding.modeSwitch.isChecked = true }
+        styleModeLabels()
 
         val tabLayout = findViewById<TabLayout>(R.id.tabLayout)
         val viewPager = findViewById<ViewPager2>(R.id.viewPager)
@@ -230,20 +232,12 @@ class ExtensionsActivity : AppCompatActivity() {
         anim.start()
     }
 
-    /** Segmented toggle: selected side = primary fill + white text, other neutral. */
-    private fun styleModeButtons() {
+    /** Real-toggle mode switch: active side label glows primary, other stays neutral. */
+    private fun styleModeLabels() {
         val primary = getThemeColor(com.google.android.material.R.attr.colorPrimary)
         val onSurface = getThemeColor(com.google.android.material.R.attr.colorOnSurface)
-        val outline = getThemeColor(com.google.android.material.R.attr.colorOutline)
-        val density = resources.displayMetrics.density
-        fun style(btn: com.google.android.material.button.MaterialButton, active: Boolean) {
-            btn.backgroundTintList = ColorStateList.valueOf(if (active) primary else Color.TRANSPARENT)
-            btn.setTextColor(if (active) Color.WHITE else onSurface)
-            btn.strokeColor = ColorStateList.valueOf(if (active) primary else outline)
-            btn.strokeWidth = if (active) 0 else (1 * density).toInt()
-        }
-        style(binding.modeButtonAniyomi, !cloudStreamMode)
-        style(binding.modeButtonCloudstream, cloudStreamMode)
+        binding.modeLabelAniyomi.setTextColor(if (cloudStreamMode) onSurface else primary)
+        binding.modeLabelCloudstream.setTextColor(if (cloudStreamMode) primary else onSurface)
     }
 
     /** Focus the first Browse button in the current ViewPager page. */
@@ -268,10 +262,11 @@ class ExtensionsActivity : AppCompatActivity() {
     private fun switchMode(cloudStream: Boolean) {
         if (cloudStreamMode == cloudStream) return
         cloudStreamMode = cloudStream
+        binding.modeSwitch.isChecked = cloudStream
         collapseSearchBar()
         binding.searchViewText.setText("")
         binding.searchViewText.clearFocus()
-        styleModeButtons()
+        styleModeLabels()
         setupTabs()
         setupModeButtons()
     }

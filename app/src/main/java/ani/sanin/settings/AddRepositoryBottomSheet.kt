@@ -156,14 +156,15 @@ class AddRepositoryBottomSheet : DialogFragment() {
         context?.let { context ->
             if (cloudStream) {
                 CoroutineScope(Dispatchers.IO).launch {
-                    val manifest = runCatching { CsRepos.fetchManifest(finalUrl) }.getOrNull()
+                    val resolved = CsRepos.resolveRepoUrl(finalUrl) ?: finalUrl
+                    val manifest = runCatching { CsRepos.fetchManifest(resolved) }.getOrNull()
                     withContext(Dispatchers.Main) {
                         if (_binding == null || !isAdded) return@withContext
                         if (manifest == null) {
                             binding.repositoryInput.error = "No CloudStream repo found at this URL"
                         } else {
                             addRepoWarning(context) {
-                                onRepositoryAdded?.invoke(finalUrl, mediaType)
+                                onRepositoryAdded?.invoke(resolved, mediaType)
                                 dismiss()
                             }
                         }
@@ -187,6 +188,10 @@ class AddRepositoryBottomSheet : DialogFragment() {
             return null
         }
         if (cloudStream && cleaned.isNotBlank() && cleaned.substringBefore("/").contains(".")) {
+            return null
+        }
+        // CloudStream short codes (single token) resolve through cutt.ly / py.md.
+        if (cloudStream && cleaned.matches(Regex("^[a-zA-Z0-9!_-]+$"))) {
             return null
         }
 
@@ -284,6 +289,11 @@ class AddRepositoryBottomSheet : DialogFragment() {
             }
             if (cloudStream && cleaned.substringBefore("/").contains(".")) {
                 return "https://$cleaned"
+            }
+            if (cloudStream && cleaned.matches(Regex("^[a-zA-Z0-9!_-]+$"))) {
+                val trimmed = input.trim()
+                val hadOfficialPrefix = stripCloudStreamPrefix(trimmed) != trimmed
+                return if (hadOfficialPrefix) "https://$cleaned" else cleaned
             }
             val parts = cleaned.split("/")
             if (parts.size !in 2..3) return cleaned
