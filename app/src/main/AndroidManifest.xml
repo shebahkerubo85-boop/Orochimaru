@@ -515,6 +515,13 @@
         <activity
             android:name=".youtube.YouTubeShortsActivity"
             android:theme="@style/Theme.AppCompat" />
+
+        <activity
+            android:name=".others.webview.WebEmbedPlayerActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:theme="@style/Theme.AppCompat" />
     </application>
 
 </manifest>
