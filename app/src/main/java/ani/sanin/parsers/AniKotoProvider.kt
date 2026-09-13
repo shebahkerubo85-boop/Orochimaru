@@ -226,6 +226,7 @@ class AniKotoProvider : NativeAnimeParser() {
                             val resolvedJson = get("$baseUrl/ajax/server?get=${encode(lid)}", headers)
                             val obj = parseJsonObj(resolvedJson)?.get("result") as? JsonObject ?: return@async null
                             val embedUrl = (obj["url"] as? JsonPrimitive)?.contentOrNull ?: return@async null
+                            val embedOrigin = runCatching { java.net.URI(embedUrl).let { "${it.scheme}://${it.authority}" } }.getOrDefault("$baseUrl/")
                             val extraData = mutableMapOf("referer" to "$baseUrl/")
                             val intro = (obj["skip_data"] as? JsonObject)?.get("intro") as? JsonArray
                             val outro = (obj["skip_data"] as? JsonObject)?.get("outro") as? JsonArray
@@ -238,9 +239,11 @@ class AniKotoProvider : NativeAnimeParser() {
                             } else null
 
                             if (directUrl != null) {
-                                extraData["referer"] = runCatching { java.net.URI(embedUrl).let { "${it.scheme}://${it.authority}" } }.getOrDefault("$baseUrl/")
+                                extraData["referer"] = embedOrigin
                                 VideoServer(name, directUrl, extraData)
                             } else {
+                                extraData["referer"] = "$embedOrigin/"
+                                extraData["origin"] = embedOrigin
                                 val res = MegaPlayExtractor.extract(embedUrl, "$baseUrl/")
                                 val resolvedUrl = res.urls.firstOrNull()
                                 if (resolvedUrl == null) {

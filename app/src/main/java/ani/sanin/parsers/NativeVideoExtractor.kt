@@ -1,8 +1,10 @@
 package ani.sanin.parsers
 
+import android.util.Log
 import ani.sanin.FileUrl
 import ani.sanin.Mapper
 import ani.sanin.okHttpClient
+import ani.sanin.util.Logger
 import eu.kanade.tachiyomi.animesource.model.ChapterType
 import eu.kanade.tachiyomi.animesource.model.TimeStamp
 import kotlinx.coroutines.Dispatchers
@@ -19,7 +21,11 @@ class NativeVideoExtractor(override val server: VideoServer) : VideoExtractor() 
         val extraData = server.extraData
         if (extraData != null && headers.isEmpty()) {
             val ref = extraData["referer"]
-            if (!ref.isNullOrBlank()) headers = mapOf("Referer" to ref)
+            if (!ref.isNullOrBlank()) {
+                val built = mutableMapOf("Referer" to ref)
+                extraData["origin"]?.takeIf { it.isNotBlank() }?.let { built["Origin"] = it }
+                headers = built
+            }
         }
 
         val format = when {
@@ -88,7 +94,14 @@ class NativeVideoExtractor(override val server: VideoServer) : VideoExtractor() 
                     .apply { headers.forEach { (k, v) -> header(k, v) } }
                     .get().build()
                 val body = okHttpClient.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) return@withContext emptyList()
+                    if (!response.isSuccessful) {
+                        val snippet = response.body?.string().orEmpty().take(300)
+                        Logger.log(
+                            Log.WARN,
+                            "HLS master ${response.code} for $masterUrl headers=$headers body=$snippet"
+                        )
+                        return@withContext emptyList()
+                    }
                     response.body?.string().orEmpty()
                 }
 

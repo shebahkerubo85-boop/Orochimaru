@@ -234,7 +234,7 @@ class ReanimeProvider : NativeAnimeParser() {
                                 return@async null
                             }
                             val name = (server["serverName"] as? JsonPrimitive)?.contentOrNull ?: "Reanime"
-                            val extraData = mutableMapOf("referer" to "$baseUrl/")
+                            val extraData = mutableMapOf("referer" to "$FLIX/", "origin" to FLIX)
                             val subs = res.subtitles
                             if (subs.isNotEmpty()) {
                                 val subJson = subs.joinToString(",") {

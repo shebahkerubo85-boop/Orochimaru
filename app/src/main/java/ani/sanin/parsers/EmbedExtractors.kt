@@ -528,7 +528,7 @@ object FlixcloudExtractor {
         EmbedResult(
             urls = listOf(url),
             subtitles = subs,
-            headers = mapOf("Referer" to "https://reanime.to/", "User-Agent" to UA)
+            headers = mapOf("Referer" to "$FLIX/", "Origin" to FLIX, "User-Agent" to UA)
         )
     }
 
