@@ -126,19 +126,30 @@ class AniWavesProvider : NativeAnimeParser() {
         return withContext(Dispatchers.IO) {
             try {
                 val referer = "$baseUrl/watch/$slug/ep-$epNum"
-                val serverJson = get("$baseUrl/ajax/server/list?servers=${encode(siteId)}&eps=$epNum", referer, "application/json,*/*")
+                val headers = mapOf(
+                    "Referer" to referer,
+                    "X-Requested-With" to "XMLHttpRequest",
+                    "Accept" to "application/json, text/javascript, */*; q=0.01"
+                )
+                val serverJson = get("$baseUrl/ajax/server/list?servers=${encode(siteId)}&eps=$epNum", headers)
                 val serverResult = (parseJson(serverJson)?.get("result") as? JsonPrimitive)?.contentOrNull.orEmpty()
                 val servers = parseServerGroups(serverResult)
+                Logger.log("AniWaves: ${servers.size} servers for ep $epNum")
                 if (servers.isEmpty()) return@withContext emptyList()
 
                 val results = servers.map { server ->
                     async {
                         try {
-                            val sourceJson = get("$baseUrl/ajax/sources?id=${encode(server.linkId)}&asi=0&autoPlay=0", referer, "application/json,*/*")
+                            val sourceJson = get("$baseUrl/ajax/sources?id=${encode(server.linkId)}&asi=0&autoPlay=0", headers)
                             val sourceObj = parseJson(sourceJson)?.get("result") as? JsonObject
                             val embedUrl = (sourceObj?.get("url") as? JsonPrimitive)?.contentOrNull ?: return@async null
                             val skipData = sourceObj?.get("skip_data") as? JsonObject
                             val res = EmbedRouter.resolve(embedUrl, "$baseUrl/")
+                            val resolvedUrl = res.urls.firstOrNull()
+                            if (resolvedUrl == null) {
+                                Logger.log("AniWaves: no playable url for ${server.serverName} embed=$embedUrl")
+                                return@async null
+                            }
                             val extraData = mutableMapOf("referer" to "$baseUrl/")
                             val subs = res.subtitles
                             if (subs.isNotEmpty()) {
@@ -162,7 +173,7 @@ class AniWavesProvider : NativeAnimeParser() {
                             }
                             VideoServer(
                                 name = server.serverName.ifEmpty { server.audio },
-                                embed = FileUrl(res.urls.firstOrNull() ?: embedUrl),
+                                embed = FileUrl(resolvedUrl),
                                 extraData = extraData
                             )
                         } catch (e: Exception) {

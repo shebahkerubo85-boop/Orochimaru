@@ -143,8 +143,25 @@ class AniKotoProvider : NativeAnimeParser() {
         if (animeLink.isBlank()) return emptyList()
         return withContext(Dispatchers.IO) {
             try {
-                val showId = animeLink
-                val json = get("$baseUrl/ajax/episode/list/$showId", "$baseUrl/", "application/json,*/*")
+                val slug = extra?.get("slug") ?: animeLink
+                // animeLink is normally the numeric show ID (from autoSearch), but a manual
+                // search hands us the slug — resolve the ID from the watch page in that case.
+                val showId = if (animeLink.matches(Regex("\\d+"))) animeLink else {
+                    val watchHtml = get("$baseUrl/watch/$animeLink", "$baseUrl/", "text/html,*/*")
+                    Regex("""data-id="(\d+)"""", RegexOption.IGNORE_CASE).find(watchHtml)?.groupValues?.get(1)
+                        ?: run {
+                            Logger.log("AniKoto: cannot resolve showId for $animeLink")
+                            return@withContext emptyList()
+                        }
+                }
+                val watchRef = "$baseUrl/watch/$slug"
+                val headers = mapOf(
+                    "Referer" to watchRef,
+                    "X-Requested-With" to "XMLHttpRequest",
+                    "Accept" to "application/json, text/javascript, */*; q=0.01"
+                )
+                val json = get("$baseUrl/ajax/episode/list/$showId", headers)
+                Logger.log("AniKoto: episodes list status=${parseJsonObj(json)?.get("status")}")
                 val list = (parseJsonObj(json)?.get("result") as? JsonPrimitive)?.contentOrNull.orEmpty()
                 val re = Regex("""<a\s[^>]*data-id="([^"]*)"[^>]*>""")
                 val episodes = mutableListOf<Episode>()
@@ -177,11 +194,19 @@ class AniKotoProvider : NativeAnimeParser() {
     override suspend fun loadVideoServers(episodeLink: String, extra: Map<String, String>?, sEpisode: SEpisode): List<VideoServer> {
         val ids = extra?.get("ids") ?: return emptyList()
         val audio = if (selectDub) "dub" else "sub"
+        val slug = extra?.get("slug")
+        val watchRef = "$baseUrl/watch/${slug ?: ""}"
         return withContext(Dispatchers.IO) {
             try {
-                val serverJson = get("$baseUrl/ajax/server/list?servers=${encode(ids)}", "$baseUrl/", "application/json,*/*")
+                val headers = mapOf(
+                    "Referer" to watchRef,
+                    "X-Requested-With" to "XMLHttpRequest",
+                    "Accept" to "application/json, text/javascript, */*; q=0.01"
+                )
+                val serverJson = get("$baseUrl/ajax/server/list?servers=${encode(ids)}", headers)
                 val serverHtml = (parseJsonObj(serverJson)?.get("result") as? JsonPrimitive)?.contentOrNull.orEmpty()
                 val serverItems = mutableListOf<Pair<String, String>>() // linkId, name
+                Logger.log("AniKoto: server list status=${parseJsonObj(serverJson)?.get("status")}")
                 val typeRe = Regex("""<div class="type" data-type="([^"]+)">([\s\S]*?)</ul>\s*</div>""")
                 for (tm in typeRe.findAll(serverHtml)) {
                     val typeName = tm.groupValues[1]
@@ -198,7 +223,7 @@ class AniKotoProvider : NativeAnimeParser() {
                 val results = serverItems.map { (lid, name) ->
                     async {
                         try {
-                            val resolvedJson = get("$baseUrl/ajax/server?get=${encode(lid)}", "$baseUrl/", "application/json,*/*")
+                            val resolvedJson = get("$baseUrl/ajax/server?get=${encode(lid)}", headers)
                             val obj = parseJsonObj(resolvedJson)?.get("result") as? JsonObject ?: return@async null
                             val embedUrl = (obj["url"] as? JsonPrimitive)?.contentOrNull ?: return@async null
                             val extraData = mutableMapOf("referer" to "$baseUrl/")
@@ -217,6 +242,11 @@ class AniKotoProvider : NativeAnimeParser() {
                                 VideoServer(name, directUrl, extraData)
                             } else {
                                 val res = MegaPlayExtractor.extract(embedUrl, "$baseUrl/")
+                                val resolvedUrl = res.urls.firstOrNull()
+                                if (resolvedUrl == null) {
+                                    Logger.log("AniKoto: no playable url for $name embed=$embedUrl")
+                                    return@async null
+                                }
                                 val subs = res.subtitles
                                 if (subs.isNotEmpty()) {
                                     val subJson = subs.joinToString(",") {
@@ -236,7 +266,7 @@ class AniKotoProvider : NativeAnimeParser() {
                                 }
                                 res.intro?.let { (s, e) -> extraData["intro"] = """{"start":$s,"end":$e}""" }
                                 res.outro?.let { (s, e) -> extraData["outro"] = """{"start":$s,"end":$e}""" }
-                                VideoServer(name, res.urls.firstOrNull() ?: embedUrl, extraData)
+                                VideoServer(name, resolvedUrl, extraData)
                             }
                         } catch (e: Exception) {
                             Logger.log("AniKoto server resolve failed: ${e.message}")

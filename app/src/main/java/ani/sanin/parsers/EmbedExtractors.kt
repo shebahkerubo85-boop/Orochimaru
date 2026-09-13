@@ -51,7 +51,7 @@ object EmbedRouter {
     suspend fun resolve(url: String, referer: String? = null): EmbedResult =
         withContext(Dispatchers.IO) {
             try {
-                when {
+                val result = when {
                     FlixcloudExtractor.matches(url)  -> FlixcloudExtractor.extract(url, referer)
                     MegaPlayExtractor.matches(url)    -> MegaPlayExtractor.extract(url, referer)
                     VidplayExtractor.matches(url)     -> VidplayExtractor.extract(url, referer)
@@ -61,14 +61,23 @@ object EmbedRouter {
                     BabaStreamExtractor.matches(url)  -> BabaStreamExtractor.extract(url, referer)
                     DataSvExtractor.matches(url)      -> DataSvExtractor.extract(url, referer)
                     AnimeSaltExtractor.matches(url)   -> AnimeSaltExtractor.extract(url, referer)
-                    else -> EmbedResult(urls = listOf(url))
+                    else -> {
+                        // No extractor for this host — a raw embed page is NOT a playable
+                        // video. Returning it makes the player fail on HTML.
+                        Logger.log("EmbedRouter: no extractor for $url")
+                        EmbedResult(urls = emptyList())
+                    }
                 }
+                Logger.log("EmbedRouter: ${result.urls.size} url(s) for $url")
+                result
             } catch (e: Exception) {
                 Logger.log("EmbedRouter failed $url : ${e.message}")
-                EmbedResult(urls = listOf(url))
+                emptyEmbedResult()
             }
         }
 }
+
+private fun emptyEmbedResult(): EmbedResult = EmbedResult(urls = emptyList())
 
 /* ================================================================
    Shared helpers
@@ -464,8 +473,10 @@ object FlixcloudExtractor {
             ?: throw IllegalStateException("container missing")
         val array = asList(jsGet(container, fields.arrayName))
             ?: throw IllegalStateException("array missing")
-        val obj = array.firstOrNull()?.let { asMap(it) }
+        val arr0 = array.firstOrNull()?.let { asMap(it) }
             ?: throw IllegalStateException("arr0 missing")
+        val obj = asMap(jsGet(arr0, fields.objectName))
+            ?: throw IllegalStateException("object missing")
         val fragment = asString(jsGet(obj, fields.keyField))?.let(::b64d)
             ?: throw IllegalStateException("keyField missing")
         val iv = asString(jsGet(obj, fields.ivField))?.let(::b64d)

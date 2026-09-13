@@ -22,10 +22,16 @@ class NativeVideoExtractor(override val server: VideoServer) : VideoExtractor() 
             if (!ref.isNullOrBlank()) headers = mapOf("Referer" to ref)
         }
 
+        val format = when {
+            url.contains(".m3u8", ignoreCase = true) -> VideoType.M3U8
+            url.contains(".mpd", ignoreCase = true) -> VideoType.DASH
+            else -> VideoType.CONTAINER
+        }
+
         val videos = mutableListOf(
             Video(
                 quality = null,
-                format = VideoType.M3U8,
+                format = format,
                 file = FileUrl(url, headers),
                 size = null
             )

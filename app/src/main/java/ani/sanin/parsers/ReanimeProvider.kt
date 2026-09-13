@@ -204,11 +204,11 @@ class ReanimeProvider : NativeAnimeParser() {
                     val id = (o["\$id"] as? JsonPrimitive)?.contentOrNull ?: (o["dataLink"] as? JsonPrimitive)?.contentOrNull ?: return@forEach
                     links[id] = o
                 }
-                (runCatching { Mapper.json.parseToJsonElement(flixJson ?: "") as? JsonObject }.getOrNull()
-                    ?.get("servers") as? JsonArray)?.forEach { el ->
+                val flixObj = runCatching { Mapper.json.parseToJsonElement(flixJson ?: "") as? JsonObject }.getOrNull()
+                (flixObj?.get("servers") as? JsonArray)?.forEach { el ->
                     val o = el as? JsonObject ?: return@forEach
-                    val id = (o["\$id"] as? JsonPrimitive)?.contentOrNull
-                    if (id != null && !links.containsKey(id)) links[id] = o
+                    val id = (o["\$id"] as? JsonPrimitive)?.contentOrNull ?: (o["dataLink"] as? JsonPrimitive)?.contentOrNull ?: return@forEach
+                    if (!links.containsKey(id)) links[id] = o
                 }
 
                 val audioTypes = if (audio == "dub") setOf("dub", "s-dub") else setOf("sub", "s-sub")
@@ -219,11 +219,20 @@ class ReanimeProvider : NativeAnimeParser() {
                     } }
                     .distinctBy { (it["dataLink"] as? JsonPrimitive)?.contentOrNull }
 
+                Logger.log(
+                    "Reanime: ep $epNum ($audio) links=${links.size} servers=${servers.size} " +
+                        "flixOk=${flixObj?.get("success")}"
+                )
                 val results = servers.map { server ->
                     async {
                         val embedUrl = (server["dataLink"] as? JsonPrimitive)?.contentOrNull ?: return@async null
                         try {
                             val res = FlixcloudExtractor.extract(embedUrl, "$baseUrl/")
+                            val resolvedUrl = res.urls.firstOrNull()
+                            if (resolvedUrl == null) {
+                                Logger.log("Reanime: no playable url from flixcloud $embedUrl")
+                                return@async null
+                            }
                             val name = (server["serverName"] as? JsonPrimitive)?.contentOrNull ?: "Reanime"
                             val extraData = mutableMapOf("referer" to "$baseUrl/")
                             val subs = res.subtitles
@@ -235,7 +244,7 @@ class ReanimeProvider : NativeAnimeParser() {
                             }
                             res.intro?.let { (s, e) -> extraData["intro"] = """{"start":$s,"end":$e}""" }
                             res.outro?.let { (s, e) -> extraData["outro"] = """{"start":$s,"end":$e}""" }
-                            VideoServer(name, res.urls.firstOrNull() ?: embedUrl, extraData)
+                            VideoServer(name, resolvedUrl, extraData)
                         } catch (e: Exception) {
                             Logger.log("Reanime embed resolve failed: ${e.message}")
                             null
