@@ -234,25 +234,29 @@ class EpisodeNotificationItem(
     }
 
     private fun bindMetaColors(onRight: Int) {
-        binding.episodeMetaText.setTextColor(onRight)
-        binding.episodeMetaText.setCompoundDrawableTintList(
-            android.content.res.ColorStateList.valueOf(onRight)
-        )
+        val tint = android.content.res.ColorStateList.valueOf(onRight)
+        binding.episodeMetaDuration.setTextColor(onRight)
+        binding.episodeMetaDuration.setCompoundDrawableTintList(tint)
+        binding.episodeMetaDate.setTextColor(onRight)
+        binding.episodeMetaDate.setCompoundDrawableTintList(tint)
     }
 
-    /** duration (minutes), ISO date, and local release time — one ellipsizing line. */
+    /**
+     * Duration gets its own line with the clock icon; date + local release
+     * time share a line with the calendar icon.
+     */
     private fun applyMeta(viewBinding: ItemNotificationEpisodeBinding, durationMinutes: Int?, airDate: String?, airTimeMillis: Long) {
         val date = airDate ?: if (airTimeMillis > 0)
             SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(airTimeMillis)) else null
         val time = if (airTimeMillis > 0)
             SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(airTimeMillis)) else null
 
-        val parts = mutableListOf<String>()
-        if (durationMinutes != null) parts += "${durationMinutes}m"
-        if (date != null) parts += date
-        if (time != null) parts += time
-        viewBinding.episodeMetaText.text = parts.joinToString("  ·  ")
-        viewBinding.episodeMetaText.isVisible = parts.isNotEmpty()
+        viewBinding.episodeMetaDuration.text = durationMinutes?.let { "${it}m" }
+        viewBinding.episodeMetaDuration.isVisible = durationMinutes != null
+
+        val dateParts = listOfNotNull(date, time)
+        viewBinding.episodeMetaDate.text = dateParts.joinToString("  ")
+        viewBinding.episodeMetaDate.isVisible = dateParts.isNotEmpty()
     }
 
     private fun isDarkMode(): Boolean =

@@ -2,6 +2,7 @@ package ani.sanin.settings
 
 import android.os.Bundle
 import android.view.KeyEvent
+import android.view.View
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.ViewGroup
@@ -116,6 +117,9 @@ class ExtensionsActivity : AppCompatActivity() {
         tabLayout.addOnTabSelectedListener(
             object : TabLayout.OnTabSelectedListener {
                 override fun onTabSelected(tab: TabLayout.Tab) {
+                    // Repo-card tabs (Available) have no search bar — search
+                    // only applies to the Installed extension lists.
+                    updateSearchBarVisibility(tab.position)
                     binding.searchViewText.setText("")
                     binding.searchViewText.clearFocus()
                     focusFirstBrowseButton(viewPager)
@@ -162,6 +166,11 @@ class ExtensionsActivity : AppCompatActivity() {
         }
 
         setupModeButtons()
+    }
+
+    /** Search only exists on Installed tabs (position 0). */
+    private fun updateSearchBarVisibility(tabPosition: Int) {
+        binding.searchView.visibility = if (tabPosition == 1) View.GONE else View.VISIBLE
     }
 
     /** Focus the first Browse button in the current ViewPager page. */

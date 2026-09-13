@@ -103,10 +103,10 @@
                     app:boxCornerRadiusBottomStart="24dp"
                     app:boxCornerRadiusTopEnd="24dp"
                     app:boxCornerRadiusTopStart="24dp"
-                    app:boxStrokeColor="?attr/colorPrimary"
+                    app:boxStrokeColor="@color/library_search_stroke"
                     app:cursorColor="?attr/colorPrimary"
                     app:endIconDrawable="@drawable/ic_round_search_24"
-                    app:endIconTint="?attr/colorPrimary"
+                    app:endIconTint="?attr/colorOnSurface"
                     app:hintAnimationEnabled="true"
                     app:hintTextColor="?attr/colorPrimary">
 
@@ -121,7 +121,7 @@
                         android:selectAllOnFocus="true"
                         android:textColor="?attr/colorOnBackground"
                         android:textColorHighlight="?attr/colorPrimary"
-                        android:textColorHint="?attr/colorPrimary"
+                        android:textColorHint="?attr/colorOnSurface"
                         android:padding="8dp"
                         android:textSize="14sp"
                         tools:ignore="LabelFor,TextContrastCheck" />

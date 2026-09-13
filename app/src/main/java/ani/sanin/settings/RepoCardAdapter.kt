@@ -94,6 +94,30 @@ class RepoCardAdapter(
             holder.binding.repoContentTypes.addView(chip)
         }
 
+        // Language chips
+        holder.binding.repoLanguages.removeAllViews()
+        item.languages.forEach { lang ->
+            val chip = com.google.android.material.chip.Chip(ctx).apply {
+                text = lang
+                isClickable = false
+                isFocusable = false
+                textSize = 11f
+                setTextColor(chipTextColor)
+                chipBackgroundColor = android.content.res.ColorStateList.valueOf(
+                    if (isDark) Color.parseColor("#30FFFFFF") else Color.parseColor("#1A000000")
+                )
+                chipCornerRadius = 10f * ctx.resources.displayMetrics.density
+                chipMinHeight = 24f * ctx.resources.displayMetrics.density
+                setPadding(
+                    (8 * ctx.resources.displayMetrics.density).toInt(),
+                    0,
+                    (8 * ctx.resources.displayMetrics.density).toInt(),
+                    0
+                )
+            }
+            holder.binding.repoLanguages.addView(chip)
+        }
+
         // Fallback gradient: theme primary
         val primaryColor = ctx.getThemeColor(com.google.android.material.R.attr.colorPrimary)
         val defaultTop = if (isDark) Color.BLACK else Color.WHITE

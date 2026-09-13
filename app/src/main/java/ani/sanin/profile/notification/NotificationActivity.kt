@@ -132,7 +132,10 @@ class NotificationActivity : AppCompatActivity() {
         if (isMovieMode) {
             binding.notificationTabLayout.tabGravity = TabLayout.GRAVITY_CENTER
         }
-        binding.notificationTabLayout.getTabAt(0)?.select()
+        // Anime mode starts on the Media tab; movie mode has a single tab.
+        val startTab = if (isMovieMode) 0
+        else visibleTabTypes.indexOf(TabType.MEDIA).coerceAtLeast(0)
+        binding.notificationTabLayout.getTabAt(startTab)?.select()
     }
 
 
@@ -141,6 +144,7 @@ class NotificationActivity : AppCompatActivity() {
         return LottieAnimationView(this).apply {
             layoutParams = FrameLayout.LayoutParams(s, s).apply { this.gravity = grav }
             setAnimation(R.raw.tomoe)
+            setColorFilter(getThemeColor(android.R.attr.colorPrimary))
             this.speed = speed
             repeatCount = Int.MAX_VALUE
             playAnimation()

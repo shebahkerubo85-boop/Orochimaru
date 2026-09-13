@@ -22,7 +22,7 @@ object EpisodeCardGradient {
         val base = if (isDark) Color.BLACK else Color.WHITE
         val colors = intArrayOf(
             ColorUtils.setAlphaComponent(base, 0),
-            ColorUtils.setAlphaComponent(base, 110),
+            ColorUtils.setAlphaComponent(base, 150),
             base
         )
         val drawable = GradientDrawable(
@@ -30,7 +30,7 @@ object EpisodeCardGradient {
             colors
         )
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-            drawable.setColors(colors, floatArrayOf(0f, 0.55f, 1f))
+            drawable.setColors(colors, floatArrayOf(0f, 0.42f, 1f))
         }
         return drawable
     }

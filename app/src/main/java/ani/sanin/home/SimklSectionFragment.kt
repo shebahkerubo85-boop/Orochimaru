@@ -51,14 +51,17 @@ class SimklSectionFragment : Fragment() {
     ): View {
         return RecyclerView(requireContext()).apply {
             val dm = resources.displayMetrics
-            val screenWidthPx = dm.widthPixels
-            val density = dm.density
+            val screenWidthDp = dm.widthPixels / dm.density
             val landscape = TmdbCards.isLandscapeOrientation()
             val size = TmdbCards.cardSize()
-            val cardWidthPx = ((if (landscape) 260f else 102f) * size * density).toInt()
-            val marginEndPx = (12 * density).toInt()
-            val paddingPx = (32 * density).toInt()
-            val cols = ((screenWidthPx - paddingPx) / (cardWidthPx + marginEndPx)).toInt().coerceAtLeast(2)
+            // Match the anime library grid (ListFragment): ~120dp per column
+            // in portrait so both modes show the same number of cards per row.
+            val cols = if (landscape) {
+                val cardWidthDp = 260f * size + 12f
+                (screenWidthDp / cardWidthDp).toInt().coerceAtLeast(3)
+            } else {
+                (screenWidthDp / 120f).toInt().coerceAtLeast(2)
+            }
             layoutManager = GridLayoutManager(requireContext(), cols)
             overScrollMode = View.OVER_SCROLL_NEVER
             clipToPadding = false

@@ -1,14 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/calendarRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorSurface"
-    android:descendantFocusability="afterDescendants"
-    android:fillViewport="true"
-    tools:context=".media.CalendarActivity">
+    android:background="?attr/colorSurface">
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/calendarRoot"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:descendantFocusability="afterDescendants"
+        android:fillViewport="true"
+        tools:context=".media.CalendarActivity">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -154,20 +158,6 @@
             android:visibility="gone"
             tools:text="Monday, September 1" />
 
-        <!-- Loading spinner -->
-        <com.google.android.material.progressindicator.CircularProgressIndicator
-            android:id="@+id/calendarSpinner"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginTop="48dp"
-            android:indeterminate="true"
-            android:indeterminateTint="?attr/colorPrimary"
-            app:indicatorSize="36dp"
-            app:trackThickness="3dp"
-            app:trackCornerRadius="2dp"
-            android:visibility="gone" />
-
         <!-- Empty state -->
         <LinearLayout
             android:id="@+id/calendarEmpty"
@@ -207,4 +197,52 @@
             app:justifyContent="flex_start" />
 
     </LinearLayout>
-</androidx.core.widget.NestedScrollView>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- Loading spinner overlay: centred over the screen while cards load -->
+    <FrameLayout
+        android:id="@+id/calendarSpinner"
+        android:layout_width="76.5dp"
+        android:layout_height="76.5dp"
+        android:layout_gravity="center"
+        android:visibility="gone">
+
+        <com.airbnb.lottie.LottieAnimationView
+            android:layout_width="45dp"
+            android:layout_height="45dp"
+            android:layout_gravity="center_horizontal|top"
+            android:layout_marginTop="4dp"
+            app:lottie_rawRes="@raw/tomoe"
+            app:lottie_autoPlay="true"
+            app:lottie_loop="true"
+            app:lottie_colorFilter="?attr/colorPrimary"
+            app:lottie_speed="1.75"
+            android:rotation="75" />
+
+        <com.airbnb.lottie.LottieAnimationView
+            android:layout_width="45dp"
+            android:layout_height="45dp"
+            android:layout_gravity="bottom|start"
+            android:layout_marginStart="4dp"
+            android:layout_marginBottom="8dp"
+            app:lottie_rawRes="@raw/tomoe"
+            app:lottie_autoPlay="true"
+            app:lottie_loop="true"
+            app:lottie_colorFilter="?attr/colorPrimary"
+            app:lottie_speed="1.75"
+            android:rotation="-45" />
+
+        <com.airbnb.lottie.LottieAnimationView
+            android:layout_width="45dp"
+            android:layout_height="45dp"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="4dp"
+            android:layout_marginBottom="8dp"
+            app:lottie_rawRes="@raw/tomoe"
+            app:lottie_autoPlay="true"
+            app:lottie_loop="true"
+            app:lottie_colorFilter="?attr/colorPrimary"
+            app:lottie_speed="1.75"
+            android:rotation="195" />
+    </FrameLayout>
+</FrameLayout>
