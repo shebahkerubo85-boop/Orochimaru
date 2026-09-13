@@ -120,7 +120,7 @@ class LibraryFragment : Fragment() {
 
         // Focused stroke uses the resolved primary colour, not Material's
         // default control colour (which renders purple).
-        binding.searchBar.boxStrokeColor = ColorStateList(
+        binding.searchBar.boxStrokeColorStateList = ColorStateList(
             arrayOf(intArrayOf(android.R.attr.state_focused), intArrayOf()),
             intArrayOf(primaryTextColor, secondaryTextColor)
         )

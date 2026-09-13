@@ -107,8 +107,10 @@ class CloudStreamInstalledFragment : Fragment(), SearchQueryHandler {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        val backDisarm = OnBackPressedCallback(false) {
-            adapter.disarmDrag(persist = true)
+        val backDisarm = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                adapter.disarmDrag(persist = true)
+            }
         }
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backDisarm)
         adapter.onDragModeChanged = { armed -> backDisarm.isEnabled = armed }

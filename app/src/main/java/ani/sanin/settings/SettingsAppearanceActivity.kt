@@ -528,14 +528,16 @@ class SettingsAppearanceActivity : AppCompatActivity() {
         }
 
         // TV: BACK while armed dismisses drag mode instead of leaving the screen.
-        val dragDisarm = OnBackPressedCallback(false) {
-            dragRow = null
-            keyboardRow = null
-            hint.text = hintDefault
-            rows.forEach { it.elevation = 0f }
-            refreshArrows()
-            saveOrder()
-            dragDisarm.isEnabled = false
+        val dragDisarm = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                dragRow = null
+                keyboardRow = null
+                hint.text = hintDefault
+                rows.forEach { it.elevation = 0f }
+                refreshArrows()
+                saveOrder()
+                isEnabled = false
+            }
         }
         onBackPressedDispatcher.addCallback(this, dragDisarm)
 
