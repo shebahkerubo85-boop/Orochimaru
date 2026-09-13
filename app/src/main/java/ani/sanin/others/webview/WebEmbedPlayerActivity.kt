@@ -131,7 +131,7 @@ class WebEmbedPlayerActivity : AppCompatActivity() {
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (customView != null) {
-            webView.webChromeClient.onHideCustomView()
+            webView.webChromeClient?.onHideCustomView()
             return
         }
         if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
@@ -153,7 +153,7 @@ class WebEmbedPlayerActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         if (::webView.isInitialized) {
-            webView.webChromeClient.onHideCustomView()
+            webView.webChromeClient?.onHideCustomView()
             webView.stopLoading()
             webView.destroy()
         }
