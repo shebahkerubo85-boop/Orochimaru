@@ -249,7 +249,7 @@ class EpisodeNotificationItem(
                 ?: ContextCompat.getDrawable(viewBinding.root.context, res)
                 ?: return@forEach
             if (prev == null) {
-                drawable.tintList = android.content.res.ColorStateList.valueOf(tv.currentTextColor)
+                drawable.setTintList(android.content.res.ColorStateList.valueOf(tv.currentTextColor))
             }
             drawable.setBounds(0, 0, sizePx, sizePx)
             tv.setCompoundDrawablesRelative(drawable, null, null, null)
