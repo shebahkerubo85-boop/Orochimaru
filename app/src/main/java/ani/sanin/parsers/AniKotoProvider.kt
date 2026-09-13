@@ -207,13 +207,13 @@ class AniKotoProvider : NativeAnimeParser() {
                             val directUrl = if (embedUrl.contains("#aHR0c")) {
                                 runCatching {
                                     val b64 = embedUrl.substringAfter("#")
-                                    val decoded = String(b64d(b64), Charsets.UTF_8)
+                                    val decoded = String(android.util.Base64.decode(b64, android.util.Base64.DEFAULT), Charsets.UTF_8)
                                     if (decoded.contains(".m3u8")) decoded else null
                                 }.getOrNull()
                             } else null
 
                             if (directUrl != null) {
-                                extraData["referer"] = originOf(embedUrl)
+                                extraData["referer"] = runCatching { java.net.URI(embedUrl).let { "${it.scheme}://${it.authority}" } }.getOrDefault("$baseUrl/")
                                 VideoServer(name, directUrl, extraData)
                             } else {
                                 val res = MegaPlayExtractor.extract(embedUrl, "$baseUrl/")

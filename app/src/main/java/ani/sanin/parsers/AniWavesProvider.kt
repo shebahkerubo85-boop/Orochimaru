@@ -55,6 +55,7 @@ class AniWavesProvider : NativeAnimeParser() {
         return found.values.toList()
     }
 
+    override suspend fun autoSearch(mediaObj: Media): ShowResponse? {
         val saved = loadSavedShowResponse(mediaObj.id)
         if (saved != null) {
             saveShowResponse(mediaObj.id, saved, true)
@@ -92,7 +93,7 @@ class AniWavesProvider : NativeAnimeParser() {
                 val html = get("$baseUrl/watch/$slug", "$baseUrl/", "text/html,*/*")
                 // Parse total episode count
                 val count = Regex("""<div>\s*Episodes?:\s*<span[^>]*>([\s\S]*?)</span>""", RegexOption.IGNORE_CASE).find(html)
-                    ?.groupValues?.get(1)?.let { Regex("\d+").find(it)?.value?.toIntOrNull() }
+                    ?.groupValues?.get(1)?.let { Regex("\\d+").find(it)?.value?.toIntOrNull() }
                     ?: Regex("""Episodes?[:\s]*(\d+)""", RegexOption.IGNORE_CASE).find(html)
                         ?.groupValues?.get(1)?.toIntOrNull()
                     ?: run {
