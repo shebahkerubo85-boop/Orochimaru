@@ -1,6 +1,7 @@
 package ani.sanin.settings
 
 import android.app.NotificationManager
+import android.view.MotionEvent
 import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
@@ -13,6 +14,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.isGone
@@ -229,7 +231,7 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
                 viewHolder: RecyclerView.ViewHolder
             ) {
                 super.clearView(recyclerView, viewHolder)
-                extensionsAdapter.updatePref()
+                extensionsAdapter.disarmDrag(persist = true)
                 viewHolder.itemView.elevation = 0f
                 viewHolder.itemView.translationZ = 0f
             }
@@ -246,6 +248,15 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
             }
         }
         return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        val backDisarm = OnBackPressedCallback(false) {
+            extensionsAdapter.disarmDrag(persist = true)
+        }
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backDisarm)
+        extensionsAdapter.onDragModeChanged = { armed -> backDisarm.isEnabled = armed }
     }
 
 
@@ -282,6 +293,7 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
         var dragActivePosition: Int? = null
         var reorderMessage: TextView? = null
         var itemTouchHelper: ItemTouchHelper? = null
+        var onDragModeChanged: ((Boolean) -> Unit)? = null
 
         fun updateData(newExtensions: List<AnimeExtension.Installed>) {
             submitList(newExtensions)
@@ -292,6 +304,24 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
             PrefManager.setVal(PrefName.AnimeSourcesOrder, map)
             AnimeSources.pinnedAnimeSources = map
             AnimeSources.performReorderAnimeSources()
+        }
+
+        fun disarmDrag(persist: Boolean) {
+            dragActivePosition = null
+            reorderMessage?.visibility = View.GONE
+            if (persist) updatePref()
+            onDragModeChanged?.invoke(false)
+            notifyDataSetChanged()
+        }
+
+        private fun tintArrows(holder: ViewHolder, active: Boolean) {
+            val typedValue = android.util.TypedValue()
+            holder.itemView.context.theme.resolveAttribute(
+                if (active) android.R.attr.colorPrimary else com.google.android.material.R.attr.colorOnSurface,
+                typedValue, true
+            )
+            holder.dragUpArrow.setColorFilter(typedValue.data)
+            holder.dragDownArrow.setColorFilter(typedValue.data)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -345,19 +375,31 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
             holder.dragUpArrow.setColorFilter(tintColor)
             holder.dragDownArrow.setColorFilter(tintColor)
 
+            // Phone: one tap arms drag mode (primary fill) — touch the row
+            // anywhere to drag; TV: the handle keeps focus, leave via BACK/RIGHT.
             holder.dragHandle.setOnClickListener {
                 val currentPos = holder.absoluteAdapterPosition
                 if (currentPos == RecyclerView.NO_POSITION) return@setOnClickListener
                 if (dragActivePosition == currentPos) {
-                    dragActivePosition = null
-                    reorderMessage?.visibility = View.GONE
-                    notifyDataSetChanged()
-                    updatePref()
+                    disarmDrag(persist = true)
                 } else {
                     dragActivePosition = currentPos
                     reorderMessage?.visibility = View.VISIBLE
-                    notifyDataSetChanged()
+                    onDragModeChanged?.invoke(true)
+                    tintArrows(holder, true)
+                    holder.dragHandle.post { holder.dragHandle.requestFocus() }
                 }
+            }
+
+            // Phone: once armed, dragging anywhere on the row moves the item —
+            // no need to keep holding the handle.
+            holder.itemView.setOnTouchListener { _, event ->
+                if (event.actionMasked == MotionEvent.ACTION_DOWN &&
+                    dragActivePosition == holder.absoluteAdapterPosition
+                ) {
+                    itemTouchHelper?.startDrag(holder)
+                }
+                false
             }
 
             holder.dragHandle.setOnLongClickListener {
@@ -392,6 +434,10 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
                             submitList(newList)
                         }
                         true
+                    }
+                    KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                        disarmDrag(persist = true)
+                        false
                     }
                     else -> false
                 }

@@ -179,15 +179,14 @@ class AddRepositoryBottomSheet : DialogFragment() {
     }
 
     private fun isValidUrl(input: String): String? {
-        var cleaned = input.trim()
-        if (cloudStream) {
-            cleaned = cleaned.replaceFirst("cloudstreamrepo://", "")
-                .replaceFirst(Regex("^https://cs\\.repo/\\??"), "")
-        }
+        val cleaned = if (cloudStream) stripCloudStreamPrefix(input) else input.trim()
         if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
             if (!cloudStream && !cleaned.removeSuffix("/").endsWith("index.min.json")) {
                 return "URL must end with index.min.json"
             }
+            return null
+        }
+        if (cloudStream && cleaned.isNotBlank() && cleaned.substringBefore("/").contains(".")) {
             return null
         }
 
@@ -279,13 +278,12 @@ class AddRepositoryBottomSheet : DialogFragment() {
         }
 
         fun normalizeRepoUrl(input: String, cloudStream: Boolean): String {
-            var cleaned = input.trim()
-            if (cloudStream) {
-                cleaned = cleaned.replaceFirst("cloudstreamrepo://", "")
-                    .replaceFirst(Regex("^https://cs\\.repo/\\??"), "")
-            }
+            val cleaned = if (cloudStream) stripCloudStreamPrefix(input) else input.trim()
             if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
                 return cleaned
+            }
+            if (cloudStream && cleaned.substringBefore("/").contains(".")) {
+                return "https://$cleaned"
             }
             val parts = cleaned.split("/")
             if (parts.size !in 2..3) return cleaned
@@ -294,6 +292,13 @@ class AddRepositoryBottomSheet : DialogFragment() {
             val branch = if (parts.size == 3) parts[2] else if (cloudStream) "builds" else "repo"
             val suffix = if (cloudStream) "repo.json" else "index.min.json"
             return "https://raw.githubusercontent.com/$username/$repo/$branch/$suffix"
+        }
+
+        fun stripCloudStreamPrefix(input: String): String {
+            return input.trim()
+                .replaceFirst(Regex("^https?://cs\\.repo/?\\??"), "")
+                .removePrefix("cloudstreamrepo://")
+                .removePrefix("cloudstreamrepo:")
         }
 
         fun newInstance(

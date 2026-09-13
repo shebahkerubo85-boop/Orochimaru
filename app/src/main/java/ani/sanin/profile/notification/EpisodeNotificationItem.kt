@@ -74,6 +74,7 @@ class EpisodeNotificationItem(
 
         bindPill()
         bindCard(generation)
+        shrinkMetaIcons(viewBinding)
 
         binding.episodeWatch.setOnClickListener { open() }
         FocusEffectUtil.applyFocusListener(binding.episodeWatch)
@@ -230,6 +231,16 @@ class EpisodeNotificationItem(
                 }
                 Logger.log(Log.INFO, "EpNotifItem resolved: title=$resolvedTitle thumb=${displayUrl != null}")
             }
+        }
+    }
+
+    /** Clock/calendar meta icons render smaller than their 24dp intrinsic size. */
+    private fun shrinkMetaIcons(viewBinding: ItemNotificationEpisodeBinding) {
+        val sizePx = (12 * viewBinding.root.resources.displayMetrics.density).toInt()
+        listOf(viewBinding.episodeMetaDuration, viewBinding.episodeMetaDate).forEach { tv ->
+            val drawable = tv.compoundDrawables.getOrNull(0) ?: return@forEach
+            drawable.setBounds(0, 0, sizePx, sizePx)
+            tv.setCompoundDrawables(drawable, null, null, null)
         }
     }
 

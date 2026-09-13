@@ -1,5 +1,6 @@
 package ani.sanin.home
 
+import android.content.res.ColorStateList
 import android.os.Bundle
 import ani.sanin.statusBarHeight
 import ani.sanin.settings.saving.PrefManager
@@ -130,6 +131,13 @@ class TmdbLibraryFragment : Fragment() {
         // Search → inline bar
         TvKeyboardUtil.setupTvInput(binding.tmdbLibSearchText)
         binding.tmdbLibSearchBar.setOnClickListener { binding.tmdbLibSearchText.requestFocus() }
+
+        // Focused stroke uses the resolved primary colour, not Material's
+        // default control colour (which renders purple).
+        binding.tmdbLibSearchBar.boxStrokeColor = ColorStateList(
+            arrayOf(intArrayOf(android.R.attr.state_focused), intArrayOf()),
+            intArrayOf(primaryTextColor, secondaryTextColor)
+        )
         FocusEffectUtil.applyFocusListener(binding.tmdbLibSearchBar)
         binding.tmdbLibSearchText.addTextChangedListener { editable ->
             val query = editable?.toString() ?: ""

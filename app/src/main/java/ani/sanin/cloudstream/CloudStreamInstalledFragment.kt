@@ -1,5 +1,6 @@
 package ani.sanin.cloudstream
 
+import android.view.MotionEvent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.KeyEvent
@@ -8,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -84,7 +86,7 @@ class CloudStreamInstalledFragment : Fragment(), SearchQueryHandler {
                 viewHolder: RecyclerView.ViewHolder
             ) {
                 super.clearView(recyclerView, viewHolder)
-                adapter.updatePref()
+                adapter.disarmDrag(persist = true)
                 viewHolder.itemView.elevation = 0f
                 viewHolder.itemView.translationZ = 0f
             }
@@ -101,6 +103,15 @@ class CloudStreamInstalledFragment : Fragment(), SearchQueryHandler {
         }
 
         return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        val backDisarm = OnBackPressedCallback(false) {
+            adapter.disarmDrag(persist = true)
+        }
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backDisarm)
+        adapter.onDragModeChanged = { armed -> backDisarm.isEnabled = armed }
     }
 
     override fun onResume() {
@@ -214,6 +225,7 @@ class CloudStreamInstalledFragment : Fragment(), SearchQueryHandler {
         var dragActivePosition: Int? = null
         var reorderMessage: TextView? = null
         var itemTouchHelper: ItemTouchHelper? = null
+        var onDragModeChanged: ((Boolean) -> Unit)? = null
         var persistOrder: ((List<InstalledItem>) -> Unit)? = null
 
         fun setItems(items: List<InstalledItem>) {
@@ -222,6 +234,24 @@ class CloudStreamInstalledFragment : Fragment(), SearchQueryHandler {
 
         fun updatePref() {
             persistOrder?.invoke(currentList)
+        }
+
+        fun disarmDrag(persist: Boolean) {
+            dragActivePosition = null
+            reorderMessage?.visibility = View.GONE
+            if (persist) updatePref()
+            onDragModeChanged?.invoke(false)
+            notifyDataSetChanged()
+        }
+
+        private fun tintArrows(holder: VH, active: Boolean) {
+            val typedValue = android.util.TypedValue()
+            holder.itemView.context.theme.resolveAttribute(
+                if (active) android.R.attr.colorPrimary else com.google.android.material.R.attr.colorOnSurface,
+                typedValue, true
+            )
+            holder.binding.dragUpArrow.setColorFilter(typedValue.data)
+            holder.binding.dragDownArrow.setColorFilter(typedValue.data)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -270,19 +300,31 @@ class CloudStreamInstalledFragment : Fragment(), SearchQueryHandler {
             holder.binding.dragUpArrow.setColorFilter(tintColor)
             holder.binding.dragDownArrow.setColorFilter(tintColor)
 
+            // Phone: one tap arms drag mode (primary fill) — touch the row
+            // anywhere to drag; TV: the handle keeps focus, leave via BACK/RIGHT.
             holder.binding.dragHandle.setOnClickListener {
                 val currentPos = holder.absoluteAdapterPosition
                 if (currentPos == RecyclerView.NO_POSITION) return@setOnClickListener
                 if (dragActivePosition == currentPos) {
-                    dragActivePosition = null
-                    reorderMessage?.visibility = View.GONE
-                    notifyDataSetChanged()
-                    updatePref()
+                    disarmDrag(persist = true)
                 } else {
                     dragActivePosition = currentPos
                     reorderMessage?.visibility = View.VISIBLE
-                    notifyDataSetChanged()
+                    onDragModeChanged?.invoke(true)
+                    tintArrows(holder, true)
+                    holder.binding.dragHandle.post { holder.binding.dragHandle.requestFocus() }
                 }
+            }
+
+            // Phone: once armed, dragging anywhere on the row moves the item —
+            // no need to keep holding the handle.
+            holder.itemView.setOnTouchListener { _, event ->
+                if (event.actionMasked == MotionEvent.ACTION_DOWN &&
+                    dragActivePosition == holder.absoluteAdapterPosition
+                ) {
+                    itemTouchHelper?.startDrag(holder)
+                }
+                false
             }
 
             holder.binding.dragHandle.setOnLongClickListener {
@@ -317,6 +359,10 @@ class CloudStreamInstalledFragment : Fragment(), SearchQueryHandler {
                             submitList(newList)
                         }
                         true
+                    }
+                    KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                        disarmDrag(persist = true)
+                        false
                     }
                     else -> false
                 }

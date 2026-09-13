@@ -100,12 +100,13 @@
                 app:chipSpacingHorizontal="6dp" />
         </HorizontalScrollView>
 
-        <!-- Language chips row -->
+        <!-- Language chips row: kept in the layout for binding, hidden from view -->
         <com.google.android.material.chip.ChipGroup
             android:id="@+id/repoLanguages"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
+            android:visibility="gone"
             app:chipSpacingHorizontal="6dp"
             app:singleLine="true" />
 

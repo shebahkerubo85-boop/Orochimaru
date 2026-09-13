@@ -671,6 +671,14 @@ class MainActivity : AppCompatActivity() {
         window.navigationBarColor = ContextCompat.getColor(this, android.R.color.transparent)
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (Intent.ACTION_VIEW == intent.action) {
+            handleViewIntent(intent)
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         loadAvatar()
@@ -736,6 +744,25 @@ class MainActivity : AppCompatActivity() {
         try {
             if (uri == null) {
                 throw Exception("Uri is null")
+            }
+            if (uri.scheme == "cloudstreamrepo" ||
+                (uri.scheme == "https" && uri.host == "cs.repo")
+            ) {
+                val repoUrl = AddRepositoryBottomSheet.normalizeRepoUrl(uri.toString(), true)
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val manifest = runCatching { CsRepos.fetchManifest(repoUrl) }.getOrNull()
+                    withContext(Dispatchers.Main) {
+                        if (manifest == null) {
+                            toast("No CloudStream repo found at this URL")
+                        } else {
+                            AddRepositoryBottomSheet.addRepoWarning(this@MainActivity) {
+                                CsRepos.addRepo(repoUrl)
+                                toast("CloudStream repo added")
+                            }
+                        }
+                    }
+                }
+                return
             }
             if (uri.scheme == "aniyomi" && uri.host == "add-repo") {
                 val url = uri.getQueryParameter("url") ?: throw Exception("No url for repo import")

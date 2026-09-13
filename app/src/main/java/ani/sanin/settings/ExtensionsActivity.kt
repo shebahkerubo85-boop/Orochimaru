@@ -1,11 +1,17 @@
 package ani.sanin.settings
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ValueAnimator
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.ViewGroup
+import android.view.animation.DecelerateInterpolator
 import android.widget.AutoCompleteTextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.updateLayoutParams
@@ -17,6 +23,7 @@ import ani.sanin.cloudstream.CloudStreamAvailableFragment
 import ani.sanin.cloudstream.CloudStreamInstalledFragment
 import ani.sanin.cloudstream.CsRepos
 import ani.sanin.databinding.ActivityExtensionsBinding
+import ani.sanin.getThemeColor
 import ani.sanin.initActivity
 import ani.sanin.media.MediaType
 import ani.sanin.navBarHeight
@@ -41,6 +48,12 @@ class ExtensionsActivity : AppCompatActivity() {
      * Browse button instead of triggering ViewPager2's horizontal scroll.
      */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_BACK &&
+            searchExpanded
+        ) {
+            collapseSearchBar()
+            return true
+        }
         if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
             val vp = binding.viewPager
             // Intercept DPAD DOWN from either the ViewPager or the TabLayout
@@ -68,30 +81,15 @@ class ExtensionsActivity : AppCompatActivity() {
         binding = ActivityExtensionsBinding.inflate(layoutInflater)
         setContentView(binding.root)
         initActivity(this)
-        AndroidBug5497Workaround.assistActivity(this) {
-            if (it) {
-                binding.searchView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                    bottomMargin = statusBarHeight
-                }
-            } else {
-                binding.searchView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                    bottomMargin = statusBarHeight + navBarHeight
-                }
-            }
-        }
+        AndroidBug5497Workaround.assistActivity(this) { }
 
-        binding.searchView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-            bottomMargin = statusBarHeight + navBarHeight
+        // Segmented mode toggle: Aniyomi (checked) <-> CloudStream.
+        binding.modeToggleGroup.check(R.id.modeButtonAniyomi)
+        FocusEffectUtil.applyFocusListener(binding.modeButtonAniyomi, binding.modeButtonCloudstream)
+        binding.modeToggleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (isChecked) switchMode(checkedId == R.id.modeButtonCloudstream)
         }
-
-        FocusEffectUtil.applyFocusListener(binding.aniyomiChip)
-        FocusEffectUtil.applyFocusListener(binding.cloudstreamChip)
-        binding.aniyomiChip.setOnCheckedChangeListener { _, checked ->
-            if (checked) switchMode(false)
-        }
-        binding.cloudstreamChip.setOnCheckedChangeListener { _, checked ->
-            if (checked) switchMode(true)
-        }
+        styleModeButtons()
 
         val tabLayout = findViewById<TabLayout>(R.id.tabLayout)
         val viewPager = findViewById<ViewPager2>(R.id.viewPager)
@@ -117,9 +115,9 @@ class ExtensionsActivity : AppCompatActivity() {
         tabLayout.addOnTabSelectedListener(
             object : TabLayout.OnTabSelectedListener {
                 override fun onTabSelected(tab: TabLayout.Tab) {
-                    // Repo-card tabs (Available) have no search bar — search
-                    // only applies to the Installed extension lists.
-                    updateSearchBarVisibility(tab.position)
+                    // Repo-card tabs (Available) have no search — icon + bar
+                    // only exist on the Installed extension lists.
+                    updateSearchUiForTab(tab.position)
                     binding.searchViewText.setText("")
                     binding.searchViewText.clearFocus()
                     focusFirstBrowseButton(viewPager)
@@ -160,6 +158,10 @@ class ExtensionsActivity : AppCompatActivity() {
 
         TvKeyboardUtil.setupTvInput(binding.searchViewText)
 
+        FocusEffectUtil.applyFocusListener(binding.searchIconButton)
+        binding.searchIconButton.setOnClickListener { toggleSearchBar() }
+        updateSearchUiForTab(0)
+
         binding.settingsContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             topMargin = statusBarHeight
             bottomMargin = navBarHeight
@@ -168,9 +170,80 @@ class ExtensionsActivity : AppCompatActivity() {
         setupModeButtons()
     }
 
-    /** Search only exists on Installed tabs (position 0). */
-    private fun updateSearchBarVisibility(tabPosition: Int) {
-        binding.searchView.visibility = if (tabPosition == 1) View.GONE else View.VISIBLE
+    /** Search only exists on Installed tabs (position 0): icon + expandable bar. */
+    private fun updateSearchUiForTab(tabPosition: Int) {
+        val installed = tabPosition == 0
+        binding.searchIconButton.visibility = if (installed) View.VISIBLE else View.GONE
+        if (!installed) collapseSearchBar()
+    }
+
+    private var searchExpanded = false
+
+    private fun toggleSearchBar() {
+        if (searchExpanded) collapseSearchBar() else expandSearchBar()
+    }
+
+    private fun expandSearchBar() {
+        if (searchExpanded) return
+        searchExpanded = true
+        binding.searchIconButton.setImageResource(R.drawable.ic_round_close_24)
+        val heightPx = (56 * resources.displayMetrics.density).toInt()
+        binding.searchView.visibility = View.VISIBLE
+        binding.searchView.alpha = 0f
+        val anim = ValueAnimator.ofInt(0, heightPx).apply {
+            duration = 220
+            interpolator = DecelerateInterpolator()
+            addUpdateListener {
+                binding.searchView.layoutParams.height = it.animatedValue as Int
+                binding.searchView.requestLayout()
+            }
+            addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    binding.searchView.alpha = 1f
+                    binding.searchViewText.requestFocus()
+                }
+            })
+        }
+        anim.start()
+    }
+
+    private fun collapseSearchBar() {
+        if (!searchExpanded) return
+        searchExpanded = false
+        binding.searchIconButton.setImageResource(R.drawable.ic_round_search_24)
+        binding.searchViewText.clearFocus()
+        val startHeight = binding.searchView.layoutParams.height
+        val anim = ValueAnimator.ofInt(startHeight, 0).apply {
+            duration = 200
+            interpolator = DecelerateInterpolator()
+            addUpdateListener {
+                binding.searchView.layoutParams.height = it.animatedValue as Int
+                binding.searchView.requestLayout()
+            }
+            addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    binding.searchView.visibility = View.GONE
+                    binding.searchView.layoutParams.height = 0
+                }
+            })
+        }
+        anim.start()
+    }
+
+    /** Segmented toggle: selected side = primary fill + white text, other neutral. */
+    private fun styleModeButtons() {
+        val primary = getThemeColor(com.google.android.material.R.attr.colorPrimary)
+        val onSurface = getThemeColor(com.google.android.material.R.attr.colorOnSurface)
+        val outline = getThemeColor(com.google.android.material.R.attr.colorOutline)
+        val density = resources.displayMetrics.density
+        fun style(btn: com.google.android.material.button.MaterialButton, active: Boolean) {
+            btn.backgroundTintList = ColorStateList.valueOf(if (active) primary else Color.TRANSPARENT)
+            btn.setTextColor(if (active) Color.WHITE else onSurface)
+            btn.strokeColor = ColorStateList.valueOf(if (active) primary else outline)
+            btn.strokeWidth = if (active) 0 else (1 * density).toInt()
+        }
+        style(binding.modeButtonAniyomi, !cloudStreamMode)
+        style(binding.modeButtonCloudstream, cloudStreamMode)
     }
 
     /** Focus the first Browse button in the current ViewPager page. */
@@ -195,8 +268,10 @@ class ExtensionsActivity : AppCompatActivity() {
     private fun switchMode(cloudStream: Boolean) {
         if (cloudStreamMode == cloudStream) return
         cloudStreamMode = cloudStream
+        collapseSearchBar()
         binding.searchViewText.setText("")
         binding.searchViewText.clearFocus()
+        styleModeButtons()
         setupTabs()
         setupModeButtons()
     }
@@ -226,13 +301,13 @@ class ExtensionsActivity : AppCompatActivity() {
         tabMediator = TabLayoutMediator(tabLayout, viewPager) { tab, position ->
             tab.text = if (cloudStreamMode) {
                 when (position) {
-                    0 -> "Installed Extensions"
-                    else -> "Available Extensions"
+                    0 -> "Installed Plugins"
+                    else -> "Available Plugins"
                 }
             } else {
                 when (position) {
-                    0 -> "Installed Anime"
-                    else -> "Available Anime"
+                    0 -> "Installed Extensions"
+                    else -> "Available Extensions"
                 }
             }
         }

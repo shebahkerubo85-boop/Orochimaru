@@ -9,63 +9,50 @@
     android:orientation="vertical"
     tools:context=".settings.SettingsActivity">
 
-    <LinearLayout
+    <!-- Segmented mode toggle: selected side = primary fill, other side neutral -->
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/modeToggleGroup"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="16dp"
-        android:paddingTop="8dp"
-        android:paddingEnd="16dp">
+        android:layout_height="56dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="20dp"
+        app:checkedButton="@id/modeButtonAniyomi"
+        app:selectionRequired="true"
+        app:singleSelection="true">
 
-        <com.google.android.material.chip.ChipGroup
-            android:id="@+id/modeChipGroup"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:selectionRequired="true"
-            app:singleSelection="true">
-
-<com.google.android.material.chip.Chip
-            android:id="@+id/aniyomiChip"
-            style="@style/Widget.MaterialComponents.Chip.Choice"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:checkable="true"
-            android:checked="true"
-            android:focusable="true"
-            android:fontFamily="@font/poppins_semi_bold"
-            android:text="Aniyomi Extensions"
-            android:textSize="13sp"
-            app:chipBackgroundColor="@color/nav_bg_inv"
-            app:chipCornerRadius="20dp"
-            app:chipStrokeColor="@color/cs_chip_stroke"
-            app:chipStrokeWidth="2dp"
-            android:textColor="@color/cs_chip_text" />
-
-        <TextView
-            android:id="@+id/extensions"
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/modeButtonAniyomi"
+            style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:visibility="gone" />
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:fontFamily="@font/poppins_bold"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:padding="0dp"
+            android:text="Aniyomi"
+            android:textAllCaps="false"
+            android:textSize="16sp"
+            app:checkedIcon="@null"
+            app:cornerRadius="16dp" />
 
-        <com.google.android.material.chip.Chip
-            android:id="@+id/cloudstreamChip"
-            style="@style/Widget.MaterialComponents.Chip.Choice"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:checkable="true"
-            android:focusable="true"
-            android:fontFamily="@font/poppins_semi_bold"
-            android:text="CloudStream Extensions"
-            android:textSize="13sp"
-            app:chipBackgroundColor="@color/nav_bg_inv"
-            app:chipCornerRadius="20dp"
-            app:chipStrokeColor="@color/cs_chip_stroke"
-            app:chipStrokeWidth="2dp"
-            android:textColor="@color/cs_chip_text" />
-        </com.google.android.material.chip.ChipGroup>
-    </LinearLayout>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/modeButtonCloudstream"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:fontFamily="@font/poppins_bold"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:padding="0dp"
+            android:text="CloudStream"
+            android:textAllCaps="false"
+            android:textSize="16sp"
+            app:checkedIcon="@null"
+            app:cornerRadius="16dp" />
+    </com.google.android.material.button.MaterialButtonToggleGroup>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -85,15 +72,65 @@
             app:tabTextAppearance="@style/NavBarText" />
 
         <ImageButton
+            android:id="@+id/searchIconButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:contentDescription="@string/search"
+            android:focusable="true"
+            android:nextFocusLeft="@id/tabLayout"
+            android:nextFocusRight="@id/openSettingsButton"
+            app:srcCompat="@drawable/ic_round_search_24"
+            app:tint="?attr/colorOnBackground" />
+
+        <ImageButton
             android:id="@+id/openSettingsButton"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?android:attr/selectableItemBackground"
             android:contentDescription="@string/sort_by"
             android:focusable="true"
+            android:nextFocusLeft="@id/searchIconButton"
             app:srcCompat="@drawable/ic_round_menu_book_24"
             app:tint="?attr/colorOnBackground" />
     </LinearLayout>
+
+    <!-- Inline search bar: expands under the tabs when the search icon is tapped -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/searchView"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:nextFocusUp="@+id/openSettingsButton"
+        android:nextFocusDown="@+id/viewPager"
+        android:transitionName="@string/search"
+        android:visibility="gone"
+        app:boxBackgroundColor="@color/bg"
+        app:boxBackgroundMode="outline"
+        app:boxCornerRadiusBottomEnd="28dp"
+        app:boxCornerRadiusBottomStart="28dp"
+        app:boxCornerRadiusTopEnd="28dp"
+        app:boxCornerRadiusTopStart="28dp"
+        app:endIconDrawable="@drawable/ic_round_search_24"
+        app:hintAnimationEnabled="true">
+
+        <AutoCompleteTextView
+            android:id="@+id/searchViewText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/poppins_bold"
+            android:hint="@string/search"
+            android:imeOptions="actionSearch"
+            android:inputType="textPersonName"
+            android:nextFocusUp="@+id/openSettingsButton"
+            android:nextFocusDown="@+id/viewPager"
+            android:padding="8dp"
+            android:selectAllOnFocus="true"
+            android:textSize="14sp"
+            tools:ignore="LabelFor,TextContrastCheck" />
+    </com.google.android.material.textfield.TextInputLayout>
 
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/viewPager"
@@ -110,46 +147,5 @@
         android:layout_gravity="bottom"
         android:layout_weight="1"
         android:visibility="gone" />
-
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/searchView"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:layout_gravity="bottom"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        android:transitionName="@string/search"
-        android:focusable="false"
-        android:nextFocusUp="@+id/viewPager"
-        android:nextFocusDown="@+id/viewPager"
-        app:boxBackgroundColor="@color/bg"
-        app:boxBackgroundMode="outline"
-        app:boxCornerRadiusBottomEnd="28dp"
-        app:boxCornerRadiusBottomStart="28dp"
-        app:boxCornerRadiusTopEnd="28dp"
-        app:boxCornerRadiusTopStart="28dp"
-        app:endIconDrawable="@drawable/ic_round_search_24"
-        app:hintAnimationEnabled="true">
-
-        <AutoCompleteTextView
-            android:id="@+id/searchViewText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom"
-            android:layout_marginBottom="8dp"
-            android:layout_weight="1"
-            android:fontFamily="@font/poppins_bold"
-            android:hint="@string/search"
-            android:imeOptions="actionSearch"
-            android:inputType="textPersonName"
-            android:padding="8dp"
-            android:paddingBottom="4dp"
-            android:nextFocusUp="@+id/viewPager"
-            android:nextFocusDown="@+id/viewPager"
-            android:selectAllOnFocus="true"
-            android:textSize="14sp"
-            tools:ignore="LabelFor,TextContrastCheck" />
-    </com.google.android.material.textfield.TextInputLayout>
 
 </LinearLayout>

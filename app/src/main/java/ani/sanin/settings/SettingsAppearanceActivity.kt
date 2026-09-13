@@ -15,6 +15,7 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.view.updateLayoutParams
@@ -526,6 +527,22 @@ class SettingsAppearanceActivity : AppCompatActivity() {
             items.addView(row, toPos + 1)
         }
 
+        // TV: BACK while armed dismisses drag mode instead of leaving the screen.
+        val dragDisarm = OnBackPressedCallback(false) {
+            dragRow = null
+            keyboardRow = null
+            hint.text = hintDefault
+            rows.forEach { it.elevation = 0f }
+            refreshArrows()
+            saveOrder()
+            dragDisarm.isEnabled = false
+        }
+        onBackPressedDispatcher.addCallback(this, dragDisarm)
+
+        fun updateDragDisarmState() {
+            dragDisarm.isEnabled = keyboardRow != null || dragRow != null
+        }
+
         order.forEach { idx ->
             val row = inflater.inflate(R.layout.item_home_section_row, items, false)
             row.findViewById<TextView>(R.id.homeRowTitle).text = homeSectionTitles[idx]
@@ -544,7 +561,8 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                 switch.isChecked = !switch.isChecked
             }
 
-            // Click handle -> enter/exit keyboard reorder mode
+            // Click handle -> arm drag mode (TV keeps handle focus, dismiss
+            // via BACK or DPAD_RIGHT; phone then drags by touching the row).
             dragHandle.setOnClickListener {
                 val pos = rows.indexOf(row)
                 if (keyboardRow == pos) {
@@ -552,11 +570,14 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                     hint.text = hintDefault
                     refreshArrows()
                     saveOrder()
+                    updateDragDisarmState()
                 } else {
                     keyboardRow = pos
                     hint.text = "Press UP/DOWN to reorder, ENTER to confirm"
                     refreshArrows()
+                    updateDragDisarmState()
                 }
+                dragHandle.post { dragHandle.requestFocus() }
             }
 
             // Dpad reorder while mode active
@@ -573,25 +594,35 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                         if (pos < rows.size - 1) { moveRow(pos, pos + 1); keyboardRow = pos + 1; refreshArrows() }
                         true
                     }
+                    KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                        keyboardRow = null
+                        hint.text = hintDefault
+                        refreshArrows()
+                        saveOrder()
+                        updateDragDisarmState()
+                        false
+                    }
                     else -> false
                 }
             }
 
-            // Touch drag via long-press on the handle (like the extensions screen)
-            dragHandle.setOnLongClickListener {
-                val pos = rows.indexOf(row)
-                if (pos == -1) return@setOnLongClickListener false
-                keyboardRow = null
-                dragRow = pos
-                row.elevation = 8f
-                hint.text = "Release to drop"
-                refreshArrows()
-                dragHandle.parent?.requestDisallowInterceptTouchEvent(true)
-                true
-            }
-
-            dragHandle.setOnTouchListener { v, event ->
+            // Phone: once armed, touching anywhere on the row drags it — no
+            // need to keep holding the handle. Release commits the new order.
+            row.setOnTouchListener { v, event ->
                 when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        val pos = rows.indexOf(row)
+                        if (keyboardRow == pos) {
+                            keyboardRow = null
+                            dragRow = pos
+                            row.elevation = 8f
+                            hint.text = "Release to drop"
+                            refreshArrows()
+                            updateDragDisarmState()
+                            v.parent?.requestDisallowInterceptTouchEvent(true)
+                            true
+                        } else false
+                    }
                     MotionEvent.ACTION_MOVE -> {
                         if (dragRow != null) {
                             val rawY = event.rawY
@@ -616,6 +647,7 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                             hint.text = hintDefault
                             refreshArrows()
                             saveOrder()
+                            updateDragDisarmState()
                             v.parent?.requestDisallowInterceptTouchEvent(false)
                         }
                         false

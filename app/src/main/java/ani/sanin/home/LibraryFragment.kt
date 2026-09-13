@@ -1,5 +1,6 @@
 package ani.sanin.home
 
+import android.content.res.ColorStateList
 import android.os.Bundle
 import ani.sanin.statusBarHeight
 import android.view.LayoutInflater
@@ -116,6 +117,13 @@ class LibraryFragment : Fragment() {
         // Tapping the pill's padding (outside the field) still routes focus to
         // the input so the keyboard comes up on both touch and dpad.
         binding.searchBar.setOnClickListener { binding.searchViewText.requestFocus() }
+
+        // Focused stroke uses the resolved primary colour, not Material's
+        // default control colour (which renders purple).
+        binding.searchBar.boxStrokeColor = ColorStateList(
+            arrayOf(intArrayOf(android.R.attr.state_focused), intArrayOf()),
+            intArrayOf(primaryTextColor, secondaryTextColor)
+        )
 
         // Settings: bottom sheet with sort / genre / 18+ toggles
         FocusEffectUtil.applyFocusListener(binding.listSettings)
