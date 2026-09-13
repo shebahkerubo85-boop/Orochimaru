@@ -93,14 +93,14 @@ private fun rawGetBytes(url: String, headers: Map<String, String> = mapOf("User-
 private fun rawPostJson(url: String, body: String, headers: Map<String, String> = mapOf("User-Agent" to UA)): String {
     val req = Request.Builder().url(url).apply {
         headers.forEach { (k, v) -> header(k, v) }
-    }.post("application/json; charset=utf-8".toMediaType().toRequestBody(body)).build()
+    }.post(body.toRequestBody("application/json; charset=utf-8".toMediaType())).build()
     return okHttpClient.newCall(req).execute().use { it.body?.string().orEmpty() }
 }
 
 private fun rawPostEmpty(url: String, headers: Map<String, String> = mapOf("User-Agent" to UA)): String {
     val req = Request.Builder().url(url).apply {
         headers.forEach { (k, v) -> header(k, v) }
-    }.post("application/octet-stream".toMediaType().toRequestBody(ByteArray(0))).build()
+    }.post(ByteArray(0).toRequestBody("application/octet-stream".toMediaType())).build()
     return okHttpClient.newCall(req).execute().use { it.body?.string().orEmpty() }
 }
 
