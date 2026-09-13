@@ -255,13 +255,14 @@ class ExtensionsActivity : AppCompatActivity() {
 
     private fun updateToggleUI(cloudStream: Boolean, animate: Boolean) {
         val density = resources.displayMetrics.density
-        val thumbX = if (cloudStream) (200 - 46) * density else 0f
+        val thumbStart = 3f * density
+        val thumbEnd = (200 - 30 - 3) * density
         val targetAlpha = if (cloudStream) 1f else 0f
         binding.modeToggleLabel.text = if (cloudStream) "CLOUDSTREAM" else "Aniyomi"
         styleToggleDrawables(cloudStream)
         if (!animate || !PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled)) {
             binding.modeToggleFill.alpha = targetAlpha
-            binding.modeToggleThumb.translationX = thumbX
+            binding.modeToggleThumb.translationX = if (cloudStream) thumbEnd else thumbStart
             return
         }
         modeToggleAnimating = true
@@ -272,7 +273,7 @@ class ExtensionsActivity : AppCompatActivity() {
             var labelSwapped = false
             addUpdateListener { anim ->
                 val t = anim.animatedValue as Float
-                binding.modeToggleThumb.translationX = thumbX * t
+                binding.modeToggleThumb.translationX = thumbStart + (thumbEnd - thumbStart) * t
                 binding.modeToggleFill.alpha = startAlpha + (targetAlpha - startAlpha) * t
                 if (!labelSwapped && t > 0.4f) {
                     labelSwapped = true
@@ -293,7 +294,9 @@ class ExtensionsActivity : AppCompatActivity() {
     private fun styleToggleDrawables(cloudStream: Boolean) {
         val primary = getThemeColor(com.google.android.material.R.attr.colorPrimary)
         val radius = 18 * resources.displayMetrics.density
+        val thumbRadius = 15 * resources.displayMetrics.density
         val rounded = floatArrayOf(radius, radius, radius, radius, radius, radius, radius, radius)
+        val thumbRound = floatArrayOf(thumbRadius, thumbRadius, thumbRadius, thumbRadius, thumbRadius, thumbRadius, thumbRadius, thumbRadius)
         binding.modeToggleFill.background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             setColor(primary)
@@ -302,7 +305,7 @@ class ExtensionsActivity : AppCompatActivity() {
         binding.modeToggleThumb.background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             setColor(android.graphics.Color.WHITE)
-            cornerRadii = rounded
+            cornerRadii = thumbRound
         }
     }
 
