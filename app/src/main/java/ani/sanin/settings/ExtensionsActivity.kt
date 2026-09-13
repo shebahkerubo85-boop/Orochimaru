@@ -2,7 +2,6 @@ package ani.sanin.settings
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
-import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -256,27 +255,35 @@ class ExtensionsActivity : AppCompatActivity() {
 
     private fun updateToggleUI(cloudStream: Boolean, animate: Boolean) {
         val density = resources.displayMetrics.density
-        val fillX = if (cloudStream) 120f * density else 0f
-        val thumbX = if (cloudStream) 180f * density else 0f
-        binding.modeToggleLabel.text = if (cloudStream) "CLOUDSTREAM" else "ANIYOMI"
+        val thumbX = if (cloudStream) (200 - 46) * density else 0f
+        val targetAlpha = if (cloudStream) 1f else 0f
+        binding.modeToggleLabel.text = if (cloudStream) "CLOUDSTREAM" else "Aniyomi"
         styleToggleDrawables(cloudStream)
         if (!animate || !PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled)) {
-            binding.modeToggleFill.translationX = fillX
+            binding.modeToggleFill.alpha = targetAlpha
             binding.modeToggleThumb.translationX = thumbX
             return
         }
         modeToggleAnimating = true
-        ObjectAnimator.ofFloat(binding.modeToggleThumb, "translationX", thumbX).apply {
-            duration = 200
-            interpolator = DecelerateInterpolator()
-            start()
-        }
-        ObjectAnimator.ofFloat(binding.modeToggleFill, "translationX", fillX).apply {
-            duration = 200
-            interpolator = DecelerateInterpolator()
+        val startAlpha = binding.modeToggleFill.alpha
+        ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 180
+            interpolator = DecelerateInterpolator(1.5f)
+            var labelSwapped = false
+            addUpdateListener { anim ->
+                val t = anim.animatedValue as Float
+                binding.modeToggleThumb.translationX = thumbX * t
+                binding.modeToggleFill.alpha = startAlpha + (targetAlpha - startAlpha) * t
+                if (!labelSwapped && t > 0.4f) {
+                    labelSwapped = true
+                    binding.modeToggleLabel.text = if (cloudStream) "CLOUDSTREAM" else "Aniyomi"
+                }
+            }
             addListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: Animator) {
                     modeToggleAnimating = false
+                    binding.modeToggleFill.alpha = targetAlpha
+                    binding.modeToggleLabel.text = if (cloudStream) "CLOUDSTREAM" else "Aniyomi"
                 }
             })
             start()
@@ -285,17 +292,12 @@ class ExtensionsActivity : AppCompatActivity() {
 
     private fun styleToggleDrawables(cloudStream: Boolean) {
         val primary = getThemeColor(com.google.android.material.R.attr.colorPrimary)
-        val radius = 22 * resources.displayMetrics.density
+        val radius = 18 * resources.displayMetrics.density
         val rounded = floatArrayOf(radius, radius, radius, radius, radius, radius, radius, radius)
-        val fillRadii = if (cloudStream) {
-            floatArrayOf(0f, 0f, radius, radius, radius, radius, 0f, 0f)
-        } else {
-            floatArrayOf(radius, radius, 0f, 0f, 0f, 0f, radius, radius)
-        }
         binding.modeToggleFill.background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             setColor(primary)
-            cornerRadii = fillRadii
+            cornerRadii = rounded
         }
         binding.modeToggleThumb.background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
