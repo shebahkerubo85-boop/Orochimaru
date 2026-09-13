@@ -9,46 +9,79 @@
     android:orientation="vertical"
     tools:context=".settings.SettingsActivity">
 
-    <!-- Mode toggle: elongated capsule, white thumb, primary fill, single label -->
-    <FrameLayout
+    <!-- Toggle row: add repo left, capsule centered, search right -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:layout_marginStart="20dp"
-        android:layout_marginTop="4dp"
-        android:layout_marginEnd="20dp">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@+id/openSettingsButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="12dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:contentDescription="@string/sort_by"
+            android:focusable="true"
+            android:nextFocusDown="@id/tabLayout"
+            android:nextFocusRight="@id/modeToggle"
+            app:srcCompat="@drawable/ic_round_menu_book_24"
+            app:tint="?attr/colorOnBackground" />
 
         <FrameLayout
-            android:id="@+id/modeToggle"
-            android:layout_width="160dp"
-            android:layout_height="36dp"
-            android:layout_gravity="center"
-            android:background="@drawable/bg_mode_toggle_track"
-            android:clickable="true"
-            android:focusable="true"
-            android:nextFocusDown="@id/tabLayout">
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1">
 
-            <View
-                android:id="@+id/modeToggleFill"
+            <FrameLayout
+                android:id="@+id/modeToggle"
                 android:layout_width="160dp"
-                android:layout_height="36dp" />
-
-            <TextView
-                android:id="@+id/modeToggleLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="36dp"
                 android:layout_gravity="center"
-                android:fontFamily="@font/poppins_bold"
-                android:text="Aniyomi"
-                android:textColor="@android:color/white"
-                android:textSize="15sp" />
+                android:background="@drawable/bg_mode_toggle_track"
+                android:clickable="true"
+                android:focusable="true"
+                android:nextFocusDown="@id/tabLayout"
+                android:nextFocusLeft="@id/openSettingsButton"
+                android:nextFocusRight="@id/searchIconButton">
 
-            <View
-                android:id="@+id/modeToggleThumb"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
-                android:layout_gravity="center_vertical" />
+                <View
+                    android:id="@+id/modeToggleFill"
+                    android:layout_width="160dp"
+                    android:layout_height="36dp" />
+
+                <TextView
+                    android:id="@+id/modeToggleLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:fontFamily="@font/poppins_bold"
+                    android:text="Aniyomi"
+                    android:textColor="@android:color/white"
+                    android:textSize="15sp" />
+
+                <View
+                    android:id="@+id/modeToggleThumb"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_gravity="center_vertical" />
+            </FrameLayout>
         </FrameLayout>
-    </FrameLayout>
+
+        <ImageButton
+            android:id="@+id/searchIconButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="12dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:contentDescription="@string/search"
+            android:focusable="true"
+            android:nextFocusDown="@id/tabLayout"
+            android:nextFocusLeft="@id/modeToggle"
+            app:srcCompat="@drawable/ic_round_search_24"
+            app:tint="?attr/colorOnBackground" />
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -57,9 +90,8 @@
 
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/tabLayout"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:layout_weight="1"
             android:nextFocusUp="@id/modeToggle"
             app:tabContentStart="16dp"
             app:tabGravity="fill"
@@ -67,29 +99,6 @@
             app:tabPaddingEnd="16dp"
             app:tabPaddingStart="16dp"
             app:tabTextAppearance="@style/NavBarText" />
-
-        <ImageButton
-            android:id="@+id/searchIconButton"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?android:attr/selectableItemBackground"
-            android:contentDescription="@string/search"
-            android:focusable="true"
-            android:nextFocusLeft="@id/tabLayout"
-            android:nextFocusRight="@id/openSettingsButton"
-            app:srcCompat="@drawable/ic_round_search_24"
-            app:tint="?attr/colorOnBackground" />
-
-        <ImageButton
-            android:id="@+id/openSettingsButton"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?android:attr/selectableItemBackground"
-            android:contentDescription="@string/sort_by"
-            android:focusable="true"
-            android:nextFocusLeft="@id/searchIconButton"
-            app:srcCompat="@drawable/ic_round_menu_book_24"
-            app:tint="?attr/colorOnBackground" />
     </LinearLayout>
 
     <!-- Inline search bar: expands under the tabs when the search icon is tapped -->

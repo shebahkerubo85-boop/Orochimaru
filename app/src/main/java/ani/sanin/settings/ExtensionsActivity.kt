@@ -267,7 +267,7 @@ class ExtensionsActivity : AppCompatActivity() {
         val currentX = binding.modeToggleThumb.translationX
         val targetX = if (cloudStream) thumbEnd else thumbStart
         ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 180
+            duration = 300
             interpolator = DecelerateInterpolator(1.5f)
             var labelSwapped = false
             addUpdateListener { anim ->
