@@ -134,9 +134,11 @@ class TmdbLibraryFragment : Fragment() {
 
         // Focused stroke uses the resolved primary colour, not Material's
         // default control colour (which renders purple).
-        binding.tmdbLibSearchBar.boxStrokeColorStateList = ColorStateList(
-            arrayOf(intArrayOf(android.R.attr.state_focused), intArrayOf()),
-            intArrayOf(primaryTextColor, secondaryTextColor)
+        binding.tmdbLibSearchBar.setBoxStrokeColorStateList(
+            ColorStateList(
+                arrayOf(intArrayOf(android.R.attr.state_focused), intArrayOf()),
+                intArrayOf(primaryTextColor, secondaryTextColor)
+            )
         )
         FocusEffectUtil.applyFocusListener(binding.tmdbLibSearchBar)
         binding.tmdbLibSearchText.addTextChangedListener { editable ->
