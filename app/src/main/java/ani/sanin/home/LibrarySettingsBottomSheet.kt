@@ -30,6 +30,7 @@ class LibrarySettingsBottomSheet : BottomSheetDialogFragment() {
     private var onSortChanged: ((String) -> Unit)? = null
     private var onGenreFilterChanged: ((String) -> Unit)? = null
     private var onNsfwChanged: ((Boolean) -> Unit)? = null
+    private var allChip: Chip? = null
 
     companion object {
         const val TAG = "LibrarySettingsBottomSheet"
@@ -98,6 +99,19 @@ class LibrarySettingsBottomSheet : BottomSheetDialogFragment() {
         // Filter: inline single-select chips — no extra dialog.
         buildFilterChips()
 
+        // Clear All: resets genre filter to "All" and (anime mode) the 18+ toggle.
+        FocusEffectUtil.applyFocusListener(binding.clearAllBtn)
+        binding.clearAllBtn.setOnClickListener {
+            allChip?.isChecked = true
+            PrefManager.setVal(PrefName.LibraryGenreFilter, "")
+            onGenreFilterChanged?.invoke("All")
+            if (binding.nsfwRow.visibility == View.VISIBLE) {
+                binding.nsfwToggle.isChecked = false
+                PrefManager.setVal(PrefName.LibraryNsfw, false)
+                onNsfwChanged?.invoke(false)
+            }
+        }
+
         // 18+: anime mode only.
         val showNsfw = arguments?.getBoolean("showNsfw") ?: true
         if (!showNsfw || onNsfwChanged == null) {
@@ -118,14 +132,32 @@ class LibrarySettingsBottomSheet : BottomSheetDialogFragment() {
     private fun buildFilterChips() {
         val items = mutableListOf("All") + filterItems().filterNot { it.equals("All", true) }
         val current = PrefManager.getVal<String>(PrefName.LibraryGenreFilter)
+        val ctx = requireContext()
+        val primary = ctx.getThemeColor(com.google.android.material.R.attr.colorPrimary)
+        val onSurface = ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface)
+        val outline = ctx.getThemeColor(com.google.android.material.R.attr.colorOutline)
         items.forEach { genre ->
             val chip = Chip(requireContext()).apply {
                 text = genre
                 isCheckable = true
                 isFocusable = true
-                isFocusableInTouchMode = true
+                checkedIcon = null
+                chipBackgroundColor = ColorStateList(
+                    arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                    intArrayOf(primary, Color.TRANSPARENT)
+                )
+                setTextColor(ColorStateList(
+                    arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                    intArrayOf(Color.WHITE, onSurface)
+                ))
+                chipStrokeColor = ColorStateList(
+                    arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                    intArrayOf(primary, outline)
+                )
+                chipStrokeWidth = 1f * resources.displayMetrics.density
                 isChecked = if (genre == "All") current.isBlank() else genre == current
             }
+            if (genre == "All") allChip = chip
             chip.setOnCheckedChangeListener { _, isChecked ->
                 if (!isChecked) return@setOnCheckedChangeListener
                 val selected = chip.text?.toString() ?: "All"
@@ -144,6 +176,9 @@ class LibrarySettingsBottomSheet : BottomSheetDialogFragment() {
     /** Filter items: genres for anime mode, status categories for movie mode. */
     private fun filterItems(): List<String> {
         arguments?.getStringArrayList("filters")?.takeIf { it.isNotEmpty() }?.let { return it }
+        // Movie mode has no offline genre list — show only "All" until TMDB
+        // enrichment populates the sheet.
+        if ((arguments?.getBoolean("showNsfw") ?: true) == false) return emptyList()
         val stored = PrefManager.getVal<Set<String>>(PrefName.GenresList)
         return if (stored.isNullOrEmpty()) {
             listOf(

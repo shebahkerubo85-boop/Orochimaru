@@ -148,21 +148,16 @@ class TmdbDiscoveryFragment : Fragment() {
     private fun load() {
         viewLifecycleOwner.lifecycleScope.launch {
             binding.tmdbDiscoveryProgress.isVisible = true
-            // A selected genre overrides the category: category endpoints have
-            // no genre filter, so route through discover (movie + TV) instead.
-            val items = if (selectedGenre != null) {
-                val genreId = selectedGenre!!.id.toString()
-                Tmdb.discover(mediaType = "movie", genres = genreId, sort = "popularity.desc") +
-                    Tmdb.discover(mediaType = "tv", genres = genreId, sort = "popularity.desc")
-            } else {
-                when (selectedCategory) {
-                    "Trending" -> Tmdb.trending("all", "week")
-                    "Latest Releases" -> Tmdb.latestMovies() + Tmdb.latestSeries()
-                    "Top Rated" -> Tmdb.topRated()
-                    "Popular" -> Tmdb.popular()
-                    else -> emptyList()
-                }
+            // Category fetches the pool; a selected genre further filters it
+            // locally via genre_ids so chips combine (e.g. Action + Top Rated).
+            val pool = when (selectedCategory) {
+                "Trending" -> Tmdb.trending("all", "week")
+                "Latest Releases" -> Tmdb.latestMovies() + Tmdb.latestSeries()
+                "Top Rated" -> Tmdb.topRated()
+                "Popular" -> Tmdb.popular()
+                else -> emptyList()
             }
+            val items = selectedGenre?.let { genre -> pool.filter { it.genreIds.contains(genre.id) } } ?: pool
             binding.tmdbDiscoveryProgress.isVisible = false
             adapter.submit(items)
         }

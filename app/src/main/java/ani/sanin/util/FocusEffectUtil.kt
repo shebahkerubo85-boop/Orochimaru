@@ -95,6 +95,14 @@ object FocusEffectUtil {
         }
     }
 
+    /** Replays the same spin as dpad focus for touch taps (buttons beside search bars). */
+    fun spinOnTouch(view: View) {
+        if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.FocusAnimations)) {
+            view.animate().cancel()
+            view.animate().rotationYBy(360f).setDuration(400).start()
+        }
+    }
+
     private fun resetView(v: View?) {
         if (v == null) return
         removeBorder(v)
@@ -189,13 +197,16 @@ object FocusEffectUtil {
                 id == R.id.mainUserAvatarContainer ||
                 id == R.id.discoverAvatar ||
                 id == R.id.tmdbDiscoveryAvatar ||
+                id == R.id.listAvatar ||
+                id == R.id.tmdbLibAvatar ||
                 id == R.id.sheetMoviePluginArrow ||
                 id == R.id.exo_tracks
     }
 
     private fun isCircularAvatar(v: View): Boolean {
         val id = v.id
-        return id == R.id.discoverAvatar || id == R.id.tmdbDiscoveryAvatar
+        return id == R.id.discoverAvatar || id == R.id.tmdbDiscoveryAvatar ||
+            id == R.id.listAvatar || id == R.id.tmdbLibAvatar
     }
 
     private fun applyFocusGain(v: View) {

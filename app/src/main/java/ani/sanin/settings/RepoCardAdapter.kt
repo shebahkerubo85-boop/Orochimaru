@@ -94,30 +94,6 @@ class RepoCardAdapter(
             holder.binding.repoContentTypes.addView(chip)
         }
 
-        // Language chips
-        holder.binding.repoLanguages.removeAllViews()
-        item.languages.forEach { lang ->
-            val chip = com.google.android.material.chip.Chip(ctx).apply {
-                text = lang
-                isClickable = false
-                isFocusable = false
-                textSize = 11f
-                setTextColor(chipTextColor)
-                chipBackgroundColor = android.content.res.ColorStateList.valueOf(
-                    if (isDark) Color.parseColor("#30FFFFFF") else Color.parseColor("#1A000000")
-                )
-                chipCornerRadius = 10f * ctx.resources.displayMetrics.density
-                chipMinHeight = 24f * ctx.resources.displayMetrics.density
-                setPadding(
-                    (8 * ctx.resources.displayMetrics.density).toInt(),
-                    0,
-                    (8 * ctx.resources.displayMetrics.density).toInt(),
-                    0
-                )
-            }
-            holder.binding.repoLanguages.addView(chip)
-        }
-
         // Fallback gradient: theme primary
         val primaryColor = ctx.getThemeColor(com.google.android.material.R.attr.colorPrimary)
         val defaultTop = if (isDark) Color.BLACK else Color.WHITE
@@ -156,25 +132,19 @@ class RepoCardAdapter(
             contentDescription = "Browse ${item.name}"
             setOnClickListener { onOpen(item) }
             isFocusable = true
-            isFocusableInTouchMode = true
             val onPrimary = ctx.getThemeColor(com.google.android.material.R.attr.colorOnPrimary)
-            val onSurface = ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface)
-            setOnFocusChangeListener { v, hasFocus ->
-                if (hasFocus) {
-                    v.background = android.graphics.drawable.GradientDrawable().apply {
-                        shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                        setColor(ctx.getThemeColor(com.google.android.material.R.attr.colorPrimary))
-                        cornerRadius = 24f * v.resources.displayMetrics.density
-                    }
-                    setTextColor(onPrimary)
-                } else {
-                    v.background = android.graphics.drawable.GradientDrawable().apply {
-                        shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                        setColor(android.graphics.Color.argb(51, 255, 255, 255))  // 20% white
-                        cornerRadius = 24f * v.resources.displayMetrics.density
-                    }
-                    setTextColor(onSurface)
+            // Unfocused: solid white pill with dark text; focused: primary fill.
+            fun styleBrowse(focused: Boolean) {
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                    setColor(if (focused) ctx.getThemeColor(com.google.android.material.R.attr.colorPrimary) else Color.WHITE)
+                    cornerRadius = 24f * resources.displayMetrics.density
                 }
+                setTextColor(if (focused) onPrimary else Color.BLACK)
+            }
+            styleBrowse(false)
+            setOnFocusChangeListener { _, hasFocus ->
+                styleBrowse(hasFocus)
             }
         }
 

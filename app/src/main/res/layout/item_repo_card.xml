@@ -100,15 +100,6 @@
                 app:chipSpacingHorizontal="6dp" />
         </HorizontalScrollView>
 
-        <!-- Language chips row -->
-        <com.google.android.material.chip.ChipGroup
-            android:id="@+id/repoLanguages"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            app:chipSpacingHorizontal="6dp"
-            app:singleLine="true" />
-
     </LinearLayout>
 
     <!-- Browse pill button (bottom overlay) -->
@@ -122,7 +113,6 @@
         android:layout_marginBottom="2dp"
         android:background="@drawable/bg_repo_browse_button"
         android:focusable="true"
-        android:focusableInTouchMode="true"
         android:fontFamily="@font/poppins_bold"
         android:text="Browse"
         android:textAllCaps="false"

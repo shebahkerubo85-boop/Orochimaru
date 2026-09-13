@@ -17,8 +17,10 @@ import com.google.android.material.tabs.TabLayoutMediator
 import ani.sanin.R
 import ani.sanin.Refresh
 import ani.sanin.connections.anilist.Anilist
+import ani.sanin.connections.simkl.Simkl
 import ani.sanin.databinding.FragmentLibraryBinding
 import ani.sanin.getThemeColor
+import ani.sanin.loadImage
 import ani.sanin.media.user.ListViewPagerAdapter
 import ani.sanin.media.user.ListViewModel
 import ani.sanin.settings.saving.PrefManager
@@ -118,6 +120,7 @@ class LibraryFragment : Fragment() {
         // Settings: bottom sheet with sort / genre / 18+ toggles
         FocusEffectUtil.applyFocusListener(binding.listSettings)
         binding.listSettings.setOnClickListener {
+            FocusEffectUtil.spinOnTouch(binding.listSettings)
             val genres = PrefManager.getVal<Set<String>>(PrefName.GenresList).toMutableSet().sorted()
             LibrarySettingsBottomSheet.newInstance(
                 currentSort = PrefManager.getVal<String>(PrefName.AnimeListSortOrder),
@@ -154,7 +157,12 @@ class LibraryFragment : Fragment() {
 
         // Avatar: opens the right-side rail drawer
         FocusEffectUtil.applyFocusListener(binding.listAvatar)
+        val avatarUrl = Anilist.avatar ?: Simkl.avatar
+        if (!avatarUrl.isNullOrBlank()) {
+            binding.listAvatar.loadImage(avatarUrl)
+        }
         binding.listAvatar.setOnClickListener {
+            FocusEffectUtil.spinOnTouch(binding.listAvatar)
             val act = requireActivity()
             if (act is ani.sanin.MainActivity) {
                 val drawer = act.findViewById<androidx.drawerlayout.widget.DrawerLayout>(

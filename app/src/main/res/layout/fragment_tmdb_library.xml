@@ -79,7 +79,6 @@
                     android:background="?android:attr/selectableItemBackground"
                     android:contentDescription="Settings"
                     android:focusable="true"
-                    android:focusableInTouchMode="true"
                     android:nextFocusRight="@id/tmdbLibSearchBar"
                     android:nextFocusDown="@id/tmdbLibTabLayout"
                     app:srcCompat="@drawable/ic_baseline_tune_24"
@@ -98,18 +97,18 @@
                     android:nextFocusLeft="@id/tmdbLibSettings"
                     android:nextFocusRight="@id/tmdbLibAvatar"
                     android:nextFocusDown="@id/tmdbLibTabLayout"
-                    app:boxBackgroundColor="?android:attr/colorBackground"
+                    app:boxBackgroundColor="@android:color/transparent"
                     app:boxBackgroundMode="outline"
                     app:boxCornerRadiusBottomEnd="24dp"
                     app:boxCornerRadiusBottomStart="24dp"
                     app:boxCornerRadiusTopEnd="24dp"
                     app:boxCornerRadiusTopStart="24dp"
-                    app:boxStrokeColor="?attr/colorOnBackground"
-                    app:cursorColor="?attr/colorOnBackground"
+                    app:boxStrokeColor="?attr/colorPrimary"
+                    app:cursorColor="?attr/colorPrimary"
                     app:endIconDrawable="@drawable/ic_round_search_24"
-                    app:endIconTint="?attr/colorOnBackground"
+                    app:endIconTint="?attr/colorPrimary"
                     app:hintAnimationEnabled="true"
-                    app:hintTextColor="?attr/colorOnBackground">
+                    app:hintTextColor="?attr/colorPrimary">
 
                     <AutoCompleteTextView
                         android:id="@+id/tmdbLibSearchText"
@@ -121,24 +120,28 @@
                         android:inputType="textPersonName"
                         android:selectAllOnFocus="true"
                         android:textColor="?attr/colorOnBackground"
-                        android:textColorHint="?attr/colorOutline"
+                        android:textColorHighlight="?attr/colorPrimary"
+                        android:textColorHint="?attr/colorPrimary"
                         android:padding="8dp"
                         android:textSize="14sp"
                         tools:ignore="LabelFor,TextContrastCheck" />
                 </com.google.android.material.textfield.TextInputLayout>
 
-                <ImageButton
+                <com.google.android.material.imageview.ShapeableImageView
                     android:id="@+id/tmdbLibAvatar"
                     android:layout_width="36dp"
                     android:layout_height="36dp"
-                    android:background="?android:attr/selectableItemBackground"
+                    android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="Profile"
                     android:focusable="true"
-                    android:focusableInTouchMode="true"
                     android:nextFocusLeft="@id/tmdbLibSearchBar"
                     android:nextFocusDown="@id/tmdbLibTabLayout"
+                    android:padding="2dp"
+                    android:scaleType="centerCrop"
                     app:srcCompat="@drawable/ic_round_person_24"
-                    app:tint="?attr/colorOnBackground" />
+                    app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.Circle"
+                    app:tint="@null"
+                    tools:ignore="ContentDescription" />
 
             </LinearLayout>
 

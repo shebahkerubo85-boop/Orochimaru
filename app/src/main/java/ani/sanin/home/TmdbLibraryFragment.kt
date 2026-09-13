@@ -19,11 +19,15 @@ import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import ani.sanin.R
 import ani.sanin.Refresh
+import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.databinding.FragmentTmdbLibraryBinding
+import ani.sanin.loadImage
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.TvKeyboardUtil
 import ani.sanin.getThemeColor
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -36,6 +40,9 @@ class TmdbLibraryFragment : Fragment() {
     private var viewPagerAttached = false
     private var allItems: List<Simkl.SimklWatchedItem> = emptyList()
     private var sectionFragments = mutableListOf<SimklSectionFragment>()
+    private val libraryGenres = sortedSetOf<String>()
+    private val itemGenres = HashMap<Pair<String, Int>, Set<String>>()
+    private var genreEnrichmentRunning = false
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -90,13 +97,10 @@ class TmdbLibraryFragment : Fragment() {
         // Settings → bottom sheet (sort + status filter, no NSFW for movie mode)
         FocusEffectUtil.applyFocusListener(binding.tmdbLibSettings)
         binding.tmdbLibSettings.setOnClickListener {
-            val tmdbStatuses = listOf(
-                "All", "Completed Movies", "Completed TV", "Watching",
-                "Planning", "Paused", "Dropped", "Favourites"
-            )
+            FocusEffectUtil.spinOnTouch(binding.tmdbLibSettings)
             LibrarySettingsBottomSheet.newInstance(
                 currentSort = "updated",
-                filterItems = tmdbStatuses,
+                filterItems = synchronized(itemGenres) { libraryGenres.toList() },
                 showNsfw = false,
                 onSortChanged = { sort ->
                     val mapped = when (sort) {
@@ -108,27 +112,12 @@ class TmdbLibraryFragment : Fragment() {
                     if (selected.isBlank() || selected == "All") {
                         showSections(allItems)
                     } else {
-                        val filtered = when (selected) {
-                            "Completed Movies" -> allItems.filter {
-                                it.status?.lowercase() == "completed" && it.mediaType == "movie"
+                        val filtered = synchronized(itemGenres) {
+                            allItems.filter { item ->
+                                val tmdbId = item.ids?.tmdb
+                                tmdbId != null &&
+                                    (itemGenres[(item.mediaType ?: "tv") to tmdbId] ?: emptySet()).contains(selected)
                             }
-                            "Completed TV" -> allItems.filter {
-                                it.status?.lowercase() == "completed" && it.mediaType == "tv"
-                            }
-                            "Watching" -> allItems.filter {
-                                it.status?.lowercase() == "watching" || it.status?.lowercase() == "current"
-                            }
-                            "Planning" -> allItems.filter {
-                                it.status?.lowercase() == "plantowatch" || it.status?.lowercase() == "planning"
-                            }
-                            "Paused" -> allItems.filter {
-                                it.status?.lowercase() == "hold" || it.status?.lowercase() == "onhold" || it.status?.lowercase() == "paused"
-                            }
-                            "Dropped" -> allItems.filter {
-                                it.status?.lowercase() == "dropped"
-                            }
-                            "Favourites" -> allItems.filter { (it.userRating ?: 0) > 0 }
-                            else -> allItems
                         }
                         showFilteredSections(filtered, selected)
                     }
@@ -148,7 +137,12 @@ class TmdbLibraryFragment : Fragment() {
 
         // Avatar → open side rail
         FocusEffectUtil.applyFocusListener(binding.tmdbLibAvatar)
+        val libAvatarUrl = Anilist.avatar ?: Simkl.avatar
+        if (!libAvatarUrl.isNullOrBlank()) {
+            binding.tmdbLibAvatar.loadImage(libAvatarUrl)
+        }
         binding.tmdbLibAvatar.setOnClickListener {
+            FocusEffectUtil.spinOnTouch(binding.tmdbLibAvatar)
             val act = requireActivity()
             if (act is ani.sanin.MainActivity) {
                 val drawer = act.findViewById<androidx.drawerlayout.widget.DrawerLayout>(
@@ -175,6 +169,37 @@ class TmdbLibraryFragment : Fragment() {
                 return@launch
             }
             showSections(allItems)
+            enrichGenres()
+        }
+    }
+
+    /** Fetch TMDB genres for library items once per session (batched, cached). */
+    private fun enrichGenres() {
+        if (genreEnrichmentRunning) return
+        genreEnrichmentRunning = true
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            coroutineScope {
+                val targets = allItems.filter { it.ids?.tmdb != null }
+                    .distinctBy { (it.mediaType ?: "tv") to it.ids!!.tmdb!! }
+                targets.chunked(8).forEach { batch ->
+                    batch.map { item -> async { enrichOne(item) } }.forEach { it.await() }
+                }
+            }
+            genreEnrichmentRunning = false
+        }
+    }
+
+    private suspend fun enrichOne(item: Simkl.SimklWatchedItem) {
+        val tmdbId = item.ids?.tmdb ?: return
+        val type = item.mediaType ?: "tv"
+        val key = type to tmdbId
+        synchronized(itemGenres) { if (itemGenres.containsKey(key)) return }
+        val genres = runCatching { Tmdb.detailGenres(type, tmdbId).map { it.name }.toSet() }
+            .getOrDefault(emptySet())
+        if (genres.isEmpty()) return
+        synchronized(itemGenres) {
+            itemGenres[key] = genres
+            libraryGenres.addAll(genres)
         }
     }
 

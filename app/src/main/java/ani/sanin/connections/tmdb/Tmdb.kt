@@ -202,6 +202,12 @@ object Tmdb {
             }.getOrNull()
         }
 
+    /** Lightweight genre lookup for a single movie/tv entry (no heavy append_to_response). */
+    suspend fun detailGenres(mediaType: String, id: Int): List<TmdbGenre> {
+        val body = get("/$mediaType/$id") ?: return emptyList()
+        return runCatching { json.decodeFromString<TmdbDetail>(body).genres }.getOrDefault(emptyList())
+    }
+
     suspend fun search(query: String, page: Int = 1): List<TmdbMedia> {
         val body = get("/search/multi", "query" to query, "page" to page.toString())
             ?: return emptyList()

@@ -57,6 +57,21 @@
                 android:textColor="?attr/colorOutline"
                 android:textSize="12sp" />
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/clearAllBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:focusable="true"
+            android:fontFamily="@font/poppins_semi_bold"
+            android:nextFocusDown="@id/sortRecent"
+            android:paddingStart="12dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="8dp"
+            android:text="Clear All"
+            android:textColor="?attr/colorPrimary"
+            android:textSize="13sp" />
     </LinearLayout>
 
     <!-- Sort -->
