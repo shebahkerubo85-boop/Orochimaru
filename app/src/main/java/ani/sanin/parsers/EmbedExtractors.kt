@@ -8,11 +8,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import okhttp3.FormBody
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Request
 import java.net.URI
 import java.security.KeyPairGenerator
 import java.security.MessageDigest
 import java.security.Signature
+import java.security.SecureRandom
 import java.security.spec.ECGenParameterSpec
 import javax.crypto.Cipher
 import javax.crypto.Mac
@@ -90,14 +93,14 @@ private fun rawGetBytes(url: String, headers: Map<String, String> = mapOf("User-
 private fun rawPostJson(url: String, body: String, headers: Map<String, String> = mapOf("User-Agent" to UA)): String {
     val req = Request.Builder().url(url).apply {
         headers.forEach { (k, v) -> header(k, v) }
-    }.post(okhttp3.RequestBody.create(okhttp3.MediaType.parse("application/json; charset=utf-8"), body)).build()
+    }.post("application/json; charset=utf-8".toMediaType().toRequestBody(body)).build()
     return okHttpClient.newCall(req).execute().use { it.body?.string().orEmpty() }
 }
 
 private fun rawPostEmpty(url: String, headers: Map<String, String> = mapOf("User-Agent" to UA)): String {
     val req = Request.Builder().url(url).apply {
         headers.forEach { (k, v) -> header(k, v) }
-    }.post(okhttp3.RequestBody.create(okhttp3.MediaType.parse("application/octet-stream"), ByteArray(0))).build()
+    }.post("application/octet-stream".toMediaType().toRequestBody(ByteArray(0))).build()
     return okHttpClient.newCall(req).execute().use { it.body?.string().orEmpty() }
 }
 
@@ -429,7 +432,7 @@ private fun runDecrypt(wasmBytes: ByteArray, fragment: ByteArray, keyFragment: B
     for (i in fragment.indices) {
         val value = (fragment[i].toInt() xor keyFragment[i].toInt()) xor (token[i and (token.size - 1)].toInt() and 0xFF)
         val tv = t.transform(value)
-        out[i] = (tv xor ((i.toLong() * t.step + seed) and 0xFFL)).toInt().toByte()
+        out[i] = (tv.toLong() xor ((i.toLong() * t.step + seed) and 0xFFL)).toInt().toByte()
     }
     return out
 }
@@ -505,7 +508,7 @@ object FlixcloudExtractor {
         if (!url.startsWith("http")) throw IllegalStateException("bad decrypted url")
 
         val subs = mutableListOf<SubData>()
-        (asList(jsGet(data, "subtitles")) ?: emptyList()).forEach { s ->
+        ((asList(jsGet(data, "subtitles")) ?: emptyList<Any?>()) as List<*>).forEach { s ->
             val m = asMap(s) ?: return@forEach
             val u = asString(jsGet(m, "url")) ?: asString(jsGet(m, "file")) ?: return@forEach
             val lang = asString(jsGet(m, "label")) ?: asString(jsGet(m, "language")) ?: asString(jsGet(m, "lang")) ?: "en"
@@ -952,7 +955,7 @@ object ByseExtractor {
     }
 
     private val MASK = 511u
-    private fun rot(v: UInt, s: Int): UInt = (v shl s) or (v ushr (32 - s))
+    private fun rot(v: UInt, s: Int): UInt = (v shl s) or (v shr (32 - s))
 
     private fun byseHash(bytes: ByteArray): UIntArray {
         var state = uintArrayOf(1779033703u, 3144134277u, 1013904242u, 2773480762u)
@@ -1047,8 +1050,20 @@ object BabaStreamExtractor {
                     runCatching { rawGet(url, mapOf("User-Agent" to UA, "Referer" to embedUrl)) }.getOrNull()
                 }.find { it.contains("challenge", ignoreCase = true) && it.contains("redeem", ignoreCase = true) && it.contains("SHA-256", ignoreCase = true) }
                     ?: throw IllegalStateException("babastream challenge client not found")
-                val strings = extractScriptStrings(widget) + Regex("\u0060[^\u0060]*\u0024\{[^}]+\}([^\u0060]+)\u0060")
-                    .findAll(widget).map { it.groupValues[1] }.toList()
+                val tmplSuffixes = mutableListOf<String>()
+                var scan = 0
+                while (true) {
+                    val open = widget.indexOf('$', scan)
+                    if (open < 0 || open + 1 >= widget.length) break
+                    if (widget[open + 1] != '{') { scan = open + 1; continue }
+                    val close = widget.indexOf('}', open + 2)
+                    if (close < 0) break
+                    var end = close + 1
+                    while (end < widget.length && widget[end] != '`') end++
+                    if (end > close + 1) tmplSuffixes.add(widget.substring(close + 1, end))
+                    scan = end
+                }
+                val strings = extractScriptStrings(widget) + tmplSuffixes
                 val challengePath = strings.find { it == "challenge" || it == "/challenge" || it.endsWith("/challenge") }
                     ?: throw IllegalStateException("challenge path not found")
                 val redeemPath = strings.find { it == "redeem" || it == "/redeem" || it.endsWith("/redeem") }
@@ -1274,7 +1289,7 @@ object AnimeSaltExtractor {
         if (direct != null) {
             iframeUrl = url
             videoHash = direct.groupValues[1]
-            videoOrigin = runCatching { originOf(url) }.getOrElse("")
+            videoOrigin = runCatching { originOf(url) }.getOrDefault("")
         } else {
             val html = rawGet(url, mapOf("User-Agent" to UA, "Referer" to ref))
             val m = Regex("""src=["'](https?://(?:as-cdn\d*|acdn)\.top/video/([a-zA-Z0-9_-]+))["']""", RegexOption.IGNORE_CASE).find(html)
@@ -1283,7 +1298,7 @@ object AnimeSaltExtractor {
             if (m != null) {
                 iframeUrl = m.groupValues[1]
                 videoHash = m.groupValues[2]
-                videoOrigin = runCatching { originOf(iframeUrl) }.getOrElse("")
+                videoOrigin = runCatching { originOf(iframeUrl) }.getOrDefault("")
             }
         }
         if (videoHash.isEmpty() || videoOrigin.isEmpty()) throw IllegalStateException("animesalt player not found")
