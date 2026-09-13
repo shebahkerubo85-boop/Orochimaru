@@ -22,6 +22,9 @@ object AnimeSources : WatchSources() {
             LatanimeProvider(),
             AnimeAV1Provider(),
             AnimeJLProvider(),
+            ReanimeProvider(),
+            AniKotoProvider(),
+            AniWavesProvider(),
         )
     }
 
