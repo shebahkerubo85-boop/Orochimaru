@@ -2,7 +2,9 @@ package ani.sanin.settings
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
+import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
@@ -81,17 +83,7 @@ class ExtensionsActivity : AppCompatActivity() {
         initActivity(this)
         AndroidBug5497Workaround.assistActivity(this) { }
 
-        // Mode switch: real toggle like the watch tab dub/sub, enlarged with labels.
-        binding.modeSwitch.isChecked = cloudStreamMode
-        FocusEffectUtil.applyFocusListener(
-            binding.modeSwitch,
-            binding.modeLabelAniyomi,
-            binding.modeLabelCloudstream
-        )
-        binding.modeSwitch.setOnCheckedChangeListener { _, checked -> switchMode(checked) }
-        binding.modeLabelAniyomi.setOnClickListener { binding.modeSwitch.isChecked = false }
-        binding.modeLabelCloudstream.setOnClickListener { binding.modeSwitch.isChecked = true }
-        styleModeLabels()
+        setupModeToggle()
 
         val tabLayout = findViewById<TabLayout>(R.id.tabLayout)
         val viewPager = findViewById<ViewPager2>(R.id.viewPager)
@@ -232,12 +224,84 @@ class ExtensionsActivity : AppCompatActivity() {
         anim.start()
     }
 
-    /** Real-toggle mode switch: active side label glows primary, other stays neutral. */
-    private fun styleModeLabels() {
+    private var modeToggleAnimating = false
+
+    /** Elongated capsule toggle: white thumb, primary fill on the active half, one label. */
+    private fun setupModeToggle() {
+        binding.modeToggle.setOnClickListener { toggleMode() }
+        binding.modeToggle.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                when (keyCode) {
+                    KeyEvent.KEYCODE_DPAD_CENTER,
+                    KeyEvent.KEYCODE_DPAD_LEFT,
+                    KeyEvent.KEYCODE_DPAD_RIGHT,
+                    KeyEvent.KEYCODE_ENTER -> {
+                        toggleMode()
+                        true
+                    }
+                    else -> false
+                }
+            } else {
+                false
+            }
+        }
+        FocusEffectUtil.applyFocusListener(binding.modeToggle)
+        updateToggleUI(cloudStreamMode, animate = false)
+    }
+
+    private fun toggleMode() {
+        if (modeToggleAnimating) return
+        switchMode(!cloudStreamMode)
+    }
+
+    private fun updateToggleUI(cloudStream: Boolean, animate: Boolean) {
+        val density = resources.displayMetrics.density
+        val fillX = if (cloudStream) 120f * density else 0f
+        val thumbX = if (cloudStream) 180f * density else 0f
+        binding.modeToggleLabel.text = if (cloudStream) "CLOUDSTREAM" else "ANIYOMI"
+        styleToggleDrawables(cloudStream)
+        if (!animate || !PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled)) {
+            binding.modeToggleFill.translationX = fillX
+            binding.modeToggleThumb.translationX = thumbX
+            return
+        }
+        modeToggleAnimating = true
+        ObjectAnimator.ofFloat(binding.modeToggleThumb, "translationX", thumbX).apply {
+            duration = 200
+            interpolator = DecelerateInterpolator()
+            start()
+        }
+        ObjectAnimator.ofFloat(binding.modeToggleFill, "translationX", fillX).apply {
+            duration = 200
+            interpolator = DecelerateInterpolator()
+            addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    modeToggleAnimating = false
+                }
+            })
+            start()
+        }
+    }
+
+    private fun styleToggleDrawables(cloudStream: Boolean) {
         val primary = getThemeColor(com.google.android.material.R.attr.colorPrimary)
-        val onSurface = getThemeColor(com.google.android.material.R.attr.colorOnSurface)
-        binding.modeLabelAniyomi.setTextColor(if (cloudStreamMode) onSurface else primary)
-        binding.modeLabelCloudstream.setTextColor(if (cloudStreamMode) primary else onSurface)
+        val radius = 22 * resources.displayMetrics.density
+        val rounded = floatArrayOf(radius, radius, radius, radius, radius, radius, radius, radius)
+        val fillRadii = if (cloudStream) {
+            floatArrayOf(0f, 0f, radius, radius, radius, radius, 0f, 0f)
+        } else {
+            floatArrayOf(radius, radius, 0f, 0f, 0f, 0f, radius, radius)
+        }
+        binding.modeToggleFill.background = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            setColor(primary)
+            cornerRadii = fillRadii
+        }
+        binding.modeToggleThumb.background = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            setColor(android.graphics.Color.WHITE)
+            cornerRadii = rounded
+        }
     }
 
     /** Focus the first Browse button in the current ViewPager page. */
@@ -262,11 +326,10 @@ class ExtensionsActivity : AppCompatActivity() {
     private fun switchMode(cloudStream: Boolean) {
         if (cloudStreamMode == cloudStream) return
         cloudStreamMode = cloudStream
-        binding.modeSwitch.isChecked = cloudStream
+        updateToggleUI(cloudStream, animate = true)
         collapseSearchBar()
         binding.searchViewText.setText("")
         binding.searchViewText.clearFocus()
-        styleModeLabels()
         setupTabs()
         setupModeButtons()
     }
