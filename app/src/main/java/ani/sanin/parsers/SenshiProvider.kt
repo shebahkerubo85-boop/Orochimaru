@@ -15,7 +15,7 @@ class SenshiProvider : NativeAnimeParser() {
     override val saveName = "Senshi"
     override fun isDubAvailableSeparately(sourceLang: Int?): Boolean = true
 
-    override val defaultBaseUrl = "https://senshi.live"
+    override val defaultBaseUrl = "https://senshi.to"
     override val knownServers = listOf("Senshi", "StreamNin", "FileMoon")
 
     override suspend fun autoSearch(mediaObj: Media): ShowResponse? {
@@ -79,11 +79,11 @@ class SenshiProvider : NativeAnimeParser() {
                 val embed = array.firstOrNull { element ->
                     val obj = element as? JsonObject
                     val status = (obj?.get("status") as? JsonPrimitive)?.contentOrNull.orEmpty()
-                    if (dubPreferred) status.equals("dub", ignoreCase = true)
-                    else !status.equals("dub", ignoreCase = true)
+                    if (dubPreferred) status.contains("dub", ignoreCase = true)
+                    else !status.contains("dub", ignoreCase = true)
                 } as? JsonObject ?: return@withContext emptyList()
 
-                val hlsUrl = (embed["url"] as? JsonPrimitive)?.contentOrNull
+                val hlsUrl = (embed["url"] as? JsonPrimitive)?.contentOrNull?.replace("http://", "https://")
                 if (hlsUrl.isNullOrBlank()) return@withContext emptyList()
 
                 val servers = mutableListOf<VideoServer>()
@@ -91,6 +91,7 @@ class SenshiProvider : NativeAnimeParser() {
                 extraData["audio"] = if (dubPreferred) "dub" else "sub"
 
                 val maskedBase = (embed["masked_base_url"] as? JsonPrimitive)?.contentOrNull
+                    ?: (embed["masked_base"] as? JsonPrimitive)?.contentOrNull
                 if (!maskedBase.isNullOrBlank()) {
                     try {
                         val prefix = if (dubPreferred) "dub" else "sub"
@@ -121,6 +122,11 @@ class SenshiProvider : NativeAnimeParser() {
                 }
                 (embed["serverFM"] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }?.let { embedUrl ->
                     servers.add(VideoServer("FileMoon", embedUrl, mapOf("audio" to audioTag)))
+                }
+
+                // New senshi.to format: if no servers found, the hlsUrl is the direct stream
+                if (servers.isEmpty() && !hlsUrl.isNullOrBlank()) {
+                    servers.add(VideoServer("Senshi", hlsUrl, extraData))
                 }
 
                 servers
