@@ -604,8 +604,8 @@ object FlixcloudExtractor {
     /** Pull the 16-byte segment XOR mask from flixcloud's hls.js, with a hardcoded fallback. */
     private fun flixSegmentMask(html: String): ByteArray {
         val fallback = byteArrayOf(
-            157, 42, 241, 71, 179, 142, 92, 112,
-            166, 25, 228, 59, 216, 98, 15, 197
+            (-99).toByte(), 42, (-15).toByte(), 71, (-77).toByte(), (-114).toByte(), 92, 112,
+            (-90).toByte(), 25, (-28).toByte(), 59, (-40).toByte(), 98, 15, (-59).toByte()
         )
         return runCatching {
             val scriptPath = Regex("""href="([^"]*hls\.js[^"]*)""").find(html)?.groupValues?.get(1)
