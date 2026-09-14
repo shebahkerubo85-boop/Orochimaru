@@ -16,35 +16,29 @@ class AniVaultProvider : NativeAnimeParser() {
     override val saveName = "AniVault"
     override fun isDubAvailableSeparately(sourceLang: Int?): Boolean = false
 
-    override val defaultBaseUrl = "https://anivault-api.vercel.app"
+    override val defaultBaseUrl = "https://www.anivault.co"
 
-    /**
-     * AniVault API v2 no longer exposes per-source server lists or dub/sub
-     * toggles; it returns a single play_url per episode and resolves streams
-     * via /stream. The source preference from v1 is kept only so existing user
-     * settings don't break, but it no longer changes behaviour.
-     */
     override val knownServers: List<String> = listOf("AniVault")
 
     override suspend fun search(query: String): List<ShowResponse> {
         return withContext(Dispatchers.IO) {
             try {
                 val encoded = java.net.URLEncoder.encode(query.trim(), "utf-8")
-                val jsonStr = get("$baseUrl/search?q=$encoded")
-                val arr = Mapper.json.parseToJsonElement(jsonStr) as? JsonArray ?: return@withContext emptyList()
-                arr.mapNotNull { el ->
-                    val obj = el as? JsonObject ?: return@mapNotNull null
-                    val title = (obj["title"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null
-                    val slug = (obj["slug"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null
-                    val id = (obj["id"] as? JsonPrimitive)?.contentOrNull ?: slug
-                    val poster = (obj["poster"] as? JsonPrimitive)?.contentOrNull
-                    val total = (obj["episodes"] as? JsonPrimitive)?.intOrNull
+                val jsonStr = get("$baseUrl/api/mobile/browse?q=$encoded")
+                val obj = Mapper.json.parseToJsonElement(jsonStr) as? JsonObject ?: return@withContext emptyList()
+                val data = obj["data"] as? JsonArray ?: return@withContext emptyList()
+                data.mapNotNull { el ->
+                    val item = el as? JsonObject ?: return@mapNotNull null
+                    val id = (item["id"] as? JsonPrimitive)?.intOrNull ?: return@mapNotNull null
+                    val title = (item["title"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null
+                    val image = (item["image"] as? JsonPrimitive)?.contentOrNull
+                    val total = (item["episodes"] as? JsonPrimitive)?.intOrNull
                     ShowResponse(
                         name = title,
-                        link = id,
-                        coverUrl = FileUrl(poster ?: defaultImage),
+                        link = id.toString(),
+                        coverUrl = FileUrl(image ?: defaultImage),
                         total = total,
-                        extra = mutableMapOf("slug" to slug)
+                        extra = mutableMapOf("mal_id" to id.toString())
                     )
                 }
             } catch (e: Exception) {
@@ -57,6 +51,17 @@ class AniVaultProvider : NativeAnimeParser() {
     override suspend fun autoSearch(mediaObj: Media): ShowResponse? {
         val saved = loadSavedShowResponse(mediaObj.id)
         if (saved != null) return saved
+        val malId = mediaObj.idMAL
+        if (malId != null && malId > 0) {
+            val response = ShowResponse(
+                name = mediaObj.mainName(),
+                link = malId.toString(),
+                coverUrl = FileUrl(mediaObj.cover ?: defaultImage),
+                extra = mutableMapOf("mal_id" to malId.toString())
+            )
+            saveShowResponse(mediaObj.id, response)
+            return response
+        }
         setUserText("Searching AniVault: ${mediaObj.mainName()}")
         return searchWithFallback(mediaObj.mainName()).firstOrNull()
             ?: searchWithFallback(mediaObj.nameRomaji).firstOrNull()
@@ -67,22 +72,25 @@ class AniVaultProvider : NativeAnimeParser() {
         extra: Map<String, String>?,
         sAnime: SAnime
     ): List<Episode> {
-        if (animeLink.isBlank()) return emptyList()
+        val malId = animeLink.toIntOrNull() ?: extra?.get("mal_id")?.toIntOrNull() ?: return emptyList()
         return withContext(Dispatchers.IO) {
             try {
-                val jsonStr = get("$baseUrl/anime/$animeLink/episodes")
-                val arr = Mapper.json.parseToJsonElement(jsonStr) as? JsonArray ?: return@withContext emptyList()
-                arr.mapNotNull { el ->
-                    val obj = el as? JsonObject ?: return@mapNotNull null
-                    val num = (obj["episode"] as? JsonPrimitive)?.intOrNull ?: return@mapNotNull null
-                    val playUrl = (obj["play_url"] as? JsonPrimitive)?.contentOrNull
+                val jsonStr = get("$baseUrl/api/mobile/anime/$malId/episodes")
+                val obj = Mapper.json.parseToJsonElement(jsonStr) as? JsonObject ?: return@withContext emptyList()
+                val data = obj["data"] as? JsonArray ?: return@withContext emptyList()
+                data.mapNotNull { el ->
+                    val ep = el as? JsonObject ?: return@mapNotNull null
+                    val num = (ep["mal_id"] as? JsonPrimitive)?.intOrNull
+                        ?: (ep["episode"] as? JsonPrimitive)?.intOrNull
+                        ?: return@mapNotNull null
+                    val title = (ep["title"] as? JsonPrimitive)?.contentOrNull
                     Episode(
                         number = num.toString(),
-                        link = playUrl ?: num.toString(),
-                        title = "Episode $num",
-                        extra = extra
+                        link = num.toString(),
+                        title = title?.takeIf { it.isNotBlank() },
+                        extra = (extra ?: emptyMap()) + mapOf("mal_id" to malId.toString())
                     )
-                }
+                }.sortedBy { it.number.toIntOrNull() ?: 0 }
             } catch (e: Exception) {
                 Logger.log("AniVault loadEpisodes error: ${e.message}")
                 emptyList()
@@ -95,33 +103,29 @@ class AniVaultProvider : NativeAnimeParser() {
         extra: Map<String, String>?,
         sEpisode: SEpisode
     ): List<VideoServer> {
-        // When link already carries a play_url (v2), use /stream to resolve sources.
-        val playUrl = episodeLink.takeIf { it.startsWith("http") } ?: return emptyList()
+        val malId = extra?.get("mal_id")?.toIntOrNull() ?: episodeLink.toIntOrNull() ?: return emptyList()
+        val epNum = sEpisode.number?.toIntOrNull()
+            ?: episodeLink.toIntOrNull()
+            ?: return emptyList()
         return withContext(Dispatchers.IO) {
             try {
-                val encoded = java.net.URLEncoder.encode(playUrl, "utf-8")
-                val body = get("$baseUrl/stream?episode_url=$encoded")
+                val body = get("$baseUrl/api/videos.php?anime_id=$malId&ep=$epNum")
                 val obj = Mapper.json.parseToJsonElement(body) as? JsonObject ?: return@withContext emptyList()
+                if (obj["success"]?.jsonPrimitive?.booleanOrNull == false) return@withContext emptyList()
 
                 val servers = mutableListOf<VideoServer>()
-                // v2 may return a direct m3u8 or a list of sources.
-                val directM3u8 = (obj["m3u8"] as? JsonPrimitive)?.contentOrNull
-                    ?: (obj["url"] as? JsonPrimitive)?.contentOrNull
-                if (!directM3u8.isNullOrBlank()) {
-                    servers.add(buildServer("AniVault", directM3u8, obj))
+
+                val video = obj["video"] as? JsonObject
+                if (video != null) {
+                    servers.addAll(parseVideoRow(video, malId))
                 }
-                val sources = obj["sources"] as? JsonArray
-                sources?.forEach { srcEl ->
-                    val src = srcEl as? JsonObject ?: return@forEach
-                    val url = (src["url"] as? JsonPrimitive)?.contentOrNull
-                        ?: (src["file"] as? JsonPrimitive)?.contentOrNull
-                        ?: return@forEach
-                    if (url.isBlank()) return@forEach
-                    val quality = (src["quality"] as? JsonPrimitive)?.contentOrNull
-                        ?: (src["label"] as? JsonPrimitive)?.contentOrNull
-                        ?: "Default"
-                    servers.add(buildServer(quality, url, obj))
+
+                val videos = obj["videos"] as? JsonArray
+                videos?.forEach { el ->
+                    val row = el as? JsonObject ?: return@forEach
+                    servers.addAll(parseVideoRow(row, malId))
                 }
+
                 servers.distinctBy { it.embed.url }
             } catch (e: Exception) {
                 Logger.log("AniVault loadVideoServers error: ${e.message}")
@@ -130,21 +134,46 @@ class AniVaultProvider : NativeAnimeParser() {
         }
     }
 
-    private fun buildServer(name: String, streamUrl: String, obj: JsonObject): VideoServer {
-        val extraData = mutableMapOf<String, String>()
-        val subs = obj["subtitles"] as? JsonArray
-        if (subs != null && subs.isNotEmpty()) {
-            val subJson = subs.mapNotNull { sub ->
-                val subObj = sub as? JsonObject ?: return@mapNotNull null
-                val url = (subObj["url"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null
-                val lang = (subObj["lang"] as? JsonPrimitive)?.contentOrNull ?: "Unknown"
-                val code = language(lang)
-                "{\"url\":\"${url.replace("\"", "\\\"")}\",\"language\":\"$code\",\"type\":\"vtt\"}"
+    private fun parseVideoRow(row: JsonObject, malId: Int): List<VideoServer> {
+        val servers = mutableListOf<VideoServer>()
+        val embedCode = (row["embed_code"] as? JsonPrimitive)?.contentOrNull
+        val qualitiesJson = (row["qualities"] as? JsonPrimitive)?.contentOrNull
+
+        if (!embedCode.isNullOrBlank()) {
+            val iframeUrl = extractIframeSrc(embedCode)
+            if (!iframeUrl.isNullOrBlank()) {
+                val extraData = mutableMapOf<String, String>()
+                extraData["referer"] = "$defaultBaseUrl/"
+                servers.add(VideoServer("AniVault", iframeUrl, extraData))
             }
-            if (subJson.isNotEmpty()) extraData["subtitles"] = "[${subJson.joinToString(",")}]"
         }
-        obj["intro"]?.let { if (it is JsonObject || it is JsonPrimitive) extraData["intro"] = it.toString() }
-        obj["outro"]?.let { if (it is JsonObject || it is JsonPrimitive) extraData["outro"] = it.toString() }
-        return VideoServer(name, streamUrl, extraData)
+
+        if (!qualitiesJson.isNullOrBlank() && qualitiesJson != "null") {
+            try {
+                val qualities = Mapper.json.parseToJsonElement(qualitiesJson) as? JsonObject ?: return servers
+                for ((track, entries) in qualities) {
+                    val arr = entries as? JsonArray ?: continue
+                    arr.forEach { el ->
+                        val q = el as? JsonObject ?: return@forEach
+                        val label = (q["label"] as? JsonPrimitive)?.contentOrNull ?: "Default"
+                        val embed = (q["embed"] as? JsonPrimitive)?.contentOrNull ?: return@forEach
+                        val iframeUrl = extractIframeSrc(embed) ?: return@forEach
+                        val extraData = mutableMapOf<String, String>()
+                        extraData["referer"] = "$defaultBaseUrl/"
+                        extraData["audio"] = track
+                        servers.add(VideoServer("AniVault $label", iframeUrl, extraData))
+                    }
+                }
+            } catch (_: Exception) { }
+        }
+
+        return servers
+    }
+
+    private fun extractIframeSrc(html: String): String? {
+        val match = Regex("""src=["']([^"']+)["']""", RegexOption.IGNORE_CASE).find(html)
+            ?: return null
+        val url = match.groupValues[1]
+        return if (url.startsWith("http")) url else null
     }
 }
