@@ -41,7 +41,6 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.subdub.SubDubCache
 import ani.sanin.subdub.SubDubInfo
-import android.view.View
 import com.flaviofaria.kenburnsview.RandomTransitionGenerator
 import java.io.Serializable
 import androidx.lifecycle.lifecycleScope
@@ -821,10 +820,10 @@ class MediaAdaptor(
         val isReleasing = media.status == currActivity()?.getString(R.string.status_releasing)
         val released = when {
             !isAnime -> null
-            isReleasing && (media.nextAiringEpisode?.episode ?: 0) > 1 -> (media.nextAiringEpisode?.episode ?: 1) - 1
+            isReleasing && (media.anime?.nextAiringEpisode ?: 0) > 1 -> (media.anime?.nextAiringEpisode ?: 1) - 1
             else -> media.anime?.totalEpisodes
         }
-        val timeUntil = if (isAnime && isReleasing) media.nextAiringEpisode?.timeUntilAiring else null
+        val timeUntil = if (isAnime && isReleasing) media.timeUntilAiring else null
 
         // Show the badge if ANY field has real data; otherwise hide
         val hasWatched = watched != null && watched > 0
@@ -850,10 +849,12 @@ class MediaAdaptor(
         releasedCount.visibility = View.VISIBLE
         releasedCount.text = if (hasReleased) released.toString() else "~"
 
-        // Time-to-air
+        // Time-to-air (milliseconds)
         if (hasTT) {
-            val days  = timeUntil!! / 86400
-            val hours = (timeUntil % 86400) / 3600
+            val DAY_MILLIS = 86_400_000L
+            val HOUR_MILLIS = 3_600_000L
+            val days  = timeUntil!! / DAY_MILLIS
+            val hours = (timeUntil % DAY_MILLIS) / HOUR_MILLIS
             ttText.text = if (days > 0) "${days}d ${hours}h" else "${hours}h"
         } else {
             ttText.text = "~"

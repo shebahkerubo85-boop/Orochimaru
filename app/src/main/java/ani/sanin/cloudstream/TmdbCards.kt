@@ -9,7 +9,9 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
+import ani.sanin.R
 import ani.sanin.connections.tmdb.Tmdb
+import ani.sanin.R
 import ani.sanin.connections.tmdb.TmdbMedia
 import ani.sanin.databinding.ItemTmdbCardBinding
 import ani.sanin.loadImage
@@ -172,7 +174,7 @@ object TmdbCards {
         starIcon.isVisible       = showRating
 
         // ── Progress badge (gated by CardMetadataBottom, TV only) ──
-        val progressBadge = binding.progressBadge
+        val progressBadge = binding.root.findViewById<View>(R.id.progressBadge)
         val wantProgress = PrefManager.getVal<Int>(PrefName.CardMetadataBottom) == 2 && item.type == "tv"
         if (!wantProgress) {
             progressBadge.isVisible = false

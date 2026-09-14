@@ -137,7 +137,8 @@
         tools:text="2024" />
 
     <include
-        layout="@layout/item_progress_badge"
+        android:id="@+id/progressBadge"
+                layout="@layout/item_progress_badge"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
