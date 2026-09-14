@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content">
 
@@ -35,13 +34,6 @@
             android:paddingStart="4dp"
             android:paddingEnd="4dp"
             android:background="?android:attr/selectableItemBackground">
-
-            <ImageView
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:src="@drawable/ic_round_star_24"
-                app:tint="?attr/colorPrimary"
-                android:contentDescription="@string/empty" />
 
             <TextView
                 android:layout_width="0dp"
@@ -84,17 +76,7 @@
                 <CheckBox
                     android:id="@+id/metadataRatingCheck"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:buttonTint="?attr/colorPrimary" />
-
-                <ImageView
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:layout_marginStart="6dp"
-                    android:src="@drawable/ic_round_star_24"
-                    app:tint="?attr/colorPrimary"
-                    android:contentDescription="@string/empty" />
-
+                    android:layout_height="wrap_content"/>
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
@@ -132,17 +114,7 @@
                 <CheckBox
                     android:id="@+id/metadataAiringCheck"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:buttonTint="?attr/colorPrimary" />
-
-                <ImageView
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:layout_marginStart="6dp"
-                    android:src="@drawable/ic_broadcast_ongoing"
-                    app:tint="?attr/colorPrimary"
-                    android:contentDescription="@string/empty" />
-
+                    android:layout_height="wrap_content"/>
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
@@ -180,8 +152,7 @@
                 <CheckBox
                     android:id="@+id/metadataTopNoneCheck"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:buttonTint="?attr/colorPrimary" />
+                    android:layout_height="wrap_content"/>
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -218,13 +189,6 @@
             android:paddingStart="4dp"
             android:paddingEnd="4dp"
             android:background="?android:attr/selectableItemBackground">
-
-            <ImageView
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:src="@drawable/ic_mic"
-                app:tint="?attr/colorPrimary"
-                android:contentDescription="@string/empty" />
 
             <TextView
                 android:layout_width="0dp"
@@ -267,17 +231,7 @@
                 <CheckBox
                     android:id="@+id/metadataSubDubCheck"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:buttonTint="?attr/colorPrimary" />
-
-                <ImageView
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:layout_marginStart="6dp"
-                    android:src="@drawable/ic_mic"
-                    app:tint="?attr/colorPrimary"
-                    android:contentDescription="@string/empty" />
-
+                    android:layout_height="wrap_content"/>
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
@@ -315,17 +269,7 @@
                 <CheckBox
                     android:id="@+id/metadataProgressCheck"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:buttonTint="?attr/colorPrimary" />
-
-                <ImageView
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:layout_marginStart="6dp"
-                    android:src="@drawable/ic_baseline_play_arrow_24"
-                    app:tint="?attr/colorPrimary"
-                    android:contentDescription="@string/empty" />
-
+                    android:layout_height="wrap_content"/>
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
@@ -363,8 +307,7 @@
                 <CheckBox
                     android:id="@+id/metadataBottomNoneCheck"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:buttonTint="?attr/colorPrimary" />
+                    android:layout_height="wrap_content"/>
 
                 <LinearLayout
                     android:layout_width="0dp"

@@ -138,9 +138,7 @@
             <CheckBox
                 android:id="@+id/sheetAnimeAniListCheck"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                style="@style/Widget.Material3.CompoundButton.CheckBox"
-                android:buttonTint="?attr/colorPrimary" />
+                android:layout_height="wrap_content" />
 
             <ImageView
                 android:layout_width="24dp"
@@ -171,9 +169,7 @@
             <CheckBox
                 android:id="@+id/sheetAnimeMALCheck"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                style="@style/Widget.Material3.CompoundButton.CheckBox"
-                android:buttonTint="?attr/colorPrimary" />
+                android:layout_height="wrap_content" />
 
             <ImageView
                 android:layout_width="24dp"
@@ -334,9 +330,7 @@
             <CheckBox
                 android:id="@+id/sheetMovieSimklCheck"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                style="@style/Widget.Material3.CompoundButton.CheckBox"
-                android:buttonTint="?attr/colorPrimary" />
+                android:layout_height="wrap_content" />
 
             <ImageView
                 android:layout_width="24dp"

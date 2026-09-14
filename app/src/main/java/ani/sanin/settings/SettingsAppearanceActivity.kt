@@ -808,6 +808,7 @@ class SettingsAppearanceActivity : AppCompatActivity() {
         customAlertDialog().apply {
             setCustomView(view)
             setCancelable(true)
+            onDismiss { restartApp() }
             show()
         }
     }
