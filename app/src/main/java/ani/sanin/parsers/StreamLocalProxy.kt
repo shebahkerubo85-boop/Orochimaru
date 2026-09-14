@@ -481,16 +481,16 @@ object StreamLocalProxy {
         return buf.toString("UTF-8")
     }
 
-    private fun parseQuery(query: String): Map<String, List<String>> {
+    private fun parseQuery(query: String): Map<String, String> {
         if (query.isBlank()) return emptyMap()
         return query.split("&").mapNotNull { pair ->
             val kv = pair.split("=", limit = 2)
             if (kv.isEmpty() || kv[0].isBlank()) null
             else kv[0] to runCatching { URLDecoder.decode(kv.getOrElse(1) { "" }, "UTF-8") }.getOrDefault(kv.getOrElse(1) { "" })
-        }.groupBy({ it.first }, { it.second }).mapValues { it.value }
+        }.toMap()
     }
 
-    private fun Map<String, List<String>>.getFirst(name: String): String? = this[name]?.firstOrNull()
+    private fun Map<String, String>.getFirst(name: String): String? = this[name]
 
     private fun ua(): String = defaultHeaders["User-Agent"] ?: FALLBACK_UA
 
