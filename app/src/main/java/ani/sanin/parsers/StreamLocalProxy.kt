@@ -24,6 +24,7 @@ import java.net.SocketTimeoutException
 import java.net.URI
 import java.net.URLDecoder
 import java.net.URLEncoder
+import java.net.UnknownHostException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -57,6 +58,11 @@ object StreamLocalProxy {
     }
 
     private val warmedHosts = ConcurrentHashMap.newKeySet<String>()
+
+    /** DNS negative cache: host → timestamp when resolution failed. Requests fail fast while entry is fresh. */
+    private val dnsFailedHosts = ConcurrentHashMap<String, Long>()
+    private const val DNS_FAIL_TTL_MS = 30_000L
+    private const val DNS_PROBE_TTL_MS = 60_000L
 
     private val acceptThread: Thread by lazy {
         Thread({
@@ -94,6 +100,27 @@ object StreamLocalProxy {
                 .retryOnConnectionFailure(true)
                 .build()
         }
+    }
+
+    private fun extractHost(url: String): String? =
+        runCatching { URI(url).host }.getOrNull()
+
+    /** Returns true if the host is not known-bad (or the TTL expired). */
+    private fun isHostReachable(url: String): Boolean {
+        val host = extractHost(url) ?: return true
+        val failTime = dnsFailedHosts[host] ?: return true
+        val elapsed = System.currentTimeMillis() - failTime
+        if (elapsed > DNS_FAIL_TTL_MS) {
+            dnsFailedHosts.remove(host)
+            return true  // allow retry
+        }
+        return false
+    }
+
+    /** Cache a host as unreachable for DNS_PROBE_TTL_MS. */
+    private fun markHostDnsFailed(host: String) {
+        dnsFailedHosts[host] = System.currentTimeMillis()
+        Logger.log(Log.WARN, "StreamLocalProxy: DNS failure cached for host=$host (ttl=${DNS_FAIL_TTL_MS / 1000}s)")
     }
 
     private fun ensureStarted() {
@@ -185,6 +212,8 @@ object StreamLocalProxy {
                     serveManifest(s, url, referer, origin, pkBytes, maskBytes)
                 }
             }
+        } catch (e: UnknownHostException) {
+            Logger.log(Log.WARN, "StreamLocalProxy handle: DNS failure: ${e.message}")
         } catch (e: Exception) {
             Logger.log(Log.WARN, "StreamLocalProxy handle: ${e.message}")
         } finally {
@@ -218,6 +247,12 @@ object StreamLocalProxy {
             }
             .get()
             .build()
+
+        if (!isHostReachable(url)) {
+            Logger.log(Log.WARN, "StreamLocalProxy: manifest skip — host known-bad for $url")
+            writeResponse(socket, "502 Bad Gateway", "text/plain", "Host unreachable (DNS cached)", null)
+            return
+        }
 
         val owner = if (referer.contains("flixcloud", true)) "flixcloud" else "hls"
         // Retry up to 3 times on timeout
@@ -256,6 +291,11 @@ object StreamLocalProxy {
                 writeResponse(socket, "504 Gateway Timeout", "text/plain", "Manifest fetch timed out", null)
                 return
             }
+        } catch (e: UnknownHostException) {
+            extractHost(url)?.let { markHostDnsFailed(it) }
+            Logger.log(Log.WARN, "StreamLocalProxy: $owner manifest DNS failure for $url: ${e.message}")
+            writeResponse(socket, "502 Bad Gateway", "text/plain", "DNS resolution failed", null)
+            return
         } catch (e: Exception) {
             Logger.log(Log.WARN, "StreamLocalProxy: $owner manifest error: ${e.message}")
             writeResponse(socket, "502 Bad Gateway", "text/plain", "Manifest fetch error: ${e.message}", null)
@@ -377,6 +417,12 @@ object StreamLocalProxy {
         origin: String,
         mask: ByteArray?,
     ) {
+        if (!isHostReachable(url)) {
+            Logger.log(Log.WARN, "StreamLocalProxy: segment skip — host known-bad for $url")
+            writeResponse(socket, "502 Bad Gateway", "text/plain", "Host unreachable (DNS cached)", null)
+            return
+        }
+
         val request = Request.Builder().url(url)
             .header("User-Agent", ua())
             .header("Accept", "*/*")
