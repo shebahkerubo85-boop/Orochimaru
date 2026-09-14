@@ -42,6 +42,7 @@ import ani.sanin.loadImage
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.sizeBannerCard
+import ani.sanin.px
 import ani.sanin.util.FocusEffectUtil
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.LiveSearchResponse
@@ -659,6 +660,10 @@ class TmdbHomeFragment : Fragment() {
             isNestedScrollingEnabled = false
             overScrollMode = View.OVER_SCROLL_NEVER
             setPadding(24, 0, 24, 0)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = 11f.px }
         }
         binding.tmdbHomeSections.addView(header)
         binding.tmdbHomeSections.addView(list)
@@ -704,6 +709,10 @@ class TmdbHomeFragment : Fragment() {
             isNestedScrollingEnabled = false
             overScrollMode = View.OVER_SCROLL_NEVER
             setPadding(24, 0, 24, 0)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = 11f.px }
         }
         binding.tmdbHomeSections.addView(header)
         binding.tmdbHomeSections.addView(list)
@@ -725,6 +734,10 @@ class TmdbHomeFragment : Fragment() {
             isNestedScrollingEnabled = false
             overScrollMode = View.OVER_SCROLL_NEVER
             setPadding(24, 0, 24, 0)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = 11f.px }
         }
         binding.tmdbHomeSections.addView(header)
         binding.tmdbHomeSections.addView(list)

@@ -74,7 +74,7 @@
             android:layout_gravity="top|end"
             android:layout_marginTop="8dp"
             android:layout_marginEnd="8dp"
-            android:background="@drawable/tag_chip_bg"
+            android:background="@drawable/bg_episode_clay"
             android:fontFamily="@font/poppins_bold"
             android:gravity="center"
             android:paddingHorizontal="8dp"
@@ -172,21 +172,15 @@
             tools:text=" | 22 | 24" />
     </LinearLayout>
 
-    <androidx.cardview.widget.CardView
-        android:id="@+id/cwOngoing"
-        android:layout_width="12dp"
-        android:layout_height="12dp"
+    <ImageView
+        android:id="@+id/cwBroadcast"
+        android:layout_width="14dp"
+        android:layout_height="14dp"
         android:layout_gravity="bottom|start"
         android:layout_marginStart="6dp"
         android:layout_marginBottom="6dp"
+        android:src="@drawable/ic_broadcast_ongoing"
         android:visibility="gone"
-        app:cardCornerRadius="6dp"
-        app:cardElevation="2dp">
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="#4CAF50" />
-    </androidx.cardview.widget.CardView>
+        tools:ignore="ContentDescription" />
 
 </LinearLayout>

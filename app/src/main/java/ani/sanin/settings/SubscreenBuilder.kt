@@ -251,15 +251,7 @@ object SubscreenBuilder {
                     if (isExpanding) 180f else 0f,
                 ).apply { duration = 250; interpolator = AccelerateDecelerateInterpolator(); start() }
 
-                if (isExpanding) {
-                    items.visibility = View.VISIBLE
-                    items.alpha = 0f
-                    items.animate().alpha(1f).setDuration(200).start()
-                } else {
-                    items.animate().alpha(0f).setDuration(150).withEndAction {
-                        items.visibility = View.GONE
-                    }.start()
-                }
+                if (isExpanding) AnimUtils.rollExpand(items) else AnimUtils.rollCollapse(items)
             }
 
             header.setSafeOnClickListener { toggle() }

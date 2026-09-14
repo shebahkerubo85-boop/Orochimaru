@@ -32,14 +32,50 @@
                 android:scaleType="centerCrop"
                 tools:ignore="ContentDescription" />
 
-            <TextView
+            <LinearLayout
                 android:id="@+id/tmdbCardRating"
-                style="@style/RatingButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:layout_gravity="top|end"
                 android:layout_marginTop="6dp"
                 android:layout_marginEnd="6dp"
-                android:visibility="gone"
-                tools:text="8.5" />
+                android:background="@drawable/bg_rating_pill"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="6dp"
+                android:paddingEnd="4dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/tmdbCardBroadcast"
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:layout_marginEnd="2dp"
+                    android:src="@drawable/ic_broadcast_ongoing"
+                    android:visibility="gone"
+                    tools:ignore="ContentDescription" />
+
+                <TextView
+                    android:id="@+id/tmdbCardRatingText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/poppins_bold"
+                    android:textColor="@android:color/white"
+                    android:textSize="10sp"
+                    tools:ignore="SpUsage,TextContrastCheck"
+                    tools:text="8.5" />
+
+                <ImageView
+                    android:id="@+id/tmdbCardStar"
+                    android:layout_width="10dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="2dp"
+                    app:srcCompat="@drawable/ic_round_star_24"
+                    app:tint="?attr/colorPrimary"
+                    tools:ignore="ContentDescription" />
+            </LinearLayout>
 
             <View
                 android:id="@+id/tmdbCardGradient"
@@ -99,4 +135,11 @@
         android:textSize="10sp"
         android:textColor="?attr/colorOutline"
         tools:text="2024" />
+
+    <include
+        layout="@layout/item_progress_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="4dp" />
 </LinearLayout>

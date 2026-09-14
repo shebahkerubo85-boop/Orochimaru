@@ -150,10 +150,11 @@ class SimklSectionFragment : Fragment() {
 
             // Rating pill: user rating first, TMDB fallback
             val rating = b.tmdbCardRating
+            val ratingText = b.tmdbCardRatingText
             val userRating = item.userRating
             if (userRating != null && userRating > 0) {
                 rating.isVisible = true
-                rating.text = String.format("%.1f", userRating / 10.0)
+                ratingText.text = String.format("%.1f", userRating / 10.0)
             } else {
                 rating.isVisible = false
                 // Async TMDB vote average fallback
@@ -168,7 +169,7 @@ class SimklSectionFragment : Fragment() {
                             withContext(Dispatchers.Main) {
                                 if (holder.adapterPosition == position) {
                                     rating.isVisible = true
-                                    rating.text = String.format("%.1f", vote)
+                                    ratingText.text = String.format("%.1f", vote)
                                 }
                             }
                         }

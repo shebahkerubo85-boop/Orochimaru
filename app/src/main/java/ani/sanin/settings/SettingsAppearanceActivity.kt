@@ -139,6 +139,11 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                         ) { idx -> PrefManager.setVal(PrefName.CardTitlePosition, idx); restartApp() },
                     ),
                     SubscreenBuilder.Entry(
+                        title = "Card Metadata",
+                        desc = "Rating, airing & info badges on cards",
+                        onClick = { ctx -> showCardMetadataDialog() },
+                    ),
+                    SubscreenBuilder.Entry(
                         title = "Corner Radius",
                         desc = "Roundness of standard cards",
                         choice = intChoice(
@@ -675,14 +680,7 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                 if (expanded) 0f else 180f,
                 if (expanded) 180f else 0f
             ).apply { duration = 250; start() }
-            if (expanded) {
-                items.visibility = View.VISIBLE
-                items.animate().alpha(1f).setDuration(200).start()
-            } else {
-                items.animate().alpha(0f).setDuration(150).withEndAction {
-                    items.visibility = View.GONE
-                }.start()
-            }
+            if (expanded) AnimUtils.rollExpand(items) else AnimUtils.rollCollapse(items)
         }
         header.setOnClickListener { toggleSection() }
         FocusEffectUtil.applyFocusListener(header)
@@ -692,7 +690,129 @@ class SettingsAppearanceActivity : AppCompatActivity() {
         container.addView(sectionView)
     }
 
-    private fun floatChoice(title: String, labels: Array<String>, values: FloatArray, current: Float, onSelect: (Float) -> Unit) =
+
+    // ─── Card Metadata Dialog ─────────────────────────────────
+    private fun showCardMetadataDialog() {
+        val topPref = PrefManager.getVal<Int>(PrefName.CardMetadataTop)
+        val bottomPref = PrefManager.getVal<Int>(PrefName.CardMetadataBottom)
+        val view = layoutInflater.inflate(R.layout.dialog_card_metadata, null)
+
+        val topRow = view.findViewById<View>(R.id.metadataTopRow)
+        val topExpanded = view.findViewById<View>(R.id.metadataTopExpanded)
+        val topChevron = view.findViewById<ImageView>(R.id.metadataTopChevron)
+        val ratingCheck = view.findViewById<android.widget.CheckBox>(R.id.metadataRatingCheck)
+        val airingCheck = view.findViewById<android.widget.CheckBox>(R.id.metadataAiringCheck)
+        val topNone = view.findViewById<android.widget.CheckBox>(R.id.metadataTopNoneCheck)
+
+        val bottomRow = view.findViewById<View>(R.id.metadataBottomRow)
+        val bottomExpanded = view.findViewById<View>(R.id.metadataBottomExpanded)
+        val bottomChevron = view.findViewById<ImageView>(R.id.metadataBottomChevron)
+        val subDubCheck = view.findViewById<android.widget.CheckBox>(R.id.metadataSubDubCheck)
+        val progressCheck = view.findViewById<android.widget.CheckBox>(R.id.metadataProgressCheck)
+        val bottomNone = view.findViewById<android.widget.CheckBox>(R.id.metadataBottomNoneCheck)
+
+        // Restore state from prefs
+        ratingCheck.isChecked = topPref and 1 != 0
+        airingCheck.isChecked = topPref and 2 != 0
+        topNone.isChecked = topPref == 0
+        subDubCheck.isChecked = bottomPref == 1
+        progressCheck.isChecked = bottomPref == 2
+        bottomNone.isChecked = bottomPref == 0
+
+        // ── Top expand/collapse ──
+        topRow.setOnClickListener {
+            val closingBottom = bottomExpanded.visibility == View.VISIBLE
+            if (bottomExpanded.visibility == View.VISIBLE) {
+                bottomExpanded.animate().alpha(0f).setDuration(120).withEndAction {
+                    bottomExpanded.visibility = View.GONE; bottomExpanded.alpha = 1f
+                }.start()
+                bottomChevron.animate().rotation(0f).setDuration(200).start()
+            }
+            if (topExpanded.visibility == View.VISIBLE) {
+                topExpanded.animate().alpha(0f).setDuration(120).withEndAction {
+                    topExpanded.visibility = View.GONE; topExpanded.alpha = 1f
+                }.start()
+                topChevron.animate().rotation(0f).setDuration(200).start()
+            } else {
+                topExpanded.visibility = View.VISIBLE
+                topExpanded.alpha = 0f
+                topExpanded.animate().alpha(1f).setDuration(200).start()
+                topChevron.animate().rotation(180f).setDuration(200).start()
+                if (closingBottom) bottomChevron.animate().rotation(0f).start()
+            }
+        }
+
+        // ── Top checkboxes ──
+        ratingCheck.setOnClickListener {
+            if (ratingCheck.isChecked) topNone.isChecked = false
+            PrefManager.setVal(PrefName.CardMetadataTop,
+                (if (ratingCheck.isChecked) 1 else 0) or (if (airingCheck.isChecked) 2 else 0))
+        }
+        airingCheck.setOnClickListener {
+            if (airingCheck.isChecked) topNone.isChecked = false
+            PrefManager.setVal(PrefName.CardMetadataTop,
+                (if (ratingCheck.isChecked) 1 else 0) or (if (airingCheck.isChecked) 2 else 0))
+        }
+        topNone.setOnClickListener {
+            if (topNone.isChecked) { ratingCheck.isChecked = false; airingCheck.isChecked = false }
+            PrefManager.setVal(PrefName.CardMetadataTop, 0)
+        }
+
+        // ── Bottom expand/collapse ──
+        bottomRow.setOnClickListener {
+            if (topExpanded.visibility == View.VISIBLE) {
+                topExpanded.animate().alpha(0f).setDuration(120).withEndAction {
+                    topExpanded.visibility = View.GONE; topExpanded.alpha = 1f
+                }.start()
+                topChevron.animate().rotation(0f).setDuration(200).start()
+            }
+            if (bottomExpanded.visibility == View.VISIBLE) {
+                bottomExpanded.animate().alpha(0f).setDuration(120).withEndAction {
+                    bottomExpanded.visibility = View.GONE; bottomExpanded.alpha = 1f
+                }.start()
+                bottomChevron.animate().rotation(0f).setDuration(200).start()
+            } else {
+                bottomExpanded.visibility = View.VISIBLE
+                bottomExpanded.alpha = 0f
+                bottomExpanded.animate().alpha(1f).setDuration(200).start()
+                bottomChevron.animate().rotation(180f).setDuration(200).start()
+            }
+        }
+
+        // ── Bottom checkboxes (single-select + None) ──
+        val bottomChecks = listOf(subDubCheck, progressCheck, bottomNone)
+
+        fun bottomSync(enabled: Int) {
+            bottomChecks.forEach { it.setOnCheckedChangeListener(null) }
+            subDubCheck.isChecked = enabled == 1
+            progressCheck.isChecked = enabled == 2
+            bottomNone.isChecked = enabled == 0
+            PrefManager.setVal(PrefName.CardMetadataBottom, enabled)
+            bottomChecks.forEach { cb ->
+                cb.setOnCheckedChangeListener { _, _ -> }
+            }
+        }
+
+        fun bottomClick(which: Int) {
+            val target = if (which == 0 && (subDubCheck.isChecked || progressCheck.isChecked)) 0 else which
+            bottomSync(target)
+        }
+
+        bottomChecks.forEach { cb ->
+            cb.setOnCheckedChangeListener { _, _ -> }
+        }
+        subDubCheck.setOnClickListener { bottomClick(1) }
+        progressCheck.setOnClickListener { bottomClick(2) }
+        bottomNone.setOnClickListener { bottomClick(0) }
+
+        customAlertDialog().apply {
+            setCustomView(view)
+            setCancelable(true)
+            show()
+        }
+    }
+
+        private fun floatChoice(title: String, labels: Array<String>, values: FloatArray, current: Float, onSelect: (Float) -> Unit) =
         SubscreenBuilder.Choice(title, labels,
             values.indices.minByOrNull { idx -> kotlin.math.abs(values[idx] - current) } ?: 0
         ) { idx -> onSelect(values[idx]) }

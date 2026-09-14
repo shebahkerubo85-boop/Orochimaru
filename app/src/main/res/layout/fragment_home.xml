@@ -793,6 +793,7 @@
                 android:id="@+id/homeContinueWatchingContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="11dp"
                 android:orientation="vertical"
                 android:visibility="gone">
 
@@ -927,6 +928,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
+                android:layout_marginBottom="11dp"
                 android:orientation="vertical"
                 android:visibility="gone">
 
@@ -1057,6 +1059,7 @@
                 android:id="@+id/homePlannedAnimeContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="11dp"
                 android:orientation="vertical"
                 android:visibility="gone">
 
@@ -1190,6 +1193,7 @@
                 android:id="@+id/homeContinueReadingContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="11dp"
                 android:orientation="vertical"
                 android:visibility="gone">
 
@@ -1323,6 +1327,7 @@
                 android:id="@+id/homeFavMangaContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="11dp"
                 android:orientation="vertical"
                 android:visibility="gone">
 
@@ -1452,6 +1457,7 @@
                 android:id="@+id/homePlannedMangaContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="11dp"
                 android:orientation="vertical"
                 android:visibility="gone">
 
@@ -1586,6 +1592,7 @@
                 android:id="@+id/homeMissingSequelsContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="11dp"
                 android:orientation="vertical"
                 android:visibility="gone">
 
@@ -1713,6 +1720,7 @@
                 android:id="@+id/homeRecommendedContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="11dp"
                 android:orientation="vertical"
                 android:visibility="gone">
 

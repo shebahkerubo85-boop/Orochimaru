@@ -188,6 +188,6 @@ class ContinueWatchingLandscapeAdapter(
         val cwUserProgress: TextView = view.findViewById(R.id.cwUserProgress)
         val cwTotal: TextView = view.findViewById(R.id.cwTotal)
         val progress: ProgressBar = view.findViewById(R.id.cwProgress)
-        val ongoing: View = view.findViewById(R.id.cwOngoing)
+        val ongoing: View = view.findViewById(R.id.cwBroadcast)
     }
 }

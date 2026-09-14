@@ -99,6 +99,14 @@
                     android:paddingStart="8dp"
                     android:paddingEnd="6dp">
 
+                    <ImageView
+                        android:id="@+id/itemCompactBroadcast"
+                        android:layout_width="10dp"
+                        android:layout_height="10dp"
+                        android:layout_marginEnd="2dp"
+                        android:src="@drawable/ic_broadcast_ongoing"
+                        android:visibility="gone"
+                        tools:ignore="ContentDescription" />
                     <TextView
                         android:id="@+id/itemCompactScore"
                         android:layout_width="wrap_content"
@@ -120,23 +128,20 @@
                         tools:ignore="ContentDescription" />
 
                 </LinearLayout>
+            <include
+                layout="@layout/item_subdub_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="6dp" />
 
-            </androidx.cardview.widget.CardView>
+            <include
+                layout="@layout/item_progress_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="4dp" />
 
-            <androidx.cardview.widget.CardView
-                android:id="@+id/itemCompactOngoing"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_gravity="bottom"
-                android:alpha="0.8"
-                android:translationZ="8dp"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="4dp">
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:background="@drawable/item_ongoing" />
             </androidx.cardview.widget.CardView>
         </FrameLayout>
 

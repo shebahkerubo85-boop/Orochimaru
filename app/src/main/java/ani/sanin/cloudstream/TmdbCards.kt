@@ -6,6 +6,7 @@ import android.graphics.drawable.GradientDrawable
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import ani.sanin.connections.tmdb.Tmdb
@@ -27,6 +28,7 @@ import kotlinx.coroutines.launch
 object TmdbCards {
 
     private val logoScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val detailScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun isLandscapeOrientation(): Boolean = PrefManager.getVal<Int>(PrefName.CardOrientation) == 0
 
@@ -154,14 +156,59 @@ object TmdbCards {
             logo.isVisible = true  // Will be updated by async logo fetch
         }
 
-        // ── Rating pill ──
+        // ── Rating pill (gated by CardMetadataTop) ──
         val rating = binding.tmdbCardRating
+        val ratingText = binding.tmdbCardRatingText
+        val broadcastIcon = binding.tmdbCardBroadcast
+        val starIcon = binding.tmdbCardStar
         val vote = item.voteAverage
-        if (vote > 0.0) {
-            rating.isVisible = true
-            rating.text = String.format("%.1f", vote)
+        val topPref = PrefManager.getVal<Int>(PrefName.CardMetadataTop)
+        val showRating  = topPref and 1 != 0 && vote > 0.0
+        val showAiring  = topPref and 2 != 0 && item.type == "tv" && item.firstAirDate?.isNotEmpty() == true
+        rating.isVisible    = showRating || showAiring
+        ratingText.isVisible = showRating
+        ratingText.text     = String.format("%.1f", vote)
+        broadcastIcon.isVisible = showAiring
+        starIcon.isVisible       = showRating
+
+        // ── Progress badge (gated by CardMetadataBottom, TV only) ──
+        val progressBadge = binding.progressBadge
+        val wantProgress = PrefManager.getVal<Int>(PrefName.CardMetadataBottom) == 2 && item.type == "tv"
+        if (!wantProgress) {
+            progressBadge.isVisible = false
         } else {
-            rating.isVisible = false
+            // Always show with ~ placeholders; async fetch fills real values
+            progressBadge.isVisible = true
+            progressBadge.findViewById<android.view.View>(R.id.progressWatchedIcon).isVisible = true
+            progressBadge.findViewById<TextView>(R.id.progressWatchedCount).text = "~"
+            progressBadge.findViewById<android.view.View>(R.id.progressReleasedIcon).isVisible = true
+            progressBadge.findViewById<TextView>(R.id.progressReleasedCount).text = "~"
+            progressBadge.findViewById<android.view.View>(R.id.progressDividerTT).isVisible = false
+            progressBadge.findViewById<TextView>(R.id.progressTT).text = "~"
+            progressBadge.tag = "${item.type}:${item.id}"
+            detailScope.launch {
+                val detail = runCatching { Tmdb.detail(item.type, item.id) }.getOrNull()
+                val tag = progressBadge.tag
+                if (tag != "${item.type}:${item.id}") return@launch
+                val released = detail?.numberOfEpisodes
+                val nextAirDate = detail?.nextEpisodeToAir?.airDate
+                binding.root.post {
+                    if (progressBadge.tag != tag) return@post
+                    val releasedText = progressBadge.findViewById<TextView>(R.id.progressReleasedCount)
+                    releasedText.text = if (released != null && released > 0) released.toString() else "~"
+                    if (!nextAirDate.isNullOrBlank()) {
+                        runCatching {
+                            val airDate = java.time.LocalDate.parse(nextAirDate, java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)
+                            val days = java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), airDate)
+                            if (days > 0) {
+                                val ttText = progressBadge.findViewById<TextView>(R.id.progressTT)
+                                ttText.text = "${days}d"
+                                progressBadge.findViewById<android.view.View>(R.id.progressDividerTT).isVisible = true
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 

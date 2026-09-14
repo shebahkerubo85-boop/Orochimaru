@@ -39,6 +39,9 @@ import ani.sanin.setSafeOnClickListener
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.util.FocusEffectUtil
+import ani.sanin.subdub.SubDubCache
+import ani.sanin.subdub.SubDubInfo
+import android.view.View
 import com.flaviofaria.kenburnsview.RandomTransitionGenerator
 import java.io.Serializable
 import androidx.lifecycle.lifecycleScope
@@ -187,13 +190,35 @@ class MediaAdaptor(
                         else -> cardRoundness
                     }
                     b.itemCompactCard.radius = styleRadius
-                    b.itemCompactOngoing.isVisible =
-                        media.status == currActivity()!!.getString(R.string.status_releasing)
+
+                    // Adapt pill position to card radius so it doesn't get cropped
+                    b.itemCompactScoreBG.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                        val m = (styleRadius * 0.6f).toInt().coerceAtLeast(4)
+                        topMargin = m
+                        marginEnd = m
+                    }
+                    val showScore = shouldShowTopBadge(1) && (media.userScore > 0 || (media.meanScore ?: 0) > 0)
+                    val showAiring = shouldShowTopBadge(2) && media.status == currActivity()!!.getString(R.string.status_releasing)
+                    b.itemCompactScoreBG.isVisible = showScore || showAiring
                     b.itemCompactScore.text =
                         ((if (media.userScore == 0) (media.meanScore
                             ?: 0) else media.userScore) / 10.0).toString()
-                    b.itemCompactScoreBG.setBackgroundResource(R.drawable.bg_rating_pill)
+                    b.itemCompactScore.isVisible = showScore
+                    b.itemCompactScoreBG.findViewById<View>(R.id.itemCompactBroadcast).isVisible = showAiring
+                    b.itemCompactScoreBG.findViewById<View>(R.id.imageView2)?.isVisible = showScore
                     b.itemCompactTitle.text = media.userPreferredName
+
+                    // Sub/Dub badge
+                    if (shouldShowBottomBadge(1)) {
+                        val badge0 = b.root.findViewById<View>(R.id.subDubBadge)
+                        if (badge0 != null) {
+                            SubDubCache.get(media.nameRomaji, media.anime?.scope ?: return) { info ->
+                                bindSubDubBadge(badge0, info, media)
+                            }
+                        }
+                    } else {
+                        b.root.findViewById<View>(R.id.subDubBadge)?.visibility = View.GONE
+                    }
 
                     // Bottom overlay is landscape-only; portrait cards always
                     // show the title below unless it's set to Hidden.
@@ -204,13 +229,11 @@ class MediaAdaptor(
                     b.itemCompactTitle.visibility =
                         if (cachedCardTitlePosition == 2) View.GONE else View.VISIBLE
 
-                    if (media.anime != null) {
-                        b.itemCompactUserProgress.text = (media.userProgress ?: "~").toString()
-                        b.itemCompactTotal.text =
-                            " | ${if (media.anime.nextAiringEpisode != null) (media.anime.nextAiringEpisode.toString() + " | " + (media.anime.totalEpisodes ?: "~").toString()) else (media.anime.totalEpisodes ?: "~").toString()}"
-                        b.itemCompactProgressContainer.visibility = View.VISIBLE
+                    if (shouldShowBottomBadge(2) && media.anime != null) {
+                        val progressBadge = b.root.findViewById<View>(R.id.progressBadge)
+                        if (progressBadge != null) bindProgressBadge(progressBadge, media)
                     } else {
-                        b.itemCompactProgressContainer.visibility = View.GONE
+                        b.root.findViewById<View>(R.id.progressBadge)?.visibility = View.GONE
                     }
 
                 }
@@ -222,19 +245,48 @@ class MediaAdaptor(
                 if (media != null) {
                     b.itemCompactImage.loadImage(media.cover)
                     blurImage(b.itemCompactBanner, media.banner ?: media.cover)
-                    b.itemCompactOngoing.isVisible =
-                        media.status == currActivity()!!.getString(R.string.status_releasing)
-                    b.itemCompactTitle.text = media.userPreferredName
+                    val showBottom1 = cachedCardTitlePosition != 0
+                    val showScore1 = shouldShowTopBadge(1) && (media.userScore > 0 || (media.meanScore ?: 0) > 0)
+                    val showAiring1 = shouldShowTopBadge(2) && media.status == currActivity()!!.getString(R.string.status_releasing)
+                    b.itemCompactScoreBG.isVisible = showScore1 || showAiring1
                     b.itemCompactScore.text =
                         ((if (media.userScore == 0) (media.meanScore
                             ?: 0) else media.userScore) / 10.0).toString()
-                    b.itemCompactScoreBG.setBackgroundResource(R.drawable.bg_rating_pill)
+                    b.itemCompactScore.isVisible = showScore1
+                    b.itemCompactScoreBG.findViewById<View>(R.id.itemCompactBroadcast).isVisible = showAiring1
+                    b.itemCompactScoreBG.findViewById<View>(R.id.imageView2)?.isVisible = showScore1
+                    b.itemCompactTitle.text = media.userPreferredName
+
+                    // Sub/Dub badge (hidden under bottom-overlay titles)
+                    if (showBottom1 && shouldShowBottomBadge(1)) {
+                        val badge1 = b.root.findViewById<View>(R.id.subDubBadge)
+                        if (badge1 != null) {
+                            SubDubCache.get(media.nameRomaji, media.anime?.scope ?: return) { info ->
+                                bindSubDubBadge(badge1, info, media)
+                            }
+                        }
+                    } else {
+                        b.root.findViewById<View>(R.id.subDubBadge)?.visibility = View.GONE
+                    }
+                    if (showBottom1 && shouldShowBottomBadge(2) && media.anime != null) {
+                        val pb1 = b.root.findViewById<View>(R.id.progressBadge)
+                        if (pb1 != null) bindProgressBadge(pb1, media)
+                    } else {
+                        b.root.findViewById<View>(R.id.progressBadge)?.visibility = View.GONE
+                    }
+
                     val largeStyleRadius = when (rawCardStyle) {
                         4 -> 24f
                         6 -> 4f
                         else -> cardRoundness
                     }
                     b.itemCompactCard.radius = largeStyleRadius
+                    // Adapt pill position to card radius so it doesn't get cropped
+                    b.itemCompactScoreBG.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                        val m = (largeStyleRadius * 0.6f).toInt().coerceAtLeast(4)
+                        topMargin = m
+                        marginEnd = m
+                    }
                     if (media.anime != null) {
                         val itemTotal = " " + if ((media.anime.totalEpisodes
                                 ?: 0) != 1
@@ -274,13 +326,23 @@ class MediaAdaptor(
                         if (bannerAnimations) b.itemCompactBanner else b.itemCompactBannerNoKen,
                         media.banner ?: media.cover
                     )
-                    b.itemCompactOngoing.isVisible =
-                        media.status == currActivity()!!.getString(R.string.status_releasing)
-                    b.itemCompactTitle.text = media.userPreferredName
+                    val showBottom2 = cachedCardTitlePosition != 0
+                    val showScore2 = shouldShowTopBadge(1) && (media.userScore > 0 || (media.meanScore ?: 0) > 0)
+                    val showAiring2 = shouldShowTopBadge(2) && media.status == currActivity()!!.getString(R.string.status_releasing)
+                    b.itemCompactScoreBG.isVisible = showScore2 || showAiring2
                     b.itemCompactScore.text =
                         ((if (media.userScore == 0) (media.meanScore
                             ?: 0) else media.userScore) / 10.0).toString()
-                    b.itemCompactScoreBG.setBackgroundResource(R.drawable.bg_rating_pill)
+                    b.itemCompactScore.isVisible = showScore2
+                    b.itemCompactScoreBG.findViewById<View>(R.id.itemCompactBroadcast).isVisible = showAiring2
+                    b.itemCompactScoreBG.findViewById<View>(R.id.imageView2)?.isVisible = showScore2
+                    b.itemCompactTitle.text = media.userPreferredName
+                    if (showBottom2 && shouldShowBottomBadge(2) && media.anime != null) {
+                        val pb2 = b.root.findViewById<View>(R.id.progressBadge)
+                        if (pb2 != null) bindProgressBadge(pb2, media)
+                    } else {
+                        b.root.findViewById<View>(R.id.progressBadge)?.visibility = View.GONE
+                    }
                     if (media.anime != null) {
                         b.itemTotal.text = " " + if ((media.anime.totalEpisodes
                                 ?: 0) != 1
@@ -317,13 +379,23 @@ class MediaAdaptor(
                         if (bannerAnimations) b.itemCompactBanner else b.itemCompactBannerNoKen,
                         media.banner ?: media.cover
                     )
-                    b.itemCompactOngoing.isVisible =
-                        media.status == currActivity()!!.getString(R.string.status_releasing)
-                    b.itemCompactTitle.text = media.userPreferredName
+                    val showBottom3 = cachedCardTitlePosition != 0
+                    val showScore3 = shouldShowTopBadge(1) && (media.userScore > 0 || (media.meanScore ?: 0) > 0)
+                    val showAiring3 = shouldShowTopBadge(2) && media.status == currActivity()!!.getString(R.string.status_releasing)
+                    b.itemCompactScoreBG.isVisible = showScore3 || showAiring3
                     b.itemCompactScore.text =
                         ((if (media.userScore == 0) (media.meanScore
                             ?: 0) else media.userScore) / 10.0).toString()
-                    b.itemCompactScoreBG.setBackgroundResource(R.drawable.bg_rating_pill)
+                    b.itemCompactScore.isVisible = showScore3
+                    b.itemCompactScoreBG.findViewById<View>(R.id.itemCompactBroadcast).isVisible = showAiring3
+                    b.itemCompactScoreBG.findViewById<View>(R.id.imageView2)?.isVisible = showScore3
+                    b.itemCompactTitle.text = media.userPreferredName
+                    if (showBottom3 && shouldShowBottomBadge(2) && media.anime != null) {
+                        val pb3 = b.root.findViewById<View>(R.id.progressBadge)
+                        if (pb3 != null) bindProgressBadge(pb3, media)
+                    } else {
+                        b.root.findViewById<View>(R.id.progressBadge)?.visibility = View.GONE
+                    }
                     media.genres.apply {
                         if (isNotEmpty()) {
                             var genres = ""
@@ -524,11 +596,20 @@ class MediaAdaptor(
                 else -> cardRoundness
             }
             b.itemCompactCard.radius = landStyleRadius
-            b.itemCompactOngoing.isVisible =
-                media.status == currActivity()!!.getString(R.string.status_releasing)
+            // Adapt pill position to card radius so it doesn't get cropped
+            b.itemCompactScoreBG.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                val m = (landStyleRadius * 0.6f).toInt().coerceAtLeast(4)
+                topMargin = m
+                marginEnd = m
+            }
+            val showScoreL = shouldShowTopBadge(1) && (media.userScore > 0 || (media.meanScore ?: 0) > 0)
+            val showAiringL = shouldShowTopBadge(2) && media.status == currActivity()!!.getString(R.string.status_releasing)
+            b.itemCompactScoreBG.isVisible = showScoreL || showAiringL
             b.itemCompactScore.text =
                 ((if (media.userScore == 0) (media.meanScore ?: 0) else media.userScore) / 10.0).toString()
-            b.itemCompactScoreBG.setBackgroundResource(R.drawable.bg_rating_pill)
+            b.itemCompactScore.isVisible = showScoreL
+            b.itemCompactScoreBG.findViewById<View>(R.id.itemCompactBroadcast)?.isVisible = showAiringL
+            b.itemCompactScoreBG.findViewById<View>(R.id.imageView2)?.isVisible = showScoreL
 
             b.itemCompactImage.scaleType = ImageView.ScaleType.CENTER_CROP
             b.itemCompactImage.loadImage(media.cover)
@@ -576,13 +657,12 @@ class MediaAdaptor(
                 }
             }
             b.itemCompactScoreBG.visibility = View.VISIBLE
-            if (media.anime != null) {
-                b.itemCompactUserProgress.text = (media.userProgress ?: "~").toString()
-                b.itemCompactTotal.text =
-                    " | ${if (media.anime.nextAiringEpisode != null) (media.anime.nextAiringEpisode.toString() + " | " + (media.anime.totalEpisodes ?: "~").toString()) else (media.anime.totalEpisodes ?: "~").toString()}"
-                b.itemCompactProgressContainer.visibility = View.VISIBLE
+            val showBottomL = titlePos != 0
+            if (showBottomL && shouldShowBottomBadge(2) && media.anime != null) {
+                val pbL = b.root.findViewById<View>(R.id.progressBadge)
+                if (pbL != null) bindProgressBadge(pbL, media)
             } else {
-                b.itemCompactProgressContainer.visibility = View.GONE
+                b.root.findViewById<View>(R.id.progressBadge)?.visibility = View.GONE
             }
 
         }
@@ -695,6 +775,91 @@ class MediaAdaptor(
         }
 
         return Bitmap.createScaledBitmap(source, newWidth, newHeight, true)
+    }
+
+    private fun bindSubDubBadge(badge: android.view.View, info: SubDubInfo?, media: Media) {
+        if (info == null || !info.hasData) {
+            badge.visibility = View.GONE
+            return
+        }
+        val showSub = info.sub > 0
+        val showDub = info.dub > 0
+        val showTotal = info.total > 0
+        if (!showSub && !showDub && !showTotal) {
+            badge.visibility = View.GONE
+            return
+        }
+        badge.visibility = View.VISIBLE
+
+        val subIcon = badge.findViewById<android.view.View>(R.id.subDubSubIcon)
+        val subCount = badge.findViewById<TextView>(R.id.subDubSubCount)
+        val dubIcon = badge.findViewById<android.view.View>(R.id.subDubDubIcon)
+        val dubCount = badge.findViewById<TextView>(R.id.subDubDubCount)
+        val totalCount = badge.findViewById<TextView>(R.id.subDubTotalCount)
+
+        subIcon.visibility = if (showSub) View.VISIBLE else View.GONE
+        subCount.visibility = if (showSub) View.VISIBLE else View.GONE
+        subCount.text = info.sub.toString()
+
+        dubIcon.visibility = if (showDub) View.VISIBLE else View.GONE
+        dubCount.visibility = if (showDub) View.VISIBLE else View.GONE
+        dubCount.text = info.dub.toString()
+
+        totalCount.visibility = if (showTotal) View.VISIBLE else View.GONE
+        totalCount.text = info.total.toString()
+    }
+
+    private fun shouldShowTopBadge(flag: Int): Boolean =
+        PrefManager.getVal<Int>(PrefName.CardMetadataTop) and flag != 0
+
+    private fun shouldShowBottomBadge(flag: Int): Boolean =
+        PrefManager.getVal<Int>(PrefName.CardMetadataBottom) == flag
+
+    private fun bindProgressBadge(badge: View, media: Media) {
+        val watched = media.userProgress          // nullable Int
+        val isAnime = media.anime != null
+        val isReleasing = media.status == currActivity()?.getString(R.string.status_releasing)
+        val released = when {
+            !isAnime -> null
+            isReleasing && (media.anime?.nextAiringEpisode ?: 0) > 1 -> (media.anime?.nextAiringEpisode ?: 1) - 1
+            else -> media.anime?.totalEpisodes
+        }
+        val timeUntil = if (isAnime && isReleasing) media.anime?.nextAiringEpisode?.timeUntilAiring else null
+
+        // Show the badge if ANY field has real data; otherwise hide
+        val hasWatched = watched != null && watched > 0
+        val hasReleased = released != null && released > 0
+        val hasTT = timeUntil != null && timeUntil > 0
+        if (!hasWatched && !hasReleased && !hasTT) { badge.visibility = View.GONE; return }
+
+        badge.visibility = View.VISIBLE
+        val watchedIcon   = badge.findViewById<android.view.View>(R.id.progressWatchedIcon)
+        val watchedCount  = badge.findViewById<TextView>(R.id.progressWatchedCount)
+        val releasedIcon  = badge.findViewById<android.view.View>(R.id.progressReleasedIcon)
+        val releasedCount = badge.findViewById<TextView>(R.id.progressReleasedCount)
+        val dividerTT     = badge.findViewById<android.view.View>(R.id.progressDividerTT)
+        val ttText        = badge.findViewById<TextView>(R.id.progressTT)
+
+        // Watched
+        watchedIcon.visibility = if (hasWatched) View.VISIBLE else View.GONE
+        watchedCount.visibility = View.VISIBLE
+        watchedCount.text = if (hasWatched) watched.toString() else "~"
+
+        // Released
+        releasedIcon.visibility = if (hasReleased) View.VISIBLE else View.GONE
+        releasedCount.visibility = View.VISIBLE
+        releasedCount.text = if (hasReleased) released.toString() else "~"
+
+        // Time-to-air
+        if (hasTT) {
+            val days  = timeUntil!! / 86400
+            val hours = (timeUntil % 86400) / 3600
+            ttText.text = if (days > 0) "${days}d ${hours}h" else "${hours}h"
+        } else {
+            ttText.text = "~"
+        }
+        dividerTT.visibility = if (hasTT) View.VISIBLE else View.GONE
+        ttText.visibility = View.VISIBLE
     }
 
 }

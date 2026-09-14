@@ -346,13 +346,13 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun expandSection(section: View, arrow: ImageView) {
-        section.visibility = View.VISIBLE
-        arrow.animate().rotation(180f).setDuration(200).start()
+        AnimUtils.rollExpand(section)
+        arrow.animate().rotation(180f).setDuration(AnimUtils.duration(200)).start()
     }
 
     private fun collapseSection(section: View, arrow: ImageView) {
-        section.visibility = View.GONE
-        arrow.animate().rotation(0f).setDuration(200).start()
+        AnimUtils.rollCollapse(section)
+        arrow.animate().rotation(0f).setDuration(AnimUtils.duration(200)).start()
     }
 
 

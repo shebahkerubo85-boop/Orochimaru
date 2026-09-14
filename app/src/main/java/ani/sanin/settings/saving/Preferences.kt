@@ -196,9 +196,9 @@ enum class PrefName(val data: Pref) {
     CardTitlePosition(Pref(Location.UI, Int::class, 0)),
     CardSize(Pref(Location.UI, Float::class, 1.5f)),
     BannerBrightness(Pref(Location.UI, Float::class, 1.0f)),
-    ShowNewEpisodeBadge(Pref(Location.UI, Boolean::class, true)),
-    ShowReleasingIndicator(Pref(Location.UI, Boolean::class, true)),
     CardGradientIntensity(Pref(Location.UI, Float::class, 0.7f)),
+    CardMetadataTop(Pref(Location.UI, Int::class, 3)),   // bitmask: 1=Rating badge, 2=Airing status
+    CardMetadataBottom(Pref(Location.UI, Int::class, 1)), // 0=None, 1=Sub & Dub badge, 2=Progress badge
 
     // Glass Effect
     GlassEffectEnabled(Pref(Location.UI, Boolean::class, true)),

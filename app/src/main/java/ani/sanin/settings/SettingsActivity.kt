@@ -284,16 +284,7 @@ class SettingsActivity : AppCompatActivity() {
                 start()
             }
 
-            // Animate content
-            if (isExpanding) {
-                holder.items.visibility = View.VISIBLE
-                holder.items.alpha = 0f
-                holder.items.animate().alpha(1f).setDuration(200).start()
-            } else {
-                holder.items.animate().alpha(0f).setDuration(150).withEndAction {
-                    holder.items.visibility = View.GONE
-                }.start()
-            }
+            if (isExpanding) AnimUtils.rollExpand(holder.items) else AnimUtils.rollCollapse(holder.items)
         }
 
         override fun getItemCount() = sections.size
