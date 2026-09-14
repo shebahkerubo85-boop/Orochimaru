@@ -957,7 +957,7 @@ class MediaDetailsViewModel : ViewModel() {
                         isDownload,
                         episodes
                     )
-                selector.show(manager, "dialog")
+                try { selector.show(manager, "dialog") } catch (_: IllegalStateException) { selector.showNow(manager, "dialog") }
             }
         }
     }

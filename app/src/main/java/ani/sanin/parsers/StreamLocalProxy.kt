@@ -13,12 +13,14 @@ import ani.sanin.defaultHeaders
 import ani.sanin.okHttpClient
 import ani.sanin.util.Logger
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.net.ServerSocket
 import java.net.Socket
+import java.net.SocketTimeoutException
 import java.net.URI
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -81,13 +83,17 @@ object StreamLocalProxy {
 
     /** Client used for segments/subtitles: no Cloudflare interceptor (no 30s stalls). */
     private val streamClient: OkHttpClient by lazy {
-        OkHttpClient.Builder()
-            .cookieJar(okHttpClient.cookieJar)
-            .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .followRedirects(true)
-            .followSslRedirects(true)
-            .build()
+        okhttp3.ConnectionPool(30, 2, TimeUnit.MINUTES).let { pool ->
+            OkHttpClient.Builder()
+                .cookieJar(okHttpClient.cookieJar)
+                .connectTimeout(10, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .followRedirects(true)
+                .followSslRedirects(true)
+                .connectionPool(pool)
+                .retryOnConnectionFailure(true)
+                .build()
+        }
     }
 
     private fun ensureStarted() {
@@ -214,6 +220,10 @@ object StreamLocalProxy {
             .build()
 
         val owner = if (referer.contains("flixcloud", true)) "flixcloud" else "hls"
+        // Retry up to 3 times on timeout
+        var lastException: Exception? = null
+        for (attempt in 1..3) {
+        try {
         cfClient.newCall(request).execute().use { resp ->
             if (!resp.isSuccessful) {
                 val body = runCatching { resp.peekBody(512).string() }.getOrDefault("")
@@ -234,9 +244,24 @@ object StreamLocalProxy {
             }
 
             val base = runCatching { URI(url) }.getOrNull()
-            val rewritten = rewritePlaylist(bodyText, base, referer, origin, pkByteArray = pk, maskByteArray = mask)
+            val rewritten = rewritePlaylist(bodyText, base, referer, origin, upstreamUrl = url, pkByteArray = pk, maskByteArray = mask)
             writeResponse(socket, "200 OK", "application/vnd.apple.mpegurl", rewritten, rewritten.toByteArray().size.toLong())
         }
+        return  // success
+        } catch (e: java.net.SocketTimeoutException) {
+            lastException = e
+            Logger.log(Log.WARN, "StreamLocalProxy: $owner manifest timeout attempt $attempt/3 for $url")
+            if (attempt == 3) {
+                Logger.log(Log.WARN, "StreamLocalProxy: $owner manifest all 3 attempts failed for $url")
+                writeResponse(socket, "504 Gateway Timeout", "text/plain", "Manifest fetch timed out", null)
+                return
+            }
+        } catch (e: Exception) {
+            Logger.log(Log.WARN, "StreamLocalProxy: $owner manifest error: ${e.message}")
+            writeResponse(socket, "502 Bad Gateway", "text/plain", "Manifest fetch error: ${e.message}", null)
+            return
+        }
+        } // end retry loop
     }
 
     private fun decryptPlaylistIfNeeded(raw: String, pk: ByteArray?): String? {
@@ -256,24 +281,40 @@ object StreamLocalProxy {
         base: URI?,
         referer: String,
         origin: String,
+        upstreamUrl: String,
         pkByteArray: ByteArray?,
         maskByteArray: ByteArray?,
     ): String {
         val pkB64 = pkByteArray?.let { android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP) }
         val maskB64 = maskByteArray?.let { android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP) }
+        val bwRegex = Regex("""BANDWIDTH=(\d+)""")
+        val avgBwRegex = Regex("""AVERAGE-BANDWIDTH=(\d+)""")
         val out = StringBuilder(body.length + 512)
         for (line in body.lines()) {
-            val trimmed = line.trim()
+            var trimmed = line.trim()
             if (trimmed.isEmpty()) {
                 out.append('\n')
                 continue
+            }
+            // BANDWIDTH normalization: if < 100k and no AVERAGE-BANDWIDTH, multiply by 1000
+            if (trimmed.startsWith("#EXT-X-STREAM-INF")) {
+                val bwMatch = bwRegex.find(trimmed)
+                val avgMatch = avgBwRegex.find(trimmed)
+                if (bwMatch != null) {
+                    val peakBw = bwMatch.groupValues[1].toLongOrNull() ?: 0L
+                    val avgBw = avgMatch?.groupValues?.get(1)?.toLongOrNull() ?: 0L
+                    if (peakBw in 1 until 100_000) {
+                        val finalBw = if (avgBw >= 100_000) avgBw else peakBw * 1000L
+                        trimmed = trimmed.replace(bwRegex, "BANDWIDTH=$finalBw")
+                    }
+                }
             }
             if (trimmed.startsWith("#")) {
                 val uriMatch = Regex("""URI="([^"]*)"""").find(trimmed)
                 if (uriMatch != null) {
                     val resolved = resolveUrl(base, uriMatch.groupValues[1], referer)
                     val proxied = proxyUrl(
-                        ensureToken(resolved, referer), referer, origin,
+                        ensureToken(resolved, upstreamUrl), referer, origin,
                         pk = pkB64, mask = maskB64
                     )
                     out.append(trimmed.replace(uriMatch.groupValues[1], proxied)).append('\n')
@@ -283,7 +324,7 @@ object StreamLocalProxy {
             } else {
                 val resolved = resolveUrl(base, trimmed, referer)
                 out.append(proxyUrl(
-                    ensureToken(resolved, referer), referer, origin,
+                    ensureToken(resolved, upstreamUrl), referer, origin,
                     pk = pkB64, mask = maskB64
                 )).append('\n')
             }
@@ -425,7 +466,7 @@ object StreamLocalProxy {
         val sb = StringBuilder()
         sb.append("HTTP/1.1 ").append(status).append("\r\n")
         sb.append("Content-Type: ").append(contentType).append("\r\n")
-        sb.append("Connection: close\r\n")
+        sb.append("Connection: keep-alive\r\n")
         if (contentLength != null) sb.append("Content-Length: ").append(contentLength).append("\r\n")
         sb.append("\r\n")
         out.write(sb.toString().toByteArray(Charsets.UTF_8))
@@ -437,7 +478,7 @@ object StreamLocalProxy {
         val sb = StringBuilder()
         sb.append("HTTP/1.1 ").append(status).append("\r\n")
         sb.append("Content-Type: ").append(contentType).append("\r\n")
-        sb.append("Connection: close\r\n")
+        sb.append("Connection: keep-alive\r\n")
         if (contentLength != null) sb.append("Content-Length: ").append(contentLength).append("\r\n")
         if (chunked) sb.append("Transfer-Encoding: chunked\r\n")
         sb.append("\r\n")
