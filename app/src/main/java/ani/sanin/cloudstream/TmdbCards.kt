@@ -11,7 +11,6 @@ import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import ani.sanin.R
 import ani.sanin.connections.tmdb.Tmdb
-import ani.sanin.R
 import ani.sanin.connections.tmdb.TmdbMedia
 import ani.sanin.databinding.ItemTmdbCardBinding
 import ani.sanin.loadImage
