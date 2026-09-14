@@ -244,7 +244,6 @@ class AniKotoProvider : NativeAnimeParser() {
                             } else {
                                 extraData["referer"] = "$embedOrigin/"
                                 extraData["origin"] = embedOrigin
-                                extraData["webview"] = embedUrl
                                 val res = MegaPlayExtractor.extract(embedUrl, "$baseUrl/")
                                 val resolvedUrl = res.urls.firstOrNull()
                                 if (resolvedUrl == null) {

@@ -148,7 +148,6 @@ import ani.sanin.others.LanguageMapper
 import ani.sanin.others.ResettableTimer
 import ani.sanin.others.Xubtitle
 import ani.sanin.others.getSerialized
-import ani.sanin.others.webview.WebEmbedPlayerActivity
 import ani.sanin.parsers.AnimeSources
 import ani.sanin.parsers.HAnimeSources
 import ani.sanin.parsers.Subtitle
@@ -1895,20 +1894,6 @@ class ExoplayerView :
 
     private fun initPlayer() {
         checkNotch()
-
-        runCatching {
-            val webUrl = episode.extractors?.filterNotNull()
-                ?.find { it.server.name == episode.selectedExtractor }
-                ?.server?.extraData?.get("webview")
-            if (!webUrl.isNullOrBlank()) {
-                startActivity(
-                    Intent(this, WebEmbedPlayerActivity::class.java)
-                        .putExtra(WebEmbedPlayerActivity.EXTRA_URL, webUrl)
-                )
-                finish()
-                return
-            }
-        }
 
         synchronized(storedSyncCues) {
             storedSyncCues.clear()

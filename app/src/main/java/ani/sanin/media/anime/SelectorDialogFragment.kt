@@ -53,7 +53,6 @@ import ani.sanin.parsers.Video
 import ani.sanin.parsers.NativeAnimeParser
 import ani.sanin.parsers.VideoExtractor
 import ani.sanin.parsers.VideoType
-import ani.sanin.others.webview.WebEmbedPlayerActivity
 import ani.sanin.setSafeOnClickListener
 import ani.sanin.settings.SettingsAddonActivity
 import ani.sanin.settings.saving.PrefManager
@@ -465,20 +464,6 @@ class SelectorDialogFragment : DialogFragment() {
     fun startExoplayer(media: Media) {
         if (!isAdded || _binding == null) return
         prevEpisode = null
-
-        val webUrl = episode?.let { ep ->
-            ep.extractors?.filterNotNull()?.find { it.server.name == ep.selectedExtractor }
-                ?.server?.extraData?.get("webview")
-        }?.takeIf { it.isNotBlank() }
-        if (webUrl != null) {
-            dismissAllowingStateLoss()
-            stopAddingToList()
-            startActivity(
-                Intent(activity, WebEmbedPlayerActivity::class.java)
-                    .putExtra(WebEmbedPlayerActivity.EXTRA_URL, webUrl)
-            )
-            return
-        }
 
         episode?.let { ep ->
             val video = ep.extractors?.find {

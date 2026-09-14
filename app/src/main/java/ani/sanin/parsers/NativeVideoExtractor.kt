@@ -10,6 +10,7 @@ import eu.kanade.tachiyomi.animesource.model.TimeStamp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import java.net.URI
 
@@ -86,37 +87,26 @@ class NativeVideoExtractor(override val server: VideoServer) : VideoExtractor() 
         }
     }
 
+    /**
+     * Fetches the master playlist through the app client (which solves Cloudflare
+     * challenges), then warms the variant/segment/key hosts into the shared cookie jar
+     * so ExoPlayer's data source (which has NO challenge interceptor) can request them.
+     * The returned FileUrls always carry a User-Agent, and any Cloudflare session
+     * (cf_clearance) solved for the CDN is sent on every master/segment request.
+     */
     private suspend fun parseHlsMaster(masterUrl: String, headers: Map<String, String>): List<Video> {
         return withContext(Dispatchers.IO) {
             try {
-                val request = Request.Builder().url(masterUrl)
-                    .header("User-Agent", NativeAnimeParser.USER_AGENT)
-                    .apply { headers.forEach { (k, v) -> header(k, v) } }
-                    .get().build()
-                val body = okHttpClient.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) {
-                        val snippet = response.body?.string().orEmpty().take(300)
-                        Logger.log(
-                            Log.WARN,
-                            "HLS master ${response.code} for $masterUrl headers=$headers body=$snippet"
-                        )
-                        return@withContext emptyList()
-                    }
-                    response.body?.string().orEmpty()
-                }
+                val masterHost = runCatching { URI(masterUrl).host }.getOrNull()
+                    ?: return@withContext emptyList()
+                val baseHeaders = ensureUserAgent(headers)
+                val body = fetchHls(masterUrl, baseHeaders)
+                if (body.isBlank()) return@withContext emptyList()
 
                 val baseUri = URI(masterUrl)
                 val lines = body.lines()
-                // When the master uses a separate audio group, the variant playlists are
-                // video-only and play silently on their own. Keep just the master so the
-                // player resolves the audio group (e.g. AniZone "Multi" has sound, but the
-                // individual qualities were silent).
-                val hasAudioGroup = lines.any {
-                    it.trim().startsWith("#EXT-X-MEDIA:", ignoreCase = true) &&
-                        it.contains("TYPE=AUDIO", ignoreCase = true)
-                }
-                if (hasAudioGroup) return@withContext emptyList()
-                val videos = mutableListOf<Video>()
+
+                val parsedVariants = mutableListOf<Triple<Int?, Long?, String>>() // quality, bandwidth, url
                 var i = 0
                 while (i < lines.size) {
                     val line = lines[i].trim()
@@ -131,14 +121,7 @@ class NativeVideoExtractor(override val server: VideoServer) : VideoExtractor() 
                             if (next.isNotEmpty() && !next.startsWith("#")) {
                                 val variantUrl = if (next.startsWith("http")) next
                                     else baseUri.resolve(next).toString()
-                                videos.add(
-                                    Video(
-                                        quality = quality,
-                                        format = VideoType.M3U8,
-                                        file = FileUrl(variantUrl, headers),
-                                        size = if (bw != null) bw.toDouble() else null
-                                    )
-                                )
+                                parsedVariants.add(Triple(quality, bw, variantUrl))
                                 break
                             }
                             j++
@@ -149,11 +132,138 @@ class NativeVideoExtractor(override val server: VideoServer) : VideoExtractor() 
                     }
                 }
 
+                // When the master uses a separate audio group, the variant playlists are
+                // video-only and play silently on their own. Keep just the master so the
+                // player resolves the audio group (e.g. AniZone "Multi" has sound, but the
+                // individual qualities were silent) — but still warm the CDN hosts.
+                val hasAudioGroup = lines.any {
+                    it.trim().startsWith("#EXT-X-MEDIA:", ignoreCase = true) &&
+                        it.contains("TYPE=AUDIO", ignoreCase = true)
+                }
+                if (hasAudioGroup) {
+                    parsedVariants.map { it.third }.firstOrNull()?.let { variantUrl ->
+                        runCatching { warmGet(variantUrl, baseHeaders) }
+                        segmentAndKeyUrls(variantUrl, baseHeaders).forEach { url ->
+                            runCatching { warmGet(url, baseHeaders) }
+                        }
+                    }
+                    return@withContext emptyList()
+                }
+
+                // Warm the CDN hosts through the app client so their Cloudflare challenges
+                // are solved into the shared cookie jar BEFORE the player starts a segment
+                // request — otherwise OkHttpDataSource gets a raw 403 with no interceptor.
+                val warmUrls = mutableListOf<String>()
+                parsedVariants.map { it.third }.take(2).forEach { variantUrl ->
+                    warmUrls.add(variantUrl)
+                    warmUrls.addAll(segmentAndKeyUrls(variantUrl, baseHeaders))
+                }
+                warmUrls.distinct().forEach { url ->
+                    runCatching { warmGet(url, baseHeaders) }
+                }
+
+                val videos = mutableListOf(
+                    Video(
+                        quality = null,
+                        format = VideoType.M3U8,
+                        file = FileUrl(masterUrl, baseHeaders),
+                        size = null
+                    )
+                )
+                parsedVariants.forEach { (quality, bw, variantUrl) ->
+                    videos.add(
+                        Video(
+                            quality = quality,
+                            format = VideoType.M3U8,
+                            file = FileUrl(variantUrl, baseHeaders),
+                            size = if (bw != null) bw.toDouble() else null
+                        )
+                    )
+                }
+
                 videos.sortedByDescending { it.quality ?: 0 }
             } catch (_: Exception) {
                 emptyList()
             }
         }
+    }
+
+    private fun buildRequest(url: String, headers: Map<String, String>): Request =
+        Request.Builder().url(url)
+            .header("User-Agent", headers["User-Agent"] ?: NativeAnimeParser.USER_AGENT)
+            .apply { headers.forEach { (k, v) -> header(k, v) } }
+            .get()
+            .build()
+
+    private fun ensureUserAgent(headers: Map<String, String>): Map<String, String> {
+        if (!headers["User-Agent"].isNullOrBlank()) return headers
+        val out = headers.toMutableMap()
+        out["User-Agent"] = NativeAnimeParser.USER_AGENT
+        return out
+    }
+
+    /**
+     * Fetch a playlist. A plain 403/503 (or a 200 HTML challenge page) is retried with
+     * the Cloudflare session the app client already solved (cf_clearance lives in the
+     * shared cookie jar, bound to the same User-Agent the challenge WebView used).
+     */
+    private suspend fun fetchHls(url: String, headers: Map<String, String>): String {
+        val (code, body) = okHttpClient.newCall(buildRequest(url, headers)).execute().use { resp ->
+            resp.code to resp.body?.string().orEmpty()
+        }
+        if (code in 200..299 && body.startsWith("#EXT")) return body
+
+        val cookies = cookieHeader(url)
+        if (cookies.isBlank()) {
+            Logger.log(Log.WARN, "HLS master $code for $url body=${body.take(300)}")
+            return ""
+        }
+        val retryHeaders = headers.toMutableMap().apply { put("Cookie", cookies) }
+        val retry = okHttpClient.newCall(buildRequest(url, retryHeaders)).execute().use { resp ->
+            resp.code to resp.body?.string().orEmpty()
+        }
+        if (retry.first in 200..299 && retry.second.startsWith("#EXT")) {
+            Logger.log(Log.WARN, "HLS master $code -> ${retry.first} after Cloudflare retry")
+            return retry.second
+        }
+        Logger.log(Log.WARN, "HLS master ${retry.first} for $url body=${retry.second.take(300)}")
+        return ""
+    }
+
+    private fun cookieHeader(url: String): String = runCatching {
+        okHttpClient.cookieJar.loadForRequest(url.toHttpUrl())
+            .joinToString("; ") { "${it.name}=${it.value}" }
+    }.getOrDefault("")
+
+    /** Fetch a variant playlist and collect its key URI(s) and the first segment URI. */
+    private fun segmentAndKeyUrls(variantUrl: String, headers: Map<String, String>): List<String> {
+        return runCatching {
+            val body = okHttpClient.newCall(buildRequest(variantUrl, headers)).execute().use { resp ->
+                if (resp.isSuccessful) resp.body?.string().orEmpty() else ""
+            }
+            if (!body.startsWith("#EXT")) return@runCatching emptyList()
+            val base = URI(variantUrl)
+            val urls = mutableListOf<String>()
+            var firstSegmentAdded = false
+            for (line in body.lines()) {
+                val t = line.trim()
+                if (!firstSegmentAdded && t.isNotEmpty() && !t.startsWith("#")) {
+                    urls.add(if (t.startsWith("http")) t else base.resolve(t).toString())
+                    firstSegmentAdded = true
+                }
+                if (t.startsWith("#EXT-X-KEY:", ignoreCase = true)) {
+                    Regex("""URI="([^"]+)"""").find(t)?.groupValues?.get(1)?.let { key ->
+                        urls.add(if (key.startsWith("http")) key else base.resolve(key).toString())
+                    }
+                }
+            }
+            urls
+        }.getOrDefault(emptyList())
+    }
+
+    /** Fire a GET through the app client so a Cloudflare challenge is solved into the jar. */
+    private fun warmGet(url: String, headers: Map<String, String>) {
+        okHttpClient.newCall(buildRequest(url, headers)).execute().use { }
     }
 
     private fun parseSubtitles(jsonStr: String?): List<Subtitle> {
