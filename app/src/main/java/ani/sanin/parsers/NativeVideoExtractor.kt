@@ -44,7 +44,7 @@ class NativeVideoExtractor(override val server: VideoServer) : VideoExtractor() 
             )
         )
 
-        if (url.contains(".m3u8", ignoreCase = true)) {
+        if (url.contains(".m3u8", ignoreCase = true) && !isLocalProxyUrl(url)) {
             val parsed = parseHlsMaster(url, headers)
             videos.addAll(parsed)
         } else if (url.contains(".mpd", ignoreCase = true)) {
@@ -86,6 +86,12 @@ class NativeVideoExtractor(override val server: VideoServer) : VideoExtractor() 
             null
         }
     }
+
+    private fun isLocalProxyUrl(url: String): Boolean =
+        runCatching {
+            val host = java.net.URI(url).host
+            host == "127.0.0.1" || host == "localhost"
+        }.getOrDefault(false)
 
     /**
      * Fetches the master playlist through the app client (which solves Cloudflare

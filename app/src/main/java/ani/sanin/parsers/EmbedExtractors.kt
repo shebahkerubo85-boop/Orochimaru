@@ -518,18 +518,103 @@ object FlixcloudExtractor {
         val url = String(plain, Charsets.UTF_8).trim().trimEnd('\u0000')
         if (!url.startsWith("http")) throw IllegalStateException("bad decrypted url")
 
+        // Playlist XOR key comes from the wasm's data segment (`_c()` = half ^ half),
+        // the 16-byte segment mask from the site's hls.js (hardcoded fallback).
+        val playlistKey = runCatching { flixPlaylistKey(wasmPayload) }.getOrNull()
+            ?: throw IllegalStateException("flixcloud playlist key missing")
+        val segmentMask = flixSegmentMask(html)
+
+        val proxied = StreamLocalProxy.proxyUrl(
+            original = url,
+            referer = "$FLIX/",
+            origin = FLIX,
+            pk = b64e(playlistKey),
+            mask = b64e(segmentMask)
+        )
+
         val subs = mutableListOf<SubData>()
         ((asList(jsGet(data, "subtitles")) ?: emptyList<Any?>()) as List<*>).forEach { s ->
             val m = asMap(s) ?: return@forEach
             val u = asString(jsGet(m, "url")) ?: asString(jsGet(m, "file")) ?: return@forEach
             val lang = asString(jsGet(m, "label")) ?: asString(jsGet(m, "language")) ?: asString(jsGet(m, "lang")) ?: "en"
-            subs.add(SubData(u, lang))
+            subs.add(SubData(StreamLocalProxy.proxyUrl(u, "$FLIX/", FLIX, subtitle = true), lang))
         }
         EmbedResult(
-            urls = listOf(url),
+            urls = listOf(proxied),
             subtitles = subs,
             headers = mapOf("Referer" to "$FLIX/", "Origin" to FLIX, "User-Agent" to UA)
         )
+    }
+
+    /** Derive the 32-byte playlist XOR key from the embed wasm (`_c()` copies 2000..2064). */
+    private fun flixPlaylistKey(wasm: ByteArray): ByteArray {
+        var pos = 8
+        while (pos < wasm.size) {
+            val section = wasm[pos++].toInt() and 0xFF
+            var size = 0
+            var shift = 0
+            var next: Int
+            do {
+                next = wasm[pos++].toInt() and 0xFF
+                size = size or ((next and 0x7F) shl shift)
+                shift += 7
+            } while (next and 0x80 != 0)
+            val end = pos + size
+            if (section == 11) {
+                var i = pos
+                var count = 0
+                var cShift = 0
+                do {
+                    next = wasm[i++].toInt() and 0xFF
+                    count = count or ((next and 0x7F) shl cShift)
+                    cShift += 7
+                } while (next and 0x80 != 0)
+                if (count < 1) throw IllegalStateException("no data segment")
+                i++ // memory index (0)
+                if (wasm[i++].toInt() and 0xFF != 0x41) throw IllegalStateException("bad offset expr")
+                var v = 0
+                var vShift = 0
+                do {
+                    next = wasm[i++].toInt() and 0xFF
+                    v = v or ((next and 0x7F) shl vShift)
+                    vShift += 7
+                } while (next and 0x80 != 0)
+                if (wasm[i++].toInt() and 0xFF != 0x0b) throw IllegalStateException("bad offset end")
+                var segLen = 0
+                var sShift = 0
+                do {
+                    next = wasm[i++].toInt() and 0xFF
+                    segLen = segLen or ((next and 0x7F) shl sShift)
+                    sShift += 7
+                } while (next and 0x80 != 0)
+                val seg = wasm.copyOfRange(i, i + segLen)
+                val pk = ByteArray(32)
+                for (k in 0 until 32) {
+                    val a = if (k < seg.size) seg[k].toInt() and 0xFF else 0
+                    val b = if (k + 32 < seg.size) seg[k + 32].toInt() and 0xFF else 0
+                    pk[k] = (a xor b).toByte()
+                }
+                return pk
+            }
+            pos = end
+        }
+        throw IllegalStateException("wasm data section not found")
+    }
+
+    /** Pull the 16-byte segment XOR mask from flixcloud's hls.js, with a hardcoded fallback. */
+    private fun flixSegmentMask(html: String): ByteArray {
+        val fallback = byteArrayOf(
+            157, 42, 241, 71, 179, 142, 92, 112,
+            166, 25, 228, 59, 216, 98, 15, 197
+        )
+        return runCatching {
+            val scriptPath = Regex("""href="([^"]*hls\.js[^"]*)""").find(html)?.groupValues?.get(1)
+                ?: return fallback
+            val scriptUrl = if (scriptPath.startsWith("http")) scriptPath else "$FLIX$scriptPath"
+            val js = rawGet(scriptUrl, mapOf("User-Agent" to UA, "Referer" to "$FLIX/"))
+            Regex("""for\(var f=\[(\d{1,3}(?:,\d{1,3}){15})]""").find(js)?.groupValues?.get(1)
+                ?.split(",")?.map { it.trim().toInt().toByte() }?.toByteArray() ?: fallback
+        }.getOrDefault(fallback)
     }
 
     private fun extractSsrObj(html: String): String {
@@ -625,7 +710,14 @@ object MegaPlayExtractor {
             SubData(u, lang)
         } ?: emptyList()
 
-        EmbedResult(urls = listOf(url), subtitles = subs, intro = intro, outro = outro,
+        // Route master + subtitles through the local proxy so the native ExoPlayer
+        // (which lacks the app client's Cloudflare interceptor) gets cookies/clearances.
+        val cdnHost = runCatching { java.net.URI(url).host }.getOrNull()
+        val embedHost = runCatching { java.net.URI(embedUrl).host }.getOrNull()
+        val needWarm = cdnHost != null && cdnHost != embedHost
+        val proxied = StreamLocalProxy.proxyUrl(url, "$origin/", origin, warm = needWarm)
+        val proxiedSubs = subs.map { it.copy(url = StreamLocalProxy.proxyUrl(it.url, "$origin/", origin, subtitle = true)) }
+        EmbedResult(urls = listOf(proxied), subtitles = proxiedSubs, intro = intro, outro = outro,
             headers = mapOf("User-Agent" to UA, "Referer" to "$origin/"))
     }
 
