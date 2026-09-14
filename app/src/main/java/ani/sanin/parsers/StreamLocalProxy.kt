@@ -287,7 +287,7 @@ object StreamLocalProxy {
     ): String {
         val pkB64 = pkByteArray?.let { android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP) }
         val maskB64 = maskByteArray?.let { android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP) }
-        val bwRegex = Regex("""BANDWIDTH=(\d+)""")
+        val bwRegex = Regex("""(?<![A-Z-])BANDWIDTH=(\d+)""")
         val avgBwRegex = Regex("""AVERAGE-BANDWIDTH=(\d+)""")
         val out = StringBuilder(body.length + 512)
         for (line in body.lines()) {
@@ -328,6 +328,10 @@ object StreamLocalProxy {
                     pk = pkB64, mask = maskB64
                 )).append('\n')
             }
+        }
+        // Log bandwidth values for debugging
+        out.toString().lines().filter { it.startsWith("#EXT-X-STREAM-INF") }.forEach { line ->
+            Logger.log("StreamLocalProxy: rewritten $line")
         }
         return out.toString()
     }
@@ -466,7 +470,7 @@ object StreamLocalProxy {
         val sb = StringBuilder()
         sb.append("HTTP/1.1 ").append(status).append("\r\n")
         sb.append("Content-Type: ").append(contentType).append("\r\n")
-        sb.append("Connection: keep-alive\r\n")
+        sb.append("Connection: close\r\n")
         if (contentLength != null) sb.append("Content-Length: ").append(contentLength).append("\r\n")
         sb.append("\r\n")
         out.write(sb.toString().toByteArray(Charsets.UTF_8))
@@ -478,7 +482,7 @@ object StreamLocalProxy {
         val sb = StringBuilder()
         sb.append("HTTP/1.1 ").append(status).append("\r\n")
         sb.append("Content-Type: ").append(contentType).append("\r\n")
-        sb.append("Connection: keep-alive\r\n")
+        sb.append("Connection: close\r\n")
         if (contentLength != null) sb.append("Content-Length: ").append(contentLength).append("\r\n")
         if (chunked) sb.append("Transfer-Encoding: chunked\r\n")
         sb.append("\r\n")
