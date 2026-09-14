@@ -104,7 +104,7 @@ class AniVaultProvider : NativeAnimeParser() {
         sEpisode: SEpisode
     ): List<VideoServer> {
         val malId = extra?.get("mal_id")?.toIntOrNull() ?: episodeLink.toIntOrNull() ?: return emptyList()
-        val epNum = sEpisode.episode_number.toIntOrNull()
+        val epNum = sEpisode.episode_number.toInt()
             ?: episodeLink.toIntOrNull()
             ?: return emptyList()
         return withContext(Dispatchers.IO) {
