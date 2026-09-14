@@ -212,7 +212,7 @@ class MediaAdaptor(
                     if (shouldShowBottomBadge(1)) {
                         val badge0 = b.root.findViewById<View>(R.id.subDubBadge)
                         if (badge0 != null) {
-                            SubDubCache.get(media.nameRomaji, media.anime?.scope ?: return) { info ->
+                            SubDubCache.get(media.nameRomaji, activity.lifecycleScope) { info ->
                                 bindSubDubBadge(badge0, info, media)
                             }
                         }
@@ -261,7 +261,7 @@ class MediaAdaptor(
                     if (showBottom1 && shouldShowBottomBadge(1)) {
                         val badge1 = b.root.findViewById<View>(R.id.subDubBadge)
                         if (badge1 != null) {
-                            SubDubCache.get(media.nameRomaji, media.anime?.scope ?: return) { info ->
+                            SubDubCache.get(media.nameRomaji, activity.lifecycleScope) { info ->
                                 bindSubDubBadge(badge1, info, media)
                             }
                         }
@@ -821,10 +821,10 @@ class MediaAdaptor(
         val isReleasing = media.status == currActivity()?.getString(R.string.status_releasing)
         val released = when {
             !isAnime -> null
-            isReleasing && (media.anime?.nextAiringEpisode ?: 0) > 1 -> (media.anime?.nextAiringEpisode ?: 1) - 1
+            isReleasing && (media.nextAiringEpisode?.episode ?: 0) > 1 -> (media.nextAiringEpisode?.episode ?: 1) - 1
             else -> media.anime?.totalEpisodes
         }
-        val timeUntil = if (isAnime && isReleasing) media.anime?.nextAiringEpisode?.timeUntilAiring else null
+        val timeUntil = if (isAnime && isReleasing) media.nextAiringEpisode?.timeUntilAiring else null
 
         // Show the badge if ANY field has real data; otherwise hide
         val hasWatched = watched != null && watched > 0
