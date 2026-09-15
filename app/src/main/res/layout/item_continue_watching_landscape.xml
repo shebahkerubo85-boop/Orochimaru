@@ -88,7 +88,6 @@
                 android:layout_height="10dp"
                 android:layout_marginEnd="3dp"
                 android:src="@drawable/ic_broadcast_ongoing"
-                android:tint="@android:color/white"
                 android:visibility="gone"
                 tools:ignore="ContentDescription" />
 

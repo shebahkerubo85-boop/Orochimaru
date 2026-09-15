@@ -193,10 +193,12 @@ object TmdbCards {
             val ttText = progressBadge.findViewById<TextView>(R.id.progressTT)
 
             if (isMovie) {
-                // Instant movie state: watched drawn from Simkl, released always 1
+                // Movie: always 1 total, no broadcast icon, no TT.
+                // Unwatched: ~ | 1   Watched: [eye] 1 | 1
                 watchedIcon.isVisible = false
                 watchedCount.text = "~"
-                releasedIcon.isVisible = true
+                releasedIcon.isVisible = false
+                releasedCount.isVisible = true
                 releasedCount.text = "1"
                 midDivider.isVisible = true
                 ttDivider.isVisible = false

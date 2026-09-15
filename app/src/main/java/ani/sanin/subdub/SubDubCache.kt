@@ -3,7 +3,6 @@ package ani.sanin.subdub
 import android.util.LruCache
 import ani.sanin.util.Logger
 import kotlinx.coroutines.*
-import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URL
 import java.net.URLEncoder
@@ -14,7 +13,7 @@ import java.net.URLEncoder
  */
 object SubDubCache {
 
-    private const val BASE_URL = "https://www.anivault.co/api/mobile"
+    private const val BASE_URL = "https://anivault-proxy.shemaus58.workers.dev"
 
     private val cache = LruCache<String, SubDubInfo>(300)
 
@@ -71,54 +70,21 @@ object SubDubCache {
     fun clear() { cache.evictAll() }
 
     // ──────────────────────────────────────────────────────────────────
-    //  Private API fetch (AniVault mobile API)
+    //  Fetch from Cloudflare Worker (scores + caches at edge)
     // ──────────────────────────────────────────────────────────────────
     private suspend fun fetchFromApi(title: String): SubDubInfo? = withContext(Dispatchers.IO) {
         try {
             val encoded = URLEncoder.encode(title, "UTF-8")
-            val url = URL("$BASE_URL/browse?q=$encoded")
+            val url = URL("$BASE_URL/?q=$encoded")
             val conn = url.openConnection()
             conn.connectTimeout = 8_000
             conn.readTimeout = 8_000
-            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
             val body = conn.getInputStream().bufferedReader().readText()
             val json = JSONObject(body)
-            val arr = json.optJSONArray("data") ?: return@withContext null
-            if (arr.length() == 0) return@withContext null
-
-            // Prefer TV series (main show) over movies/specials; pick highest-episode
-            // TV match when there are multiple (e.g. Hunter x Hunter 2011 vs 1999).
-            val titleLower = title.lowercase().trim()
-            var bestTv: Triple<Int, Int, JSONObject>? = null  // (score, episodes, item)
-            for (i in 0 until arr.length()) {
-                val item = arr.getJSONObject(i)
-                val itemTitle = item.optString("title", "").lowercase().trim()
-                val eps = item.optInt("episodes", 0)
-                val type = item.optString("type", "")
-                val isTv = type.equals("TV", ignoreCase = true)
-                val titleScore = when {
-                    itemTitle == titleLower -> 100
-                    itemTitle.startsWith(titleLower) || titleLower.startsWith(itemTitle) -> 50
-                    else -> 0
-                }
-                val tvScore = if (isTv) 30 else 0
-                val score = titleScore + tvScore + (if (eps > 0) 1 else 0) + (if (isTv) 0 else 0)
-                val cur = Triple(score, eps, item)
-                if (bestTv == null || cur.first > bestTv!!.first ||
-                    (cur.first == bestTv!!.first && cur.second > bestTv!!.second)) {
-                    bestTv = cur
-                }
-            }
-            val item = bestTv?.third ?: arr.getJSONObject(0)
-
-            val episodes = item.optInt("episodes", 0)
-            val airedInfo = item.optJSONObject("airedInfo")
-            val aired = airedInfo?.optInt("aired", 0) ?: 0
-            val total = if (episodes > 0) episodes else aired
-            val sub = if (aired > 0) aired else total
-            val dubbedLangs = item.optJSONArray("dubbedLangs") ?: JSONArray()
-            val dub = if (dubbedLangs.length() > 0) sub else 0
-            SubDubInfo(sub, dub, total)
+            val sub = json.optInt("sub", 0)
+            val dub = json.optInt("dub", 0)
+            val total = json.optInt("total", 0)
+            if (sub == 0 && dub == 0 && total == 0) null else SubDubInfo(sub, dub, total)
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {

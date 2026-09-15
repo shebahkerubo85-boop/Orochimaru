@@ -255,7 +255,8 @@ class SimklSectionFragment : Fragment() {
                 if (isMovie) {
                     watchedIcon.isVisible = false
                     watchedCount.text = "~"
-                    releasedIcon.isVisible = true
+                    releasedIcon.isVisible = false
+                    releasedCount.isVisible = true
                     releasedCount.text = "1"
                     midDivider.isVisible = true
                     ttDivider.isVisible = false

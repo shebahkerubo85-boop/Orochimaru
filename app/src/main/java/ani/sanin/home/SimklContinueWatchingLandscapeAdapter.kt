@@ -62,6 +62,7 @@ class SimklContinueWatchingLandscapeAdapter(
                     else -> false
                 }
                 withContext(Dispatchers.Main) {
+                    holder.episodeBroadcast.isVisible = isOngoing && epStr?.isNotBlank() == true
                     if (mediaType == "tv") {
                         val watched = item.totalWatched
                         val total = detail?.numberOfEpisodes?.takeIf { it > 0 }
@@ -125,7 +126,6 @@ class SimklContinueWatchingLandscapeAdapter(
             holder.episodeNo.visibility = View.VISIBLE
             holder.episodeNoText.text = epStr
         }
-        holder.episodeBroadcast.isVisible = false
 
         val subtitle = buildString {
             val type = item.mediaType ?: "tv"

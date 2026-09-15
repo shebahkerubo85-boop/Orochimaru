@@ -833,6 +833,8 @@ class MediaAdaptor(
             dubCount.text = "~"
             totalCount.visibility = View.VISIBLE
             totalCount.text = "~"
+            dividerMid.visibility = View.VISIBLE
+            dividerTotal.visibility = View.VISIBLE
             return
         }
 
@@ -854,7 +856,9 @@ class MediaAdaptor(
         totalCount.text = if (showTotal) info.total.toString() else "~"
 
         // Dividers only separate real sections; no dub means just "sub | total" side by side.
-        dividerMid.visibility = if (showDub) View.VISIBLE else View.GONE
+        // midDivider: visible whenever there are 2+ visible sections (sub|total or sub|dub)
+        val sectionsVisible = listOf(showSub, showDub, showTotal).count { it }
+        dividerMid.visibility = if (sectionsVisible >= 2) View.VISIBLE else View.GONE
         dividerTotal.visibility = if (showDub) View.VISIBLE else View.GONE
     }
 
