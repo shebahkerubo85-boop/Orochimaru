@@ -90,7 +90,7 @@ object Simkl {
                 ani.sanin.util.Logger.log("Simkl.resolveSimklId: $service=$id HTTP ${resp.code} location=$location")
                 if (!location.isNullOrBlank()) {
                     // Parse: //simkl.com/anime/2733606/slug or https://simkl.com/anime/2733606/slug
-                    val match = Regex("/(?:anime|movies|shows)/(\d+)").find(location)
+                    val match = Regex("/(?:anime|movies|shows)/(\\d+)").find(location)
                     if (match != null) {
                         val simklId = match.groupValues[1]
                         simklIdCache[key] = simklId
