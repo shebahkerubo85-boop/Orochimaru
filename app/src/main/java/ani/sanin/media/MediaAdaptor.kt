@@ -211,7 +211,7 @@ class MediaAdaptor(
                     if (shouldShowBottomBadge(1)) {
                         val badge0 = b.root.findViewById<View>(R.id.subDubBadge)
                         if (badge0 != null) {
-                            SubDubCache.get(media.nameRomaji, activity.lifecycleScope) { info ->
+                            SubDubCache.get(media.nameRomaji, activity.lifecycleScope, media.id) { info ->
                                 bindSubDubBadge(badge0, info, media)
                             }
                         }
@@ -260,7 +260,7 @@ class MediaAdaptor(
                     if (showBottom1 && shouldShowBottomBadge(1)) {
                         val badge1 = b.root.findViewById<View>(R.id.subDubBadge)
                         if (badge1 != null) {
-                            SubDubCache.get(media.nameRomaji, activity.lifecycleScope) { info ->
+                            SubDubCache.get(media.nameRomaji, activity.lifecycleScope, media.id) { info ->
                                 bindSubDubBadge(badge1, info, media)
                             }
                         }
@@ -339,7 +339,7 @@ class MediaAdaptor(
                     if (showBottom2 && shouldShowBottomBadge(1)) {
                         val badge2 = b.root.findViewById<View>(R.id.subDubBadge)
                         if (badge2 != null) {
-                            SubDubCache.get(media.nameRomaji, activity.lifecycleScope) { info ->
+                            SubDubCache.get(media.nameRomaji, activity.lifecycleScope, media.id) { info ->
                                 bindSubDubBadge(badge2, info, media)
                             }
                         }
@@ -402,7 +402,7 @@ class MediaAdaptor(
                     if (showBottom3 && shouldShowBottomBadge(1)) {
                         val badge3 = b.root.findViewById<View>(R.id.subDubBadge)
                         if (badge3 != null) {
-                            SubDubCache.get(media.nameRomaji, activity.lifecycleScope) { info ->
+                            SubDubCache.get(media.nameRomaji, activity.lifecycleScope, media.id) { info ->
                                 bindSubDubBadge(badge3, info, media)
                             }
                         }
@@ -680,7 +680,7 @@ class MediaAdaptor(
             if (showBottomL && shouldShowBottomBadge(1)) {
                 val badgeL = b.root.findViewById<View>(R.id.subDubBadge)
                 if (badgeL != null) {
-                    SubDubCache.get(media.nameRomaji, activity.lifecycleScope) { info ->
+                    SubDubCache.get(media.nameRomaji, activity.lifecycleScope, media.id) { info ->
                         bindSubDubBadge(badgeL, info, media)
                     }
                 }

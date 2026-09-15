@@ -9,7 +9,7 @@ import java.net.URLEncoder
 
 /**
  * Lightweight in-memory LRU cache for sub/dub episode counts.
- * Fetches on-demand from AniVault's mobile API, keyed by anime title.
+ * Fetches on-demand from Cloudflare Worker (backed by AniVault API), keyed by AniList ID or title.
  */
 object SubDubCache {
 
@@ -18,44 +18,41 @@ object SubDubCache {
     private val cache = LruCache<String, SubDubInfo>(300)
 
     /**
-     * Get sub/dub info for [title].
-     * Returns cached data immediately, or launches a background fetch.
-     * [onResult] is called on the main thread with the data (or null on error).
+     * Get sub/dub info for [title], optionally with an [anilistId] for exact lookup.
+     * When anilistId is provided the Worker uses the anime/{id} endpoint (no scoring).
+     * Falls back to title-based search if anilistId is null.
      */
-    fun get(title: String, scope: CoroutineScope, onResult: (SubDubInfo?) -> Unit) {
-        val key = title.lowercase().trim()
+    fun get(title: String, scope: CoroutineScope, anilistId: Int? = null, onResult: (SubDubInfo?) -> Unit) {
+        val key = anilistId?.toString() ?: title.lowercase().trim()
         if (key.isBlank()) { onResult(null); return }
         val cached = cache.get(key)
         if (cached != null) {
             onResult(cached)
             return
         }
-        // Fire-and-forget background fetch
         scope.launch(Dispatchers.IO) {
-            val info = fetchFromApi(key)
+            val info = fetchFromApi(anilistId, title)
             if (info != null) cache.put(key, info)
             withContext(Dispatchers.Main) { onResult(info) }
         }
     }
 
-    /**
-     * Synchronous check — returns cached data or null.
-     * Use when binding views where you don't want to trigger network.
-     */
     fun getCached(title: String): SubDubInfo? =
         cache.get(title.lowercase().trim())
 
-    /** Batch-fetch multiple titles (e.g. for a section). */
+    fun getCachedById(anilistId: Int): SubDubInfo? =
+        cache.get(anilistId.toString())
+
     fun prefetch(
-        titles: List<String>,
+        items: List<Pair<String, Int?>>,
         scope: CoroutineScope,
         onDone: (() -> Unit)? = null
     ) {
         scope.launch(Dispatchers.IO) {
-            titles.forEach { title ->
-                val key = title.lowercase().trim()
+            items.forEach { (title, id) ->
+                val key = id?.toString() ?: title.lowercase().trim()
                 if (cache.get(key) == null) {
-                    val info = fetchFromApi(key)
+                    val info = fetchFromApi(id, title)
                     if (info != null) cache.put(key, info)
                 }
             }
@@ -70,13 +67,17 @@ object SubDubCache {
     fun clear() { cache.evictAll() }
 
     // ──────────────────────────────────────────────────────────────────
-    //  Fetch from Cloudflare Worker (scores + caches at edge)
+    //  Fetch from Cloudflare Worker (AniList ID exact or title search)
     // ──────────────────────────────────────────────────────────────────
-    private suspend fun fetchFromApi(title: String): SubDubInfo? = withContext(Dispatchers.IO) {
+    private suspend fun fetchFromApi(anilistId: Int?, title: String): SubDubInfo? = withContext(Dispatchers.IO) {
         try {
-            val encoded = URLEncoder.encode(title, "UTF-8")
-            val url = URL("$BASE_URL/?q=$encoded")
-            val conn = url.openConnection()
+            val urlStr = if (anilistId != null) {
+                "$BASE_URL/?anilist_id=$anilistId"
+            } else {
+                val encoded = URLEncoder.encode(title, "UTF-8")
+                "$BASE_URL/?q=$encoded"
+            }
+            val conn = URL(urlStr).openConnection()
             conn.connectTimeout = 8_000
             conn.readTimeout = 8_000
             val body = conn.getInputStream().bufferedReader().readText()
