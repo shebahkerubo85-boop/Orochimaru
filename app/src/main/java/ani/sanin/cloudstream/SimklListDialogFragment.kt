@@ -111,6 +111,16 @@ class SimklListDialogFragment : DialogFragment() {
 
     private var isSaving = false
 
+    private fun simklLabel(status: String): String = when (status) {
+        "watching" -> "Watching"
+        "plantowatch" -> "Plan to Watch"
+        "completed" -> "Completed"
+        "dropped" -> "Dropped"
+        "hold" -> "On Hold"
+        "notinteresting", "na" -> "Not Interested"
+        else -> status
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         binding.mediaListContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             bottomMargin += navBarHeight
@@ -205,13 +215,14 @@ class SimklListDialogFragment : DialogFragment() {
             if (isSaving) return@setOnClickListener
             isSaving = true
             binding.mediaListSave.isEnabled = false
+            var applied: String? = null
             lifecycleScope.launch {
                 withContext(Dispatchers.IO) {
                     Logger.log("SimklListDialog: saving status=$selectedStatus for '$title' (tmdb=$mediaId)")
                     val score = _binding?.mediaListScore?.text.toString().toDoubleOrNull()?.let {
                         (it * 10).toInt().coerceIn(0, 100)
                     } ?: 0
-                    Simkl.setListStatus(
+                    applied = Simkl.setListStatus(
                         type = mediaType,
                         title = title,
                         year = year,
@@ -223,7 +234,15 @@ class SimklListDialogFragment : DialogFragment() {
                 }
                 withContext(Dispatchers.Main) {
                     Refresh.all()
-                    snackString("List updated to: ${simklStatusLabels[simklStatuses.indexOf(selectedStatus)]}")
+                    val requestedLabel = simklStatusLabels.getOrElse(
+                        simklStatuses.indexOf(selectedStatus)
+                    ) { selectedStatus }
+                    val message = if (applied != null && applied != selectedStatus) {
+                        "Simkl set to: ${simklLabel(applied)} (can't set $requestedLabel while airing)"
+                    } else {
+                        "List updated to: $requestedLabel"
+                    }
+                    snackString(message)
                     dismissAllowingStateLoss()
                 }
             }

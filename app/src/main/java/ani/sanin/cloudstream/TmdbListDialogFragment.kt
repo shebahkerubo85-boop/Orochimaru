@@ -169,32 +169,39 @@ class TmdbListDialogFragment : DialogFragment() {
             val idx = statusStrings.indexOf(label).coerceAtLeast(0)
             val simklStatus = SIMKL_STATUS_BY_INDEX[idx]
             val progress = if (type == "tv" && totalEpisodes != null) {
-                binding.mediaListProgress.text.toString().toIntOrNull() ?: 0
+                val typed = binding.mediaListProgress.text.toString().toIntOrNull() ?: 0
+                // Mark-all when completed and no explicit progress typed
+                if (typed == 0 && simklStatus == "completed") totalEpisodes else typed
             } else 0
 
             scope.launch(Dispatchers.IO) {
-                // 1. Set the list status (watching / completed / etc.)
-                runCatching {
-                    Simkl.setListStatus(
-                        type = type, title = title, year = year,
-                        tmdbId = tmdbId, imdbId = imdbId, status = simklStatus,
-                        anilistId = anilistId
-                    )
-                }
-                // 2. Sync episode progress if changed
+                // 1. Sync episode progress FIRST — Simkl resets the status to watching
+                //    after a /sync/history update, so it must never run after status.
                 if (type == "tv" && progress > 0) {
                     runCatching {
                         Simkl.setProgress(
                             type = type, title = title, year = year,
                             tmdbId = tmdbId, imdbId = imdbId,
-                            anilistId = anilistId, episodeNum = progress,
-                            restoreStatus = simklStatus
+                            anilistId = anilistId, episodeNum = progress
                         )
                     }
                 }
+                // 2. Set the list status LAST — final operation, not clobbered by history.
+                val applied = runCatching {
+                    Simkl.setListStatus(
+                        type = type, title = title, year = year,
+                        tmdbId = tmdbId, imdbId = imdbId, status = simklStatus,
+                        anilistId = anilistId
+                    )
+                }.getOrNull()
                 withContext(Dispatchers.Main) {
                     onSaved?.invoke()
-                    snackString("Saved to Simkl: $label")
+                    val message = if (applied != null && applied != simklStatus) {
+                        "Simkl set to ${labelForSimklStatus(applied)} (can't set $label while airing)"
+                    } else {
+                        "Saved to Simkl: $label"
+                    }
+                    snackString(message)
                     dismissAllowingStateLoss()
                 }
             }
@@ -232,6 +239,15 @@ class TmdbListDialogFragment : DialogFragment() {
             "hold" -> 4
             "dropped", "notinteresting" -> 5
             else -> 0
+        }
+
+        fun labelForSimklStatus(s: String): String = when (s) {
+            "plantowatch", "plantolisten" -> "PLANNING"
+            "watching", "reading" -> "WATCHING"
+            "completed" -> "COMPLETED"
+            "hold" -> "PAUSED"
+            "dropped", "notinteresting" -> "DROPPED"
+            else -> s.uppercase()
         }
 
         fun newInstance(
