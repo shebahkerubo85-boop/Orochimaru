@@ -223,7 +223,7 @@ class TmdbListDialogFragment : DialogFragment() {
 
     companion object {
         private val SIMKL_STATUS_BY_INDEX =
-            arrayOf("plantowatch", "watching", "completed", "plantowatch", "hold", "dropped")
+            arrayOf("plantowatch", "watching", "completed", "watching", "hold", "dropped")
 
         fun simklStatusToIndex(s: String?): Int = when (s) {
             "watching" -> 1

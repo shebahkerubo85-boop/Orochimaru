@@ -234,14 +234,7 @@ class SimklListDialogFragment : DialogFragment() {
             lifecycleScope.launch {
                 withContext(Dispatchers.IO) {
                     Logger.log("SimklListDialog: removing '$title' from list")
-                    Simkl.setListStatus(
-                        type = mediaType,
-                        title = title,
-                        year = year,
-                        tmdbId = mediaId,
-                        imdbId = imdbId,
-                        status = "na"
-                    )
+                    Simkl.removeFromList(type = mediaType, tmdbId = mediaId, imdbId = imdbId)
                 }
                 withContext(Dispatchers.Main) {
                     Refresh.all()
