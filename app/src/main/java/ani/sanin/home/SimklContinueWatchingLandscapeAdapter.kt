@@ -47,6 +47,7 @@ class SimklContinueWatchingLandscapeAdapter(
         holder.clearlogo.visibility = View.GONE
         holder.overlayTitle.visibility = View.GONE
         holder.title.isVisible = false
+        val epStr = item.lastWatched
 
         // Load TMDB backdrop + logo async (same pattern as anime CW)
         val tmdbId = item.ids?.tmdb
@@ -119,7 +120,7 @@ class SimklContinueWatchingLandscapeAdapter(
             }
         }
 
-        val epStr = item.lastWatched
+
         if (epStr.isNullOrBlank()) {
             holder.episodeNo.visibility = View.GONE
         } else {
