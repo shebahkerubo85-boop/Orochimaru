@@ -188,7 +188,7 @@ class MediaInfoFragment : Fragment() {
                 // Logo art: AniZip → TMDB fallback → plain title
                 binding.mediaInfoLogo.visibility = View.GONE
                 binding.mediaInfoTitle.visibility = View.GONE
-                lifecycleScope.launch(Dispatchers.Main) {
+                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
                     var logoUrl = LogoApi.getLogoUrl(media.id)
                     if (logoUrl.isNullOrBlank()) {
                         // TMDB fallback: search by title, grab clear logo
@@ -366,7 +366,7 @@ class MediaInfoFragment : Fragment() {
                 fun syncMediaFavStateIfNeeded() {
                     if (rescueMode || Anilist.userid == null || media.isFav || isFavSyncRunning) return
                     isFavSyncRunning = true
-                    lifecycleScope.launch {
+                    viewLifecycleOwner.lifecycleScope.launch {
                         try {
                             val favType = if (media.anime != null) {
                                 AnilistMutations.FavType.ANIME
@@ -783,7 +783,7 @@ class MediaInfoFragment : Fragment() {
                             adapter.pos = ArrayList(genreModel.genres!!.keys)
                             if (genreModel.done) genreModel.doneListener?.invoke()
                         }
-                        lifecycleScope.launch(Dispatchers.IO) { genreModel.loadGenres(media.genres) { MainScope().launch { adapter.addGenre(it) } } }
+                        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) { genreModel.loadGenres(media.genres) { MainScope().launch { adapter.addGenre(it) } } }
                     } else {
                         bind.mediaInfoGenresProgressBar.visibility = View.GONE
                         media.genres.forEach { adapter.addGenre(Pair(it, "")) }
