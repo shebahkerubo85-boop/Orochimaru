@@ -237,8 +237,9 @@ class SimklListDialogFragment : DialogFragment() {
                     val requestedLabel = simklStatusLabels.getOrElse(
                         simklStatuses.indexOf(selectedStatus)
                     ) { selectedStatus }
-                    val message = if (applied != null && applied != selectedStatus) {
-                        "Simkl set to: ${simklLabel(applied)} (can't set $requestedLabel while airing)"
+                    val appliedStatus = applied
+                    val message = if (appliedStatus != null && appliedStatus != selectedStatus) {
+                        "Simkl set to: ${simklLabel(appliedStatus)} (can't set $requestedLabel while airing)"
                     } else {
                         "List updated to: $requestedLabel"
                     }
