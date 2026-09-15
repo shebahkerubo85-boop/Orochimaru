@@ -48,6 +48,88 @@ object Simkl {
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     private val okHttpClient get() = Injekt.get<eu.kanade.tachiyomi.network.NetworkHelper>().client
+    // In-memory cache: "tmdb:12345" -> "67890" (simkl id)
+    private val simklIdCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    /**
+     * Resolve external IDs (tmdb/imdb/anilist) to a Simkl ID via Simkl's redirect endpoint.
+     * Returns the Simkl numeric ID or null if resolution fails.
+     * Caches results in-memory for the session.
+     */
+    suspend fun resolveSimklId(
+        tmdbId: Int? = null,
+        imdbId: String? = null,
+        anilistId: Int? = null
+    ): String? {
+        // Build a cache key from whichever IDs are available
+        val key = listOf(
+            tmdbId?.let { "tmdb:$it" },
+            imdbId?.let { "imdb:$it" },
+            anilistId?.let { "anilist:$it" }
+        ).filterNotNull().joinToString("|")
+
+        simklIdCache[key]?.let { return it }
+
+        // Try each external ID in priority order: anilist > tmdb > imdb
+        val attempts = mutableListOf<Pair<String, String>>()
+        if (anilistId != null && anilistId > 0) attempts.add("anilist" to anilistId.toString())
+        if (tmdbId != null && tmdbId > 0) attempts.add("tmdb" to tmdbId.toString())
+        if (!imdbId.isNullOrBlank()) attempts.add("imdb" to imdbId)
+
+        for ((service, id) in attempts) {
+            try {
+                val request = Request.Builder()
+                    .url("https://api.simkl.com/redirect?to=simkl&$service=$id")
+                    .get()
+                    .addHeader("simkl-api-key", clientId)
+                    .addHeader("Content-Type", "application/json")
+                    .followRedirects(false)
+                    .build()
+                val resp = okHttpClient.newCall(request).execute()
+                val location = resp.header("location") ?: resp.header("Location")
+                ani.sanin.util.Logger.log("Simkl.resolveSimklId: $service=$id HTTP ${resp.code} location=$location")
+                if (!location.isNullOrBlank()) {
+                    // Parse: //simkl.com/anime/2733606/slug or https://simkl.com/anime/2733606/slug
+                    val match = Regex("/(?:anime|movies|shows)/(\d+)").find(location)
+                    if (match != null) {
+                        val simklId = match.groupValues[1]
+                        simklIdCache[key] = simklId
+                        ani.sanin.util.Logger.log("Simkl.resolveSimklId: resolved $service=$id -> simkl=$simklId")
+                        return simklId
+                    }
+                }
+            } catch (e: Exception) {
+                ani.sanin.util.Logger.log("Simkl.resolveSimklId: $service=$id failed: ${e.message}")
+            }
+        }
+
+        ani.sanin.util.Logger.log("Simkl.resolveSimklId: FAILED to resolve for $key")
+        return null
+    }
+
+    /**
+     * Build an ids JSON object using the resolved Simkl ID.
+     * Falls back to raw external IDs if resolution fails.
+     */
+    private suspend fun buildResolvedIdsObj(
+        tmdbId: Int? = null,
+        imdbId: String? = null,
+        anilistId: Int? = null
+    ): JsonObject {
+        val simklId = resolveSimklId(tmdbId, imdbId, anilistId)
+        return if (simklId != null) {
+            buildJsonObject { put("simkl", JsonPrimitive(simklId)) }
+        } else {
+            // Fallback: pass external IDs (may not work for all endpoints)
+            buildJsonObject {
+                if (tmdbId != null && tmdbId > 0) put("tmdb", JsonPrimitive(tmdbId.toString()))
+                if (!imdbId.isNullOrBlank()) put("imdb", JsonPrimitive(imdbId))
+                if (anilistId != null && anilistId > 0) put("anilist", JsonPrimitive(anilistId))
+            }
+        }
+    }
+
+
 
     fun loginIntent(context: Context) {
         val codeVerifier = generateCodeVerifier()
@@ -310,11 +392,7 @@ object Simkl {
         anilistId: Int? = null
     ) {
         val t = token ?: return
-        val idsObj = buildJsonObject {
-            if (tmdbId != null && tmdbId > 0) put("tmdb", JsonPrimitive(tmdbId.toString()))
-            if (!imdbId.isNullOrBlank()) put("imdb", JsonPrimitive(imdbId))
-            if (anilistId != null && anilistId > 0) put("anilist", JsonPrimitive(anilistId))
-        }
+        val idsObj = buildResolvedIdsObj(tmdbId, imdbId, anilistId)
         tryWithSuspend {
             if (type != "tv") {
                 // AnymeX: movies skip /sync/history entirely; mark completed via add-to-list
@@ -370,34 +448,136 @@ object Simkl {
         rating: Int = 0
     ) {
         val t = token ?: return
-        val idsObj = buildJsonObject {
-            if (tmdbId != null && tmdbId > 0) put("tmdb", JsonPrimitive(tmdbId.toString()))
-            if (!imdbId.isNullOrBlank()) put("imdb", JsonPrimitive(imdbId))
-            if (anilistId != null && anilistId > 0) put("anilist", JsonPrimitive(anilistId))
-        }
-        tryWithSuspend {
-            // 1. POST /sync/add-to-list (AnymeX core pattern)
-            val collection = if (type == "tv") "shows" else "movies"
-            val listBody = buildJsonObject {
-                put(collection, buildJsonArray {
-                    add(buildJsonObject {
-                        put("to", JsonPrimitive(status))
-                        put("ids", idsObj)
-                    })
-                })
-            }.toString()
-            val listResp = okHttpClient.newCall(
-                Request.Builder()
-                    .url("$BASE/sync/add-to-list")
-                    .addHeader("Authorization", "Bearer $t")
-                    .addHeader("simkl-api-key", clientId)
-                    .addHeader("Content-Type", "application/json")
-                    .post(listBody.toRequestBody("application/json".toMediaType()))
-                    .build()
-            ).execute()
-            ani.sanin.util.Logger.log("Simkl.setListStatus: HTTP ${listResp.code} status=$status title=$title type=$type")
 
-            // 2. POST /sync/ratings if rating > 0 (AnymeX pattern)
+        // "na" = delete / Not Interested → use removeFromList endpoint
+        if (status == "na") {
+            removeFromList(type, tmdbId, imdbId, anilistId)
+            return
+        }
+
+        // Resolve external IDs to Simkl ID (AnymeX pattern — required for sync endpoints)
+        val idsObj = buildResolvedIdsObj(tmdbId, imdbId, anilistId)
+
+        tryWithSuspend {
+            val collection = if (type == "tv") "shows" else "movies"
+
+            if (status == "completed" && type == "tv" && !skipHistory) {
+                // 1. Set status via /sync/add-to-list FIRST
+                val listBody = buildJsonObject {
+                    put(collection, buildJsonArray {
+                        add(buildJsonObject {
+                            put("to", JsonPrimitive(status))
+                            put("ids", idsObj)
+                        })
+                    })
+                }.toString()
+                val listResp = okHttpClient.newCall(
+                    Request.Builder()
+                        .url("$BASE/sync/add-to-list")
+                        .addHeader("Authorization", "Bearer $t")
+                        .addHeader("simkl-api-key", clientId)
+                        .addHeader("Content-Type", "application/json")
+                        .post(listBody.toRequestBody("application/json".toMediaType()))
+                        .build()
+                ).execute()
+                ani.sanin.util.Logger.log("Simkl.setListStatus: add-to-list HTTP ${listResp.code} status=$status title=$title")
+
+                // 2. Mark ALL episodes watched via /sync/history (Simkl requires this for completed)
+                val seasonsArr = buildJsonArray {
+                    try {
+                        val tmdbDetail = ani.sanin.connections.tmdb.Tmdb.detail("tv", tmdbId ?: 0)
+                        val numSeasons = tmdbDetail?.numberOfSeasons ?: 1
+                        for (s in 1..numSeasons) {
+                            val eps = try {
+                                ani.sanin.connections.tmdb.Tmdb.episodes("tv", tmdbId ?: 0, s)
+                            } catch (_: Exception) { emptyList() }
+                            if (eps.isEmpty()) continue
+                            add(buildJsonObject {
+                                put("number", JsonPrimitive(s))
+                                put("episodes", buildJsonArray {
+                                    for (ep in eps) {
+                                        add(buildJsonObject { put("number", JsonPrimitive(ep.episodeNumber)) })
+                                    }
+                                })
+                            })
+                        }
+                    } catch (_: Exception) {
+                        add(buildJsonObject {
+                            put("number", JsonPrimitive(1))
+                            put("episodes", buildJsonArray {
+                                for (i in 1..99) {
+                                    add(buildJsonObject { put("number", JsonPrimitive(i)) })
+                                }
+                            })
+                        })
+                    }
+                }
+                if (seasonsArr.isNotEmpty()) {
+                    val histBody = buildJsonObject {
+                        put(collection, buildJsonArray {
+                            add(buildJsonObject {
+                                put("ids", idsObj)
+                                put("seasons", seasonsArr)
+                            })
+                        })
+                    }
+                    val histResp = okHttpClient.newCall(
+                        Request.Builder()
+                            .url("$BASE/sync/history")
+                            .addHeader("Authorization", "Bearer $t")
+                            .addHeader("simkl-api-key", clientId)
+                            .addHeader("Content-Type", "application/json")
+                            .post(histBody.toString().toRequestBody("application/json".toMediaType()))
+                            .build()
+                    ).execute()
+                    ani.sanin.util.Logger.log("Simkl.setListStatus: history HTTP ${histResp.code} for completed tv (${seasonsArr.size} seasons)")
+
+                    // /sync/history resets show status to watching — re-apply completed
+                    if (histResp.code == 200 || histResp.code == 201) {
+                        val reapplyBody = buildJsonObject {
+                            put(collection, buildJsonArray {
+                                add(buildJsonObject {
+                                    put("to", JsonPrimitive("completed"))
+                                    put("ids", idsObj)
+                                })
+                            })
+                        }.toString()
+                        val reapplyResp = okHttpClient.newCall(
+                            Request.Builder()
+                                .url("$BASE/sync/add-to-list")
+                                .addHeader("Authorization", "Bearer $t")
+                                .addHeader("simkl-api-key", clientId)
+                                .addHeader("Content-Type", "application/json")
+                                .post(reapplyBody.toRequestBody("application/json".toMediaType()))
+                                .build()
+                        ).execute()
+                        ani.sanin.util.Logger.log("Simkl.setListStatus: re-apply completed HTTP ${reapplyResp.code} title=$title")
+                    }
+                }
+            } else {
+                // Standard status change (non-completed, or completed without history)
+                val listBody = buildJsonObject {
+                    put(collection, buildJsonArray {
+                        add(buildJsonObject {
+                            put("to", JsonPrimitive(status))
+                            put("ids", idsObj)
+                        })
+                    })
+                }.toString()
+                val resp = okHttpClient.newCall(
+                    Request.Builder()
+                        .url("$BASE/sync/add-to-list")
+                        .addHeader("Authorization", "Bearer $t")
+                        .addHeader("simkl-api-key", clientId)
+                        .addHeader("Content-Type", "application/json")
+                        .post(listBody.toRequestBody("application/json".toMediaType()))
+                        .build()
+                ).execute()
+                val respBody = resp.body?.string()?.take(200)
+                ani.sanin.util.Logger.log("Simkl.setListStatus: HTTP ${resp.code} status=$status title=$title type=$type resp=$respBody")
+            }
+
+            // 3. POST /sync/ratings if rating > 0
             if (rating > 0) {
                 val ratingBody = buildJsonObject {
                     put(collection, buildJsonArray {
@@ -428,13 +608,9 @@ object Simkl {
         imdbId: String? = null,
         anilistId: Int? = null
     ) {
+        val t = token ?: return
+        val idsObj = buildResolvedIdsObj(tmdbId, imdbId, anilistId)
         tryWithSuspend {
-            val t = token ?: return@tryWithSuspend
-            val idsObj = buildJsonObject {
-                if (tmdbId != null && tmdbId > 0) put("tmdb", JsonPrimitive(tmdbId.toString()))
-                if (!imdbId.isNullOrBlank()) put("imdb", JsonPrimitive(imdbId))
-                if (anilistId != null && anilistId > 0) put("anilist", JsonPrimitive(anilistId))
-            }
             val body = buildJsonObject {
                 put(if (type == "tv") "shows" else "movies", buildJsonArray {
                     add(buildJsonObject {
@@ -457,22 +633,19 @@ object Simkl {
         }
     }
 
-        /** Remove an item from the user's Simkl list. */
+        /** Remove an item from the user's Simkl list. Uses /sync/history/remove (AnymeX pattern). */
     suspend fun removeFromList(
         type: String,
         tmdbId: Int? = null,
         imdbId: String? = null,
         anilistId: Int? = null
     ) {
+        val t = token ?: return
+        val idsObj = buildResolvedIdsObj(tmdbId, imdbId, anilistId)
+        val collection = if (type == "tv") "shows" else "movies"
         tryWithSuspend {
-            val t = token ?: return@tryWithSuspend
-            val idsObj = buildJsonObject {
-                if (tmdbId != null && tmdbId > 0) put("tmdb", JsonPrimitive(tmdbId.toString()))
-                if (!imdbId.isNullOrBlank()) put("imdb", JsonPrimitive(imdbId))
-                if (anilistId != null && anilistId > 0) put("anilist", JsonPrimitive(anilistId))
-            }
             val body = buildJsonObject {
-                put(if (type == "tv") "shows" else "movies", buildJsonArray {
+                put(collection, buildJsonArray {
                     add(buildJsonObject {
                         put("ids", idsObj)
                     })
@@ -481,14 +654,15 @@ object Simkl {
             ani.sanin.util.Logger.log("Simkl.removeFromList: body=$body")
             val resp = okHttpClient.newCall(
                 Request.Builder()
-                    .url("$BASE/sync/remove-from-list")
+                    .url("$BASE/sync/history/remove")
                     .addHeader("Authorization", "Bearer $t")
                     .addHeader("simkl-api-key", clientId)
                     .addHeader("Content-Type", "application/json")
                     .post(body.toRequestBody("application/json".toMediaType()))
                     .build()
             ).execute()
-            ani.sanin.util.Logger.log("Simkl.removeFromList: HTTP ${resp.code} type=$type tmdb=$tmdbId")
+            val respBody = resp.body?.string()?.take(300)
+            ani.sanin.util.Logger.log("Simkl.removeFromList: HTTP ${resp.code} type=$type resp=$respBody")
         }
     }
 
@@ -557,11 +731,7 @@ object Simkl {
     ) {
         val t = token ?: return
         if (type != "tv" || episodeNum <= 0) return
-        val idsObj = buildJsonObject {
-            if (tmdbId != null && tmdbId > 0) put("tmdb", JsonPrimitive(tmdbId.toString()))
-            if (!imdbId.isNullOrBlank()) put("imdb", JsonPrimitive(imdbId))
-            if (anilistId != null && anilistId > 0) put("anilist", JsonPrimitive(anilistId))
-        }
+        val idsObj = buildResolvedIdsObj(tmdbId, imdbId, anilistId)
         tryWithSuspend {
             val seasonsArr = buildJsonArray {
                 val tmdbDetail = ani.sanin.connections.tmdb.Tmdb.detail("tv", tmdbId ?: 0)
