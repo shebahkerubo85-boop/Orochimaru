@@ -192,7 +192,7 @@ class MediaAdaptor(
 
                     // Adapt pill position to card radius so it doesn't get cropped
                     b.itemCompactScoreBG.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                        val m = (styleRadius * 0.6f).toInt().coerceAtLeast(4)
+                        val m = (styleRadius * 0.3f).toInt().coerceAtLeast(4)
                         topMargin = m
                         marginEnd = m
                     }
@@ -282,7 +282,7 @@ class MediaAdaptor(
                     b.itemCompactCard.radius = largeStyleRadius
                     // Adapt pill position to card radius so it doesn't get cropped
                     b.itemCompactScoreBG.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                        val m = (largeStyleRadius * 0.6f).toInt().coerceAtLeast(4)
+                        val m = (largeStyleRadius * 0.3f).toInt().coerceAtLeast(4)
                         topMargin = m
                         marginEnd = m
                     }
@@ -617,7 +617,7 @@ class MediaAdaptor(
             b.itemCompactCard.radius = landStyleRadius
             // Adapt pill position to card radius so it doesn't get cropped
             b.itemCompactScoreBG.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                val m = (landStyleRadius * 0.6f).toInt().coerceAtLeast(4)
+                val m = (landStyleRadius * 0.3f).toInt().coerceAtLeast(4)
                 topMargin = m
                 marginEnd = m
             }
@@ -807,6 +807,7 @@ class MediaAdaptor(
     }
 
     private fun bindSubDubBadge(badge: android.view.View, info: SubDubInfo?, media: Media) {
+        scaleBadgeElements(badge)
         // Sub/dub counts only exist for anime (AniVault data); never render for movies.
         if (media.anime == null) {
             badge.visibility = View.GONE
@@ -819,6 +820,8 @@ class MediaAdaptor(
         val dubIcon = badge.findViewById<android.view.View>(R.id.subDubDubIcon)
         val dubCount = badge.findViewById<TextView>(R.id.subDubDubCount)
         val totalCount = badge.findViewById<TextView>(R.id.subDubTotalCount)
+        val dividerMid = badge.findViewById<android.view.View>(R.id.subDubDividerMid)
+        val dividerTotal = badge.findViewById<android.view.View>(R.id.subDubDividerTotal)
 
         if (info == null || !info.hasData) {
             // Data not available (yet/at all) — show ~ placeholders, never vanish
@@ -837,6 +840,8 @@ class MediaAdaptor(
         val showDub = info.dub > 0
         val showTotal = info.total > 0
 
+        if (!showSub && !showDub && !showTotal) { badge.visibility = View.GONE; return }
+
         subIcon.visibility = if (showSub) View.VISIBLE else View.GONE
         subCount.visibility = if (showSub) View.VISIBLE else View.GONE
         subCount.text = if (showSub) info.sub.toString() else "~"
@@ -847,6 +852,10 @@ class MediaAdaptor(
 
         totalCount.visibility = if (showTotal) View.VISIBLE else View.GONE
         totalCount.text = if (showTotal) info.total.toString() else "~"
+
+        // Dividers only separate real sections; no dub means just "sub | total" side by side.
+        dividerMid.visibility = if (showDub) View.VISIBLE else View.GONE
+        dividerTotal.visibility = if (showDub) View.VISIBLE else View.GONE
     }
 
     private fun shouldShowTopBadge(flag: Int): Boolean =
@@ -855,7 +864,15 @@ class MediaAdaptor(
     private fun shouldShowBottomBadge(flag: Int): Boolean =
         PrefManager.getVal<Int>(PrefName.CardMetadataBottom) == flag
 
+    /** Scale badge elements proportionally to card size (baseline 2.25x). */
+    private fun scaleBadgeElements(badge: View) {
+        val scale = cachedCardSize / 2.25f
+        badge.scaleX = scale
+        badge.scaleY = scale
+    }
+
     private fun bindProgressBadge(badge: View, media: Media) {
+        scaleBadgeElements(badge)
         val watched = media.userProgress          // nullable Int
         val isAnime = media.anime != null
         val totalEp = if (isAnime) media.anime?.totalEpisodes else null
@@ -869,15 +886,16 @@ class MediaAdaptor(
         val allReleased = isAnime && totalEp != null && released != null && released >= totalEp
         val timeUntil = if (isAnime && isReleasing) media.timeUntilAiring else null
 
-        // Released section is hidden when: anime total unknown, or all episodes have released
-        val hasReleased = when {
-            !isAnime -> released != null && released > 0                     // movies always show 1
-            else -> released != null && released > 0 && totalEp != null && !allReleased
-        }
+        // Completed shows: just seen + total (no broadcast icon, no divider, no TT).
+        // Ongoing shows: full format with broadcast, divider, TT.
+        val hasReleased = released != null && released > 0
         val hasTT = timeUntil != null && timeUntil > 0
 
         // Show the badge if any section has real data (0 progress counts as unknown)
         if ((watched == null || watched <= 0) && !hasReleased && !hasTT) { badge.visibility = View.GONE; return }
+        // Eye-only is useless (no context). Hide if only watched with no released/tt info.
+        val hasWatched = media.userProgress != null && media.userProgress!! > 0
+        if (hasWatched && !hasReleased && !hasTT) { badge.visibility = View.GONE; return }
 
         badge.visibility = View.VISIBLE
         val watchedIcon   = badge.findViewById<android.view.View>(R.id.progressWatchedIcon)
@@ -889,28 +907,31 @@ class MediaAdaptor(
         val ttText        = badge.findViewById<TextView>(R.id.progressTT)
 
         // Watched section
-        val hasWatched = media.userProgress != null && media.userProgress!! > 0
         watchedIcon.visibility = if (hasWatched) View.VISIBLE else View.GONE
         watchedCount.visibility = View.VISIBLE
         watchedCount.text = if (hasWatched) media.userProgress.toString() else "~"
 
-        // Released section
-        releasedIcon.visibility = if (hasReleased) View.VISIBLE else View.GONE
+        // Released section: icon hidden for completed shows (seen + total = eye 8 | 24),
+        // count always visible when hasReleased (it IS the total for completed shows).
+        releasedIcon.visibility = if (hasReleased && !allReleased) View.VISIBLE else View.GONE
         releasedCount.visibility = if (hasReleased) View.VISIBLE else View.GONE
+        releasedCount.text = if (hasReleased) released.toString() else "~"
 
-        // TT section
-        if (hasTT) {
+        // TT section (never for completed shows)
+        if (hasTT && !allReleased) {
             val DAY_MILLIS = 86_400_000L
             val HOUR_MILLIS = 3_600_000L
             val days  = timeUntil!! / DAY_MILLIS
             val hours = (timeUntil % DAY_MILLIS) / HOUR_MILLIS
             ttText.text = if (days > 0) "${days}d ${hours}h" else "${hours}h"
         }
-        dividerTT.visibility = if (hasTT && hasReleased) View.VISIBLE else View.GONE
+        dividerTT.visibility = if (hasTT && hasReleased && !allReleased) View.VISIBLE else View.GONE
         ttText.visibility = if (hasTT) View.VISIBLE else View.GONE
 
-        // Divider between watched and (released|TT): always present when 2+ segments
-        midDivider.visibility = if (hasReleased || hasTT) View.VISIBLE else View.GONE
+        // Divider: always present when we have 2+ sections.
+        // Completed: eye 8 | 24.  Ongoing: eye 8 | broadcast 12 | 4d.
+        val sectionCount = listOf(hasWatched, hasReleased, hasTT).count { it }
+        midDivider.visibility = if (sectionCount >= 2) View.VISIBLE else View.GONE
     }
 
 }

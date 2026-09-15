@@ -86,22 +86,37 @@ object SubDubCache {
             val arr = json.optJSONArray("data") ?: return@withContext null
             if (arr.length() == 0) return@withContext null
 
-            // Find best match — first result whose title (case-insensitive) starts with the query
-            var match: JSONObject? = null
+            // Prefer TV series (main show) over movies/specials; pick highest-episode
+            // TV match when there are multiple (e.g. Hunter x Hunter 2011 vs 1999).
+            val titleLower = title.lowercase().trim()
+            var bestTv: Triple<Int, Int, JSONObject>? = null  // (score, episodes, item)
             for (i in 0 until arr.length()) {
                 val item = arr.getJSONObject(i)
-                val itemTitle = item.optString("title", "")
-                if (itemTitle.lowercase().trim().startsWith(title) ||
-                    title.startsWith(itemTitle.lowercase().trim())
-                ) { match = item; break }
+                val itemTitle = item.optString("title", "").lowercase().trim()
+                val eps = item.optInt("episodes", 0)
+                val type = item.optString("type", "")
+                val isTv = type.equals("TV", ignoreCase = true)
+                val titleScore = when {
+                    itemTitle == titleLower -> 100
+                    itemTitle.startsWith(titleLower) || titleLower.startsWith(itemTitle) -> 50
+                    else -> 0
+                }
+                val tvScore = if (isTv) 30 else 0
+                val score = titleScore + tvScore + (if (eps > 0) 1 else 0) + (if (isTv) 0 else 0)
+                val cur = Triple(score, eps, item)
+                if (bestTv == null || cur.first > bestTv!!.first ||
+                    (cur.first == bestTv!!.first && cur.second > bestTv!!.second)) {
+                    bestTv = cur
+                }
             }
-            val item = match ?: arr.getJSONObject(0)
+            val item = bestTv?.third ?: arr.getJSONObject(0)
 
-            val total = item.optInt("episodes", 0)
+            val episodes = item.optInt("episodes", 0)
             val airedInfo = item.optJSONObject("airedInfo")
             val aired = airedInfo?.optInt("aired", 0) ?: 0
-            val dubbedLangs = item.optJSONArray("dubbedLangs") ?: JSONArray()
+            val total = if (episodes > 0) episodes else aired
             val sub = if (aired > 0) aired else total
+            val dubbedLangs = item.optJSONArray("dubbedLangs") ?: JSONArray()
             val dub = if (dubbedLangs.length() > 0) sub else 0
             SubDubInfo(sub, dub, total)
         } catch (e: kotlinx.coroutines.CancellationException) {

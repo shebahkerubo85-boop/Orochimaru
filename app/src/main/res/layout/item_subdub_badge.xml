@@ -34,6 +34,7 @@
         tools:text="24" />
 
     <View
+        android:id="@+id/subDubDividerMid"
         android:layout_width="1dp"
         android:layout_height="12dp"
         android:layout_marginStart="5dp"
@@ -60,6 +61,7 @@
         tools:text="12" />
 
     <View
+        android:id="@+id/subDubDividerTotal"
         android:layout_width="1dp"
         android:layout_height="12dp"
         android:layout_marginStart="5dp"

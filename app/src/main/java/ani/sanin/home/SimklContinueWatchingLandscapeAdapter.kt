@@ -62,7 +62,6 @@ class SimklContinueWatchingLandscapeAdapter(
                     else -> false
                 }
                 withContext(Dispatchers.Main) {
-                    holder.ongoing.isVisible = isOngoing
                     if (mediaType == "tv") {
                         val watched = item.totalWatched
                         val total = detail?.numberOfEpisodes?.takeIf { it > 0 }
@@ -124,8 +123,9 @@ class SimklContinueWatchingLandscapeAdapter(
             holder.episodeNo.visibility = View.GONE
         } else {
             holder.episodeNo.visibility = View.VISIBLE
-            holder.episodeNo.text = epStr
+            holder.episodeNoText.text = epStr
         }
+        holder.episodeBroadcast.isVisible = false
 
         val subtitle = buildString {
             val type = item.mediaType ?: "tv"
@@ -134,12 +134,8 @@ class SimklContinueWatchingLandscapeAdapter(
         }
         holder.subtitle.text = subtitle
 
-        // The in-card progress bar (anime-exact) is filled below from Simkl +
-        // TMDB detail; never show the below-card progress row for Simkl items.
         holder.timeWatched.visibility = View.GONE
         holder.progress.visibility = View.GONE
-        holder.cwProgressRow.visibility = View.GONE
-        holder.ongoing.isVisible = false
 
         setGradient(holder.gradientOverlay)
 
@@ -179,12 +175,10 @@ class SimklContinueWatchingLandscapeAdapter(
         val overlayTitle: TextView = view.findViewById(R.id.cwOverlayTitle)
         val title: TextView = view.findViewById(R.id.cwTitle)
         val subtitle: TextView = view.findViewById(R.id.cwSubtitle)
-        val episodeNo: TextView = view.findViewById(R.id.cwEpisodeNo)
+        val episodeNo: android.view.View = view.findViewById(R.id.cwEpisodeNo)
+        val episodeNoText: TextView = view.findViewById(R.id.cwEpisodeText)
+        val episodeBroadcast: ImageView = view.findViewById(R.id.cwEpisodeBroadcast)
         val timeWatched: TextView = view.findViewById(R.id.cwTimeWatched)
-        val cwProgressRow: LinearLayout = view.findViewById(R.id.cwProgressRow)
-        val cwUserProgress: TextView = view.findViewById(R.id.cwUserProgress)
-        val cwTotal: TextView = view.findViewById(R.id.cwTotal)
         val progress: ProgressBar = view.findViewById(R.id.cwProgress)
-        val ongoing: View = view.findViewById(R.id.cwBroadcast)
     }
 }

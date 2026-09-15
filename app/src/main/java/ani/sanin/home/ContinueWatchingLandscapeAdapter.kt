@@ -88,10 +88,12 @@ class ContinueWatchingLandscapeAdapter(
 
         if (progress > 0) {
             holder.episodeNo.visibility = View.VISIBLE
-            holder.episodeNo.text = "E$progress"
+            holder.episodeNoText.text = "E$progress"
         } else {
             holder.episodeNo.visibility = View.GONE
         }
+
+        holder.episodeBroadcast.isVisible = isReleasing && progress > 0
 
         val subtitle = buildString {
             val nextAiring = media.anime?.nextAiringEpisodeTime
@@ -134,16 +136,7 @@ class ContinueWatchingLandscapeAdapter(
             holder.progress.progress = 0
         }
 
-        holder.ongoing.isVisible = isReleasing
 
-        if (media.anime != null) {
-            holder.cwUserProgress.text = (media.userProgress ?: "~").toString()
-            holder.cwTotal.text =
-                " | ${if (media.anime.nextAiringEpisode != null) (media.anime.nextAiringEpisode.toString() + " | " + (media.anime.totalEpisodes ?: "~").toString()) else (media.anime.totalEpisodes ?: "~").toString()}"
-            holder.cwProgressRow.visibility = View.VISIBLE
-        } else {
-            holder.cwProgressRow.visibility = View.GONE
-        }
 
         setGradient(holder.gradientOverlay)
         holder.itemView.setOnClickListener { onItemClick(media) }
@@ -182,12 +175,10 @@ class ContinueWatchingLandscapeAdapter(
         val overlayTitle: TextView = view.findViewById(R.id.cwOverlayTitle)
         val title: TextView = view.findViewById(R.id.cwTitle)
         val subtitle: TextView = view.findViewById(R.id.cwSubtitle)
-        val episodeNo: TextView = view.findViewById(R.id.cwEpisodeNo)
+        val episodeNo: android.view.View = view.findViewById(R.id.cwEpisodeNo)
+        val episodeNoText: TextView = view.findViewById(R.id.cwEpisodeText)
+        val episodeBroadcast: ImageView = view.findViewById(R.id.cwEpisodeBroadcast)
         val timeWatched: TextView = view.findViewById(R.id.cwTimeWatched)
-        val cwProgressRow: LinearLayout = view.findViewById(R.id.cwProgressRow)
-        val cwUserProgress: TextView = view.findViewById(R.id.cwUserProgress)
-        val cwTotal: TextView = view.findViewById(R.id.cwTotal)
         val progress: ProgressBar = view.findViewById(R.id.cwProgress)
-        val ongoing: View = view.findViewById(R.id.cwBroadcast)
     }
 }

@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
@@ -17,6 +18,7 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.cloudstream.TmdbCards
 import ani.sanin.cloudstream.TmdbDetailsActivity
+import ani.sanin.cloudstream.SimklWatchCache
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.databinding.ItemTmdbCardBinding
@@ -230,6 +232,90 @@ class SimklSectionFragment : Fragment() {
                     Simkl.imageUrl(item.poster, "m")
                 }
                 b.tmdbCardPoster.loadImage(imageUrl)
+            }
+
+            // ── Progress badge (gated by CardMetadataBottom) ──
+            val progressBadge = b.root.findViewById<View>(R.id.progressBadge)
+            val wantProgress = PrefManager.getVal<Int>(PrefName.CardMetadataBottom) == 2 &&
+                !(landscape && true)  // landscape cards use overlay title
+            if (!wantProgress) {
+                progressBadge?.isVisible = false
+            } else if (progressBadge != null) {
+                val isMovie = item.mediaType == "movie"
+                progressBadge.isVisible = true
+                val watchedIcon = progressBadge.findViewById<View>(R.id.progressWatchedIcon)
+                val watchedCount = progressBadge.findViewById<TextView>(R.id.progressWatchedCount)
+                val releasedIcon = progressBadge.findViewById<View>(R.id.progressReleasedIcon)
+                val releasedCount = progressBadge.findViewById<TextView>(R.id.progressReleasedCount)
+                val midDivider = progressBadge.findViewById<View>(R.id.progressDividerMid)
+                val ttDivider = progressBadge.findViewById<View>(R.id.progressDividerTT)
+                val ttText = progressBadge.findViewById<TextView>(R.id.progressTT)
+                progressBadge.tag = "${item.mediaType}:${item.ids?.tmdb}"
+
+                if (isMovie) {
+                    watchedIcon.isVisible = false
+                    watchedCount.text = "~"
+                    releasedIcon.isVisible = true
+                    releasedCount.text = "1"
+                    midDivider.isVisible = true
+                    ttDivider.isVisible = false
+                    ttText.isVisible = false
+                    val tmdbId = item.ids?.tmdb
+                    if (tmdbId != null) {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            val watched = SimklWatchCache.watched("movie", tmdbId) ?: 0
+                            withContext(Dispatchers.Main) {
+                                if (progressBadge.tag != "${item.mediaType}:${item.ids?.tmdb}") return@withContext
+                                if (watched > 0) {
+                                    watchedIcon.isVisible = true
+                                    watchedCount.text = "1"
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // TV: async detail for released/TT
+                    watchedIcon.isVisible = false
+                    watchedCount.text = "~"
+                    releasedIcon.isVisible = false
+                    releasedCount.isVisible = false
+                    midDivider.isVisible = false
+                    ttDivider.isVisible = false
+                    ttText.isVisible = false
+                    val tmdbId = item.ids?.tmdb
+                    if (tmdbId != null) {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            val detail = runCatching { Tmdb.detail("tv", tmdbId) }.getOrNull()
+                            val simklWatched = SimklWatchCache.watched("tv", tmdbId)
+                            withContext(Dispatchers.Main) {
+                                if (progressBadge.tag != "${item.mediaType}:${item.ids?.tmdb}") return@withContext
+                                val hasWatched = simklWatched != null && simklWatched > 0
+                                watchedIcon.isVisible = hasWatched
+                                if (hasWatched) watchedCount.text = simklWatched.toString()
+                                val released = detail?.numberOfEpisodes
+                                val hasReleased = released != null && released > 0
+                                releasedIcon.isVisible = hasReleased && !hasWatched
+                                releasedCount.isVisible = hasReleased
+                                if (hasReleased) releasedCount.text = released.toString()
+                                var hasTT = false
+                                val nextAirDate = detail?.nextEpisodeToAir?.airDate
+                                if (!nextAirDate.isNullOrBlank()) {
+                                    runCatching {
+                                        val airDate = java.time.LocalDate.parse(nextAirDate, java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)
+                                        val days = java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), airDate)
+                                        if (days > 0) {
+                                            hasTT = true
+                                            ttText.text = "${days}d"
+                                            ttText.isVisible = true
+                                            ttDivider.isVisible = hasReleased
+                                        }
+                                    }
+                                }
+                                midDivider.isVisible = hasReleased || hasTT
+                            }
+                        }
+                    }
+                }
             }
 
             b.tmdbCardPoster.setOnClickListener { onClick(item) }
