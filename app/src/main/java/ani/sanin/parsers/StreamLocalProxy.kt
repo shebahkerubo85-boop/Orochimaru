@@ -883,3 +883,43 @@ object StreamLocalProxy {
         }
     }
 }
+
+private class XorInputStream(
+    private val upstream: InputStream,
+    private val head: ByteArray,
+    private val headLen: Int,
+    private val skipBytes: Int,
+    private val mask: ByteArray?,
+) : InputStream() {
+
+    private var headPos = 0
+    private var xorIndex = 0
+
+    private fun transformByte(v: Int): Int =
+        if (mask == null) v else (v xor (mask[xorIndex % mask.size].toInt() and 0xFF)) and 0xFF
+
+    override fun read(): Int {
+        val b = ByteArray(1)
+        val n = read(b, 0, 1)
+        return if (n < 0) -1 else b[0].toInt() and 0xFF
+    }
+
+    override fun read(b: ByteArray, off: Int, len: Int): Int {
+        while (headPos < headLen) {
+            if (headPos >= skipBytes) {
+                b[off] = transformByte(head[headPos].toInt() and 0xFF).toByte()
+                headPos++
+                xorIndex++
+                return 1
+            }
+            headPos++
+        }
+        val n = upstream.read(b, off, len)
+        if (n < 0) return -1
+        for (i in 0 until n) {
+            b[off + i] = transformByte(b[off + i].toInt() and 0xFF).toByte()
+            xorIndex++
+        }
+        return n
+    }
+}
