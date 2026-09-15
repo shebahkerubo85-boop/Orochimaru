@@ -84,11 +84,55 @@ class SenshiProvider : NativeAnimeParser() {
                 } as? JsonObject ?: return@withContext emptyList()
 
                 val hlsUrl = (embed["url"] as? JsonPrimitive)?.contentOrNull?.replace("http://", "https://")
-                if (hlsUrl.isNullOrBlank()) return@withContext emptyList()
 
                 val servers = mutableListOf<VideoServer>()
                 val extraData = mutableMapOf("referer" to "$baseUrl/")
-                extraData["audio"] = if (dubPreferred) "dub" else "sub"
+                val audioTag = if (dubPreferred) "dub" else "sub"
+                extraData["audio"] = audioTag
+
+                // Current senshi.to pipeline: episode-embeds carries remote_source_id and the real
+                // stream comes from vidcloud's sources API. Master/child playlists are EM3U8v1
+                // AES-GCM encrypted, so the proxied URL must set em=true for StreamLocalProxy.
+                val remoteSourceId = (embed["remote_source_id"] as? JsonPrimitive)
+                    ?.let { it.intOrNull ?: it.contentOrNull?.toIntOrNull() }
+                if (remoteSourceId != null && remoteSourceId > 0) {
+                    try {
+                        // vidcloud/bcdn3 reject OkHttp's TLS fingerprint (Cloudflare never
+                        // issues a cookie), so fetch the sources JSON inside a hidden WebView.
+                        val sourcesBytes = StreamLocalProxy.fetchViaWebView(
+                            "https://s.vidcloud.se/_v1/sources?id=$remoteSourceId", "$baseUrl/"
+                        )
+                        if (sourcesBytes != null) {
+                            val sourcesStr = String(sourcesBytes, Charsets.UTF_8)
+                            val (master, subsJson) = vidcloudMasterAndSubtitles(sourcesStr)
+                            if (!subsJson.isNullOrBlank()) extraData["subtitles"] = subsJson
+                            if (!master.isNullOrBlank()) {
+                                servers.add(
+                                    VideoServer(
+                                        "Senshi",
+                                        StreamLocalProxy.proxyUrl(
+                                            master,
+                                            referer = "$baseUrl/",
+                                            origin = "$baseUrl",
+                                            em = true,
+                                            js = true,
+                                        ),
+                                        extraData,
+                                    )
+                                )
+                            }
+                        } else {
+                            Logger.log("Senshi vidcloud sources fetch failed (null)")
+                        }
+                    } catch (e: Exception) {
+                        Logger.log("Senshi vidcloud sources error: ${e.message}")
+                    }
+                }
+
+                // Fallback: the embed URL used to be a direct playlist before the EM3U8v1 pipeline.
+                if (servers.isEmpty() && !hlsUrl.isNullOrBlank()) {
+                    servers.add(VideoServer("Senshi", hlsUrl, extraData))
+                }
 
                 val maskedBase = (embed["masked_base_url"] as? JsonPrimitive)?.contentOrNull
                     ?: (embed["masked_base"] as? JsonPrimitive)?.contentOrNull
@@ -114,9 +158,6 @@ class SenshiProvider : NativeAnimeParser() {
                     }
                 }
 
-                servers.add(VideoServer("Senshi", hlsUrl, extraData))
-
-                val audioTag = if (dubPreferred) "dub" else "sub"
                 (embed["server2"] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }?.let { embedUrl ->
                     servers.add(VideoServer("StreamNin", embedUrl, mapOf("audio" to audioTag)))
                 }
@@ -124,16 +165,43 @@ class SenshiProvider : NativeAnimeParser() {
                     servers.add(VideoServer("FileMoon", embedUrl, mapOf("audio" to audioTag)))
                 }
 
-                // New senshi.to format: if no servers found, the hlsUrl is the direct stream
-                if (servers.isEmpty() && !hlsUrl.isNullOrBlank()) {
-                    servers.add(VideoServer("Senshi", hlsUrl, extraData))
-                }
-
                 servers
             } catch (e: Exception) {
                 Logger.log("Senshi loadVideoServers error: ${e.message}")
                 emptyList()
             }
+        }
+    }
+
+    /** Parses vidcloud sources JSON → (master playlist src, subtitle JSON string). */
+    private fun vidcloudMasterAndSubtitles(jsonStr: String): Pair<String?, String?> {
+        return try {
+            val root = Mapper.json.parseToJsonElement(jsonStr)
+            val obj = when (root) {
+                is JsonArray -> root.firstOrNull() as? JsonObject
+                is JsonObject -> root
+                else -> null
+            } ?: return null to null
+            val master = ((obj["source"] as? JsonObject)?["src"] as? JsonPrimitive)?.contentOrNull
+            val tracks = (obj["tracks"] as? JsonArray).orEmpty()
+            val subs = tracks.mapNotNull { element ->
+                val track = element as? JsonObject ?: return@mapNotNull null
+                val label = (track["label"] as? JsonPrimitive)?.contentOrNull ?: "Subtitle"
+                if (label.contains("chapter", ignoreCase = true)) return@mapNotNull null
+                val raw = (track["vtt_url"] as? JsonPrimitive)?.contentOrNull
+                    ?: (track["url"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null
+                if (raw.isBlank()) return@mapNotNull null
+                val lang = languageCode(label)
+                // Route through the proxy (js WebView fetch) so subtitle hosts gated the
+                // same way as the CDN still load; small files, no playback impact.
+                val proxied = StreamLocalProxy.proxyUrl(
+                    raw, referer = "$baseUrl/", origin = "$baseUrl", js = true, subtitle = true
+                )
+                "{\"url\":\"${proxied.replace("\"", "\\\"")}\",\"language\":\"$lang\",\"type\":\"vtt\"}"
+            }
+            master to if (subs.isNotEmpty()) "[${subs.joinToString(",")}]" else null
+        } catch (_: Exception) {
+            null to null
         }
     }
 

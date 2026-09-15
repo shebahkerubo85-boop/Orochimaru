@@ -81,6 +81,9 @@
                 android:layout_margin="4dp"
                 android:background="@drawable/bg_rating_pill"
                 android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
                 android:paddingStart="6dp"
                 android:paddingEnd="4dp">
 
@@ -115,14 +118,22 @@
 
             </LinearLayout>
 
+            <include
+                layout="@layout/item_subdub_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="3dp" />
+
+            <include
+                layout="@layout/item_progress_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="3dp" />
+
         </androidx.cardview.widget.CardView>
 
-        <include
-            layout="@layout/item_subdub_badge"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom|center_horizontal"
-            android:layout_marginBottom="6dp" />
     </FrameLayout>
 
     <TextView
@@ -140,12 +151,5 @@
         tools:text="@string/slogan" />
 
 
-
-    <include
-        layout="@layout/item_progress_badge"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginTop="4dp" />
 
 </LinearLayout>

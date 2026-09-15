@@ -1,22 +1,22 @@
 package ani.sanin.subdub
 
 import android.util.LruCache
+import ani.sanin.util.Logger
 import kotlinx.coroutines.*
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URL
 import java.net.URLEncoder
 
 /**
  * Lightweight in-memory LRU cache for sub/dub episode counts.
- * Fetches on-demand from hianime-api, keyed by anime title.
+ * Fetches on-demand from AniVault's mobile API, keyed by anime title.
  */
 object SubDubCache {
 
-    private val cache = LruCache<String, SubDubInfo>(300)
+    private const val BASE_URL = "https://www.anivault.co/api/mobile"
 
-    /** Call to configure. Base URL of a self-hosted hianime-api instance. */
-    var baseUrl: String = ""
-        set(value) { field = value.trimEnd('/') }
+    private val cache = LruCache<String, SubDubInfo>(300)
 
     /**
      * Get sub/dub info for [title].
@@ -25,6 +25,7 @@ object SubDubCache {
      */
     fun get(title: String, scope: CoroutineScope, onResult: (SubDubInfo?) -> Unit) {
         val key = title.lowercase().trim()
+        if (key.isBlank()) { onResult(null); return }
         val cached = cache.get(key)
         if (cached != null) {
             onResult(cached)
@@ -70,46 +71,43 @@ object SubDubCache {
     fun clear() { cache.evictAll() }
 
     // ──────────────────────────────────────────────────────────────────
-    //  Private API fetch
+    //  Private API fetch (AniVault mobile API)
     // ──────────────────────────────────────────────────────────────────
     private suspend fun fetchFromApi(title: String): SubDubInfo? = withContext(Dispatchers.IO) {
-        if (baseUrl.isBlank()) return@withContext null
         try {
             val encoded = URLEncoder.encode(title, "UTF-8")
-            val url = URL("$baseUrl/api/v1/search?keyword=$encoded&page=1")
+            val url = URL("$BASE_URL/browse?q=$encoded")
             val conn = url.openConnection()
             conn.connectTimeout = 8_000
             conn.readTimeout = 8_000
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36")
             val body = conn.getInputStream().bufferedReader().readText()
             val json = JSONObject(body)
-            val animes = json.optJSONObject("data")?.optJSONArray("animes") ?: return@withContext null
+            val arr = json.optJSONArray("data") ?: return@withContext null
+            if (arr.length() == 0) return@withContext null
 
             // Find best match — first result whose title (case-insensitive) starts with the query
-            for (i in 0 until animes.length()) {
-                val item = animes.getJSONObject(i)
+            var match: JSONObject? = null
+            for (i in 0 until arr.length()) {
+                val item = arr.getJSONObject(i)
                 val itemTitle = item.optString("title", "")
                 if (itemTitle.lowercase().trim().startsWith(title) ||
                     title.startsWith(itemTitle.lowercase().trim())
-                ) {
-                    val eps = item.optJSONObject("episodes") ?: continue
-                    val sub = eps.optInt("sub", 0)
-                    val dub = eps.optInt("dub", 0)
-                    val total = eps.optInt("eps", 0)
-                    return@withContext SubDubInfo(sub, dub, total)
-                }
+                ) { match = item; break }
             }
+            val item = match ?: arr.getJSONObject(0)
 
-            // Fallback: use first result if any
-            if (animes.length() > 0) {
-                val item = animes.getJSONObject(0)
-                val eps = item.optJSONObject("episodes") ?: return@withContext null
-                val sub = eps.optInt("sub", 0)
-                val dub = eps.optInt("dub", 0)
-                val total = eps.optInt("eps", 0)
-                return@withContext SubDubInfo(sub, dub, total)
-            }
-            null
-        } catch (_: Exception) {
+            val total = item.optInt("episodes", 0)
+            val airedInfo = item.optJSONObject("airedInfo")
+            val aired = airedInfo?.optInt("aired", 0) ?: 0
+            val dubbedLangs = item.optJSONArray("dubbedLangs") ?: JSONArray()
+            val sub = if (aired > 0) aired else total
+            val dub = if (dubbedLangs.length() > 0) sub else 0
+            SubDubInfo(sub, dub, total)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Logger.log("SubDubCache fetch error: ${e.message}")
             null
         }
     }

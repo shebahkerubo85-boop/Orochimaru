@@ -45,6 +45,7 @@ import java.util.concurrent.TimeUnit
  *  - origin  Origin to send upstream
  *  - pk      base64 32-byte playlist XOR key (flixcloud `_c()`), optional
  *  - mask    base64 16-byte segment XOR mask (flixcloud), optional
+ *  - em      "1" for EM3U8v1 AES-GCM-encrypted playlists (senshi/vidcloud)
  *  - sub     "1" for subtitle pass-through
  *  - warm    "1" to seed a hidden WebView against the host once (CF/JS challenge)
  */
@@ -146,6 +147,8 @@ object StreamLocalProxy {
         origin: String = referer.removeSuffix("/"),
         pk: String? = null,
         mask: String? = null,
+        em: Boolean = false,
+        js: Boolean = false,
         subtitle: Boolean = false,
         warm: Boolean = false,
     ): String {
@@ -156,6 +159,8 @@ object StreamLocalProxy {
         if (origin.isNotBlank()) params += "origin=" + URLEncoder.encode(origin, "UTF-8")
         pk?.let { params += "pk=" + URLEncoder.encode(it, "UTF-8") }
         mask?.let { params += "mask=" + URLEncoder.encode(it, "UTF-8") }
+        if (em) params += "em=1"
+        if (js) params += "js=1"
         if (subtitle) params += "sub=1"
         if (warm) params += "warm=1"
         return baseUrl() + "?" + params.joinToString("&")
@@ -198,6 +203,8 @@ object StreamLocalProxy {
                 val origin = params["origin"] ?: ""
                 val pk = params["pk"]?.takeIf { it.isNotBlank() }
                 val mask = params["mask"]?.takeIf { it.isNotBlank() }
+                val em = params["em"] == "1"
+                val js = params["js"] == "1"
                 val subtitle = params["sub"] == "1"
                 val warm = params["warm"] == "1"
 
@@ -206,10 +213,10 @@ object StreamLocalProxy {
 
                 if (warm) warmHost(url, referer)
 
-                if (subtitle || !isManifest(url)) {
-                    serveStream(s, url, referer, origin, maskBytes)
+                if (subtitle || !isManifest(url, em)) {
+                    serveStream(s, url, referer, origin, maskBytes, js)
                 } else {
-                    serveManifest(s, url, referer, origin, pkBytes, maskBytes)
+                    serveManifest(s, url, referer, origin, pkBytes, maskBytes, em, js)
                 }
             }
         } catch (e: UnknownHostException) {
@@ -221,7 +228,9 @@ object StreamLocalProxy {
         }
     }
 
-    private fun isManifest(url: String): Boolean = url.contains(".m3u8", ignoreCase = true)
+    private fun isManifest(url: String, em: Boolean): Boolean =
+        url.contains(".m3u8", ignoreCase = true) ||
+            (em && (url.contains("master.txt", ignoreCase = true) || url.contains("playlist.txt", ignoreCase = true)))
 
     /* ================================================================
        Manifest path (flixcloud XOR/base64 wrapped playlists)
@@ -234,7 +243,20 @@ object StreamLocalProxy {
         origin: String,
         pk: ByteArray?,
         mask: ByteArray?,
+        em: Boolean,
+        js: Boolean,
     ) {
+        // Hosts like vidcloud/bcdn3 reject OkHttp's TLS fingerprint outright (no CF cookies
+        // are even issued), so route those through a hidden WebView which speaks real Chrome.
+        if (js) {
+            val bodyBytes = fetchViaWebView(url, referer)
+            if (bodyBytes == null) {
+                writeResponse(socket, "502 Bad Gateway", "text/plain", "WebView fetch failed", null)
+                return
+            }
+            writeManifest(socket, url, referer, origin, pk, mask, em, js, bodyBytes)
+            return
+        }
         val request = Request.Builder().url(url)
             .header("User-Agent", ua())
             .header("Accept", "*/*")
@@ -270,17 +292,8 @@ object StreamLocalProxy {
                 writeResponse(socket, "${resp.code}", "text/plain", body.ifBlank { "${resp.code}" }, null)
                 return
             }
-            val raw = resp.body?.string().orEmpty()
-            val bodyText = decryptPlaylistIfNeeded(raw, pk)
-            if (bodyText == null || !bodyText.trimStart().startsWith("#EXTM3U", ignoreCase = true)) {
-                Logger.log(Log.WARN, "StreamLocalProxy: $owner manifest decrypt failed url=$url pk=${pk != null} size=${raw.length}")
-                writeResponse(socket, "502 Bad Gateway", "text/plain", "Manifest decrypt failed", null)
-                return
-            }
-
-            val base = runCatching { URI(url) }.getOrNull()
-            val rewritten = rewritePlaylist(bodyText, base, referer, origin, upstreamUrl = url, pkByteArray = pk, maskByteArray = mask)
-            writeResponse(socket, "200 OK", "application/vnd.apple.mpegurl", rewritten, rewritten.toByteArray().size.toLong())
+            val bodyBytes = resp.body?.bytes().orEmpty()
+            writeManifest(socket, url, referer, origin, pk, mask, em, js, bodyBytes)
         }
         return  // success
         } catch (e: java.net.SocketTimeoutException) {
@@ -304,9 +317,65 @@ object StreamLocalProxy {
         } // end retry loop
     }
 
-    private fun decryptPlaylistIfNeeded(raw: String, pk: ByteArray?): String? {
+    private const val EM3U8_PREFIX = "EM3U8v1:"
+
+    /** EM3U8v1 (senshi / vidcloud) AES-GCM playlist key: XOR of the two arrays from the watch page bundle. */
+    private val em3u8Key: ByteArray = run {
+        val ur = byteArrayOf(
+            226, 24, 149, 40, 170, 108, 184, 157, 168, 18, 90, 64, 186, 69, 66, 110,
+            109, 169, 203, 138, 29, 188, 78, 25, 203, 185, 211, 252, 76, 126, 134, 42,
+        )
+        val pr = byteArrayOf(
+            140, 250, 231, 59, 141, 129, 254, 6, 30, 203, 96, 249, 13, 237, 122, 106,
+            60, 57, 126, 48, 152, 101, 128, 186, 122, 88, 171, 249, 187, 202, 40, 220,
+        )
+        ByteArray(32) { (ur[it].toInt() xor pr[it].toInt()).toByte() }
+    }
+
+    private fun decryptEm3u8(raw: String): String? = runCatching {
+        val payload = android.util.Base64.decode(raw.substringAfter(EM3U8_PREFIX).trim(), android.util.Base64.DEFAULT)
+        if (payload.size <= 12) error("EM3U8v1 payload too short")
+        val iv = payload.copyOfRange(0, 12)
+        val ct = payload.copyOfRange(12, payload.size)
+        val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(
+            javax.crypto.Cipher.DECRYPT_MODE,
+            javax.crypto.spec.SecretKeySpec(em3u8Key, "AES"),
+            javax.crypto.spec.GCMParameterSpec(128, iv),
+        )
+        String(cipher.doFinal(ct), Charsets.UTF_8)
+    }.getOrNull()
+
+    private fun writeManifest(
+        socket: Socket,
+        url: String,
+        referer: String,
+        origin: String,
+        pk: ByteArray?,
+        mask: ByteArray?,
+        em: Boolean,
+        js: Boolean,
+        rawBytes: ByteArray,
+    ) {
+        val raw = String(rawBytes, Charsets.UTF_8)
+        val bodyText = decryptPlaylistIfNeeded(raw, pk, em)
+        if (bodyText == null || !bodyText.trimStart().startsWith("#EXTM3U", ignoreCase = true)) {
+            Logger.log(Log.WARN, "StreamLocalProxy: manifest decrypt failed url=$url pk=${pk != null} em=$em size=${raw.length}")
+            writeResponse(socket, "502 Bad Gateway", "text/plain", "Manifest decrypt failed", null)
+            return
+        }
+        val base = runCatching { URI(url) }.getOrNull()
+        val rewritten = rewritePlaylist(bodyText, base, referer, origin, upstreamUrl = url, pkByteArray = pk, maskByteArray = mask, emFlag = em, jsFlag = js)
+        writeResponse(socket, "200 OK", "application/vnd.apple.mpegurl", rewritten, rewritten.toByteArray().size.toLong())
+    }
+
+    private fun decryptPlaylistIfNeeded(raw: String, pk: ByteArray?, em: Boolean): String? {
         val trimmed = raw.trim()
         if (trimmed.startsWith("#EXTM3U", ignoreCase = true)) return raw
+        if (em && trimmed.startsWith(EM3U8_PREFIX, ignoreCase = true)) {
+            val plain = decryptEm3u8(trimmed)
+            if (plain != null) return plain
+        }
         if (pk == null || pk.isEmpty()) return null
         return runCatching {
             val cipher = android.util.Base64.decode(trimmed, android.util.Base64.DEFAULT)
@@ -324,6 +393,8 @@ object StreamLocalProxy {
         upstreamUrl: String,
         pkByteArray: ByteArray?,
         maskByteArray: ByteArray?,
+        emFlag: Boolean,
+        jsFlag: Boolean,
     ): String {
         val pkB64 = pkByteArray?.let { android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP) }
         val maskB64 = maskByteArray?.let { android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP) }
@@ -355,7 +426,7 @@ object StreamLocalProxy {
                     val resolved = resolveUrl(base, uriMatch.groupValues[1], referer)
                     val proxied = proxyUrl(
                         ensureToken(resolved, upstreamUrl), referer, origin,
-                        pk = pkB64, mask = maskB64
+                        pk = pkB64, mask = maskB64, em = emFlag, js = jsFlag
                     )
                     out.append(trimmed.replace(uriMatch.groupValues[1], proxied)).append('\n')
                 } else {
@@ -365,7 +436,7 @@ object StreamLocalProxy {
                 val resolved = resolveUrl(base, trimmed, referer)
                 out.append(proxyUrl(
                     ensureToken(resolved, upstreamUrl), referer, origin,
-                    pk = pkB64, mask = maskB64
+                    pk = pkB64, mask = maskB64, em = emFlag, js = jsFlag
                 )).append('\n')
             }
         }
@@ -416,10 +487,29 @@ object StreamLocalProxy {
         referer: String,
         origin: String,
         mask: ByteArray?,
+        js: Boolean,
     ) {
         if (!isHostReachable(url)) {
             Logger.log(Log.WARN, "StreamLocalProxy: segment skip — host known-bad for $url")
             writeResponse(socket, "502 Bad Gateway", "text/plain", "Host unreachable (DNS cached)", null)
+            return
+        }
+
+        if (js) {
+            val bytes = fetchViaWebView(url, referer)
+            if (bytes == null) {
+                writeResponse(socket, "502 Bad Gateway", "text/plain", "WebView fetch failed", null)
+                return
+            }
+            val contentType = when {
+                url.endsWith(".ass", true) -> "text/x-ass"
+                url.endsWith(".srt", true) -> "application/x-subrip"
+                url.endsWith(".vtt", true) -> "text/vtt"
+                url.contains("/subtitles/", true) -> "text/vtt"
+                else -> "video/mp2t"
+            }
+            writeResponse(socket, "200 OK", contentType, null, bytes.size.toLong())
+            socket.getOutputStream().use { out -> out.write(bytes) }
             return
         }
 
@@ -643,54 +733,153 @@ object StreamLocalProxy {
                 runCatching { webView?.destroy() }
             }, 1_500)
         }
+    }
+
+    /* ================================================================
+       Invisible WebView byte-fetcher
+       Some stream hosts (vidcloud, bcdn3) reject OkHttp's TLS fingerprint
+       outright — Cloudflare never even issues a cf_clearance cookie. A
+       hidden WebView (never shown, never plays anything) fetches those
+       resources with a real Chrome engine and returns raw bytes to the
+       loopback proxy for ExoPlayer.
+       ================================================================ */
+
+    private val webFetchLock = Any()
+
+    @Volatile private var fetchWv: WebView? = null
+    @Volatile private var fetchWvReady = false
+
+    /** Fetch [url] through a hidden WebView; returns raw response bytes or null. */
+    fun fetchViaWebView(url: String, referer: String): ByteArray? = synchronized(webFetchLock) {
+        App.context ?: return null
+        val latch = CountDownLatch(1)
+        val holder = arrayOfNulls<String>(1)
+        val mainHandler = Handler(Looper.getMainLooper())
+        mainHandler.post {
+            try {
+                val wv = obtainFetchWebView()
+                if (wv == null) {
+                    latch.countDown()
+                    return@post
+                }
+                waitForWvReady(wv, mainHandler, 0) {
+                    runFetchInWebView(wv, url, referer, mainHandler, holder, latch)
+                }
+            } catch (e: Exception) {
+                Logger.log(Log.WARN, "StreamLocalProxy: webview fetch setup failed: ${e.message}")
+                latch.countDown()
+            }
+        }
         try {
-            latch.await(8, TimeUnit.SECONDS)
+            latch.await(60, TimeUnit.SECONDS)
         } catch (_: InterruptedException) {
         }
-    }
-}
-
-/**
- * InputStream that first emits the already-read head bytes (minus a fake image
- * header), then streams upstream, XORing the payload with a 16-byte mask when
- * one is supplied.
- */
-private class XorInputStream(
-    private val upstream: InputStream,
-    private val head: ByteArray,
-    private val headLen: Int,
-    private val skipBytes: Int,
-    private val mask: ByteArray?,
-) : InputStream() {
-
-    private var headPos = 0
-    private var xorIndex = 0
-
-    private fun transformByte(v: Int): Int =
-        if (mask == null) v else (v xor (mask[xorIndex % mask.size].toInt() and 0xFF)) and 0xFF
-
-    override fun read(): Int {
-        val b = ByteArray(1)
-        val n = read(b, 0, 1)
-        return if (n < 0) -1 else b[0].toInt() and 0xFF
+        val b64 = holder[0] ?: return null
+        runCatching { android.util.Base64.decode(b64, android.util.Base64.DEFAULT) }.getOrNull()
     }
 
-    override fun read(b: ByteArray, off: Int, len: Int): Int {
-        while (headPos < headLen) {
-            if (headPos >= skipBytes) {
-                b[off] = transformByte(head[headPos].toInt() and 0xFF).toByte()
-                headPos++
-                xorIndex++
-                return 1
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun obtainFetchWebView(): WebView? {
+        // Must run on the main thread. One persistent WebView seeded on senshi.to so
+        // cross-origin fetches to vidcloud/bcdn3 look exactly like the real player.
+        fetchWv?.let { if (it.url != null) return it }
+        val ctx = App.context ?: return null
+        val wv = WebView(ctx.applicationContext)
+        wv.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            databaseEnabled = true
+            loadWithOverviewMode = true
+            cacheMode = WebSettings.LOAD_NO_CACHE
+            userAgentString = ua()
+        }
+        CookieManager.getInstance().setAcceptThirdPartyCookies(wv, true)
+        wv.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, pageUrl: String?) {
+                fetchWvReady = true
             }
-            headPos++
+
+            override fun onReceivedError(
+                view: WebView?,
+                errorCode: Int,
+                description: String?,
+                failingUrl: String?,
+            ) {
+                fetchWvReady = true
+            }
         }
-        val n = upstream.read(b, off, len)
-        if (n < 0) return -1
-        for (i in 0 until n) {
-            b[off + i] = transformByte(b[off + i].toInt() and 0xFF).toByte()
-            xorIndex++
+        wv.loadUrl("https://senshi.to/")
+        fetchWv = wv
+        return wv
+    }
+
+    private fun waitForWvReady(wv: WebView, handler: Handler, tries: Int, next: () -> Unit) {
+        if (fetchWvReady || tries > 200) {
+            next()
+            return
         }
-        return n
+        handler.postDelayed({ waitForWvReady(wv, handler, tries + 1, next) }, 50)
+    }
+
+    private fun runFetchInWebView(
+        wv: WebView,
+        url: String,
+        referer: String,
+        handler: Handler,
+        holder: Array<String?>,
+        latch: CountDownLatch,
+    ) {
+        val jsUrl = org.json.JSONObject.quote(url)
+        val jsRef = org.json.JSONObject.quote(referer)
+        val script = """
+            window.__animeResp = null;
+            window.__animeErr = null;
+            fetch($jsUrl, {headers:{'Referer':$jsRef,'Accept':'*/*','Sec-Fetch-Dest':'video','Sec-Fetch-Mode':'cors','Sec-Fetch-Site':'cross-site'}})
+              .then(async r => {
+                if (!r.ok) { throw new Error('HTTP ' + r.status); }
+                const b = new Uint8Array(await r.arrayBuffer());
+                let bin = '';
+                const CH = 32768;
+                for (let i = 0; i < b.length; i += CH) {
+                  bin += String.fromCharCode.apply(null, b.subarray(i, i + CH));
+                }
+                window.__animeResp = btoa(bin);
+              })
+              .catch(e => { window.__animeErr = String(e); });
+        """.trimIndent()
+        wv.evaluateJavascript(script, null)
+        pollFetchResult(wv, handler, 0, holder, latch)
+    }
+
+    private fun pollFetchResult(
+        wv: WebView,
+        handler: Handler,
+        tries: Int,
+        holder: Array<String?>,
+        latch: CountDownLatch,
+    ) {
+        if (tries > 600) { // ~60s
+            latch.countDown()
+            return
+        }
+        wv.evaluateJavascript(
+            "(window.__animeResp != null) ? window.__animeResp : ((window.__animeErr != null) ? 'ERR:' + window.__animeErr : '')"
+        ) { value ->
+            val v = value?.trim()
+            when {
+                v == null || v == "\"\"" || v == "null" || v.isEmpty() ->
+                    handler.postDelayed({ pollFetchResult(wv, handler, tries + 1, holder, latch) }, 100)
+
+                v.startsWith("\"ERR:", ignoreCase = true) -> latch.countDown()
+
+                v.startsWith("\"") && v.length > 1 -> {
+                    holder[0] = v.substring(1, v.length - 1)
+                    latch.countDown()
+                }
+
+                else ->
+                    handler.postDelayed({ pollFetchResult(wv, handler, tries + 1, holder, latch) }, 100)
+            }
+        }
     }
 }

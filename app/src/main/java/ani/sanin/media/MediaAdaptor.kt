@@ -228,7 +228,7 @@ class MediaAdaptor(
                     b.itemCompactTitle.visibility =
                         if (cachedCardTitlePosition == 2) View.GONE else View.VISIBLE
 
-                    if (shouldShowBottomBadge(2) && media.anime != null) {
+                    if (shouldShowBottomBadge(2)) {
                         val progressBadge = b.root.findViewById<View>(R.id.progressBadge)
                         if (progressBadge != null) bindProgressBadge(progressBadge, media)
                     } else {
@@ -267,7 +267,7 @@ class MediaAdaptor(
                     } else {
                         b.root.findViewById<View>(R.id.subDubBadge)?.visibility = View.GONE
                     }
-                    if (showBottom1 && shouldShowBottomBadge(2) && media.anime != null) {
+                    if (showBottom1 && shouldShowBottomBadge(2)) {
                         val pb1 = b.root.findViewById<View>(R.id.progressBadge)
                         if (pb1 != null) bindProgressBadge(pb1, media)
                     } else {
@@ -336,7 +336,17 @@ class MediaAdaptor(
                     b.itemCompactScoreBG.findViewById<View>(R.id.itemCompactBroadcast).isVisible = showAiring2
                     b.itemCompactScoreBG.findViewById<View>(R.id.imageView2)?.isVisible = showScore2
                     b.itemCompactTitle.text = media.userPreferredName
-                    if (showBottom2 && shouldShowBottomBadge(2) && media.anime != null) {
+                    if (showBottom2 && shouldShowBottomBadge(1)) {
+                        val badge2 = b.root.findViewById<View>(R.id.subDubBadge)
+                        if (badge2 != null) {
+                            SubDubCache.get(media.nameRomaji, activity.lifecycleScope) { info ->
+                                bindSubDubBadge(badge2, info, media)
+                            }
+                        }
+                    } else {
+                        b.root.findViewById<View>(R.id.subDubBadge)?.visibility = View.GONE
+                    }
+                    if (showBottom2 && shouldShowBottomBadge(2)) {
                         val pb2 = b.root.findViewById<View>(R.id.progressBadge)
                         if (pb2 != null) bindProgressBadge(pb2, media)
                     } else {
@@ -389,7 +399,17 @@ class MediaAdaptor(
                     b.itemCompactScoreBG.findViewById<View>(R.id.itemCompactBroadcast).isVisible = showAiring3
                     b.itemCompactScoreBG.findViewById<View>(R.id.imageView2)?.isVisible = showScore3
                     b.itemCompactTitle.text = media.userPreferredName
-                    if (showBottom3 && shouldShowBottomBadge(2) && media.anime != null) {
+                    if (showBottom3 && shouldShowBottomBadge(1)) {
+                        val badge3 = b.root.findViewById<View>(R.id.subDubBadge)
+                        if (badge3 != null) {
+                            SubDubCache.get(media.nameRomaji, activity.lifecycleScope) { info ->
+                                bindSubDubBadge(badge3, info, media)
+                            }
+                        }
+                    } else {
+                        b.root.findViewById<View>(R.id.subDubBadge)?.visibility = View.GONE
+                    }
+                    if (showBottom3 && shouldShowBottomBadge(2)) {
                         val pb3 = b.root.findViewById<View>(R.id.progressBadge)
                         if (pb3 != null) bindProgressBadge(pb3, media)
                     } else {
@@ -657,7 +677,17 @@ class MediaAdaptor(
             }
             b.itemCompactScoreBG.visibility = View.VISIBLE
             val showBottomL = titlePos != 0
-            if (showBottomL && shouldShowBottomBadge(2) && media.anime != null) {
+            if (showBottomL && shouldShowBottomBadge(1)) {
+                val badgeL = b.root.findViewById<View>(R.id.subDubBadge)
+                if (badgeL != null) {
+                    SubDubCache.get(media.nameRomaji, activity.lifecycleScope) { info ->
+                        bindSubDubBadge(badgeL, info, media)
+                    }
+                }
+            } else {
+                b.root.findViewById<View>(R.id.subDubBadge)?.visibility = View.GONE
+            }
+            if (showBottomL && shouldShowBottomBadge(2)) {
                 val pbL = b.root.findViewById<View>(R.id.progressBadge)
                 if (pbL != null) bindProgressBadge(pbL, media)
             } else {
@@ -777,14 +807,8 @@ class MediaAdaptor(
     }
 
     private fun bindSubDubBadge(badge: android.view.View, info: SubDubInfo?, media: Media) {
-        if (info == null || !info.hasData) {
-            badge.visibility = View.GONE
-            return
-        }
-        val showSub = info.sub > 0
-        val showDub = info.dub > 0
-        val showTotal = info.total > 0
-        if (!showSub && !showDub && !showTotal) {
+        // Sub/dub counts only exist for anime (AniVault data); never render for movies.
+        if (media.anime == null) {
             badge.visibility = View.GONE
             return
         }
@@ -796,16 +820,33 @@ class MediaAdaptor(
         val dubCount = badge.findViewById<TextView>(R.id.subDubDubCount)
         val totalCount = badge.findViewById<TextView>(R.id.subDubTotalCount)
 
+        if (info == null || !info.hasData) {
+            // Data not available (yet/at all) — show ~ placeholders, never vanish
+            subIcon.visibility = View.VISIBLE
+            subCount.visibility = View.VISIBLE
+            subCount.text = "~"
+            dubIcon.visibility = View.VISIBLE
+            dubCount.visibility = View.VISIBLE
+            dubCount.text = "~"
+            totalCount.visibility = View.VISIBLE
+            totalCount.text = "~"
+            return
+        }
+
+        val showSub = info.sub > 0
+        val showDub = info.dub > 0
+        val showTotal = info.total > 0
+
         subIcon.visibility = if (showSub) View.VISIBLE else View.GONE
         subCount.visibility = if (showSub) View.VISIBLE else View.GONE
-        subCount.text = info.sub.toString()
+        subCount.text = if (showSub) info.sub.toString() else "~"
 
         dubIcon.visibility = if (showDub) View.VISIBLE else View.GONE
         dubCount.visibility = if (showDub) View.VISIBLE else View.GONE
-        dubCount.text = info.dub.toString()
+        dubCount.text = if (showDub) info.dub.toString() else "~"
 
         totalCount.visibility = if (showTotal) View.VISIBLE else View.GONE
-        totalCount.text = info.total.toString()
+        totalCount.text = if (showTotal) info.total.toString() else "~"
     }
 
     private fun shouldShowTopBadge(flag: Int): Boolean =
@@ -817,50 +858,59 @@ class MediaAdaptor(
     private fun bindProgressBadge(badge: View, media: Media) {
         val watched = media.userProgress          // nullable Int
         val isAnime = media.anime != null
+        val totalEp = if (isAnime) media.anime?.totalEpisodes else null
+        val nextAiring = if (isAnime) media.anime?.nextAiringEpisode else null
         val isReleasing = media.status == currActivity()?.getString(R.string.status_releasing)
         val released = when {
-            !isAnime -> null
-            isReleasing && (media.anime?.nextAiringEpisode ?: 0) > 1 -> (media.anime?.nextAiringEpisode ?: 1) - 1
-            else -> media.anime?.totalEpisodes
+            !isAnime -> 1                                                     // a movie is a single released item
+            isReleasing && (nextAiring ?: 0) > 1 -> (nextAiring ?: 1) - 1
+            else -> totalEp
         }
+        val allReleased = isAnime && totalEp != null && released != null && released >= totalEp
         val timeUntil = if (isAnime && isReleasing) media.timeUntilAiring else null
 
-        // Show the badge if ANY field has real data; otherwise hide
-        val hasWatched = watched != null && watched > 0
-        val hasReleased = released != null && released > 0
+        // Released section is hidden when: anime total unknown, or all episodes have released
+        val hasReleased = when {
+            !isAnime -> released != null && released > 0                     // movies always show 1
+            else -> released != null && released > 0 && totalEp != null && !allReleased
+        }
         val hasTT = timeUntil != null && timeUntil > 0
-        if (!hasWatched && !hasReleased && !hasTT) { badge.visibility = View.GONE; return }
+
+        // Show the badge if any section has real data (0 progress counts as unknown)
+        if ((watched == null || watched <= 0) && !hasReleased && !hasTT) { badge.visibility = View.GONE; return }
 
         badge.visibility = View.VISIBLE
         val watchedIcon   = badge.findViewById<android.view.View>(R.id.progressWatchedIcon)
         val watchedCount  = badge.findViewById<TextView>(R.id.progressWatchedCount)
         val releasedIcon  = badge.findViewById<android.view.View>(R.id.progressReleasedIcon)
         val releasedCount = badge.findViewById<TextView>(R.id.progressReleasedCount)
+        val midDivider    = badge.findViewById<android.view.View>(R.id.progressDividerMid)
         val dividerTT     = badge.findViewById<android.view.View>(R.id.progressDividerTT)
         val ttText        = badge.findViewById<TextView>(R.id.progressTT)
 
-        // Watched
+        // Watched section
+        val hasWatched = media.userProgress != null && media.userProgress!! > 0
         watchedIcon.visibility = if (hasWatched) View.VISIBLE else View.GONE
         watchedCount.visibility = View.VISIBLE
-        watchedCount.text = if (hasWatched) watched.toString() else "~"
+        watchedCount.text = if (hasWatched) media.userProgress.toString() else "~"
 
-        // Released
+        // Released section
         releasedIcon.visibility = if (hasReleased) View.VISIBLE else View.GONE
-        releasedCount.visibility = View.VISIBLE
-        releasedCount.text = if (hasReleased) released.toString() else "~"
+        releasedCount.visibility = if (hasReleased) View.VISIBLE else View.GONE
 
-        // Time-to-air (milliseconds)
+        // TT section
         if (hasTT) {
             val DAY_MILLIS = 86_400_000L
             val HOUR_MILLIS = 3_600_000L
             val days  = timeUntil!! / DAY_MILLIS
             val hours = (timeUntil % DAY_MILLIS) / HOUR_MILLIS
             ttText.text = if (days > 0) "${days}d ${hours}h" else "${hours}h"
-        } else {
-            ttText.text = "~"
         }
-        dividerTT.visibility = if (hasTT) View.VISIBLE else View.GONE
-        ttText.visibility = View.VISIBLE
+        dividerTT.visibility = if (hasTT && hasReleased) View.VISIBLE else View.GONE
+        ttText.visibility = if (hasTT) View.VISIBLE else View.GONE
+
+        // Divider between watched and (released|TT): always present when 2+ segments
+        midDivider.visibility = if (hasReleased || hasTT) View.VISIBLE else View.GONE
     }
 
 }

@@ -172,41 +172,87 @@ object TmdbCards {
         broadcastIcon.isVisible = showAiring
         starIcon.isVisible       = showRating
 
-        // ── Progress badge (gated by CardMetadataBottom, TV only) ──
+        // ── Progress badge (gated by CardMetadataBottom; movies + TV) ──
+        // Hidden when landscape has a bottom-overlay title (badges would collide).
         val progressBadge = binding.root.findViewById<View>(R.id.progressBadge)
-        val wantProgress = PrefManager.getVal<Int>(PrefName.CardMetadataBottom) == 2 && item.type == "tv"
+        val wantProgress = PrefManager.getVal<Int>(PrefName.CardMetadataBottom) == 2 &&
+            !(landscape && titlePosition == 0)
         if (!wantProgress) {
             progressBadge.isVisible = false
         } else {
-            // Always show with ~ placeholders; async fetch fills real values
+            val isMovie = item.type == "movie"
+            // Movies: watched|1 (e.g. ~|1 unwatched, 1|1 watched). TV: watched|released|TT.
             progressBadge.isVisible = true
-            progressBadge.findViewById<android.view.View>(R.id.progressWatchedIcon).isVisible = true
-            progressBadge.findViewById<TextView>(R.id.progressWatchedCount).text = "~"
-            progressBadge.findViewById<android.view.View>(R.id.progressReleasedIcon).isVisible = true
-            progressBadge.findViewById<TextView>(R.id.progressReleasedCount).text = "~"
-            progressBadge.findViewById<android.view.View>(R.id.progressDividerTT).isVisible = false
-            progressBadge.findViewById<TextView>(R.id.progressTT).text = "~"
             progressBadge.tag = "${item.type}:${item.id}"
-            detailScope.launch {
-                val detail = runCatching { Tmdb.detail(item.type, item.id) }.getOrNull()
-                val tag = progressBadge.tag
-                if (tag != "${item.type}:${item.id}") return@launch
-                val released = detail?.numberOfEpisodes
-                val nextAirDate = detail?.nextEpisodeToAir?.airDate
-                binding.root.post {
-                    if (progressBadge.tag != tag) return@post
-                    val releasedText = progressBadge.findViewById<TextView>(R.id.progressReleasedCount)
-                    releasedText.text = if (released != null && released > 0) released.toString() else "~"
-                    if (!nextAirDate.isNullOrBlank()) {
-                        runCatching {
-                            val airDate = java.time.LocalDate.parse(nextAirDate, java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)
-                            val days = java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), airDate)
-                            if (days > 0) {
-                                val ttText = progressBadge.findViewById<TextView>(R.id.progressTT)
-                                ttText.text = "${days}d"
-                                progressBadge.findViewById<android.view.View>(R.id.progressDividerTT).isVisible = true
+            val watchedIcon = progressBadge.findViewById<android.view.View>(R.id.progressWatchedIcon)
+            val watchedCount = progressBadge.findViewById<TextView>(R.id.progressWatchedCount)
+            val releasedIcon = progressBadge.findViewById<android.view.View>(R.id.progressReleasedIcon)
+            val releasedCount = progressBadge.findViewById<TextView>(R.id.progressReleasedCount)
+            val midDivider = progressBadge.findViewById<android.view.View>(R.id.progressDividerMid)
+            val ttDivider = progressBadge.findViewById<android.view.View>(R.id.progressDividerTT)
+            val ttText = progressBadge.findViewById<TextView>(R.id.progressTT)
+
+            if (isMovie) {
+                // Instant movie state: watched drawn from Simkl, released always 1
+                watchedIcon.isVisible = false
+                watchedCount.text = "~"
+                releasedIcon.isVisible = true
+                releasedCount.text = "1"
+                midDivider.isVisible = true
+                ttDivider.isVisible = false
+                ttText.isVisible = false
+                detailScope.launch {
+                    val watched = SimklWatchCache.watched("movie", item.id) ?: 0
+                    val tag = progressBadge.tag
+                    if (tag != "${item.type}:${item.id}") return@launch
+                    binding.root.post {
+                        if (progressBadge.tag != tag) return@post
+                        if (watched > 0) {
+                            watchedIcon.isVisible = true
+                            watchedCount.text = "1"
+                        }
+                    }
+                }
+            } else {
+                // TV: hidden until detail fills real values; never flash a ~ placeholder
+                watchedIcon.isVisible = false
+                watchedCount.text = "~"
+                releasedIcon.isVisible = false
+                releasedCount.visibility = android.view.View.INVISIBLE
+                midDivider.isVisible = false
+                ttDivider.isVisible = false
+                ttText.isVisible = false
+                progressBadge.tag = "${item.type}:${item.id}"
+                detailScope.launch {
+                    val detail = runCatching { Tmdb.detail(item.type, item.id) }.getOrNull()
+                    val tag = progressBadge.tag
+                    if (tag != "${item.type}:${item.id}") return@launch
+                    val released = detail?.numberOfEpisodes
+                    val nextAirDate = detail?.nextEpisodeToAir?.airDate
+                    val simklWatched = SimklWatchCache.watched("tv", item.id)
+                    binding.root.post {
+                        if (progressBadge.tag != tag) return@post
+                        val hasWatched = simklWatched != null && simklWatched > 0
+                        watchedIcon.isVisible = hasWatched
+                        if (hasWatched) watchedCount.text = simklWatched.toString()
+                        val hasReleased = released != null && released > 0
+                        releasedIcon.isVisible = hasReleased
+                        releasedCount.isVisible = hasReleased
+                        if (hasReleased) releasedCount.text = released.toString()
+                        var hasTT = false
+                        if (!nextAirDate.isNullOrBlank()) {
+                            runCatching {
+                                val airDate = java.time.LocalDate.parse(nextAirDate, java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)
+                                val days = java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), airDate)
+                                if (days > 0) {
+                                    hasTT = true
+                                    ttText.text = "${days}d"
+                                    ttText.isVisible = true
+                                    ttDivider.isVisible = hasReleased
+                                }
                             }
                         }
+                        midDivider.isVisible = hasReleased || hasTT
                     }
                 }
             }

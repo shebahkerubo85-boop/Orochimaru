@@ -112,6 +112,14 @@
                 android:textSize="13sp"
                 android:visibility="gone"
                 tools:text="Dune: Part Two" />
+
+            <include
+                android:id="@+id/progressBadge"
+                layout="@layout/item_progress_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="3dp" />
         </FrameLayout>
     </androidx.cardview.widget.CardView>
 
@@ -136,11 +144,4 @@
         android:textColor="?attr/colorOutline"
         tools:text="2024" />
 
-    <include
-        android:id="@+id/progressBadge"
-                layout="@layout/item_progress_badge"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginTop="4dp" />
 </LinearLayout>

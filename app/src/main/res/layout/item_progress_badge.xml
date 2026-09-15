@@ -35,6 +35,7 @@
         tools:text="5" />
 
     <View
+        android:id="@+id/progressDividerMid"
         android:layout_width="1dp"
         android:layout_height="12dp"
         android:layout_marginStart="5dp"
