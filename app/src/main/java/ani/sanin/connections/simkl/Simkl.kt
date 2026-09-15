@@ -93,7 +93,7 @@ object Simkl {
                 ani.sanin.util.Logger.log("Simkl.resolveSimklId: $service=$id HTTP ${resp.code} location=$location")
                 if (!location.isNullOrBlank()) {
                     // Parse: //simkl.com/anime/2733606/slug or https://simkl.com/anime/2733606/slug
-                    val match = Regex("/(?:anime|movies|shows)/(\\d+)").find(location)
+                    val match = Regex("/(?:anime|movies|shows|tv)/(\\d+)").find(location)
                     if (match != null) {
                         val simklId = match.groupValues[1]
                         simklIdCache[key] = simklId
@@ -791,6 +791,14 @@ object Simkl {
                     .build()
             ).execute()
             ani.sanin.util.Logger.log("Simkl.setProgress: HTTP ${resp.code} title=$title episodeNum=$episodeNum")
+
+            // /sync/history resets show status to watching — restore if caller set a specific status
+            if (resp.code == 200 || resp.code == 201) {
+                if (!restoreStatus.isNullOrBlank() && restoreStatus != "watching") {
+                    ani.sanin.util.Logger.log("Simkl.setProgress: restoring status=$restoreStatus for $title (reset by history)")
+                    setListStatus("tv", title, year, tmdbId, imdbId, restoreStatus, anilistId, skipHistory = true)
+                }
+            }
         }
     }
 
@@ -839,6 +847,7 @@ object Simkl {
                 .addHeader("Authorization", "Bearer $t")
                 .addHeader("simkl-api-key", clientId)
                 .addHeader("Content-Type", "application/json")
+                .addHeader("Cache-Control", "no-cache")
                 .build()
             val response = okHttpClient.newCall(request).execute()
             val body = response.body?.string()
@@ -870,6 +879,7 @@ object Simkl {
                 .addHeader("Authorization", "Bearer $t")
                 .addHeader("simkl-api-key", clientId)
                 .addHeader("Content-Type", "application/json")
+                .addHeader("Cache-Control", "no-cache")
                 .build()
             val response = okHttpClient.newCall(request).execute()
             val body = response.body?.string() ?: return emptyList()
@@ -897,6 +907,7 @@ object Simkl {
                 .addHeader("Authorization", "Bearer $t")
                 .addHeader("simkl-api-key", clientId)
                 .addHeader("Content-Type", "application/json")
+                .addHeader("Cache-Control", "no-cache")
                 .build()
             val response = okHttpClient.newCall(request).execute()
             val body = response.body?.string() ?: return emptyList()
