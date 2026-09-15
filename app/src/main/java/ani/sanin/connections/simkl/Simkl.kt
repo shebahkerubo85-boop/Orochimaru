@@ -78,14 +78,17 @@ object Simkl {
 
         for ((service, id) in attempts) {
             try {
+                val noRedirectClient = okHttpClient.newBuilder()
+                    .followRedirects(false)
+                    .followSslRedirects(false)
+                    .build()
                 val request = Request.Builder()
                     .url("https://api.simkl.com/redirect?to=simkl&$service=$id")
                     .get()
                     .addHeader("simkl-api-key", clientId)
                     .addHeader("Content-Type", "application/json")
-                    .followRedirects(false)
                     .build()
-                val resp = okHttpClient.newCall(request).execute()
+                val resp = noRedirectClient.newCall(request).execute()
                 val location = resp.header("location") ?: resp.header("Location")
                 ani.sanin.util.Logger.log("Simkl.resolveSimklId: $service=$id HTTP ${resp.code} location=$location")
                 if (!location.isNullOrBlank()) {
