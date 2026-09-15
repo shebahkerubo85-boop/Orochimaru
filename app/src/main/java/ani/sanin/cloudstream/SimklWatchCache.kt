@@ -14,22 +14,18 @@ object SimklWatchCache {
 
     /** Watched count for a TMDB id of [type] ("movie"|"tv"), or null if unknown. */
     suspend fun watched(type: String, tmdbId: Int): Int? {
-        val map = if (type == "movie") movies else shows
-        if (map != null) return map[tmdbId]
-        return synchronized(this) {
-            val current = if (type == "movie") movies else shows
-            if (current != null) return@synchronized current[tmdbId]
-            val fetched = try {
-                val items = if (type == "movie") Simkl.getMovieLibrary() else Simkl.getShowLibrary()
-                items.mapNotNull { item ->
-                    val id = item.ids?.tmdb ?: return@mapNotNull null
-                    id to item.totalWatched
-                }.toMap()
-            } catch (_: Exception) {
-                emptyMap()
-            }
-            if (type == "movie") movies = fetched else shows = fetched
-            fetched[tmdbId]
+        val current = if (type == "movie") movies else shows
+        if (current != null) return current[tmdbId]
+        val fetched = try {
+            val items = if (type == "movie") Simkl.getMovieLibrary() else Simkl.getShowLibrary()
+            items.mapNotNull { item ->
+                val id = item.ids?.tmdb ?: return@mapNotNull null
+                id to item.totalWatched
+            }.toMap()
+        } catch (_: Exception) {
+            emptyMap()
         }
+        if (type == "movie") movies = fetched else shows = fetched
+        return fetched[tmdbId]
     }
 }

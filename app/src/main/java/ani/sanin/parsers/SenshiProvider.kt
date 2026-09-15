@@ -182,7 +182,7 @@ class SenshiProvider : NativeAnimeParser() {
                 is JsonObject -> root
                 else -> null
             } ?: return null to null
-            val master = ((obj["source"] as? JsonObject)?["src"] as? JsonPrimitive)?.contentOrNull
+            val master = (obj["source"] as? JsonObject)?.let { it["src"] as? JsonPrimitive }?.contentOrNull
             val tracks = (obj["tracks"] as? JsonArray).orEmpty()
             val subs = tracks.mapNotNull { element ->
                 val track = element as? JsonObject ?: return@mapNotNull null

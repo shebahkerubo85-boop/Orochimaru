@@ -292,7 +292,7 @@ object StreamLocalProxy {
                 writeResponse(socket, "${resp.code}", "text/plain", body.ifBlank { "${resp.code}" }, null)
                 return
             }
-            val bodyBytes = resp.body?.bytes().orEmpty()
+            val bodyBytes = resp.body?.bytes() ?: ByteArray(0)
             writeManifest(socket, url, referer, origin, pk, mask, em, js, bodyBytes)
         }
         return  // success
@@ -321,15 +321,15 @@ object StreamLocalProxy {
 
     /** EM3U8v1 (senshi / vidcloud) AES-GCM playlist key: XOR of the two arrays from the watch page bundle. */
     private val em3u8Key: ByteArray = run {
-        val ur = byteArrayOf(
+        val ur = intArrayOf(
             226, 24, 149, 40, 170, 108, 184, 157, 168, 18, 90, 64, 186, 69, 66, 110,
             109, 169, 203, 138, 29, 188, 78, 25, 203, 185, 211, 252, 76, 126, 134, 42,
         )
-        val pr = byteArrayOf(
+        val pr = intArrayOf(
             140, 250, 231, 59, 141, 129, 254, 6, 30, 203, 96, 249, 13, 237, 122, 106,
             60, 57, 126, 48, 152, 101, 128, 186, 122, 88, 171, 249, 187, 202, 40, 220,
         )
-        ByteArray(32) { (ur[it].toInt() xor pr[it].toInt()).toByte() }
+        ByteArray(32) { (ur[it] xor pr[it]).toByte() }
     }
 
     private fun decryptEm3u8(raw: String): String? = runCatching {
