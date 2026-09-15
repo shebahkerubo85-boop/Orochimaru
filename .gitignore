@@ -37,4 +37,4 @@ scripts/
 crowdin.yml
 
 #vscode
-.vscode
+.vscode.wrangler/
