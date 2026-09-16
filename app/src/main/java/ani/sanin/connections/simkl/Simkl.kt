@@ -753,13 +753,11 @@ object Simkl {
         return try {
             val movies = getMovieLibrary().filter {
                 val s = it.status?.lowercase()
-                (s == "watching" || s == "current") ||
-                    (it.lastWatchedAt != null && it.totalWatched > 0)
+                s == "watching" || s == "current"
             }
             val shows = getShowLibrary().filter {
                 val s = it.status?.lowercase()
-                (s == "watching" || s == "current") ||
-                    (it.lastWatchedAt != null && it.totalWatched > 0)
+                s == "watching" || s == "current"
             }
             val items = (movies + shows).sortedByDescending {
                 it.lastWatchedAt ?: ""
