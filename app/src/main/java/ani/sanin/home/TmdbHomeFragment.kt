@@ -798,10 +798,12 @@ class TmdbHomeFragment : Fragment() {
         item.genreIds.take(3).mapNotNull { genreNames[it] }.forEach { name ->
             val chip = TextView(requireContext()).apply {
                 text = name
-                textSize = 12f
-                setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
-                setBackgroundResource(R.drawable.tmdb_chip_bg)
-                setPadding(36, 10, 36, 10)
+                textSize = 11f
+                setTextColor(android.graphics.Color.WHITE)
+                setBackgroundResource(R.drawable.tag_chip_bg)
+                val dp = resources.displayMetrics.density
+                setPadding((10 * dp).toInt(), (3 * dp).toInt(), (10 * dp).toInt(), (3 * dp).toInt())
+                maxLines = 1
             }
             group.addView(chip)
         }
