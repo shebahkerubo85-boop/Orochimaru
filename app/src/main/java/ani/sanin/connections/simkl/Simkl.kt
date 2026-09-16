@@ -53,17 +53,30 @@ object Simkl {
     private val simklIdCache = java.util.concurrent.ConcurrentHashMap<String, String>()
 
     /**
-     * Resolve external IDs (tmdb/imdb/anilist) to a Simkl ID via Simkl's redirect endpoint.
+     * Resolve external IDs (tmdb/imdb/anilist) to a Simkl ID.
+     * Uses Simkl's /search/id endpoint WITH the media type. The bare /redirect
+     * endpoint is unreliable because TMDB movies and TV shows share a numeric ID
+     * space (e.g. tmdb 73602 = "Melody" the movie AND "Greenhouse Academy" the show),
+     * so redirects silently resolve to the wrong entity.
      * Returns the Simkl numeric ID or null if resolution fails.
-     * Caches results in-memory for the session.
      */
     suspend fun resolveSimklId(
+        type: String,
         tmdbId: Int? = null,
         imdbId: String? = null,
         anilistId: Int? = null
     ): String? {
-        // Build a cache key from whichever IDs are available
+        // Anime content arrives with type "tv" (player) or "anime" — treat any
+        // AniList id as anime, since Simkl stores anime under type=anime.
+        val isAnime = type == "anime" || (anilistId != null && anilistId > 0)
+        val simklType = when {
+            isAnime -> "anime"
+            type == "tv" -> "show"
+            else -> "movie"
+        }
+
         val key = listOf(
+            "type:$simklType",
             tmdbId?.let { "tmdb:$it" },
             imdbId?.let { "imdb:$it" },
             anilistId?.let { "anilist:$it" }
@@ -71,37 +84,31 @@ object Simkl {
 
         simklIdCache[key]?.let { return it }
 
-        // Try each external ID in priority order: anilist > tmdb > imdb
+        // ID priority: anilist for anime (unique per anime), imdb for shows/movies
+        // (globally unique), then tmdb (needs the type param to disambiguate).
         val attempts = mutableListOf<Pair<String, String>>()
-        if (anilistId != null && anilistId > 0) attempts.add("anilist" to anilistId.toString())
+        if (isAnime && anilistId != null && anilistId > 0) attempts.add("anilist" to anilistId.toString())
+        if (!isAnime && !imdbId.isNullOrBlank()) attempts.add("imdb" to imdbId)
         if (tmdbId != null && tmdbId > 0) attempts.add("tmdb" to tmdbId.toString())
-        if (!imdbId.isNullOrBlank()) attempts.add("imdb" to imdbId)
 
         for ((service, id) in attempts) {
             try {
-                val noRedirectClient = okHttpClient.newBuilder()
-                    .followRedirects(false)
-                    .followSslRedirects(false)
-                    .build()
+                val url = "https://api.simkl.com/search/id?$service=$id&type=$simklType"
                 val request = Request.Builder()
-                    .url("https://api.simkl.com/redirect?to=simkl&$service=$id")
+                    .url(url)
                     .get()
                     .addHeader("simkl-api-key", clientId)
                     .addHeader("Content-Type", "application/json")
                     .build()
-                val resp = noRedirectClient.newCall(request).execute()
-                val location = resp.header("location") ?: resp.header("Location")
-                ani.sanin.util.Logger.log("Simkl.resolveSimklId: $service=$id HTTP ${resp.code} location=$location")
-                if (!location.isNullOrBlank()) {
-                    // Parse: //simkl.com/anime/2733606/slug or https://simkl.com/anime/2733606/slug
-                    val match = Regex("/(?:anime|movies|shows|tv)/(\\d+)").find(location)
-                    if (match != null) {
-                        val simklId = match.groupValues[1]
-                        simklIdCache[key] = simklId
-                        ani.sanin.util.Logger.log("Simkl.resolveSimklId: resolved $service=$id -> simkl=$simklId")
-                        return simklId
-                    }
+                val resp = okHttpClient.newCall(request).execute()
+                val body = resp.body?.string()
+                val simklId = parseSimklIdFromSearch(body)
+                if (simklId != null) {
+                    simklIdCache[key] = simklId
+                    ani.sanin.util.Logger.log("Simkl.resolveSimklId: resolved $service=$id (type=$simklType) -> simkl=$simklId")
+                    return simklId
                 }
+                ani.sanin.util.Logger.log("Simkl.resolveSimklId: $service=$id type=$simklType HTTP ${resp.code} no match")
             } catch (e: Exception) {
                 ani.sanin.util.Logger.log("Simkl.resolveSimklId: $service=$id failed: ${e.message}")
             }
@@ -111,16 +118,30 @@ object Simkl {
         return null
     }
 
+    /** Extract the first "simkl" id from a /search/id JSON array response. */
+    private fun parseSimklIdFromSearch(body: String?): String? {
+        if (body.isNullOrBlank()) return null
+        return try {
+            val arr = Json.parseToJsonElement(body) as? JsonArray ?: return null
+            val first = arr.firstOrNull() as? JsonObject ?: return null
+            val ids = first["ids"] as? JsonObject ?: return null
+            (ids["simkl"] as? JsonPrimitive)?.content
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     /**
      * Build an ids JSON object using the resolved Simkl ID.
      * Falls back to raw external IDs if resolution fails.
      */
     private suspend fun buildResolvedIdsObj(
+        type: String,
         tmdbId: Int? = null,
         imdbId: String? = null,
         anilistId: Int? = null
     ): JsonObject {
-        val simklId = resolveSimklId(tmdbId, imdbId, anilistId)
+        val simklId = resolveSimklId(type, tmdbId, imdbId, anilistId)
         return if (simklId != null) {
             buildJsonObject { put("simkl", JsonPrimitive(simklId)) }
         } else {
@@ -396,7 +417,7 @@ object Simkl {
         anilistId: Int? = null
     ) {
         val t = token ?: return
-        val idsObj = buildResolvedIdsObj(tmdbId, imdbId, anilistId)
+        val idsObj = buildResolvedIdsObj(type, tmdbId, imdbId, anilistId)
         tryWithSuspend {
             if (type != "tv") {
                 // AnymeX: movies skip /sync/history entirely; mark completed via add-to-list
@@ -462,7 +483,7 @@ object Simkl {
         }
 
         // Resolve external IDs to Simkl ID (AnymeX pattern — required for sync endpoints)
-        val idsObj = buildResolvedIdsObj(tmdbId, imdbId, anilistId)
+        val idsObj = buildResolvedIdsObj(type, tmdbId, imdbId, anilistId)
 
         return tryWithSuspend {
             val collection = if (type == "tv") "shows" else "movies"
@@ -539,7 +560,7 @@ object Simkl {
         anilistId: Int? = null
     ) {
         val t = token ?: return
-        val idsObj = buildResolvedIdsObj(tmdbId, imdbId, anilistId)
+        val idsObj = buildResolvedIdsObj(type, tmdbId, imdbId, anilistId)
         tryWithSuspend {
             val body = buildJsonObject {
                 put(if (type == "tv") "shows" else "movies", buildJsonArray {
@@ -571,7 +592,7 @@ object Simkl {
         anilistId: Int? = null
     ) {
         val t = token ?: return
-        val idsObj = buildResolvedIdsObj(tmdbId, imdbId, anilistId)
+        val idsObj = buildResolvedIdsObj(type, tmdbId, imdbId, anilistId)
         val collection = if (type == "tv") "shows" else "movies"
         tryWithSuspend {
             val body = buildJsonObject {
@@ -660,7 +681,7 @@ object Simkl {
     ) {
         val t = token ?: return
         if (type != "tv" || episodeNum <= 0) return
-        val idsObj = buildResolvedIdsObj(tmdbId, imdbId, anilistId)
+        val idsObj = buildResolvedIdsObj(type, tmdbId, imdbId, anilistId)
         tryWithSuspend {
             val seasonsArr = buildJsonArray {
                 val tmdbDetail = ani.sanin.connections.tmdb.Tmdb.detail("tv", tmdbId ?: 0)
