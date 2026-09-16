@@ -882,13 +882,14 @@ class MediaAdaptor(
             isReleasing && (nextAiring ?: 0) > 1 -> (nextAiring ?: 1) - 1
             else -> totalEp
         }
-        val allReleased = isAnime && totalEp != null && released != null && released!! >= totalEp!!
+        val allReleased = isAnime && totalEp != null && released != null && (released ?: 0) >= (totalEp ?: 0)
         val timeUntil = null  // TT countdown removed
 
         // Completed shows: just seen + total (no broadcast icon, no divider, no TT).
         // Ongoing shows: full format with broadcast, divider, TT.
-        val hasReleased = released != null && released > 0
-        val hasTT = timeUntil != null && timeUntil > 0
+        val releasedSafe = released ?: 0
+        val hasReleased = releasedSafe > 0
+        val hasTT = (timeUntil ?: 0) > 0
 
         // Show the badge if any section has real data (0 progress counts as unknown)
         if ((watched == null || watched <= 0) && !hasReleased && !hasTT) { badge.visibility = View.GONE; return }
@@ -917,13 +918,6 @@ class MediaAdaptor(
         releasedCount.text = if (hasReleased) released.toString() else "~"
 
         // TT section (never for completed shows)
-        if (hasTT && !allReleased) {
-            val DAY_MILLIS = 86_400_000L
-            val HOUR_MILLIS = 3_600_000L
-            val days  = timeUntil!! / DAY_MILLIS
-            val hours = (timeUntil % DAY_MILLIS) / HOUR_MILLIS
-            ttText.text = if (days > 0) "${days}d ${hours}h" else "${hours}h"
-        }
         dividerTT.visibility = if (hasTT && hasReleased && !allReleased) View.VISIBLE else View.GONE
         ttText.visibility = if (hasTT) View.VISIBLE else View.GONE
 
