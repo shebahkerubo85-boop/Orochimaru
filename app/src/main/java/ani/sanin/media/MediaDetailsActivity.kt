@@ -190,7 +190,6 @@ class MediaDetailsActivity : AppCompatActivity() {
         val primaryColor = getThemeColor(com.google.android.material.R.attr.colorPrimary)
         val onBgColor = getThemeColor(com.google.android.material.R.attr.colorOnBackground)
         val isMonochrome = PrefManager.getVal<String>(PrefName.Theme).contains("MONOCHROME", ignoreCase = true)
-        val isDarkMode = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
         val navFocusColor = if (isMonochrome && isDarkMode) android.graphics.Color.WHITE else if (isMonochrome) android.graphics.Color.BLACK else null
         val navInfo = binding.navPillInfo
         val navWatch = binding.navPillWatch
