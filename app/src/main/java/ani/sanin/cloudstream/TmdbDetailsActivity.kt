@@ -30,6 +30,7 @@ import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.tmdb.TmdbCast
 import ani.sanin.connections.tmdb.TmdbDetail
 import ani.sanin.connections.tmdb.TmdbMedia
+import ani.sanin.cloudstream.TmdbCards
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.databinding.ActivityTmdbDetailsBinding
 import ani.sanin.databinding.FragmentTmdbInfoBinding
@@ -1039,8 +1040,7 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         override fun getItemCount() = items.size
         override fun onBindViewHolder(h: VH, i: Int) {
             val m = items[i]
-            h.b.tmdbCardPoster.loadImage(Tmdb.imageUrl(m.posterPath, 342))
-            h.b.tmdbCardTitle.text = m.displayTitle
+            TmdbCards.applyCardStyle(h.b, m)
             h.b.root.contentDescription = m.displayTitle
             h.b.root.setOnClickListener { onClick(m) }
         }
