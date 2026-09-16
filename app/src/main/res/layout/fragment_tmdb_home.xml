@@ -37,7 +37,7 @@
 
                 <View
                     android:id="@+id/tmdbBannerCardScrim"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:layout_gravity="left"
                     android:background="@drawable/banner_scrim_left"
