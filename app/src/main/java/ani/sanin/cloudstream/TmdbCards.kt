@@ -242,18 +242,6 @@ object TmdbCards {
                         releasedCount.isVisible = hasReleased
                         if (hasReleased) releasedCount.text = released.toString()
                         var hasTT = false
-                        if (!nextAirDate.isNullOrBlank()) {
-                            runCatching {
-                                val airDate = java.time.LocalDate.parse(nextAirDate, java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)
-                                val days = java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), airDate)
-                                if (days > 0) {
-                                    hasTT = true
-                                    ttText.text = "${days}d"
-                                    ttText.isVisible = true
-                                    ttDivider.isVisible = hasReleased
-                                }
-                            }
-                        }
                         midDivider.isVisible = hasReleased || hasTT
                     }
                 }

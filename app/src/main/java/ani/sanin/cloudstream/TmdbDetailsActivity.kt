@@ -521,6 +521,12 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
             shell.tmdbDetailDarkenOverlay?.visibility = View.GONE
             return
         }
+        val isDarkMode = (resources.configuration.uiMode and
+            android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        shell.tmdbDetailDarkenOverlay?.setBackgroundColor(
+            if (isDarkMode) Color.BLACK else Color.WHITE
+        )
         if (shell.tmdbDetailBackdrop.visibility != View.VISIBLE) {
             shell.tmdbDetailBackdrop.visibility = View.VISIBLE
             shell.tmdbDetailGradient.visibility = View.VISIBLE

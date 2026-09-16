@@ -124,11 +124,17 @@ class MediaDetailsActivity : AppCompatActivity() {
         // wide backdrop (media.banner + AniZip backdrop override).
         val bannerBrightness = PrefManager.getVal<Float>(PrefName.BannerBrightness)
         val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+        val isDarkMode = (resources.configuration.uiMode and
+            android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
         if (bannerBrightness > 0f) {
             val fallbackUrl = if (isPortrait) media.cover ?: media.banner else media.banner ?: media.cover
             binding.mediaBg?.loadImage(fallbackUrl)
             binding.mediaBg?.alpha = 1f
             binding.mediaBgGradient?.alpha = bannerBrightness
+            binding.mediaDarkenOverlay?.setBackgroundColor(
+                if (isDarkMode) android.graphics.Color.BLACK else android.graphics.Color.WHITE
+            )
             binding.mediaDarkenOverlay?.alpha = 1f - bannerBrightness
             binding.mediaDarkenOverlay?.visibility = View.VISIBLE
             binding.mediaBanner?.loadImage(fallbackUrl)
