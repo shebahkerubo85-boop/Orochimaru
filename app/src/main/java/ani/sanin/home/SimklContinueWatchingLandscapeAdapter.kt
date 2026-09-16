@@ -131,12 +131,13 @@ class SimklContinueWatchingLandscapeAdapter(
         val subtitle = buildString {
             val type = item.mediaType ?: "tv"
             append(type.replaceFirstChar { it.uppercase() })
+            val watched = item.totalWatched
+            if (watched > 0) append(" · $watched")
             if (item.year != null) append(" \u00B7 ${item.year}")
         }
         holder.subtitle.text = subtitle
 
-        holder.timeWatched.visibility = View.GONE
-        holder.progress.visibility = View.GONE
+        // progress visibility is set above in the async callback
 
         setGradient(holder.gradientOverlay)
 
