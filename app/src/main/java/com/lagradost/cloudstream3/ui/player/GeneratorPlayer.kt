@@ -2214,7 +2214,7 @@ class GeneratorPlayer : FullScreenPlayer() {
         // selector/nav depend only on whether the generator carries episodes.
         hasEpisodes = generator.videos.isNotEmpty()
         context?.let { ctx ->
-            showName = PrefManager.getVal<Boolean>(PrefName.WrapButtons)
+            showName = true
             showResolution = PrefManager.getVal<Boolean>(PrefName.ShowResolution)
             showMediaInfo = PrefManager.getVal<Boolean>(PrefName.ShowMediaInfo)
             limitTitle = PrefManager.getVal<Int>(PrefName.PreferTitleLimit)

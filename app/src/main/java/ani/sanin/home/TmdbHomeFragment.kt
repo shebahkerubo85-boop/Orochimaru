@@ -799,7 +799,7 @@ class TmdbHomeFragment : Fragment() {
             val chip = TextView(requireContext()).apply {
                 text = name
                 textSize = 11f
-                setTextColor(android.graphics.Color.WHITE)
+                setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnBackground))
                 setBackgroundResource(R.drawable.tag_chip_bg)
                 val dp = resources.displayMetrics.density
                 setPadding((10 * dp).toInt(), (3 * dp).toInt(), (10 * dp).toInt(), (3 * dp).toInt())
@@ -920,8 +920,10 @@ class TmdbHomeFragment : Fragment() {
                 binding.tmdbBannerSide.isVisible = true
                 binding.tmdbBannerSide.updateLayoutParams<FrameLayout.LayoutParams> {
                     width = stripW + cardW / 4
+                    height = cardH
                     gravity = Gravity.START or Gravity.CENTER_VERTICAL
                 }
+                binding.tmdbBannerSide.clipToOutline = true
                 binding.tmdbBannerSide.bringToFront()
                 binding.tmdbBannerSide.z = 11f
                 binding.tmdbBannerSideSynopsis.updateLayoutParams<ViewGroup.MarginLayoutParams> {
@@ -967,8 +969,10 @@ class TmdbHomeFragment : Fragment() {
             binding.tmdbBannerSide.isVisible = true
             binding.tmdbBannerSide.updateLayoutParams<FrameLayout.LayoutParams> {
                 width = stripW + cardW / 4
+                height = cardH
                 gravity = Gravity.START or Gravity.CENTER_VERTICAL
             }
+            binding.tmdbBannerSide.clipChildren = true
             binding.tmdbBannerSide.bringToFront()
             binding.tmdbBannerSide.z = 11f
             binding.tmdbBannerSideSynopsis.updateLayoutParams<ViewGroup.MarginLayoutParams> {

@@ -232,8 +232,6 @@ class ExtensionsActivity : AppCompatActivity() {
             if (event.action == KeyEvent.ACTION_DOWN) {
                 when (keyCode) {
                     KeyEvent.KEYCODE_DPAD_CENTER,
-                    KeyEvent.KEYCODE_DPAD_LEFT,
-                    KeyEvent.KEYCODE_DPAD_RIGHT,
                     KeyEvent.KEYCODE_ENTER -> {
                         toggleMode()
                         true
