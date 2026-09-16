@@ -287,6 +287,10 @@ class PlayerSettingsActivity :
             override fun onRetract() {}
         })
         updateSubPreview()
+        pv.subtitlePreviewHeader.setOnClickListener {
+            val isVisible = pv.subtitleTestWindow.visibility == View.VISIBLE
+            pv.subtitleTestWindow.visibility = if (isVisible) View.GONE else View.VISIBLE
+        }
 
         val allProviders = arrayOf("Wyzie", "Stremio", "OpenSubtitles", "SubSource", "SubDL")
         val allLanguages = arrayOf("en","ar","pt","es","id","fr","ru","zh","ja","tr","it","de","pl","th","vi","ko")
