@@ -126,8 +126,9 @@
         android:fontFamily="@font/poppins_bold"
         android:text="Browse"
         android:textAllCaps="false"
-        android:textColor="?attr/colorOnSurface"
+        android:textColor="@color/text_color_browse_button"
         android:textSize="13sp"
+        app:backgroundTint="@null"
         app:cornerRadius="24dp" />
 
 </FrameLayout>

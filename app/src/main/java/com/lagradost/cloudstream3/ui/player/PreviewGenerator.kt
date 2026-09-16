@@ -11,6 +11,8 @@ import androidx.core.graphics.scale
 import androidx.preference.PreferenceManager
 import com.lagradost.cloudstream3.CloudStreamApp
 import ani.sanin.R
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.ui.settings.Globals.TV
 import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
@@ -65,11 +67,7 @@ interface IPreviewGenerator {
 
     companion object {
         fun new(): IPreviewGenerator {
-            val userDisabled = CloudStreamApp.context?.let { ctx ->
-                PreferenceManager.getDefaultSharedPreferences(ctx)?.getBoolean(
-                    ctx.getString(R.string.preview_seekbar_key), true
-                ) == false
-            } ?: false
+            val userDisabled = !PrefManager.getVal<Boolean>(PrefName.PreviewSeekbar)
             /** because TV has low ram + not show we disable this for now */
             return if (isLayout(TV) || userDisabled) {
                 empty()

@@ -295,10 +295,10 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
                 Tmdb.imageUrl(d.posterPath, 780) ?: Tmdb.imageUrl(d.backdropPath, 780)
             else
                 Tmdb.imageUrl(d.backdropPath, 1280) ?: Tmdb.imageUrl(d.posterPath, 780)
-            bg?.let {
-                shell.tmdbDetailBackdrop.loadImage(it)
-                applyBannerBrightness()
+            if (PrefManager.getVal<Float>(PrefName.BannerBrightness) > 0f) {
+                bg?.let { shell.tmdbDetailBackdrop.loadImage(it) }
             }
+            applyBannerBrightness()
 
             val logo = Tmdb.logoUrl(d)
             if (logo != null) {
@@ -515,10 +515,20 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
 
     private fun applyBannerBrightness() {
         val brightness = PrefManager.getVal<Float>(PrefName.BannerBrightness)
-        if (brightness > 0f) {
-            shell.tmdbDetailBackdrop.alpha = brightness
-            shell.tmdbDetailGradient.alpha = brightness
+        if (brightness <= 0f) {
+            shell.tmdbDetailBackdrop.visibility = View.GONE
+            shell.tmdbDetailGradient.visibility = View.GONE
+            shell.tmdbDetailDarkenOverlay.visibility = View.GONE
+            return
         }
+        if (shell.tmdbDetailBackdrop.visibility != View.VISIBLE) {
+            shell.tmdbDetailBackdrop.visibility = View.VISIBLE
+            shell.tmdbDetailGradient.visibility = View.VISIBLE
+            shell.tmdbDetailDarkenOverlay.visibility = View.VISIBLE
+        }
+        shell.tmdbDetailBackdrop.alpha = 1f
+        shell.tmdbDetailGradient.alpha = brightness
+        shell.tmdbDetailDarkenOverlay.alpha = 1f - brightness
     }
 
     private fun loadGenres(d: TmdbDetail) {

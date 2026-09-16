@@ -16,6 +16,8 @@ import androidx.annotation.StringRes
 import androidx.preference.PreferenceManager
 import com.lagradost.cloudstream3.CommonActivity
 import ani.sanin.R
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.mvvm.safe
 import kotlin.math.roundToInt
@@ -35,9 +37,7 @@ object PlayerPipHelper {
     /** Is pip enabled in app settings? */
     private fun Context.hasPIPEnabled(): Boolean {
         return try {
-            val settingsManager = PreferenceManager.getDefaultSharedPreferences(this)
-            settingsManager?.getBoolean(
-                getString(R.string.pip_enabled_key),
+            PrefManager.getVal<Boolean>(PrefName.Pip)
                 true
             ) ?: true
         } catch (e: Exception) {

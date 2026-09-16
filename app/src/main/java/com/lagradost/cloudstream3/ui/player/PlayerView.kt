@@ -363,12 +363,9 @@ class PlayerView @JvmOverloads constructor(
 
             // Read seek time and rotation settings.
             try {
-                val sm = PreferenceManager.getDefaultSharedPreferences(context)
-                seekTime = sm.getInt(context.getString(R.string.double_tap_seek_time_key), 10)
+                seekTime = PrefManager.getVal<Int>(PrefName.SeekTime)
                     .toLong() * 1000L
-                autoPlayerRotateEnabled = sm.getBoolean(
-                    context.getString(R.string.auto_rotate_video_key), true
-                )
+                autoPlayerRotateEnabled = PrefManager.getVal<Boolean>(PrefName.AutoRotateVideo)
             } catch (_: Exception) {
             }
 
@@ -449,15 +446,10 @@ class PlayerView @JvmOverloads constructor(
             SubtitlesFragment.applyStyleEvent += subStyleListener
 
             try {
-                val ctx = context
-                val settingsManager = PreferenceManager.getDefaultSharedPreferences(ctx)
                 val cs3 = player as? CS3IPlayer ?: return
-                cs3.cacheSize =
-                    settingsManager.getInt(context.getString(R.string.video_buffer_size_key), 0) * 1024L * 1024L
-                cs3.simpleCacheSize =
-                    settingsManager.getInt(context.getString(R.string.video_buffer_disk_key), 0) * 1024L * 1024L
-                cs3.videoBufferMs =
-                    settingsManager.getInt(context.getString(R.string.video_buffer_length_key), 0) * 1000L
+                cs3.cacheSize = PrefManager.getVal<Int>(PrefName.BufferSize).toLong() * 1024L * 1024L
+                cs3.simpleCacheSize = PrefManager.getVal<Int>(PrefName.BufferDisk).toLong() * 1024L * 1024L
+                cs3.videoBufferMs = PrefManager.getVal<Int>(PrefName.BufferLength).toLong() * 1000L
             } catch (e: Exception) {
                 logError(e)
             }
@@ -829,8 +821,7 @@ class PlayerView @JvmOverloads constructor(
             is VideoEndedEvent -> {
                 // Only play next episode if autoplay is on (default).
                 val ctx = context
-                if (PreferenceManager.getDefaultSharedPreferences(ctx)
-                        ?.getBoolean(ctx.getString(R.string.autoplay_next_key), true) == true
+                if (PrefManager.getVal<Boolean>(PrefName.AutoPlay)
                 ) {
                     player.handleEvent(CSPlayerEvent.NextEpisode, source = PlayerEventSource.Player)
                 }

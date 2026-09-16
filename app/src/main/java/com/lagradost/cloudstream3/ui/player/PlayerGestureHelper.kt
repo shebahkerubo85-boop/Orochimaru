@@ -39,6 +39,8 @@ import ani.sanin.R
 import ani.sanin.brightnessConverter
 import ani.sanin.getCurrentBrightnessValue
 import ani.sanin.others.ResettableTimer
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.mvvm.safe
 import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
@@ -172,11 +174,10 @@ class PlayerGestureHelper(private val playerView: PlayerView) {
 
     fun initialize() {
         try {
-            val sm = PreferenceManager.getDefaultSharedPreferences(context)
-            speedupEnabled = sm.getBoolean(context.getString(R.string.speedup_key), false)
-            doubleTapEnabled = sm.getBoolean(context.getString(R.string.double_tap_enabled_key), false)
-            doubleTapPauseEnabled = sm.getBoolean(context.getString(R.string.double_tap_pause_enabled_key), false)
-            fastForwardTime = sm.getInt(context.getString(R.string.double_tap_seek_time_key), 10).toLong() * 1000L
+            speedupEnabled = PrefManager.getVal<Boolean>(PrefName.Speedup)
+            doubleTapEnabled = PrefManager.getVal<Boolean>(PrefName.DoubleTap)
+            doubleTapPauseEnabled = PrefManager.getVal<Boolean>(PrefName.DoubleTapPause)
+            fastForwardTime = PrefManager.getVal<Int>(PrefName.SeekTime).toLong() * 1000L
         } catch (_: Exception) {}
 
         safe {

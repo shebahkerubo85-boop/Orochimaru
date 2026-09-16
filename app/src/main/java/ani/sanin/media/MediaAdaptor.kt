@@ -831,18 +831,16 @@ class MediaAdaptor(
             dubIcon.visibility = View.VISIBLE
             dubCount.visibility = View.VISIBLE
             dubCount.text = "~"
-            totalCount.visibility = View.VISIBLE
-            totalCount.text = "~"
+            totalCount.visibility = View.GONE
             dividerMid.visibility = View.VISIBLE
-            dividerTotal.visibility = View.VISIBLE
+            dividerTotal.visibility = View.GONE
             return
         }
 
         val showSub = info.sub > 0
         val showDub = info.dub > 0
-        val showTotal = info.total > 0
 
-        if (!showSub && !showDub && !showTotal) { badge.visibility = View.GONE; return }
+        if (!showSub && !showDub) { badge.visibility = View.GONE; return }
 
         subIcon.visibility = if (showSub) View.VISIBLE else View.GONE
         subCount.visibility = if (showSub) View.VISIBLE else View.GONE
@@ -852,14 +850,11 @@ class MediaAdaptor(
         dubCount.visibility = if (showDub) View.VISIBLE else View.GONE
         dubCount.text = if (showDub) info.dub.toString() else "~"
 
-        totalCount.visibility = if (showTotal) View.VISIBLE else View.GONE
-        totalCount.text = if (showTotal) info.total.toString() else "~"
+        totalCount.visibility = View.GONE
 
-        // Dividers only separate real sections; no dub means just "sub | total" side by side.
-        // midDivider: visible whenever there are 2+ visible sections (sub|total or sub|dub)
-        val sectionsVisible = listOf(showSub, showDub, showTotal).count { it }
-        dividerMid.visibility = if (sectionsVisible >= 2) View.VISIBLE else View.GONE
-        dividerTotal.visibility = if (showDub) View.VISIBLE else View.GONE
+        // Only mid divider between sub and dub
+        dividerMid.visibility = if (showSub && showDub) View.VISIBLE else View.GONE
+        dividerTotal.visibility = View.GONE
     }
 
     private fun shouldShowTopBadge(flag: Int): Boolean =
@@ -888,7 +883,7 @@ class MediaAdaptor(
             else -> totalEp
         }
         val allReleased = isAnime && totalEp != null && released != null && released >= totalEp
-        val timeUntil = if (isAnime && isReleasing) media.timeUntilAiring else null
+        val timeUntil = null  // TT countdown removed
 
         // Completed shows: just seen + total (no broadcast icon, no divider, no TT).
         // Ongoing shows: full format with broadcast, divider, TT.
@@ -934,7 +929,7 @@ class MediaAdaptor(
 
         // Divider: always present when we have 2+ sections.
         // Completed: eye 8 | 24.  Ongoing: eye 8 | broadcast 12 | 4d.
-        val sectionCount = listOf(hasWatched, hasReleased, hasTT).count { it }
+        val sectionCount = listOf(true, hasReleased, hasTT).count { it }  // watched always renders
         midDivider.visibility = if (sectionCount >= 2) View.VISIBLE else View.GONE
     }
 

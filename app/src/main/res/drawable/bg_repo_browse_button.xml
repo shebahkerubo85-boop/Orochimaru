@@ -3,21 +3,21 @@
     android:color="?attr/colorPrimary">
     <item>
         <selector>
-            <!-- Focused: primary color fill -->
+            <!-- Focused: primary color fill (TV D-pad focus indicator) -->
             <item android:state_focused="true">
                 <shape android:shape="rectangle">
                     <solid android:color="?attr/colorPrimary" />
                     <corners android:radius="24dp" />
                 </shape>
             </item>
-            <!-- Pressed -->
+            <!-- Pressed: primary -->
             <item android:state_pressed="true">
                 <shape android:shape="rectangle">
                     <solid android:color="?attr/colorPrimary" />
                     <corners android:radius="24dp" />
                 </shape>
             </item>
-            <!-- Default: primary with alpha -->
+            <!-- Default: white -->
             <item>
                 <shape android:shape="rectangle">
                     <solid android:color="@android:color/white" />

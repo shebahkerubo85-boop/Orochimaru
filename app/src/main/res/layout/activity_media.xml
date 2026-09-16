@@ -21,6 +21,13 @@
         android:background="@drawable/gradient_rtl_dark"
         android:importantForAccessibility="no" />
 
+    <View
+        android:id="@+id/mediaDarkenOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#FF000000"
+        android:importantForAccessibility="no" />
+
     <FrameLayout
         android:id="@+id/mediaInfoFragmentContainer"
         android:layout_width="match_parent"

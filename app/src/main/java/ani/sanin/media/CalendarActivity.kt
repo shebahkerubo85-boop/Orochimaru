@@ -267,26 +267,18 @@ class CalendarActivity : AppCompatActivity() {
                 gravity = Gravity.CENTER
                 typeface = Typeface.create(resources.getFont(R.font.poppins_bold), Typeface.BOLD)
                 layoutParams = LinearLayout.LayoutParams(dpToPx(36), dpToPx(36)).apply { topMargin = dpToPx(2) }
-                when {
-                    isSel -> {
-                        setTextColor(onPrimary)
-                        setBackgroundResource(R.drawable.bg_calendar_day_selected)
-                    }
-                    isToday -> {
-                        setTextColor(onPrimary)
-                        setBackgroundResource(R.drawable.bg_calendar_day_today)
-                    }
-                    else -> {
-                        setTextColor(onSurface)
-                        setBackgroundColor(0)
-                        alpha = 0.5f
-                    }
-                }
+                isFocusable = true
+                setBackgroundResource(R.drawable.bg_calendar_day)
+                isSelected = isSel
+                isActivated = isToday
+                setTextColor(if (isSel || isToday) onPrimary else onSurface)
+                alpha = if (isSel || isToday) 1f else 0.5f
             }
 
             col.addView(nameTv)
             col.addView(numTv)
             col.setOnClickListener { selectDay(iso) }
+            numTv.setOnClickListener { selectDay(iso) }
             strip.addView(col)
         }
     }

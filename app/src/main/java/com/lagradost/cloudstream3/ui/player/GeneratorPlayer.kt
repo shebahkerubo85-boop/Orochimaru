@@ -1473,11 +1473,7 @@ class GeneratorPlayer : FullScreenPlayer() {
         if (!hasRequestedStamps) {
             hasRequestedStamps = true
             val fetchStamps = context?.let { ctx ->
-                val settingsManager = PreferenceManager.getDefaultSharedPreferences(ctx)
-                settingsManager.getBoolean(
-                    ctx.getString(R.string.enable_skip_op_from_database),
-                    true
-                )
+                PrefManager.getVal<Boolean>(PrefName.EnableSkipFromDB)
             } ?: true
             val stampsEnabled = PrefManager.getVal<Boolean>(PrefName.TimeStampsEnabled)
             if (fetchStamps && stampsEnabled)
@@ -1502,10 +1498,7 @@ class GeneratorPlayer : FullScreenPlayer() {
                         ?: -1) < meta.episode
                 ) {
                     context?.let { ctx ->
-                        val settingsManager = PreferenceManager.getDefaultSharedPreferences(ctx)
-                        if (settingsManager.getBoolean(
-                                ctx.getString(R.string.episode_sync_enabled_key), true
-                            )
+                        if (PrefManager.getVal<Boolean>(PrefName.EpisodeSync))
                         ) {
                             maxEpisodeSet = meta.episode
                             sync.modifyMaxEpisode(meta.totalEpisodeIndex ?: meta.episode)
@@ -1799,8 +1792,7 @@ class GeneratorPlayer : FullScreenPlayer() {
         val audioTrack = tracks.currentAudioTrack
 
         val ctx = context ?: return
-        val prefs = PreferenceManager.getDefaultSharedPreferences(ctx)
-        showMediaInfo = prefs.getBoolean(ctx.getString(R.string.show_media_info_key), false)
+        showMediaInfo = PrefManager.getVal<Boolean>(PrefName.ShowMediaInfo)
 
         val videoCodec = videoCodecName(videoTrack?.sampleMimeType)
         val audioCodec = audioCodecName(audioTrack?.sampleMimeType)
@@ -2221,28 +2213,23 @@ class GeneratorPlayer : FullScreenPlayer() {
         // selector/nav depend only on whether the generator carries episodes.
         hasEpisodes = generator.videos.isNotEmpty()
         context?.let { ctx ->
-            val settingsManager = PreferenceManager.getDefaultSharedPreferences(ctx)
-            showName = settingsManager.getBoolean(ctx.getString(R.string.show_name_key), true)
-            showResolution =
-                settingsManager.getBoolean(ctx.getString(R.string.show_resolution_key), true)
-            showMediaInfo =
-                settingsManager.getBoolean(ctx.getString(R.string.show_media_info_key), false)
-            limitTitle = settingsManager.getInt(ctx.getString(R.string.prefer_title_limit_key), 0)
+            showName = PrefManager.getVal<Boolean>(PrefName.WrapButtons) > 0
+            showResolution = PrefManager.getVal<Boolean>(PrefName.ShowResolution)
+            showMediaInfo = PrefManager.getVal<Boolean>(PrefName.ShowMediaInfo)
+            limitTitle = PrefManager.getVal<Int>(PrefName.PreferTitleLimit)
             updateForcedEncoding(ctx)
-            viewModel.filterSubByLang =
-                settingsManager.getBoolean(getString(R.string.filter_sub_lang_key), false)
+            viewModel.filterSubByLang = PrefManager.getVal<Boolean>(PrefName.FilterSubLanguage)
             if (viewModel.filterSubByLang) {
-                val langFromPrefMedia = settingsManager.getStringSet(
-                    this.getString(R.string.provider_lang_key), mutableSetOf("en")
-                )
-                viewModel.langFilterList = langFromPrefMedia?.mapNotNull {
+                val langFromPrefMedia = PrefManager.getVal<String>(PrefName.ProviderLanguage)
+                    .split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                viewModel.langFilterList = langFromPrefMedia.mapNotNull {
                     fromTagToEnglishLanguageName(it)?.lowercase() ?: return@mapNotNull null
-                } ?: listOf()
+                }
             }
 
             // Set up TV clock visibility
             if (isLayout(TV)) {
-                val showTvClock = settingsManager.getBoolean(ctx.getString(R.string.tv_layout_clock_key), false)
+                val showTvClock = PrefManager.getVal<Boolean>(PrefName.TvLayoutClock)
                 // playerVideoClock removed
             } else {
                 // playerVideoClock removed

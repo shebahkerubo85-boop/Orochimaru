@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Focused / pressed: contrast against primary fill (handles black primary in Monochrome) -->
+    <item android:state_focused="true" android:color="?attr/colorOnPrimary" />
+    <item android:state_pressed="true" android:color="?attr/colorOnPrimary" />
+    <!-- Default: on surface (white button background) -->
+    <item android:color="?attr/colorOnSurface" />
+</selector>

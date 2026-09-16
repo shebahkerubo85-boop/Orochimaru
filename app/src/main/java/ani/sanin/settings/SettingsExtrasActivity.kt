@@ -73,6 +73,13 @@ class SettingsExtrasActivity : AppCompatActivity() {
 
             SubscreenBuilder.Section("Display Hacks", R.drawable.ic_set_theme, listOf(
                 SubscreenBuilder.Entry(
+                    title = "Hide Settings Descriptions",
+                    desc = "Clean look — hide description text under all settings",
+                    switch = PrefManager.getVal<Boolean>(PrefName.HideSettingsDescriptions) to {
+                        PrefManager.setVal(PrefName.HideSettingsDescriptions, it)
+                    },
+                ),
+                SubscreenBuilder.Entry(
                     title = "Immersive Mode",
                     desc = "Hide system bars during video",
                     switch = PrefManager.getVal<Boolean>(PrefName.ImmersiveMode) to {

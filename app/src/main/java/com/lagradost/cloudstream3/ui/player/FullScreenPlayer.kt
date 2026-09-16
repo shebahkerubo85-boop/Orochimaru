@@ -813,8 +813,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         val isGone = isLocked || !isShowing
         var togglePlayerTitleGone = isGone
         context?.let {
-            val settingsManager = PreferenceManager.getDefaultSharedPreferences(it)
-            val limitTitle = settingsManager.getInt(getString(R.string.prefer_limit_title_key), 0)
+            val limitTitle = PrefManager.getVal<Int>(PrefName.PreferTitleLimit)
             if (limitTitle < 0) {
                 togglePlayerTitleGone = true
             }
@@ -1253,38 +1252,12 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
 
         try {
             context?.let { ctx ->
-                val settingsManager = PreferenceManager.getDefaultSharedPreferences(ctx)
-
-                androidTVInterfaceOffSeekTime =
-                    settingsManager.getInt(
-                        ctx.getString(R.string.android_tv_interface_off_seek_key),
-                        10
-                    )
-                        .toLong() * 1000L
-                androidTVInterfaceOnSeekTime =
-                    settingsManager.getInt(
-                        ctx.getString(R.string.android_tv_interface_on_seek_key),
-                        10
-                    )
-                        .toLong() * 1000L
-
-                playBackSpeedEnabled = settingsManager.getBoolean(
-                    ctx.getString(R.string.playback_speed_enabled_key),
-                    true
-                )
-                playerRotateEnabled = settingsManager.getBoolean(
-                    ctx.getString(R.string.rotate_video_key),
-                    false
-                )
-                playerResizeEnabled =
-                    settingsManager.getBoolean(
-                        ctx.getString(R.string.player_resize_enabled_key),
-                        true
-                    )
-                hideControlsNames = settingsManager.getBoolean(
-                    ctx.getString(R.string.hide_player_control_names_key),
-                    false
-                )
+                androidTVInterfaceOffSeekTime = PrefManager.getVal<Int>(PrefName.SeekTime).toLong() * 1000L
+                androidTVInterfaceOnSeekTime = PrefManager.getVal<Int>(PrefName.SeekTime).toLong() * 1000L
+                playBackSpeedEnabled = PrefManager.getVal<Boolean>(PrefName.PlaybackSpeedEnabled)
+                playerRotateEnabled = PrefManager.getVal<Boolean>(PrefName.PlayerResize)
+                playerResizeEnabled = PrefManager.getVal<Boolean>(PrefName.PlayerResize)
+                hideControlsNames = PrefManager.getVal<Boolean>(PrefName.HideControlNames)
 
                 val profiles = QualityDataHelper.getProfiles()
                 val type = if (ctx.isUsingMobileData())
@@ -1389,14 +1362,11 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
             }
 
             exoSkipOpEd.apply {
-                val settingsManager =
-                    PreferenceManager.getDefaultSharedPreferences(requireContext())
-                val key = requireContext().getString(R.string.enable_skip_op_from_database)
-                val enabled = settingsManager.getBoolean(key, true)
+                val enabled = PrefManager.getVal<Boolean>(PrefName.EnableSkipFromDB)
                 alpha = if (enabled) 1f else 0.3f
                 setOnClickListener {
-                    val newEnabled = !settingsManager.getBoolean(key, true)
-                    settingsManager.edit().putBoolean(key, newEnabled).apply()
+                    val newEnabled = !PrefManager.getVal<Boolean>(PrefName.EnableSkipFromDB)
+                    PrefManager.setVal(PrefName.EnableSkipFromDB, newEnabled)
                     alpha = if (newEnabled) 1f else 0.3f
                 }
             }

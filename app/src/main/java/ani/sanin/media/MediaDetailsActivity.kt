@@ -127,12 +127,14 @@ class MediaDetailsActivity : AppCompatActivity() {
         if (bannerBrightness > 0f) {
             val fallbackUrl = if (isPortrait) media.cover ?: media.banner else media.banner ?: media.cover
             binding.mediaBg?.loadImage(fallbackUrl)
-            binding.mediaBg?.alpha = bannerBrightness
+            binding.mediaBg?.alpha = 1f
             binding.mediaBgGradient?.alpha = bannerBrightness
+            binding.mediaDarkenOverlay?.alpha = 1f - bannerBrightness
+            binding.mediaDarkenOverlay?.visibility = View.VISIBLE
             binding.mediaBanner?.loadImage(fallbackUrl)
-            binding.mediaBanner?.alpha = bannerBrightness
+            binding.mediaBanner?.alpha = 1f
             binding.mediaBannerNoKen?.loadImage(fallbackUrl)
-            binding.mediaBannerNoKen?.alpha = bannerBrightness
+            binding.mediaBannerNoKen?.alpha = 1f
             if (!isPortrait) {
                 lifecycleScope.launch {
                     val tmdbUrl = AniZip.getBackdropUrlWithTmdbFallback(media.id, media.nameRomaji)
@@ -148,6 +150,7 @@ class MediaDetailsActivity : AppCompatActivity() {
             binding.mediaBgGradient?.visibility = View.GONE
             binding.mediaBanner?.visibility = View.GONE
             binding.mediaBannerNoKen?.visibility = View.GONE
+            binding.mediaDarkenOverlay?.visibility = View.GONE
         }
 
         // Close button

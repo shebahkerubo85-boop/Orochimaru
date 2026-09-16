@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.preference.PreferenceManager
 import com.lagradost.cloudstream3.Prerelease
 import ani.sanin.R
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import com.lagradost.cloudstream3.USER_AGENT
 import com.lagradost.cloudstream3.mvvm.safe
 import com.lagradost.nicehttp.Requests
@@ -35,8 +37,7 @@ fun buildDefaultClient(context: Context): OkHttpClient {
 fun buildDefaultClient(context: Context, ignoreSSL: Boolean = false): OkHttpClient {
     // Conscrypt removed to reduce APK size
     
-    val settingsManager = PreferenceManager.getDefaultSharedPreferences(context)
-    val dns = settingsManager.getInt(context.getString(R.string.dns_pref), 0)
+    val dns = PrefManager.getVal<Int>(PrefName.DohProvider)
     val baseClient = OkHttpClient.Builder()
         .followRedirects(true)
         .followSslRedirects(true)

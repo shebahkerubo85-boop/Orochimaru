@@ -24,6 +24,8 @@ import androidx.media3.extractor.text.webvtt.Mp4WebvttParser
 import androidx.media3.extractor.text.webvtt.WebvttParser
 import androidx.preference.PreferenceManager
 import ani.sanin.R
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.ui.subtitles.SaveCaptionStyle
 import com.lagradost.cloudstream3.ui.subtitles.SubtitlesFragment
@@ -39,9 +41,7 @@ import java.nio.charset.Charset
 class CustomDecoder(private val fallbackFormat: Format?) : SubtitleParser {
     companion object {
         fun updateForcedEncoding(context: Context) {
-            val settingsManager = PreferenceManager.getDefaultSharedPreferences(context)
-            val value = settingsManager.getString(
-                context.getString(R.string.subtitles_encoding_key),
+            val value = PrefManager.getVal<String>(PrefName.SubtitleEncoding).ifBlank {
                 null
             )
             overrideEncoding = if (value.isNullOrBlank()) {

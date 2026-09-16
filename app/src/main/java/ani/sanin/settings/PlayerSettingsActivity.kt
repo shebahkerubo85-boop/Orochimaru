@@ -145,13 +145,7 @@ class PlayerSettingsActivity :
                         currentIndex = when (PrefManager.getVal<Int>(PrefName.BufferSize)) {
                             16 -> 0; 32 -> 1; 64 -> 2; 128 -> 3; else -> 1
                         },
-                    ) { idx ->
-                        val mb = intArrayOf(16, 32, 64, 128)[idx]
-                        PrefManager.setVal(PrefName.BufferSize, mb)
-                        androidx.preference.PreferenceManager.getDefaultSharedPreferences(this).edit()
-                            .putInt("video_buffer_size", mb)
-                            .apply()
-                    },
+                    ) { idx -> PrefManager.setVal(PrefName.BufferSize, intArrayOf(16, 32, 64, 128)[idx]) },
                 ),
                 SubscreenBuilder.Entry(
                     title = getString(R.string.software_decoding),
@@ -160,12 +154,7 @@ class PlayerSettingsActivity :
                         title = getString(R.string.software_decoding),
                         options = arrayOf("Hardware (MediaCodec)", "Software (FFmpeg)"),
                         currentIndex = PrefManager.getVal<Int>(PrefName.DecodingMode),
-                    ) { idx ->
-                        PrefManager.setVal(PrefName.DecodingMode, idx)
-                        androidx.preference.PreferenceManager.getDefaultSharedPreferences(this).edit()
-                            .putInt(getString(R.string.software_decoding_key), idx)
-                            .apply()
-                    },
+                    ) { idx -> PrefManager.setVal(PrefName.DecodingMode, idx) },
                 ),
                 SubscreenBuilder.Entry(
                     title = "Pause Overlay",
@@ -285,18 +274,11 @@ class PlayerSettingsActivity :
     private fun buildSubtitleTab() {
         clearTabs()
 
-        // Inflate subtitle preview
+        // Inflate pinned subtitle preview
         val pv = ItemSubtitlePreviewBinding.inflate(layoutInflater, binding.subtitlePreviewContainer, false)
         previewBinding = pv
         binding.subtitlePreviewContainer.addView(pv.root)
         binding.subtitlePreviewContainer.visibility = View.VISIBLE
-
-        // Handle preview expand/collapse
-        val subtitleTest = pv.root.findViewById<ani.sanin.others.Xpandable>(R.id.subtitleTest)
-        subtitleTest?.addOnChangeListener(object : Xpandable.OnChangeListener {
-            override fun onExpand() { updateSubPreview() }
-            override fun onRetract() {}
-        })
         updateSubPreview()
 
         val allProviders = arrayOf("Wyzie", "Stremio", "OpenSubtitles", "SubSource", "SubDL")

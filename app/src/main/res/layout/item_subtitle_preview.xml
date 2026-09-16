@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ani.sanin.others.Xpandable xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/subtitleTest"
     android:layout_width="match_parent"
@@ -9,21 +9,22 @@
     <TextView
         android:id="@+id/subtitlePreviewHeader"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
+        android:layout_height="40dp"
         android:background="@drawable/bg_settings_card"
-        android:drawableEnd="@drawable/ic_round_arrow_drop_down_24"
         android:focusable="true"
-        android:fontFamily="@font/poppins_bold"
+        android:fontFamily="@font/poppins"
         android:gravity="center_vertical"
         android:paddingHorizontal="16dp"
-        android:text="@string/sub_text_example"
+        android:text="Preview"
         android:textColor="?attr/colorSecondary"
-        android:textSize="14sp" />
+        android:textSize="12sp"
+        android:alpha="0.6" />
 
     <LinearLayout
         android:id="@+id/subtitleTestWindow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="@drawable/bg_settings_card"
         android:gravity="center"
         android:orientation="vertical"
         android:paddingVertical="16dp">
@@ -33,8 +34,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:paddingHorizontal="32dp"
-            android:text="@string/sub_text_example" />
+            android:paddingHorizontal="24dp"
+            android:text="@string/sub_text_example"
+            android:textSize="18sp" />
     </LinearLayout>
-
-</ani.sanin.others.Xpandable>
+</LinearLayout>

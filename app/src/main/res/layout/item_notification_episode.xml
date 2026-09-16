@@ -188,13 +188,17 @@
                         android:text="Watch"
                         android:textAllCaps="false"
                         android:textSize="12sp"
+                        android:background="@drawable/bg_repo_browse_button"
+                        android:textColor="@color/text_color_browse_button"
                         app:cornerRadius="17dp"
                         app:icon="@drawable/ic_baseline_play_arrow_24"
                         app:iconGravity="textStart"
                         app:iconPadding="4dp"
                         app:iconSize="15dp"
+                        app:iconTint="@color/text_color_browse_button"
                         android:insetBottom="0dp"
-                        android:insetTop="0dp" />
+                        android:insetTop="0dp"
+                        app:backgroundTint="@null" />
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>

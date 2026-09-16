@@ -100,8 +100,14 @@ import com.lagradost.cloudstream3.utils.Coroutines.ioSafe
 import com.lagradost.cloudstream3.utils.Coroutines.runOnMainThread
 import com.lagradost.cloudstream3.utils.DataStoreHelper.currentAccount
 import com.lagradost.cloudstream3.utils.DrmExtractorLink
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import com.lagradost.cloudstream3.utils.ExtractorLinkPlayList
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.PLAYREADY_DRM_UUID
 import com.lagradost.cloudstream3.utils.SubtitleHelper.fromTagToLanguageName
@@ -1022,11 +1028,7 @@ class CS3IPlayer : IPlayer {
                         .build()
                 )
                 .setRenderersFactory { eventHandler, videoRendererEventListener, audioRendererEventListener, _, metadataRendererOutput ->
-                    val settingsManager = PreferenceManager.getDefaultSharedPreferences(context)
-                    val current = settingsManager.getInt(
-                        context.getString(R.string.software_decoding_key),
-                        -1
-                    )
+                    val current = PrefManager.getVal<Int>(PrefName.DecodingMode)
                     val (isSoftwareDecodingEnabled, isSoftwareDecodingPreferred) = when (current) {
                         0 -> true to false // HW+SW, aka on but prefer hw
                         2 -> true to true // SW+HW, aka on but prefer sw
@@ -1311,11 +1313,9 @@ class CS3IPlayer : IPlayer {
         onlineSource: HttpDataSource.Factory? = null,
     ) {
         Log.i(TAG, "loadExo")
-        val settingsManager = PreferenceManager.getDefaultSharedPreferences(context)
-        val maxVideoHeight = settingsManager.getInt(
-            context.getString(if (context.isUsingMobileData()) R.string.quality_pref_mobile_data_key else R.string.quality_pref_key),
-            Int.MAX_VALUE
-        )
+        val maxVideoHeight = PrefManager.getVal<Int>(PrefName.DecodingMode).let {
+            if (it == 0) Int.MAX_VALUE else 720
+        }
 
         try {
             hasUsedFirstRender = false
@@ -1526,11 +1526,7 @@ class CS3IPlayer : IPlayer {
 
                         Player.STATE_ENDED -> {
                             // Only play next episode if autoplay is on (default)
-                            if (PreferenceManager.getDefaultSharedPreferences(context)
-                                    ?.getBoolean(
-                                        context.getString(R.string.autoplay_next_key),
-                                        true
-                                    ) == true
+                            if (PrefManager.getVal<Boolean>(PrefName.AutoPlay)
                             ) {
                                 handleEvent(
                                     CSPlayerEvent.NextEpisode,
@@ -1741,12 +1737,8 @@ class CS3IPlayer : IPlayer {
 
                     val defaultSet = default.map { it.toString() }.toSet()
                     val currentPrefMedia = try {
-                        PreferenceManager.getDefaultSharedPreferences(context)
-                            .getStringSet(
-                                context.getString(R.string.prefer_media_type_key),
-                                defaultSet
-                            )
-                            ?.mapNotNull { it.toIntOrNull() ?: return@mapNotNull null }
+                        val preferDub = PrefManager.getVal<Boolean>(PrefName.PreferDub)
+                        if (preferDub) listOf(2) else default.map { it.toIntOrNull() }
                     } catch (_: Throwable) {
                         null
                     } ?: default

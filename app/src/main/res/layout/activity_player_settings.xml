@@ -81,7 +81,16 @@
         app:tabPaddingStart="16dp"
         app:tabTextAppearance="@style/NavBarText" />
 
-    <!-- Content area -->
+    <!-- Pinned subtitle preview (visible only on subtitle tab) -->
+    <FrameLayout
+        android:id="@+id/subtitlePreviewContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="8dp"
+        android:visibility="gone" />
+
+    <!-- Scrollable content area -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/tabScroll"
         android:layout_width="match_parent"
@@ -96,15 +105,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
-
-            <!-- Subtitle preview container (shown only on subtitle tab) -->
-            <FrameLayout
-                android:id="@+id/subtitlePreviewContainer"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="16dp"
-                android:layout_marginTop="12dp"
-                android:visibility="gone" />
 
             <!-- Dynamic tab content -->
             <LinearLayout

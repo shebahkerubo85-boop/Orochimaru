@@ -10,6 +10,8 @@ import com.google.android.material.slider.Slider
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import ani.sanin.R
 import ani.sanin.setSafeOnClickListener
 import ani.sanin.util.FocusEffectUtil
@@ -98,7 +100,7 @@ object SubscreenBuilder {
 
                     if (entry.iconRes != 0) sIcon.setImageResource(entry.iconRes) else sIcon.visibility = View.GONE
                     sTitle.text = entry.title
-                    if (entry.desc != null) {
+                    if (entry.desc != null && !PrefManager.getVal<Boolean>(PrefName.HideSettingsDescriptions)) {
                         sDesc.text = entry.desc
                         sDesc.visibility = View.VISIBLE
                     }
@@ -127,7 +129,7 @@ object SubscreenBuilder {
                     val sl = sliderView.findViewById<Slider>(R.id.slider)
                     val slValue = sliderView.findViewById<TextView>(R.id.sliderValue)
                     slTitle.text = entry.title
-                    if (entry.desc != null) {
+                    if (entry.desc != null && !PrefManager.getVal<Boolean>(PrefName.HideSettingsDescriptions)) {
                         slDesc.text = entry.desc
                         slDesc.visibility = View.VISIBLE
                     }
@@ -160,7 +162,7 @@ object SubscreenBuilder {
 
                     if (entry.iconRes != 0) eIcon.setImageResource(entry.iconRes) else eIcon.visibility = View.GONE
                     eTitle.text = entry.title
-                    if (entry.desc != null) {
+                    if (entry.desc != null && !PrefManager.getVal<Boolean>(PrefName.HideSettingsDescriptions)) {
                         eDesc.text = entry.desc
                         eDesc.visibility = View.VISIBLE
                     }
