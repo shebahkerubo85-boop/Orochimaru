@@ -84,7 +84,19 @@ class SettingsCommonActivity : AppCompatActivity() {
                         title = "DNS Provider",
                         options = dnsNames,
                         currentIndex = PrefManager.getVal<Int>(PrefName.DohProvider),
-                    ) { idx -> PrefManager.setVal(PrefName.DohProvider, idx) },
+                    ) { idx ->
+                        PrefManager.setVal(PrefName.DohProvider, idx)
+                        // Bridge to CS3 native DNS key so movie/TV mode also uses it
+                        val cs3Dns = when (idx) {
+                            1 -> 1  // Google
+                            2 -> 2  // Cloudflare
+                            4 -> 4  // AdGuard
+                            else -> 0  // System (no DoH mapping)
+                        }
+                        androidx.preference.PreferenceManager.getDefaultSharedPreferences(this).edit()
+                            .putInt("DNS over HTTPS", cs3Dns)
+                            .apply()
+                    },
                 ),
                 SubscreenBuilder.Entry(
                     title = "User Agent",

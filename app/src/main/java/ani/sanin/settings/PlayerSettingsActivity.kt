@@ -145,7 +145,13 @@ class PlayerSettingsActivity :
                         currentIndex = when (PrefManager.getVal<Int>(PrefName.BufferSize)) {
                             16 -> 0; 32 -> 1; 64 -> 2; 128 -> 3; else -> 1
                         },
-                    ) { idx -> PrefManager.setVal(PrefName.BufferSize, intArrayOf(16, 32, 64, 128)[idx]) },
+                    ) { idx ->
+                        val mb = intArrayOf(16, 32, 64, 128)[idx]
+                        PrefManager.setVal(PrefName.BufferSize, mb)
+                        androidx.preference.PreferenceManager.getDefaultSharedPreferences(this).edit()
+                            .putInt("video_buffer_size", mb)
+                            .apply()
+                    },
                 ),
                 SubscreenBuilder.Entry(
                     title = getString(R.string.software_decoding),
@@ -154,7 +160,12 @@ class PlayerSettingsActivity :
                         title = getString(R.string.software_decoding),
                         options = arrayOf("Hardware (MediaCodec)", "Software (FFmpeg)"),
                         currentIndex = PrefManager.getVal<Int>(PrefName.DecodingMode),
-                    ) { idx -> PrefManager.setVal(PrefName.DecodingMode, idx) },
+                    ) { idx ->
+                        PrefManager.setVal(PrefName.DecodingMode, idx)
+                        androidx.preference.PreferenceManager.getDefaultSharedPreferences(this).edit()
+                            .putInt(getString(R.string.software_decoding_key), idx)
+                            .apply()
+                    },
                 ),
                 SubscreenBuilder.Entry(
                     title = "Pause Overlay",

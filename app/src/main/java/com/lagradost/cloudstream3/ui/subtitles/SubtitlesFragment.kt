@@ -34,6 +34,8 @@ import com.lagradost.cloudstream3.CommonActivity.onColorSelectedEvent
 import com.lagradost.cloudstream3.CommonActivity.onDialogDismissedEvent
 import com.lagradost.cloudstream3.CommonActivity.showToast
 import ani.sanin.R
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import ani.sanin.databinding.SubtitleSettingsBinding
 import com.lagradost.cloudstream3.ui.BaseDialogFragment
 import com.lagradost.cloudstream3.ui.BaseFragment
@@ -264,17 +266,46 @@ class SubtitlesFragment : BaseDialogFragment<SubtitleSettingsBinding>(
         }
 
         fun getCurrentSavedStyle(): SaveCaptionStyle {
-            return cachedSubtitleStyle ?: (getKey<SaveCaptionStyle>(SUBTITLE_KEY) ?: SaveCaptionStyle(
-                foregroundColor = getDefColor(0),
-                backgroundColor = getDefColor(2),
-                windowColor = getDefColor(3),
-                edgeType = CaptionStyleCompat.EDGE_TYPE_OUTLINE,
-                edgeColor = getDefColor(1),
-                typeface = null,
-                typefaceFilePath = null,
-                elevation = DEF_SUBS_ELEVATION,
-                fixedTextSize = null,
-            )).also { cachedSubtitleStyle = it }
+            return cachedSubtitleStyle ?: (getKey<SaveCaptionStyle>(SUBTITLE_KEY) ?: run {
+                // Bridge anime-mode subtitle prefs so they apply in CS3 player too
+                val aFont = PrefManager.getVal<Int>(PrefName.Font)
+                val aFontSize = PrefManager.getVal<Int>(PrefName.FontSize)
+                val aPrimary = PrefManager.getVal<Int>(PrefName.PrimaryColor)
+                val aSecondary = PrefManager.getVal<Int>(PrefName.SecondaryColor)
+                val aSubBg = PrefManager.getVal<Int>(PrefName.SubBackground)
+                val aSubWin = PrefManager.getVal<Int>(PrefName.SubWindow)
+                val aOutline = PrefManager.getVal<Int>(PrefName.Outline)
+                val aSubAlpha = PrefManager.getVal(PrefName.SubAlpha)
+                val edgeType = when (aOutline) {
+                    1 -> CaptionStyleCompat.EDGE_TYPE_NONE
+                    2 -> CaptionStyleCompat.EDGE_TYPE_OUTLINE
+                    3 -> CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW
+                    4 -> CaptionStyleCompat.EDGE_TYPE_RAISED
+                    5 -> CaptionStyleCompat.EDGE_TYPE_DEPRESSED
+                    else -> CaptionStyleCompat.EDGE_TYPE_OUTLINE
+                }
+                val fontRes = when (aFont) {
+                    0 -> R.font.poppins_semi_bold
+                    1 -> R.font.poppins_bold
+                    2 -> R.font.poppins
+                    3 -> R.font.poppins_thin
+                    4 -> R.font.century_gothic_regular
+                    5 -> R.font.levenim_mt_bold
+                    6 -> R.font.blocky
+                    else -> R.font.poppins_semi_bold
+                }
+                SaveCaptionStyle(
+                    foregroundColor = aPrimary,
+                    backgroundColor = aSubBg,
+                    windowColor = aSubWin,
+                    edgeType = edgeType,
+                    edgeColor = aSecondary,
+                    typeface = fontRes,
+                    typefaceFilePath = null,
+                    elevation = DEF_SUBS_ELEVATION,
+                    fixedTextSize = aFontSize.toFloat(),
+                )
+            }).also { cachedSubtitleStyle = it }
         }
 
         private fun Context.getSavedFonts(): List<File> {

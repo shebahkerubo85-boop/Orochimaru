@@ -23,7 +23,7 @@ class IntroDbSkip : SkipAPI() {
         val imdbId = data.getImdbId() ?: return null
 
         val url =
-            "https://api.introdb.app/segments?imdb_id=$imdbId&season=$season&episode=${episode.episode}"
+            "https://api.introdb.app/segments?imdb_id=$imdbId&season=$season&episode=${episode.episode}&api_key=idb_Wh-vCZvCiVi_Irm-tTwbZ1zszrmLpJlV"
         val response = app.get(url).parsed<IntroDbResponse>()
 
         return listOfNotNull(

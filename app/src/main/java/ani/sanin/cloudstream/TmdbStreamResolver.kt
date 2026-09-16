@@ -836,7 +836,8 @@ object TmdbStreamResolver {
             context.applicationContext,
             media,
             resultEpisodeRows(media, d, episodes, source.name, mediaType),
-            episodeKeys
+            episodeKeys,
+            tmdbMediaId = mediaId
         )
         Logger.log(
             "TMDB_PLAY: launching CS3 GeneratorPlayer for ${mediaType} id=$id title='$title' " +

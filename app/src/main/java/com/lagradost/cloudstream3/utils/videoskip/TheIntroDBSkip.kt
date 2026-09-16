@@ -37,7 +37,7 @@ class TheIntroDBSkip : SkipAPI() {
             val season = episode.season ?: return null
             "$mainUrl/v2/media?$idSuffix&season=$season&episode=${episode.episode}"
         }
-        val root = app.get(url).parsed<Root>()
+        val root = app.get(url, headers = mapOf("Authorization" to "Bearer theintrodb:user_3JP18rZ6DUG6pXmTD9C79p4JiI2:usCHwNpPBNmCXK0AE75jMk6roGRlEFLHh5R_fYrUQmU")).parsed<Root>()
         return arrayOf(
             root.intro to SkipType.Intro,
             root.credits to SkipType.Credits,

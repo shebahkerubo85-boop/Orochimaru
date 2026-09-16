@@ -74,6 +74,7 @@ import ani.sanin.media.anime.SubtitleSyncDialogFragment
 import ani.sanin.media.anime.SyncCue
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
+import com.lagradost.cloudstream3.utils.videoskip.SkipType
 import ani.sanin.databinding.FragmentPlayerBinding
 import ani.sanin.media.SheetSourceSelector
 import ani.sanin.databinding.PlayerSelectTracksBinding
@@ -569,8 +570,13 @@ class GeneratorPlayer : FullScreenPlayer() {
         //  setEpisodes(viewModel.getAllMeta() ?: emptyList())
         setPlayerDimen(null)
         setTitle()
-        if (!sameEpisode)
+        if (!sameEpisode) {
             hasRequestedStamps = false
+            autoSkippedStamps.clear()
+
+            // Show progress-update dialog for TMDB content (matches anime mode)
+            showTmdbProgressDialogIfNeeded()
+        }
 
         loadExtractorJob(link.first)
         // load player
@@ -1473,7 +1479,8 @@ class GeneratorPlayer : FullScreenPlayer() {
                     true
                 )
             } ?: true
-            if (fetchStamps)
+            val stampsEnabled = PrefManager.getVal<Boolean>(PrefName.TimeStampsEnabled)
+            if (fetchStamps && stampsEnabled)
                 viewModel.loadStamps(duration)
         }
 
@@ -1490,7 +1497,8 @@ class GeneratorPlayer : FullScreenPlayer() {
         var isOpVisible = false
         when (val meta = currentMeta) {
             is ResultEpisode -> {
-                if (percentage >= UPDATE_SYNC_PROGRESS_PERCENTAGE && (maxEpisodeSet
+                val watchPct = (PrefManager.getVal<Float>(PrefName.WatchPercentage) * 100).toInt().coerceAtLeast(UPDATE_SYNC_PROGRESS_PERCENTAGE)
+                if (percentage >= watchPct && (maxEpisodeSet
                         ?: -1) < meta.episode
                 ) {
                     context?.let { ctx ->
@@ -1508,6 +1516,8 @@ class GeneratorPlayer : FullScreenPlayer() {
                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                         val syntheticId = meta.parentId ?: return@launch
                         val session = TmdbStreamResolver.sessionFor(syntheticId) ?: return@launch
+                        // Respect per-show progress preference (matches anime mode)
+                        if (!PrefManager.getCustomVal("tmdb_save_progress_${session.mediaId}", true)) return@launch
                         val key = "${session.mediaId}|${meta.season}|${meta.episode}"
                         if (!simklHistorySent.add(key)) return@launch
                         val d = session.detail
@@ -1550,6 +1560,33 @@ class GeneratorPlayer : FullScreenPlayer() {
 
         if (percentage >= PRELOAD_NEXT_EPISODE_PERCENTAGE) {
             viewModel.preLoadNextLinks()
+        }
+    }
+
+    private fun showTmdbProgressDialogIfNeeded() {
+        val meta = currentMeta as? ResultEpisode ?: return
+        val syntheticId = meta.parentId ?: return
+        val session = TmdbStreamResolver.sessionFor(syntheticId) ?: return
+        val incognito = PrefManager.getVal<Boolean>(PrefName.Incognito)
+        val askIndividual = PrefManager.getVal<Boolean>(PrefName.AskIndividualPlayer)
+        if (!askIndividual || incognito || Simkl.token == null) return
+        val key = "tmdb_progress_dialog_${session.mediaId}"
+        if (!PrefManager.getCustomVal(key, true)) return
+        val title = session.detail.displayTitle
+        android.app.AlertDialog.Builder(context).apply {
+            setTitle("Auto-update progress")
+            setMessage("Track watching progress for \'${title}\' on Simkl?")
+            setCancelable(false)
+            setPositiveButton("Yes") { _, _ ->
+                PrefManager.setCustomVal(key, false)
+                PrefManager.setCustomVal("tmdb_save_progress_${session.mediaId}", true)
+            }
+            setNegativeButton("No") { _, _ ->
+                PrefManager.setCustomVal(key, false)
+                PrefManager.setCustomVal("tmdb_save_progress_${session.mediaId}", false)
+                toast("Progress tracking disabled for this show")
+            }
+            show()
         }
     }
 
@@ -1926,15 +1963,45 @@ class GeneratorPlayer : FullScreenPlayer() {
         displayTimeStamp(false)
     }
 
+    private val autoSkippedStamps = mutableSetOf<Int>()
+
     override fun onTimestamp(timestamp: VideoSkipStamp?) {
         if (timestamp != null) {
-            playerBinding?.exoSkipTime?.setText(timestamp.uiText)
-            displayTimeStamp(true)
-            val currentIndex = skipIndex
-            playerBinding?.exoSkip?.handler?.postDelayed({
-                if (skipIndex == currentIndex)
-                    displayTimeStamp(false)
-            }, 6000)
+            // Auto-skip OP/ED if setting enabled (matches anime mode)
+            if (PrefManager.getVal<Boolean>(PrefName.AutoSkipOPED) &&
+                !autoSkippedStamps.contains(timestamp.timestamp.startMs.toInt())
+            ) {
+                val type = timestamp.timestamp.type
+                if (type == SkipType.Opening || type == SkipType.Ending ||
+                    type == SkipType.MixedOpening || type == SkipType.MixedEnding
+                ) {
+                    player.seekTo(timestamp.timestamp.endMs)
+                    autoSkippedStamps.add(timestamp.timestamp.startMs.toInt())
+                    return
+                }
+            }
+            // Auto-skip recap if setting enabled (matches anime mode)
+            if (PrefManager.getVal<Boolean>(PrefName.AutoSkipRecap) &&
+                !autoSkippedStamps.contains(timestamp.timestamp.startMs.toInt()) &&
+                timestamp.timestamp.type == SkipType.Recap
+            ) {
+                player.seekTo(timestamp.timestamp.endMs)
+                autoSkippedStamps.add(timestamp.timestamp.startMs.toInt())
+                return
+            }
+
+            // Show skip button only if setting enabled
+            if (PrefManager.getVal<Boolean>(PrefName.ShowTimeStampButton)) {
+                playerBinding?.exoSkipTime?.setText(timestamp.uiText)
+                displayTimeStamp(true)
+                val hideDelay = if (PrefManager.getVal<Boolean>(PrefName.AutoHideTimeStamps))
+                    5000L else 6000L
+                val currentIndex = skipIndex
+                playerBinding?.exoSkip?.handler?.postDelayed({
+                    if (skipIndex == currentIndex)
+                        displayTimeStamp(false)
+                }, hideDelay)
+            }
         } else {
             displayTimeStamp(false)
         }

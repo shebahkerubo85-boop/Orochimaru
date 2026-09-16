@@ -28,6 +28,7 @@ class TmdbSyntheticGenerator(
     val media: Media,
     rows: List<ResultEpisode>,
     private val episodeKeys: List<String>,
+    val tmdbMediaId: Int = 0,
 ) : VideoGenerator<ResultEpisode>(rows) {
 
     private val appContext: Context = context.applicationContext

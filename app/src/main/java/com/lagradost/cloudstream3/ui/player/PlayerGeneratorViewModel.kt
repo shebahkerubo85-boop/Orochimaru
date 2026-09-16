@@ -6,7 +6,12 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lagradost.cloudstream3.LoadResponse
+import com.lagradost.cloudstream3.LoadResponse.Companion.addImdbId
+import com.lagradost.cloudstream3.LoadResponse.Companion.addTMDbId
 import com.lagradost.cloudstream3.LoadResponse.Companion.getImdbId
+import com.lagradost.cloudstream3.MovieLoadResponse
+import com.lagradost.cloudstream3.TvSeriesLoadResponse
+import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.mvvm.Resource
 import com.lagradost.cloudstream3.mvvm.launchSafe
 import com.lagradost.cloudstream3.mvvm.logError
@@ -291,7 +296,10 @@ class PlayerGeneratorViewModel : ViewModel() {
 
         currentJob = viewModelScope.launch {
             try {
-                if (generator?.hasCache == true && generator?.hasNext(episodeIndex) == true) {
+                val gen = generator
+                val canPreload = gen?.hasCache == true ||
+                    (gen is TmdbSyntheticGenerator && gen.hasNext(episodeIndex))
+                if (canPreload) {
                     safeApiCall {
                         generator?.generateLinks(
                             sourceTypes = LOADTYPE_INAPP,
@@ -394,12 +402,41 @@ class PlayerGeneratorViewModel : ViewModel() {
                 loading = Resource.Loading(),
                 generatorState = generator?.let { gen ->
                     val repoPage = (gen as? RepoLinkGenerator)?.page
-                    val tmdbImdb = (gen as? TmdbSyntheticGenerator)?.media?.idIMDB
+                    val synthGen = gen as? TmdbSyntheticGenerator
+                    val tmdbImdb = synthGen?.media?.idIMDB
+
+                    /** Build a synthetic LoadResponse so SkipAPI stamps can resolve
+                     *  TMDB / IMDB IDs for movie/TV content. */
+                    val synthPage = synthGen?.let { g ->
+                        val isMovie = g.media.format == "MOVIE"
+                        @Suppress("DEPRECATION_ERROR")
+                        val lr = if (isMovie) {
+                            MovieLoadResponse(
+                                name = g.media.name ?: "",
+                                url = "",
+                                apiName = "TMDB",
+                                type = TvType.Movie,
+                                dataUrl = ""
+                            )
+                        } else {
+                            TvSeriesLoadResponse(
+                                name = g.media.name ?: "",
+                                url = "",
+                                apiName = "TMDB",
+                                type = TvType.TvSeries,
+                                episodes = emptyList()
+                            )
+                        }
+                        if (g.tmdbMediaId != 0) lr.addTMDbId(g.tmdbMediaId.toString())
+                        tmdbImdb?.let { lr.addImdbId(it) }
+                        lr
+                    }
+
                     GeneratorState(
                         meta = gen.videos.getOrNull(index),
                         nextMeta = gen.videos.getOrNull(index + 1),
                         id = gen.getId(index),
-                        response = repoPage,
+                        response = repoPage ?: synthPage,
                         index = index,
                         allMeta = gen.videos,
                         imdbId = repoPage?.getImdbId() ?: tmdbImdb,
