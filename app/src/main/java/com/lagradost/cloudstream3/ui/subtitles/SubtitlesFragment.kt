@@ -275,7 +275,7 @@ class SubtitlesFragment : BaseDialogFragment<SubtitleSettingsBinding>(
                 val aSubBg = PrefManager.getVal<Int>(PrefName.SubBackground)
                 val aSubWin = PrefManager.getVal<Int>(PrefName.SubWindow)
                 val aOutline = PrefManager.getVal<Int>(PrefName.Outline)
-                val aSubAlpha = PrefManager.getVal(PrefName.SubAlpha)
+                val aSubAlpha = PrefManager.getVal<Float>(PrefName.SubAlpha)
                 val edgeType = when (aOutline) {
                     1 -> CaptionStyleCompat.EDGE_TYPE_NONE
                     2 -> CaptionStyleCompat.EDGE_TYPE_OUTLINE

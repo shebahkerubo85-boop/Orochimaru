@@ -103,11 +103,7 @@ import com.lagradost.cloudstream3.utils.DrmExtractorLink
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import com.lagradost.cloudstream3.utils.ExtractorLink
-import ani.sanin.settings.saving.PrefManager
-import ani.sanin.settings.saving.PrefName
 import com.lagradost.cloudstream3.utils.ExtractorLinkPlayList
-import ani.sanin.settings.saving.PrefManager
-import ani.sanin.settings.saving.PrefName
 import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.PLAYREADY_DRM_UUID
 import com.lagradost.cloudstream3.utils.SubtitleHelper.fromTagToLanguageName
@@ -1737,8 +1733,12 @@ class CS3IPlayer : IPlayer {
 
                     val defaultSet = default.map { it.toString() }.toSet()
                     val currentPrefMedia = try {
-                        val preferDub = PrefManager.getVal<Boolean>(PrefName.PreferDub)
-                        if (preferDub) listOf(2) else default.map { it.toIntOrNull() }
+                        PreferenceManager.getDefaultSharedPreferences(context)
+                            .getStringSet(
+                                context.getString(R.string.prefer_media_type_key),
+                                defaultSet
+                            )
+                            ?.mapNotNull { it.toIntOrNull() ?: return@mapNotNull null }
                     } catch (_: Throwable) {
                         null
                     } ?: default

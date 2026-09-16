@@ -67,6 +67,7 @@ import ani.sanin.cloudstream.CsPlayerActivity
 import ani.sanin.cloudstream.TmdbStreamResolver
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.Refresh
+import ani.sanin.toast
 import ani.sanin.databinding.DialogOnlineSubtitlesBinding
 import ani.sanin.media.anime.SubtitleSyncHost
 import ani.sanin.connections.subtitles.StremioSubtitles
@@ -1499,7 +1500,7 @@ class GeneratorPlayer : FullScreenPlayer() {
                 ) {
                     context?.let { ctx ->
                         if (PrefManager.getVal<Boolean>(PrefName.EpisodeSync))
-                        ) {
+                        {
                             maxEpisodeSet = meta.episode
                             sync.modifyMaxEpisode(meta.totalEpisodeIndex ?: meta.episode)
                         }
@@ -2213,7 +2214,7 @@ class GeneratorPlayer : FullScreenPlayer() {
         // selector/nav depend only on whether the generator carries episodes.
         hasEpisodes = generator.videos.isNotEmpty()
         context?.let { ctx ->
-            showName = PrefManager.getVal<Boolean>(PrefName.WrapButtons) > 0
+            showName = PrefManager.getVal<Boolean>(PrefName.WrapButtons)
             showResolution = PrefManager.getVal<Boolean>(PrefName.ShowResolution)
             showMediaInfo = PrefManager.getVal<Boolean>(PrefName.ShowMediaInfo)
             limitTitle = PrefManager.getVal<Int>(PrefName.PreferTitleLimit)

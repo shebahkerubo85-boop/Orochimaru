@@ -68,6 +68,8 @@ import com.lagradost.cloudstream3.utils.UIHelper.popCurrentPage
 import com.lagradost.cloudstream3.utils.UIHelper.showSystemUI
 import com.lagradost.cloudstream3.utils.UserPreferenceDelegate
 import com.lagradost.cloudstream3.utils.videoskip.VideoSkipStamp
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import java.net.SocketTimeoutException
 
 /**

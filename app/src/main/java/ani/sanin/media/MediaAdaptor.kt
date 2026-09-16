@@ -882,7 +882,7 @@ class MediaAdaptor(
             isReleasing && (nextAiring ?: 0) > 1 -> (nextAiring ?: 1) - 1
             else -> totalEp
         }
-        val allReleased = isAnime && totalEp != null && released != null && released >= totalEp
+        val allReleased = isAnime && totalEp != null && released != null && released!! >= totalEp!!
         val timeUntil = null  // TT countdown removed
 
         // Completed shows: just seen + total (no broadcast icon, no divider, no TT).

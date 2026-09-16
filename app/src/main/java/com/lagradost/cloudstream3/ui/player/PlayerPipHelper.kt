@@ -38,8 +38,6 @@ object PlayerPipHelper {
     private fun Context.hasPIPEnabled(): Boolean {
         return try {
             PrefManager.getVal<Boolean>(PrefName.Pip)
-                true
-            ) ?: true
         } catch (e: Exception) {
             logError(e)
             false

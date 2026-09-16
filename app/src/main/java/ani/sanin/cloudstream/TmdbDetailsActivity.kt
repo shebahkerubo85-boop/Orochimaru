@@ -518,17 +518,17 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         if (brightness <= 0f) {
             shell.tmdbDetailBackdrop.visibility = View.GONE
             shell.tmdbDetailGradient.visibility = View.GONE
-            shell.tmdbDetailDarkenOverlay.visibility = View.GONE
+            shell.tmdbDetailDarkenOverlay?.visibility = View.GONE
             return
         }
         if (shell.tmdbDetailBackdrop.visibility != View.VISIBLE) {
             shell.tmdbDetailBackdrop.visibility = View.VISIBLE
             shell.tmdbDetailGradient.visibility = View.VISIBLE
-            shell.tmdbDetailDarkenOverlay.visibility = View.VISIBLE
+            shell.tmdbDetailDarkenOverlay?.visibility = View.VISIBLE
         }
         shell.tmdbDetailBackdrop.alpha = 1f
         shell.tmdbDetailGradient.alpha = brightness
-        shell.tmdbDetailDarkenOverlay.alpha = 1f - brightness
+        shell.tmdbDetailDarkenOverlay?.alpha = 1f - brightness
     }
 
     private fun loadGenres(d: TmdbDetail) {
