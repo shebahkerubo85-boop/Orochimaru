@@ -43,7 +43,7 @@ class CustomDecoder(private val fallbackFormat: Format?) : SubtitleParser {
         fun updateForcedEncoding(context: Context) {
             val value = PrefManager.getVal<String>(PrefName.SubtitleEncoding).ifBlank {
                 null
-            )
+            }
             overrideEncoding = if (value.isNullOrBlank()) {
                 null
             } else {
