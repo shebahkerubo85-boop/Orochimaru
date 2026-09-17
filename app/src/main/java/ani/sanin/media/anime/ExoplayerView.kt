@@ -1050,7 +1050,27 @@ class ExoplayerView :
                 }
                 if (visibility == View.GONE) {
                     playerView.findViewById<View>(R.id.exo_controller).clearFocus()
-                    playerView.requestFocus()
+                    // Keep a focused view while the controller is hidden, or D-pad dies:
+                    // with nothing focused, DPAD key events go through the framework's
+                    // focus search (which finds no GONE controller buttons) and are
+                    // dropped before media3's PlayerView.dispatchKeyEvent ever sees them.
+                    // Focusing the PlayerView root routes every D-pad press into media3's
+                    // built-in rescue (isDpadKey && !controller.isFullyVisible -> show),
+                    // the exact mechanism the cs3 player relies on. The request must run
+                    // in a post: a synchronous requestFocus() in the same pass the
+                    // controller subtree went GONE is dropped, leaving the window with
+                    // no focused view at all.
+                    playerView.post {
+                        // Skip if the controller already came back (e.g. the D-pad
+                        // rescue ran before this post) — don't steal focus from the
+                        // play button that the VISIBLE branch just focused.
+                        if (!playerView.isControllerFullyVisible) {
+                            playerView.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                            playerView.isFocusable = true
+                            playerView.requestFocus()
+                            playerView.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+                        }
+                    }
                     hideSystemBars()
                     brightnessRunnable.run()
                     volumeRunnable.run()
