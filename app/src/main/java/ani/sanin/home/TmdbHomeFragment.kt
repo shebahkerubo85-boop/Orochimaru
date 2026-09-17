@@ -799,7 +799,7 @@ class TmdbHomeFragment : Fragment() {
             val chip = TextView(requireContext()).apply {
                 text = name
                 textSize = 11f
-                setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnBackground))
+                setTextColor(requireContext().getThemeColor(com.google.android.material.R.attr.colorOnBackground))
                 setBackgroundResource(R.drawable.tag_chip_bg)
                 val dp = resources.displayMetrics.density
                 setPadding((10 * dp).toInt(), (3 * dp).toInt(), (10 * dp).toInt(), (3 * dp).toInt())
