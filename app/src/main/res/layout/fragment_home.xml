@@ -760,7 +760,9 @@
                         android:layout_marginStart="24dp"
                         android:layout_weight="1"
                         android:fontFamily="@font/poppins_bold"
-                        android:padding="8dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingBottom="8dp"
                         android:text="@string/hidden"
                         android:textSize="16sp" />
 
@@ -812,7 +814,9 @@
                         android:layout_marginStart="24dp"
                         android:layout_weight="1"
                         android:fontFamily="@font/poppins_bold"
-                        android:padding="8dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingBottom="8dp"
                         android:text="@string/continue_watching"
                         android:textSize="16sp" />
 
@@ -928,7 +932,6 @@
                 android:id="@+id/homeFavAnimeContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
                 android:layout_marginBottom="11dp"
                 android:orientation="vertical"
                 android:visibility="gone">
@@ -946,7 +949,9 @@
                         android:layout_marginStart="24dp"
                         android:layout_weight="1"
                         android:fontFamily="@font/poppins_bold"
-                        android:padding="8dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingBottom="8dp"
                         android:text="@string/fav_anime"
                         android:textSize="16sp" />
 
@@ -1077,7 +1082,9 @@
                         android:layout_marginStart="24dp"
                         android:layout_weight="1"
                         android:fontFamily="@font/poppins_bold"
-                        android:padding="8dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingBottom="8dp"
                         android:text="@string/planned_anime"
                         android:textSize="16sp" />
 
@@ -1212,7 +1219,9 @@
                         android:layout_marginStart="24dp"
                         android:layout_weight="1"
                         android:fontFamily="@font/poppins_bold"
-                        android:padding="8dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingBottom="8dp"
                         android:text="@string/continue_reading"
                         android:textSize="16sp" />
 
@@ -1345,7 +1354,9 @@
                         android:layout_marginStart="24dp"
                         android:layout_weight="1"
                         android:fontFamily="@font/poppins_bold"
-                        android:padding="8dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingBottom="8dp"
                         android:text="@string/fav_manga"
                         android:textSize="16sp" />
 
@@ -1475,7 +1486,9 @@
                         android:layout_marginStart="24dp"
                         android:layout_weight="1"
                         android:fontFamily="@font/poppins_bold"
-                        android:padding="8dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingBottom="8dp"
                         android:text="@string/planned_manga"
                         android:textSize="16sp" />
 
@@ -1610,7 +1623,9 @@
                         android:layout_marginStart="24dp"
                         android:layout_weight="1"
                         android:fontFamily="@font/poppins_bold"
-                        android:padding="8dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingBottom="8dp"
                         android:text="@string/missing_sequels"
                         android:textSize="16sp" />
 
@@ -1738,7 +1753,9 @@
                         android:layout_marginStart="24dp"
                         android:layout_weight="1"
                         android:fontFamily="@font/poppins_bold"
-                        android:padding="8dp"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingBottom="8dp"
                         android:text="@string/recommended"
                         android:textSize="16sp" />
 
