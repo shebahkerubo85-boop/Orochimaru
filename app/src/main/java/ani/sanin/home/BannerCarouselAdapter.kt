@@ -19,6 +19,7 @@ import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
 import ani.sanin.R
 import ani.sanin.connections.anilist.Anilist
+import ani.sanin.getThemeColor
 import ani.sanin.loadImage
 import ani.sanin.media.Media
 import kotlinx.coroutines.CoroutineScope
@@ -185,7 +186,7 @@ class BannerCarouselAdapter(
             for (genre in media.genres.take(4)) {
                 val chip = TextView(ctx).apply {
                     text = genre
-                    setTextColor(ContextCompat.getColor(ctx, R.color.bg_white))
+                    setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnBackground))
                     textSize = 11f
                     setBackgroundResource(R.drawable.tag_chip_bg)
                     setPadding(

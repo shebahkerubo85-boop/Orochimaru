@@ -52,6 +52,7 @@ import ani.sanin.connections.anilist.AnilistHomeViewModel
 import ani.sanin.connections.anilist.getUserId
 import ani.sanin.currContext
 import ani.sanin.databinding.FragmentHomeBinding
+import ani.sanin.getThemeColor
 import ani.sanin.home.status.UserStatusAdapter
 import ani.sanin.loadImage
 import ani.sanin.media.Media
@@ -1245,7 +1246,7 @@ class HomeFragment : Fragment() {
         val density = ctx.resources.displayMetrics.density
         val chip = TextView(ctx).apply {
             this.text = text
-            setTextColor(ContextCompat.getColor(ctx, R.color.bg_white))
+            setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnBackground))
             textSize = 12f
             setBackgroundResource(R.drawable.tag_chip_bg)
             setPadding(
