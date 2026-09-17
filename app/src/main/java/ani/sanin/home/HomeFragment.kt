@@ -194,9 +194,6 @@ class HomeFragment : Fragment() {
         setupSectionFocusChain()
         applyHomeBannerFocusChain()
         setupHomeBannerWatchBtn()
-        binding.homeContinueReadingContainer.visibility = View.GONE
-        binding.homeFavMangaContainer.visibility = View.GONE
-        binding.homePlannedMangaContainer.visibility = View.GONE
         binding.homeUserChaptersReadRow.visibility = View.GONE
         binding.homeContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             bottomMargin = navBarHeight
@@ -429,10 +426,6 @@ class HomeFragment : Fragment() {
                 && navBannerCurrentMediaId == -1) {
                 updateNavigatingBanner(list[0])
             }
-        }
-
-        binding.homePlannedMangaBrowseButton.setOnClickListener {
-            (requireActivity() as? MainActivity)?.navPillsViewModel?.setTab(2)
         }
 
         initRecyclerView(
