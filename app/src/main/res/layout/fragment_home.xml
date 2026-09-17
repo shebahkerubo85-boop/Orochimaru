@@ -327,8 +327,9 @@
                         android:ellipsize="end"
                         android:fontFamily="@font/poppins"
                         android:lineSpacingExtra="4sp"
-                        android:maxLines="4"
-                        android:textColor="@android:color/white"
+                        android:maxLines="2"
+                        android:maxHeight="44dp"
+                        android:textColor="?attr/colorOnBackground"
                         android:textSize="13sp"
                         android:visibility="gone" />
 
@@ -345,7 +346,7 @@
                         android:paddingHorizontal="16dp"
                         android:paddingVertical="6dp"
                         android:text="@string/watch_now"
-                        android:textColor="@color/bg_white"
+                        android:textColor="?attr/colorOnBackground"
                         android:textSize="12sp"
                         android:visibility="gone"
                         tools:visibility="visible" />
