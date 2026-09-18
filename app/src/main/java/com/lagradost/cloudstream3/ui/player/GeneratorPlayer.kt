@@ -2124,6 +2124,16 @@ class GeneratorPlayer : FullScreenPlayer() {
                     releasePlayer()
                     viewModel.loadThisEpisode(pos)
                 }
+            },
+            onEpisodeDownload = { pos ->
+                val ep = allMeta?.getOrNull(pos)
+                val label = ep?.name?.takeIf { it.isNotBlank() } ?: "Episode ${ep?.episode}"
+                activity?.let { act ->
+                    com.google.android.material.snackbar.Snackbar.make(
+                        requireView(), "Downloads for \"$label\" land with the new engine",
+                        com.google.android.material.snackbar.Snackbar.LENGTH_SHORT
+                    ).show()
+                }
             }
         )
 

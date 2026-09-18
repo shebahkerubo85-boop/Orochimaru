@@ -139,6 +139,19 @@
         android:background="@color/bg"
         android:visibility="gone" />
 
+    <ImageButton
+        android:id="@+id/itemGridDownload"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_gravity="top|start"
+        android:layout_margin="8dp"
+        android:background="@drawable/bg_trans_black"
+        android:src="@drawable/ic_download_24"
+        android:contentDescription="Download"
+        android:focusable="true"
+        android:padding="8dp"
+        app:tint="#82B1FF" />
+
     <ImageView
         android:id="@+id/itemEpisodeViewed"
         android:layout_width="wrap_content"

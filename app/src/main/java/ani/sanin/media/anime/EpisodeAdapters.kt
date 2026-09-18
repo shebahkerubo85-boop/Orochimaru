@@ -533,6 +533,12 @@ class EpisodeAdapter(
                 if (bindingAdapterPosition < arr.size && bindingAdapterPosition >= 0)
                     fragment.onEpisodeClick(arr[bindingAdapterPosition].number)
             }
+            binding.itemCompactDownload.isFocusable = true
+            FocusEffectUtil.applyFocusListener(binding.itemCompactDownload)
+            binding.itemCompactDownload.setOnClickListener {
+                if (bindingAdapterPosition < arr.size && bindingAdapterPosition >= 0)
+                    fragment.openDownloadSheet(arr[bindingAdapterPosition].number)
+            }
         }
     }
 
@@ -545,6 +551,12 @@ class EpisodeAdapter(
             itemView.setOnClickListener {
                 if (bindingAdapterPosition < arr.size && bindingAdapterPosition >= 0)
                     fragment.onEpisodeClick(arr[bindingAdapterPosition].number)
+            }
+            binding.itemGridDownload.isFocusable = true
+            FocusEffectUtil.applyFocusListener(binding.itemGridDownload)
+            binding.itemGridDownload.setOnClickListener {
+                if (bindingAdapterPosition < arr.size && bindingAdapterPosition >= 0)
+                    fragment.openDownloadSheet(arr[bindingAdapterPosition].number)
             }
         }
     }
@@ -559,8 +571,12 @@ class EpisodeAdapter(
                 if (bindingAdapterPosition < arr.size && bindingAdapterPosition >= 0)
                     fragment.onEpisodeClick(arr[bindingAdapterPosition].number)
             }
-            binding.itemDownload.visibility = View.GONE
-            binding.itemDownload.setOnClickListener {}
+            binding.itemDownload.isFocusable = true
+            FocusEffectUtil.applyFocusListener(binding.itemDownload)
+            binding.itemDownload.setOnClickListener {
+                if (bindingAdapterPosition < arr.size && bindingAdapterPosition >= 0)
+                    fragment.openDownloadSheet(arr[bindingAdapterPosition].number)
+            }
             binding.itemDownload.setOnLongClickListener { true }
             binding.itemEpisodeDesc.setOnClickListener {
                 if (binding.itemEpisodeDesc.maxLines == 3)
@@ -571,7 +587,7 @@ class EpisodeAdapter(
         }
 
         fun bind(episodeNumber: String, progress: String?, desc: String?) {
-            binding.itemDownload.visibility = View.GONE
+            binding.itemDownload.visibility = View.VISIBLE
             binding.itemDownloadStatus.visibility = View.GONE
             binding.itemEpisodeDesc.visibility =
                 if (desc != null && desc.trim(' ') != "") View.VISIBLE else View.GONE

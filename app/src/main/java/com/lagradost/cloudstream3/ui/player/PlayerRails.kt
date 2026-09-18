@@ -181,6 +181,7 @@ private class RailTextAdapter(private val rows: MutableList<RailTextRow>) :
 private class EpisodeRailRowAdapter(
     private val episodes: MutableList<ResultEpisode>,
     private val onEpisodeClick: (Int) -> Unit,
+    private val onEpisodeDownload: (Int) -> Unit = {},
 ) : RecyclerView.Adapter<EpisodeRailRowAdapter.Holder>() {
 
     inner class Holder(val binding: ItemEpisodeRailBinding) : RecyclerView.ViewHolder(binding.root)
@@ -204,6 +205,10 @@ private class EpisodeRailRowAdapter(
         FocusEffectUtil.applyFocusListener(binding.root)
 
         binding.episodeRailComment.isVisible = false
+        binding.episodeRailDownload.isVisible = true
+        binding.episodeRailDownload.isFocusable = true
+        FocusEffectUtil.applyFocusListener(binding.episodeRailDownload)
+        binding.episodeRailDownload.setOnClickListener { onEpisodeDownload(position) }
 
         binding.episodeRailNumber.text =
             (episode.episode ?: episode.totalEpisodeIndex).toString()
@@ -254,18 +259,23 @@ class EpisodeRailController(
     private val episodesProvider: () -> List<ResultEpisode>,
     private val currentIndexProvider: () -> Int,
     private val onEpisodeSelected: (Int) -> Unit,
+    private val onEpisodeDownload: (Int) -> Unit = {},
 ) {
     private val episodes = mutableListOf<ResultEpisode>()
     private var currentSeasonKey: String? = null
     /** Full unfiltered list kept for id→globalIndex mapping. */
     private var allEpisodes: List<ResultEpisode> = emptyList()
 
-    private val adapter = EpisodeRailRowAdapter(episodes) { adapterPos ->
+    private val adapter = EpisodeRailRowAdapter(episodes, { adapterPos ->
         // Map adapter position → global index in the full episode list
         val episode = episodes.getOrNull(adapterPos)
         val global = episode?.let { ep -> allEpisodes.indexOfFirst { it.id == ep.id } } ?: adapterPos
         onEpisodeSelected(global)
-    }
+    }, { adapterPos ->
+        val episode = episodes.getOrNull(adapterPos)
+        val global = episode?.let { ep -> allEpisodes.indexOfFirst { it.id == ep.id } } ?: adapterPos
+        onEpisodeDownload(global)
+    })
 
     init {
         recycler.layoutManager = LinearLayoutManager(recycler.context)

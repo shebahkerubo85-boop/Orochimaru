@@ -40,5 +40,16 @@
             android:textColor="?attr/colorOnSurface"
             android:textSize="14sp"
             tools:text="Chapter One" />
+
+        <ImageButton
+            android:id="@+id/tmdbEpisodeDownload"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_download_24"
+            android:contentDescription="Download"
+            android:focusable="true"
+            android:padding="6dp"
+            app:tint="#82B1FF" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

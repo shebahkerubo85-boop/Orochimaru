@@ -706,6 +706,8 @@ class TmdbWatchFragment : Fragment() {
                     snackString("Progress set to $cumulativeEp")
                 }
             }
+        }, { episode ->
+            onEpisodeDownload(episode)
         })
         binding.tmdbWatchRecycler.adapter = episodeAdapter
         // Header is a fixed first item owned by the adapter.
@@ -761,6 +763,13 @@ class TmdbWatchFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private fun onEpisodeDownload(episode: TmdbEpisode) {
+        // Movie/TV rows: resolve path lands with the Container engine (Phase 2).
+        // Until then keep the button honest — no fake enqueue.
+        val label = episode.name?.takeIf { it.isNotBlank() } ?: "Episode ${episode.episodeNumber}"
+        snackString("Downloads for \"$label\" land with the new engine")
     }
 
     private fun onEpisodeClick(episode: TmdbEpisode) {
@@ -1128,7 +1137,8 @@ class TmdbWatchFragment : Fragment() {
         private var style: Int,
         private var items: List<TmdbEpisode>,
         private val onClick: (TmdbEpisode) -> Unit,
-        private val onLongClick: (Int) -> Unit = {}
+        private val onLongClick: (Int) -> Unit = {},
+        private val onDownload: (TmdbEpisode) -> Unit = {}
     ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
         private var header: View? = null
@@ -1205,6 +1215,9 @@ class TmdbWatchFragment : Fragment() {
                     holder.binding.itemMediaProgressCont.isVisible = false
                     holder.binding.itemEpisodeSparkle1.isVisible = false
                     holder.binding.itemEpisodeSparkle2.isVisible = false
+                    holder.binding.itemGridDownload.isVisible = true
+                    holder.binding.itemGridDownload.isFocusable = true
+                    holder.binding.itemGridDownload.setOnClickListener { onDownload(ep) }
                     applyWatchedState(
                         holder.binding.itemEpisodeViewed,
                         holder.binding.itemEpisodeViewedCover,
@@ -1238,7 +1251,9 @@ class TmdbWatchFragment : Fragment() {
                     }
                     loadEpisodeImage(holder.binding.itemMediaImage, image, isWatched)
                     holder.binding.itemMediaProgressCont.isVisible = false
-                    holder.binding.itemDownload.isVisible = false
+                    holder.binding.itemDownload.isVisible = true
+                    holder.binding.itemDownload.isFocusable = true
+                    holder.binding.itemDownload.setOnClickListener { onDownload(ep) }
                     holder.binding.itemDownloadStatus.isVisible = false
                     holder.binding.itemEpisodeSparkle1.isVisible = false
                     holder.binding.itemEpisodeSparkle2.isVisible = false

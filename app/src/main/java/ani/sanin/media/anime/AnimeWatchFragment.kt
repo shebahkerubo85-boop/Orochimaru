@@ -682,8 +682,7 @@ class AnimeWatchFragment : Fragment() {
 
     private var pendingEpisodeClick: String? = null
 
-    fun onEpisodeClick(i: String) {
-        model.continueMedia = false
+    fun onEpisodeClick(i: String) {        model.continueMedia = false
         model.saveSelected(media.id, media.selected!!)
         val sourceName = model.watchSources?.get(media.selected!!.sourceIndex)?.name ?: "?"
         if (media.anime?.episodes == null) {
@@ -693,6 +692,18 @@ class AnimeWatchFragment : Fragment() {
         }
         Logger.log("Watch: episode clicked '$i' source='$sourceName' (idx ${media.selected!!.sourceIndex})")
         model.onEpisodeClick(media, i, requireActivity().supportFragmentManager)
+    }
+
+    fun openDownloadSheet(i: String) {
+        model.saveSelected(media.id, media.selected!!)
+        if (media.anime?.episodes == null) {
+            snackString("Episodes still loading, try again in a moment")
+            return
+        }
+        model.onEpisodeClick(
+            media, i, requireActivity().supportFragmentManager,
+            isDownload = true, episodes = arrayListOf(i)
+        )
     }
 
 

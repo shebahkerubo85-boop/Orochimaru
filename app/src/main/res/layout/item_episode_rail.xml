@@ -9,7 +9,7 @@
     android:layout_marginVertical="4dp"
     android:backgroundTint="#1AFFFFFF"
     android:focusable="true"
-    android:nextFocusRight="@id/episodeRailComment"
+    android:nextFocusRight="@id/episodeRailDownload"
     app:cardBackgroundColor="#1AFFFFFF"
     app:cardCornerRadius="16dp"
     app:cardElevation="0dp">
@@ -107,14 +107,28 @@
         </LinearLayout>
 
         <ImageButton
+            android:id="@+id/episodeRailDownload"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="2dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="Download"
+            android:focusable="true"
+            android:nextFocusLeft="@id/episodeRailCard"
+            android:nextFocusRight="@id/episodeRailComment"
+            android:padding="10dp"
+            android:src="@drawable/ic_download_24"
+            app:tint="#82B1FF" />
+
+        <ImageButton
             android:id="@+id/episodeRailComment"
             android:layout_width="44dp"
             android:layout_height="44dp"
-            android:layout_marginStart="4dp"
+            android:layout_marginStart="2dp"
             android:background="@android:color/transparent"
             android:contentDescription="@string/comments"
             android:focusable="true"
-            android:nextFocusLeft="@id/episodeRailCard"
+            android:nextFocusLeft="@id/episodeRailDownload"
             android:padding="10dp"
             android:src="@drawable/ic_round_comment_24"
             app:tint="#E6FFFFFF" />

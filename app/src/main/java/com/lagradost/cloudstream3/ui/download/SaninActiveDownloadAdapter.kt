@@ -59,7 +59,7 @@ class SaninActiveDownloadAdapter(
         val isDownloading = status == VideoDownloadManager.DownloadType.IsDownloading
         val isPaused = status == VideoDownloadManager.DownloadType.IsPaused
         b.btnPauseResume.text = if (isPaused) "Resume" else "Pause"
-        b.btnPauseResume.setIconResource(if (isPaused) R.drawable.netflix_play else R.drawable.ic_pause_24)
+        b.btnPauseResume.setIconResource(if (isPaused) R.drawable.netflix_play else R.drawable.ic_round_pause_24)
         b.btnPauseResume.setOnClickListener {
             if (isPaused) onResume(item.id) else onPause(item.id)
         }
