@@ -314,12 +314,12 @@ class DownloadFragment : BaseFragment<FragmentDownloadsBinding>(
                 val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
                 startActivity(intent)
             } catch (_: Exception) {
-                showToast(R.string.storage_settings, Toast.LENGTH_SHORT)
+                showToast(R.string.download_manager, Toast.LENGTH_SHORT)
             }
         }
         binding.downloadSearchBtn?.setOnClickListener { showToast(R.string.search, Toast.LENGTH_SHORT) }
         binding.downloadMoreBtn?.setOnClickListener { v ->
-            v.popupMenuNoIcons(listOf(Pair(R.string.sort_by, R.string.sort_by), Pair(R.string.clear_completed, R.string.clear_completed))) { }
+            v.popupMenuNoIcons(listOf(Pair(R.string.sort_by, R.string.sort_by), Pair(R.string.download_manager, R.string.download_manager))) { }
         }
         binding.btnBrowseAnime?.setOnClickListener {
             findNavController().navigate(R.id.navigation_home)
