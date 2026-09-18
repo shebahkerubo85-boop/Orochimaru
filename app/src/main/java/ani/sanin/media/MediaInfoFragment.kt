@@ -144,6 +144,7 @@ class MediaInfoFragment : Fragment() {
         }
 
         model.getMedia().observe(viewLifecycleOwner) { media ->
+            if (_binding == null || !isAdded) return@observe
             if (media != null) {
                 loaded = true
                 infoTimer?.cancel()
@@ -190,6 +191,7 @@ class MediaInfoFragment : Fragment() {
                 binding.mediaInfoTitle.visibility = View.GONE
                 viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
                     var logoUrl = LogoApi.getLogoUrl(media.id)
+                    if (_binding == null || !isAdded) return@launch
                     if (logoUrl.isNullOrBlank()) {
                         // TMDB fallback: search by title, grab clear logo
                         val title = media.userPreferredName ?: media.name
@@ -200,13 +202,16 @@ class MediaInfoFragment : Fragment() {
                                 if (match != null) ani.sanin.connections.tmdb.Tmdb.logoUrl(match.type, match.id) else null
                             }.getOrNull()
                         }
+                        if (_binding == null || !isAdded) return@launch
                     }
-                    if (!logoUrl.isNullOrBlank()) {
-                        binding.mediaInfoLogo.visibility = View.VISIBLE
-                        binding.mediaInfoLogo.loadImage(logoUrl)
-                    } else {
-                        binding.mediaInfoTitle.visibility = View.VISIBLE
-                        binding.mediaInfoTitle.text = media.userPreferredName ?: media.name
+                    _binding?.let { b ->
+                        if (!logoUrl.isNullOrBlank()) {
+                            b.mediaInfoLogo.visibility = View.VISIBLE
+                            b.mediaInfoLogo.loadImage(logoUrl)
+                        } else {
+                            b.mediaInfoTitle.visibility = View.VISIBLE
+                            b.mediaInfoTitle.text = media.userPreferredName ?: media.name
+                        }
                     }
                 }
                 binding.mediaInfoTitle.setOnLongClickListener {
@@ -930,17 +935,22 @@ class MediaInfoFragment : Fragment() {
     }
 
     private fun startAiringTimer(media: Media) {
+        if (_binding == null || !isAdded) return
         val nextTime = media.anime?.nextAiringEpisodeTime ?: return
         val millisUntil = nextTime * 1000 - System.currentTimeMillis()
         if (millisUntil <= 0) {
-            binding.mediaInfoNextTimer.text = getString(R.string.time_format, 0, 0, 0, 0)
+            _binding?.mediaInfoNextTimer?.text = getString(R.string.time_format, 0, 0, 0, 0)
             return
         }
-        binding.mediaInfoNextTimer.visibility = View.VISIBLE
+        _binding?.mediaInfoNextTimer?.visibility = View.VISIBLE
         infoTimer = object : CountDownTimer(millisUntil, 1000) {
             override fun onTick(millis: Long) {
+                if (_binding == null || !isAdded) {
+                    cancel()
+                    return
+                }
                 val a = millis / 1000
-                binding.mediaInfoNextTimer.text = getString(
+                _binding?.mediaInfoNextTimer?.text = getString(
                     R.string.time_format,
                     a / 86400,
                     a % 86400 / 3600,
@@ -950,7 +960,8 @@ class MediaInfoFragment : Fragment() {
             }
 
             override fun onFinish() {
-                binding.mediaInfoNextTimer.text = getString(R.string.time_format, 0, 0, 0, 0)
+                if (_binding == null || !isAdded) return
+                _binding?.mediaInfoNextTimer?.text = getString(R.string.time_format, 0, 0, 0, 0)
             }
         }.start()
     }
