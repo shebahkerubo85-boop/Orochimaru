@@ -177,8 +177,62 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
                 || selectSubtitlesDialog?.isShowing == true
                 || isShowingEpisodeOverlay
 
+    protected open fun populatePauseMetadata() {
+        // Override in GeneratorPlayer to fill title/plot/genres/rating from TMDb
+    }
+
     private fun scheduleMetadataVisibility() {
-        // Metadata overlay removed — use TMDb integration
+        val overlay = view?.findViewById<View>(R.id.exo_pause_overlay) ?: return
+        // TV only — phone never shows pause metadata (matches old behavior)
+        if (isLayout(PHONE)) {
+            if (overlay.isVisible) {
+                overlay.isVisible = false
+                overlay.alpha = 0f
+            }
+            metadataVisibilityToken++
+            return
+        }
+        val ctx = context ?: return
+        if (!ctx.shouldShowPlayerMetadata()) {
+            if (overlay.isVisible) {
+                overlay.isVisible = false
+                overlay.alpha = 0f
+            }
+            metadataVisibilityToken++
+            return
+        }
+        // Movie mode only — series uses episode rail, live uses its own UI
+        if (hasEpisodes) {
+            if (overlay.isVisible) {
+                overlay.animate().alpha(0f).setDuration(300L)
+                    .setInterpolator(AccelerateDecelerateInterpolator())
+                    .withEndAction { overlay.isVisible = false; overlay.alpha = 0f }.start()
+            }
+            metadataVisibilityToken++
+            return
+        }
+        val isPaused = !player.getIsPlaying()
+        val token = ++metadataVisibilityToken
+        if (isPaused) {
+            overlay.postDelayed({
+                if (token != metadataVisibilityToken) return@postDelayed
+                if (overlay.isVisible) return@postDelayed
+                if (player.getIsPlaying()) return@postDelayed
+                if (isDialogOpen()) return@postDelayed
+                populatePauseMetadata()
+                overlay.alpha = 0f
+                overlay.isVisible = true
+                overlay.animate().alpha(1f).setDuration(500L)
+                    .setInterpolator(DecelerateInterpolator()).start()
+                hidePlayerUI()
+            }, 8000L)
+        } else {
+            if (overlay.isVisible) {
+                overlay.animate().alpha(0f).setDuration(300L)
+                    .setInterpolator(AccelerateDecelerateInterpolator())
+                    .withEndAction { overlay.isVisible = false; overlay.alpha = 0f }.start()
+            }
+        }
     }
 
     override fun onDestroyView() {
@@ -1207,6 +1261,11 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
 
     protected fun uiReset() {
         metadataVisibilityToken++
+        view?.findViewById<View>(R.id.exo_pause_overlay)?.let {
+            it.animate().cancel()
+            it.alpha = 0f
+            it.isVisible = false
+        }
         isShowing = false
         toggleEpisodesOverlay(false)
         // if nothing has loaded these buttons should not be visible

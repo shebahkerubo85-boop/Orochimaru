@@ -1389,6 +1389,45 @@ class GeneratorPlayer : FullScreenPlayer() {
         // Metadata overlay removed — use TMDb integration
     }
 
+    override fun populatePauseMetadata() {
+        val root = view ?: return
+        val overlay = root.findViewById<View>(R.id.exo_pause_overlay) ?: return
+        val meta = currentMeta as? com.lagradost.cloudstream3.LoadResponse ?: return
+        // Title
+        root.findViewById<TextView>(R.id.exo_pause_title)?.text = meta.name
+        // Synopsis / plot
+        root.findViewById<TextView>(R.id.exo_pause_synopsis)?.text = meta.plot
+        // Genres as chips — anime style
+        val chipGroup = root.findViewById<com.google.android.material.chip.ChipGroup>(R.id.exo_pause_genres)
+        chipGroup?.let { group ->
+            group.removeAllViews()
+            val tags = (meta.tags ?: emptyList()).filter { it.isNotBlank() }.take(6)
+            val ctx = context ?: return
+            tags.forEach { genre ->
+                val chip = com.google.android.material.chip.Chip(ctx).apply {
+                    text = genre
+                    isClickable = false
+                    isFocusable = false
+                    chipBackgroundColor = android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
+                    chipStrokeColor = android.content.res.ColorStateList.valueOf(0xFF2196F3.toInt())
+                    chipStrokeWidth = ctx.resources.displayMetrics.density
+                    setTextColor(0xFFFFFFFF.toInt())
+                    textSize = 12f
+                }
+                group.addView(chip)
+            }
+        }
+        // Rating — MovieLoadResponse.rating is Int? 0-100, show as "86% ★"
+        val ratingView = root.findViewById<TextView>(R.id.exo_pause_rating)
+        val rating = (meta as? com.lagradost.cloudstream3.MovieLoadResponse)?.rating
+            ?: (meta as? com.lagradost.cloudstream3.AnimeLoadResponse)?.rating
+            ?: (meta as? com.lagradost.cloudstream3.TvSeriesLoadResponse)?.rating
+        ratingView?.text = rating?.let { "$it% ★" } ?: ""
+        ratingView?.isVisible = rating != null
+        // Logo hidden for CS3 (no AniList logo), keep title visible
+        root.findViewById<View>(R.id.exo_pause_logo)?.visibility = View.GONE
+    }
+
     override fun nextEpisode() {
         if (viewModel.hasNextEpisode() == true) {
             isNextEpisode = true

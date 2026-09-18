@@ -120,6 +120,86 @@
             </FrameLayout>
         </FrameLayout>
 
+        <LinearLayout
+            android:id="@+id/exo_pause_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/pause_overlay_bg"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            android:paddingStart="45dp"
+            android:paddingTop="80dp"
+            android:paddingBottom="80dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <FrameLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content">
+
+                    <ImageView
+                        android:id="@+id/exo_pause_logo"
+                        android:layout_width="wrap_content"
+                        android:layout_height="96dp"
+                        android:adjustViewBounds="true"
+                        android:scaleType="fitStart"
+                        android:visibility="gone"
+                        tools:ignore="ContentDescription" />
+
+                    <TextView
+                        android:id="@+id/exo_pause_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/poppins_bold"
+                        android:maxLines="3"
+                        android:singleLine="false"
+                        android:textColor="@android:color/white"
+                        android:textSize="42sp"
+                        tools:text="Movie Title" />
+                </FrameLayout>
+
+                <TextView
+                    android:id="@+id/exo_pause_synopsis"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:alpha="0.85"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/poppins"
+                    android:lineSpacingExtra="4sp"
+                    android:maxLines="6"
+                    android:textColor="@android:color/white"
+                    android:textSize="13sp"
+                    tools:text="Movie synopsis goes here..." />
+
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/exo_pause_genres"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    app:chipSpacingHorizontal="6dp"
+                    app:chipSpacingVertical="-4dp" />
+
+                <TextView
+                    android:id="@+id/exo_pause_rating"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:alpha="0.9"
+                    android:fontFamily="@font/poppins_bold"
+                    android:textColor="#FFD700"
+                    android:textSize="15sp"
+                    tools:text="86% ★" />
+
+            </LinearLayout>
+        </LinearLayout>
+
         <include layout="@layout/drawer_tracks_rail" />
     </FrameLayout>
 
