@@ -181,10 +181,12 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
         // Override in GeneratorPlayer to fill title/plot/genres/rating from TMDb
     }
 
+    protected open fun isMovieMode(): Boolean = !hasEpisodes
+
     private fun scheduleMetadataVisibility() {
         val overlay = view?.findViewById<View>(R.id.exo_pause_overlay) ?: return
-        // TV only — phone never shows pause metadata (matches old behavior)
-        if (isLayout(PHONE)) {
+        // Phone: only block for series, movie needs pause overlay on phone too per user
+        if (isLayout(PHONE) && !isMovieMode()) {
             if (overlay.isVisible) {
                 overlay.isVisible = false
                 overlay.alpha = 0f
@@ -202,7 +204,7 @@ open class FullScreenPlayer : AbstractPlayerFragment<FragmentPlayerBinding>(
             return
         }
         // Movie mode only — series uses episode rail, live uses its own UI
-        if (hasEpisodes) {
+        if (!isMovieMode()) {
             if (overlay.isVisible) {
                 overlay.animate().alpha(0f).setDuration(300L)
                     .setInterpolator(AccelerateDecelerateInterpolator())

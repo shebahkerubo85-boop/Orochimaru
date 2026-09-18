@@ -1426,6 +1426,11 @@ class GeneratorPlayer : FullScreenPlayer() {
         root.findViewById<View>(R.id.exo_pause_logo)?.visibility = View.GONE
     }
 
+    override fun isMovieMode(): Boolean {
+        val meta = currentMeta as? com.lagradost.cloudstream3.LoadResponse
+        return meta?.type?.isMovieType() == true || !hasEpisodes
+    }
+
     override fun nextEpisode() {
         if (viewModel.hasNextEpisode() == true) {
             isNextEpisode = true
