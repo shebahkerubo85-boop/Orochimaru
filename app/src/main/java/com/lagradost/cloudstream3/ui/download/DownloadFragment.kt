@@ -48,8 +48,12 @@ import com.lagradost.cloudstream3.utils.DataStore.getFolderName
 import com.lagradost.cloudstream3.utils.UIHelper.dismissSafe
 import com.lagradost.cloudstream3.utils.UIHelper.fixSystemBarsPadding
 import com.lagradost.cloudstream3.utils.UIHelper.hideKeyboard
+import androidx.navigation.fragment.findNavController
 import com.lagradost.cloudstream3.utils.UIHelper.navigate
+import com.lagradost.cloudstream3.utils.UIHelper.popupMenuNoIcons
 import com.lagradost.cloudstream3.utils.UIHelper.setAppBarNoScrollFlagsOnTV
+import com.lagradost.cloudstream3.utils.downloader.DownloadQueueManager
+import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager
 import java.net.URI
 
 const val DOWNLOAD_NAVIGATE_TO = "downloadpage"
@@ -258,6 +262,106 @@ class DownloadFragment : BaseFragment<FragmentDownloadsBinding>(
         }
 
         context?.let { downloadViewModel.updateHeaderList(it) }
+
+        // --- Sanin redesign: header subtitle + global controls ---
+        observe(downloadViewModel.headerCards) { res ->
+            val headers = (res as? Resource.Success)?.value ?: emptyList()
+            val total = headers.sumOf { it.totalDownloads }
+            binding.completedCount?.text = "$total episodes"
+            updateHeaderSubtitle()
+        }
+        observe(downloadQueueViewModel.childCards) { queue ->
+            val active = queue.currentDownloads.size
+            val total = queue.currentDownloads.size + queue.queue.size
+            binding.activeCount?.text = "$active downloading"
+            updateHeaderSubtitle()
+            // global buttons state
+            val hasActive = queue.currentDownloads.isNotEmpty()
+            val hasPaused = queue.currentDownloads.any { VideoDownloadManager.downloadStatus[it.id] == VideoDownloadManager.DownloadType.IsPaused }
+            binding.btnPauseAll?.isEnabled = hasActive && queue.currentDownloads.any { VideoDownloadManager.downloadStatus[it.id] == VideoDownloadManager.DownloadType.IsDownloading }
+            binding.btnResumeAll?.isEnabled = hasPaused
+            binding.btnPauseAll?.alpha = if (binding.btnPauseAll?.isEnabled == true) 1f else 0.4f
+            binding.btnResumeAll?.alpha = if (binding.btnResumeAll?.isEnabled == true) 1f else 0.4f
+            // empty state
+            val hasAny = total > 0 || (downloadViewModel.headerCards.value as? Resource.Success)?.value?.isNotEmpty() == true
+            binding.emptyState?.isVisible = !hasAny && queue.currentDownloads.isEmpty() && queue.queue.isEmpty()
+            binding.activeSection?.isVisible = queue.currentDownloads.isNotEmpty()
+            binding.queuedSection?.isVisible = queue.queue.isNotEmpty()
+        }
+        binding.btnPauseAll?.setOnClickListener {
+            val q = downloadQueueViewModel.childCards.value ?: return@setOnClickListener
+            q.currentDownloads.forEach { w ->
+                if (VideoDownloadManager.downloadStatus[w.id] == VideoDownloadManager.DownloadType.IsDownloading) {
+                    VideoDownloadManager.downloadEvent.invoke(Pair(w.id, VideoDownloadManager.DownloadActionType.Pause))
+                }
+            }
+        }
+        binding.btnResumeAll?.setOnClickListener {
+            val q = downloadQueueViewModel.childCards.value ?: return@setOnClickListener
+            q.currentDownloads.forEach { w ->
+                if (VideoDownloadManager.downloadStatus[w.id] == VideoDownloadManager.DownloadType.IsPaused) {
+                    VideoDownloadManager.downloadEvent.invoke(Pair(w.id, VideoDownloadManager.DownloadActionType.Resume))
+                } else if (VideoDownloadManager.downloadStatus[w.id] == null) {
+                    // queued but not yet downloading - try resume via queue
+                    val pkg = VideoDownloadManager.getDownloadResumePackage(binding.root.context, w.id)
+                    if (pkg != null) DownloadQueueManager.addToQueue(pkg.toWrapper())
+                }
+            }
+        }
+        binding.storageManageBtn?.setOnClickListener {
+            // reuse existing storage-management: open downloads dir picker
+            try {
+                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+                startActivity(intent)
+            } catch (_: Exception) {
+                showToast(R.string.storage_settings, Toast.LENGTH_SHORT)
+            }
+        }
+        binding.downloadSearchBtn?.setOnClickListener { showToast(R.string.search, Toast.LENGTH_SHORT) }
+        binding.downloadMoreBtn?.setOnClickListener { v ->
+            v.popupMenuNoIcons(listOf(Pair(R.string.sort_by, R.string.sort_by), Pair(R.string.clear_completed, R.string.clear_completed))) { }
+        }
+        binding.btnBrowseAnime?.setOnClickListener {
+            findNavController().navigate(R.id.navigation_home)
+        }
+        // Active / Queued lists setup
+        setupActiveQueuedLists()
+    }
+
+    private fun updateHeaderSubtitle() {
+        val headers = (downloadViewModel.headerCards.value as? Resource.Success)?.value ?: emptyList()
+        val total = headers.sumOf { it.totalDownloads }
+        val active = downloadQueueViewModel.childCards.value?.currentDownloads?.size ?: 0
+        binding?.downloadHeaderSubtitle?.text = "$total downloads • $active active"
+    }
+
+    private fun setupActiveQueuedLists() {
+        val activeAdapter = SaninActiveDownloadAdapter(
+            onPause = { id -> VideoDownloadManager.downloadEvent.invoke(Pair(id, VideoDownloadManager.DownloadActionType.Pause)) },
+            onResume = { id -> VideoDownloadManager.downloadEvent.invoke(Pair(id, VideoDownloadManager.DownloadActionType.Resume)) },
+            onCancel = { id -> DownloadQueueManager.cancelDownload(id) }
+        )
+        binding?.downloadActiveList?.apply {
+            adapter = activeAdapter
+            layoutManager = androidx.recyclerview.widget.LinearLayoutManager(context)
+            setHasFixedSize(false)
+        }
+        val queuedAdapter = SaninQueuedDownloadAdapter(
+            onCancel = { id -> com.lagradost.cloudstream3.utils.downloader.DownloadQueueManager.cancelDownload(id) }
+        )
+        binding?.downloadQueuedList?.apply {
+            adapter = queuedAdapter
+            layoutManager = androidx.recyclerview.widget.LinearLayoutManager(context)
+        }
+        // Completed grid: TV = 4 columns, phone = 2
+        binding?.downloadList?.apply {
+            val span = if (isLayout(TV or EMULATOR)) 4 else 2
+            layoutManager = androidx.recyclerview.widget.GridLayoutManager(context, span)
+        }
+        observe(downloadQueueViewModel.childCards) { q ->
+            activeAdapter.submitList(q.currentDownloads)
+            queuedAdapter.submitList(q.queue)
+        }
     }
 
     private fun handleItemClick(click: DownloadHeaderClickEvent) {

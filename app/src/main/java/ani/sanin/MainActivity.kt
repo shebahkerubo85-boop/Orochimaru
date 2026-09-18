@@ -1021,6 +1021,12 @@ class MainActivity : AppCompatActivity() {
             R.id.rightRailProviders to {
                 startActivity(Intent(this, ani.sanin.settings.ProvidersActivity::class.java))
             },
+            R.id.rightRailDownloads to {
+                supportFragmentManager.beginTransaction()
+                    .replace(R.id.fragmentContainer, com.lagradost.cloudstream3.ui.download.DownloadFragment())
+                    .addToBackStack(null)
+                    .commit()
+            },
             R.id.rightRailSync to {
                 lifecycleScope.launch(Dispatchers.IO) {
                     ani.sanin.connections.syncPendingProgressUpdates()

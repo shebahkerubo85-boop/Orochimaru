@@ -252,7 +252,7 @@
                 android:fontFamily="@font/poppins_bold"
                 android:focusable="true"
                 android:gravity="center_vertical"
-                android:nextFocusDown="@+id/rightRailClearCache"
+                android:nextFocusDown="@+id/rightRailDownloads"
                 android:nextFocusUp="@+id/rightRailSync"
                 android:paddingStart="24dp"
                 android:paddingEnd="24dp"
@@ -260,6 +260,25 @@
                 android:textColor="@android:color/white"
                 android:textSize="15sp"
                 app:drawableStartCompat="@drawable/ic_extension"
+                app:drawableTint="@android:color/white" />
+
+            <TextView
+                android:id="@+id/rightRailDownloads"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:background="?attr/selectableItemBackground"
+                android:drawablePadding="16dp"
+                android:fontFamily="@font/poppins_bold"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:nextFocusDown="@+id/rightRailClearCache"
+                android:nextFocusUp="@+id/rightRailProviders"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:text="Downloads"
+                android:textColor="@android:color/white"
+                android:textSize="15sp"
+                app:drawableStartCompat="@drawable/ic_download_24"
                 app:drawableTint="@android:color/white" />
 
         </LinearLayout>
@@ -275,7 +294,7 @@
         android:fontFamily="@font/poppins_bold"
         android:focusable="true"
         android:gravity="center_vertical"
-        android:nextFocusUp="@+id/rightRailProviders"
+        android:nextFocusUp="@+id/rightRailDownloads"
         android:nextFocusDown="@+id/rightRailLogout"
         android:paddingStart="24dp"
         android:paddingEnd="24dp"

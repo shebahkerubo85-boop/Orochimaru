@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="8dp"
+    app:cardCornerRadius="12dp"
+    app:cardBackgroundColor="?attr/colorSurface"
+    app:cardElevation="1dp"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="10dp"
+        android:gravity="center_vertical">
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="56dp"
+            android:layout_height="78dp"
+            app:cardCornerRadius="6dp"
+            app:cardElevation="0dp">
+
+            <ImageView
+                android:id="@+id/queued_poster"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                tools:src="@drawable/ic_launcher_foreground" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="10dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/queued_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_bold"
+                android:textColor="?attr/white"
+                android:textSize="13sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                tools:text="SOLO LEVELING" />
+
+            <TextView
+                android:id="@+id/queued_episode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins"
+                android:textColor="?attr/white"
+                android:alpha="0.6"
+                android:textSize="11sp"
+                tools:text="Episode 18 • 1080p • 1.1 GB" />
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/btnQueuedMore"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_more_vert_24"
+            android:contentDescription="More"
+            android:focusable="true"
+            app:tint="?attr/white" />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>
