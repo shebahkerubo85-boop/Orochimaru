@@ -108,16 +108,13 @@ internal data class CanvasSaninSplashConfig(
  * Landscape configuration - identical to the previous
  * dedicated landscape splash.
  */
-private val LandscapeConfig = FixedSaninSplashConfig(
+private val LandscapeConfig = CanvasSaninSplashConfig(
     backgroundRes = R.drawable.sanin_splash_background,
     wordmarkRes = R.drawable.sanin_wordmark,
     emblemRes = R.drawable.sanin_emblem,
-    geometry = SaninSplashGeometry(
-        wordmarkOffsetY = (-65).dp,
-        emblemOffsetY = 90.dp,
-        emblemWidth = 230.dp,
-        emblemHeight = 310.dp
-    )
+    // gap + size scale with screen height (was fixed -65dp/90dp/230x310dp)
+    wordmarkCenterY = 0.36f,
+    emblemCenterY = 0.68f
 )
 
 /*
