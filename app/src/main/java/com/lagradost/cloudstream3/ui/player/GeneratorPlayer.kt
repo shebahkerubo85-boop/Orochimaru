@@ -1424,13 +1424,11 @@ class GeneratorPlayer : FullScreenPlayer() {
                 group.addView(chip)
             }
         }
-        // Rating — MovieLoadResponse.rating is Int? 0-100, show as "86% ★"
+        // Rating — use Score (rating is deprecated ERROR)
         val ratingView = root.findViewById<TextView>(R.id.exo_pause_rating)
-        val rating = (meta as? com.lagradost.cloudstream3.MovieLoadResponse)?.rating
-            ?: (meta as? com.lagradost.cloudstream3.AnimeLoadResponse)?.rating
-            ?: (meta as? com.lagradost.cloudstream3.TvSeriesLoadResponse)?.rating
-        ratingView?.text = rating?.let { "$it% ★" } ?: ""
-        ratingView?.isVisible = rating != null
+        val score = meta.score?.toInt(100)
+        ratingView?.text = score?.let { "$it% ★" } ?: ""
+        ratingView?.isVisible = score != null
         // Logo hidden for CS3 (no AniList logo), keep title visible
         root.findViewById<View>(R.id.exo_pause_logo)?.visibility = View.GONE
     }
