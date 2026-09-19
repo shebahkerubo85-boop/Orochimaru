@@ -652,7 +652,6 @@ internal class SaninSegmentedDownloader(
             url = url,
             headers = headers + mapOf("Range" to rangeHeader),
             referer = referer,
-        )
             verify = false,
         )
         when (response.code) {
