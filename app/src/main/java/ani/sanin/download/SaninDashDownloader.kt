@@ -937,7 +937,6 @@ class SaninDashDownloader(
             relativePath = folder,
             displayName = finalName,
             basePath = basePath ?: "",
-            fileLength = bytesDownloaded,
         )
         context.setKey(
             VideoDownloadManager.KEY_DOWNLOAD_INFO,

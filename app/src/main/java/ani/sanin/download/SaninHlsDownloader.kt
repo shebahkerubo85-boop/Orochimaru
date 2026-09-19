@@ -903,7 +903,6 @@ class SaninHlsDownloader(
             relativePath = folder,
             displayName = finalName,
             basePath = basePath ?: "",
-            fileLength = bytesDownloaded,
         )
         context.setKey(
             com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager.KEY_DOWNLOAD_INFO,

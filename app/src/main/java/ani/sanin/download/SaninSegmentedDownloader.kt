@@ -961,7 +961,6 @@ class SaninSegmentedDownloader(
             relativePath = folder,
             displayName = displayName,
             basePath = basePath,
-            fileLength = bytesDownloaded,
         )
         context.setKey(VideoDownloadManager.KEY_DOWNLOAD_INFO, downloadId.toString(), info)
     }
