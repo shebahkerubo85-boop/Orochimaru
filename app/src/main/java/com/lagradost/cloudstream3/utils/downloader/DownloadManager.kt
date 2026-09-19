@@ -18,9 +18,10 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.PendingIntentCompat
 import androidx.core.net.toUri
-import androidx.preference.PreferenceManager
 import com.lagradost.cloudstream3.APIHolder.getApiFromNameNull
 import ani.sanin.BuildConfig
+import java.util.concurrent.ConcurrentHashMap
+import ani.sanin.download.SaninDownloadSupervisor
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
 import com.lagradost.cloudstream3.CommonActivity.showToast
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.removeKey
@@ -112,12 +113,12 @@ const val DOWNLOAD_CHANNEL_DESCRIPT = "The download notification channel"
 
 object VideoDownloadManager {
     fun maxConcurrentDownloads(context: Context): Int =
-        PreferenceManager.getDefaultSharedPreferences(context)
-            ?.getInt(context.getString(R.string.download_parallel_key), 3) ?: 3
+        ani.sanin.settings.saving.PrefManager
+            .getVal(ani.sanin.settings.saving.PrefName.DownloadParallelItems, 3)
 
     private fun maxConcurrentConnections(context: Context): Int =
-        PreferenceManager.getDefaultSharedPreferences(context)
-            ?.getInt(context.getString(R.string.download_concurrent_key), 3) ?: 3
+        ani.sanin.settings.saving.PrefManager
+            .getVal(ani.sanin.settings.saving.PrefName.DownloadConnectionsPerFile, 4)
 
     private val _currentDownloads: MutableStateFlow<Set<Int>> = MutableStateFlow(emptySet())
     val currentDownloads: StateFlow<Set<Int>> = _currentDownloads
@@ -203,7 +204,8 @@ object VideoDownloadManager {
     const val KEY_RESUME_IN_QUEUE = "download_resume_queue_key"
 //    private const val KEY_RESUME_QUEUE_PACKAGES = "download_q_resume"
 
-    val downloadStatus = HashMap<Int, DownloadType>()
+    val downloadStatus: java.util.concurrent.ConcurrentHashMap<Int, DownloadType> =
+        ConcurrentHashMap()
     val downloadStatusEvent = Event<Pair<Int, DownloadType>>()
     val downloadDeleteEvent = Event<Int>()
     val downloadEvent = Event<Pair<Int, DownloadActionType>>()
@@ -1481,7 +1483,7 @@ object VideoDownloadManager {
         tryResume: Boolean = false,
     ): DownloadStatus {
         // no support for these file formats
-        if (link.type == ExtractorLinkType.MAGNET || link.type == ExtractorLinkType.TORRENT || link.type == ExtractorLinkType.DASH) {
+        if (link.type == ExtractorLinkType.MAGNET || link.type == ExtractorLinkType.TORRENT) {
             return DOWNLOAD_INVALID_INPUT
         }
 
@@ -1509,6 +1511,70 @@ object VideoDownloadManager {
                     meta.hlsTotal,
                     meta.bytesPerSecond
                 )
+            }
+        }
+
+        // Phase 2: route Sanin container downloads through the
+        // segmented supervisor. Non-Sanin downloads are completely
+        // unaffected.
+        //
+        // Phase 4.1: extend Sanin routing to cover M3U8 and DASH
+        // links as well. The supervisor itself dispatches to the
+        // format-specific downloader (DIRECT / HLS / DASH) based on
+        // the link type. The link.type guard is now wider so M3U8
+        // and DASH Sanin-marked downloads are not silently
+        // rejected.
+        if (SaninDownloadSupervisor.isSaninDownload(ep.id) &&
+            link.type in ani.sanin.download.SaninDownloadSupervisor.SUPPORTED_LINK_TYPES_PUBLIC
+        ) {
+            val saninItem = DownloadItem(
+                source = source,
+                folder = folder,
+                ep = ep,
+                links = listOf(link),
+            )
+            val reResolver = ani.sanin.download.SaninDownloadBridge
+                .getReResolver(ep.id)
+            val outcome = try {
+                SaninDownloadSupervisor.run(context, saninItem, reResolver)
+            } finally {
+                // Drop the re-resolver after the supervisor finishes
+                // (success or failure): the registry is per-process
+                // and per-download, and re-resolve is only useful
+                // while the download is live.
+                runCatching {
+                    ani.sanin.download.SaninDownloadBridge.clearReResolver(ep.id)
+                }
+            }
+            return when (outcome) {
+                is SaninDownloadSupervisor.Outcome.Success -> DOWNLOAD_SUCCESS
+                is SaninDownloadSupervisor.Outcome.Fallback ->
+                    downloadThing(
+                        context,
+                        link,
+                        name,
+                        folder ?: "",
+                        "mp4",
+                        tryResume,
+                        ep.id,
+                        callback,
+                        parallelConnections = maxConcurrentConnections(context),
+                        minimumSize = (1 shl 20) * 10,
+                    )
+                is SaninDownloadSupervisor.Outcome.Failure -> {
+                    when {
+                        // Failure with resumable state: allow one
+                        // retry so the supervisor can pick up from
+                        // the saved segment state.
+                        outcome.hasResumeState -> DOWNLOAD_PARTIAL_SUCCESS
+                        // Permanent failure: no retry, no advance.
+                        else -> DownloadStatus(
+                            retrySame = false,
+                            tryNext = false,
+                            success = false,
+                        )
+                    }
+                }
             }
         }
 

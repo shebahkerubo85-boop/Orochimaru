@@ -2581,4 +2581,21 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="unlink_anilist">Unlink</string>
     <string name="link_mal">Link MAL</string>
     <string name="unlink_mal">Unlink</string>
+
+    <!-- Download settings -->
+    <string name="settings_download_card_title">Download</string>
+    <string name="settings_download_card_desc">Concurrency, retries and network restrictions</string>
+    <string name="download_section_general">General</string>
+    <string name="download_section_advanced">Advanced</string>
+
+    <string name="download_parallel_items">Parallel downloads</string>
+    <string name="download_parallel_items_desc">How many different items download at the same time</string>
+    <string name="download_connections_per_file">Connections per file</string>
+    <string name="download_connections_per_file_desc">Number of concurrent segment requests per file</string>
+    <string name="download_segment_buffer">Segment buffer</string>
+    <string name="download_segment_buffer_desc">Read/write buffer size used while downloading segments</string>
+    <string name="download_retry_expired_urls">Retry expired URLs</string>
+    <string name="download_retry_expired_urls_desc">Automatically re-resolve 401/403/410 errors using the latest source URL</string>
+    <string name="download_wifi_only">Wi-Fi only</string>
+    <string name="download_wifi_only_desc">Pause downloads when the device is on cellular</string>
 </resources>

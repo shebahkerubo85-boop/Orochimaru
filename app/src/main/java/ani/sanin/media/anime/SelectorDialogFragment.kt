@@ -42,6 +42,7 @@ import ani.sanin.databinding.BottomSheetSelectorBinding
 import ani.sanin.databinding.ItemQualityOptionBinding
 import ani.sanin.databinding.ItemStreamBinding
 import ani.sanin.databinding.ItemUrlBinding
+import ani.sanin.download.SaninDownloadBridge
 import ani.sanin.getThemeColor
 import ani.sanin.hideSystemBars
 import ani.sanin.media.Media
@@ -65,6 +66,7 @@ import ani.sanin.util.customAlertDialog
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.GlassComponent
 import ani.sanin.util.GlassEffectManager
+import com.lagradost.cloudstream3.TvType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -311,6 +313,20 @@ class SelectorDialogFragment : DialogFragment() {
                 fun startEpisodeDownload(episodeName: String, selectedServerName: String,
                                          selectedSubtitles: MutableList<String>,
                                          selectedAudioTracks: MutableList<String>){
+                    val m = media ?: return
+                    val ep = m.anime?.episodes?.getEpisode(episodeName) ?: return
+                    val selectedVideo = ep.selectedVideo
+                    val resolved = ep.extractors
+                        ?.firstOrNull { it.server.name == selectedServerName }
+                        ?.videos
+                        ?.getOrNull(selectedVideo)
+                    if (resolved == null) {
+                        snackString(getString(R.string.stream_selection_empty))
+                        return
+                    }
+                    dispatchAnimeDownload(ep, resolved)
+                    // Subtitle / audio track downloads are intentionally
+                    // ignored in Phase 1; only the selected video is queued.
                 }
 
                 Log.d("AnimeDownloader", "Selected Server for watching: $selected")
@@ -494,6 +510,100 @@ class SelectorDialogFragment : DialogFragment() {
             it.extractors = it.extractors?.toMutableList()
         }
     }
+
+    /**
+     * Resolve the anime context required by the download bridge and
+     * forward the already-resolved [Video] to it. The bridge is the
+     * authoritative queue; this method only translates UI state.
+     */
+    private fun dispatchAnimeDownload(ep: Episode?, video: Video) {
+        val m = media
+        if (m == null || ep == null) {
+            snackString(getString(R.string.stream_selection_empty))
+            return
+        }
+        val sourceName = model.watchSources
+            ?.get(m.selected?.sourceIndex ?: 0)
+            ?.name
+            ?: ""
+        val apiName = if (m.id < 0) {
+            ani.sanin.cloudstream.TmdbStreamResolver.syntheticSourceName(m.id)
+        } else {
+            sourceName
+        }
+        val episodeNumber = ep.number.toIntOrNull()
+            ?: ep.title?.toIntOrNull()
+            ?: 0
+        val serverName = sourceKeyFor(ep, video)
+        val quality = video.quality
+        // Build a re-resolver that, if the resolved URL becomes
+        // invalid while the download is in progress, re-invokes the
+        // existing Sanin single-server pipeline and returns a fresh
+        // URL/headers for the same server. The download id and
+        // identity are unchanged.
+        val reResolver = ani.sanin.download.SaninSegmentedDownloader.UrlReResolver {
+            val currentMedia = media ?: return@UrlReResolver null
+            val selected = currentMedia.selected ?: return@UrlReResolver null
+            val success = model.loadEpisodeSingleVideo(
+                ep,
+                selected,
+                post = false,
+                selectedServerName = serverName,
+            )
+            if (!success) return@UrlReResolver null
+            val extractor = ep.extractors
+                ?.firstOrNull { it.server.name == serverName }
+                ?: return@UrlReResolver null
+            val refreshed = extractor.videos.firstOrNull { v ->
+                quality == null || v.quality == quality
+            } ?: extractor.videos.firstOrNull()
+                ?: return@UrlReResolver null
+            val newReferer = refreshed.file.headers.entries
+                .firstOrNull { it.key.equals("referer", ignoreCase = true) }
+                ?.value.orEmpty()
+            ani.sanin.download.SaninSegmentedDownloader.ReResolved(
+                url = refreshed.file.url,
+                headers = refreshed.file.headers,
+                referer = newReferer,
+            )
+        }
+        val result = SaninDownloadBridge.enqueue(
+            video = video,
+            mediaId = m.id,
+            episodeNumber = episodeNumber,
+            sourceKey = serverName,
+            apiName = apiName,
+            titleName = m.mainName().orEmpty(),
+            currentPoster = m.cover,
+            tvType = tvTypeFor(ep),
+            reResolver = reResolver,
+        )
+        when (result) {
+            is SaninDownloadBridge.Result.Enqueued ->
+                snackString(getString(R.string.download_started))
+            is SaninDownloadBridge.Result.Rejected -> {
+                val msg = when (result.reason) {
+                    SaninDownloadBridge.Result.Reason.UNSUPPORTED_FORMAT_M3U8,
+                    SaninDownloadBridge.Result.Reason.UNSUPPORTED_FORMAT_DASH ->
+                        "Format not supported for download"
+                    SaninDownloadBridge.Result.Reason.INVALID_URL ->
+                        getString(R.string.stream_selection_empty)
+                    SaninDownloadBridge.Result.Reason.ENQUEUE_FAILED ->
+                        getString(R.string.error)
+                }
+                snackString(msg)
+            }
+        }
+    }
+
+    private fun sourceKeyFor(ep: Episode, video: Video): String {
+        val extractor = ep.extractors?.firstOrNull { ext ->
+            ext.videos.any { it === video }
+        }
+        return extractor?.server?.name ?: ep.selectedExtractor ?: ""
+    }
+
+    private fun tvTypeFor(ep: Episode): TvType = TvType.Anime
 
     private inner class ServerPlaceholder(val name: String, val quality: String?, val subDub: String?)
 
@@ -680,7 +790,7 @@ class SelectorDialogFragment : DialogFragment() {
                 }
             }
             binding.urlDownload.setSafeOnClickListener {
-                snackString("Download unavailable")
+                dispatchAnimeDownload(episode, video)
             }
             if (video.format == VideoType.CONTAINER) {
                 binding.urlSize.isVisible = video.size != null

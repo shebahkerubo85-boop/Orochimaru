@@ -388,10 +388,17 @@ enum class PrefName(val data: Pref) {
     Socks5ProxyPort(Pref(Location.Protected, String::class, "")),
     Socks5ProxyUsername(Pref(Location.Protected, String::class, "")),
     Socks5ProxyPassword(Pref(Location.Protected, String::class, "")),
-    
+
     // Login Diagnostics (local only)
     LastLoginTimestamp(Pref(Location.Irrelevant, Long::class, 0L)),
     LoginMethod(Pref(Location.Irrelevant, String::class, "UNKNOWN")),
     LoginAppVersion(Pref(Location.Irrelevant, String::class, "")),
     CalendarListOnly(Pref(Location.General, Boolean::class, false)),
+
+    // Downloads
+    DownloadParallelItems(Pref(Location.General, Int::class, 3)),
+    DownloadConnectionsPerFile(Pref(Location.General, Int::class, 4)),
+    DownloadSegmentBufferKb(Pref(Location.General, Int::class, 64)),
+    DownloadRetryExpiredUrls(Pref(Location.General, Boolean::class, true)),
+    DownloadWifiOnly(Pref(Location.General, Boolean::class, false)),
 }

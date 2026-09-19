@@ -190,6 +190,19 @@ class SettingsActivity : AppCompatActivity() {
                 ),
             ),
         ),
+        SettingsSection(
+            title = getString(R.string.settings_download_card_title),
+            desc = getString(R.string.settings_download_card_desc),
+            iconRes = R.drawable.ic_settings_download,
+            entries = listOf(
+                SectionEntry(
+                    title = getString(R.string.settings_download_card_title),
+                    desc = getString(R.string.settings_download_card_desc),
+                    iconRes = R.drawable.ic_set_download,
+                    onClick = { startActivity(Intent(this, SettingsDownloadsActivity::class.java)) },
+                ),
+            ),
+        ),
     )
 
     override fun onResume() {
