@@ -527,7 +527,7 @@ class SelectorDialogFragment : DialogFragment() {
             ?.name
             ?: ""
         val apiName = if (m.id < 0) {
-            ani.sanin.cloudstream.TmdbStreamResolver.syntheticSourceName(m.id)
+            ani.sanin.cloudstream.TmdbStreamResolver.syntheticSourceName(m.id) ?: ""
         } else {
             sourceName
         }

@@ -5,9 +5,15 @@ import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager
 import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager.DownloadType
 import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager.downloadProgressEvent
+import com.lagradost.cloudstream3.utils.downloader.DownloadFileManagement.getBasePath
 import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager.downloadStatus
+import com.lagradost.cloudstream3.utils.DataStore.getKey
+import com.lagradost.cloudstream3.utils.DataStore.removeKey
+import com.lagradost.cloudstream3.utils.DataStore.setKey
 import com.lagradost.safefile.SafeFile
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -177,11 +183,10 @@ class SaninDashDownloader(
         )
 
         val (baseFile, basePath) = context.getBasePath()
-            ?: return Outcome.Failure("No base path")
-                .also { publishStatus(DownloadType.IsFailed) }
-        val subDir = baseFile.gotoDirectory(folder, createMissingDirectories = true)
-            ?: return Outcome.Failure("Cannot create download folder")
-                .also { publishStatus(DownloadType.IsFailed) }
+        val subDir = baseFile?.gotoDirectory(folder, createMissingDirectories = true)
+            ?: return Outcome.Failure(
+                if (baseFile == null) "No base path" else "Cannot create download folder"
+            ).also { publishStatus(DownloadType.IsFailed) }
         val finalName = "$displayName.mp4"
         cleanupStaleParts(subDir, finalName, state.segments.size)
         if (state.bytesDownloaded == 0L) {
@@ -201,7 +206,7 @@ class SaninDashDownloader(
 
             coroutineScope {
                 batch.forEach { idx ->
-                    kotlinx.coroutines.launch {
+                    launch {
                         // Always read the live persisted state so
                         // an external invalidation (e.g. user
                         // re-resolve) takes effect on the next
@@ -346,7 +351,7 @@ class SaninDashDownloader(
         // it has no BaseURL of its own.
         val mpdBaseUrl = extractBaseUrl(root, baseUri)
         val periodBaseUrl = extractBaseUrl(periodBody, mpdBaseUrl ?: baseUri)
-        val adaptationSetBaseUrl = extractBaseUrl(adaptationSetBody, periodBaseUrl)
+        val adaptationSetBaseUrl = extractBaseUrl(adaptationSetBody, periodBaseUrl ?: baseUri)
         val effectiveBaseUrl = adaptationSetBaseUrl ?: periodBaseUrl ?: baseUri
 
         // Find all Representations and pick the one with the highest
@@ -363,7 +368,7 @@ class SaninDashDownloader(
                 ?.groupValues?.getOrNull(1)?.toLongOrNull() ?: 0L
             val codecs = Regex("""codecs\s*=\s*"([^"]+)"""")
                 .find(attrs)?.groupValues?.getOrNull(1).orEmpty()
-            val repBaseUrl = extractBaseUrl(body, effectiveBaseUrl)
+            val repBaseUrl = extractBaseUrl(body, effectiveBaseUrl ?: baseUri)
             Representation(
                 id = id,
                 bandwidth = bandwidth,
@@ -559,9 +564,7 @@ class SaninDashDownloader(
                 val basePath = base.substringBeforeLast('/')
                 return@runCatching "$basePath/$relative"
             }
-            val baseUri = android.net.Uri.parse(base)
-            val resolved = baseUri.resolve(relative)
-            resolved?.toString() ?: relative
+            java.net.URI(base).resolve(relative).toString()
         }.getOrDefault(relative)
     }
 
@@ -593,7 +596,7 @@ class SaninDashDownloader(
         while (true) {
             when (downloadStatus[downloadId]) {
                 DownloadType.IsPaused -> {
-                    ensureActive()
+                    currentCoroutineContext().ensureActive()
                     delay(250L)
                 }
                 DownloadType.IsStopped, DownloadType.IsFailed -> {
@@ -690,7 +693,7 @@ class SaninDashDownloader(
         var lastError: Throwable? = null
         while (attempt < MAX_SEGMENT_ATTEMPTS) {
             attempt++
-            ensureActive()
+            currentCoroutineContext().ensureActive()
             waitIfPaused()
             SaninConnectionBudget.acquire()
             val outcome = try {
@@ -901,7 +904,7 @@ class SaninDashDownloader(
     private fun publishProgress(state: SaninSegmentState) {
         val completed = state.segments.count { it.completed }
         val total = state.segments.size
-        downloadProgressEvent.invoke(Triple(downloadId, completed, total.toLong()))
+        downloadProgressEvent.invoke(Triple(downloadId, completed.toLong(), total.toLong()))
     }
 
     private fun persistDownloadInfo(

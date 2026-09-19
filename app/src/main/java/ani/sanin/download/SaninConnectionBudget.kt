@@ -17,13 +17,11 @@ object SaninConnectionBudget {
 
     private val semaphore = Semaphore(DEFAULT_PERMITS)
 
-    fun acquire() = semaphore.acquire()
+    suspend fun acquire() = semaphore.acquire()
 
     fun tryAcquire(): Boolean = semaphore.tryAcquire()
 
     fun release() = semaphore.release()
 
     fun availablePermits(): Int = semaphore.availablePermits
-
-    fun isClosed(): Boolean = !semaphore.isNotClosed
 }

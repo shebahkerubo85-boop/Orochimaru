@@ -5,11 +5,17 @@ import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager
 import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager.DownloadType
 import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager.downloadProgressEvent
+import com.lagradost.cloudstream3.utils.downloader.DownloadFileManagement.getBasePath
 import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager.downloadStatus
 import com.lagradost.cloudstream3.utils.M3u8Helper
 import com.lagradost.cloudstream3.utils.M3u8Helper2
+import com.lagradost.cloudstream3.utils.DataStore.getKey
+import com.lagradost.cloudstream3.utils.DataStore.removeKey
+import com.lagradost.cloudstream3.utils.DataStore.setKey
 import com.lagradost.safefile.SafeFile
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -223,11 +229,10 @@ class SaninHlsDownloader(
         )
 
         val (baseFile, basePath) = context.getBasePath()
-            ?: return Outcome.Failure("No base path")
-                .also { publishStatus(DownloadType.IsFailed) }
-        val subDir = baseFile.gotoDirectory(folder, createMissingDirectories = true)
-            ?: return Outcome.Failure("Cannot create download folder")
-                .also { publishStatus(DownloadType.IsFailed) }
+        val subDir = baseFile?.gotoDirectory(folder, createMissingDirectories = true)
+            ?: return Outcome.Failure(
+                if (baseFile == null) "No base path" else "Cannot create download folder"
+            ).also { publishStatus(DownloadType.IsFailed) }
         val finalName = "$displayName.mp4"
         cleanupStaleParts(subDir, finalName, state.segments.size)
         if (state.bytesDownloaded == 0L) {
@@ -247,7 +252,7 @@ class SaninHlsDownloader(
 
             coroutineScope {
                 batch.forEach { idx ->
-                    kotlinx.coroutines.launch {
+                    launch {
                         // Always read the live persisted state so
                         // an external invalidation (e.g. user
                         // re-resolve) takes effect on the next
@@ -500,9 +505,10 @@ class SaninHlsDownloader(
         // Use Android's Uri.resolve for proper relative-URL
         // resolution that handles nested paths correctly.
         return runCatching {
-            val baseUri = android.net.Uri.parse(if (baseDir.endsWith("/")) baseDir else "$baseDir/")
-            val resolved = baseUri.resolve(value)
-            resolved?.toString() ?: "$baseDir/$value"
+            val resolved = java.net.URI(
+                if (baseDir.endsWith("/")) baseDir else "$baseDir/"
+            ).resolve(value)
+            resolved.toString()
         }.getOrDefault("$baseDir/$value")
     }
 
@@ -512,7 +518,7 @@ class SaninHlsDownloader(
         while (true) {
             when (downloadStatus[downloadId]) {
                 DownloadType.IsPaused -> {
-                    ensureActive()
+                    currentCoroutineContext().ensureActive()
                     delay(250L)
                 }
                 DownloadType.IsStopped, DownloadType.IsFailed -> {
@@ -617,7 +623,7 @@ class SaninHlsDownloader(
         var lastError: Throwable? = null
         while (attempt < MAX_SEGMENT_ATTEMPTS) {
             attempt++
-            ensureActive()
+            currentCoroutineContext().ensureActive()
             waitIfPaused()
             SaninConnectionBudget.acquire()
             val outcome = try {
@@ -719,7 +725,7 @@ class SaninHlsDownloader(
      * the 128-bit big-endian representation of `index + 1`.
      */
     private fun computeHlsIv(index: Int): ByteArray {
-        val n = (index + 1).toLong() and 0xFFFFFFFFFFFFFFFFL
+        val n = (index + 1).toLong() and -1L
         return ByteArray(16) { i ->
             val shift = (15 - i) * 8
             ((n shr shift) and 0xFFL).toByte()
@@ -867,7 +873,7 @@ class SaninHlsDownloader(
     private fun publishProgress(state: SaninSegmentState) {
         val completed = state.segments.count { it.completed }
         val total = state.segments.size
-        downloadProgressEvent.invoke(Triple(downloadId, completed, total.toLong()))
+        downloadProgressEvent.invoke(Triple(downloadId, completed.toLong(), total.toLong()))
     }
 
     private fun persistDownloadInfo(

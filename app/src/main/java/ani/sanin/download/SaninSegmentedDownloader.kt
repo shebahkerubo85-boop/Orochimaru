@@ -7,8 +7,13 @@ import com.lagradost.cloudstream3.utils.downloader.DownloadObjects
 import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager
 import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager.DownloadType
 import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager.downloadProgressEvent
+import com.lagradost.cloudstream3.utils.downloader.DownloadFileManagement.getBasePath
 import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager.downloadStatus
+import com.lagradost.cloudstream3.utils.DataStore.getKey
+import com.lagradost.cloudstream3.utils.DataStore.removeKey
+import com.lagradost.cloudstream3.utils.DataStore.setKey
 import com.lagradost.safefile.SafeFile
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -30,7 +35,7 @@ import java.io.OutputStream
  * whether to use this path or fall back to
  * [VideoDownloadManager.downloadThing].
  */
-internal class SaninSegmentedDownloader(
+class SaninSegmentedDownloader(
     private val context: Context,
     private val downloadId: Int,
 ) {
@@ -128,9 +133,10 @@ internal class SaninSegmentedDownloader(
         )
 
         val (baseFile, basePath) = context.getBasePath()
-            ?: return Outcome.Failure("No base path")
-        val subDir = baseFile.gotoDirectory(folder, createMissingDirectories = true)
-            ?: return Outcome.Failure("Cannot create download folder")
+        val subDir = baseFile?.gotoDirectory(folder, createMissingDirectories = true)
+            ?: return Outcome.Failure(
+                if (baseFile == null) "No base path" else "Cannot create download folder"
+            )
         val finalName = "$displayName.$extension"
         cleanupStaleParts(subDir, finalName, state.segments.size)
         // If the state was just created fresh (no existing state or
@@ -233,7 +239,7 @@ internal class SaninSegmentedDownloader(
         while (true) {
             when (downloadStatus[downloadId]) {
                 DownloadType.IsPaused -> {
-                    ensureActive()
+                    currentCoroutineContext().ensureActive()
                     delay(PAUSE_POLL_MS)
                 }
                 DownloadType.IsStopped, DownloadType.IsFailed -> {
@@ -457,7 +463,7 @@ internal class SaninSegmentedDownloader(
             0L
         } else onDisk
         var effectiveStart = segment.startByte + existingOnDisk
-        var resume = SegmentMath.resumeRange(
+        val resume = SegmentMath.resumeRange(
             segmentStart = segment.startByte,
             segmentEnd = segment.endByte,
             resumeAt = effectiveStart,
@@ -479,7 +485,7 @@ internal class SaninSegmentedDownloader(
         var lastExpired = false
         while (attempt < MAX_SEGMENT_ATTEMPTS) {
             attempt++
-            ensureActive()
+            currentCoroutineContext().ensureActive()
             waitIfPaused()
             // Acquire OUTSIDE runCatching so that an exception thrown
             // while waiting for a permit (typically CancellationException
@@ -518,7 +524,7 @@ internal class SaninSegmentedDownloader(
             // Permanent HTTP errors are not retried.
             val permanent = err is PermanentHttpException
             lastError = err
-            logError(err)
+            logError(err ?: Throwable("unknown segment error"))
             if (permanent) break
 
             // Try re-resolving once if the URL is expired AND
@@ -636,7 +642,7 @@ internal class SaninSegmentedDownloader(
     private class PermanentHttpException(msg: String) : IOException(msg)
     private class SegmentCorruptException(msg: String) : IOException(msg)
 
-    private fun fetchRangeToFile(
+    private suspend fun fetchRangeToFile(
         url: String,
         headers: Map<String, String>,
         referer: String,

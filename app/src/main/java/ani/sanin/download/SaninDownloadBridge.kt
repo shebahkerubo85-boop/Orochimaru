@@ -71,7 +71,7 @@ object SaninDownloadBridge {
             append("m=").append(mediaId).append('|')
             append("e=").append(episodeNumber).append('|')
             append("s=").append(sourceKey).append('|')
-            append("q=").append(quality ?: Qualities.Unknown.value)
+            append("q=").append(quality ?: Qualities.Unknown)
         }
         // Combine namespace with the 32-bit FNV-1a hash of the components.
         val hash = fnv1a(components)
@@ -141,7 +141,7 @@ object SaninDownloadBridge {
         val referer = headers.entries.firstOrNull {
             it.key.equals("referer", ignoreCase = true)
         }?.value.orEmpty()
-        val qualityValue = video.quality ?: Qualities.Unknown.value
+        val qualityValue = video.quality ?: Qualities.Unknown
 
         @Suppress("DEPRECATION_ERROR")
         val link = ExtractorLink(
