@@ -3,6 +3,7 @@ package com.lagradost.cloudstream3.utils.downloader
 import android.content.Context
 import android.util.Log
 import androidx.core.content.ContextCompat
+import ani.sanin.util.Logger
 import com.lagradost.cloudstream3.CloudStreamApp
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKeys
@@ -224,6 +225,11 @@ object DownloadQueueManager {
     /** Add a new object to the queue. Will not queue completed downloads or current downloads. */
     fun addToQueue(downloadQueueWrapper: DownloadQueueWrapper) = safe {
         val context = CloudStreamApp.context ?: return@safe
+        Logger.log(
+            "SANIN_QUEUE: addToQueue id=${downloadQueueWrapper.id} " +
+                "links=${downloadQueueWrapper.downloadItem?.links?.size} " +
+                "resume=${downloadQueueWrapper.resumePackage != null}"
+        )
         val fileInfo = getDownloadFileInfo(context, downloadQueueWrapper.id)
         val isComplete = fileInfo != null &&
                 // Assure no division by 0
@@ -231,11 +237,20 @@ object DownloadQueueManager {
                 // If more than 98% downloaded then do not add to queue
                 (fileInfo.fileLength.toFloat() / fileInfo.totalBytes.toFloat()) > 0.98f
         // Do not queue completed files!
-        if (isComplete) return@safe
+        if (isComplete) {
+            Logger.log(
+                "SANIN_QUEUE: skip id=${downloadQueueWrapper.id} already complete " +
+                    "${fileInfo?.fileLength}/${fileInfo?.totalBytes}"
+            )
+            return@safe
+        }
 
         if (add(downloadQueueWrapper)) {
+            Logger.log("SANIN_QUEUE: queued id=${downloadQueueWrapper.id} IsPending, starting service")
             setQueueStatus(downloadQueueWrapper.id, VideoDownloadManager.DownloadType.IsPending)
             startQueueService(context)
+        } else {
+            Logger.log("SANIN_QUEUE: addToQueue id=${downloadQueueWrapper.id} returned false")
         }
     }
 

@@ -2,6 +2,7 @@ package ani.sanin.download
 
 import android.content.Context
 import androidx.core.net.toUri
+import ani.sanin.util.Logger
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.utils.downloader.DownloadObjects
 import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager
@@ -75,6 +76,10 @@ class SaninSegmentedDownloader(
         reResolver: UrlReResolver? = null,
     ): Outcome = withContext(Dispatchers.IO) {
         try {
+            Logger.log(
+                "SANIN_SEG: run id=$downloadId name='$displayName' folder='$folder' " +
+                    "url=${initialUrl.take(160)} parallel=$parallelConnections"
+            )
             runInternal(
                 initialUrl = initialUrl,
                 initialHeaders = initialHeaders,
@@ -109,6 +114,7 @@ class SaninSegmentedDownloader(
 
         var probe = probe(url, headers, referer)
         if (probe == null && reResolver != null) {
+            Logger.log("SANIN_SEG: probe failed at first HEAD, re-resolving")
             // Server may have rejected the very first HEAD probe
             // because of an expired URL. Try to re-resolve before
             // giving up on segmented mode entirely.
@@ -121,8 +127,16 @@ class SaninSegmentedDownloader(
             }
         }
         if (probe == null || probe.totalSize <= 0L || !probe.rangeSupported) {
+            Logger.log(
+                "SANIN_SEG: FALLBACK id=$downloadId probe=${probe?.totalSize} " +
+                    "range=${probe?.rangeSupported} -> not range/stream able"
+            )
             return Outcome.Fallback
         }
+        Logger.log(
+            "SANIN_SEG: range OK id=$downloadId total=${probe.totalSize} " +
+                "range=${probe.rangeSupported}"
+        )
 
         val state = loadOrCreateState(
             url = url,
@@ -134,9 +148,12 @@ class SaninSegmentedDownloader(
 
         val (baseFile, basePath) = context.getBasePath()
         val subDir = baseFile?.gotoDirectory(folder, createMissingDirectories = true)
-            ?: return Outcome.Failure(
-                if (baseFile == null) "No base path" else "Cannot create download folder"
-            )
+            ?: run {
+                Logger.log("SANIN_SEG: FAIL no base path / cannot create folder '$folder'")
+                return Outcome.Failure(
+                    if (baseFile == null) "No base path" else "Cannot create download folder"
+                )
+            }
         val finalName = "$displayName.$extension"
         cleanupStaleParts(subDir, finalName, state.segments.size)
         // If the state was just created fresh (no existing state or
@@ -220,9 +237,11 @@ class SaninSegmentedDownloader(
 
         cleanupParts(subDir, finalName, state.segments.size)
         cleanupAssembling(subDir, finalName)
-        persistDownloadInfo(finalName, folder, basePath)
+        persistDownloadInfo(finalName, folder, basePath, totalBytes = finalSize, bytesDownloaded = finalSize)
+        Logger.log("SANIN_SEG: persistDownloadInfo totalBytes=$finalSize bytesDownloaded=$finalSize id=$downloadId name=$finalName")
         clearState()
         publishStatus(DownloadType.IsDone)
+        Logger.log("SANIN_SEG: DONE id=$downloadId finalSize=$finalSize name=$finalName")
         return Outcome.Success(finalSize)
     }
 
@@ -936,12 +955,13 @@ class SaninSegmentedDownloader(
         perSegmentCorrupt[index] = value
     }
 
-    private fun persistDownloadInfo(displayName: String, folder: String, basePath: String?) {
+    private fun persistDownloadInfo(displayName: String, folder: String, basePath: String?, totalBytes: Long = 0L, bytesDownloaded: Long = 0L) {
         val info = DownloadObjects.DownloadedFileInfo(
-            totalBytes = 0L,
+            totalBytes = totalBytes,
             relativePath = folder,
             displayName = displayName,
             basePath = basePath,
+            fileLength = bytesDownloaded,
         )
         context.setKey(VideoDownloadManager.KEY_DOWNLOAD_INFO, downloadId.toString(), info)
     }

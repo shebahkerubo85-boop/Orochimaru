@@ -10,6 +10,7 @@ import android.os.Build.VERSION.SDK_INT
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import ani.sanin.util.Logger
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.PendingIntentCompat
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.removeKey
@@ -168,7 +169,11 @@ class DownloadQueueService : Service() {
             // Ensure this is up to date to prevent race conditions with MainActivity launches
             setLastError(context)
             // Early return, to prevent waiting for plugins in safe mode
-            if (lastError != null) return@ioSafe
+            if (lastError != null) {
+                Logger.log("SANIN_QUEUE_SERVICE: early return, lastError=$lastError queue blocked")
+                return@ioSafe
+            }
+            Logger.log("SANIN_QUEUE_SERVICE: starting download loop (lastError null)")
 
             // Try to ensure all plugins are loaded before starting the downloader.
             // To prevent infinite stalls we use a timeout of 15 seconds, it is judged as long enough

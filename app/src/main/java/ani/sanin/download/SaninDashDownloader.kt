@@ -1,6 +1,7 @@
 package ani.sanin.download
 
 import android.content.Context
+import ani.sanin.util.Logger
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager
 import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager.DownloadType
@@ -98,6 +99,10 @@ class SaninDashDownloader(
         @Suppress("UNUSED_PARAMETER") reResolver: UrlReResolver? = null,
     ): Outcome = withContext(Dispatchers.IO) {
         try {
+            Logger.log(
+                "SANIN_DASH: run id=$downloadId name='$displayName' folder='$folder' " +
+                    "url=${initialUrl.take(160)} parallel=$parallelConnections"
+            )
             runInternal(
                 initialUrl = initialUrl,
                 initialHeaders = initialHeaders,
@@ -141,16 +146,26 @@ class SaninDashDownloader(
         // because the project does not bundle a standalone DASH
         // manifest library.
         val parsed = parseMpd(mpdText, initialUrl)
-            ?: return Outcome.Unsupported
-                .also { publishStatus(DownloadType.IsFailed) }
+            ?: run {
+                Logger.log("SANIN_DASH: unsupported unparseable MPD id=$downloadId")
+                return Outcome.Unsupported
+                    .also { publishStatus(DownloadType.IsFailed) }
+            }
 
         // 3. Select a single video representation.
         val rep = selectRepresentation(
             reps = parsed.representations,
             fallbackTemplate = parsed.defaultSegmentTemplate,
         )
-            ?: return Outcome.Unsupported
-                .also { publishStatus(DownloadType.IsFailed) }
+            ?: run {
+                Logger.log("SANIN_DASH: unsupported no viable video rep id=$downloadId")
+                return Outcome.Unsupported
+                    .also { publishStatus(DownloadType.IsFailed) }
+            }
+        Logger.log(
+            "SANIN_DASH: parsed ok id=$downloadId reps=${parsed.representations.size} " +
+                "sel=${rep.id} segments=${rep.mediaSegmentUrls.size} init=${rep.initSegmentUrl != null}"
+        )
 
         // 4. Build segment list (init + media).
         val allSegmentUrls = buildList {
@@ -159,6 +174,7 @@ class SaninDashDownloader(
         }
         if (allSegmentUrls.isEmpty()) {
             publishStatus(DownloadType.IsFailed)
+            Logger.log("SANIN_DASH: FAIL no segments in selected representation id=$downloadId")
             return Outcome.Failure("no segments in selected representation")
         }
 
@@ -245,9 +261,11 @@ class SaninDashDownloader(
 
         cleanupParts(subDir, finalName, state.segments.size)
         cleanupAssembling(subDir, finalName)
-        persistDownloadInfo(finalName, folder, basePath)
+        persistDownloadInfo(finalName, folder, basePath, totalBytes = finalSize, bytesDownloaded = finalSize)
+        Logger.log("SANIN_DASH: persistDownloadInfo totalBytes=$finalSize bytesDownloaded=$finalSize id=$downloadId name=$finalName")
         clearState()
         publishStatus(DownloadType.IsDone)
+        Logger.log("SANIN_DASH: DONE id=$downloadId finalSize=$finalSize name=$finalName")
         return Outcome.Success(finalSize)
     }
 
@@ -911,12 +929,15 @@ class SaninDashDownloader(
         finalName: String,
         folder: String,
         basePath: String?,
+        totalBytes: Long = 0L,
+        bytesDownloaded: Long = 0L,
     ) {
         val info = com.lagradost.cloudstream3.utils.downloader.DownloadObjects.DownloadedFileInfo(
-            totalBytes = 0L,
+            totalBytes = totalBytes,
             relativePath = folder,
             displayName = finalName,
             basePath = basePath ?: "",
+            fileLength = bytesDownloaded,
         )
         context.setKey(
             VideoDownloadManager.KEY_DOWNLOAD_INFO,

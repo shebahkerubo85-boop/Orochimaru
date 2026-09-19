@@ -112,6 +112,7 @@ class HomeFragment : Fragment() {
         fun load() {
             Logger.log("Loading HomeFragment")
             if (activity != null && _binding != null) lifecycleScope.launch(Dispatchers.Main) {
+                if (!isAdded || _binding == null) return@launch
                 val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
                 val bannerMode: Int = PrefManager.getVal(PrefName.HomeBannerMode)
                 val isCarouselMode = bannerMode == 0
@@ -613,6 +614,7 @@ class HomeFragment : Fragment() {
                     }
 
                     withContext(Dispatchers.Main) {
+                        if (_binding == null) return@withContext
                         containers.indices.forEach { i ->
                             val show = homeLayoutShow.getOrElse(i) { true }
                             if (show) {
@@ -644,6 +646,7 @@ class HomeFragment : Fragment() {
                     }
 
                     withContext(Dispatchers.Main) {
+                        if (_binding == null) return@withContext
                         model.empty.postValue(empty)
                         binding.homeHiddenItemsContainer.visibility = View.GONE
                     }

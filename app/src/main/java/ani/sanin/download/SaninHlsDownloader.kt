@@ -1,6 +1,7 @@
 package ani.sanin.download
 
 import android.content.Context
+import ani.sanin.util.Logger
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager
 import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager.DownloadType
@@ -122,6 +123,10 @@ class SaninHlsDownloader(
         @Suppress("UNUSED_PARAMETER") reResolver: UrlReResolver? = null,
     ): Outcome = withContext(Dispatchers.IO) {
         try {
+            Logger.log(
+                "SANIN_HLS: run id=$downloadId name='$displayName' folder='$folder' " +
+                    "url=${initialUrl.take(160)} parallel=$parallelConnections"
+            )
             runInternal(
                 initialUrl = initialUrl,
                 initialHeaders = initialHeaders,
@@ -134,6 +139,7 @@ class SaninHlsDownloader(
             throw e
         } catch (e: UnsupportedPlaylistException) {
             publishStatus(DownloadType.IsFailed)
+            Logger.log("SANIN_HLS: unsupported id=$downloadId: ${e.message}")
             Outcome.Unsupported
         } catch (e: Throwable) {
             logError(e)
@@ -174,16 +180,23 @@ class SaninHlsDownloader(
         // ----- Step 2: Reject unsafe playlists. -----
         if (!parsed.hasEndList) {
             publishStatus(DownloadType.IsFailed)
+            Logger.log("SANIN_HLS: unsupported live/event playlist (no ENDLIST) id=$downloadId")
             throw UnsupportedPlaylistException("live / event playlist (no ENDLIST)")
         }
         if (parsed.hasByteRange) {
             publishStatus(DownloadType.IsFailed)
+            Logger.log("SANIN_HLS: unsupported EXT-X-BYTERANGE id=$downloadId")
             throw UnsupportedPlaylistException("playlist uses EXT-X-BYTERANGE (not supported)")
         }
         if (parsed.segmentUrls.isEmpty()) {
             publishStatus(DownloadType.IsFailed)
+            Logger.log("SANIN_HLS: unsupported zero playlist segments id=$downloadId")
             throw UnsupportedPlaylistException("playlist has no media segments")
         }
+        Logger.log(
+            "SANIN_HLS: parsed ok id=$downloadId segments=${parsed.segmentUrls.size} " +
+                "encrypted=${parsed.isEncrypted} byterange=${parsed.hasByteRange}"
+        )
 
         // ----- Step 3: Build the segment list, including the init
         //                segment as segment 0 (so it is downloaded
@@ -291,9 +304,11 @@ class SaninHlsDownloader(
 
         cleanupParts(subDir, finalName, state.segments.size)
         cleanupAssembling(subDir, finalName)
-        persistDownloadInfo(finalName, folder, basePath)
+        persistDownloadInfo(finalName, folder, basePath, totalBytes = finalSize, bytesDownloaded = finalSize)
+        Logger.log("SANIN_HLS: persistDownloadInfo persisted totalBytes=$finalSize fileLength=$finalSize id=$downloadId")
         clearState()
         publishStatus(DownloadType.IsDone)
+        Logger.log("SANIN_HLS: DONE id=$downloadId finalSize=$finalSize name=$finalName")
         return Outcome.Success(finalSize)
     }
 
@@ -880,12 +895,15 @@ class SaninHlsDownloader(
         finalName: String,
         folder: String,
         basePath: String?,
+        totalBytes: Long = 0L,
+        bytesDownloaded: Long = 0L,
     ) {
         val info = com.lagradost.cloudstream3.utils.downloader.DownloadObjects.DownloadedFileInfo(
-            totalBytes = 0L,
+            totalBytes = totalBytes,
             relativePath = folder,
             displayName = finalName,
             basePath = basePath ?: "",
+            fileLength = bytesDownloaded,
         )
         context.setKey(
             com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager.KEY_DOWNLOAD_INFO,

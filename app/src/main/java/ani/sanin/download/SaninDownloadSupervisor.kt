@@ -1,6 +1,7 @@
 package ani.sanin.download
 
 import android.content.Context
+import ani.sanin.util.Logger
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.utils.downloader.DownloadObjects
 import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager
@@ -66,12 +67,19 @@ object SaninDownloadSupervisor {
                 hasResumeState = false,
             )
 
+        Logger.log(
+            "SANIN_SUPERVISOR: run id=${item.ep.id} epNum=${item.ep.episode} " +
+                "type=${link.type} url=${link.url.take(160)}"
+        )
+
         // Accept VIDEO, M3U8, and DASH link types. The format-specific
         // downloader is selected below based on the link type and URL.
         if (link.type !in SUPPORTED_LINK_TYPES_PUBLIC) {
+            Logger.log("SANIN_SUPERVISOR: fallback id=${item.ep.id} unsupported type ${link.type}")
             return@withContext Outcome.Fallback
         }
         if (!link.url.startsWith("http://") && !link.url.startsWith("https://")) {
+            Logger.log("SANIN_SUPERVISOR: fallback id=${item.ep.id} non-http url ${link.url.take(120)}")
             return@withContext Outcome.Fallback
         }
 
@@ -81,6 +89,10 @@ object SaninDownloadSupervisor {
         val parallel = SaninSegmentedDownloader.getDefaultPerFileConnections(context)
         val folder = item.folder ?: ""
         val name = link.name.ifBlank { "download" }
+        Logger.log(
+            "SANIN_SUPERVISOR: start id=$downloadId folder='$folder' name='$name' " +
+                "parallel=$parallel marked=${SaninDownloadMarker.isMarked(downloadId)}"
+        )
 
         // Wi-Fi only: refuse to start the download when the user
         // is on cellular. We classify this as a hard failure with
@@ -89,6 +101,10 @@ object SaninDownloadSupervisor {
         if (SaninDownloadAutoManager.isWifiOnly() &&
             !SaninDownloadAutoManager.isOnWifi(context)
         ) {
+            Logger.log(
+                "SANIN_SUPERVISOR: refused wifi-only id=$downloadId " +
+                    "onWifi=${SaninDownloadAutoManager.isOnWifi(context)}"
+            )
             SaninDownloadMarker.remove(downloadId)
             return@withContext Outcome.Failure(
                 "Wi-Fi only: download paused while on cellular",
@@ -100,6 +116,7 @@ object SaninDownloadSupervisor {
         // downloader. The existing DIRECT / segmented downloader
         // is preserved unchanged for VIDEO-type links.
         val format = detectFormat(link)
+        Logger.log("SANIN_SUPERVISOR: format=$format id=$downloadId")
 
         val result: FormatResult = try {
             when (format) {
@@ -142,14 +159,17 @@ object SaninDownloadSupervisor {
         when (result) {
             is FormatResult.Success -> {
                 SaninDownloadMarker.remove(downloadId)
+                Logger.log("SANIN_SUPERVISOR: SUCCESS id=$downloadId size=${result.finalSize}")
                 Outcome.Success(result.finalSize)
             }
             is FormatResult.Fallback -> {
                 SaninDownloadMarker.remove(downloadId)
+                Logger.log("SANIN_SUPERVISOR: FALLBACK id=$downloadId (will use normal CloudStream path)")
                 Outcome.Fallback
             }
             is FormatResult.Unsupported -> {
                 SaninDownloadMarker.remove(downloadId)
+                Logger.log("SANIN_SUPERVISOR: UNSUPPORTED id=$downloadId reason=${result.reason}")
                 Outcome.Failure(
                     reason = result.reason,
                     hasResumeState = false,
@@ -158,6 +178,10 @@ object SaninDownloadSupervisor {
             is FormatResult.Failure -> {
                 val hasState = hasResumeState(context, downloadId)
                 if (!hasState) SaninDownloadMarker.remove(downloadId)
+                Logger.log(
+                    "SANIN_SUPERVISOR: FAILURE id=$downloadId reason=${result.reason} " +
+                        "expired=${result.expiredUrl} hasResumeState=$hasState"
+                )
                 Outcome.Failure(
                     reason = result.reason,
                     hasResumeState = hasState,

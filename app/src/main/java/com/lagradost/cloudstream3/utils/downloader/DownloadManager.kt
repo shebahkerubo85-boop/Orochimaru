@@ -22,6 +22,7 @@ import com.lagradost.cloudstream3.APIHolder.getApiFromNameNull
 import ani.sanin.BuildConfig
 import java.util.concurrent.ConcurrentHashMap
 import ani.sanin.download.SaninDownloadSupervisor
+import ani.sanin.util.Logger
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
 import com.lagradost.cloudstream3.CommonActivity.showToast
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.removeKey
@@ -1527,6 +1528,10 @@ object VideoDownloadManager {
         if (SaninDownloadSupervisor.isSaninDownload(ep.id) &&
             link.type in ani.sanin.download.SaninDownloadSupervisor.SUPPORTED_LINK_TYPES_PUBLIC
         ) {
+            Logger.log(
+                "SANIN_DLMGR: announcing to supervisor id=${ep.id} epNum=${ep.episode} " +
+                    "name='$name' type=${link.type} url=${link.url.take(120)}"
+            )
             val saninItem = DownloadItem(
                 source = source,
                 folder = folder,

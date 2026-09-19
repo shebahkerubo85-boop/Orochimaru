@@ -2,6 +2,7 @@ package ani.sanin.download
 
 import ani.sanin.parsers.Video
 import ani.sanin.parsers.VideoType
+import ani.sanin.util.Logger
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.isMovieType
 import com.lagradost.cloudstream3.ui.result.ResultEpisode
@@ -123,74 +124,82 @@ object SaninDownloadBridge {
         tvType: TvType,
         reResolver: SaninSegmentedDownloader.UrlReResolver? = null,
     ): Result {
-        // Map the Sanin VideoType to the corresponding ExtractorLinkType
-        // so the supervisor can route to the correct format-specific
-        // downloader. M3U8 and DASH are now supported in Phase 4.
-        val linkType: ExtractorLinkType = when (video.format) {
-            VideoType.M3U8 -> ExtractorLinkType.M3U8
-            VideoType.DASH -> ExtractorLinkType.DASH
-            VideoType.CONTAINER -> ExtractorLinkType.VIDEO
-        }
-
-        val url = video.file.url
-        if (url.isBlank()) {
-            return Result.Rejected(Result.Reason.INVALID_URL)
-        }
-
-        val headers = video.file.headers
-        val referer = headers.entries.firstOrNull {
-            it.key.equals("referer", ignoreCase = true)
-        }?.value.orEmpty()
-        val qualityValue = video.quality ?: Qualities.Unknown
-
-        @Suppress("DEPRECATION_ERROR")
-        val link = ExtractorLink(
-            source = apiName,
-            name = titleName,
-            url = url,
-            referer = referer,
-            quality = qualityValue,
-            type = linkType,
-            headers = headers,
-        )
-
-        val id = buildDownloadId(mediaId, episodeNumber, sourceKey, video.quality)
-        val episode = buildResultEpisode(
-            id = id,
-            episodeNumber = episodeNumber,
-            mediaId = mediaId,
-            poster = currentPoster,
-            apiName = apiName,
-            tvType = tvType,
-        )
-
-        // Reuse the existing CloudStream helper so filename sanitization,
-        // poster fallback, and the isMovie branch mirror the rest of the
-        // queue exactly. Named arguments are deliberate to avoid
-        // accidentally swapping title / api / poster.
-        VideoDownloadManager.getDownloadEpisodeMetadata(
-            episode = episode,
-            titleName = titleName,
-            apiName = apiName,
-            currentPoster = currentPoster,
-            currentIsMovie = tvType.isMovieType(),
-            tvType = tvType,
-        )
-
-        val downloadItem = DownloadObjects.DownloadQueueItem(
-            episode = episode,
-            isMovie = tvType.isMovieType(),
-            resultName = titleName,
-            resultType = tvType,
-            resultPoster = currentPoster,
-            apiName = apiName,
-            resultId = mediaId,
-            resultUrl = "",
-            links = listOf(link),
-            subs = null,
-        )
-
+        var enqueuedId: Int? = null
         return try {
+            Logger.log(
+                "SANIN_BRIDGE: enqueue mediaId=$mediaId ep=$episodeNumber src=$sourceKey " +
+                    "api=$apiName fmt=${video.format} quality=${video.quality} " +
+                    "url=${video.file.url.take(160)}"
+            )
+            // Map the Sanin VideoType to the corresponding ExtractorLinkType
+            // so the supervisor can route to the correct format-specific
+            // downloader. M3U8 and DASH are now supported in Phase 4.
+            val linkType: ExtractorLinkType = when (video.format) {
+                VideoType.M3U8 -> ExtractorLinkType.M3U8
+                VideoType.DASH -> ExtractorLinkType.DASH
+                VideoType.CONTAINER -> ExtractorLinkType.VIDEO
+            }
+
+            val url = video.file.url
+            if (url.isBlank()) {
+                Logger.log("SANIN_BRIDGE: rejected INVALID_URL mediaId=$mediaId ep=$episodeNumber")
+                return Result.Rejected(Result.Reason.INVALID_URL)
+            }
+
+            val headers = video.file.headers
+            val referer = headers.entries.firstOrNull {
+                it.key.equals("referer", ignoreCase = true)
+            }?.value.orEmpty()
+            val qualityValue = video.quality ?: Qualities.Unknown
+
+            @Suppress("DEPRECATION_ERROR")
+            val link = ExtractorLink(
+                source = apiName,
+                name = titleName,
+                url = url,
+                referer = referer,
+                quality = qualityValue,
+                type = linkType,
+                headers = headers,
+            )
+
+            val id = buildDownloadId(mediaId, episodeNumber, sourceKey, video.quality)
+            enqueuedId = id
+            val episode = buildResultEpisode(
+                id = id,
+                episodeNumber = episodeNumber,
+                mediaId = mediaId,
+                poster = currentPoster,
+                apiName = apiName,
+                tvType = tvType,
+            )
+
+            // Reuse the existing CloudStream helper so filename sanitization,
+            // poster fallback, and the isMovie branch mirror the rest of the
+            // queue exactly. Named arguments are deliberate to avoid
+            // accidentally swapping title / api / poster.
+            VideoDownloadManager.getDownloadEpisodeMetadata(
+                episode = episode,
+                titleName = titleName,
+                apiName = apiName,
+                currentPoster = currentPoster,
+                currentIsMovie = tvType.isMovieType(),
+                tvType = tvType,
+            )
+
+            val downloadItem = DownloadObjects.DownloadQueueItem(
+                episode = episode,
+                isMovie = tvType.isMovieType(),
+                resultName = titleName,
+                resultType = tvType,
+                resultPoster = currentPoster,
+                apiName = apiName,
+                resultId = mediaId,
+                resultUrl = "",
+                links = listOf(link),
+                subs = null,
+            )
+
             // Mark this id as a Sanin download so the queue service
             // routes it through the Phase 2 supervisor. Marker is
             // cleared by the supervisor on success / fallback.
@@ -208,10 +217,17 @@ object SaninDownloadBridge {
                 )
             }
             DownloadQueueManager.addToQueue(downloadItem.toWrapper())
+            Logger.log("SANIN_BRIDGE: enqueued id=$id linkType=$linkType")
             Result.Enqueued(id)
-        } catch (_: Throwable) {
-            SaninDownloadMarker.remove(id)
-            reResolvers.remove(id)
+        } catch (t: Throwable) {
+            Logger.log(
+                "SANIN_BRIDGE: enqueue FAILED mediaId=$mediaId ep=$episodeNumber " +
+                    "src=$sourceKey: ${t.message}"
+            )
+            enqueuedId?.let { enqueued ->
+                runCatching { SaninDownloadMarker.remove(enqueued) }
+                reResolvers.remove(enqueued)
+            }
             Result.Rejected(Result.Reason.ENQUEUE_FAILED)
         }
     }
