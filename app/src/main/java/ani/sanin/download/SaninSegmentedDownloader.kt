@@ -463,12 +463,11 @@ class SaninSegmentedDownloader(
             0L
         } else onDisk
         var effectiveStart = segment.startByte + existingOnDisk
-        val resume = SegmentMath.resumeRange(
+        var resume = SegmentMath.resumeRange(
             segmentStart = segment.startByte,
             segmentEnd = segment.endByte,
             resumeAt = effectiveStart,
-        )
-        if (resume == null) {
+        ) ?: run {
             markCompleted(segment)
             return@coroutineScope SegmentOutcome.Ok
         }
