@@ -485,7 +485,7 @@ class SubtitleRailController(
     /** Toggle the search-in-progress state and refresh the rail. */
     fun setSearchingOnline(searching: Boolean) {
         val stateChanged = searchingOnline != searching
-        android.util.Log.d("CS3SubSearch","setSearchingOnline searching=$searching stateChanged=$stateChanged lastFocused=$lastFocusedPosition childCount=${recycler.childCount} focused=${recycler.findFocus()?.let{it::class.simpleName+\"#\"+recycler.getChildAdapterPosition(it)}} drawerOpen=${drawer.isDrawerOpen(content)}")
+        android.util.Log.d("CS3SubSearch","setSearchingOnline searching=$searching stateChanged=$stateChanged lastFocused=$lastFocusedPosition childCount=${recycler.childCount} focused=${recycler.findFocus()?.let{it::class.simpleName+"#"+recycler.getChildAdapterPosition(it)}} drawerOpen=${drawer.isDrawerOpen(content)}")
         // Remember where the user was before we destroy the list.
         if (stateChanged && searching) {
             var found = false
@@ -496,7 +496,7 @@ class SubtitleRailController(
                     // child may be the card root or its parent — try find containing child
                     val actualPos = if (pos >= 0) pos else {
                         var v: android.view.View? = recycler.findFocus()
-                        var p = android.util.Log.d("CS3SubSearch","hasFocus child $i pos=$pos focus=${v?.javaClass?.simpleName}")
+                        android.util.Log.d("CS3SubSearch","hasFocus child $i pos=$pos focus=${v?.javaClass?.simpleName}")
                         var pp = -1
                         while (v != null && v != recycler) {
                             pp = recycler.getChildAdapterPosition(v)
