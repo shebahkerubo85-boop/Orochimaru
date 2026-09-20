@@ -3557,6 +3557,11 @@ class ExoplayerView :
         return "ext_sub_${index}_${normalizedLanguage}_${normalizedUrlTail}"
     }
 
+    fun selectExistingSubByLabel(label: String) {
+        Logger.log("selectExistingSubByLabel: label=$label")
+        selectSubtitleTrack(label, label)
+    }
+
     private fun selectSubtitleTrack(langCode: String, targetLabel: String? = null) {
         android.util.Log.d("ExoplayerView", "selectSubtitleTrack: Looking for lang=$langCode, targetLabel=$targetLabel")
         Logger.log("selectSubtitleTrack: lang=$langCode, targetLabel=$targetLabel")

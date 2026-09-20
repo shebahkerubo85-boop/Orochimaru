@@ -366,13 +366,17 @@ class SubtitleRailController(
     }
 
     private fun selectServerSub(media: Media, episode: Episode, prefKey: String, index: Int, language: String) {
+        Logger.log("SubtitleRail selectServerSub: lang=$language idx=$index ep=${episode.number}")
         PrefManager.setCustomVal(prefKey, language)
         episode.selectedSubtitle = index
         model.setEpisode(episode, "Subtitle")
+        // Actually switch Exo track — was only saving index, so highlight showed but track never rendered
+        activity.selectExistingSubByLabel(language)
         close()
     }
 
     private fun selectRemoteSub(media: Media, episode: Episode, prefKey: String, ex: VideoExtractor, sub: Subtitle) {
+        Logger.log("SubtitleRail selectRemoteSub: lang=${sub.language} server=${ex.server.name} url=${sub.file.url}")
         val stremioSub = StremioSub(
             id = sub.file.url,
             url = sub.file.url,
@@ -409,6 +413,7 @@ class SubtitleRailController(
     }
 
     private fun selectLocal(media: Media, prefKey: String, item: Subtitle) {
+        Logger.log("SubtitleRail selectLocal: lang=${item.language} url=${item.file.url}")
         PrefManager.setCustomVal(prefKey, item.language)
         activity.reApplyLocalSubtitle(item.file.url)
         close()
