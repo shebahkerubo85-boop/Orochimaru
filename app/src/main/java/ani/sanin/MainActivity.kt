@@ -125,7 +125,7 @@ class MainActivity : AppCompatActivity() {
         0 -> if (isAnimeMode()) HomeFragment() else TmdbHomeFragment()
         1 -> if (isAnimeMode()) AnimeFragment() else TmdbDiscoveryFragment()
         2 -> if (isAnimeMode()) DiscoveryFragment() else TmdbDiscoveryFragment()
-        3 -> LibraryFragment()
+        3 -> if (isAnimeMode()) LibraryFragment() else TmdbLibraryFragment()
         else -> if (isAnimeMode()) HomeFragment() else TmdbHomeFragment()
     }
 
