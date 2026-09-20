@@ -4802,6 +4802,27 @@ class ExoplayerView :
             backPressTime = now
             return true
         }
+        // Rails must close on back before controller/exit — fixes subtitle rail persisting
+        if (this::subtitleDrawerContent.isInitialized && binding.root.isDrawerOpen(subtitleDrawerContent)) {
+            Logger.log("Player handleBackPress: closing subtitle rail")
+            binding.root.closeDrawer(subtitleDrawerContent)
+            exoSubtitle.requestFocus()
+            backPressTime = now
+            return true
+        }
+        if (this::episodeDrawerContent.isInitialized && episodeDrawer.isDrawerOpen(episodeDrawerContent)) {
+            Logger.log("Player handleBackPress: closing episode rail")
+            episodeDrawer.closeDrawer(episodeDrawerContent)
+            episodeTitleBtn.requestFocus()
+            backPressTime = now
+            return true
+        }
+        if (this::tracksDrawerContent.isInitialized && trackRailController?.isOpen() == true) {
+            Logger.log("Player handleBackPress: closing tracks rail")
+            closeTracksRail()
+            backPressTime = now
+            return true
+        }
         if (pauseOverlay.visibility == View.VISIBLE) {
             pauseOverlay.visibility = View.GONE
             if (!playerView.isControllerFullyVisible) playerView.showController()
@@ -5050,6 +5071,24 @@ class ExoplayerView :
                 }
             }
         }
+        // Subtitle rail: DPAD left/right and BACK must close it — was missing, so
+        // BACK fell through to hideController/exit and rail persisted on Hisilicon.
+        if (this::subtitleDrawerContent.isInitialized && binding.root.isDrawerOpen(subtitleDrawerContent)) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                        binding.root.closeDrawer(subtitleDrawerContent)
+                    }
+                    return true
+                }
+                KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
+                    if (event.action == KeyEvent.ACTION_DOWN) {
+                        binding.root.closeDrawer(subtitleDrawerContent)
+                    }
+                    return true
+                }
+            }
+        }
         // DPAD left dismisses the episode rail / comments panel. Consume both
         // DOWN and UP so the event never falls through to the player-level
         // left-skip handling (which would jump back an episode).
@@ -5071,14 +5110,33 @@ class ExoplayerView :
             }
             return true
         }
+        // Episode/subtitle rails: trap DPAD_RIGHT so focus doesn't leak to media buttons behind the rail
+        if (event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT &&
+            (episodeDrawer.isDrawerOpen(episodeDrawerContent) ||
+                binding.root.isDrawerOpen(subtitleDrawerContent) ||
+                trackRailController?.isOpen() == true)
+        ) {
+            // Let RecyclerView handle right internally if possible, otherwise consume
+            val focused = currentFocus
+            val next = focused?.focusSearch(View.FOCUS_RIGHT)
+            if (next == null || !isDescendantOf(next, episodeDrawerContent) && !isDescendantOf(next, subtitleDrawerContent) && !isDescendantOf(next, tracksDrawerContent)) {
+                return true
+            }
+        }
         if (event.action == KeyEvent.ACTION_DOWN) {
             when (event.keyCode) {
                 KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
-                    if (episodeDrawer.isDrawerOpen(episodeDrawerContent)) {
+                    if (binding.root.isDrawerOpen(subtitleDrawerContent)) {
+                        binding.root.closeDrawer(subtitleDrawerContent)
+                        return true
+                    } else if (episodeDrawer.isDrawerOpen(episodeDrawerContent)) {
                         episodeDrawer.closeDrawer(episodeDrawerContent)
                         return true
                     } else if (episodeCommentPanel.visibility == View.VISIBLE) {
                         closeEpisodeCommentPanel(returnToRail = true)
+                        return true
+                    } else if (trackRailController?.isOpen() == true) {
+                        closeTracksRail()
                         return true
                     }
                 }
@@ -5103,9 +5161,38 @@ class ExoplayerView :
                             isDescendantOf(focused, tracksDrawerContent) ||
                             isDescendantOf(focused, episodeCommentPanel)
                         if (!insideRail) {
-                            // Focus escaped the rail — consume to prevent leaking
+                            // Focus escaped the rail (fast DPAD down swallows focus below screen)
+                            // — recover it instead of just swallowing the event.
+                            Logger.log("Player rail focus escaped on ${if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP) "UP" else "DOWN"}, refocusing")
+                            val target: View? = when {
+                                subOpen -> subtitleDrawerList.findViewHolderForAdapterPosition(0)?.itemView ?: subtitleDrawerClose
+                                epOpen -> {
+                                    val lm = episodeDrawerList.layoutManager as? LinearLayoutManager
+                                    val pos = lm?.findFirstVisibleItemPosition()?.coerceAtLeast(0) ?: 0
+                                    episodeDrawerList.findViewHolderForAdapterPosition(pos)?.itemView ?: episodeDrawerClose
+                                }
+                                commentOpen -> episodeCommentList.findViewHolderForAdapterPosition(0)?.itemView ?: episodeCommentClose
+                                tracksOpen -> tracksDrawerList.findViewHolderForAdapterPosition(0)?.itemView ?: tracksDrawerClose
+                                else -> null
+                            }
+                            target?.post { target.requestFocus() }
                             return true
                         }
+                    } else if (event.action == KeyEvent.ACTION_DOWN) {
+                        // No focused view at all (focus swallowed) — restore to rail
+                        Logger.log("Player rail no focus on ${if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP) "UP" else "DOWN"}, restoring")
+                        when {
+                            subOpen -> subtitleRailController?.focusFirst() ?: subtitleDrawerClose.requestFocus()
+                            epOpen -> {
+                                val lm = episodeDrawerList.layoutManager as? LinearLayoutManager
+                                val pos = lm?.findFirstVisibleItemPosition()?.coerceAtLeast(0) ?: 0
+                                episodeDrawerList.findViewHolderForAdapterPosition(pos)?.itemView?.requestFocus()
+                                    ?: episodeDrawerClose.requestFocus()
+                            }
+                            commentOpen -> episodeCommentClose.requestFocus()
+                            tracksOpen -> tracksDrawerClose.requestFocus()
+                        }
+                        return true
                     }
                 }
                 return false
