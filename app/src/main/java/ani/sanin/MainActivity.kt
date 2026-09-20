@@ -123,10 +123,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun getFragmentForTab(index: Int): Fragment = when (index) {
         0 -> if (isAnimeMode()) HomeFragment() else TmdbHomeFragment()
-        // Library & Discovery unified to anime-mode UI — movie variants (TmdbLibraryFragment /
-        // TmdbDiscoveryFragment) had divergent layouts and broken dpad chains. Fix once.
-        1 -> AnimeFragment()
-        2 -> DiscoveryFragment()
+        1 -> if (isAnimeMode()) AnimeFragment() else TmdbDiscoveryFragment()
+        2 -> if (isAnimeMode()) DiscoveryFragment() else TmdbDiscoveryFragment()
         3 -> LibraryFragment()
         else -> if (isAnimeMode()) HomeFragment() else TmdbHomeFragment()
     }
