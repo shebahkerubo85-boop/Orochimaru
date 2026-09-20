@@ -25,10 +25,20 @@ class SaninGlideApp : AppGlideModule() {
     override fun applyOptions(context: Context, builder: GlideBuilder) {
         super.applyOptions(context, builder)
         val diskCacheSizeBytes = 1024 * 1024 * 100 // 100 MiB
-        val memoryCacheSizeBytes = 1024 * 1024 * 50 // 50 MiB
+        // Scale memory cache: 50 MiB on 4 GB+ devices, 20 MiB on 2 GB devices.
+        // On low-RAM devices the old 50 MiB cache combined with simultaneous section
+        // loads in HomeFragment caused OOM kills (no crash screen, just process exit).
+        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE)
+            as? android.app.ActivityManager
+        val totalMemMb = (activityManager?.memoryInfo?.totalMem ?: 0L) / (1024 * 1024)
+        val memoryCacheSizeBytes = when {
+            totalMemMb >= 4096 -> 1024L * 1024 * 50  // 50 MiB
+            totalMemMb >= 3072 -> 1024L * 1024 * 35  // 35 MiB
+            else               -> 1024L * 1024 * 20  // 20 MiB for ≤2 GB devices
+        }
         builder.apply {
             setDiskCache(InternalCacheDiskCacheFactory(context, "img", diskCacheSizeBytes.toLong()))
-            setMemoryCache(LruResourceCache(memoryCacheSizeBytes.toLong()))
+            setMemoryCache(LruResourceCache(memoryCacheSizeBytes))
         }
     }
 
