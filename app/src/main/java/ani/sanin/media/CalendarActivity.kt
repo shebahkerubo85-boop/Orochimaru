@@ -267,27 +267,43 @@ class CalendarActivity : AppCompatActivity() {
                 gravity = Gravity.CENTER
                 typeface = Typeface.create(resources.getFont(R.font.poppins_bold), Typeface.BOLD)
                 layoutParams = LinearLayout.LayoutParams(dpToPx(36), dpToPx(36)).apply { topMargin = dpToPx(2) }
-                when {
-                    isSel -> {
-                        setTextColor(onPrimary)
-                        setBackgroundResource(R.drawable.bg_calendar_day_selected)
-                    }
-                    isToday -> {
-                        setTextColor(onPrimary)
-                        setBackgroundResource(R.drawable.bg_calendar_day_today)
-                    }
-                    else -> {
-                        setTextColor(onSurface)
-                        setBackgroundColor(0)
-                        alpha = 0.5f
-                    }
-                }
+                isFocusable = true
+                isFocusableInTouchMode = true
+                id = View.generateViewId()
+                setBackgroundResource(R.drawable.bg_calendar_day)
+                isSelected = isSel
+                isActivated = isToday
+                setTextColor(if (isSel || isToday) onPrimary else onSurface)
+                alpha = if (isSel || isToday) 1f else 0.5f
             }
+            // Round focus ring for dpad navigation (was invisible while moving 24→25)
+            // Use circular border so oval bg gets a proper ring while traversing
+            FocusEffectUtil.applyFocusListener(numTv, numTv, isCircular = true)
 
             col.addView(nameTv)
             col.addView(numTv)
             col.setOnClickListener { selectDay(iso) }
             strip.addView(col)
+        }
+        // Wire dpad: left/right between dates, up→week nav, down→episodes
+        for (i in 0 until strip.childCount) {
+            val colView = strip.getChildAt(i) as? LinearLayout ?: continue
+            val tv = colView.getChildAt(1) as? TextView ?: continue
+            val prevId = (strip.getChildAt((i - 1 + 7) % 7) as? LinearLayout)?.getChildAt(1)?.id ?: View.NO_ID
+            val nextId = (strip.getChildAt((i + 1) % 7) as? LinearLayout)?.getChildAt(1)?.id ?: View.NO_ID
+            tv.nextFocusLeftId = prevId
+            tv.nextFocusRightId = nextId
+            tv.nextFocusUpId = R.id.calendarPrevWeek
+            tv.nextFocusDownId = R.id.calendarDayEpisodes
+        }
+        // Focus first selected or today for TV entry
+        strip.post {
+            for (i in 0 until strip.childCount) {
+                val tv = (strip.getChildAt(i) as? LinearLayout)?.getChildAt(1) as? TextView
+                if (tv?.isSelected == true) { tv.requestFocus(); return@post }
+            }
+            // fallback to today
+            (strip.getChildAt(0) as? LinearLayout)?.getChildAt(1)?.requestFocus()
         }
     }
 

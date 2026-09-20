@@ -114,6 +114,14 @@ class LibraryFragment : Fragment() {
         }
 
         TvKeyboardUtil.setupTvInput(binding.searchViewText)
+        // Fix dpad chain: settings/search/avatar → tabs → pager grid.
+        // XML already sets nextFocusDown to tabLayout, but ensure avatar bar is reachable.
+        binding.listSettings.nextFocusDownId = R.id.listTabLayout
+        binding.searchBar.nextFocusDownId = R.id.listTabLayout
+        binding.listAvatar.nextFocusDownId = R.id.listTabLayout
+        binding.listTabLayout.nextFocusUpId = R.id.searchBar
+        binding.listTabLayout.nextFocusDownId = R.id.listViewPager
+        binding.listViewPager.nextFocusUpId = R.id.listTabLayout
         // Tapping the pill's padding (outside the field) still routes focus to
         // the input so the keyboard comes up on both touch and dpad.
         binding.searchBar.setOnClickListener { binding.searchViewText.requestFocus() }
