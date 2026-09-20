@@ -5183,6 +5183,42 @@ class ExoplayerView :
                             target?.post { target.requestFocus() }
                             return true
                         }
+                        // Bottom→top wrap fix: at last rail item, DPAD_DOWN would wrap to top
+                        // via framework focusSearch. Instead consume and scroll so it feels like scrolling.
+                        if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                            val rv: RecyclerView? = when {
+                                subOpen && isDescendantOf(focused, subtitleDrawerContent) -> subtitleDrawerList
+                                epOpen && isDescendantOf(focused, episodeDrawerContent) -> episodeDrawerList
+                                commentOpen && isDescendantOf(focused, episodeCommentPanel) -> episodeCommentList
+                                tracksOpen && isDescendantOf(focused, tracksDrawerContent) -> tracksDrawerList
+                                else -> null
+                            }
+                            if (rv != null) {
+                                var v: View? = focused
+                                var pos = RecyclerView.NO_POSITION
+                                while (v != null && v != rv) {
+                                    pos = rv.getChildAdapterPosition(v)
+                                    if (pos != RecyclerView.NO_POSITION) break
+                                    v = (v.parent as? View)
+                                }
+                                if (pos != RecyclerView.NO_POSITION) {
+                                    val last = (rv.adapter?.itemCount ?: 0) - 1
+                                    if (pos == last) {
+                                        // Already at bottom — scroll a bit for feedback but don't wrap
+                                        Logger.log("Player rail at bottom, DPAD_DOWN consumed to prevent wrap to top")
+                                        if (rv.canScrollVertically(1)) rv.smoothScrollBy(0, 80)
+                                        return true
+                                    }
+                                    // If next item not laid out yet, RecyclerView wasn't scrolling.
+                                    // Manually scroll so DPAD feels like smooth scrolling, not jump.
+                                    val lm = rv.layoutManager as? LinearLayoutManager
+                                    val lastVisible = lm?.findLastVisibleItemPosition() ?: -1
+                                    if (pos >= lastVisible && rv.canScrollVertically(1)) {
+                                        rv.smoothScrollToPosition((pos + 1).coerceAtMost(last))
+                                    }
+                                }
+                            }
+                        }
                     } else if (event.action == KeyEvent.ACTION_DOWN) {
                         // No focused view at all (focus swallowed) — restore to rail
                         Logger.log("Player rail no focus on ${if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP) "UP" else "DOWN"}, restoring")
