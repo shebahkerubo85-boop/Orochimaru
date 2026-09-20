@@ -114,6 +114,9 @@ object SubscreenBuilder {
                     }
                     sTitle.setOnClickListener { sToggle.isChecked = !sToggle.isChecked }
                     sDesc.setOnClickListener { sToggle.isChecked = !sToggle.isChecked }
+                    // D-pad center on TV sends click to the focused parent view;
+                    // without this, toggles don't react to ENTER at all.
+                    switchView.setOnClickListener { sToggle.isChecked = !sToggle.isChecked }
                     if (entry.onLongClick != null) {
                         switchView.setOnLongClickListener { entry.onLongClick!!.invoke(); true }
                     }
