@@ -65,7 +65,8 @@ class CloudStreamSettingsActivity : AppCompatActivity() {
                 object : FragmentManager.FragmentLifecycleCallbacks() {
                     override fun onFragmentResumed(fm: FragmentManager, f: Fragment) {
                         if (f is com.google.android.material.bottomsheet.BottomSheetDialogFragment) {
-                            val sheet = f.dialog?.findViewById<com.google.android.material.bottomsheet.BottomSheetBehavior<*>>(com.google.android.material.R.id.design_bottom_sheet)
+                            val sheetView = f.dialog?.findViewById<android.view.View>(com.google.android.material.R.id.design_bottom_sheet)
+                            val sheet = sheetView?.let { com.google.android.material.bottomsheet.BottomSheetBehavior.from(it) }
                             if (sheet != null) {
                                 sheet.isFitToContents = false
                                 sheet.maxHeight = resources.displayMetrics.heightPixels

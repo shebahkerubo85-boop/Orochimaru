@@ -2134,7 +2134,7 @@ class GeneratorPlayer : FullScreenPlayer() {
             subtitlesProvider = { viewModel.state.subtitles.toList() },
             currentSubtitleProvider = { currentSelectedSubtitles },
             onSubtitleSelected = { sub ->
-                android.util.Log.d("CS3SubSelect","onSubtitleSelected sub=${sub?.name} lang=${sub?.languageCode} enabled=${PrefManager.getVal(PrefName.Subtitles)}")
+                android.util.Log.d("CS3SubSelect","onSubtitleSelected sub=${sub?.name} lang=${sub?.languageCode} enabled=${PrefManager.getVal<Boolean>(PrefName.Subtitles)}")
                 val ctx = context
                 val ok = setSubtitles(sub, userInitiated = true)
                 android.util.Log.d("CS3SubSelect","setSubtitles ok=$ok")
