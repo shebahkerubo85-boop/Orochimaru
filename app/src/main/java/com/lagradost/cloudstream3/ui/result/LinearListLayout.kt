@@ -173,7 +173,7 @@ open class LinearListLayout(context: Context?) :
         }
 
         try {
-            val position = getPosition(getCorrectParent(focused)) ?: return null
+            val position = getPosition(getCorrectParent(focused)) ?: return focused
             val lookFor = dir + position
 
             // if out of bounds then refocus as specified
