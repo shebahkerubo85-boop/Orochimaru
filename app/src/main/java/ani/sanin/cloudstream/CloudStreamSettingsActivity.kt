@@ -49,10 +49,30 @@ class CloudStreamSettingsActivity : AppCompatActivity() {
         }
 
         if (savedInstanceState == null) {
+            // Auto-dismiss when the plugin fragment is removed
             supportFragmentManager.registerFragmentLifecycleCallbacks(
                 object : FragmentManager.FragmentLifecycleCallbacks() {
                     override fun onFragmentViewDestroyed(fm: FragmentManager, f: Fragment) {
                         if (fm.fragments.isEmpty()) finish()
+                    }
+                },
+                false,
+            )
+            // Force any plugin BottomSheetDialogFragment to expand fully on TV.
+            // Plugin sheets lack our ani.sanin.BottomSheetDialogFragment base class
+            // so they don't get isFitToContents=false / maxHeight=screen / skipCollapsed.
+            supportFragmentManager.registerFragmentLifecycleCallbacks(
+                object : FragmentManager.FragmentLifecycleCallbacks() {
+                    override fun onFragmentResumed(fm: FragmentManager, f: Fragment) {
+                        if (f is com.google.android.material.bottomsheet.BottomSheetDialogFragment) {
+                            val sheet = f.dialog?.findViewById<com.google.android.material.bottomsheet.BottomSheetBehavior<*>>(com.google.android.material.R.id.design_bottom_sheet)
+                            if (sheet != null) {
+                                sheet.isFitToContents = false
+                                sheet.maxHeight = resources.displayMetrics.heightPixels
+                                sheet.skipCollapsed = true
+                                sheet.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
+                            }
+                        }
                     }
                 },
                 false,

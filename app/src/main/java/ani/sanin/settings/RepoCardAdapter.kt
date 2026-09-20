@@ -178,7 +178,11 @@ class RepoCardAdapter(
 
         if (position == itemCount - 1) {
             holder.binding.repoBrowseButton.nextFocusDownId = ani.sanin.R.id.searchViewText
+        } else {
+            // Chain Browse buttons directly so DPAD_DOWN skips card content
+            holder.binding.repoBrowseButton.nextFocusDownId = ani.sanin.R.id.repoBrowseButton
         }
+        holder.binding.repoBrowseButton.nextFocusUpId = ani.sanin.R.id.repoBrowseButton
     }
 
     private fun applyGradient(view: View, topColor: Int, bottomColor: Int) {
