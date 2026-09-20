@@ -63,6 +63,40 @@
             app:selectionRequired="false" />
     </HorizontalScrollView>
 
+    <LinearLayout
+        android:id="@+id/episodeRailMovieNav"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:padding="8dp"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/episodeRailPrequel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="6dp"
+            android:text="Prequel"
+            android:focusable="true"
+            app:icon="@drawable/ic_arrow_left"
+            style="@style/Widget.Material3.Button.OutlinedButton" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/episodeRailSequel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:text="Sequel"
+            android:focusable="true"
+            app:icon="@drawable/ic_arrow_right"
+            app:iconGravity="textEnd"
+            style="@style/Widget.Material3.Button.OutlinedButton" />
+    </LinearLayout>
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/episodeDrawerList"
         android:layout_width="match_parent"

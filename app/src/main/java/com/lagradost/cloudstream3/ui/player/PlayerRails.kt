@@ -23,6 +23,11 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
 import ani.sanin.databinding.ItemEpisodeRailBinding
+import androidx.lifecycle.lifecycleScope
+import com.lagradost.cloudstream3.TvType
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import ani.sanin.databinding.ItemSubtitleTextBinding
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.LanguageFlag
@@ -275,6 +280,9 @@ class EpisodeRailController(
         recycler.nextFocusDownId = R.id.episodeDrawerClose
         FocusEffectUtil.applyFocusListener(closeButton)
         closeButton.setOnClickListener { close() }
+        // Movie prequel/sequel buttons (visible only for single-movie collections)
+        content.findViewById<View>(R.id.episodeRailPrequel)?.let { FocusEffectUtil.applyFocusListener(it) }
+        content.findViewById<View>(R.id.episodeRailSequel)?.let { FocusEffectUtil.applyFocusListener(it) }
     }
 
     private fun seasonKey(episode: ResultEpisode): String =
@@ -343,6 +351,69 @@ class EpisodeRailController(
         if (currentEpisode != null) {
             val pos = list.indexOfFirst { it.id == currentEpisode.id }
             if (pos >= 0) recycler.post { recycler.scrollToPosition(pos) }
+        }
+        // Movie prequel/sequel: for single-movie collections, show nav like TV season chips
+        val movieNav = content.findViewById<View>(R.id.episodeRailMovieNav)
+        val preBtn = content.findViewById<View>(R.id.episodeRailPrequel)
+        val seqBtn = content.findViewById<View>(R.id.episodeRailSequel)
+        val isSingleMovie = all.size == 1 && all.firstOrNull()?.tvType == TvType.Movie
+        if (!isSingleMovie || movieNav == null || preBtn == null || seqBtn == null) {
+            movieNav?.isVisible = false
+            return
+        }
+        movieNav.isVisible = true
+        // Fetch collection on demand — mirrors TmdbWatchFragment/TmdbDetails logic
+        val act = content.context as? androidx.fragment.app.FragmentActivity
+        act?.lifecycleScope?.launch(Dispatchers.IO) {
+            try {
+                val tmdbId = all.first().parentId
+                val detail = ani.sanin.connections.tmdb.Tmdb.detail("movie", tmdbId)
+                val colId = detail?.collection?.id
+                if (colId == null) {
+                    withContext(Dispatchers.Main) { movieNav.isVisible = false }
+                    return@launch
+                }
+                val parts = ani.sanin.connections.tmdb.Tmdb.collection(colId)
+                val idx = parts.indexOfFirst { it.id == tmdbId }
+                val pre = if (idx > 0) parts[idx - 1] else null
+                val seq = if (idx in 0 until parts.lastIndex) parts[idx + 1] else null
+                withContext(Dispatchers.Main) {
+                    if (pre == null && seq == null) {
+                        movieNav.isVisible = false
+                        return@withContext
+                    }
+                    preBtn.isVisible = pre != null
+                    seqBtn.isVisible = seq != null
+                    (preBtn as? com.google.android.material.button.MaterialButton)?.text = pre?.displayTitle ?: "Prequel"
+                    (seqBtn as? com.google.android.material.button.MaterialButton)?.text = seq?.displayTitle ?: "Sequel"
+                    preBtn.setOnClickListener {
+                        pre?.let {
+                            close()
+                            val intent = android.content.Intent(act, ani.sanin.cloudstream.TmdbDetailsActivity::class.java).apply {
+                                putExtra("mediaType", it.mediaType ?: "movie")
+                                putExtra("mediaId", it.id)
+                            }
+                            act.startActivity(intent)
+                        }
+                    }
+                    seqBtn.setOnClickListener {
+                        seq?.let {
+                            close()
+                            val intent = android.content.Intent(act, ani.sanin.cloudstream.TmdbDetailsActivity::class.java).apply {
+                                putExtra("mediaType", it.mediaType ?: "movie")
+                                putExtra("mediaId", it.id)
+                            }
+                            act.startActivity(intent)
+                        }
+                    }
+                    // D-pad between prequel/sequel and list
+                    preBtn.nextFocusDownId = R.id.episodeDrawerList
+                    seqBtn.nextFocusDownId = R.id.episodeDrawerList
+                    recycler.nextFocusUpId = R.id.episodeRailPrequel
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) { movieNav.isVisible = false }
+            }
         }
     }
 
