@@ -653,12 +653,13 @@ class MainActivity : AppCompatActivity() {
         PrefManager.setVal(PrefName.ContentMode, mode)
         updateModeLabel()
         updateNavPillForMode()
-        currentFragmentTag = null
-        // Force fragment replacement: setTab(0) won't emit if already on tab 0
-        // (StateFlow deduplicates), so directly replace the fragment.
         if (supportFragmentManager.isStateSaved) return
         val tag = tabFragments[0] ?: "home"
         val fragment = getFragmentForTab(0)
+        // Tag must be set before setTab() — commit() is async so currentFragmentTag
+        // was still null, letting switchTab() create a *second* HomeFragment that
+        // doubled memory pressure and OOM-killed the app on low-RAM devices.
+        currentFragmentTag = tag
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragmentContainer, fragment, tag)
             .commit()
