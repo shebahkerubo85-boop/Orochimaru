@@ -592,6 +592,8 @@
 
         <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
             android:id="@+id/download_stream_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:text="@string/stream"
             app:icon="@drawable/ic_network_stream" />
     </LinearLayout>
