@@ -20,16 +20,54 @@ import com.lagradost.cloudstream3.utils.downloader.DownloadFileManagement.getFol
 import com.lagradost.cloudstream3.utils.txt
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
-import java.util.concurrent.ConcurrentHashMap
+import java.util.LinkedHashMap
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 
 /** Separate object with helper functions for the downloader */
 object DownloadUtils {
-    private val cachedBitmaps = ConcurrentHashMap<String, Bitmap>()
+    private val cachedBitmaps = LinkedHashMap<String, Bitmap>(16, 0.75f, true)
+    private var cachedBytes = 0L
+    private var lastTrimTime = 0L
+
+    private fun putBitmap(url: String, bitmap: Bitmap) {
+        val size = bitmap.byteCount.toLong()
+        synchronized(cachedBitmaps) {
+            cachedBitmaps[url]?.let { cachedBytes -= it.byteCount }
+            cachedBytes += size
+            cachedBitmaps[url] = bitmap
+        }
+        try { trimCacheIfNeeded() } catch (_: Exception) {}
+    }
+
+    private fun getBitmap(url: String): Bitmap? = synchronized(cachedBitmaps) { cachedBitmaps[url] }
+
+    private fun trimCacheIfNeeded() {
+        val now = System.currentTimeMillis()
+        val interval = PrefManager.getVal(PrefName.TrimIntervalMin).toLong() * 60L * 1000L
+        if (now - lastTrimTime < interval) return
+        lastTrimTime = now
+        val cap = PrefManager.getVal(PrefName.CacheCapMb).toLong() * 1024 * 1024
+        val intensity = PrefManager.getVal(PrefName.TrimIntensity) / 100f
+        synchronized(cachedBitmaps) {
+            if (cachedBytes > cap && cachedBitmaps.isNotEmpty()) {
+                val toRemove = (cachedBitmaps.size * intensity).toInt().coerceAtLeast(1)
+                repeat(toRemove) {
+                    if (cachedBitmaps.isNotEmpty()) {
+                        val eldest = cachedBitmaps.entries.first()
+                        cachedBytes -= eldest.value.byteCount
+                        cachedBitmaps.remove(eldest.key)
+                    }
+                }
+            }
+        }
+    }
+
     internal fun Context.getImageBitmapFromUrl(
         url: String,
         headers: Map<String, String>? = null
     ): Bitmap? = safe {
-        cachedBitmaps[url]?.let {
+        getBitmap(url)?.let {
             return@safe it
         }
 
@@ -51,7 +89,7 @@ object DownloadUtils {
         }
 
         bitmap?.let {
-            cachedBitmaps.putIfAbsent(url, it)
+            putBitmap(url, it)
         }
 
         return@safe bitmap
