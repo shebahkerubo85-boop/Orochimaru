@@ -159,7 +159,21 @@ class DiscoveryFragment : Fragment() {
         observeViewModel()
         binding.genreChipGroup.isFocusable = true
         binding.seasonChipGroup.isFocusable = true
+        // Fix dpad chain: search bar → genre chips → season chips → grid
+        // XML had searchBar→avatar→genre which trapped focus; unify to
+        // linear vertical chain so DPAD_DOWN from search lands on chips, not avatar.
+        binding.discoverSearchBar.nextFocusDownId = R.id.genreChipGroup
+        binding.discoverSearchBar.nextFocusRightId = R.id.discoverAvatar
+        binding.discoverAvatar.nextFocusDownId = R.id.genreChipGroup
+        binding.discoverAvatar.nextFocusLeftId = R.id.discoverSearchBar
+        binding.genreChipGroup.nextFocusUpId = R.id.discoverSearchBar
+        binding.genreChipGroup.nextFocusDownId = R.id.seasonChipGroup
+        binding.seasonChipGroup.nextFocusUpId = R.id.genreChipGroup
+        binding.seasonChipGroup.nextFocusDownId = R.id.discoverRecyclerView
+        binding.discoverRecyclerView.nextFocusUpId = R.id.seasonChipGroup
         discoverViewModel.fetch()
+        // Ensure initial focus on search bar for TV
+        binding.discoverSearchBar.post { if (isAdded) binding.discoverSearchBar.requestFocus() }
     }
 
     private fun setupSearchBar() {
@@ -217,6 +231,7 @@ class DiscoveryFragment : Fragment() {
                 text = genre
                 isCheckable = true
                 isChecked = (genre == "All" && discoverViewModel.selectedGenre.value == null)
+                isFocusable = true
                 setTextColor(onSurface)
                 setOnClickListener {
                     binding.genreChipGroup.clearCheck()
@@ -224,6 +239,7 @@ class DiscoveryFragment : Fragment() {
                     discoverViewModel.selectGenre(if (genre == "All") null else genre)
                 }
             }
+            FocusEffectUtil.applyFocusListener(chip)
             binding.genreChipGroup.addView(chip)
         }
     }
@@ -237,6 +253,7 @@ class DiscoveryFragment : Fragment() {
                 text = season.label
                 isCheckable = true
                 isChecked = (season.apiValue == currentSeason.apiValue && season.year == currentSeason.year)
+                isFocusable = true
                 setTextColor(onSurface)
                 setOnClickListener {
                     binding.seasonChipGroup.clearCheck()
@@ -244,6 +261,7 @@ class DiscoveryFragment : Fragment() {
                     discoverViewModel.selectSeason(season)
                 }
             }
+            FocusEffectUtil.applyFocusListener(chip)
             binding.seasonChipGroup.addView(chip)
         }
     }
