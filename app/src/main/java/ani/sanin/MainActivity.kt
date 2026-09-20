@@ -85,6 +85,7 @@ import ani.sanin.ui.splash.SaninPortraitSplash
 import ani.sanin.util.AudioHelper
 import ani.sanin.util.Logger
 import ani.sanin.util.customAlertDialog
+import com.lagradost.cloudstream3.mvvm.logError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
@@ -1022,10 +1023,17 @@ class MainActivity : AppCompatActivity() {
                 startActivity(Intent(this, ani.sanin.settings.ProvidersActivity::class.java))
             },
             R.id.rightRailDownloads to {
-                supportFragmentManager.beginTransaction()
-                    .replace(R.id.fragmentContainer, com.lagradost.cloudstream3.ui.download.DownloadFragment())
-                    .addToBackStack(null)
-                    .commit()
+                Logger.log("Opening Downloads screen from right rail")
+                try {
+                    supportFragmentManager.beginTransaction()
+                        .replace(R.id.fragmentContainer, com.lagradost.cloudstream3.ui.download.DownloadFragment())
+                        .addToBackStack(null)
+                        .commitAllowingStateLoss()
+                } catch (t: Throwable) {
+                    logError(t)
+                    Logger.log("Failed to open Downloads screen: ${t.stackTraceToString()}")
+                    snackString(R.string.download_manager)
+                }
             },
             R.id.rightRailSync to {
                 lifecycleScope.launch(Dispatchers.IO) {

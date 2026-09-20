@@ -12,6 +12,7 @@ import androidx.lifecycle.viewModelScope
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.CloudStreamApp
 import ani.sanin.R
+import ani.sanin.util.Logger
 import com.lagradost.cloudstream3.isEpisodeBased
 import com.lagradost.cloudstream3.mvvm.Resource
 import com.lagradost.cloudstream3.mvvm.launchSafe
@@ -207,6 +208,7 @@ class DownloadViewModel : ViewModel() {
     }
 
     fun updateHeaderList(context: Context) = viewModelScope.launchSafe {
+        Logger.log("DownloadViewModel.updateHeaderList: refresh started")
         // Do not push loading as it interrupts the UI
         //_headerCards.postValue(Resource.Loading())
 
@@ -247,6 +249,7 @@ class DownloadViewModel : ViewModel() {
         }
 
         updateStorageStats(visual)
+        Logger.log("DownloadViewModel.updateHeaderList: ${visual.size} headers computed")
         postHeaders(visual)
     }
 

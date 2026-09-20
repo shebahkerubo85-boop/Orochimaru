@@ -22,11 +22,13 @@ import com.lagradost.cloudstream3.CommonActivity.showToast
 import ani.sanin.R
 import ani.sanin.databinding.FragmentDownloadsBinding
 import ani.sanin.databinding.StreamInputBinding
+import ani.sanin.util.Logger
 import com.lagradost.cloudstream3.isEpisodeBased
 import com.lagradost.cloudstream3.mvvm.Resource
 import com.lagradost.cloudstream3.mvvm.safe
 import com.lagradost.cloudstream3.mvvm.observe
 import com.lagradost.cloudstream3.mvvm.observeNullable
+import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.ui.BaseFragment
 import com.lagradost.cloudstream3.ui.download.DownloadButtonSetup.handleDownloadClick
 import com.lagradost.cloudstream3.ui.download.queue.DownloadQueueViewModel
@@ -48,7 +50,6 @@ import com.lagradost.cloudstream3.utils.DataStore.getFolderName
 import com.lagradost.cloudstream3.utils.UIHelper.dismissSafe
 import com.lagradost.cloudstream3.utils.UIHelper.fixSystemBarsPadding
 import com.lagradost.cloudstream3.utils.UIHelper.hideKeyboard
-import androidx.navigation.fragment.findNavController
 import com.lagradost.cloudstream3.utils.UIHelper.navigate
 import com.lagradost.cloudstream3.utils.UIHelper.popupMenuNoIcons
 import com.lagradost.cloudstream3.utils.UIHelper.setAppBarNoScrollFlagsOnTV
@@ -88,6 +89,8 @@ class DownloadFragment : BaseFragment<FragmentDownloadsBinding>(
     }
 
     override fun onBindingCreated(binding: FragmentDownloadsBinding) {
+        Logger.log("DownloadFragment.onBindingCreated: downloads screen opened")
+        try {
         hideKeyboard()
         binding.downloadAppbar.setAppBarNoScrollFlagsOnTV()
         binding.downloadDeleteAppbar.setAppBarNoScrollFlagsOnTV()
@@ -96,6 +99,7 @@ class DownloadFragment : BaseFragment<FragmentDownloadsBinding>(
             when (cards) {
                 is Resource.Success -> {
                     (binding.downloadList.adapter as? DownloadAdapter)?.submitList(cards.value)
+                    Logger.log("DownloadFragment: headerCards success, ${cards.value.size} items")
                     binding.textNoDownloads.isVisible = cards.value.isEmpty()
                     binding.downloadLoading.isVisible = false
                     binding.downloadList.isVisible = true
@@ -150,6 +154,7 @@ class DownloadFragment : BaseFragment<FragmentDownloadsBinding>(
         }
         observe(downloadQueueViewModel.childCards) { cards ->
             val size = cards.currentDownloads.size + cards.queue.size
+            Logger.log("DownloadFragment: queue changed, ${cards.currentDownloads.size} active, ${cards.queue.size} queued")
             val context = binding.root.context
             val baseText = context.getString(R.string.download_queue)
             binding.downloadQueueText.text = if (size > 0) {
@@ -322,10 +327,16 @@ class DownloadFragment : BaseFragment<FragmentDownloadsBinding>(
             v.popupMenuNoIcons(listOf(Pair(R.string.sort_by, R.string.sort_by), Pair(R.string.download_manager, R.string.download_manager))) { }
         }
         binding.btnBrowseAnime?.setOnClickListener {
-            findNavController().navigate(R.id.navigation_home)
+            Logger.log("DownloadFragment: Browse Anime clicked")
+            activity?.supportFragmentManager?.popBackStack()
         }
         // Active / Queued lists setup
         setupActiveQueuedLists()
+        } catch (t: Throwable) {
+            logError(t)
+            Logger.log("DownloadFragment.onBindingCreated failed: ${t.stackTraceToString()}")
+            showToast(R.string.download_manager, Toast.LENGTH_SHORT)
+        }
     }
 
     private fun updateHeaderSubtitle() {
@@ -370,10 +381,20 @@ class DownloadFragment : BaseFragment<FragmentDownloadsBinding>(
                 if (click.data.type.isEpisodeBased()) {
                     val folder =
                         getFolderName(DOWNLOAD_EPISODE_CACHE, click.data.id.toString())
-                    activity?.navigate(
-                        R.id.action_navigation_downloads_to_navigation_download_child,
-                        DownloadChildFragment.newInstance(click.data.name, folder)
-                    )
+                    Logger.log("DownloadFragment: opening child list for folder=$folder")
+                    val childFragment = DownloadChildFragment().apply {
+                        arguments = DownloadChildFragment.newInstance(click.data.name, folder)
+                    }
+                    try {
+                        activity?.supportFragmentManager?.beginTransaction()
+                            ?.replace(R.id.fragmentContainer, childFragment)
+                            ?.addToBackStack(null)
+                            ?.commitAllowingStateLoss()
+                    } catch (t: Throwable) {
+                        logError(t)
+                        Logger.log("DownloadFragment: failed to open child list: ${t.stackTraceToString()}")
+                        showToast(R.string.download_manager, Toast.LENGTH_SHORT)
+                    }
                 }
             }
 
