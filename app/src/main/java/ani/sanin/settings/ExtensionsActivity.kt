@@ -69,6 +69,40 @@ class ExtensionsActivity : AppCompatActivity() {
                 focusFirstBrowseButton(vp)
                 return true
             }
+            // Bottom→top wrap fix for both Installed/Available tabs (allExtensionsRecyclerView)
+            // When at last card, DPAD_DOWN would wrap to top — consume and scroll instead.
+            if (focused != null) {
+                var v: android.view.View? = focused
+                var rv: androidx.recyclerview.widget.RecyclerView? = null
+                while (v != null) {
+                    val parent = v.parent
+                    if (parent is androidx.recyclerview.widget.RecyclerView && parent.id == R.id.allExtensionsRecyclerView) {
+                        rv = parent; break
+                    }
+                    v = parent as? android.view.View
+                }
+                if (rv != null) {
+                    var node: android.view.View? = focused
+                    var pos = androidx.recyclerview.widget.RecyclerView.NO_POSITION
+                    while (node != null && node != rv) {
+                        pos = rv.getChildAdapterPosition(node)
+                        if (pos != androidx.recyclerview.widget.RecyclerView.NO_POSITION) break
+                        node = (node.parent as? android.view.View)
+                    }
+                    if (pos != androidx.recyclerview.widget.RecyclerView.NO_POSITION) {
+                        val last = (rv.adapter?.itemCount ?: 0) - 1
+                        if (pos == last) {
+                            if (rv.canScrollVertically(1)) rv.smoothScrollBy(0, 80)
+                            return true
+                        }
+                        val lm = rv.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager
+                        val lastVisible = lm?.findLastVisibleItemPosition() ?: -1
+                        if (pos >= lastVisible && rv.canScrollVertically(1)) {
+                            rv.smoothScrollToPosition((pos + 1).coerceAtMost(last))
+                        }
+                    }
+                }
+            }
         }
         return super.dispatchKeyEvent(event)
     }
