@@ -1392,16 +1392,19 @@ class GeneratorPlayer : FullScreenPlayer() {
     override fun populatePauseMetadata() {
         val root = view ?: return
         val overlay = root.findViewById<View>(R.id.exo_pause_overlay) ?: return
-        val meta = currentMeta as? com.lagradost.cloudstream3.LoadResponse ?: return
-        // Title
-        root.findViewById<TextView>(R.id.exo_pause_title)?.text = meta.name
-        // Synopsis / plot
-        root.findViewById<TextView>(R.id.exo_pause_synopsis)?.text = meta.plot
+        val load = viewModel.state.generatorState?.response ?: return
+        val ep = currentMeta as? ResultEpisode
+        // Title: prefer the load response, fall back to the episode/movie row name
+        root.findViewById<TextView>(R.id.exo_pause_title)?.text =
+            load.name.ifBlank { ep?.name.orEmpty() }
+        // Synopsis / plot: fall back to the row description
+        root.findViewById<TextView>(R.id.exo_pause_synopsis)?.text =
+            (load.plot ?: ep?.description) ?: ""
         // Genres as chips — anime style
         val chipGroup = root.findViewById<com.google.android.material.chip.ChipGroup>(R.id.exo_pause_genres)
         chipGroup?.let { group ->
             group.removeAllViews()
-            val tags = (meta.tags ?: emptyList()).filter { it.isNotBlank() }.take(6)
+            val tags = (load.tags ?: emptyList()).filter { it.isNotBlank() }.take(6)
             val ctx = context ?: return
             tags.forEach { genre ->
                 val chip = com.google.android.material.chip.Chip(ctx).apply {
@@ -1419,7 +1422,7 @@ class GeneratorPlayer : FullScreenPlayer() {
         }
         // Rating — use Score (rating is deprecated ERROR)
         val ratingView = root.findViewById<TextView>(R.id.exo_pause_rating)
-        val score = meta.score?.toInt(100)
+        val score = (load.score ?: ep?.score)?.toInt(100)
         ratingView?.text = score?.let { "$it% ★" } ?: ""
         ratingView?.isVisible = score != null
         // Logo hidden for CS3 (no AniList logo), keep title visible
@@ -1427,8 +1430,17 @@ class GeneratorPlayer : FullScreenPlayer() {
     }
 
     override fun isMovieMode(): Boolean {
-        val meta = currentMeta as? com.lagradost.cloudstream3.LoadResponse
-        return meta?.type?.isMovieType() == true || !hasEpisodes
+        val meta = currentMeta as? ResultEpisode
+        if (meta != null) {
+            if (meta.tvType.isLiveStream() || meta.tvType == TvType.NSFW) return !hasEpisodes
+            return meta.tvType.isMovieType()
+        }
+        val load = viewModel.state.generatorState?.response
+        if (load != null) {
+            if (load.type.isLiveStream() || load.type == TvType.NSFW) return !hasEpisodes
+            return load.type.isMovieType()
+        }
+        return !hasEpisodes
     }
 
     override fun nextEpisode() {
