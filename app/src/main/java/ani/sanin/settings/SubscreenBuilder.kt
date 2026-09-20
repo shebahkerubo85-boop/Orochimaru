@@ -140,9 +140,37 @@ object SubscreenBuilder {
                     sl.value = entry.slider.value
                     slValue.text = "${entry.slider.value.toInt()}${entry.slider.suffix}"
                     sl.addOnChangeListener { _, value, fromUser ->
+                        // fromUser is false for programmatic DPAD steps, so always update value text
+                        slValue.text = "${value.toInt()}${entry.slider.suffix}"
                         if (fromUser) {
-                            slValue.text = "${value.toInt()}${entry.slider.suffix}"
                             entry.slider.onValueChange(value)
+                        }
+                    }
+                    // DPAD left/right on TV to nudge slider — Material Slider isn't focused by default
+                    sliderView.setOnKeyListener { _, keyCode, event ->
+                        if (!entry.isEnabled) return@setOnKeyListener false
+                        if (event.action != android.view.KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+                        val step = entry.slider.step
+                        when (keyCode) {
+                            android.view.KeyEvent.KEYCODE_DPAD_LEFT -> {
+                                val nv = (sl.value - step).coerceIn(sl.valueFrom, sl.valueTo)
+                                if (nv != sl.value) {
+                                    sl.value = nv
+                                    slValue.text = "${nv.toInt()}${entry.slider.suffix}"
+                                    entry.slider.onValueChange(nv)
+                                }
+                                true
+                            }
+                            android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                                val nv = (sl.value + step).coerceIn(sl.valueFrom, sl.valueTo)
+                                if (nv != sl.value) {
+                                    sl.value = nv
+                                    slValue.text = "${nv.toInt()}${entry.slider.suffix}"
+                                    entry.slider.onValueChange(nv)
+                                }
+                                true
+                            }
+                            else -> false
                         }
                     }
                     if (!entry.isEnabled) {
@@ -187,9 +215,34 @@ object SubscreenBuilder {
                         sl2.value = es.slider.value
                         slValue2.text = "${es.slider.value.toInt()}${es.slider.suffix}"
                         sl2.addOnChangeListener { _, value, fromUser ->
+                            slValue2.text = "${value.toInt()}${es.slider.suffix}"
                             if (fromUser) {
-                                slValue2.text = "${value.toInt()}${es.slider.suffix}"
                                 es.slider.onValueChange(value)
+                            }
+                        }
+                        expandSliderView.setOnKeyListener { _, keyCode, event ->
+                            if (event.action != android.view.KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+                            val step = es.slider.step
+                            when (keyCode) {
+                                android.view.KeyEvent.KEYCODE_DPAD_LEFT -> {
+                                    val nv = (sl2.value - step).coerceIn(sl2.valueFrom, sl2.valueTo)
+                                    if (nv != sl2.value) {
+                                        sl2.value = nv
+                                        slValue2.text = "${nv.toInt()}${es.slider.suffix}"
+                                        es.slider.onValueChange(nv)
+                                    }
+                                    true
+                                }
+                                android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                                    val nv = (sl2.value + step).coerceIn(sl2.valueFrom, sl2.valueTo)
+                                    if (nv != sl2.value) {
+                                        sl2.value = nv
+                                        slValue2.text = "${nv.toInt()}${es.slider.suffix}"
+                                        es.slider.onValueChange(nv)
+                                    }
+                                    true
+                                }
+                                else -> false
                             }
                         }
                         expandSliderView.visibility = if (entry.expandSlider!!.showOnIndex != entry.choice?.currentIndex) View.VISIBLE else View.GONE
