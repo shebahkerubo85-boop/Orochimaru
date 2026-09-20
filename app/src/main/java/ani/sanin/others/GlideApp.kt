@@ -30,7 +30,9 @@ class SaninGlideApp : AppGlideModule() {
         // loads in HomeFragment caused OOM kills (no crash screen, just process exit).
         val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE)
             as? android.app.ActivityManager
-        val totalMemMb = (activityManager?.memoryInfo?.totalMem ?: 0L) / (1024 * 1024)
+        val mi = android.app.ActivityManager.MemoryInfo()
+        activityManager?.getMemoryInfo(mi)
+        val totalMemMb = (mi.totalMem) / (1024 * 1024)
         val memoryCacheSizeBytes = when {
             totalMemMb >= 4096 -> 1024L * 1024 * 50  // 50 MiB
             totalMemMb >= 3072 -> 1024L * 1024 * 35  // 35 MiB
