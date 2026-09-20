@@ -155,8 +155,9 @@ class SubtitleRailController(
     }
 
     private fun rebuild() {
-        val media = model.getMedia().value ?: return
-        val episode = media.anime?.episodes?.get(media.anime.selectedEpisode) ?: return
+        try {
+            val media = model.getMedia().value ?: return
+            val episode = media.anime?.episodes?.get(media.anime.selectedEpisode) ?: return
         val prefKey = "subLang_${media.id}"
         val episodeId = "${media.id}-${episode.number}"
 
@@ -187,8 +188,9 @@ class SubtitleRailController(
             )
         )
 
-        // 3. Current server subtitles
-        val currentExtractor = episode.extractors?.find { it.server.name == episode.selectedExtractor }
+        // 3. Current server subtitles — guard against null extractor / null server (crash on Hisilicon: VideoExtractor.getServer() NPE)
+        val safeExtractors = episode.extractors.orEmpty().filterNotNull().filter { it.server != null }
+        val currentExtractor = safeExtractors.find { it.server.name == episode.selectedExtractor }
         if (currentExtractor != null && currentExtractor.subtitles.isNotEmpty()) {
             rows.add(RailItem("Current Server", isHeader = true))
             currentExtractor.subtitles.forEachIndexed { index, sub ->
@@ -205,7 +207,7 @@ class SubtitleRailController(
         }
 
         // 4. Other servers (fetch subtitles on demand)
-        val otherExtractors = episode.extractors.orEmpty().filter { it.server.name != episode.selectedExtractor }
+        val otherExtractors = safeExtractors.filter { it.server.name != episode.selectedExtractor }
         if (otherExtractors.isNotEmpty()) {
             rows.add(
                 RailItem(
@@ -347,6 +349,11 @@ class SubtitleRailController(
         )
 
         adapter.notifyDataSetChanged()
+        } catch (e: Exception) {
+            Logger.log("SubtitleRail rebuild failed: ${e.message}")
+            // Don't crash player on Hisilicon boxes where extractors can contain nulls
+            e.printStackTrace()
+        }
     }
 
     // --- Toggle & selection actions ---
