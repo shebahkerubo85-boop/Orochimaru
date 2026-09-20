@@ -414,17 +414,41 @@ class SubtitleRailController(
     /** Toggle the search-in-progress state and refresh the rail. */
     fun setSearchingOnline(searching: Boolean) {
         val stateChanged = searchingOnline != searching
+        android.util.Log.d("CS3SubSearch","setSearchingOnline searching=$searching stateChanged=$stateChanged lastFocused=$lastFocusedPosition childCount=${recycler.childCount} focused=${recycler.findFocus()?.let{it::class.simpleName+\"#\"+recycler.getChildAdapterPosition(it)}} drawerOpen=${drawer.isDrawerOpen(content)}")
         // Remember where the user was before we destroy the list.
         if (stateChanged && searching) {
-            // Find the child that actually has focus (or is pressed)
-            // and remember its adapter position so we can restore later.
+            var found = false
             for (i in 0 until recycler.childCount) {
                 val child = recycler.getChildAt(i)
-                if (child?.isFocused == true || child?.isPressed == true) {
+                if (child?.hasFocus() == true) {
                     val pos = recycler.getChildAdapterPosition(child)
-                    if (pos >= 0) lastFocusedPosition = pos
+                    // child may be the card root or its parent — try find containing child
+                    val actualPos = if (pos >= 0) pos else {
+                        var v: android.view.View? = recycler.findFocus()
+                        var p = android.util.Log.d("CS3SubSearch","hasFocus child $i pos=$pos focus=${v?.javaClass?.simpleName}")
+                        var pp = -1
+                        while (v != null && v != recycler) {
+                            pp = recycler.getChildAdapterPosition(v)
+                            if (pp >= 0) break
+                            v = (v.parent as? android.view.View)
+                        }
+                        pp
+                    }
+                    if (actualPos >= 0) { lastFocusedPosition = actualPos; found = true }
+                    android.util.Log.d("CS3SubSearch","remember pos $actualPos found=$found")
                     break
                 }
+            }
+            if (!found) {
+                // Fallback: use focused position via findFocus()
+                val f = recycler.findFocus() ?: drawer.findFocus()
+                var v: android.view.View? = f
+                while (v != null && v != recycler) {
+                    val pp = recycler.getChildAdapterPosition(v)
+                    if (pp >= 0) { lastFocusedPosition = pp; break }
+                    v = (v.parent as? android.view.View)
+                }
+                android.util.Log.d("CS3SubSearch","fallback focus $f -> pos $lastFocusedPosition")
             }
         }
         searchingOnline = searching
@@ -436,10 +460,21 @@ class SubtitleRailController(
         // Intermediate result batches do NOT change the searching flag, so
         // user navigation inside the rail is not stolen.
         if (stateChanged && drawer.isDrawerOpen(content)) {
+            android.util.Log.d("CS3SubSearch","posting focus restore searching=$searching lastPos=$lastFocusedPosition")
+            // Immediate focus to avoid 1-frame loss where DPAD has no target and exits player
+            if (searching) {
+                closeButton.requestFocus()
+                android.util.Log.d("CS3SubSearch","immediate closeButton.requestFocus focused=${closeButton.isFocused}")
+            }
             recycler.post {
                 if (searching) {
                     // Search just started — focus close button (always focusable)
-                    closeButton.requestFocus()
+                    val ok = closeButton.requestFocus()
+                    android.util.Log.d("CS3SubSearch","post closeButton.requestFocus ok=$ok focused=${closeButton.isFocused} hasFocus=${closeButton.hasFocus()}")
+                    if (!ok || !closeButton.hasFocus()) {
+                        // Fallback: ensure at least drawer content has focus
+                        content.requestFocus()
+                    }
                 } else {
                     // Search just finished — restore previous position
                     val restored = if (lastFocusedPosition >= 0) {
@@ -447,11 +482,17 @@ class SubtitleRailController(
                             lastFocusedPosition
                         )
                         val item = rows.getOrNull(lastFocusedPosition)
+                        android.util.Log.d("CS3SubSearch","restore pos $lastFocusedPosition holder=$holder itemOnClick=${item?.onClick != null}")
                         if (holder != null && item?.onClick != null) {
-                            holder.itemView.requestFocus(); true
+                            val ok = holder.itemView.requestFocus()
+                            android.util.Log.d("CS3SubSearch","restore requestFocus ok=$ok")
+                            ok
                         } else false
                     } else false
-                    if (!restored) focusFirst()
+                    if (!restored) {
+                        android.util.Log.d("CS3SubSearch","restore failed, focusFirst")
+                        focusFirst()
+                    }
                 }
             }
         }

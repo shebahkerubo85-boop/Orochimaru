@@ -1913,13 +1913,59 @@ class GeneratorPlayer : FullScreenPlayer() {
             if (v === ep || v === sub) { insideRail = true; break }
             v = v.parent
         }
-        if (!insideRail) return true // Focus escaped — consume to prevent leaking
+        if (!insideRail) {
+            android.util.Log.d("CS3Rail","intercept DPAD ${if(keyCode==KeyEvent.KEYCODE_DPAD_DOWN) "DOWN" else if(keyCode==KeyEvent.KEYCODE_DPAD_UP) "UP" else keyCode} escaped, focused=${focused::class.simpleName}#${focused.id} consumed")
+            return true // Focus escaped — consume to prevent leaking
+        }
 
         // At top boundary (close button), prevent UP escape
         val isClose = focused.id == R.id.episodeDrawerClose ||
             focused.id == R.id.subtitleDrawerClose
-        if (isClose && keyCode == KeyEvent.KEYCODE_DPAD_UP) return true
+        if (isClose && keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+            android.util.Log.d("CS3Rail","intercept UP on close button consumed")
+            return true
+        }
 
+        // Bottom→top wrap: at last rail item DPAD_DOWN would wrap to top — scroll instead
+        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            val rv: RecyclerView? = when {
+                subOpen && isDescendantOf(focused, sub) -> drawer.findViewById(R.id.subtitleDrawerList)
+                epOpen && isDescendantOf(focused, ep) -> drawer.findViewById(R.id.episodeDrawerList)
+                else -> null
+            }
+            if (rv != null) {
+                var node: View? = focused
+                var pos = RecyclerView.NO_POSITION
+                while (node != null && node != rv) {
+                    pos = rv.getChildAdapterPosition(node)
+                    if (pos != RecyclerView.NO_POSITION) break
+                    node = (node.parent as? View)
+                }
+                if (pos != RecyclerView.NO_POSITION) {
+                    val last = (rv.adapter?.itemCount ?: 0) - 1
+                    if (pos == last) {
+                        android.util.Log.d("CS3Rail","bottom DPAD_DOWN consumed pos=$pos last=$last, scroll instead of wrap")
+                        if (rv.canScrollVertically(1)) rv.smoothScrollBy(0, 80)
+                        return true
+                    }
+                    val lm = rv.layoutManager as? LinearLayoutManager
+                    val lastVisible = lm?.findLastVisibleItemPosition() ?: -1
+                    if (pos >= lastVisible && rv.canScrollVertically(1)) {
+                        rv.smoothScrollToPosition((pos + 1).coerceAtMost(last))
+                    }
+                }
+            }
+        }
+
+        return false
+    }
+
+    private fun isDescendantOf(view: View, parent: View): Boolean {
+        var p: android.view.ViewParent? = view.parent
+        while (p != null) {
+            if (p === parent) return true
+            p = p.parent
+        }
         return false
     }
 
@@ -2088,11 +2134,15 @@ class GeneratorPlayer : FullScreenPlayer() {
             subtitlesProvider = { viewModel.state.subtitles.toList() },
             currentSubtitleProvider = { currentSelectedSubtitles },
             onSubtitleSelected = { sub ->
+                android.util.Log.d("CS3SubSelect","onSubtitleSelected sub=${sub?.name} lang=${sub?.languageCode} enabled=${PrefManager.getVal(PrefName.Subtitles)}")
                 val ctx = context
-                if (setSubtitles(sub, userInitiated = true)) {
+                val ok = setSubtitles(sub, userInitiated = true)
+                android.util.Log.d("CS3SubSelect","setSubtitles ok=$ok")
+                if (ok) {
                     player.saveData()
                     if (ctx != null) player.reloadPlayer(ctx)
                     player.handleEvent(CSPlayerEvent.Play)
+                    android.util.Log.d("CS3SubSelect","reloadPlayer dispatched")
                 }
             },
             onToggleChanged = { enabled ->
