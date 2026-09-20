@@ -126,6 +126,49 @@ class SettingsCacheActivity : AppCompatActivity() {
                     ),
                 ),
             ),
+
+            SubscreenBuilder.Section(
+                "Poster Cache",
+                R.drawable.format_image_24,
+                entries = listOf(
+                    SubscreenBuilder.Entry(
+                        title = "Poster Cache Cap",
+                        desc = "Maximum poster bitmap memory in megabytes",
+                        iconRes = R.drawable.ic_baseline_storage_24,
+                        slider = SubscreenBuilder.SliderOption(
+                            value = PrefManager.getVal<Int>(PrefName.PosterCacheCapMb).toFloat(),
+                            valueFrom = 70f,
+                            valueTo = 200f,
+                            step = 10f,
+                            suffix = " MB",
+                        ) { PrefManager.setVal(PrefName.PosterCacheCapMb, it.toInt()) },
+                    ),
+                    SubscreenBuilder.Entry(
+                        title = "Poster Trim Interval",
+                        desc = "Minutes between poster cache trims",
+                        iconRes = R.drawable.ic_round_history_24,
+                        slider = SubscreenBuilder.SliderOption(
+                            value = PrefManager.getVal<Int>(PrefName.PosterCacheTrimIntervalMin).toFloat(),
+                            valueFrom = 5f,
+                            valueTo = 30f,
+                            step = 5f,
+                            suffix = " min",
+                        ) { PrefManager.setVal(PrefName.PosterCacheTrimIntervalMin, it.toInt()) },
+                    ),
+                    SubscreenBuilder.Entry(
+                        title = "Poster Trim Intensity",
+                        desc = "How aggressively to trim old posters",
+                        iconRes = R.drawable.ic_round_brightness_high_24,
+                        slider = SubscreenBuilder.SliderOption(
+                            value = PrefManager.getVal<Int>(PrefName.PosterCacheTrimIntensity).toFloat(),
+                            valueFrom = 40f,
+                            valueTo = 100f,
+                            step = 10f,
+                            suffix = "%",
+                        ) { PrefManager.setVal(PrefName.PosterCacheTrimIntensity, it.toInt()) },
+                    ),
+                ),
+            ),
         ))
     }
 }
