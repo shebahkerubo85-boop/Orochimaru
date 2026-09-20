@@ -818,7 +818,19 @@ class TmdbWatchFragment : Fragment() {
 
         // Same plugin + same episode already resolved? Reuse the cached servers —
         // the sheet appears instantly with no double loading.
-        val cached = TmdbStreamResolver.cachedLinks(mediaId, sourceName, season, ep)
+        var cached = TmdbStreamResolver.cachedLinks(mediaId, sourceName, season, ep)
+        // Fallback: auto-search may have cached under lastAutoSource even if chip switched,
+        // or for movie (season/ep null) the direct key may miss — try any source for this episode.
+        if (cached == null) {
+            for (src in sources) {
+                val c = TmdbStreamResolver.cachedLinks(mediaId, src.name, season, ep)
+                if (c != null && c.links.isNotEmpty()) {
+                    Logger.log("TMDB_WATCH: fallback cached ${c.links.size} links via ${src.name} for S${season}E$ep (requested $sourceName)")
+                    cached = c
+                    break
+                }
+            }
+        }
         if (cached != null && cached.links.isNotEmpty()) {
             Logger.log(
                 "TMDB_WATCH: cached ${cached.links.size} links for " +
