@@ -44,11 +44,11 @@ object DownloadUtils {
 
     private fun trimCacheIfNeeded() {
         val now = System.currentTimeMillis()
-        val interval = PrefManager.getVal(PrefName.TrimIntervalMin).toLong() * 60L * 1000L
+        val interval = PrefManager.getVal<Int>(PrefName.TrimIntervalMin).toLong() * 60L * 1000L
         if (now - lastTrimTime < interval) return
         lastTrimTime = now
-        val cap = PrefManager.getVal(PrefName.CacheCapMb).toLong() * 1024 * 1024
-        val intensity = PrefManager.getVal(PrefName.TrimIntensity) / 100f
+        val cap = PrefManager.getVal<Int>(PrefName.CacheCapMb).toLong() * 1024 * 1024
+        val intensity = PrefManager.getVal<Int>(PrefName.TrimIntensity) / 100f
         synchronized(cachedBitmaps) {
             if (cachedBytes > cap && cachedBitmaps.isNotEmpty()) {
                 val toRemove = (cachedBitmaps.size * intensity).toInt().coerceAtLeast(1)
