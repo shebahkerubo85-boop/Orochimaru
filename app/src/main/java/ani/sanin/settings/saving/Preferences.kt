@@ -325,6 +325,10 @@ enum class PrefName(val data: Pref) {
     CacheCapMb(Pref(Location.UI, Int::class, 100)),
     TrimIntervalMin(Pref(Location.UI, Int::class, 10)),
     TrimIntensity(Pref(Location.UI, Int::class, 80)),
+    // Dedicated poster bitmap memory cache (separate from downloader Trim sliders)
+    PosterCacheCapMb(Pref(Location.UI, Int::class, 100)),
+    PosterCacheTrimIntervalMin(Pref(Location.UI, Int::class, 10)),
+    PosterCacheTrimIntensity(Pref(Location.UI, Int::class, 80)),
     LogToFile(Pref(Location.Irrelevant, Boolean::class, false)),
     RecentGlobalNotification(Pref(Location.Irrelevant, Int::class, 0)),
     CommentNotificationStore(Pref(Location.Irrelevant, List::class, listOf<CommentStore>())),
