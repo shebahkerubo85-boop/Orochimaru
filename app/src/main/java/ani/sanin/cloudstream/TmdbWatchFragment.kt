@@ -767,6 +767,8 @@ class TmdbWatchFragment : Fragment() {
         // A user click always wins: cancel the on-open auto search if it is still
         // running, but keep blocking while an explicit resolve is in flight.
         if (isResolving && autoSearchJob?.isActive != true) return
+        // Showing the server sheet after onSaveInstanceState crashes — bail early.
+        if (!isAdded || childFragmentManager.isStateSaved) return
         autoSearchJob?.cancel()
         autoSearchJob = null
         isResolving = false
@@ -943,7 +945,13 @@ class TmdbWatchFragment : Fragment() {
                     snackString("${result.links.size} links found via $foundName")
                     // Cache auto-search result so clicking the same episode is instant
                     TmdbStreamResolver.cacheLinks(mediaId, foundName, season, resumeEp, result)
-                    // Auto-show the server sheet so the user can pick a server immediately
+                    // Auto-show the server sheet so the user can pick a server immediately.
+                    // Guard: the IO hop may have outlived the UI (app backgrounded) —
+                    // showing a dialog after onSaveInstanceState crashes.
+                    if (!isAdded || childFragmentManager.isStateSaved) {
+                        Logger.log("TMDB_WATCH: auto search landed after state saved, sheet skipped (links cached)")
+                        return@launch
+                    }
                     val epForSheet = if (mediaType == "tv") {
                         resumeEp?.let { ep ->
                             episodes.firstOrNull { it.seasonNumber == selectedSeason && it.episodeNumber == ep }
