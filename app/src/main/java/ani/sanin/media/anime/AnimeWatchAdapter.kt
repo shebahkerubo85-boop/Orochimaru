@@ -313,12 +313,14 @@ class AnimeWatchAdapter(
                     0 -> mediaSourceList
                     1 -> mediaSourceGrid
                     2 -> mediaSourceCompact
+                    3 -> mediaSourceStrips
                     else -> mediaSourceList
                 }
                 when (style) {
                     0 -> layoutText.setText(R.string.list)
                     1 -> layoutText.setText(R.string.grid)
                     2 -> layoutText.setText(R.string.compact)
+                    3 -> layoutText.setText(R.string.strips)
                     else -> mediaSourceList
                 }
                 selected.alpha = 1f
@@ -343,6 +345,12 @@ class AnimeWatchAdapter(
                     selected(it as ImageButton)
                     style = 2
                     layoutText.setText(R.string.compact)
+                    run = true
+                }
+                mediaSourceStrips.setOnClickListener {
+                    selected(it as ImageButton)
+                    style = 3
+                    layoutText.setText(R.string.strips)
                     run = true
                 }
                 mediaWebviewContainer.setOnClickListener {

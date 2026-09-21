@@ -84,6 +84,7 @@
     <string name="tmdb_watch_down_to_up">Down to Up</string>
     <string name="tmdb_watch_style_bars">Episode view: Bars</string>
     <string name="tmdb_watch_style_list">Episode view: List</string>
+    <string name="tmdb_watch_style_strips">Episode view: Strips</string>
     <string name="tmdb_watch_notify_on">Notifications enabled</string>
     <string name="tmdb_watch_notify_off">Notifications disabled</string>
     <string name="tmdb_watch_no_sources">No CloudStream sources installed — add a repo in Extensions first.</string>
@@ -975,6 +976,8 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="list">List</string>
     <string name="grid">Bars</string>
     <string name="compact">Compact</string>
+    <string name="strips">Strips</string>
+    <string name="strips_more">More</string>
 
     <string name="webview_not_installed">WebView not installed</string>
 

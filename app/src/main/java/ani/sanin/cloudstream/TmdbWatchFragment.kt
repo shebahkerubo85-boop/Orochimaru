@@ -25,6 +25,8 @@ import ani.sanin.connections.tmdb.TmdbSeason
 import ani.sanin.databinding.FragmentTmdbWatchBinding
 import ani.sanin.databinding.ItemEpisodeListBinding
 import ani.sanin.databinding.ItemEpisodeGridBinding
+import ani.sanin.databinding.ItemEpisodeStripBinding
+import ani.sanin.getThemeColor
 import ani.sanin.databinding.ItemTmdbWatchHeaderBinding
 import ani.sanin.databinding.DialogTmdbWatchOptionsBinding
 import ani.sanin.media.SheetSourceSelector
@@ -151,7 +153,7 @@ class TmdbWatchFragment : Fragment() {
         // watching, notify) off a stable hash of the plugin URL.
         if (pluginUrl != null) mediaId = pluginUrl.hashCode()
         episodeStyle = (PrefManager.getNullableCustomVal("tmdb_style", 0, Int::class.java)
-            ?: 0).coerceIn(0, 1)
+            ?: 0).coerceIn(0, 2)
         reversed = PrefManager.getNullableCustomVal("tmdb_reversed_$mediaId", false, Boolean::class.java)
             ?: false
         Logger.log("TMDB_WATCH: opened mediaType=$mediaType mediaId=$mediaId style=$episodeStyle reversed=$reversed")
@@ -619,12 +621,13 @@ class TmdbWatchFragment : Fragment() {
         var style = episodeStyle
         fun styleLabel(s: Int) = when (s) {
             0 -> R.string.tmdb_watch_style_bars
-            else -> R.string.list
+            1 -> R.string.tmdb_watch_style_list
+            else -> R.string.tmdb_watch_style_strips
         }
         db.tmdbLayoutText.setText(styleLabel(style))
         db.tmdbSortText.text = getString(if (rev) R.string.tmdb_watch_down_to_up else R.string.tmdb_watch_up_to_down)
         db.tmdbSortTop.rotation = if (rev) -90f else 90f
-        var selected = if (style == 0) db.tmdbStyleBars else db.tmdbStyleList
+        var selected = if (style == 0) db.tmdbStyleBars else if (style == 1) db.tmdbStyleList else db.tmdbStyleStrips
         selected.alpha = 1f
         fun select(it: ImageButton, s: Int) {
             selected.alpha = 0.33f
@@ -636,6 +639,7 @@ class TmdbWatchFragment : Fragment() {
         }
         db.tmdbStyleBars.setOnClickListener { select(db.tmdbStyleBars, 0) }
         db.tmdbStyleList.setOnClickListener { select(db.tmdbStyleList, 1) }
+        db.tmdbStyleStrips.setOnClickListener { select(db.tmdbStyleStrips, 2) }
         db.tmdbSortTop.setOnClickListener {
             rev = !rev
             db.tmdbSortTop.rotation = if (rev) -90f else 90f
@@ -654,7 +658,7 @@ class TmdbWatchFragment : Fragment() {
     }
 
     private fun applyStyle(style: Int, rev: Boolean) {
-        episodeStyle = style.coerceIn(0, 1)
+        episodeStyle = style.coerceIn(0, 2)
         reversed = rev
         PrefManager.setCustomVal("tmdb_style", style)
         PrefManager.setCustomVal("tmdb_reversed_$mediaId", rev)
@@ -1196,6 +1200,8 @@ class TmdbWatchFragment : Fragment() {
                 HeaderVH(header!!)
             } else if (style == 1) {
                 ListVH(ItemEpisodeListBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+            } else if (style == 2) {
+                StripVH(ItemEpisodeStripBinding.inflate(LayoutInflater.from(parent.context), parent, false))
             } else {
                 GridVH(ItemEpisodeGridBinding.inflate(LayoutInflater.from(parent.context), parent, false))
             }
@@ -1269,6 +1275,66 @@ class TmdbWatchFragment : Fragment() {
                         holder.binding.itemEpisodeTitle,
                         holder.binding.itemEpisodeDate,
                         holder.binding.itemEpisodeNumber,
+                        isWatched
+                    )
+                    holder.binding.root.setOnClickListener { onClick(ep) }
+                    holder.binding.root.setOnLongClickListener {
+                        onLongClick(cumulativeOffset + ep.episodeNumber)
+                        true
+                    }
+                    FocusEffectUtil.applyFocusListener(holder.binding.root)
+                }
+                is StripVH -> {
+                    holder.binding.itemStripsNumber.text = ep.episodeNumber.toString()
+                    val digits = ep.episodeNumber.toString().count { it.isDigit() }
+                    holder.binding.itemStripsNumber.textSize =
+                        when {
+                            digits <= 1 -> 34f
+                            digits == 2 -> 28f
+                            digits == 3 -> 23f
+                            digits == 4 -> 18f
+                            else -> 15f
+                        }
+                    holder.binding.itemEpisodeTitle.text = title
+                    holder.binding.itemStripGradient.isVisible = true
+                    holder.binding.itemEpisodeDate.text = date
+                    holder.binding.itemEpisodeDate.isVisible = date.isNotBlank()
+                    if (ep.voteAverage > 0) {
+                        holder.binding.itemEpisodeRating.isVisible = true
+                        holder.binding.itemEpisodeRating.text =
+                            "★ " + String.format("%.1f", ep.voteAverage)
+                    } else {
+                        holder.binding.itemEpisodeRating.isVisible = false
+                    }
+                    val desc = ep.overview.orEmpty()
+                    holder.binding.itemEpisodeDesc.text = desc
+                    holder.binding.itemEpisodeDesc.isVisible = desc.isNotBlank()
+                    holder.binding.itemEpisodeDesc.maxLines = 2
+                    holder.binding.itemEpisodeDesc.alpha = 0.58f
+                    holder.binding.itemEpisodeMore.isVisible = false
+                    holder.binding.itemEpisodeMore.setOnClickListener {
+                        holder.binding.itemEpisodeDesc.maxLines = 100
+                        holder.binding.itemEpisodeMore.isVisible = false
+                    }
+                    holder.binding.itemEpisodeDesc.post {
+                        if (holder.binding.itemEpisodeDesc.lineCount > 2) {
+                            holder.binding.itemEpisodeMore.isVisible = true
+                        }
+                    }
+                    holder.binding.itemEpisodeFiller.isVisible = false
+                    holder.binding.itemEpisodeFillerView.isVisible = false
+                    loadEpisodeImage(holder.binding.itemMediaImage, image, isWatched)
+                    holder.binding.itemMediaProgressCont.isVisible = false
+                    holder.binding.itemEpisodeDivider.setBackgroundColor(
+                        holder.itemView.context.getThemeColor(com.google.android.material.R.attr.colorPrimary)
+                    )
+                    applyWatchedState(
+                        holder.binding.itemEpisodeViewed,
+                        holder.binding.itemEpisodeViewedCover,
+                        holder.binding.itemMediaImage,
+                        holder.binding.itemEpisodeTitle,
+                        holder.binding.itemEpisodeDate,
+                        holder.binding.itemStripsNumber,
                         isWatched
                     )
                     holder.binding.root.setOnClickListener { onClick(ep) }
@@ -1353,5 +1419,6 @@ class TmdbWatchFragment : Fragment() {
         class HeaderVH(itemView: View) : RecyclerView.ViewHolder(itemView)
         class GridVH(val binding: ItemEpisodeGridBinding) : RecyclerView.ViewHolder(binding.root)
         class ListVH(val binding: ItemEpisodeListBinding) : RecyclerView.ViewHolder(binding.root)
+        class StripVH(val binding: ItemEpisodeStripBinding) : RecyclerView.ViewHolder(binding.root)
     }
 }

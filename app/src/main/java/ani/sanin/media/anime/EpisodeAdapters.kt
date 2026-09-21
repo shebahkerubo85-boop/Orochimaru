@@ -18,6 +18,7 @@ import ani.sanin.connections.updateProgress
 import ani.sanin.databinding.ItemEpisodeCompactBinding
 import ani.sanin.databinding.ItemEpisodeGridBinding
 import ani.sanin.databinding.ItemEpisodeListBinding
+import ani.sanin.databinding.ItemEpisodeStripBinding
 import ani.sanin.media.Media
 import ani.sanin.media.MediaNameAdapter
 import ani.sanin.setAnimation
@@ -99,6 +100,14 @@ class EpisodeAdapter(
 
             2 -> EpisodeCompactViewHolder(
                 ItemEpisodeCompactBinding.inflate(
+                    LayoutInflater.from(parent.context),
+                    parent,
+                    false
+                )
+            )
+
+            3 -> EpisodeStripViewHolder(
+                ItemEpisodeStripBinding.inflate(
                     LayoutInflater.from(parent.context),
                     parent,
                     false
@@ -437,6 +446,152 @@ class EpisodeAdapter(
                     ep.number
                 )
             }
+
+            is EpisodeStripViewHolder -> {
+                val binding = holder.binding
+                if (!metadataOnly) {
+                    setAnimation(fragment.requireContext(), holder.binding.root)
+
+                    val thumb = ep.thumb?.let {
+                        if (it.url.isNotEmpty()) {
+                            if (it.url.startsWith("content://") || it.url.startsWith("file://")) {
+                                it.url
+                            } else {
+                                GlideUrl(it.url) { it.headers }
+                            }
+                        } else null
+                    }
+                    val isWatched = media.userProgress != null &&
+                        watchedEpisodeNumber(ep) <= media.userProgress!!.toFloat()
+                    val blurEnabled = !isWatched && cachedBlurUnwatched
+                    val glideRequest = Glide.with(binding.itemMediaImage).load(thumb ?: media.cover)
+                        .override(400, 0).diskCacheStrategy(DiskCacheStrategy.ALL)
+                    if (blurEnabled) {
+                        glideRequest.transform(BlurTransformation(15, 3)).into(binding.itemMediaImage)
+                    } else {
+                        glideRequest.into(binding.itemMediaImage)
+                    }
+                }
+
+                val epNum = ep.number
+                binding.itemStripsNumber.text = epNum
+                val digits = epNum.count { it.isDigit() }
+                binding.itemStripsNumber.textSize =
+                    when {
+                        digits <= 1 -> 34f
+                        digits == 2 -> 28f
+                        digits == 3 -> 23f
+                        digits == 4 -> 18f
+                        else -> 15f
+                    }
+
+                binding.itemEpisodeTitle.text = title
+                binding.itemStripGradient.isVisible = true
+
+                val ratingStr = ep.rating
+                if (ratingStr != null) {
+                    binding.itemEpisodeRating.visibility = View.VISIBLE
+                    binding.itemEpisodeRating.text = "★ $ratingStr"
+                } else {
+                    binding.itemEpisodeRating.visibility = View.GONE
+                }
+
+                if (ep.date != null) {
+                    binding.itemEpisodeDate.visibility = View.VISIBLE
+                    binding.itemEpisodeDate.text = ep.date
+                } else {
+                    binding.itemEpisodeDate.visibility = View.GONE
+                }
+
+                if (ep.filler) {
+                    binding.itemEpisodeFiller.visibility = View.VISIBLE
+                    binding.itemEpisodeFillerView.visibility = View.VISIBLE
+                } else {
+                    binding.itemEpisodeFiller.visibility = View.GONE
+                    binding.itemEpisodeFillerView.visibility = View.GONE
+                }
+
+                val desc = ep.desc
+                binding.itemEpisodeDesc.text = desc ?: ""
+                binding.itemEpisodeDesc.isVisible = !desc.isNullOrBlank()
+                binding.itemEpisodeDesc.maxLines = 2
+                binding.itemEpisodeDesc.alpha = 0.58f
+                binding.itemEpisodeMore.isVisible = false
+                binding.itemEpisodeMore.setOnClickListener {
+                    binding.itemEpisodeDesc.maxLines = 100
+                    binding.itemEpisodeMore.isVisible = false
+                }
+                binding.itemEpisodeDesc.post {
+                    if (binding.itemEpisodeDesc.lineCount > 2) {
+                        binding.itemEpisodeMore.isVisible = true
+                    }
+                }
+
+                if (media.userProgress != null) {
+                    val isWatched = watchedEpisodeNumber(ep) <= media.userProgress!!.toFloat()
+                    val blurUnwatched = cachedBlurUnwatched
+                    val greyWatched = cachedGreyWatched
+
+                    if (isWatched) {
+                        binding.itemEpisodeViewedCover.visibility = View.VISIBLE
+                        binding.itemEpisodeViewed.visibility = View.VISIBLE
+                        binding.itemEpisodeDivider?.setBackgroundColor(
+                            fragment.requireContext().getThemeColor(com.google.android.material.R.attr.colorOnBackground)
+                        )
+                        if (greyWatched) {
+                            val cm = ColorMatrix().apply { setSaturation(0f) }
+                            binding.itemMediaImage.colorFilter = ColorMatrixColorFilter(cm)
+                            binding.itemEpisodeTitle.alpha = 0.5f
+                            binding.itemEpisodeDate.alpha = 0.5f
+                            binding.itemEpisodeDesc.alpha = 0.3f
+                            binding.itemStripsNumber.alpha = 0.5f
+                            binding.itemEpisodeDivider?.alpha = 0.3f
+                        } else {
+                            binding.itemMediaImage.colorFilter = null
+                            binding.itemEpisodeTitle.alpha = 1f
+                            binding.itemEpisodeDate.alpha = 1f
+                            binding.itemEpisodeDesc.alpha = 0.58f
+                            binding.itemStripsNumber.alpha = 1f
+                            binding.itemEpisodeDivider?.alpha = 0.4f
+                        }
+                    } else {
+                        binding.itemEpisodeViewedCover.visibility = View.GONE
+                        binding.itemEpisodeViewed.visibility = View.GONE
+                        binding.itemEpisodeDivider?.setBackgroundColor(
+                            fragment.requireContext().getThemeColor(com.google.android.material.R.attr.colorPrimary)
+                        )
+                        if (blurUnwatched) {
+                            val cm = ColorMatrix().apply { setSaturation(0.3f) }
+                            binding.itemMediaImage.colorFilter = ColorMatrixColorFilter(cm)
+                            binding.itemEpisodeTitle.alpha = 0.5f
+                            binding.itemEpisodeDate.alpha = 0.5f
+                            binding.itemEpisodeDesc.alpha = 0.3f
+                            binding.itemEpisodeDivider?.alpha = 0.4f
+                        } else {
+                            binding.itemMediaImage.colorFilter = null
+                            binding.itemEpisodeTitle.alpha = 1f
+                            binding.itemEpisodeDate.alpha = 1f
+                            binding.itemEpisodeDesc.alpha = 0.58f
+                            binding.itemEpisodeDivider?.alpha = 0.4f
+                        }
+                        binding.itemEpisodeCont.setOnLongClickListener {
+                            updateProgress(media, ep.number)
+                            true
+                        }
+                    }
+                } else {
+                    binding.itemEpisodeViewedCover.visibility = View.GONE
+                    binding.itemEpisodeViewed.visibility = View.GONE
+                }
+
+                handleProgress(
+                    binding.itemMediaProgressCont,
+                    binding.itemMediaProgress,
+                    binding.itemMediaProgressEmpty,
+                    media.id,
+                    ep.number
+                )
+            }
         }
     }
 
@@ -529,6 +684,18 @@ class EpisodeAdapter(
             itemView.isFocusable = true
             FocusEffectUtil.applyFocusListener(itemView, borderDp = 5f)
             itemView.nextFocusRightId = R.id.itemEpisodeCont
+            itemView.setOnClickListener {
+                if (bindingAdapterPosition < arr.size && bindingAdapterPosition >= 0)
+                    fragment.onEpisodeClick(arr[bindingAdapterPosition].number)
+            }
+        }
+    }
+
+    inner class EpisodeStripViewHolder(val binding: ItemEpisodeStripBinding) :
+        RecyclerView.ViewHolder(binding.root) {
+        init {
+            itemView.isFocusable = true
+            FocusEffectUtil.applyFocusListener(itemView, borderDp = 5f)
             itemView.setOnClickListener {
                 if (bindingAdapterPosition < arr.size && bindingAdapterPosition >= 0)
                     fragment.onEpisodeClick(arr[bindingAdapterPosition].number)
