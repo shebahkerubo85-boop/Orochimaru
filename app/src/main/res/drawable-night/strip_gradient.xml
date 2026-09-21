@@ -19,7 +19,7 @@
                 android:startColor="#00000000"
                 android:centerColor="#26000000"
                 android:centerX="0.3"
-                android:endColor="#59000000" />
+                android:endColor="#99000000" />
         </shape>
     </item>
 </layer-list>

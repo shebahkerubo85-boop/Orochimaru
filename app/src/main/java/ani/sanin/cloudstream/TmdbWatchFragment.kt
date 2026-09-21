@@ -1237,8 +1237,8 @@ class TmdbWatchFragment : Fragment() {
                         holder.binding.itemMediaImage,
                         holder.binding.itemEpisodeTitle,
                         holder.binding.itemEpisodeDate,
-                        holder.binding.itemEpisodeNumber,
-                        isWatched
+                        isWatched,
+                        holder.binding.itemEpisodeNumber
                     )
                     holder.binding.root.setOnClickListener { onClick(ep) }
                     holder.binding.root.setOnLongClickListener {
@@ -1274,8 +1274,8 @@ class TmdbWatchFragment : Fragment() {
                         holder.binding.itemMediaImage,
                         holder.binding.itemEpisodeTitle,
                         holder.binding.itemEpisodeDate,
-                        holder.binding.itemEpisodeNumber,
-                        isWatched
+                        isWatched,
+                        holder.binding.itemEpisodeNumber
                     )
                     holder.binding.root.setOnClickListener { onClick(ep) }
                     holder.binding.root.setOnLongClickListener {
@@ -1285,16 +1285,6 @@ class TmdbWatchFragment : Fragment() {
                     FocusEffectUtil.applyFocusListener(holder.binding.root)
                 }
                 is StripVH -> {
-                    holder.binding.itemStripsNumber.text = ep.episodeNumber.toString()
-                    val digits = ep.episodeNumber.toString().count { it.isDigit() }
-                    holder.binding.itemStripsNumber.textSize =
-                        when {
-                            digits <= 1 -> 34f
-                            digits == 2 -> 28f
-                            digits == 3 -> 23f
-                            digits == 4 -> 18f
-                            else -> 15f
-                        }
                     holder.binding.itemEpisodeTitle.text = title
                     holder.binding.itemStripGradient.isVisible = true
                     holder.binding.itemEpisodeDate.text = date
@@ -1317,9 +1307,10 @@ class TmdbWatchFragment : Fragment() {
                         holder.binding.itemEpisodeMore.isVisible = false
                     }
                     holder.binding.itemEpisodeDesc.post {
-                        if (holder.binding.itemEpisodeDesc.lineCount > 2) {
-                            holder.binding.itemEpisodeMore.isVisible = true
-                        }
+                        val layout = holder.binding.itemEpisodeDesc.layout
+                        val truncated = layout != null && layout.lineCount > 0 &&
+                            (layout.getEllipsisCount(layout.lineCount - 1) > 0)
+                        holder.binding.itemEpisodeMore.isVisible = truncated
                     }
                     holder.binding.itemEpisodeFiller.isVisible = false
                     holder.binding.itemEpisodeFillerView.isVisible = false
@@ -1334,7 +1325,6 @@ class TmdbWatchFragment : Fragment() {
                         holder.binding.itemMediaImage,
                         holder.binding.itemEpisodeTitle,
                         holder.binding.itemEpisodeDate,
-                        holder.binding.itemStripsNumber,
                         isWatched
                     )
                     holder.binding.root.setOnClickListener { onClick(ep) }
@@ -1356,8 +1346,8 @@ class TmdbWatchFragment : Fragment() {
             image: android.widget.ImageView,
             title: android.widget.TextView,
             date: android.widget.TextView,
-            number: android.widget.TextView,
-            isWatched: Boolean
+            isWatched: Boolean,
+            number: android.widget.TextView? = null
         ) {
             if (isWatched) {
                 viewedCover.isVisible = true
@@ -1367,12 +1357,12 @@ class TmdbWatchFragment : Fragment() {
                     image.colorFilter = ColorMatrixColorFilter(cm)
                     title.alpha = 0.5f
                     date.alpha = 0.5f
-                    number.alpha = 0.5f
+                    number?.alpha = 0.5f
                 } else {
                     image.colorFilter = null
                     title.alpha = 1f
                     date.alpha = 1f
-                    number.alpha = 1f
+                    number?.alpha = 1f
                 }
             } else {
                 viewedCover.isVisible = false
@@ -1381,11 +1371,11 @@ class TmdbWatchFragment : Fragment() {
                 if (blurUnwatched) {
                     title.alpha = 0.5f
                     date.alpha = 0.5f
-                    number.alpha = 0.5f
+                    number?.alpha = 0.5f
                 } else {
                     title.alpha = 1f
                     date.alpha = 1f
-                    number.alpha = 1f
+                    number?.alpha = 1f
                 }
             }
         }

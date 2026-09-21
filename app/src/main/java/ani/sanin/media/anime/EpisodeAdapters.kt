@@ -473,18 +473,6 @@ class EpisodeAdapter(
                     }
                 }
 
-                val epNum = ep.number
-                binding.itemStripsNumber.text = epNum
-                val digits = epNum.count { it.isDigit() }
-                binding.itemStripsNumber.textSize =
-                    when {
-                        digits <= 1 -> 34f
-                        digits == 2 -> 28f
-                        digits == 3 -> 23f
-                        digits == 4 -> 18f
-                        else -> 15f
-                    }
-
                 binding.itemEpisodeTitle.text = title
                 binding.itemStripGradient.isVisible = true
 
@@ -522,9 +510,10 @@ class EpisodeAdapter(
                     binding.itemEpisodeMore.isVisible = false
                 }
                 binding.itemEpisodeDesc.post {
-                    if (binding.itemEpisodeDesc.lineCount > 2) {
-                        binding.itemEpisodeMore.isVisible = true
-                    }
+                    val layout = binding.itemEpisodeDesc.layout
+                    val truncated = layout != null && layout.lineCount > 0 &&
+                        (layout.getEllipsisCount(layout.lineCount - 1) > 0)
+                    binding.itemEpisodeMore.isVisible = truncated
                 }
 
                 if (media.userProgress != null) {
@@ -544,14 +533,12 @@ class EpisodeAdapter(
                             binding.itemEpisodeTitle.alpha = 0.5f
                             binding.itemEpisodeDate.alpha = 0.5f
                             binding.itemEpisodeDesc.alpha = 0.3f
-                            binding.itemStripsNumber.alpha = 0.5f
                             binding.itemEpisodeDivider?.alpha = 0.3f
                         } else {
                             binding.itemMediaImage.colorFilter = null
                             binding.itemEpisodeTitle.alpha = 1f
                             binding.itemEpisodeDate.alpha = 1f
                             binding.itemEpisodeDesc.alpha = 0.58f
-                            binding.itemStripsNumber.alpha = 1f
                             binding.itemEpisodeDivider?.alpha = 0.4f
                         }
                     } else {

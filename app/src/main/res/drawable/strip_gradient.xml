@@ -6,9 +6,9 @@
                 android:type="linear"
                 android:angle="0"
                 android:startColor="#00FFFFFF"
-                android:centerColor="#40FFFFFF"
+                android:centerColor="#33FFFFFF"
                 android:centerX="0.35"
-                android:endColor="#B3FFFFFF" />
+                android:endColor="#8CFFFFFF" />
         </shape>
     </item>
     <item>
@@ -17,7 +17,7 @@
                 android:type="linear"
                 android:angle="0"
                 android:startColor="#00FFFFFF"
-                android:centerColor="#26FFFFFF"
+                android:centerColor="#1AFFFFFF"
                 android:centerX="0.3"
                 android:endColor="#59FFFFFF" />
         </shape>

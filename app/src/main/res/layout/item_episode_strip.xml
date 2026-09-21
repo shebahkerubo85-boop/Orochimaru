@@ -10,33 +10,16 @@
     android:gravity="top"
     android:orientation="horizontal">
 
-    <TextView
-        android:id="@+id/itemStripsNumber"
-        android:layout_width="56dp"
-        android:layout_height="64dp"
-        android:fontFamily="@font/poppins_bold"
-        android:gravity="center"
-        android:textAlignment="viewEnd"
-        android:paddingEnd="4dp"
-        android:singleLine="true"
-        android:textColor="?attr/colorOnBackground"
-        android:textSize="32sp"
-        tools:ignore="RtlSymmetry,TextContrastCheck"
-        tools:text="10" />
-
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/itemEpisodeCont"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:layout_marginStart="-14dp"
-        android:minHeight="64dp"
+        android:minHeight="96dp"
         android:translationZ="8dp"
         app:cardBackgroundColor="?attr/colorSurfaceVariant"
         app:cardCornerRadius="16dp"
-        app:cardElevation="4dp"
-        app:strokeColor="?attr/colorPrimaryContainer"
-        app:strokeWidth="2dp">
+        app:cardElevation="4dp">
 
         <FrameLayout
             android:layout_width="match_parent"
@@ -55,19 +38,18 @@
                 android:orientation="horizontal">
 
                 <FrameLayout
-                    android:layout_width="0dp"
-                    android:layout_height="64dp"
-                    android:layout_weight="1">
+                    android:layout_width="164dp"
+                    android:layout_height="109dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="64dp"
+                        android:layout_height="109dp"
                         android:orientation="horizontal">
 
                         <ImageView
                             android:id="@+id/itemMediaImage"
                             android:layout_width="0dp"
-                            android:layout_height="64dp"
+                            android:layout_height="109dp"
                             android:layout_weight="7"
                             android:scaleType="centerCrop"
                             tools:ignore="ContentDescription"
@@ -76,7 +58,7 @@
                         <View
                             android:id="@+id/itemStripGradient"
                             android:layout_width="0dp"
-                            android:layout_height="64dp"
+                            android:layout_height="109dp"
                             android:layout_weight="1"
                             android:background="@drawable/strip_gradient"
                             android:visibility="gone"
@@ -104,13 +86,13 @@
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_weight="3"
+                    android:layout_weight="1"
                     android:layout_marginStart="8dp"
                     android:layout_marginEnd="12dp"
                     android:layout_marginTop="4dp"
                     android:layout_marginBottom="4dp"
                     android:gravity="center_vertical"
-                    android:minHeight="64dp"
+                    android:minHeight="109dp"
                     android:orientation="vertical">
 
                     <TextView
