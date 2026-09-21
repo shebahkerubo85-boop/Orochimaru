@@ -841,8 +841,11 @@ class HomeFragment : Fragment() {
         val dots = binding.homeBannerDots
         dots.removeAllViews()
         val density = resources.displayMetrics.density
+        // Portrait: max 7 dots, cycling (8th banner lights dot 0). Landscape: all.
+        val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+        val shown = if (isPortrait) minOf(itemCount, 7) else itemCount
         val dotsList = mutableListOf<View>()
-        for (i in 0 until itemCount) {
+        for (i in 0 until shown) {
             val dot = View(requireContext())
             val w = if (i == 0) (32 * density).toInt() else (12 * density).toInt()
             val lp = LinearLayout.LayoutParams(w, (4 * density).toInt())
@@ -856,9 +859,9 @@ class HomeFragment : Fragment() {
                 val lm = rv.layoutManager as LinearLayoutManager
                 val current = lm.findFirstVisibleItemPosition()
                 val currentReal = current % itemCount
-                if (i == currentReal) return@setOnClickListener
-                val diff = i - currentReal
-                rv.smoothScrollToPosition(current + diff)
+                val target = (currentReal / shown) * shown + i
+                if (target == currentReal || target >= itemCount) return@setOnClickListener
+                rv.smoothScrollToPosition(current + (target - currentReal))
             }
             dots.addView(dot)
             dotsList.add(dot)
@@ -868,8 +871,8 @@ class HomeFragment : Fragment() {
         rv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrollStateChanged(rv: RecyclerView, newState: Int) {
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    val lm = rv.layoutManager as LinearLayoutManager
-                    val pos = lm.findFirstVisibleItemPosition() % itemCount
+                    val lm = rv.layoutManager as? LinearLayoutManager ?: return
+                    val pos = lm.findFirstVisibleItemPosition() % itemCount % shown
                     for (i in 0 until dotsList.size) {
                         val dot = dotsList[i]
                         val lp = dot.layoutParams

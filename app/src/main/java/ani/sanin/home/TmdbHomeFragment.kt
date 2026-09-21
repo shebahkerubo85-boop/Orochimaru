@@ -523,14 +523,16 @@ class TmdbHomeFragment : Fragment() {
 
     private fun updateDots() {
         val dots = binding.tmdbBannerDots
-        if (dots.visibility != View.VISIBLE) return
+        if (dots.visibility != View.VISIBLE || dots.childCount == 0) return
         val density = resources.displayMetrics.density
+        // Portrait window: active dot cycles within the shown dots.
+        val active = bannerIndex % dots.childCount
         for (i in 0 until dots.childCount) {
             val dot = dots.getChildAt(i)
             val lp = dot.layoutParams
-            lp.width = if (i == bannerIndex) (32 * density).toInt() else (12 * density).toInt()
+            lp.width = if (i == active) (32 * density).toInt() else (12 * density).toInt()
             dot.layoutParams = lp
-            dot.background = if (i == bannerIndex)
+            dot.background = if (i == active)
                 ContextCompat.getDrawable(requireContext(), R.drawable.banner_dot_active)
             else
                 ContextCompat.getDrawable(requireContext(), R.drawable.banner_dot_inactive)
@@ -541,7 +543,10 @@ class TmdbHomeFragment : Fragment() {
         val dots = binding.tmdbBannerDots
         dots.removeAllViews()
         val density = resources.displayMetrics.density
-        for (i in 0 until itemCount) {
+        // Portrait: max 7 dots, cycling (8th banner lights dot 0). Landscape: all.
+        val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+        val shown = if (isPortrait) minOf(itemCount, 7) else itemCount
+        for (i in 0 until shown) {
             val dot = View(requireContext())
             val w = if (i == 0) (32 * density).toInt() else (12 * density).toInt()
             val lp = LinearLayout.LayoutParams(w, (4 * density).toInt())
@@ -555,8 +560,9 @@ class TmdbHomeFragment : Fragment() {
                 val lm = rv.layoutManager as? LinearLayoutManager ?: return@setOnClickListener
                 val current = lm.findFirstVisibleItemPosition()
                 val currentReal = current % itemCount
-                if (i == currentReal) return@setOnClickListener
-                rv.smoothScrollToPosition(current + (i - currentReal))
+                val target = (currentReal / shown) * shown + i
+                if (target == currentReal || target >= itemCount) return@setOnClickListener
+                rv.smoothScrollToPosition(current + (target - currentReal))
             }
             dots.addView(dot)
         }

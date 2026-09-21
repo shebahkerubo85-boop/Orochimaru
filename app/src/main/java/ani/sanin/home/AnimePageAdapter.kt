@@ -460,8 +460,11 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         val dots = trendingBinding.trendingDots
         dots.removeAllViews()
         val density = rv.context.resources.displayMetrics.density
+        // Portrait: max 7 dots, cycling (8th banner lights dot 0). Landscape: all.
+        val isPortrait = rv.context.resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+        val shown = if (isPortrait) minOf(itemCount, 7) else itemCount
         val dotsList = mutableListOf<View>()
-        for (i in 0 until itemCount) {
+        for (i in 0 until shown) {
             val dot = View(rv.context)
             val w = if (i == 0) (32 * density).toInt() else (12 * density).toInt()
             val lp = LinearLayout.LayoutParams(w, (4 * density).toInt())
@@ -475,9 +478,9 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
                 val lm = rv.layoutManager as LinearLayoutManager
                 val current = lm.findFirstVisibleItemPosition()
                 val currentReal = current % itemCount
-                if (i == currentReal) return@setOnClickListener
-                if (i > currentReal) rv.smoothScrollToPosition(current + (i - currentReal))
-                else rv.smoothScrollToPosition(current - (currentReal - i))
+                val target = (currentReal / shown) * shown + i
+                if (target == currentReal || target >= itemCount) return@setOnClickListener
+                rv.smoothScrollToPosition(current + (target - currentReal))
             }
             dots.addView(dot)
             dotsList.add(dot)
@@ -488,7 +491,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             override fun onScrollStateChanged(rv: RecyclerView, newState: Int) {
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
                     val lm = rv.layoutManager as LinearLayoutManager
-                    val pos = lm.findFirstVisibleItemPosition() % itemCount
+                    val pos = lm.findFirstVisibleItemPosition() % itemCount % shown
                     for (i in 0 until dotsList.size) {
                         val dot = dotsList[i]
                         val lp = dot.layoutParams
