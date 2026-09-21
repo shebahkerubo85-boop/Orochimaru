@@ -1152,6 +1152,7 @@ class HomeFragment : Fragment() {
         overlay.isVisible = true
         overlay.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             width = stripW + cardW / 4
+            height = cardH
         }
         overlay.setPadding(sidePad, 0, sidePad, 0)
         b.homeBannerOverlayLogo.maxWidth = (stripW - sidePad * 2).coerceAtLeast(1)

@@ -222,6 +222,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             val stripW = ctx.resources.displayMetrics.widthPixels - cardW
             overlay.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                 width = stripW + cardW / 4
+                height = cardH
             }
             overlay.setPadding(sidePad, 0, sidePad, 0)
             trendingBinding.trendingOverlayLogo.maxWidth =
