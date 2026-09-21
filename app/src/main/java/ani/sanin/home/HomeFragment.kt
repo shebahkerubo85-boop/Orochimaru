@@ -1174,8 +1174,9 @@ class HomeFragment : Fragment() {
         overlay.bringToFront()
 
         overlay.isVisible = true
+        val largeBanner = isLargeBanner()
         overlay.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-            width = stripW + cardW / 4
+            width = if (largeBanner) cardW else stripW + cardW / 4
             height = cardH
         }
         overlay.setPadding(sidePad, 0, sidePad, 0)
@@ -1183,6 +1184,11 @@ class HomeFragment : Fragment() {
         b.homeBannerOverlayLogo.maxHeight = (cardH * 0.30f).toInt()
         b.homeBannerOverlaySynopsis.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             width = (stripW - sidePad * 2 + cardW / 4).coerceAtLeast(1)
+        }
+        // Large: chips 2dp above Watch, title 5dp spacing.
+        if (largeBanner) {
+            b.homeBannerOverlayTitle.updateLayoutParams<ViewGroup.MarginLayoutParams> { bottomMargin = (5 * density).toInt() }
+            b.homeBannerWatchBtn.updateLayoutParams<ViewGroup.MarginLayoutParams> { topMargin = (2 * density).toInt() }
         }
 
         if (navActive) {

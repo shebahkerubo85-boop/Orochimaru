@@ -223,8 +223,9 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             val density = ctx.resources.displayMetrics.density
             val sidePad = (24 * density).toInt()
             val stripW = ctx.resources.displayMetrics.widthPixels - cardW
+            val largeBanner = isLargeBanner()
             overlay.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                width = stripW + cardW / 4
+                width = if (largeBanner) cardW else stripW + cardW / 4
                 height = cardH
             }
             overlay.setPadding(sidePad, 0, sidePad, 0)
@@ -233,6 +234,10 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             trendingBinding.trendingOverlayLogo.maxHeight = (cardH * 0.30f).toInt()
             trendingBinding.trendingOverlaySynopsis.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                 width = (stripW - sidePad * 2 + cardW / 4).coerceAtLeast(1)
+            }
+            if (largeBanner) {
+                trendingBinding.trendingOverlayTitle.updateLayoutParams<ViewGroup.MarginLayoutParams> { bottomMargin = (5 * density).toInt() }
+                trendingBinding.trendingWatchBtn.updateLayoutParams<ViewGroup.MarginLayoutParams> { topMargin = (2 * density).toInt() }
             }
             updateTrendingOverlayForCurrent()
         } else {

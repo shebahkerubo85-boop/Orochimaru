@@ -1008,8 +1008,9 @@ class TmdbHomeFragment : Fragment() {
                 height = cardH
             }
             binding.tmdbBannerSide.isVisible = true
+            val largeBanner = isLargeBanner()
             binding.tmdbBannerSide.updateLayoutParams<FrameLayout.LayoutParams> {
-                width = stripW + cardW / 4
+                width = if (largeBanner) cardW else stripW + cardW / 4
                 height = cardH
                 gravity = Gravity.START or Gravity.CENTER_VERTICAL
             }
@@ -1021,6 +1022,13 @@ class TmdbHomeFragment : Fragment() {
             }
             binding.tmdbBannerLogo.maxWidth = (stripW - 48 * density).toInt().coerceAtLeast(100)
             binding.tmdbBannerLogo.maxHeight = (cardH * 0.30f).toInt()
+            if (largeBanner) {
+                binding.tmdbBannerSideWatchBtn.updateLayoutParams<ViewGroup.MarginLayoutParams> { topMargin = (2 * density).toInt() }
+                // Title spacing 5dp for Large
+                binding.tmdbBannerSide.findViewById<android.view.View>(R.id.tmdbBannerLogo)?.let { v ->
+                    v.updateLayoutParams<ViewGroup.MarginLayoutParams> { bottomMargin = (5 * density).toInt() }
+                }
+            }
             binding.tmdbBannerImage.scaleType = ImageView.ScaleType.CENTER_CROP
             binding.tmdbBannerContent.isVisible = false
         } else {
