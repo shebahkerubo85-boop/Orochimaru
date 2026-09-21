@@ -1024,8 +1024,7 @@ class TmdbHomeFragment : Fragment() {
             }
             binding.tmdbBannerLogo.maxWidth = (stripW - 48 * density).toInt().coerceAtLeast(100)
             binding.tmdbBannerLogo.maxHeight = (cardH * 0.30f).toInt()
-            binding.tmdbBannerImage.scaleType = if (isLargeBanner()) ImageView.ScaleType.CENTER_CROP
-                else ImageView.ScaleType.FIT_CENTER
+            binding.tmdbBannerImage.scaleType = ImageView.ScaleType.CENTER_CROP
             binding.tmdbBannerContent.isVisible = false
         } else {
             card.sizeBannerCard()

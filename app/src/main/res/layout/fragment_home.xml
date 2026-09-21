@@ -295,6 +295,11 @@
                                 android:paddingTop="12dp"
                                 android:visibility="gone">
 
+                                <Space
+                                    android:layout_width="match_parent"
+                                    android:layout_height="0dp"
+                                    android:layout_weight="1" />
+
                                 <ImageView
                                     android:id="@+id/homeBannerOverlayLogo"
                                     android:layout_width="wrap_content"
@@ -322,6 +327,11 @@
                                     android:textSize="22sp"
                                     android:textStyle="bold"
                                     android:visibility="gone" />
+
+                                <Space
+                                    android:layout_width="match_parent"
+                                    android:layout_height="0dp"
+                                    android:layout_weight="1" />
 
                                 <LinearLayout
                                     android:id="@+id/homeBannerOverlayChips"
