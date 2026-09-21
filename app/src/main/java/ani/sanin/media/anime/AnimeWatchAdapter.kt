@@ -311,14 +311,14 @@ class AnimeWatchAdapter(
                 // Grids
                 var selected = when (style) {
                     0 -> mediaSourceList
-                    1 -> mediaSourceGrid
+                    1 -> mediaSourceBars
                     2 -> mediaSourceCompact
                     3 -> mediaSourceStrips
                     else -> mediaSourceList
                 }
                 when (style) {
                     0 -> layoutText.setText(R.string.list)
-                    1 -> layoutText.setText(R.string.grid)
+                    1 -> layoutText.setText(R.string.bars)
                     2 -> layoutText.setText(R.string.compact)
                     3 -> layoutText.setText(R.string.strips)
                     else -> mediaSourceList
@@ -335,10 +335,10 @@ class AnimeWatchAdapter(
                     layoutText.setText(R.string.list)
                     run = true
                 }
-                mediaSourceGrid.setOnClickListener {
+                mediaSourceBars.setOnClickListener {
                     selected(it as ImageButton)
                     style = 1
-                    layoutText.setText(R.string.grid)
+                    layoutText.setText(R.string.bars)
                     run = true
                 }
                 mediaSourceCompact.setOnClickListener {
