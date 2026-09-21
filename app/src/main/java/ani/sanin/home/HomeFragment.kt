@@ -1075,9 +1075,9 @@ class HomeFragment : Fragment() {
             navActive -> {
                 cwItemUpTarget = R.id.mainCalendarContainer
                 cwRow?.nextFocusUpId = R.id.mainCalendarContainer
-                cal?.nextFocusDownId = R.id.homeWatchingRecyclerView
-                avatar?.nextFocusDownId = R.id.homeWatchingRecyclerView
-                watchBtn.isVisible = false
+                cal?.nextFocusDownId = R.id.homeBannerWatchBtn
+                avatar?.nextFocusDownId = R.id.homeBannerWatchBtn
+                watchBtn.isVisible = true
             }
             else -> {
                 cwItemUpTarget = R.id.homeBannerWatchBtn
