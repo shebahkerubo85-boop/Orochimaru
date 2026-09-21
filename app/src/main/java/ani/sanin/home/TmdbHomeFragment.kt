@@ -579,11 +579,8 @@ class TmdbHomeFragment : Fragment() {
 
     private fun openBannerItem(item: BannerItem) {
         when (item) {
-            is BannerItem.Tmdb -> startActivity(
-                Intent(requireContext(), TmdbWatchActivity::class.java)
-                    .putExtra(TmdbWatchActivity.ARG_MEDIA_TYPE, item.media.type)
-                    .putExtra(TmdbWatchActivity.ARG_MEDIA_ID, item.media.id)
-            )
+            // Like every other movie card: details first, Watch lives there.
+            is BannerItem.Tmdb -> openDetails(item.media.type, item.media.id)
             is BannerItem.Plugin -> {
                 if (item.tmdbId != null && item.tmdbType != null) {
                     openDetails(item.tmdbType, item.tmdbId)
