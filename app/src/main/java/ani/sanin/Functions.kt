@@ -181,13 +181,9 @@ fun View.bannerCardSizePx(maxHeightFraction: Float = 0.55f): Pair<Int, Int> {
     val finalH: Float
     val finalW: Float
     if (isLargeBanner()) {
-        // Large type: fixed 360dp height but keep compact's width, so wide
-        // screens don't gain a new empty strip; cap to screen width.
-        val maxH = (screenH - statusBarHeight / density) * maxHeightFraction
-        val naturalH = screenW * 9f / 16f
-        val compactW = if (naturalH <= maxH) screenW else maxH * 16f / 9f
+        // Large type: full-width 360dp strip — no left empty bar.
         finalH = 360f
-        finalW = minOf(screenW, maxOf(compactW, 360f * 16f / 9f))
+        finalW = screenW
     } else {
         val maxH = (screenH - statusBarHeight / density) * maxHeightFraction
         val naturalH = screenW * 9f / 16f

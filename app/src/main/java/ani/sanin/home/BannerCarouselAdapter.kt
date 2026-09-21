@@ -75,9 +75,7 @@ class BannerCarouselAdapter(
         if (!imageUrl.isNullOrBlank()) {
             holder.bannerBg.visibility = View.VISIBLE
             holder.bannerImage.visibility = View.VISIBLE
-            // Landscape art always fills the card edge-to-edge.
-            val crop = isLargeBanner() || landscapeOverlay
-            holder.bannerImage.scaleType = if (crop) ImageView.ScaleType.CENTER_CROP
+            holder.bannerImage.scaleType = if (isLargeBanner()) ImageView.ScaleType.CENTER_CROP
                 else ImageView.ScaleType.FIT_CENTER
             Glide.with(holder.itemView.context)
                 .load(imageUrl)
@@ -93,7 +91,7 @@ class BannerCarouselAdapter(
                         resource: Drawable, model: Any, target: Target<Drawable>,
                         dataSource: DataSource, isFirstResource: Boolean
                     ): Boolean {
-                        holder.bannerImage.scaleType = if (isLargeBanner() || landscapeOverlay ||
+                        holder.bannerImage.scaleType = if (isLargeBanner() ||
                             resource.intrinsicHeight > resource.intrinsicWidth)
                             ImageView.ScaleType.CENTER_CROP
                         else
@@ -104,7 +102,7 @@ class BannerCarouselAdapter(
                         e: GlideException?, model: Any?, target: Target<Drawable>,
                         isFirstResource: Boolean
                     ): Boolean {
-                        holder.bannerImage.scaleType = if (isLargeBanner() || landscapeOverlay) ImageView.ScaleType.CENTER_CROP
+                        holder.bannerImage.scaleType = if (isLargeBanner()) ImageView.ScaleType.CENTER_CROP
                             else ImageView.ScaleType.FIT_CENTER
                         return false
                     }

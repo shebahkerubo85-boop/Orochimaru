@@ -1194,7 +1194,9 @@ class HomeFragment : Fragment() {
             b.navBannerScrim.layoutParams = b.navBannerScrim.layoutParams.apply {
                 width = cardW / 2
             }
-            val scale = ImageView.ScaleType.CENTER_CROP
+            val largeBanner = isLargeBanner()
+            val scale = if (largeBanner) ImageView.ScaleType.CENTER_CROP
+                else ImageView.ScaleType.FIT_CENTER
             b.navBannerBgA.scaleType = scale
             b.navBannerBgB.scaleType = scale
             b.navBannerCard.isFocusable = true

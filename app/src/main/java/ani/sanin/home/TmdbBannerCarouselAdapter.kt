@@ -53,7 +53,7 @@ class TmdbBannerCarouselAdapter(
         if (!imageUrl.isNullOrBlank()) {
             holder.bannerImage.isVisible = true
             holder.bannerBg.isVisible = true
-            holder.bannerImage.scaleType = if (isLargeBanner() || landscapeMode) android.widget.ImageView.ScaleType.CENTER_CROP
+            holder.bannerImage.scaleType = if (isLargeBanner()) android.widget.ImageView.ScaleType.CENTER_CROP
                 else android.widget.ImageView.ScaleType.FIT_CENTER
             Glide.with(ctx).load(imageUrl).placeholder(R.color.bg_black).error(R.drawable.ic_round_person_24)
                 .into(holder.bannerBg)
