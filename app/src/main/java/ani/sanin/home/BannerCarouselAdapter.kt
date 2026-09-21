@@ -18,6 +18,7 @@ import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
 import ani.sanin.R
+import ani.sanin.isLargeBanner
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.getThemeColor
 import ani.sanin.loadImage
@@ -74,7 +75,9 @@ class BannerCarouselAdapter(
         if (!imageUrl.isNullOrBlank()) {
             holder.bannerBg.visibility = View.VISIBLE
             holder.bannerImage.visibility = View.VISIBLE
-            holder.bannerImage.scaleType = ImageView.ScaleType.FIT_CENTER
+            val largeBanner = isLargeBanner()
+            holder.bannerImage.scaleType = if (largeBanner) ImageView.ScaleType.CENTER_CROP
+                else ImageView.ScaleType.FIT_CENTER
             Glide.with(holder.itemView.context)
                 .load(imageUrl)
                 .placeholder(R.color.bg_black)
@@ -89,7 +92,8 @@ class BannerCarouselAdapter(
                         resource: Drawable, model: Any, target: Target<Drawable>,
                         dataSource: DataSource, isFirstResource: Boolean
                     ): Boolean {
-                        holder.bannerImage.scaleType = if (resource.intrinsicHeight > resource.intrinsicWidth)
+                        holder.bannerImage.scaleType = if (largeBanner ||
+                            resource.intrinsicHeight > resource.intrinsicWidth)
                             ImageView.ScaleType.CENTER_CROP
                         else
                             ImageView.ScaleType.FIT_CENTER
@@ -99,7 +103,8 @@ class BannerCarouselAdapter(
                         e: GlideException?, model: Any?, target: Target<Drawable>,
                         isFirstResource: Boolean
                     ): Boolean {
-                        holder.bannerImage.scaleType = ImageView.ScaleType.FIT_CENTER
+                        holder.bannerImage.scaleType = if (largeBanner) ImageView.ScaleType.CENTER_CROP
+                            else ImageView.ScaleType.FIT_CENTER
                         return false
                     }
                 })
@@ -315,9 +320,11 @@ class BannerCarouselAdapter(
             return
         }
         val half = cardWidthPx / 2
-        scrim.isVisible = true
+        // Large type: no left 3-layer scrim, only the gradient below.
+        val largeBanner = isLargeBanner()
+        scrim.isVisible = !largeBanner
         scrim.layoutParams = scrim.layoutParams.apply { width = half }
-        bottomGradient.isVisible = false
+        bottomGradient.isVisible = largeBanner
         holder.clearlogo.isVisible = false
         holder.title.isVisible = false
         holder.formatTag.isVisible = false

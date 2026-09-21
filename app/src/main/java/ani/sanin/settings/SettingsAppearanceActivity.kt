@@ -219,6 +219,15 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                             suffix = "%"
                         ) { PrefManager.setVal(PrefName.CardGradientIntensity, it / 100f) },
                     ),
+                    SubscreenBuilder.Entry(
+                        title = "Banner Type",
+                        desc = "Compact keeps the current size; Large is 360dp tall with center-cropped art",
+                        choice = SubscreenBuilder.Choice(
+                            title = "Banner Type",
+                            options = arrayOf("Compact", "Large"),
+                            currentIndex = PrefManager.getVal<Int>(PrefName.BannerType),
+                        ) { idx -> PrefManager.setVal(PrefName.BannerType, idx) },
+                    ),
                 ),
             ),
 

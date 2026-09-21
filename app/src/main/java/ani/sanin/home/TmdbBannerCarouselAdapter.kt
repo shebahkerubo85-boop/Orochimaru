@@ -12,6 +12,7 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import ani.sanin.R
+import ani.sanin.isLargeBanner
 import ani.sanin.getThemeColor
 
 class TmdbBannerCarouselAdapter(
@@ -52,6 +53,8 @@ class TmdbBannerCarouselAdapter(
         if (!imageUrl.isNullOrBlank()) {
             holder.bannerImage.isVisible = true
             holder.bannerBg.isVisible = true
+            holder.bannerImage.scaleType = if (isLargeBanner()) android.widget.ImageView.ScaleType.CENTER_CROP
+                else android.widget.ImageView.ScaleType.FIT_CENTER
             Glide.with(ctx).load(imageUrl).placeholder(R.color.bg_black).error(R.drawable.ic_round_person_24)
                 .into(holder.bannerBg)
             Glide.with(ctx).load(imageUrl).placeholder(R.color.bg_black).error(R.drawable.ic_round_person_24)
@@ -215,8 +218,9 @@ class TmdbBannerCarouselAdapter(
         }
         // Landscape (anime-exact): the card shows only the image + left-half
         // scrim; the metadata lives in the side panel (tmdbBannerSide).
+        // Large type: no left 3-layer scrim, only the gradient below.
         val half = cardWidthPx / 2
-        scrim.isVisible = true
+        scrim.isVisible = !isLargeBanner()
         scrim.layoutParams = scrim.layoutParams.apply { width = half }
         holder.clearlogo.isVisible = false
         holder.title.isVisible = false

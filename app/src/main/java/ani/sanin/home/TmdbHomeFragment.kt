@@ -23,6 +23,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
+import ani.sanin.isLargeBanner
 import ani.sanin.bannerCardSizePx
 import ani.sanin.cloudstream.CsInstalledSource
 import ani.sanin.cloudstream.CsRepos
@@ -938,7 +939,8 @@ class TmdbHomeFragment : Fragment() {
                 }
                 binding.tmdbBannerFade.bringToFront()
                 binding.tmdbBannerFade.z = 10f
-                binding.tmdbBannerCardScrim.isVisible = true
+                // Large type: no left 3-layer scrim, only gradients below.
+                binding.tmdbBannerCardScrim.isVisible = !isLargeBanner()
                 binding.tmdbBannerCardScrim.layoutParams = binding.tmdbBannerCardScrim.layoutParams.apply {
                     width = cardW / 2
                     height = cardH
@@ -987,7 +989,7 @@ class TmdbHomeFragment : Fragment() {
             }
             binding.tmdbBannerFade.bringToFront()
             binding.tmdbBannerFade.z = 10f
-            binding.tmdbBannerCardScrim.isVisible = true
+            binding.tmdbBannerCardScrim.isVisible = !isLargeBanner()
             binding.tmdbBannerCardScrim.layoutParams = binding.tmdbBannerCardScrim.layoutParams.apply {
                 width = cardW / 2
                 height = cardH
@@ -1006,7 +1008,8 @@ class TmdbHomeFragment : Fragment() {
             }
             binding.tmdbBannerLogo.maxWidth = (stripW - 48 * density).toInt().coerceAtLeast(100)
             binding.tmdbBannerLogo.maxHeight = (cardH * 0.30f).toInt()
-            binding.tmdbBannerImage.scaleType = ImageView.ScaleType.FIT_CENTER
+            binding.tmdbBannerImage.scaleType = if (isLargeBanner()) ImageView.ScaleType.CENTER_CROP
+                else ImageView.ScaleType.FIT_CENTER
             binding.tmdbBannerContent.isVisible = false
         } else {
             card.sizeBannerCard()

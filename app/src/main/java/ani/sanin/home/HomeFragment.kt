@@ -42,6 +42,7 @@ import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
 import ani.sanin.MainActivity
+import ani.sanin.isLargeBanner
 import ani.sanin.R
 import ani.sanin.Refresh
 import ani.sanin.blurImage
@@ -1162,14 +1163,18 @@ class HomeFragment : Fragment() {
         }
 
         if (navActive) {
+            val largeBanner = isLargeBanner()
             b.navBannerContent.isVisible = false
-            b.navBannerBottomGradient.isVisible = false
-            b.navBannerScrim.isVisible = true
+            // Large type: no left 3-layer scrim, only the gradient below.
+            b.navBannerBottomGradient.isVisible = largeBanner
+            b.navBannerScrim.isVisible = !largeBanner
             b.navBannerScrim.layoutParams = b.navBannerScrim.layoutParams.apply {
                 width = cardW / 2
             }
-            b.navBannerBgA.scaleType = ImageView.ScaleType.FIT_CENTER
-            b.navBannerBgB.scaleType = ImageView.ScaleType.FIT_CENTER
+            val scale = if (largeBanner) ImageView.ScaleType.CENTER_CROP
+                else ImageView.ScaleType.FIT_CENTER
+            b.navBannerBgA.scaleType = scale
+            b.navBannerBgB.scaleType = scale
             b.navBannerCard.isFocusable = true
             b.navBannerCard.nextFocusDownId = R.id.homeContinueWatchRow
             navBannerCurrentMedia?.let { updateHomeBannerOverlay(it) }
