@@ -1231,7 +1231,10 @@ class HomeFragment : Fragment() {
             ?.replace(Regex("<.*?>"), "")
             ?.replace(Regex("\\s+"), " ")
             ?.trim()
-        if (!desc.isNullOrBlank()) {
+        // Large type: title + chips only, no synopsis.
+        if (isLargeBanner()) {
+            synopsis.isVisible = false
+        } else if (!desc.isNullOrBlank()) {
             synopsis.text = desc
             synopsis.isVisible = true
         } else {

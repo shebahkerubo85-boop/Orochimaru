@@ -23,6 +23,7 @@ import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.home.BannerCarouselAdapter
 import ani.sanin.R
+import ani.sanin.isLargeBanner
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.anizip.AniZip
 import ani.sanin.connections.mal.MAL
@@ -282,7 +283,10 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             ?.replace(Regex("<.*?>"), "")
             ?.replace(Regex("\\s+"), " ")
             ?.trim()
-        if (!desc.isNullOrBlank()) {
+        // Large type: title + chips only, no synopsis.
+        if (isLargeBanner()) {
+            synopsis.isVisible = false
+        } else if (!desc.isNullOrBlank()) {
             synopsis.text = desc
             synopsis.isVisible = true
         } else {

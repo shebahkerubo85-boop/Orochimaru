@@ -175,7 +175,7 @@ class BannerCarouselAdapter(
             ?.replace(Regex("<.*?>"), "")
             ?.replace(Regex("\\s+"), " ")
             ?.trim()
-        if (hideDescription) {
+        if (hideDescription || isLargeBanner()) {
             holder.description.isVisible = false
         } else if (!desc.isNullOrBlank()) {
             holder.description.text = desc

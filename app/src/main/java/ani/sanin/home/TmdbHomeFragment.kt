@@ -788,10 +788,12 @@ class TmdbHomeFragment : Fragment() {
         binding.tmdbBannerRating.text = meta
         val synopsis = item.overview?.takeIf { it.isNotBlank() } ?: ""
         val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+        // Large type: title + chips only, no synopsis.
+        val largeBanner = isLargeBanner()
         binding.tmdbBannerSynopsis.text = synopsis
-        binding.tmdbBannerSynopsis.isVisible = !isPortrait && synopsis.isNotBlank()
+        binding.tmdbBannerSynopsis.isVisible = !isPortrait && !largeBanner && synopsis.isNotBlank()
         binding.tmdbBannerSideSynopsis.text = synopsis
-        binding.tmdbBannerSideSynopsis.isVisible = synopsis.isNotBlank()
+        binding.tmdbBannerSideSynopsis.isVisible = !largeBanner && synopsis.isNotBlank()
         val genreText = when (item) {
             is BannerItem.Tmdb -> item.media.genreIds.take(3).mapNotNull { genreNames[it] }.joinToString("  •  ")
             is BannerItem.Plugin -> ""
