@@ -295,7 +295,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         val density = ctx.resources.displayMetrics.density
         val chip = TextView(ctx).apply {
             this.text = text
-            setTextColor(ContextCompat.getColor(ctx, R.color.bg_white))
+            setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnBackground))
             textSize = 12f
             setBackgroundResource(R.drawable.tag_chip_bg)
             setPadding(
