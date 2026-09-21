@@ -63,6 +63,8 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
     private var trendingLogos: Map<Int, String?> = emptyMap()
     private var trendingAutoScrollHandler: android.os.Handler? = null
     private var trendingAutoScrollRunnable: Runnable? = null
+    /** Live raw adapter position the auto-scroll continues from (synced on manual scroll). */
+    private var trendingAutoIndex = 0
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AnimePageViewHolder {
         val binding =
@@ -414,8 +416,8 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             LayoutAnimationController(setSlideIn(), 0.25f)
         trendingAutoScrollHandler?.removeCallbacksAndMessages(null)
         trendingAutoScrollHandler = android.os.Handler(android.os.Looper.getMainLooper())
+        trendingAutoIndex = start
         trendingAutoScrollRunnable = object : Runnable {
-            private var currentIndex = start
             override fun run() {
                 if (media.isEmpty()) return
                 val focus = (binding.root.context as? AppCompatActivity)?.currentFocus
@@ -425,8 +427,8 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
                     trendingBinding.trendingViewPager.findContainingViewHolder(focus) != null
                 )
                 if (!onTrendingControl) {
-                    currentIndex++
-                    rv.smoothScrollToPosition(currentIndex)
+                    trendingAutoIndex++
+                    rv.smoothScrollToPosition(trendingAutoIndex)
                 }
                 trendingAutoScrollHandler?.postDelayed(this, 5000L)
             }
@@ -454,6 +456,13 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
                 updateTrendingOverlayForCurrent()
             }
         }
+    }
+
+    /** Reset the auto-scroll timer (call on manual drag + settle). */
+    private fun resetTrendingAutoScroll() {
+        val runnable = trendingAutoScrollRunnable ?: return
+        trendingAutoScrollHandler?.removeCallbacksAndMessages(null)
+        trendingAutoScrollHandler?.postDelayed(runnable, 5000L)
     }
 
     private fun setupTrendingDots(rv: RecyclerView, itemCount: Int) {
@@ -489,9 +498,20 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
 
         rv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrollStateChanged(rv: RecyclerView, newState: Int) {
+                // Manual scroll: reset the auto timer so it never yanks mid-swipe,
+                // and sync its index so the next auto step continues from here.
+                if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
+                    resetTrendingAutoScroll()
+                    return
+                }
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    val lm = rv.layoutManager as LinearLayoutManager
-                    val pos = lm.findFirstVisibleItemPosition() % itemCount % shown
+                    if (itemCount == 0) return
+                    val lm = rv.layoutManager as? LinearLayoutManager ?: return
+                    val raw = lm.findFirstVisibleItemPosition()
+                    if (raw == RecyclerView.NO_POSITION) return
+                    trendingAutoIndex = raw
+                    resetTrendingAutoScroll()
+                    val pos = raw % itemCount % shown
                     for (i in 0 until dotsList.size) {
                         val dot = dotsList[i]
                         val lp = dot.layoutParams

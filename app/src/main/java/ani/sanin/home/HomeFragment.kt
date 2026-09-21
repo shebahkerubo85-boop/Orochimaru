@@ -746,6 +746,8 @@ class HomeFragment : Fragment() {
     private val bannerSnapHelper = PagerSnapHelper()
     private var bannerAutoScrollHandler: Handler? = null
     private var bannerAutoScrollRunnable: Runnable? = null
+    /** Live raw adapter position the auto-scroll continues from (synced on manual scroll). */
+    private var homeBannerAutoIndex = 0
 
     private fun setupBannerCarousel() {
         applyHomeBannerLandscapeMode()
@@ -870,9 +872,20 @@ class HomeFragment : Fragment() {
 
         rv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrollStateChanged(rv: RecyclerView, newState: Int) {
+                // Manual scroll: reset the auto timer so it never yanks mid-swipe,
+                // and sync its index so the next auto step continues from here.
+                if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
+                    resetHomeBannerAutoScroll()
+                    return
+                }
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    if (itemCount == 0) return
                     val lm = rv.layoutManager as? LinearLayoutManager ?: return
-                    val pos = lm.findFirstVisibleItemPosition() % itemCount % shown
+                    val raw = lm.findFirstVisibleItemPosition()
+                    if (raw == RecyclerView.NO_POSITION) return
+                    homeBannerAutoIndex = raw
+                    resetHomeBannerAutoScroll()
+                    val pos = raw % itemCount % shown
                     for (i in 0 until dotsList.size) {
                         val dot = dotsList[i]
                         val lp = dot.layoutParams
@@ -891,8 +904,8 @@ class HomeFragment : Fragment() {
     private fun startBannerAutoScroll(rv: RecyclerView, itemCount: Int, startPos: Int) {
         bannerAutoScrollHandler?.removeCallbacksAndMessages(null)
         bannerAutoScrollHandler = Handler(Looper.getMainLooper())
+        homeBannerAutoIndex = startPos
         bannerAutoScrollRunnable = object : Runnable {
-            private var currentIndex = startPos
             override fun run() {
                 if (itemCount == 0) return
                 val focus = activity?.currentFocus
@@ -902,13 +915,20 @@ class HomeFragment : Fragment() {
                     binding.homeBannerCarousel.findContainingViewHolder(focus) != null
                 )
                 if (!onBannerControl) {
-                    currentIndex++
-                    rv.smoothScrollToPosition(currentIndex)
+                    homeBannerAutoIndex++
+                    rv.smoothScrollToPosition(homeBannerAutoIndex)
                 }
                 bannerAutoScrollHandler?.postDelayed(this, 5000L)
             }
         }
         bannerAutoScrollHandler?.postDelayed(bannerAutoScrollRunnable!!, 5000L)
+    }
+
+    /** Reset the auto-scroll timer (call on manual drag + settle). */
+    private fun resetHomeBannerAutoScroll() {
+        val runnable = bannerAutoScrollRunnable ?: return
+        bannerAutoScrollHandler?.removeCallbacksAndMessages(null)
+        bannerAutoScrollHandler?.postDelayed(runnable, 5000L)
     }
 
     private fun updateNavigatingBanner(media: Media) {

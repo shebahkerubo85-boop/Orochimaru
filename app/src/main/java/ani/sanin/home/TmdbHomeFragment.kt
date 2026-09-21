@@ -461,6 +461,13 @@ class TmdbHomeFragment : Fragment() {
         rv.scrollToPosition(start)
         rv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrollStateChanged(rv: RecyclerView, newState: Int) {
+                // Manual scroll: reset the auto timer so it never yanks mid-swipe;
+                // the carousel path scrolls from the live position, so the next
+                // auto step continues from here.
+                if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
+                    startAutoAdvance()
+                    return
+                }
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
                     val lm = rv.layoutManager as? LinearLayoutManager ?: return
                     val pos = lm.findFirstVisibleItemPosition()
@@ -471,6 +478,7 @@ class TmdbHomeFragment : Fragment() {
                         if (isLandscape) showBanner(bannerIndex)
                     }
                     updateDots()
+                    startAutoAdvance()
                 }
             }
         })
