@@ -8,11 +8,11 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import ani.sanin.R
+import ani.sanin.getThemeColor
 
 class TmdbBannerCarouselAdapter(
     private val items: List<TmdbHomeFragment.BannerItem>,
@@ -122,7 +122,7 @@ class TmdbBannerCarouselAdapter(
                 for (genre in genres.take(4)) {
                     val chip = TextView(ctx).apply {
                         text = genre
-                        setTextColor(ContextCompat.getColor(ctx, R.color.bg_white))
+                        setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnBackground))
                         textSize = 11f
                         setBackgroundResource(R.drawable.tag_chip_bg)
                         setPadding(

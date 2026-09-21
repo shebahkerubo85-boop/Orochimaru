@@ -260,7 +260,7 @@ class TmdbHomeFragment : Fragment() {
 
     private fun moveBanner(forward: Boolean) {
         if (isCarouselMode()) {
-            scrollBannerCarousel(forward)
+            scrollBannerCarousel(forward, force = true)
             return
         }
         if (bannerItems.size < 2) return
@@ -1018,7 +1018,7 @@ class TmdbHomeFragment : Fragment() {
         }, 6000)
     }
 
-    private fun scrollBannerCarousel(forward: Boolean) {
+    private fun scrollBannerCarousel(forward: Boolean, force: Boolean = false) {
         val rv = binding.tmdbBannerCarousel
         if (rv.adapter == null || rv.visibility != View.VISIBLE) return
         val lm = rv.layoutManager as? LinearLayoutManager ?: return
@@ -1029,7 +1029,9 @@ class TmdbHomeFragment : Fragment() {
             binding.tmdbBannerCarousel.findContainingViewHolder(focus) != null ||
             focus == binding.tmdbBannerWatchBtn || focus == binding.tmdbBannerSideWatchBtn
         )
-        if (!onBanner) {
+        // D-pad moves from the watch button must always scroll (force);
+        // auto-advance stays hands-off while the user is on the banner.
+        if (!onBanner || force) {
             rv.smoothScrollToPosition(pos + (if (forward) 1 else -1))
         }
     }

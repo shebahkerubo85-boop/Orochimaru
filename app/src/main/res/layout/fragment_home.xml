@@ -246,7 +246,7 @@
                                             android:paddingHorizontal="20dp"
                                             android:paddingVertical="8dp"
                                             android:text="@string/watch_now"
-                                            android:textColor="@color/bg_white"
+                                            android:textColor="?attr/colorOnBackground"
                                             android:textSize="13sp" />
 
                                     </LinearLayout>

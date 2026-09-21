@@ -93,7 +93,7 @@
                 android:fontFamily="sans-serif-medium"
                 android:gravity="center"
                 android:paddingHorizontal="8dp"
-                android:textColor="#FFFFFF"
+                android:textColor="?attr/colorOnBackground"
                 android:textSize="10sp"
                 tools:text="TV Series" />
 
@@ -106,7 +106,7 @@
                 android:fontFamily="sans-serif-medium"
                 android:gravity="center"
                 android:paddingHorizontal="8dp"
-                android:textColor="#FFFFFF"
+                android:textColor="?attr/colorOnBackground"
                 android:textSize="10sp"
                 tools:text="Releasing" />
 
@@ -119,7 +119,7 @@
                 android:fontFamily="sans-serif-medium"
                 android:gravity="center"
                 android:paddingHorizontal="8dp"
-                android:textColor="#FFFFFF"
+                android:textColor="?attr/colorOnBackground"
                 android:textSize="10sp"
                 tools:text="winter 2024" />
 
@@ -132,7 +132,7 @@
                 android:fontFamily="sans-serif-medium"
                 android:gravity="center"
                 android:paddingHorizontal="8dp"
-                android:textColor="#FFDD44"
+                android:textColor="?attr/colorOnBackground"
                 android:textSize="10sp"
                 tools:text="85%" />
 
@@ -187,7 +187,7 @@
                 android:paddingHorizontal="20dp"
                 android:paddingVertical="8dp"
                 android:text="@string/watch_now"
-                android:textColor="@color/bg_white"
+                android:textColor="?attr/colorOnBackground"
                 android:textSize="13sp" />
 
             <ImageView
