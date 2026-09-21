@@ -52,8 +52,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import ani.sanin.limitedAsyncMap
 
 class TmdbHomeFragment : Fragment() {
 
@@ -315,7 +317,10 @@ class TmdbHomeFragment : Fragment() {
 
     /** Loads banner: plugin items for live sources, TMDB trending otherwise. */
     private suspend fun loadBanner(plugin: CsInstalledSource? = null) {
-        genreNames = withContext(Dispatchers.IO) { Tmdb.genres().associate { it.id to it.name } }
+        // TMDB path fetches genres in parallel with trending below; plugin path needs it up front.
+        if (plugin != null) {
+            genreNames = withContext(Dispatchers.IO) { Tmdb.genres().associate { it.id to it.name } }
+        }
         if (_binding == null) return
         bannerItems.clear()
         if (plugin != null) {
@@ -385,8 +390,15 @@ class TmdbHomeFragment : Fragment() {
                 }
             }
         } else {
-            val trendingSeries = withContext(Dispatchers.IO) { Tmdb.trending("tv", "week") }
-            val trendingMovies = withContext(Dispatchers.IO) { Tmdb.trending("movie", "week") }
+            // Trending TV + movies in parallel (was 3 sequential calls incl. genres)
+            val (g, trendingSeries, trendingMovies) = coroutineScope {
+                val gd = async(Dispatchers.IO) { Tmdb.genres() }
+                val sd = async(Dispatchers.IO) { Tmdb.trending("tv", "week") }
+                val md = async(Dispatchers.IO) { Tmdb.trending("movie", "week") }
+                Triple(gd.await(), sd.await(), md.await())
+            }
+            genreNames = g.associate { it.id to it.name }
+            if (_binding == null) return
             bannerItems.addAll(trendingSeries.map { BannerItem.Tmdb(it) })
             bannerItems.addAll(trendingMovies.map { BannerItem.Tmdb(it) })
         }
@@ -425,72 +437,85 @@ class TmdbHomeFragment : Fragment() {
         rv.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
         bannerSnapHelper.attachToRecyclerView(rv)
 
-        // Prefetch per-item logos, status and score for the carousel cards.
-        lifecycleScope.launch(Dispatchers.IO) {
-            val logos = mutableMapOf<Int, String?>()
-            val statuses = mutableMapOf<Int, String?>()
-            val scores = mutableMapOf<Int, String?>()
-            for ((idx, item) in bannerItems.withIndex()) {
-                when (item) {
-                    is BannerItem.Tmdb -> {
-                        val d = runCatching { Tmdb.detail(item.media.type, item.media.id) }.getOrNull()
-                        val logo = d?.let { Tmdb.logoUrl(it) }
-                        logos[idx] = logo
-                        val st = d?.status?.let { statusLabel(it) }.orEmpty()
-                        statuses[idx] = st.ifBlank { null }
-                        if (item.media.voteAverage > 0) {
-                            scores[idx] = String.format("%.1f", item.media.voteAverage) + "%"
-                        }
+        // Paint the carousel immediately with basic data; logos/status/scores
+        // enrich concurrently afterwards (was N sequential detail calls blocking first paint).
+        val logos = mutableMapOf<Int, String?>()
+        val statuses = mutableMapOf<Int, String?>()
+        val scores = mutableMapOf<Int, String?>()
+        val adapter = TmdbBannerCarouselAdapter(
+            bannerItems.toList(),
+            { item -> openBannerItem(item) },
+            genreNames,
+            logos,
+            statuses,
+            scores
+        )
+        bannerCarouselAdapter = adapter
+        rv.adapter = adapter
+        binding.tmdbBannerSide.isVisible = false
+        binding.tmdbBannerContent.isVisible = false
+        binding.tmdbBannerImage.isVisible = false
+        binding.tmdbBannerCarousel.isVisible = true
+        val start = Int.MAX_VALUE / 2 - (Int.MAX_VALUE / 2 % bannerItems.size)
+        rv.scrollToPosition(start)
+        rv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrollStateChanged(rv: RecyclerView, newState: Int) {
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    val lm = rv.layoutManager as? LinearLayoutManager ?: return
+                    val pos = lm.findFirstVisibleItemPosition()
+                    if (pos != RecyclerView.NO_POSITION && bannerItems.isNotEmpty()) {
+                        bannerIndex = pos % bannerItems.size
+                        val isLandscape = resources.configuration.orientation ==
+                            Configuration.ORIENTATION_LANDSCAPE
+                        if (isLandscape) showBanner(bannerIndex)
                     }
-                    is BannerItem.Plugin -> {
-                        if (item.tmdbId != null && item.tmdbType != null) {
-                            val d = runCatching { Tmdb.detail(item.tmdbType, item.tmdbId) }.getOrNull()
-                            val logo = d?.let { Tmdb.logoUrl(it) }
-                            logos[idx] = logo
-                            val st = d?.status?.let { statusLabel(it) }.orEmpty()
-                            statuses[idx] = st.ifBlank { null }
-                        }
-                    }
+                    updateDots()
                 }
             }
+        })
+        applyBannerLayout()
+        setupBannerDots(rv, bannerItems.size)
+        updateDots()
+        startAutoAdvance()
+        applyTmdbBannerFocusChain()
+
+        // Enrich per-item logos/status/scores with bounded parallelism.
+        lifecycleScope.launch(Dispatchers.IO) {
+            val snapshot = bannerItems.toList()
+            val enriched = snapshot.mapIndexed { idx, item -> idx to item }
+                .limitedAsyncMap(concurrency = 6) { (idx, item) ->
+                    idx to runCatching {
+                        when (item) {
+                            is BannerItem.Tmdb -> {
+                                val d = Tmdb.detail(item.media.type, item.media.id)
+                                val logo = d?.let { Tmdb.logoUrl(it) }
+                                val st = d?.status?.let { statusLabel(it) }.orEmpty().ifBlank { null }
+                                val score = if (item.media.voteAverage > 0) {
+                                    String.format("%.1f", item.media.voteAverage) + "%"
+                                } else null
+                                Triple(logo, st, score)
+                            }
+                            is BannerItem.Plugin -> {
+                                if (item.tmdbId != null && item.tmdbType != null) {
+                                    val d = Tmdb.detail(item.tmdbType, item.tmdbId)
+                                    val logo = d?.let { Tmdb.logoUrl(it) }
+                                    val st = d?.status?.let { statusLabel(it) }.orEmpty().ifBlank { null }
+                                    Triple(logo, st, null)
+                                } else null
+                            }
+                        }
+                    }.getOrNull()
+                }
             withContext(Dispatchers.Main) {
                 if (_binding == null) return@withContext
-                val adapter = TmdbBannerCarouselAdapter(
-                    bannerItems.toList(),
-                    { item -> openBannerItem(item) },
-                    genreNames,
-                    logos,
-                    statuses,
-                    scores
-                )
-                bannerCarouselAdapter = adapter
-                rv.adapter = adapter
-                binding.tmdbBannerSide.isVisible = false
-                binding.tmdbBannerContent.isVisible = false
-                binding.tmdbBannerImage.isVisible = false
-                binding.tmdbBannerCarousel.isVisible = true
-                val start = Int.MAX_VALUE / 2 - (Int.MAX_VALUE / 2 % bannerItems.size)
-                rv.scrollToPosition(start)
-                rv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-                    override fun onScrollStateChanged(rv: RecyclerView, newState: Int) {
-                        if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                            val lm = rv.layoutManager as? LinearLayoutManager ?: return
-                            val pos = lm.findFirstVisibleItemPosition()
-                            if (pos != RecyclerView.NO_POSITION && bannerItems.isNotEmpty()) {
-                                bannerIndex = pos % bannerItems.size
-                                val isLandscape = resources.configuration.orientation ==
-                                    Configuration.ORIENTATION_LANDSCAPE
-                                if (isLandscape) showBanner(bannerIndex)
-                            }
-                            updateDots()
-                        }
+                enriched.forEach { (idx, triple) ->
+                    triple?.let { (logo, st, score) ->
+                        if (logo != null) logos[idx] = logo
+                        if (st != null) statuses[idx] = st
+                        if (score != null) scores[idx] = score
                     }
-                })
-                applyBannerLayout()
-                setupBannerDots(rv, bannerItems.size)
-                updateDots()
-                startAutoAdvance()
-                applyTmdbBannerFocusChain()
+                }
+                bannerCarouselAdapter?.notifyDataSetChanged()
             }
         }
     }
@@ -559,19 +584,20 @@ class TmdbHomeFragment : Fragment() {
     }
 
     /** Fetches TMDB browse rows as the default home content. */
-    private suspend fun loadTmdbSections() {
-        val trendingSeries = withContext(Dispatchers.IO) { Tmdb.trending("tv", "week") }
-        val trendingMovies = withContext(Dispatchers.IO) { Tmdb.trending("movie", "week") }
-        val latestSeries = withContext(Dispatchers.IO) { Tmdb.latestSeries() }
-        val latestMovies = withContext(Dispatchers.IO) { Tmdb.latestMovies() }
-        val popular = withContext(Dispatchers.IO) { Tmdb.popular() }
-        val topRated = withContext(Dispatchers.IO) { Tmdb.topRated() }
-        addSection("Trending Series", trendingSeries)
-        addSection("Trending Movies", trendingMovies)
-        addSection("Latest Series", latestSeries)
-        addSection("Latest Movies", latestMovies)
-        addSection("Popular", popular)
-        addSection("Top Rated", topRated)
+    private suspend fun loadTmdbSections() = coroutineScope {
+        // Six endpoints in parallel (were sequential).
+        val trendingSeriesD = async(Dispatchers.IO) { Tmdb.trending("tv", "week") }
+        val trendingMoviesD = async(Dispatchers.IO) { Tmdb.trending("movie", "week") }
+        val latestSeriesD = async(Dispatchers.IO) { Tmdb.latestSeries() }
+        val latestMoviesD = async(Dispatchers.IO) { Tmdb.latestMovies() }
+        val popularD = async(Dispatchers.IO) { Tmdb.popular() }
+        val topRatedD = async(Dispatchers.IO) { Tmdb.topRated() }
+        addSection("Trending Series", trendingSeriesD.await())
+        addSection("Trending Movies", trendingMoviesD.await())
+        addSection("Latest Series", latestSeriesD.await())
+        addSection("Latest Movies", latestMoviesD.await())
+        addSection("Popular", popularD.await())
+        addSection("Top Rated", topRatedD.await())
         startAutoAdvance()
         applyTmdbBannerFocusChain()
     }
