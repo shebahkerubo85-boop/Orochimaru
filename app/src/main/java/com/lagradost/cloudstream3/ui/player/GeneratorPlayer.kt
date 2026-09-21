@@ -2135,14 +2135,23 @@ class GeneratorPlayer : FullScreenPlayer() {
             currentSubtitleProvider = { currentSelectedSubtitles },
             onSubtitleSelected = { sub ->
                 android.util.Log.d("CS3SubSelect","onSubtitleSelected sub=${sub?.name} lang=${sub?.languageCode} enabled=${PrefManager.getVal<Boolean>(PrefName.Subtitles)}")
-                val ctx = context
-                val ok = setSubtitles(sub, userInitiated = true)
-                android.util.Log.d("CS3SubSelect","setSubtitles ok=$ok")
-                if (ok) {
-                    player.saveData()
-                    if (ctx != null) player.reloadPlayer(ctx)
-                    player.handleEvent(CSPlayerEvent.Play)
-                    android.util.Log.d("CS3SubSelect","reloadPlayer dispatched")
+                if (sub != null) {
+                    // Sync freshly-searched online subs into the player helper first:
+                    // its universe is only set at load, so without this a new URL sub
+                    // reports NOT_FOUND against stale data and the reload rebuilds
+                    // sources without it (selection never renders).
+                    player.setActiveSubtitles(viewModel.state.subtitles)
+                    val ctx = context
+                    val ok = setSubtitles(sub, userInitiated = true)
+                    android.util.Log.d("CS3SubSelect","setSubtitles ok=$ok")
+                    if (ok) {
+                        player.saveData()
+                        if (ctx != null) player.reloadPlayer(ctx)
+                        player.handleEvent(CSPlayerEvent.Play)
+                        android.util.Log.d("CS3SubSelect","reloadPlayer dispatched")
+                    }
+                    // Dismiss like anime mode does after a pick
+                    subtitleRail?.close()
                 }
             },
             onToggleChanged = { enabled ->
