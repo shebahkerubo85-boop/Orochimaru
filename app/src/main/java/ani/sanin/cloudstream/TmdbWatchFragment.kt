@@ -1297,7 +1297,6 @@ class TmdbWatchFragment : Fragment() {
                 }
                 is StripVH -> {
                     holder.binding.itemEpisodeTitle.text = title
-                    holder.binding.itemStripGradient.isVisible = true
                     holder.binding.itemEpisodeDate.text = date
                     holder.binding.itemEpisodeDate.isVisible = date.isNotBlank()
                     if (ep.voteAverage > 0) {

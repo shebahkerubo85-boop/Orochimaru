@@ -475,7 +475,6 @@ class EpisodeAdapter(
                 }
 
                 binding.itemEpisodeTitle.text = title
-                binding.itemStripGradient.isVisible = true
 
                 val ratingStr = ep.rating
                 if (ratingStr != null) {
