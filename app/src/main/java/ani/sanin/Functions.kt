@@ -1552,10 +1552,10 @@ fun Context.stripDividerGradient(): GradientDrawable {
     val mid = primary and 0x00FFFFFF or (0x80 shl 24)
     val gradient = GradientDrawable(
         GradientDrawable.Orientation.LEFT_RIGHT,
-        intArrayOf(transparent, mid, primary)
+        intArrayOf(primary, mid, transparent)
     )
     if (android.os.Build.VERSION.SDK_INT >= 24) {
-        gradient.setColors(intArrayOf(transparent, mid, primary), floatArrayOf(0f, 0.35f, 1f))
+        gradient.setColors(intArrayOf(primary, mid, transparent), floatArrayOf(0f, 0.65f, 1f))
     }
     return gradient
 }
