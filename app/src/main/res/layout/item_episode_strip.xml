@@ -51,9 +51,8 @@
 
                     <View
                         android:id="@+id/itemStripGradient"
-                        android:layout_width="82dp"
+                        android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:layout_gravity="end"
                         android:background="@drawable/strip_gradient"
                         android:visibility="gone"
                         tools:visibility="visible" />
