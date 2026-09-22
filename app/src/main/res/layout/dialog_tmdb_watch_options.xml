@@ -15,7 +15,7 @@
         android:orientation="horizontal">
 
         <LinearLayout
-            android:layout_width="170dp"
+            android:layout_width="130dp"
             android:layout_height="match_parent"
             android:orientation="vertical">
 
@@ -49,8 +49,8 @@
 
             <ImageButton
                 android:id="@+id/tmdbStyleBars"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="42dp"
+                android:layout_height="42dp"
                 android:alpha="0.33"
                 android:background="?android:attr/selectableItemBackground"
                 app:srcCompat="@drawable/ic_round_view_array_24"
@@ -67,8 +67,8 @@
 
             <ImageButton
                 android:id="@+id/tmdbStyleList"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="42dp"
+                android:layout_height="42dp"
                 android:alpha="0.33"
                 android:background="?android:attr/selectableItemBackground"
                 android:scaleX="-1"
@@ -86,8 +86,8 @@
 
             <ImageButton
                 android:id="@+id/tmdbStyleStrips"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="42dp"
+                android:layout_height="42dp"
                 android:alpha="0.33"
                 android:background="?android:attr/selectableItemBackground"
                 app:srcCompat="@drawable/ic_round_view_column_24"
@@ -104,8 +104,8 @@
 
             <ImageButton
                 android:id="@+id/tmdbStyleCompact"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="42dp"
+                android:layout_height="42dp"
                 android:alpha="0.33"
                 android:background="?android:attr/selectableItemBackground"
                 app:srcCompat="@drawable/ic_round_view_comfy_24"
@@ -152,8 +152,8 @@
 
             <ImageButton
                 android:id="@+id/tmdbSortTop"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="42dp"
+                android:layout_height="42dp"
                 android:background="?android:attr/selectableItemBackground"
                 android:rotation="90"
                 app:srcCompat="@drawable/ic_round_arrow_back_ios_new_24"

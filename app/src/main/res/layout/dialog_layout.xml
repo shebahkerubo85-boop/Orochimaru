@@ -8,7 +8,7 @@
     android:padding="16dp">
 
     <LinearLayout
-        android:layout_width="420dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
@@ -20,7 +20,7 @@
             android:orientation="horizontal">
 
             <LinearLayout
-                android:layout_width="170dp"
+                android:layout_width="130dp"
                 android:layout_height="match_parent"
                 android:orientation="vertical">
 
@@ -55,8 +55,8 @@
 
                 <ImageButton
                     android:id="@+id/mediaSourceList"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="42dp"
+                    android:layout_height="42dp"
                     android:alpha="0.33"
                     android:background="?android:attr/selectableItemBackground"
                     android:scaleX="-1"
@@ -74,8 +74,8 @@
 
                 <ImageButton
                     android:id="@+id/mediaSourceBars"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="42dp"
+                    android:layout_height="42dp"
                     android:alpha="0.33"
                     android:background="?android:attr/selectableItemBackground"
                     app:srcCompat="@drawable/ic_round_view_array_24"
@@ -92,8 +92,8 @@
 
                 <ImageButton
                     android:id="@+id/mediaSourceStrips"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="42dp"
+                    android:layout_height="42dp"
                     android:alpha="0.33"
                     android:background="?android:attr/selectableItemBackground"
                     app:srcCompat="@drawable/ic_round_view_column_24"
@@ -110,8 +110,8 @@
 
                 <ImageButton
                     android:id="@+id/mediaSourceCompact"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="42dp"
+                    android:layout_height="42dp"
                     android:alpha="0.33"
                     android:background="?android:attr/selectableItemBackground"
                     app:srcCompat="@drawable/ic_round_view_comfy_24"
@@ -159,8 +159,8 @@
 
                 <ImageButton
                     android:id="@+id/mediaSourceTop"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="42dp"
+                    android:layout_height="42dp"
                     android:background="?android:attr/selectableItemBackground"
                     android:rotation="90"
                     app:srcCompat="@drawable/ic_round_arrow_back_ios_new_24"
@@ -218,7 +218,7 @@
 
                 <ImageButton
                     android:id="@+id/mediaDownloadTop"
-                    android:layout_width="48dp"
+                    android:layout_width="42dp"
                     android:layout_height="60dp"
                     android:background="?android:attr/selectableItemBackground"
                     app:srcCompat="@drawable/ic_download_24"
@@ -264,8 +264,8 @@
 
                 <ImageButton
                     android:id="@+id/mangaScanlatorTop"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="42dp"
+                    android:layout_height="42dp"
                     android:background="?android:attr/selectableItemBackground"
                     app:srcCompat="@drawable/ic_round_edit_note_24"
                     app:tint="?attr/colorOnBackground"
@@ -304,8 +304,8 @@
             </LinearLayout>
 
             <LinearLayout
-                android:layout_width="48dp"
-                android:layout_height="48dp">
+                android:layout_width="42dp"
+                android:layout_height="42dp">
 
                 <ImageView
                     android:id="@+id/mediaWebViewTop"
@@ -359,8 +359,8 @@
 
                 <ImageButton
                     android:id="@+id/metadataApiTop"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="42dp"
+                    android:layout_height="42dp"
                     android:background="?android:attr/selectableItemBackground"
                     app:srcCompat="@drawable/ic_round_edit_note_24"
                     app:tint="?attr/colorOnBackground"
@@ -400,8 +400,8 @@
             </LinearLayout>
 
             <LinearLayout
-                android:layout_width="48dp"
-                android:layout_height="48dp">
+                android:layout_width="42dp"
+                android:layout_height="42dp">
 
                 <ImageView
                     android:id="@+id/resetProgress"
