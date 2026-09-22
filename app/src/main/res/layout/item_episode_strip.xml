@@ -15,7 +15,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:minHeight="88dp"
+        android:minHeight="84dp"
         android:translationZ="8dp"
         app:cardBackgroundColor="?attr/colorSurfaceVariant"
         app:cardCornerRadius="10dp"
@@ -76,7 +76,7 @@
                     android:layout_marginTop="4dp"
                     android:layout_marginBottom="4dp"
                     android:gravity="center_vertical"
-                    android:minHeight="92dp"
+                    android:minHeight="88dp"
                     android:orientation="vertical">
 
                     <TextView
