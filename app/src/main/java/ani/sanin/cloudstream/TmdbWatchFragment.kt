@@ -28,6 +28,7 @@ import ani.sanin.databinding.ItemEpisodeGridBinding
 import ani.sanin.databinding.ItemEpisodeStripBinding
 import ani.sanin.databinding.ItemEpisodeCompactBinding
 import ani.sanin.getThemeColor
+import ani.sanin.stripDividerGradient
 import ani.sanin.databinding.ItemTmdbWatchHeaderBinding
 import ani.sanin.databinding.DialogTmdbWatchOptionsBinding
 import ani.sanin.media.SheetSourceSelector

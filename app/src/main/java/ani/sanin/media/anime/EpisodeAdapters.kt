@@ -26,6 +26,7 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.util.customAlertDialog
 import ani.sanin.getThemeColor
+import ani.sanin.stripDividerGradient
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.SizeFormatter
 import com.bumptech.glide.Glide
