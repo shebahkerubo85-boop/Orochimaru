@@ -24,7 +24,6 @@ import ani.sanin.connections.tmdb.TmdbImages
 import ani.sanin.connections.tmdb.TmdbMedia
 import ani.sanin.connections.tmdb.TmdbSeason
 import ani.sanin.databinding.FragmentTmdbWatchBinding
-import ani.sanin.databinding.ItemEpisodeListBinding
 import ani.sanin.databinding.ItemEpisodeGridBinding
 import ani.sanin.databinding.ItemEpisodeStripBinding
 import ani.sanin.databinding.ItemEpisodeCompactBinding
@@ -159,6 +158,7 @@ class TmdbWatchFragment : Fragment() {
         if (pluginUrl != null) mediaId = pluginUrl.hashCode()
         episodeStyle = (PrefManager.getNullableCustomVal("tmdb_style", 2, Int::class.java)
             ?: 2).coerceIn(0, 3)
+        if (episodeStyle == 1) episodeStyle = 2 // legacy list removed → strips
         reversed = PrefManager.getNullableCustomVal("tmdb_reversed_$mediaId", false, Boolean::class.java)
             ?: false
         Logger.log("TMDB_WATCH: opened mediaType=$mediaType mediaId=$mediaId style=$episodeStyle reversed=$reversed")
@@ -1266,43 +1266,6 @@ class TmdbWatchFragment : Fragment() {
                     }
                     FocusEffectUtil.applyFocusListener(holder.binding.root)
                 }
-                is ListVH -> {
-                    holder.binding.itemEpisodeTitle.text = title
-                    holder.binding.itemEpisodeNumber.text = ep.episodeNumber.toString()
-                    holder.binding.itemEpisodeDate.text = date
-                    holder.binding.itemEpisodeDate.isVisible = date.isNotBlank()
-                    val desc = ep.overview.orEmpty()
-                    holder.binding.itemEpisodeDesc.text = desc
-                    holder.binding.itemEpisodeDesc.isVisible = desc.isNotBlank()
-                    if (ep.voteAverage > 0) {
-                        holder.binding.itemEpisodeRating.isVisible = true
-                        holder.binding.itemEpisodeRating.text =
-                            "★ " + String.format("%.1f", ep.voteAverage)
-                    } else {
-                        holder.binding.itemEpisodeRating.isVisible = false
-                    }
-                    loadEpisodeImage(holder.binding.itemMediaImage, image, isWatched)
-                    holder.binding.itemMediaProgressCont.isVisible = false
-                    holder.binding.itemDownload.isVisible = false
-                    holder.binding.itemDownloadStatus.isVisible = false
-                    holder.binding.itemEpisodeSparkle1.isVisible = false
-                    holder.binding.itemEpisodeSparkle2.isVisible = false
-                    applyWatchedState(
-                        holder.binding.itemEpisodeViewed,
-                        holder.binding.itemEpisodeViewedCover,
-                        holder.binding.itemMediaImage,
-                        holder.binding.itemEpisodeTitle,
-                        holder.binding.itemEpisodeDate,
-                        isWatched,
-                        holder.binding.itemEpisodeNumber
-                    )
-                    holder.binding.root.setOnClickListener { onClick(ep) }
-                    holder.binding.root.setOnLongClickListener {
-                        onLongClick(cumulativeOffset + ep.episodeNumber)
-                        true
-                    }
-                    FocusEffectUtil.applyFocusListener(holder.binding.root)
-                }
                 is StripVH -> {
                     holder.binding.itemEpisodeTitle.text = title
                     holder.binding.itemEpisodeDate.text = date
@@ -1448,7 +1411,6 @@ class TmdbWatchFragment : Fragment() {
 
         class HeaderVH(itemView: View) : RecyclerView.ViewHolder(itemView)
         class GridVH(val binding: ItemEpisodeGridBinding) : RecyclerView.ViewHolder(binding.root)
-        class ListVH(val binding: ItemEpisodeListBinding) : RecyclerView.ViewHolder(binding.root)
         class StripVH(val binding: ItemEpisodeStripBinding) : RecyclerView.ViewHolder(binding.root)
         class CompactVH(val binding: ItemEpisodeCompactBinding) : RecyclerView.ViewHolder(binding.root)
     }

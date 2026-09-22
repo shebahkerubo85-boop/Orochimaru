@@ -99,7 +99,7 @@ enum class PrefName(val data: Pref) {
     Theme(Pref(Location.UI, String::class, "BLUE")),
     SkipExtensionIcons(Pref(Location.UI, Boolean::class, false)),
     DarkMode(Pref(Location.UI, Int::class, 1)),
-    AnimeDefaultView(Pref(Location.UI, Int::class, 0)),
+    AnimeDefaultView(Pref(Location.UI, Int::class, 3)),
 
     BlurBanners(Pref(Location.UI, Boolean::class, true)),
     BlurRadius(Pref(Location.UI, Float::class, 2f)),

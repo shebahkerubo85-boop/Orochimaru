@@ -142,10 +142,8 @@ class AnimeWatchFragment : Fragment() {
                 return when (position) {
                     0 -> maxGridSize
                     else -> when (style) {
-                        0 -> maxGridSize
                         1 -> maxGridSize
                         2 -> 1
-                        3 -> maxGridSize
                         else -> maxGridSize
                     }
                 }

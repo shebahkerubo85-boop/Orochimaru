@@ -285,6 +285,7 @@ class AnimeWatchAdapter(
                 var reversed = media.selected!!.recyclerReversed
                 var style =
                     media.selected!!.recyclerStyle ?: PrefManager.getVal(PrefName.AnimeDefaultView)
+                if (style == 0) style = 3 // legacy list removed → strips
 
                 mediaSourceTop.rotation = if (reversed) -90f else 90f
                 sortText.text = if (reversed) "Down to Up" else "Up to Down"
@@ -310,30 +311,22 @@ class AnimeWatchAdapter(
                 
                 // Grids
                 var selected = when (style) {
-                    0 -> mediaSourceList
                     1 -> mediaSourceBars
                     2 -> mediaSourceCompact
                     3 -> mediaSourceStrips
-                    else -> mediaSourceList
+                    else -> mediaSourceStrips
                 }
                 when (style) {
-                    0 -> layoutText.setText(R.string.list)
                     1 -> layoutText.setText(R.string.bars)
                     2 -> layoutText.setText(R.string.compact)
                     3 -> layoutText.setText(R.string.strips)
-                    else -> mediaSourceList
+                    else -> layoutText.setText(R.string.strips)
                 }
                 selected.alpha = 1f
                 fun selected(it: ImageButton) {
                     selected.alpha = 0.33f
                     selected = it
                     selected.alpha = 1f
-                }
-                mediaSourceList.setOnClickListener {
-                    selected(it as ImageButton)
-                    style = 0
-                    layoutText.setText(R.string.list)
-                    run = true
                 }
                 mediaSourceBars.setOnClickListener {
                     selected(it as ImageButton)
