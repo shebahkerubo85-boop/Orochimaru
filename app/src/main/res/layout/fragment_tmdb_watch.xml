@@ -63,8 +63,8 @@
         android:descendantFocusability="afterDescendants"
         android:clipToPadding="false"
         android:paddingTop="300dp"
-        android:paddingStart="24dp"
-        android:paddingEnd="24dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
         android:paddingBottom="128dp"
         tools:listitem="@layout/item_episode_grid" />
 
