@@ -5,9 +5,9 @@
             <gradient
                 android:type="linear"
                 android:angle="0"
-                android:startColor="#B3000000"
-                android:centerColor="#40000000"
-                android:centerX="0.35"
+                android:startColor="#FF000000"
+                android:centerColor="#59000000"
+                android:centerX="0.5"
                 android:endColor="#00000000" />
         </shape>
     </item>
@@ -16,9 +16,9 @@
             <gradient
                 android:type="linear"
                 android:angle="0"
-                android:startColor="#80000000"
-                android:centerColor="#30000000"
-                android:centerX="0.3"
+                android:startColor="#FF000000"
+                android:centerColor="#80000000"
+                android:centerX="0.4"
                 android:endColor="#00000000" />
         </shape>
     </item>
@@ -27,9 +27,9 @@
             <gradient
                 android:type="linear"
                 android:angle="0"
-                android:startColor="#59000000"
-                android:centerColor="#1A000000"
-                android:centerX="0.3"
+                android:startColor="#FF000000"
+                android:centerColor="#E6000000"
+                android:centerX="0.5"
                 android:endColor="#00000000" />
         </shape>
     </item>
