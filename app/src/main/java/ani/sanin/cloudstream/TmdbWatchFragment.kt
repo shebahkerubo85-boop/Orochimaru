@@ -1336,9 +1336,8 @@ class TmdbWatchFragment : Fragment() {
                     holder.binding.itemEpisodeFillerView.isVisible = false
                     loadEpisodeImage(holder.binding.itemMediaImage, image, isWatched)
                     holder.binding.itemMediaProgressCont.isVisible = false
-                    holder.binding.itemEpisodeDivider.setBackgroundResource(
-                        R.drawable.strip_divider
-                    )
+                    holder.binding.itemEpisodeDivider.background =
+                        holder.itemView.context.stripDividerGradient()
                     applyWatchedState(
                         holder.binding.itemEpisodeViewed,
                         holder.binding.itemEpisodeViewedCover,

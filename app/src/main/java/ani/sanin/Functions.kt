@@ -20,6 +20,7 @@ import android.content.res.Resources.getSystem
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
 import android.media.MediaScannerConnection
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities.TRANSPORT_BLUETOOTH
@@ -1543,6 +1544,20 @@ fun Context.getThemeColor(@AttrRes attribute: Int): Int {
     val typedValue = TypedValue()
     theme.resolveAttribute(attribute, typedValue, true)
     return typedValue.data
+}
+
+fun Context.stripDividerGradient(): GradientDrawable {
+    val primary = getThemeColor(com.google.android.material.R.attr.colorPrimary)
+    val transparent = primary and 0x00FFFFFF
+    val mid = primary and 0x00FFFFFF or (0x80 shl 24)
+    val gradient = GradientDrawable(
+        GradientDrawable.Orientation.LEFT_RIGHT,
+        intArrayOf(transparent, mid, primary)
+    )
+    if (android.os.Build.VERSION.SDK_INT >= 24) {
+        gradient.setColors(intArrayOf(transparent, mid, primary), floatArrayOf(0f, 0.35f, 1f))
+    }
+    return gradient
 }
 
 fun ImageView.openImage(title: String, image: String) {

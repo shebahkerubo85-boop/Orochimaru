@@ -534,9 +534,8 @@ class EpisodeAdapter(
                     if (isWatched) {
                         binding.itemEpisodeViewedCover.visibility = View.VISIBLE
                         binding.itemEpisodeViewed.visibility = View.VISIBLE
-                        binding.itemEpisodeDivider?.setBackgroundResource(
-                            R.drawable.strip_divider
-                        )
+                        binding.itemEpisodeDivider?.background =
+                            fragment.requireContext().stripDividerGradient()
                         if (greyWatched) {
                             val cm = ColorMatrix().apply { setSaturation(0f) }
                             binding.itemMediaImage.colorFilter = ColorMatrixColorFilter(cm)
@@ -554,9 +553,8 @@ class EpisodeAdapter(
                     } else {
                         binding.itemEpisodeViewedCover.visibility = View.GONE
                         binding.itemEpisodeViewed.visibility = View.GONE
-                        binding.itemEpisodeDivider?.setBackgroundResource(
-                            R.drawable.strip_divider
-                        )
+                        binding.itemEpisodeDivider?.background =
+                            fragment.requireContext().stripDividerGradient()
                         if (blurUnwatched) {
                             val cm = ColorMatrix().apply { setSaturation(0.3f) }
                             binding.itemMediaImage.colorFilter = ColorMatrixColorFilter(cm)
