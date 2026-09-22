@@ -10,9 +10,10 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
+import ani.sanin.dp
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.tmdb.TmdbDetail
@@ -28,6 +29,8 @@ import ani.sanin.databinding.ItemEpisodeGridBinding
 import ani.sanin.databinding.ItemEpisodeStripBinding
 import ani.sanin.databinding.ItemEpisodeCompactBinding
 import ani.sanin.getThemeColor
+import kotlin.math.max
+import kotlin.math.roundToInt
 import ani.sanin.stripDividerGradient
 import ani.sanin.databinding.ItemTmdbWatchHeaderBinding
 import ani.sanin.databinding.DialogTmdbWatchOptionsBinding
@@ -123,8 +126,8 @@ class TmdbWatchFragment : Fragment() {
     private val sources by lazy { CsRepos.installed(requireContext()) }
     // -1 = Auto Search (try every installed plugin in order, no chip selected)
     private var selectedSourceIndex = -1
-    // 0 bars, 1 list, 2 grid, 3 compact (anime mode styles)
-    private var episodeStyle = 0
+    // 0 bars, 2 strips, 3 compact (list removed)
+    private var episodeStyle = 2
     private var reversed = false
     private var isResolving = false
 
@@ -154,8 +157,8 @@ class TmdbWatchFragment : Fragment() {
         // Plugin titles have no TMDB id — key everything (caches, continue
         // watching, notify) off a stable hash of the plugin URL.
         if (pluginUrl != null) mediaId = pluginUrl.hashCode()
-        episodeStyle = (PrefManager.getNullableCustomVal("tmdb_style", 0, Int::class.java)
-            ?: 0).coerceIn(0, 3)
+        episodeStyle = (PrefManager.getNullableCustomVal("tmdb_style", 2, Int::class.java)
+            ?: 2).coerceIn(0, 3)
         reversed = PrefManager.getNullableCustomVal("tmdb_reversed_$mediaId", false, Boolean::class.java)
             ?: false
         Logger.log("TMDB_WATCH: opened mediaType=$mediaType mediaId=$mediaId style=$episodeStyle reversed=$reversed")
@@ -167,7 +170,17 @@ class TmdbWatchFragment : Fragment() {
         }
         FocusEffectUtil.applyFocusListener(binding.tmdbWatchScrollTop, binding.tmdbWatchScrollTop)
 
-        binding.tmdbWatchRecycler.layoutManager = LinearLayoutManager(requireContext())
+        var maxGridSize = (resources.displayMetrics.widthPixels.dp / 100f).roundToInt()
+        maxGridSize = max(4, maxGridSize - (maxGridSize % 2))
+        binding.tmdbWatchRecycler.layoutManager = GridLayoutManager(requireContext(), maxGridSize).apply {
+            spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+                override fun getSpanSize(position: Int): Int = when {
+                    // header + bars + strips fill the row; compact is a small rounded square
+                    episodeStyle == 3 -> 1
+                    else -> maxGridSize
+                }
+            }
+        }
         binding.tmdbWatchRecycler.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
@@ -623,7 +636,6 @@ class TmdbWatchFragment : Fragment() {
         var style = episodeStyle
         fun styleLabel(s: Int) = when (s) {
             0 -> R.string.tmdb_watch_style_bars
-            1 -> R.string.tmdb_watch_style_list
             2 -> R.string.tmdb_watch_style_strips
             else -> R.string.compact
         }
@@ -632,7 +644,6 @@ class TmdbWatchFragment : Fragment() {
         db.tmdbSortTop.rotation = if (rev) -90f else 90f
         var selected = when (style) {
             0 -> db.tmdbStyleBars
-            1 -> db.tmdbStyleList
             2 -> db.tmdbStyleStrips
             else -> db.tmdbStyleCompact
         }
@@ -646,7 +657,6 @@ class TmdbWatchFragment : Fragment() {
             run = true
         }
         db.tmdbStyleBars.setOnClickListener { select(db.tmdbStyleBars, 0) }
-        db.tmdbStyleList.setOnClickListener { select(db.tmdbStyleList, 1) }
         db.tmdbStyleStrips.setOnClickListener { select(db.tmdbStyleStrips, 2) }
         db.tmdbStyleCompact.setOnClickListener { select(db.tmdbStyleCompact, 3) }
         db.tmdbSortTop.setOnClickListener {
@@ -1207,8 +1217,6 @@ class TmdbWatchFragment : Fragment() {
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
             return if (viewType == 0) {
                 HeaderVH(header!!)
-            } else if (style == 1) {
-                ListVH(ItemEpisodeListBinding.inflate(LayoutInflater.from(parent.context), parent, false))
             } else if (style == 2) {
                 StripVH(ItemEpisodeStripBinding.inflate(LayoutInflater.from(parent.context), parent, false))
             } else if (style == 3) {
