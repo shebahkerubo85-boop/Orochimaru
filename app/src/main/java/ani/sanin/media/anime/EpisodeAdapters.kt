@@ -504,10 +504,20 @@ class EpisodeAdapter(
                 binding.itemEpisodeDesc.isVisible = !desc.isNullOrBlank()
                 binding.itemEpisodeDesc.maxLines = 2
                 binding.itemEpisodeDesc.alpha = 0.58f
-                binding.itemEpisodeMore.isVisible = false
+                var expanded = false
+                binding.itemEpisodeMore.setText(R.string.strips_more)
                 binding.itemEpisodeMore.setOnClickListener {
-                    binding.itemEpisodeDesc.maxLines = 100
-                    binding.itemEpisodeMore.isVisible = false
+                    expanded = !expanded
+                    binding.itemEpisodeDesc.maxLines = if (expanded) 100 else 2
+                    binding.itemEpisodeMore.setText(
+                        if (expanded) R.string.strips_less else R.string.strips_more
+                    )
+                    binding.itemEpisodeDesc.post {
+                        val layout = binding.itemEpisodeDesc.layout
+                        val truncated = layout != null && layout.lineCount > 0 &&
+                            (layout.getEllipsisCount(layout.lineCount - 1) > 0)
+                        binding.itemEpisodeMore.isVisible = expanded || truncated
+                    }
                 }
                 binding.itemEpisodeDesc.post {
                     val layout = binding.itemEpisodeDesc.layout
@@ -524,8 +534,8 @@ class EpisodeAdapter(
                     if (isWatched) {
                         binding.itemEpisodeViewedCover.visibility = View.VISIBLE
                         binding.itemEpisodeViewed.visibility = View.VISIBLE
-                        binding.itemEpisodeDivider?.setBackgroundColor(
-                            fragment.requireContext().getThemeColor(com.google.android.material.R.attr.colorOnBackground)
+                        binding.itemEpisodeDivider?.setBackgroundResource(
+                            R.drawable.strip_divider
                         )
                         if (greyWatched) {
                             val cm = ColorMatrix().apply { setSaturation(0f) }
@@ -544,8 +554,8 @@ class EpisodeAdapter(
                     } else {
                         binding.itemEpisodeViewedCover.visibility = View.GONE
                         binding.itemEpisodeViewed.visibility = View.GONE
-                        binding.itemEpisodeDivider?.setBackgroundColor(
-                            fragment.requireContext().getThemeColor(com.google.android.material.R.attr.colorPrimary)
+                        binding.itemEpisodeDivider?.setBackgroundResource(
+                            R.drawable.strip_divider
                         )
                         if (blurUnwatched) {
                             val cm = ColorMatrix().apply { setSaturation(0.3f) }

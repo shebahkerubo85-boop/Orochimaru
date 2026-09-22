@@ -979,6 +979,7 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="compact">Compact</string>
     <string name="strips">Strips</string>
     <string name="strips_more">More</string>
+    <string name="strips_less">Less</string>
 
     <string name="webview_not_installed">WebView not installed</string>
 
