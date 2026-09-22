@@ -1328,8 +1328,12 @@ class TmdbWatchFragment : Fragment() {
                     holder.binding.itemEpisodeNumber.text = ep.episodeNumber.toString()
                     holder.binding.itemEpisodeFillerView.isVisible = false
                     holder.binding.itemEpisodeViewedCover.isVisible = isWatched
-                    holder.binding.itemEpisodeNumber.alpha =
-                        if (isWatched) 0.5f else 1f
+                    holder.binding.itemEpisodeNumber.alpha = when {
+                        isWatched && greyWatched -> 0.5f
+                        !isWatched && blurUnwatched -> 0.5f
+                        else -> 1f
+                    }
+                    holder.binding.itemMediaProgressCont.isVisible = false
                     holder.binding.root.setOnClickListener { onClick(ep) }
                     holder.binding.root.setOnLongClickListener {
                         onLongClick(cumulativeOffset + ep.episodeNumber)
