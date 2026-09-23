@@ -2,7 +2,10 @@ package ani.sanin.settings
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.view.ViewGroup
+import android.widget.CheckBox
+import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.updateLayoutParams
 import ani.sanin.R
@@ -14,6 +17,8 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
+import ani.sanin.util.FocusEffectUtil
+import ani.sanin.util.customAlertDialog
 
 class SettingsAnimeActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySettingsSubscreenBinding
@@ -55,6 +60,11 @@ class SettingsAnimeActivity : AppCompatActivity() {
                     switch = PrefManager.getVal<Boolean>(PrefName.GreyWatchedEpisodes) to {
                         PrefManager.setVal(PrefName.GreyWatchedEpisodes, it)
                     },
+                ),
+                SubscreenBuilder.Entry(
+                    title = getString(R.string.episode_metadata_source),
+                    desc = "AniZip / Kitsu for anime, TMDB / Simkl for movies",
+                    onClick = { showEpisodeMetadataDialog() },
                 ),
             )),
 
@@ -142,5 +152,89 @@ class SettingsAnimeActivity : AppCompatActivity() {
                 ),
             )),
         ))
+    }
+
+    // ─── Episode Metadata Source Dialog ─────────────────────────────
+    private fun showEpisodeMetadataDialog() {
+        val view = layoutInflater.inflate(R.layout.dialog_episode_metadata, null)
+
+        val animeRow = view.findViewById<View>(R.id.epMetaAnimeRow)
+        val animeExpanded = view.findViewById<View>(R.id.epMetaAnimeExpanded)
+        val animeChevron = view.findViewById<ImageView>(R.id.epMetaAnimeChevron)
+        val anizipCheck = view.findViewById<CheckBox>(R.id.epMetaAniZipCheck)
+        val kitsuCheck = view.findViewById<CheckBox>(R.id.epMetaKitsuCheck)
+        val anizipRow = view.findViewById<View>(R.id.epMetaAniZipRow)
+
+        val movieRow = view.findViewById<View>(R.id.epMetaMovieRow)
+        val movieExpanded = view.findViewById<View>(R.id.epMetaMovieExpanded)
+        val movieChevron = view.findViewById<ImageView>(R.id.epMetaMovieChevron)
+        val tmdbCheck = view.findViewById<CheckBox>(R.id.epMetaTmdbCheck)
+        val simklCheck = view.findViewById<CheckBox>(R.id.epMetaSimklCheck)
+
+        val metadataApi = PrefManager.getVal<Int>(PrefName.EpisodeMetadataSource) // 0 = Kitsu, 1 = AniZip
+        anizipCheck.isChecked = metadataApi == 1
+        kitsuCheck.isChecked = metadataApi == 0
+
+        fun animeSync(enabled: Int) {
+            anizipCheck.isChecked = enabled == 1
+            kitsuCheck.isChecked = enabled == 0
+            PrefManager.setVal(PrefName.EpisodeMetadataSource, enabled)
+        }
+        anizipRow.setOnClickListener { animeSync(1) }
+        kitsuCheck.setOnClickListener { animeSync(0) }
+
+        // Anime expand/collapse
+        animeRow.setOnClickListener {
+            if (movieExpanded.visibility == View.VISIBLE) {
+                movieExpanded.animate().alpha(0f).setDuration(120).withEndAction {
+                    movieExpanded.visibility = View.GONE; movieExpanded.alpha = 1f
+                }.start()
+                movieChevron.animate().rotation(0f).setDuration(200).start()
+            }
+            if (animeExpanded.visibility == View.VISIBLE) {
+                animeExpanded.animate().alpha(0f).setDuration(120).withEndAction {
+                    animeExpanded.visibility = View.GONE; animeExpanded.alpha = 1f
+                }.start()
+                animeChevron.animate().rotation(0f).setDuration(200).start()
+            } else {
+                animeExpanded.visibility = View.VISIBLE
+                animeExpanded.alpha = 0f
+                animeExpanded.animate().alpha(1f).setDuration(200).start()
+                animeChevron.animate().rotation(180f).setDuration(200).start()
+            }
+        }
+        FocusEffectUtil.applyFocusListener(animeRow)
+        FocusEffectUtil.applyFocusListener(anizipRow)
+        FocusEffectUtil.applyFocusListener(kitsuCheck)
+
+        // Movie expand/collapse (UI only, not wired)
+        movieRow.setOnClickListener {
+            if (animeExpanded.visibility == View.VISIBLE) {
+                animeExpanded.animate().alpha(0f).setDuration(120).withEndAction {
+                    animeExpanded.visibility = View.GONE; animeExpanded.alpha = 1f
+                }.start()
+                animeChevron.animate().rotation(0f).setDuration(200).start()
+            }
+            if (movieExpanded.visibility == View.VISIBLE) {
+                movieExpanded.animate().alpha(0f).setDuration(120).withEndAction {
+                    movieExpanded.visibility = View.GONE; movieExpanded.alpha = 1f
+                }.start()
+                movieChevron.animate().rotation(0f).setDuration(200).start()
+            } else {
+                movieExpanded.visibility = View.VISIBLE
+                movieExpanded.alpha = 0f
+                movieExpanded.animate().alpha(1f).setDuration(200).start()
+                movieChevron.animate().rotation(180f).setDuration(200).start()
+            }
+        }
+        FocusEffectUtil.applyFocusListener(movieRow)
+        FocusEffectUtil.applyFocusListener(tmdbCheck)
+        FocusEffectUtil.applyFocusListener(simklCheck)
+
+        customAlertDialog().apply {
+            setCustomView(view)
+            setCancelable(true)
+            show()
+        }
     }
 }

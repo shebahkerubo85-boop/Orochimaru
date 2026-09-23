@@ -12,157 +12,139 @@
     <LinearLayout
         android:id="@+id/animeSourceContainer"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:layout_marginTop="-16dp"
-            android:layout_marginBottom="-24dp"
-            android:background="?attr/colorSurface"
-            android:clipToPadding="false"
-        android:orientation="vertical"
+        android:background="?attr/colorSurface"
+        android:clipToPadding="false"
+        android:orientation="horizontal"
         android:padding="32dp">
 
-        <Button
-            android:id="@+id/animeSourceYT"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:backgroundTint="@color/yt_red"
-            android:fontFamily="@font/poppins_bold"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:text="@string/play_yt"
-            android:textColor="@color/bg_white"
-            android:visibility="gone"
-            app:cornerRadius="12dp"
-            app:icon="@drawable/ic_round_play_circle_24"
-            app:iconTint="@color/bg_white"
-            tools:ignore="TextContrastCheck"
-            tools:visibility="visible" />
-
+        <!-- Left clay column: all source controls -->
         <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <ProgressBar
-                android:id="@+id/mediaSourceSpinner"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_marginEnd="8dp"
-                android:indeterminate="true"
-                android:indeterminateTint="?attr/colorSecondary"
-                android:visibility="gone" />
-
-            <TextView
-                android:id="@+id/mediaSourceTitle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:ellipsize="marquee"
-                android:fontFamily="@font/poppins_bold"
-                android:marqueeRepeatLimit="marquee_forever"
-                android:singleLine="true"
-                tools:text="@string/get_recommendations" />
+            android:id="@+id/animeSourceClayContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_gravity="start|center_vertical"
+            android:layout_marginStart="-29dp"
+            android:layout_marginEnd="2dp"
+            android:background="@drawable/bg_info_container"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="8dp">
 
             <ImageView
                 android:id="@+id/mediaSourceRefresh"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
                 android:focusable="true"
-                android:padding="4dp"
+                android:padding="3dp"
                 app:srcCompat="@drawable/ic_round_refresh_24"
-                app:tint="?attr/colorOnBackground"
+                app:tint="@android:color/white"
                 tools:ignore="ContentDescription" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <HorizontalScrollView
-                android:id="@+id/mediaSourcePillScroll"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:clipToPadding="false"
-                android:scrollbars="none">
-
-                <com.google.android.material.chip.ChipGroup
-                    android:id="@+id/mediaSourceChipGroupPill"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    app:singleLine="true"
-                    app:singleSelection="true" />
-            </HorizontalScrollView>
 
             <ImageView
                 android:id="@+id/mediaSourceSettings"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_gravity="center_vertical"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginTop="4dp"
                 android:focusable="true"
                 android:focusableInTouchMode="false"
-                android:padding="8dp"
+                android:padding="3dp"
                 app:srcCompat="@drawable/ic_round_settings_24"
-                app:tint="?attr/colorOnBackground"
+                app:tint="@android:color/white"
+                tools:ignore="ContentDescription,ImageContrastCheck" />
+
+            <ImageView
+                android:id="@+id/mediaSourceWebview"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginTop="4dp"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
+                android:padding="3dp"
+                app:srcCompat="@drawable/ic_baseline_public_24"
+                app:tint="@android:color/white"
+                tools:ignore="ContentDescription" />
+
+            <ImageView
+                android:id="@+id/mediaSourceSubscribe"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginTop="4dp"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
+                android:padding="3dp"
+                app:srcCompat="@drawable/ic_round_notifications_none_24"
+                app:tint="@android:color/white"
                 tools:ignore="ContentDescription,ImageContrastCheck" />
         </LinearLayout>
 
+        <!-- Middle column: auto-search, chips and dub toggle, same height as the clays -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:baselineAligned="false">
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:orientation="vertical">
 
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/mediaSourceLanguageContainer"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-                android:layout_width="0dp"
-                android:layout_height="56dp"
-                android:layout_weight="1"
-                android:hint="@string/language"
-                android:visibility="gone"
-                app:boxCornerRadiusBottomEnd="8dp"
-                app:boxCornerRadiusBottomStart="8dp"
-                app:boxCornerRadiusTopEnd="8dp"
-                app:boxCornerRadiusTopStart="8dp"
-                app:boxStrokeColor="@color/text_input_layout_stroke_color"
-                app:hintAnimationEnabled="true"
-                app:startIconDrawable="@drawable/ic_round_source_24">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-                <AutoCompleteTextView
-                    android:id="@+id/mediaSourceLanguage"
-                    android:layout_width="match_parent"
+                <ProgressBar
+                    android:id="@+id/mediaSourceSpinner"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_marginEnd="8dp"
+                    android:indeterminate="true"
+                    android:indeterminateTint="?attr/colorSecondary"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/mediaSourceTitle"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
+                    android:ellipsize="marquee"
                     android:fontFamily="@font/poppins_bold"
-                    android:freezesText="false"
-                    android:inputType="none"
-                    android:padding="8dp"
-                    android:text="@string/language_code"
-                    android:textAllCaps="true"
-                    android:textColor="?android:attr/textColorSecondary"
-                    android:textSize="14sp"
-                    tools:ignore="LabelFor,TextContrastCheck,DuplicateSpeakableTextCheck" />
-            </com.google.android.material.textfield.TextInputLayout>
+                    android:marqueeRepeatLimit="marquee_forever"
+                    android:singleLine="true"
+                    tools:text="@string/get_recommendations" />
+            </LinearLayout>
 
-        </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
+                <HorizontalScrollView
+                    android:id="@+id/mediaSourcePillScroll"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:clipToPadding="false"
+                    android:scrollbars="none">
 
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_marginStart="-12dp"
-            android:layout_marginEnd="-12dp"
-            android:orientation="horizontal">
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/mediaSourceChipGroupPill"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:singleLine="true"
+                        app:singleSelection="true" />
+                </HorizontalScrollView>
+            </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/animeSourceDubbedCont"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
                 android:orientation="horizontal"
                 android:visibility="gone">
 
@@ -198,147 +180,186 @@
 
             </LinearLayout>
 
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:layout_gravity="end"
-                android:orientation="horizontal">
-
-                <TextView
-
-                    android:id="@+id/mediaSourceSearch"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="end"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:fontFamily="@font/poppins_bold"
-                    android:padding="12dp"
-                    android:text="@string/wrong"
-                    android:textAlignment="textEnd"
-                    android:textColor="?attr/colorSecondary"
-                    tools:ignore="TextContrastCheck" />
-            </LinearLayout>
-        </FrameLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/sourceTitle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:fontFamily="@font/poppins_bold"
-                android:text="@string/eps"
-                android:textSize="16sp" />
-
-            <ImageView
-                android:id="@+id/mediaSourceSubscribe"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_gravity="center_vertical"
-                android:focusable="true"
-                android:focusableInTouchMode="false"
-                android:alpha="0.33"
-                android:padding="8dp"
-                app:srcCompat="@drawable/ic_round_notifications_none_24"
-                app:tint="?attr/colorOnBackground"
-                tools:ignore="ContentDescription,ImageContrastCheck" />
-
-            <ImageView
-                android:id="@+id/mediaNestedButton"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_gravity="end"
-                android:focusable="true"
-                android:focusableInTouchMode="false"
-                android:alpha="1"
-                android:padding="8dp"
-                app:srcCompat="@drawable/ic_round_filter_24"
-                app:tint="?attr/colorOnBackground"
-                tools:ignore="ContentDescription,ImageContrastCheck" />
         </LinearLayout>
 
-        <androidx.cardview.widget.CardView
-            android:id="@+id/sourceContinue"
-            android:layout_width="match_parent"
-            android:layout_height="80dp"
-            android:layout_gravity="center"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp"
-            android:focusable="true"
-            android:visibility="gone"
-            app:cardCornerRadius="16dp"
-            app:cornerRadius="12dp"
-            tools:visibility="visible">
+        <!-- Right clay column: episode-interface controls -->
+        <LinearLayout
+            android:id="@+id/animeSourceClayRightContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="2dp"
+            android:layout_marginEnd="-29dp"
+            android:background="@drawable/bg_info_container"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="8dp">
 
             <ImageView
-                android:id="@+id/itemMediaImage"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scaleType="centerCrop"
-                tools:ignore="ContentDescription,ImageContrastCheck"
-                tools:srcCompat="@tools:sample/backgrounds/scenic" />
+                android:id="@+id/mediaSourceLayout"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:focusable="true"
+                android:padding="3dp"
+                app:srcCompat="@drawable/ic_round_view_comfy_24"
+                app:tint="@android:color/white"
+                tools:ignore="ContentDescription" />
 
-            <View
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:alpha="0.6"
-                android:background="@color/bg_black" />
+            <ImageView
+                android:id="@+id/mediaSourceSort"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginTop="4dp"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
+                android:padding="3dp"
+                app:srcCompat="@drawable/ic_round_unfold_more_24"
+                app:tint="@android:color/white"
+                tools:ignore="ContentDescription,ImageContrastCheck" />
 
-            <View
-                android:id="@+id/itemEpisodeFillerView"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:background="@color/filler"
-                android:visibility="gone" />
+            <ImageView
+                android:id="@+id/mediaSourceDownload"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginTop="4dp"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
+                android:padding="3dp"
+                app:srcCompat="@drawable/ic_download_24"
+                app:tint="@android:color/white"
+                tools:ignore="ContentDescription,ImageContrastCheck" />
+
+            <ImageView
+                android:id="@+id/mediaSourceFaq"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginTop="4dp"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
+                android:padding="3dp"
+                app:srcCompat="@drawable/question_mark_24"
+                app:tint="@android:color/white"
+                tools:ignore="ContentDescription,ImageContrastCheck" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Fallen out of the box: EPISODES title with wrapped "Wrong title?" clay on the right -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="28dp"
+        android:paddingEnd="28dp">
+
+        <TextView
+            android:id="@+id/sourceTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="@font/poppins_bold"
+            android:text="@string/eps"
+            android:textSize="16sp" />
+
+        <!-- Wrapped wrong-title clay -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_info_container"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="8dp">
 
             <TextView
-                android:id="@+id/mediaSourceContinueText"
-                android:layout_width="match_parent"
+                android:id="@+id/mediaSourceSearch"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_margin="16dp"
-                android:ellipsize="end"
+                android:clickable="true"
+                android:focusable="true"
                 android:fontFamily="@font/poppins_bold"
-                android:gravity="center"
-                android:maxLines="2"
-                android:text="@string/continue_watching"
-                android:textColor="@color/bg_white"
-                app:drawableEndCompat="@drawable/ic_round_play_arrow_24" />
-
-            <LinearLayout
-                android:id="@+id/itemMediaProgressCont"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="bottom"
-                android:orientation="horizontal">
-
-                <View
-                    android:id="@+id/itemMediaProgress"
-                    android:layout_width="0dp"
-                    android:layout_height="2dp"
-                    android:layout_weight="0"
-                    android:background="?attr/colorPrimary" />
-
-                <View
-                    android:id="@+id/itemMediaProgressEmpty"
-                    android:layout_width="0dp"
-                    android:layout_height="2dp"
-                    android:layout_weight="1" />
-
-            </LinearLayout>
-        </androidx.cardview.widget.CardView>
-
+                android:padding="12dp"
+                android:text="@string/wrong"
+                android:textColor="?attr/colorSecondary"
+                tools:ignore="TextContrastCheck" />
+        </LinearLayout>
     </LinearLayout>
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/sourceContinue"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:layout_gravity="center"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
+        android:focusable="true"
+        android:visibility="gone"
+        app:cardCornerRadius="16dp"
+        app:cornerRadius="12dp"
+        tools:visibility="visible">
+
+        <ImageView
+            android:id="@+id/itemMediaImage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            tools:ignore="ContentDescription,ImageContrastCheck"
+            tools:srcCompat="@tools:sample/backgrounds/scenic" />
+
+        <View
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:alpha="0.6"
+            android:background="@color/bg_black" />
+
+        <View
+            android:id="@+id/itemEpisodeFillerView"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:background="@color/filler"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/mediaSourceContinueText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="16dp"
+            android:ellipsize="end"
+            android:fontFamily="@font/poppins_bold"
+            android:gravity="center"
+            android:maxLines="2"
+            android:text="@string/continue_watching"
+            android:textColor="@color/bg_white"
+            app:drawableEndCompat="@drawable/ic_round_play_arrow_24" />
+
+        <LinearLayout
+            android:id="@+id/itemMediaProgressCont"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:orientation="horizontal">
+
+            <View
+                android:id="@+id/itemMediaProgress"
+                android:layout_width="0dp"
+                android:layout_height="2dp"
+                android:layout_weight="0"
+                android:background="?attr/colorPrimary" />
+
+            <View
+                android:id="@+id/itemMediaProgressEmpty"
+                android:layout_width="0dp"
+                android:layout_height="2dp"
+                android:layout_weight="1" />
+
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
 
     <HorizontalScrollView
         android:id="@+id/mediaWatchChipScroll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
         android:layout_marginBottom="8dp"
         android:clipToPadding="false"
         android:paddingStart="28dp"
@@ -409,4 +430,3 @@
     </LinearLayout>
 
 </LinearLayout>
-

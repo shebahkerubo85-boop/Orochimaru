@@ -80,6 +80,7 @@
     <string name="tmdb_watch_auto_search">Auto Search</string>
     <string name="tmdb_watch_searching">Searching : %1$s</string>
     <string name="tmdb_watch_options">Options</string>
+    <string name="tmdb_watch_no_settings">Settings not available for this source</string>
     <string name="tmdb_watch_up_to_down">Up to Down</string>
     <string name="tmdb_watch_down_to_up">Down to Up</string>
     <string name="tmdb_watch_style_bars">Episode view: Bars</string>
@@ -195,6 +196,13 @@
     <string name="chaps">Chapters</string>
     <string name="chap">Chapter</string>
     <string name="wrong"><u>Wrong Title?</u></string>
+    <string name="anime_watch_refreshed">Refreshed successfully</string>
+    <string name="anime_watch_no_webpage">No webpage for this source</string>
+    <string name="anime_watch_style_bars">Episode layout: Bars</string>
+    <string name="anime_watch_style_compact">Episode layout: Compact</string>
+    <string name="anime_watch_style_strips">Episode layout: Strips</string>
+    <string name="anime_watch_up_to_down">Sort: Up to Down</string>
+    <string name="anime_watch_down_to_up">Sort: Down to Up</string>
     <string name="source_not_found">
         Nothing came up from this source.\n
         Let\'s look elsewhere.
@@ -916,6 +924,7 @@
     <string name="scanlator">Scanlator</string>
     <string name="set_cookies">Set Cookies</string>
     <string name="open_website">Open Website</string>
+    <string name="episode_metadata_source">Episode Metadata Source</string>
 
     <string name="lorem_ipsum" translatable="false">
 

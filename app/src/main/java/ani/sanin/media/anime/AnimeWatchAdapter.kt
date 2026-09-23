@@ -7,7 +7,6 @@ import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.ImageButton
 import android.widget.LinearLayout
-import android.widget.NumberPicker
 import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.getString
 import androidx.core.content.ContextCompat.startActivity
@@ -16,11 +15,9 @@ import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.FileUrl
-import ani.sanin.FocusableDropdownAdapter
 import ani.sanin.R
 import ani.sanin.currActivity
 import ani.sanin.currContext
-import ani.sanin.databinding.DialogLayoutBinding
 import ani.sanin.databinding.ItemChipBinding
 import ani.sanin.databinding.ItemMediaSourceBinding
 import ani.sanin.displayTimer
@@ -47,7 +44,6 @@ import ani.sanin.snackString
 import ani.sanin.toast
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.Logger
-import ani.sanin.util.customAlertDialog
 import com.google.android.material.chip.Chip
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.data.notification.Notifications.CHANNEL_SUBSCRIPTION_CHECK
@@ -134,10 +130,78 @@ class AnimeWatchAdapter(
             }
         }
 
+        // Website / Set Cookies
+        binding.mediaSourceWebview.setOnClickListener {
+            if (!WebViewUtil.supportsWebView(fragment.requireContext())) {
+                toast(R.string.webview_not_installed)
+            }
+            if (watchSources.names.isNotEmpty() && source in 0 until watchSources.names.size) {
+                val sourceAHH = watchSources[source] as? DynamicAnimeParser
+                val sourceHttp =
+                    sourceAHH?.extension?.sources?.firstOrNull() as? AnimeHttpSource
+                val url = sourceHttp?.baseUrl
+                if (url == null) {
+                    toast(R.string.anime_watch_no_webpage)
+                } else {
+                    val headersMap = try {
+                        sourceHttp.headers.toMultimap()
+                            .mapValues { it.value.getOrNull(0) ?: "" }
+                    } catch (e: Exception) {
+                        emptyMap()
+                    }
+                    val intent =
+                        Intent(fragment.requireContext(), CookieCatcher::class.java)
+                            .putExtra("url", url)
+                            .putExtra("headers", headersMap as HashMap<String, String>)
+                    startActivity(fragment.requireContext(), intent, null)
+                }
+            }
+        }
+
         binding.mediaSourceRefresh.setOnClickListener {
             binding.mediaSourceSpinner.isVisible = true
             fragment.onSourceChange(source)
             fragment.loadEpisodes(source, true)
+            snackString(R.string.anime_watch_refreshed)
+        }
+
+        var style =
+            media.selected!!.recyclerStyle ?: PrefManager.getVal(PrefName.AnimeDefaultView)
+        if (style == 0) style = 3
+        var reversed = media.selected!!.recyclerReversed
+        mediaSourceLayoutInit(binding, style)
+        binding.mediaSourceLayout.setOnClickListener {
+            style = when (style) {
+                1 -> 2
+                2 -> 3
+                else -> 1
+            }
+            mediaSourceLayoutInit(binding, style)
+            snackString(
+                if (style == 1) R.string.anime_watch_style_bars
+                else if (style == 2) R.string.anime_watch_style_compact
+                else R.string.anime_watch_style_strips
+            )
+            fragment.onIconPressed(style, reversed)
+        }
+        binding.mediaSourceSort.setOnClickListener {
+            reversed = !reversed
+            binding.mediaSourceSort.rotation = if (reversed) 180f else 0f
+            snackString(
+                if (reversed) R.string.anime_watch_down_to_up
+                else R.string.anime_watch_up_to_down
+            )
+            fragment.onIconPressed(style, reversed)
+        }
+        binding.mediaSourceDownload.setOnClickListener {
+            snackString("Download is coming soon")
+        }
+        binding.mediaSourceFaq.setOnClickListener {
+            startActivity(
+                fragment.requireContext(),
+                Intent(fragment.requireContext(), FAQActivity::class.java),
+                null
+            )
         }
 
         binding.mediaSourceTitle.isSelected = true
@@ -200,32 +264,6 @@ class AnimeWatchAdapter(
             }
         }
 
-        binding.mediaSourceLanguage.setOnItemClickListener { _, _, i, _ ->
-            // Check if 'extension' and 'selected' properties exist and are accessible
-            Logger.log("Watch: language dropdown selected index $i")
-            (watchSources[source] as? DynamicAnimeParser)?.let { ext ->
-                ext.sourceLanguage = i
-                fragment.onLangChange(i)
-                fragment.onSourceChange(media.selected!!.sourceIndex).apply {
-                    binding.mediaSourceTitle.text = showUserText
-                    showUserTextListener = {
-                        MainScope().launch {
-                            binding.mediaSourceTitle.text = it
-                            binding.mediaSourceSpinner.isVisible = it.startsWith("Searching")
-                        }
-                    }
-                    binding.mediaSourceSpinner.isVisible = showUserText.startsWith("Searching")
-                    changing = true
-                    binding.animeSourceDubbed.isChecked = selectDub
-                    changing = false
-                    binding.animeSourceDubbedCont.isVisible = isDubAvailableSeparately()
-                    setLanguageList(i, source)
-                }
-                subscribeButton(false)
-                fragment.loadEpisodes(media.selected!!.sourceIndex, true)
-            } ?: run { }
-        }
-
         // Settings
         binding.mediaSourceSettings.setOnClickListener {
             val parser = watchSources[source]
@@ -241,16 +279,22 @@ class AnimeWatchAdapter(
         binding.mediaSourceSearch.nextFocusRightId = R.id.mediaSourceSearch
         FocusEffectUtil.applyFocusListener(binding.mediaSourceSettings, binding.mediaSourceSettings, true)
         FocusEffectUtil.applyFocusListener(binding.mediaSourceRefresh, binding.mediaSourceRefresh, true)
+        FocusEffectUtil.applyFocusListener(binding.mediaSourceWebview, binding.mediaSourceWebview, true)
+        FocusEffectUtil.applyFocusListener(binding.mediaSourceLayout, binding.mediaSourceLayout, true)
+        FocusEffectUtil.applyFocusListener(binding.mediaSourceSort, binding.mediaSourceSort, true)
+        FocusEffectUtil.applyFocusListener(binding.mediaSourceDownload, binding.mediaSourceDownload, true)
+        FocusEffectUtil.applyFocusListener(binding.mediaSourceFaq, binding.mediaSourceFaq, true)
         FocusEffectUtil.applyFocusListener(binding.animeSourceDubbed, binding.animeSourceDubbed, true)
         binding.animeSourceDubbed.nextFocusUpId = R.id.mediaSourceSettings
         binding.animeSourceDubbed.nextFocusRightId = R.id.mediaSourceSearch
         binding.mediaSourceSettings.nextFocusDownId = R.id.animeSourceDubbed
         FocusEffectUtil.applyFocusListener(binding.mediaSourceSubscribe, binding.mediaSourceSubscribe, true)
-        FocusEffectUtil.applyFocusListener(binding.mediaNestedButton, binding.mediaNestedButton, true)
-        binding.mediaNestedButton.nextFocusRightId = R.id.mediaNestedButton
         FocusEffectUtil.applyFocusListener(binding.sourceContinue)
-        binding.mediaNestedButton.nextFocusDownId = R.id.ScrollTop
         binding.mediaSourceSubscribe.nextFocusDownId = R.id.ScrollTop
+        binding.mediaSourceLayout.nextFocusDownId = R.id.ScrollTop
+        binding.mediaSourceSort.nextFocusDownId = R.id.ScrollTop
+        binding.mediaSourceDownload.nextFocusDownId = R.id.ScrollTop
+        binding.mediaSourceFaq.nextFocusDownId = R.id.ScrollTop
         binding.animeSourceDubbed.nextFocusDownId = R.id.ScrollTop
         binding.faqbutton.nextFocusDownId = R.id.ScrollTop
 
@@ -276,195 +320,22 @@ class AnimeWatchAdapter(
             openSettings(fragment.requireContext(), CHANNEL_SUBSCRIPTION_CHECK)
         }
 
-        // Nested Button
-        binding.mediaNestedButton.setOnClickListener {
-            val dialogBinding = DialogLayoutBinding.inflate(fragment.layoutInflater)
-            dialogBinding.apply {
-                var refresh = false
-                var run = false
-                var reversed = media.selected!!.recyclerReversed
-                var style =
-                    media.selected!!.recyclerStyle ?: PrefManager.getVal(PrefName.AnimeDefaultView)
-                if (style == 0) style = 3 // legacy list removed → strips
-
-                mediaSourceTop.rotation = if (reversed) -90f else 90f
-                sortText.text = if (reversed) "Down to Up" else "Up to Down"
-                mediaSourceTop.setOnClickListener {
-                    reversed = !reversed
-                    mediaSourceTop.rotation = if (reversed) -90f else 90f
-                    sortText.text = if (reversed) "Down to Up" else "Up to Down"
-                    run = true
-                }
-
-                var metadataApi = PrefManager.getVal<Int>(PrefName.EpisodeMetadataSource) // 0 or 1
-                metadataApiText.text = if (metadataApi == 0) "Kitsu" else "AniZip"
-                metadataApiTop.setOnClickListener {
-                    metadataApi = if (metadataApi == 0) 1 else 0
-                    metadataApiText.text = if (metadataApi == 0) "Kitsu" else "AniZip"
-                    PrefManager.setVal(PrefName.EpisodeMetadataSource, metadataApi)
-                    
-                    if (metadataApi == 0) {
-                        fragment.loadKitsuEpisodesAsync()
-                    }
-                    refresh = true
-                }
-                
-                // Grids
-                var selected = when (style) {
-                    1 -> mediaSourceBars
-                    2 -> mediaSourceCompact
-                    3 -> mediaSourceStrips
-                    else -> mediaSourceStrips
-                }
-                when (style) {
-                    1 -> layoutText.setText(R.string.bars)
-                    2 -> layoutText.setText(R.string.compact)
-                    3 -> layoutText.setText(R.string.strips)
-                    else -> layoutText.setText(R.string.strips)
-                }
-                selected.alpha = 1f
-                fun selected(it: ImageButton) {
-                    selected.alpha = 0.33f
-                    selected = it
-                    selected.alpha = 1f
-                }
-                mediaSourceBars.setOnClickListener {
-                    selected(it as ImageButton)
-                    style = 1
-                    layoutText.setText(R.string.bars)
-                    run = true
-                }
-                mediaSourceCompact.setOnClickListener {
-                    selected(it as ImageButton)
-                    style = 2
-                    layoutText.setText(R.string.compact)
-                    run = true
-                }
-                mediaSourceStrips.setOnClickListener {
-                    selected(it as ImageButton)
-                    style = 3
-                    layoutText.setText(R.string.strips)
-                    run = true
-                }
-                mediaWebviewContainer.setOnClickListener {
-                    if (!WebViewUtil.supportsWebView(fragment.requireContext())) {
-                        toast(R.string.webview_not_installed)
-                    }
-                    // Start CookieCatcher activity
-                    if (watchSources.names.isNotEmpty() && source in 0 until watchSources.names.size) {
-                        val sourceAHH = watchSources[source] as? DynamicAnimeParser
-                        val sourceHttp =
-                            sourceAHH?.extension?.sources?.firstOrNull() as? AnimeHttpSource
-                        val url = sourceHttp?.baseUrl
-                        url?.let {
-                            refresh = true
-                            val headersMap = try {
-                                sourceHttp.headers.toMultimap()
-                                    .mapValues { it.value.getOrNull(0) ?: "" }
-                            } catch (e: Exception) {
-                                emptyMap()
-                            }
-                            val intent =
-                                Intent(fragment.requireContext(), CookieCatcher::class.java)
-                                    .putExtra("url", url)
-                                    .putExtra("headers", headersMap as HashMap<String, String>)
-                            startActivity(fragment.requireContext(), intent, null)
-                        }
-                    }
-                }
-
-                //implement Multi download
-                downloadNo.setText("0")
-                if (media.format == "LOCAL") {
-                    animeDownloadContainer.visibility = View.GONE
-                    mediaWebviewContainer.visibility = View.GONE
-                }
-                mediaDownloadTop.setOnClickListener {
-                    // Alert dialog asking for the number of Episodes to download
-                    fragment.requireContext().customAlertDialog().apply {
-                        setTitle("Multi Episode Downloader")
-                        setMessage("Enter the number of episodes to download")
-                        val input = NumberPicker(currContext())
-                        input.minValue = 1
-                        input.maxValue = 20
-                        input.value = 1
-                        setCustomView(input)
-                        setPosButton(R.string.ok) {
-                            downloadNo.setText("${input.value}")
-                        }
-                        setNegButton(R.string.cancel)
-                        show()
-                    }
-                }
-
-                resetProgress.setOnClickListener {
-                    fragment.requireContext().customAlertDialog().apply {
-                        setTitle(" Delete Progress for all episodes of ${media.nameRomaji}")
-                        setMessage("This will delete all the locally stored progress for all episodes")
-                        setPosButton(R.string.ok) {
-                            val prefix = "${media.id}_"
-                            val regex = Regex("^${prefix}\\d+$")
-
-                            PrefManager.getAllCustomValsForMedia(prefix)
-                                .keys
-                                .filter { it.matches(regex) }
-                                .onEach { key -> PrefManager.removeCustomVal(key) }
-                            snackString("Deleted the progress of all Episodes for ${media.nameRomaji}")
-                        }
-                        setNegButton(R.string.no)
-                        show()
-                    }
-                }
-
-                resetProgressDef.text = getString(currContext()!!, R.string.clear_stored_episode)
-
-                // Hidden
-                mangaScanlatorContainer.visibility = View.GONE
-                //animeDownloadContainer.visibility = View.GONE
-                fragment.requireContext().customAlertDialog().apply {
-                    setTitle("Options")
-                    setCustomView(dialogBinding.root)
-                    setPosButton("OK") {
-                        if (run) fragment.onIconPressed(style, reversed)
-                        if (downloadNo.text.toString() != "0") {
-
-                        }
-                        if (refresh) fragment.loadEpisodes(source, true)
-                    }
-                    setNegButton("Cancel") {
-                        if (refresh) fragment.loadEpisodes(source, true)
-                    }
-                    show()
-                }
-            }
-        }
         // Episode Handling
         handleEpisodes()
-
-        //clear progress
-        binding.sourceTitle.setOnLongClickListener {
-            fragment.requireContext().customAlertDialog().apply {
-                setTitle(" Delete Progress for all episodes of ${media.nameRomaji}")
-                setMessage("This will delete all the locally stored progress for all episodes")
-                setPosButton(R.string.ok) {
-                    val prefix = "${media.id}_"
-                    val regex = Regex("^${prefix}\\d+$")
-
-                    PrefManager.getAllCustomValsForMedia(prefix)
-                        .keys
-                        .filter { it.matches(regex) }
-                        .onEach { key -> PrefManager.removeCustomVal(key) }
-                    snackString("Deleted the progress of all Episodes for ${media.nameRomaji}")
-                }
-                setNegButton(R.string.no)
-                show()
-            }
-            true
-        }
     }
 
     fun subscribeButton(enabled: Boolean) {
         subscribe?.enabled(enabled)
+    }
+
+    private fun mediaSourceLayoutInit(binding: ItemMediaSourceBinding, style: Int) {
+        binding.mediaSourceLayout.setImageResource(
+            when (style) {
+                1 -> R.drawable.ic_round_view_array_24
+                2 -> R.drawable.ic_round_view_comfy_24
+                else -> R.drawable.ic_round_view_list_24
+            }
+        )
     }
 
     // Chips
@@ -677,31 +548,9 @@ class AnimeWatchAdapter(
     }
 
     private fun setLanguageList(lang: Int, source: Int) {
-        val binding = _binding
         if (watchSources is AnimeSources) {
-            val parser = watchSources[source] as? DynamicAnimeParser
-            if (parser != null) {
-                (watchSources[source] as? DynamicAnimeParser)?.let { ext ->
-                    ext.sourceLanguage = lang
-                }
-                try {
-                    binding?.mediaSourceLanguage?.setText(parser.extension.sources[lang].lang)
-                } catch (e: IndexOutOfBoundsException) {
-                    binding?.mediaSourceLanguage?.setText(
-                        parser.extension.sources.firstOrNull()?.lang ?: "Unknown"
-                    )
-                }
-                val adapter = FocusableDropdownAdapter(
-                    fragment.requireContext(),
-                    R.layout.item_dropdown,
-                    parser.extension.sources.map { LanguageMapper.getLanguageName(it.lang) }
-                )
-                val items = adapter.count
-
-                binding?.mediaSourceLanguageContainer?.visibility =
-                    if (items > 1) View.VISIBLE else View.GONE
-                binding?.mediaSourceLanguage?.setAdapter(adapter)
-
+            (watchSources[source] as? DynamicAnimeParser)?.let { ext ->
+                ext.sourceLanguage = lang
             }
         }
     }

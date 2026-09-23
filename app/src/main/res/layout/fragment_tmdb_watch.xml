@@ -23,6 +23,7 @@
         android:id="@+id/mediaBgGradient"
         android:layout_width="320dp"
         android:layout_height="match_parent"
+        android:alpha="0.7"
         android:background="@drawable/gradient_rtl_dark"
         android:importantForAccessibility="no" />
 

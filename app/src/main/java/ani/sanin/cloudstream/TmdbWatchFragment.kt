@@ -2,6 +2,7 @@ package ani.sanin.cloudstream
 
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
+import android.content.Intent
 import android.os.Bundle
 import android.text.TextUtils
 import android.view.LayoutInflater
@@ -46,6 +47,7 @@ import ani.sanin.toast
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.Logger
 import ani.sanin.util.customAlertDialog
+import ani.sanin.settings.FAQActivity
 import android.widget.LinearLayout
 import android.widget.ImageButton
 import com.google.android.material.chip.Chip
@@ -230,6 +232,7 @@ class TmdbWatchFragment : Fragment() {
                 return@launch
             }
             detail = d
+            binding.mediaBg?.loadImage(Tmdb.imageUrl(d.backdropPath ?: d.posterPath, 780))
 
             val logo = Tmdb.logoUrl(d)
             if (logo != null) {
@@ -367,6 +370,7 @@ class TmdbWatchFragment : Fragment() {
         }
 
         val d = detail ?: return
+        binding.mediaBg?.loadImage(Tmdb.imageUrl(d.backdropPath ?: d.posterPath, 780))
         val logo = Tmdb.logoUrl(d)
         if (logo != null) {
             binding.tmdbWatchLogo.isVisible = true
@@ -529,6 +533,38 @@ class TmdbWatchFragment : Fragment() {
         // ── refresh / notification / appearance ──
         h.tmdbWatchRefresh.setOnClickListener { refreshSelected() }
         FocusEffectUtil.applyFocusListener(h.tmdbWatchRefresh)
+
+        h.tmdbWatchSettings.setOnClickListener {
+            toast(getString(R.string.tmdb_watch_no_settings))
+        }
+        FocusEffectUtil.applyFocusListener(h.tmdbWatchSettings, h.tmdbWatchSettings, true)
+
+        h.tmdbWatchGlobe.setOnClickListener {
+            snackString(R.string.anime_watch_no_webpage)
+        }
+        FocusEffectUtil.applyFocusListener(h.tmdbWatchGlobe, h.tmdbWatchGlobe, true)
+
+        h.tmdbWatchSort.setOnClickListener {
+            reversed = !reversed
+            h.tmdbWatchSort.rotation = if (reversed) 180f else 0f
+            snackString(
+                if (reversed) R.string.tmdb_watch_down_to_up
+                else R.string.tmdb_watch_up_to_down
+            )
+            applyStyle(episodeStyle, reversed)
+        }
+        FocusEffectUtil.applyFocusListener(h.tmdbWatchSort, h.tmdbWatchSort, true)
+        h.tmdbWatchSort.rotation = if (reversed) 180f else 0f
+
+        h.tmdbWatchDownload.setOnClickListener {
+            snackString("Download is coming soon")
+        }
+        FocusEffectUtil.applyFocusListener(h.tmdbWatchDownload, h.tmdbWatchDownload, true)
+
+        h.tmdbWatchFaq.setOnClickListener {
+            startActivity(Intent(requireContext(), FAQActivity::class.java))
+        }
+        FocusEffectUtil.applyFocusListener(h.tmdbWatchFaq, h.tmdbWatchFaq, true)
 
         updateNotifyIcon()
         h.tmdbWatchNotify.setOnClickListener {
