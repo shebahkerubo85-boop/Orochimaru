@@ -16,7 +16,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="-16dp"
-        android:background="?attr/colorSurface"
         android:clipToPadding="false"
         android:orientation="horizontal"
         android:padding="32dp">
@@ -40,7 +39,7 @@
                 android:focusable="true"
                 android:padding="3dp"
                 app:srcCompat="@drawable/ic_round_refresh_24"
-                app:tint="@android:color/white"
+                app:tint="?attr/colorOnSurface"
                 tools:ignore="ContentDescription" />
 
             <ImageView
@@ -52,7 +51,7 @@
                 android:focusableInTouchMode="false"
                 android:padding="3dp"
                 app:srcCompat="@drawable/ic_round_settings_24"
-                app:tint="@android:color/white"
+                app:tint="?attr/colorOnSurface"
                 tools:ignore="ContentDescription,ImageContrastCheck" />
 
             <ImageView
@@ -64,7 +63,7 @@
                 android:focusableInTouchMode="false"
                 android:padding="3dp"
                 app:srcCompat="@drawable/ic_baseline_public_24"
-                app:tint="@android:color/white"
+                app:tint="?attr/colorOnSurface"
                 tools:ignore="ContentDescription" />
 
             <ImageView
@@ -76,7 +75,7 @@
                 android:focusableInTouchMode="false"
                 android:padding="3dp"
                 app:srcCompat="@drawable/ic_round_notifications_none_24"
-                app:tint="@android:color/white"
+                app:tint="?attr/colorOnSurface"
                 tools:ignore="ContentDescription,ImageContrastCheck" />
         </LinearLayout>
 
@@ -159,7 +158,7 @@
                 android:focusable="true"
                 android:padding="3dp"
                 app:srcCompat="@drawable/ic_round_view_comfy_24"
-                app:tint="@android:color/white"
+                app:tint="?attr/colorOnSurface"
                 tools:ignore="ContentDescription" />
 
             <ImageView
@@ -171,7 +170,7 @@
                 android:focusableInTouchMode="false"
                 android:padding="3dp"
                 app:srcCompat="@drawable/ic_round_unfold_more_24"
-                app:tint="@android:color/white"
+                app:tint="?attr/colorOnSurface"
                 tools:ignore="ContentDescription,ImageContrastCheck" />
 
             <ImageView
@@ -183,7 +182,7 @@
                 android:focusableInTouchMode="false"
                 android:padding="3dp"
                 app:srcCompat="@drawable/ic_download_24"
-                app:tint="@android:color/white"
+                app:tint="?attr/colorOnSurface"
                 tools:ignore="ContentDescription,ImageContrastCheck" />
 
             <ImageView
@@ -195,7 +194,7 @@
                 android:focusableInTouchMode="false"
                 android:padding="3dp"
                 app:srcCompat="@drawable/question_mark_24"
-                app:tint="@android:color/white"
+                app:tint="?attr/colorOnSurface"
                 tools:ignore="ContentDescription,ImageContrastCheck" />
         </LinearLayout>
     </LinearLayout>

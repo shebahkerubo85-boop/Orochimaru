@@ -149,7 +149,7 @@
                                 android:alpha="0.6"
                                 android:fontFamily="@font/poppins_bold"
                                 android:text="MEAN SCORE"
-                                android:textColor="@android:color/white"
+                                android:textColor="?attr/colorOnSurface"
                                 android:textSize="11sp" />
 
                             <TextView
@@ -157,7 +157,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/poppins_bold"
-                                android:textColor="@android:color/white"
+                                android:textColor="?attr/colorOnSurface"
                                 android:textSize="18sp"
                                 tools:text="8.2" />
                         </LinearLayout>
@@ -177,7 +177,7 @@
                                 android:fontFamily="@font/poppins_bold"
                                 android:gravity="end"
                                 android:text="RELEASED EPISODES"
-                                android:textColor="@android:color/white"
+                                android:textColor="?attr/colorOnSurface"
                                 android:textSize="11sp" />
 
                             <TextView
@@ -186,7 +186,7 @@
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/poppins_bold"
                                 android:gravity="end"
-                                android:textColor="@android:color/white"
+                                android:textColor="?attr/colorOnSurface"
                                 android:textSize="18sp"
                                 tools:text="7 of 12" />
                         </LinearLayout>
@@ -211,7 +211,7 @@
                                 android:alpha="0.6"
                                 android:fontFamily="@font/poppins_bold"
                                 android:text="WATCH PROGRESS"
-                                android:textColor="@android:color/white"
+                                android:textColor="?attr/colorOnSurface"
                                 android:textSize="11sp" />
 
                             <TextView
@@ -219,7 +219,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/poppins_bold"
-                                android:textColor="@android:color/white"
+                                android:textColor="?attr/colorOnSurface"
                                 android:textSize="18sp"
                                 tools:text="4 of 7" />
                         </LinearLayout>
@@ -239,7 +239,7 @@
                                 android:fontFamily="@font/poppins_bold"
                                 android:gravity="end"
                                 android:text="NEXT EPISODE"
-                                android:textColor="@android:color/white"
+                                android:textColor="?attr/colorOnSurface"
                                 android:textSize="11sp" />
 
                             <TextView
@@ -248,7 +248,7 @@
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/poppins_bold"
                                 android:gravity="end"
-                                android:textColor="@android:color/white"
+                                android:textColor="?attr/colorOnSurface"
                                 android:textSize="18sp"
                                 tools:text="Episode 8" />
 
@@ -258,7 +258,7 @@
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/poppins_family"
                                 android:gravity="end"
-                                android:textColor="@android:color/white"
+                                android:textColor="?attr/colorOnSurface"
                                 android:textSize="13sp"
                                 tools:text="2 days 4 hrs 10 mins 30 secs" />
                         </LinearLayout>
@@ -282,7 +282,7 @@
                                 android:alpha="0.6"
                                 android:fontFamily="@font/poppins_bold"
                                 android:text="SHOW STATUS"
-                                android:textColor="@android:color/white"
+                                android:textColor="?attr/colorOnSurface"
                                 android:textSize="11sp" />
 
                             <TextView
@@ -290,7 +290,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/poppins_bold"
-                                android:textColor="@android:color/white"
+                                android:textColor="?attr/colorOnSurface"
                                 android:textSize="18sp"
                                 tools:text="RELEASING" />
 
@@ -301,7 +301,7 @@
                                 android:fontFamily="@font/poppins"
                                 android:rotation="-0.5"
                                 android:alpha="0.7"
-                                android:textColor="@android:color/white"
+                                android:textColor="?attr/colorOnSurface"
                                 android:textSize="11sp"
                                 tools:text="Aired: • To: •" />
                         </LinearLayout>
@@ -321,7 +321,7 @@
                                 android:fontFamily="@font/poppins_bold"
                                 android:gravity="end"
                                 android:text="LIST STATUS"
-                                android:textColor="@android:color/white"
+                                android:textColor="?attr/colorOnSurface"
                                 android:textSize="11sp" />
 
                             <Button
@@ -339,11 +339,11 @@
                                 android:singleLine="true"
                                 android:text="@string/add_list"
                                 android:textAllCaps="true"
-                                android:textColor="@android:color/white"
+                                android:textColor="?attr/colorOnSurface"
                                 android:textSize="12sp"
                                 android:textStyle="bold"
                                 app:cornerRadius="16dp"
-                                app:strokeColor="@android:color/white" />
+                                app:strokeColor="?attr/colorOnSurface" />
                         </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>
@@ -363,7 +363,7 @@
                         android:padding="4dp"
                         android:visibility="gone"
                         app:srcCompat="@drawable/ic_round_search_sources_24"
-                        app:tint="@android:color/white"
+                        app:tint="?attr/colorOnSurface"
                         tools:ignore="ContentDescription" />
                 </LinearLayout>
 
@@ -400,7 +400,7 @@
                         android:maxLines="5"
                         android:paddingTop="8dp"
                         android:text="@string/description"
-                        android:textColor="@android:color/white" />
+                        android:textColor="?attr/colorOnSurface" />
 
                     <TextView
                         android:id="@+id/mediaInfoShowMore"
@@ -445,7 +445,7 @@
                             android:focusable="true"
                             android:padding="3dp"
                             app:srcCompat="@drawable/ic_round_favorite_border_24"
-                            app:tint="@android:color/white"
+                            app:tint="?attr/colorOnSurface"
                             tools:ignore="ContentDescription" />
 
                         <ImageView
@@ -456,7 +456,7 @@
                             android:focusable="true"
                             android:padding="3dp"
                             app:srcCompat="@drawable/ic_round_share_24"
-                            app:tint="@android:color/white"
+                            app:tint="?attr/colorOnSurface"
                             tools:ignore="ContentDescription" />
 
                         <ImageView
@@ -467,7 +467,7 @@
                             android:focusable="true"
                             android:padding="3dp"
                             app:srcCompat="@drawable/ic_round_comment_24"
-                            app:tint="@android:color/white"
+                            app:tint="?attr/colorOnSurface"
                             tools:ignore="ContentDescription" />
                     </LinearLayout>
 
@@ -500,7 +500,7 @@
                                     android:alpha="0.6"
                                     android:fontFamily="@font/poppins_bold"
                                     android:text="AUTHOR"
-                                    android:textColor="@android:color/white"
+                                    android:textColor="?attr/colorOnSurface"
                                     android:textSize="10sp" />
 
                                 <TextView
@@ -510,7 +510,7 @@
                                     android:ellipsize="end"
                                     android:fontFamily="@font/poppins_bold"
                                     android:maxLines="1"
-                                    android:textColor="@android:color/white"
+                                    android:textColor="?attr/colorOnSurface"
                                     android:textSize="14sp"
                                     tools:text="Author Name" />
 
@@ -521,7 +521,7 @@
                                     android:alpha="0.6"
                                     android:fontFamily="@font/poppins_bold"
                                     android:text="SOURCE"
-                                    android:textColor="@android:color/white"
+                                    android:textColor="?attr/colorOnSurface"
                                     android:textSize="10sp" />
 
                                 <TextView
@@ -531,7 +531,7 @@
                                     android:ellipsize="end"
                                     android:fontFamily="@font/poppins_bold"
                                     android:maxLines="1"
-                                    android:textColor="@android:color/white"
+                                    android:textColor="?attr/colorOnSurface"
                                     android:textSize="14sp"
                                     tools:text="Source" />
                             </LinearLayout>
@@ -548,7 +548,7 @@
                                     android:alpha="0.6"
                                     android:fontFamily="@font/poppins_bold"
                                     android:text="STUDIO"
-                                    android:textColor="@android:color/white"
+                                    android:textColor="?attr/colorOnSurface"
                                     android:textSize="10sp" />
 
                                 <TextView
@@ -560,7 +560,7 @@
                                     android:focusable="true"
                                     android:fontFamily="@font/poppins_bold"
                                     android:maxLines="1"
-                                    android:textColor="@android:color/white"
+                                    android:textColor="?attr/colorOnSurface"
                                     android:textSize="14sp"
                                     tools:text="Studio" />
 
@@ -571,7 +571,7 @@
                                     android:alpha="0.6"
                                     android:fontFamily="@font/poppins_bold"
                                     android:text="FORMAT"
-                                    android:textColor="@android:color/white"
+                                    android:textColor="?attr/colorOnSurface"
                                     android:textSize="10sp" />
 
                                 <TextView
@@ -581,7 +581,7 @@
                                     android:ellipsize="end"
                                     android:fontFamily="@font/poppins_bold"
                                     android:maxLines="1"
-                                    android:textColor="@android:color/white"
+                                    android:textColor="?attr/colorOnSurface"
                                     android:textSize="14sp"
                                     tools:text="TV" />
                             </LinearLayout>
@@ -596,7 +596,7 @@
                     android:layout_marginHorizontal="8dp"
                     android:fontFamily="@font/poppins_bold"
                     android:text="@string/next_chapter_prediction"
-                    android:textColor="@android:color/white"
+                    android:textColor="?attr/colorOnSurface"
                     android:textSize="16sp"
                     android:visibility="gone" />
 
@@ -609,7 +609,7 @@
                     android:maxLines="5"
                     android:padding="8dp"
                     android:text="Chap: ??"
-                    android:textColor="@android:color/white"
+                    android:textColor="?attr/colorOnSurface"
                     android:visibility="gone"
                     tools:ignore="HardcodedText" />
 
@@ -620,7 +620,7 @@
                     android:layout_marginHorizontal="8dp"
                     android:fontFamily="@font/poppins_bold"
                     android:text="@string/anime_adaptation"
-                    android:textColor="@android:color/white"
+                    android:textColor="?attr/colorOnSurface"
                     android:textSize="16sp"
                     android:visibility="gone" />
 
@@ -633,7 +633,7 @@
                     android:maxLines="5"
                     android:padding="8dp"
                     android:text="Starts: ??"
-                    android:textColor="@android:color/white"
+                    android:textColor="?attr/colorOnSurface"
                     android:visibility="gone"
                     tools:ignore="HardcodedText" />
 
@@ -649,7 +649,7 @@
                         android:layout_height="wrap_content"
                         android:alpha="0.58"
                         android:text="@string/name_romaji"
-                        android:textColor="@android:color/white"
+                        android:textColor="?attr/colorOnSurface"
                         android:textStyle="bold" />
 
                     <TextView
@@ -658,7 +658,7 @@
                         android:layout_height="wrap_content"
                         android:breakStrategy="balanced"
                         android:fontFamily="@font/poppins_bold"
-                        android:textColor="@android:color/white"
+                        android:textColor="?attr/colorOnSurface"
                         tools:targetApi="m" />
                 </LinearLayout>
 
@@ -673,7 +673,7 @@
                         android:layout_height="wrap_content"
                         android:alpha="0.58"
                         android:text="@string/name"
-                        android:textColor="@android:color/white"
+                        android:textColor="?attr/colorOnSurface"
                         android:textStyle="bold" />
 
                     <TextView
@@ -682,7 +682,7 @@
                         android:layout_height="wrap_content"
                         android:breakStrategy="balanced"
                         android:fontFamily="@font/poppins_bold"
-                        android:textColor="@android:color/white"
+                        android:textColor="?attr/colorOnSurface"
                         tools:targetApi="m" />
                 </LinearLayout>
 
