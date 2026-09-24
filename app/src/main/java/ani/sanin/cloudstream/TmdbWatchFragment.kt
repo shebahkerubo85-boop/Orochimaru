@@ -856,9 +856,13 @@ class TmdbWatchFragment : Fragment() {
         )
         val sourceName = currentSourceName()
         val fetchingLabel = getString(R.string.tmdb_watch_fetching, sourceName)
-        val picker = SheetSourceSelector.newInstanceLoading(fetchingLabel)
+        val picker = SheetSourceSelector.newInstanceLoading(fetchingLabel, grouped = true)
         fun fillPicker(result: TmdbStreamResolver.StreamResult.Success) {
-            val labels = ArrayList(result.links.map { "${it.label}  •  $sourceName" })
+            val labels = ArrayList(result.links.map { link ->
+                val host = link.host.takeIf { it.isNotBlank() }
+                val row = if (host != null && host != link.label) "$host - ${link.label}" else link.label
+                "$row  •  $sourceName"
+            })
             picker.setOnSelect { idx ->
                 if (isAdded) {
                     val link = result.links[idx]

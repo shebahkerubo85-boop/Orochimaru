@@ -219,12 +219,63 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         } as? AnimeHttpSource ?: return emptyList()
 
         return try {
-            val videos = getVideoList(source,sEpisode)
+            val videos = getVideoList(source, sEpisode)
 
-            videos.map { videoToVideoServer(it) }
+            // Extensions hand back one Video per quality/server embed. Group the
+            // variants of the same hosting server (e.g. "VidPlay - 1080p" +
+            // "VidPlay - 720p") into one server card, mirroring how inbuilt
+            // providers group their sources, then tag each group SUB/DUB when the
+            // titles say so. Dub mode hides SUB groups; unknown groups always show.
+            val dub = selectDub
+            videos.groupBy { videoHost(it).lowercase(Locale.ROOT) }
+                .map { (_, group) ->
+                    GroupedVideoServer(videoHost(group.first()), group, audioTagOf(group))
+                }
+                .filter { !dub || it.audio != MediaNameAdapter.SubDubType.SUB }
+                .sortedWith(compareBy { it.audio.sortRank() })
+                .map { group ->
+                    val first = group.videos.first()
+                    VideoServer(
+                        name = group.host,
+                        embed = FileUrl(first.url),
+                        extraData = group.audio.takeUnless { it == MediaNameAdapter.SubDubType.NULL }
+                            ?.let { mapOf("audio" to it.name) },
+                        video = first,
+                        extraVideos = group.videos.takeIf { it.size > 1 }
+                    )
+                }
         } catch (e: Exception) {
             Logger.log("Exception occurred: ${e.message}")
             emptyList()
+        }
+    }
+
+    private data class GroupedVideoServer(
+        val host: String,
+        val videos: List<Video>,
+        val audio: MediaNameAdapter.SubDubType
+    )
+
+    /** The hosting server a quality belongs to: everything before the first
+     *  " - " in the title ("VidPlay - 1080p" -> "VidPlay"). Titles without a
+     *  host prefix keep their whole name so distinct single servers stay on
+     *  their own card. */
+    private fun videoHost(video: Video): String {
+        val title = video.videoTitle.ifBlank { video.quality }.trim()
+        val sep = HOST_SEPARATOR.find(title) ?: return title
+        val host = title.substring(0, sep.range.first).trim()
+        return host.ifBlank { title }
+    }
+
+    /** SUB when every tagged video is subbed, DUB when every tagged video is
+     *  dubbed, NULL for untagged or mixed groups (mixed/unknown always show). */
+    private fun audioTagOf(videos: List<Video>): MediaNameAdapter.SubDubType {
+        val hasDub = videos.any { EXT_AUDIO_DUB.containsMatchIn(it.videoTitle.ifBlank { it.quality }) }
+        val hasSub = videos.any { EXT_AUDIO_SUB.containsMatchIn(it.videoTitle.ifBlank { it.quality }) }
+        return when {
+            hasDub && !hasSub -> MediaNameAdapter.SubDubType.DUB
+            hasSub && !hasDub -> MediaNameAdapter.SubDubType.SUB
+            else -> MediaNameAdapter.SubDubType.NULL
         }
     }
     suspend fun getVideoList(
@@ -420,24 +471,31 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         )
     }
 
-    private fun videoToVideoServer(video: Video): VideoServer {
-        return VideoServer(
-            video.quality,
-            video.url,
-            null,
-            video
-        )
-    }
+}
+
+private val HOST_SEPARATOR = Regex("""\s*-\s*""")
+
+private val EXT_AUDIO_DUB = Regex("""(?i)\b(?:dub|dubbed|eng\s*dub|english\s*dub)\b""")
+private val EXT_AUDIO_SUB = Regex("""(?i)\b(?:sub|subbed|softsub|subtitled|subtitle|eng\s*sub|english\s*sub)\b""")
+
+private fun MediaNameAdapter.SubDubType.sortRank(): Int = when (this) {
+    MediaNameAdapter.SubDubType.SUB -> 0
+    MediaNameAdapter.SubDubType.NULL -> 1
+    MediaNameAdapter.SubDubType.DUB -> 2
 }
 
 class VideoServerPassthrough(private val videoServer: VideoServer) : VideoExtractor() {
+
     override val server: VideoServer
         get() = videoServer
 
     override suspend fun extract(): VideoContainer {
-        val vidList = listOfNotNull(videoServer.video?.let { aniVideoToSaiVideo(it) })
-        val subList = videoServer.video?.subtitleTracks?.map { trackToSubtitle(it) } ?: emptyList()
-        val audioList = videoServer.video?.audioTracks ?: emptyList()
+        val aniVideos = videoServer.extraVideos ?: listOfNotNull(videoServer.video)
+        val vidList = aniVideos.mapNotNull {
+            runCatching { aniVideoToSaiVideo(it) }.getOrNull()
+        }
+        val subList = aniVideos.flatMap { it.subtitleTracks.map { track -> trackToSubtitle(track) } }
+        val audioList = aniVideos.flatMap { it.audioTracks }
 
         return if (vidList.isNotEmpty()) {
             VideoContainer(
@@ -445,7 +503,7 @@ class VideoServerPassthrough(private val videoServer: VideoServer) : VideoExtrac
                 subList,
                 audioList,
                 // Carry extension-provided skip timestamps into the player skip system
-                timestamps = videoServer.video?.timestamps ?: emptyList(),
+                timestamps = aniVideos.flatMap { it.timestamps },
             )
         } else {
             throw Exception("No videos found")

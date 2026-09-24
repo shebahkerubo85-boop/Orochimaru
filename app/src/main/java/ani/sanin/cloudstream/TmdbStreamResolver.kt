@@ -61,6 +61,7 @@ object TmdbStreamResolver {
             val headers: Map<String, String> = emptyMap(),
             val drm: DrmInfo? = null,
             val audioTracks: List<AudioFile> = emptyList(),
+            val host: String = "",
         )
 
         data class Success(val links: List<PlayableLink>, val matchName: String? = null) : StreamResult()
@@ -229,6 +230,7 @@ object TmdbStreamResolver {
                 headers = link.headers,
                 drm = drmInfo,
                 audioTracks = link.audioTracks,
+                host = link.name,
             )
         }
         return StreamResult.Success(playable, load.name)
@@ -383,6 +385,7 @@ object TmdbStreamResolver {
                 headers = link.headers,
                 drm = drmInfo,
                 audioTracks = link.audioTracks,
+                host = link.name,
             )
         }
         return ApiResolve(playable, "ok", match?.name)
@@ -574,33 +577,49 @@ object TmdbStreamResolver {
         return "Unknown"
     }
 
-    /** One extractor per link, named after the link label (quality/host), so the
-     *  player's server sheet lists every server the plugin returned. */
+    /** Grouped extracts for the synthetic TMDB episode shell: one extractor per
+     *  hosting server with its qualities as videos, mirroring anime grouping. */
     fun buildExtractors(links: List<StreamResult.PlayableLink>): List<VideoExtractor> {
-        val used = HashSet<String>()
-        return links.mapIndexedNotNull { index, link ->
-            if (link.url.isBlank()) return@mapIndexedNotNull null
-            var name = link.label.ifBlank { "Server ${index + 1}" }
-            if (!used.add(name)) name = "$name ${index + 1}"
-            val headers = HashMap(link.headers).apply {
-                link.referer?.takeIf { it.isNotBlank() }?.let { put("Referer", it) }
+        // Group the plugin's per-quality links under their hosting server (e.g.
+        // "VidPlay" with 1080p/720p/360p rows), mirroring how anime sources group
+        // servers in the sheet. There is no dub toggle in TMDB mode, so every host
+        // stays visible.
+        val usedNames = HashSet<String>()
+        return links.filter { it.url.isNotBlank() }
+            .groupBy { it.host.ifBlank { it.label }.ifBlank { "Server" } }
+            .map { (_, groupLinks) ->
+                var name = groupLinks.first().host
+                    .ifBlank { groupLinks.first().label }
+                    .ifBlank { "Server" }
+                if (!usedNames.add(name.lowercase())) name = "$name ${usedNames.size + 1}"
+                val videos = groupLinks.mapNotNull { link ->
+                    if (link.url.isBlank()) return@mapNotNull null
+                    val headers = HashMap(link.headers).apply {
+                        link.referer?.takeIf { it.isNotBlank() }?.let { put("Referer", it) }
+                    }
+                    Video(
+                        quality = qualityFromLabel(link.label),
+                        format = videoTypeFor(link.url),
+                        file = FileUrl(link.url, headers),
+                        drm = link.drm,
+                    )
+                }
+                val audioTracks = groupLinks.flatMap { link ->
+                    link.audioTracks.map { Track(url = it.url, lang = audioLanguage(it)) }
+                }
+                val qualityMeta = groupLinks.mapNotNull { qualityFromLabel(it.label) }
+                    .distinct().sortedDescending().joinToString(" · ") { "${it}p" }
+                object : VideoExtractor() {
+                    override val server = VideoServer(
+                        name, "", mapOf("quality" to qualityMeta.ifBlank { name })
+                    )
+                    override suspend fun extract() =
+                        VideoContainer(videos = videos, audioTracks = audioTracks)
+                }.apply {
+                    this.videos = videos
+                    this.audioTracks = audioTracks
+                }
             }
-            val video = Video(
-                quality = qualityFromLabel(name),
-                format = videoTypeFor(link.url),
-                file = FileUrl(link.url, headers),
-                drm = link.drm,
-            )
-            val audioTracks = link.audioTracks.map { Track(url = it.url, lang = audioLanguage(it)) }
-            object : VideoExtractor() {
-                override val server = VideoServer(name, "", mapOf("quality" to name))
-                override suspend fun extract() =
-                    VideoContainer(videos = listOf(video), audioTracks = audioTracks)
-            }.apply {
-                videos = listOf(video)
-                this.audioTracks = audioTracks
-            }
-        }
     }
 
     private fun episodeKey(season: Int, ep: Int) = "S${season}E${ep}"
@@ -798,8 +817,19 @@ object TmdbStreamResolver {
         current.extractors = extractors.toMutableList()
         current.extractorsSource = 0
         current.allStreams = true
-        current.selectedExtractor = pickedLabel.ifBlank { extractors.first().server.name }
-        current.selectedVideo = 0
+        // Resolve the picked quality to its grouped host card, so the continuity
+        // selection keeps both the host and the quality row the user tapped.
+        val pickedHost = links.firstOrNull { it.label == pickedLabel }?.host
+            ?.takeIf { it.isNotBlank() }
+            ?: pickedLabel
+        val pickedExtractor = extractors.firstOrNull { it.server.name == pickedHost }
+            ?: extractors.first()
+        val pickedVideoIdx = links
+            .filter { (it.host.ifBlank { it.label }) == pickedHost }
+            .indexOfFirst { it.label == pickedLabel }
+            .coerceAtLeast(0)
+        current.selectedExtractor = pickedExtractor.server.name
+        current.selectedVideo = pickedVideoIdx
         val title = d.displayTitle
         val media = Media(
             anime = Anime(
@@ -824,7 +854,7 @@ object TmdbStreamResolver {
         )
         // Persist the picked server so auto-next/rail clicks keep playing the same
         // plugin server immediately (anime mode's "Make Default" continuity).
-        val selected = Selected(sourceIndex = 0, server = pickedLabel, video = 0)
+        val selected = Selected(sourceIndex = 0, server = pickedExtractor.server.name, video = pickedVideoIdx)
         media.selected = selected
         PrefManager.setCustomVal("Selected-$id", selected)
         // TMDB mode: use CS3 player (GeneratorPlayer) for all content. The

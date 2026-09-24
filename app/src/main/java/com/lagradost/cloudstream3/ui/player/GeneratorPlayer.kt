@@ -1143,10 +1143,12 @@ class GeneratorPlayer : FullScreenPlayer() {
             val names = filteredLinks.map { displayLink ->
                 val (link, uri) = displayLink.link
                 val name = link?.name ?: uri?.name ?: "NULL"
-                "$name ${Qualities.getStringByInt(link?.quality)}"
+                val quality = Qualities.getStringByInt(link?.quality)
+                "$name${if (quality.isBlank()) "" else " - $quality"}"
             }
             val sheet = SheetSourceSelector.newInstance(
                 sources = ArrayList(names),
+                grouped = true,
                 onSelect = { index ->
                     filteredLinks.getOrNull(index)?.let { displayLink ->
                         if (displayLink.link != currentSelectedLink) {
