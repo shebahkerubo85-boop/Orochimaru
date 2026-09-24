@@ -212,8 +212,8 @@ class SheetSourceSelector : DialogFragment() {
                 ItemStreamBinding.inflate(LayoutInflater.from(parent.context), parent, false)
             )
 
-        override fun onBindViewHolder(holder: GroupViewHolder, position: Int) {
-            val binding = holder.binding
+        override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+            val binding = (holder as GroupViewHolder).binding
             if (loadingMessage != null) {
                 binding.streamName.text = loadingMessage
                 binding.streamMeta.visibility = View.GONE
