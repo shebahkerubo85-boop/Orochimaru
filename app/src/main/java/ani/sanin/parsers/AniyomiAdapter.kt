@@ -511,8 +511,11 @@ class VideoServerPassthrough(private val videoServer: VideoServer) : VideoExtrac
     }
 
     private fun aniVideoToSaiVideo(aniVideo: Video): ani.sanin.parsers.Video {
-        // Find the number value from the .quality string
-        val number = Regex("""\d+""").find(aniVideo.quality)?.value?.toInt() ?: 0
+        // Prefer the extension-provided resolution; otherwise pull a real
+        // resolution token ("1080p") from the title so stray numbering in
+        // labels like "VidPlay - 2 - 1080p" never becomes "2p".
+        val number = aniVideo.resolution?.takeIf { it in 100..9999 }
+            ?: Regex("""(?i)\b(\d{3,4})\s*p\b""").find(aniVideo.quality)?.groupValues?.get(1)?.toInt()
 
         // Check for null video URL
         val videoUrl = aniVideo.videoUrl ?: throw Exception("Video URL is null")
