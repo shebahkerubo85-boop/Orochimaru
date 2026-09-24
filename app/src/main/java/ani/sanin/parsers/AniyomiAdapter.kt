@@ -227,9 +227,13 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
             // providers group their sources, then tag each group SUB/DUB when the
             // titles say so. Dub mode hides SUB groups; unknown groups always show.
             val dub = selectDub
-            videos.groupBy { videoHost(it).lowercase(Locale.ROOT) }
+            videos.groupBy { video ->
+                val (base, tag) = extensionVideoGroup(video)
+                extensionGroupKey(base, tag)
+            }
                 .map { (_, group) ->
-                    GroupedVideoServer(videoHost(group.first()), group, audioTagOf(group))
+                    val (base, tag) = extensionVideoGroup(group.first())
+                    GroupedVideoServer(extensionGroupName(base, tag), group, tag)
                 }
                 .filter { !dub || it.audio != MediaNameAdapter.SubDubType.SUB }
                 .sortedWith(compareBy { it.audio.sortRank() })
@@ -266,6 +270,26 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         val host = title.substring(0, sep.range.first).trim()
         return host.ifBlank { title }
     }
+
+    private val HOST_AUDIO_TOKEN = Regex("""(?i)\s+[\[(]?(?:dub|dubbed|sub|subbed)s?[)\]]?\s*$""")
+
+    /** (host base, audio) for one extension video. The host base is the " - "
+     *  prefix with any trailing sub/dub token removed ("VidPlay Dub - 1080p" ->
+     *  "VidPlay"); the tag comes from the whole title, so "[SUB]"/"[DUB]"
+     *  suffixes split the same host into two groups. */
+    private fun extensionVideoGroup(video: Video): Pair<String, MediaNameAdapter.SubDubType> {
+        val host = videoHost(video)
+        val tag = audioTagOf(listOf(video))
+        val base = host.replace(HOST_AUDIO_TOKEN, "").trim()
+        return (base.ifBlank { host }) to tag
+    }
+
+    private fun extensionGroupKey(base: String, tag: MediaNameAdapter.SubDubType): String =
+        base.lowercase(Locale.ROOT) +
+            if (tag != MediaNameAdapter.SubDubType.NULL) "_${tag.name.lowercase(Locale.ROOT)}" else ""
+
+    private fun extensionGroupName(base: String, tag: MediaNameAdapter.SubDubType): String =
+        if (tag != MediaNameAdapter.SubDubType.NULL) "$base ${tag.name}" else base
 
     /** SUB when every tagged video is subbed, DUB when every tagged video is
      *  dubbed, NULL for untagged or mixed groups (mixed/unknown always show). */
