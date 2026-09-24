@@ -171,7 +171,7 @@ class SheetSourceSelector : DialogFragment() {
         _binding = null
     }
 
-    private inner class GroupedAdapter : RecyclerView.Adapter<GroupedAdapter.GroupViewHolder>() {
+    private inner class GroupedAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         private val groupNames = mutableListOf<String>()
         private val groupRows = mutableListOf<List<Int>>()
         private var loadingMessage: String? = null
