@@ -33,7 +33,6 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 import ani.sanin.stripDividerGradient
 import ani.sanin.databinding.ItemTmdbWatchHeaderBinding
-import ani.sanin.databinding.DialogTmdbWatchOptionsBinding
 import ani.sanin.media.SheetSourceSelector
 import ani.sanin.loadImage
 import com.bumptech.glide.Glide
@@ -178,6 +177,7 @@ class TmdbWatchFragment : Fragment() {
             spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
                 override fun getSpanSize(position: Int): Int = when {
                     // header + bars + strips fill the row; compact is a small rounded square
+                    position == 0 -> maxGridSize
                     episodeStyle == 3 -> 1
                     else -> maxGridSize
                 }
@@ -220,6 +220,28 @@ class TmdbWatchFragment : Fragment() {
             ?: requireActivity().onBackPressedDispatcher.onBackPressed()
     }
 
+    /** Darkens the banner exactly like anime mode: gradient + full-screen
+     *  overlay whose alpha follows BannerBrightness and theme. */
+    private fun applyBannerOverlay() {
+        val brightness = PrefManager.getVal<Float>(PrefName.BannerBrightness)
+        if (brightness <= 0f) {
+            binding.mediaBg?.visibility = View.GONE
+            binding.mediaBgGradient?.visibility = View.GONE
+            binding.mediaDarkenOverlay?.visibility = View.GONE
+            return
+        }
+        val isDarkMode = (resources.configuration.uiMode and
+            android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        binding.mediaDarkenOverlay?.setBackgroundColor(
+            if (isDarkMode) android.graphics.Color.BLACK else android.graphics.Color.WHITE
+        )
+        binding.mediaBg?.alpha = brightness
+        binding.mediaBgGradient?.alpha = brightness
+        binding.mediaDarkenOverlay?.alpha = 1f - brightness
+        binding.mediaDarkenOverlay?.visibility = View.VISIBLE
+    }
+
     private fun load() {
         lifecycleScope.launch {
             if (pluginMode) {
@@ -233,6 +255,7 @@ class TmdbWatchFragment : Fragment() {
             }
             detail = d
             binding.mediaBg?.loadImage(Tmdb.imageUrl(d.backdropPath ?: d.posterPath, 780))
+            applyBannerOverlay()
 
             val logo = Tmdb.logoUrl(d)
             if (logo != null) {
@@ -371,6 +394,7 @@ class TmdbWatchFragment : Fragment() {
 
         val d = detail ?: return
         binding.mediaBg?.loadImage(Tmdb.imageUrl(d.backdropPath ?: d.posterPath, 780))
+        applyBannerOverlay()
         val logo = Tmdb.logoUrl(d)
         if (logo != null) {
             binding.tmdbWatchLogo.isVisible = true
@@ -608,7 +632,36 @@ class TmdbWatchFragment : Fragment() {
         }
         FocusEffectUtil.applyFocusListener(h.tmdbWatchNotify)
 
-        h.tmdbWatchAppearance.setOnClickListener { showOptionsDialog() }
+        h.tmdbWatchAppearance.setImageResource(
+            when (episodeStyle) {
+                0 -> R.drawable.ic_round_view_array_24
+                2 -> R.drawable.ic_round_view_list_24
+                else -> R.drawable.ic_round_view_comfy_24
+            }
+        )
+        h.tmdbWatchAppearance.setOnClickListener {
+            // Instant cycle like anime mode: Bars -> Compact -> Strips
+            episodeStyle = when (episodeStyle) {
+                0 -> 3
+                3 -> 2
+                else -> 0
+            }
+            h.tmdbWatchAppearance.setImageResource(
+                when (episodeStyle) {
+                    0 -> R.drawable.ic_round_view_array_24
+                    2 -> R.drawable.ic_round_view_list_24
+                    else -> R.drawable.ic_round_view_comfy_24
+                }
+            )
+            snackString(
+                when (episodeStyle) {
+                    0 -> R.string.tmdb_watch_style_bars
+                    2 -> R.string.tmdb_watch_style_strips
+                    else -> R.string.compact
+                }
+            )
+            applyStyle(episodeStyle, reversed)
+        }
         FocusEffectUtil.applyFocusListener(h.tmdbWatchAppearance)
 
         // ── continue watching ──
@@ -663,53 +716,6 @@ class TmdbWatchFragment : Fragment() {
         headerBinding.tmdbWatchSourceTitle.isSelected = false
         headerBinding.tmdbWatchSourceTitle.text = text + filler
         headerBinding.tmdbWatchSpinner.isVisible = text.startsWith("Searching")
-    }
-
-    private fun showOptionsDialog() {
-        val db = DialogTmdbWatchOptionsBinding.inflate(LayoutInflater.from(requireContext()))
-        var run = false
-        var rev = reversed
-        var style = episodeStyle
-        fun styleLabel(s: Int) = when (s) {
-            0 -> R.string.tmdb_watch_style_bars
-            2 -> R.string.tmdb_watch_style_strips
-            else -> R.string.compact
-        }
-        db.tmdbLayoutText.setText(styleLabel(style))
-        db.tmdbSortText.text = getString(if (rev) R.string.tmdb_watch_down_to_up else R.string.tmdb_watch_up_to_down)
-        db.tmdbSortTop.rotation = if (rev) -90f else 90f
-        var selected = when (style) {
-            0 -> db.tmdbStyleBars
-            2 -> db.tmdbStyleStrips
-            else -> db.tmdbStyleCompact
-        }
-        selected.alpha = 1f
-        fun select(it: ImageButton, s: Int) {
-            selected.alpha = 0.33f
-            selected = it
-            selected.alpha = 1f
-            style = s
-            db.tmdbLayoutText.setText(styleLabel(s))
-            run = true
-        }
-        db.tmdbStyleBars.setOnClickListener { select(db.tmdbStyleBars, 0) }
-        db.tmdbStyleStrips.setOnClickListener { select(db.tmdbStyleStrips, 2) }
-        db.tmdbStyleCompact.setOnClickListener { select(db.tmdbStyleCompact, 3) }
-        db.tmdbSortTop.setOnClickListener {
-            rev = !rev
-            db.tmdbSortTop.rotation = if (rev) -90f else 90f
-            db.tmdbSortText.text = getString(if (rev) R.string.tmdb_watch_down_to_up else R.string.tmdb_watch_up_to_down)
-            run = true
-        }
-        requireContext().customAlertDialog().apply {
-            setTitle(getString(R.string.tmdb_watch_options))
-            setCustomView(db.root)
-            setPosButton(R.string.ok) {
-                if (run) applyStyle(style, rev)
-            }
-            setNegButton(R.string.cancel)
-            show()
-        }
     }
 
     private fun applyStyle(style: Int, rev: Boolean) {

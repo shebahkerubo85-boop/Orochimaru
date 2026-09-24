@@ -24,6 +24,14 @@
         android:background="@drawable/gradient_rtl_dark"
         android:importantForAccessibility="no" />
 
+    <!-- Full-screen darken overlay (same as anime mode mediaDarkenOverlay) -->
+    <View
+        android:id="@+id/mediaDarkenOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#FF000000"
+        android:importantForAccessibility="no" />
+
     <ImageView
         android:id="@+id/tmdbWatchLogo"
         android:layout_width="wrap_content"

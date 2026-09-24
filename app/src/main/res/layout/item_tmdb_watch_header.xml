@@ -145,7 +145,7 @@
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
             android:layout_gravity="center_vertical"
-            android:layout_marginEnd="-29dp"
+            android:layout_marginEnd="-30dp"
             android:background="@drawable/bg_info_container"
             android:gravity="center"
             android:orientation="vertical"
