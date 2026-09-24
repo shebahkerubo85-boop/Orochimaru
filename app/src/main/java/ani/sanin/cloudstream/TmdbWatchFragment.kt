@@ -1264,17 +1264,19 @@ class TmdbWatchFragment : Fragment() {
         override fun getItemCount(): Int = items.size + (if (header != null) 1 else 0)
 
         override fun getItemViewType(position: Int): Int =
-            if (header != null && position == 0) 0 else 1
+            if (header != null && position == 0) 0
+            else when (style) { // 0(collides w/ header) → 1; 2 strips; 3 compact
+                2 -> 2
+                3 -> 3
+                else -> 1
+            }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-            return if (viewType == 0) {
-                HeaderVH(header!!)
-            } else if (style == 2) {
-                StripVH(ItemEpisodeStripBinding.inflate(LayoutInflater.from(parent.context), parent, false))
-            } else if (style == 3) {
-                CompactVH(ItemEpisodeCompactBinding.inflate(LayoutInflater.from(parent.context), parent, false))
-            } else {
-                GridVH(ItemEpisodeGridBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+            return when (viewType) {
+                0 -> HeaderVH(header!!)
+                2 -> StripVH(ItemEpisodeStripBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+                3 -> CompactVH(ItemEpisodeCompactBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+                else -> GridVH(ItemEpisodeGridBinding.inflate(LayoutInflater.from(parent.context), parent, false))
             }
         }
 
