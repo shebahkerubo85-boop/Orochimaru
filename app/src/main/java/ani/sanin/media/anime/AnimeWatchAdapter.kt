@@ -560,7 +560,7 @@ class AnimeWatchAdapter(
     inner class ViewHolder(val binding: ItemMediaSourceBinding) :
         RecyclerView.ViewHolder(binding.root) {
         init {
-            displayTimer(media, binding.animeSourceContainer)
+            displayTimer(media, binding.root)
         }
     }
 }
