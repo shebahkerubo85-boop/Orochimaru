@@ -220,6 +220,16 @@ class TmdbWatchFragment : Fragment() {
             ?: requireActivity().onBackPressedDispatcher.onBackPressed()
     }
 
+    /** Portrait → poster, landscape → wide backdrop (mirrors anime + details). */
+    private fun bannerUrl(d: TmdbDetail): String? {
+        val isPortrait =
+            resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT
+        return if (isPortrait)
+            Tmdb.imageUrl(d.posterPath, 780) ?: Tmdb.imageUrl(d.backdropPath, 780)
+        else
+            Tmdb.imageUrl(d.backdropPath, 1280) ?: Tmdb.imageUrl(d.posterPath, 780)
+    }
+
     /** Darkens the banner exactly like anime mode: gradient + full-screen
      *  overlay whose alpha follows BannerBrightness and theme. */
     private fun applyBannerOverlay() {
@@ -254,7 +264,7 @@ class TmdbWatchFragment : Fragment() {
                 return@launch
             }
             detail = d
-            binding.mediaBg?.loadImage(Tmdb.imageUrl(d.backdropPath ?: d.posterPath, 780))
+            binding.mediaBg?.loadImage(bannerUrl(d))
             applyBannerOverlay()
 
             val logo = Tmdb.logoUrl(d)
@@ -393,7 +403,7 @@ class TmdbWatchFragment : Fragment() {
         }
 
         val d = detail ?: return
-        binding.mediaBg?.loadImage(Tmdb.imageUrl(d.backdropPath ?: d.posterPath, 780))
+        binding.mediaBg?.loadImage(bannerUrl(d))
         applyBannerOverlay()
         val logo = Tmdb.logoUrl(d)
         if (logo != null) {
