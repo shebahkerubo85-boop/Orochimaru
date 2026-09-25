@@ -79,6 +79,7 @@ import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.text.CueGroup
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
@@ -2263,7 +2264,16 @@ class ExoplayerView :
             .setMp4ExtractorFlags(androidx.media3.extractor.mp4.Mp4Extractor.FLAG_WORKAROUND_IGNORE_EDIT_LISTS)
             .setMatroskaExtractorFlags(androidx.media3.extractor.mkv.MatroskaExtractor.FLAG_DISABLE_SEEK_FOR_CUES)
             .withAssMkvSupport(assSubtitleParserFactory, handler)
-        assMediaSourceFactory = DefaultMediaSourceFactory(cacheFactory, extractorsFactory)
+        // Never cache a live stream.  Live DASH/HLS re-uses segment names and
+        // byte ranges that the origin rewrites in place, so SimpleCache happily
+        // serves the previous generation of those bytes: the loader then
+        // reports "already loaded" and never fetches anything, leaving playback
+        // stuck in BUFFERING with no network activity and no error.  CS3
+        // already builds its live source without a cache.
+        val contentDataSourceFactory: DataSource.Factory =
+            if (isDeclaredLiveStream()) defaultDataSourceFactory else cacheFactory
+
+        assMediaSourceFactory = DefaultMediaSourceFactory(contentDataSourceFactory, extractorsFactory)
         assMediaSourceFactory.setSubtitleParserFactory(assSubtitleParserFactory)
         if (isTmdbMovieMode()) {
             assMediaSourceFactory.setLiveTargetOffsetMs(PREFERRED_LIVE_OFFSET)
@@ -2315,6 +2325,22 @@ class ExoplayerView :
             .setMimeType(mimeType)
             .setSubtitleConfigurations(sub)
 
+        // A MediaItem only counts as live once it carries a LiveConfiguration
+        // (Timeline.Window.isLive() is literally "liveConfiguration != null").
+        // Without it ExoPlayer silently disables *both* the live playback speed
+        // control and the live-offset reporting, so nothing ever pulls the
+        // playhead back towards the moving edge: it drifts to the end of the
+        // sliding window, the window stops being ahead of it, and playback
+        // stalls buffering with no error.  setLiveTargetOffsetMs only affects
+        // the initial seek, so it cannot compensate for this.
+        if (isDeclaredLiveStream()) {
+            mediaItemBuilder.setLiveConfiguration(
+                MediaItem.LiveConfiguration.Builder()
+                    .setTargetOffsetMs(PREFERRED_LIVE_OFFSET)
+                    .build()
+            )
+        }
+
         mediaItem = mediaItemBuilder.build()
 
         Logger.log(
@@ -2347,9 +2373,9 @@ class ExoplayerView :
                             .toString()
                             .contains(".m3u8")
                     ) {
-                        HlsMediaSource.Factory(cacheFactory).createMediaSource(mediaItem)
+                        HlsMediaSource.Factory(contentDataSourceFactory).createMediaSource(mediaItem)
                     } else {
-                        DefaultMediaSourceFactory(cacheFactory).createMediaSource(mediaItem)
+                        DefaultMediaSourceFactory(contentDataSourceFactory).createMediaSource(mediaItem)
                     }
                 }.toTypedArray()
 
@@ -2854,10 +2880,19 @@ class ExoplayerView :
                 else -> MimeTypes.APPLICATION_MP4
             }
 
-            mediaItem = MediaItem.Builder()
+            val freshItemBuilder = MediaItem.Builder()
                 .setUri(freshVideo.file.url)
                 .setMimeType(mimeType)
-                .build()
+            // Keep the item marked live, otherwise the live speed control and
+            // live-offset reporting are disabled again after a reconnect.
+            if (isDeclaredLiveStream()) {
+                freshItemBuilder.setLiveConfiguration(
+                    MediaItem.LiveConfiguration.Builder()
+                        .setTargetOffsetMs(PREFERRED_LIVE_OFFSET)
+                        .build()
+                )
+            }
+            mediaItem = freshItemBuilder.build()
 
             val videoMediaSource =
                 assMediaSourceFactory.createMediaSource(mediaItem)
@@ -4496,15 +4531,25 @@ class ExoplayerView :
                 androidx.media3.ui.R.id.exo_progress
             ) ?: return
             if (isLiveStream()) {
-                // A live window reports a finite but constantly shifting
-                // duration (the length of the sliding DVR window).  That value
-                // is legitimate and is updated as the playlist slides, so feed
-                // it to the bar as-is: no fixed/pinned duration, and no manual
-                // position clamping, otherwise the displayed time stops
-                // advancing (or jumps around) while playback continues.
-                timeBar.setDuration(exoPlayer.duration)
-                timeBar.setPosition(exoPlayer.currentPosition)
-                timeBar.setBufferedPosition(exoPlayer.bufferedPosition)
+                // For a sliding live window, currentPosition grows without
+                // bound as the window advances while duration is only the
+                // window's length, so feeding the two straight to the bar
+                // makes the position run past the duration and look pinned at
+                // the end.  Measure the playhead back from the live edge
+                // instead: that is bounded by the window by definition, and it
+                // tracks the edge as the window slides.
+                val liveOffset = exoPlayer.currentLiveOffset
+                val windowDuration = exoPlayer.duration
+                if (liveOffset == C.TIME_UNSET || windowDuration <= 0L) {
+                    // Live edge unknown: leave the bar to the player rather
+                    // than paint a misleading position.
+                    return
+                }
+                timeBar.setDuration(windowDuration)
+                timeBar.setPosition(
+                    (windowDuration - liveOffset).coerceIn(0L, windowDuration)
+                )
+                timeBar.setBufferedPosition(windowDuration)
                 return
             }
             timeBar.setDuration(exoPlayer.duration)
