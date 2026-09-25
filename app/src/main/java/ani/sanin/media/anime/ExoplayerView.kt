@@ -4494,10 +4494,19 @@ class ExoplayerView :
         try {
             val timeBar = playerView.findViewById<DefaultTimeBar>(
                 androidx.media3.ui.R.id.exo_progress
-            )
-            timeBar?.setDuration(exoPlayer.duration)
-            timeBar?.setPosition(exoPlayer.currentPosition)
-            timeBar?.setBufferedPosition(exoPlayer.bufferedPosition)
+            ) ?: return
+            if (isLiveStream()) {
+                // A live window reports a finite, constantly shifting duration
+                // (the length of the sliding DVR window, e.g. 11.84s).  Painting
+                // it as a fixed duration turns the live edge into an apparent end
+                // of the video, so only the buffered/position markers are updated.
+                timeBar.setBufferedPosition(exoPlayer.bufferedPosition)
+                timeBar.setPosition(exoPlayer.bufferedPosition)
+                return
+            }
+            timeBar.setDuration(exoPlayer.duration)
+            timeBar.setPosition(exoPlayer.currentPosition)
+            timeBar.setBufferedPosition(exoPlayer.bufferedPosition)
         } catch (_: Exception) {
         }
     }
