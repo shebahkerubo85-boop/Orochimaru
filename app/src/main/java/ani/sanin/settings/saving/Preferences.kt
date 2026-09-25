@@ -263,6 +263,7 @@ enum class PrefName(val data: Pref) {
     AutoSkipFiller(Pref(Location.Player, Boolean::class, false)),
     DataSaver(Pref(Location.Player, Boolean::class, false)),
     AskIndividualPlayer(Pref(Location.Player, Boolean::class, true)),
+    TmdbPlayerMode(Pref(Location.Player, Int::class, 0)),
     ChapterZeroPlayer(Pref(Location.Player, Boolean::class, true)),
     UpdateForHPlayer(Pref(Location.Player, Boolean::class, false)),
     WatchPercentage(Pref(Location.Player, Float::class, 0.8f)),

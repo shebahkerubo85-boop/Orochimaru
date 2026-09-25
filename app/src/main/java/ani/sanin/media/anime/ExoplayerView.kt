@@ -87,6 +87,7 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.hls.HlsMediaSource
+import androidx.media3.exoplayer.hls.playlist.HlsPlaylistTracker
 import androidx.media3.exoplayer.DefaultLivePlaybackSpeedControl
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MergingMediaSource
@@ -126,6 +127,10 @@ import ani.sanin.Refresh
 import ani.sanin.connections.updateProgress
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.cloudstream.TmdbStreamResolver
+import com.lagradost.cloudstream3.ui.player.live.LiveHelper
+import com.lagradost.cloudstream3.ui.player.live.LivePreviewTimeBar
+import com.lagradost.cloudstream3.ui.player.live.LivestreamChunk
+import com.lagradost.cloudstream3.ui.player.live.PREFERRED_LIVE_OFFSET
 import ani.sanin.databinding.ActivityExoplayerBinding
 import ani.sanin.defaultHeaders
 import ani.sanin.dp
@@ -405,6 +410,7 @@ class ExoplayerView :
     // This catches live HLS/DASH streams whose plugins return a regular
     // LoadResponse instead of LiveStreamLoadResponse.
     private var liveDetectedFromPlayer = false
+    private var liveSupportRegistered = false
 
     private val audioTrackGroups = mutableListOf<Tracks.Group>()
 
@@ -1863,7 +1869,9 @@ class ExoplayerView :
             }
         // For TMDB content: show auto-update dialog for Simkl
         val isTmdbContent = media.id < 0
-        val shouldShowDialog = if (isTmdbContent) {
+        val shouldShowDialog = if (isLiveStream()) {
+            false
+        } else if (isTmdbContent) {
             !incognito && showProgressDialog && Simkl.token != null
         } else {
             !incognito && showProgressDialog && Anilist.userid != null &&
@@ -1914,6 +1922,15 @@ class ExoplayerView :
 
     private fun initPlayer() {
         checkNotch()
+        liveDetectedFromPlayer = false
+        liveSupportRegistered = false
+        if (isDeclaredLiveStream()) {
+            Logger.log(
+                Log.INFO,
+                "Exo LIVE: init media=${media.id} episode=${media.anime?.selectedEpisode ?: "?"} " +
+                    "server=${media.selected?.server ?: "?"} declared=true"
+            )
+        }
 
         synchronized(storedSyncCues) {
             storedSyncCues.clear()
@@ -2248,6 +2265,9 @@ class ExoplayerView :
             .withAssMkvSupport(assSubtitleParserFactory, handler)
         assMediaSourceFactory = DefaultMediaSourceFactory(cacheFactory, extractorsFactory)
         assMediaSourceFactory.setSubtitleParserFactory(assSubtitleParserFactory)
+        if (isTmdbMovieMode()) {
+            assMediaSourceFactory.setLiveTargetOffsetMs(PREFERRED_LIVE_OFFSET)
+        }
 
         // DRM session manager for encrypted streams.
         // Zangetsu approach: only set up DRM when kid+key are provided (ClearKey).
@@ -2290,12 +2310,6 @@ class ExoplayerView :
                 else -> MimeTypes.APPLICATION_MP4
             }
 
-        // Live streams (HLS/DASH from live-TV plugins) must be flagged as live
-        // so ExoPlayer doesn't treat them as VOD with a fixed window. Without
-        // LiveConfiguration the player shows a short fixed duration and errors
-        // when that "ends".
-        val isLiveStream = media.id < 0 &&
-            (TmdbStreamResolver.sessionFor(media.id)?.isLive == true)
         val mediaItemBuilder = MediaItem.Builder()
             .setUri(video!!.file.url)
             .setMimeType(mimeType)
@@ -2491,20 +2505,25 @@ class ExoplayerView :
                 .setLoadControl(loadControl)
                 .build()
         playerView.player = exoPlayer
+        if (isLiveStream()) {
+            logLiveEvent(
+                "preparing source server=${media.selected?.server ?: "?"} format=${video?.format} " +
+                    "targetOffsetMs=$PREFERRED_LIVE_OFFSET"
+            )
+            registerLiveSupport()
+        }
 
         // init() must be called before prepare() so it receives onTracksChanged.
         Logger.log("Libass: Calling handler.init(exoPlayer)")
         handler.init(exoPlayer)
 
+        exoPlayer.addListener(this)
         exoPlayer.apply {
             playWhenReady = true
             this.playbackParameters = this@ExoplayerView.playbackParameters
             setMediaSource(mediaSource)
             prepare()
-            val localIsLive = media.id < 0 &&
-                (TmdbStreamResolver.sessionFor(media.id)?.isLive == true ||
-                 liveDetectedFromPlayer ||
-                 mediaSource.mediaItem.localConfiguration?.uri?.toString()?.contains(".m3u8") == true)
+            val localIsLive = isLiveStream()
             if (localIsLive) {
                 playbackPosition = 0L
                 Logger.log("Player: LIVE stream detected — skipping resume seek (source=${if (liveDetectedFromPlayer) "timeline" else "plugin"})")
@@ -2625,7 +2644,6 @@ class ExoplayerView :
             toast(e.toString())
         }
 
-        exoPlayer.addListener(this)
         exoPlayer.addAnalyticsListener(EventLogger())
         isInitialized = true
 
@@ -2647,11 +2665,21 @@ class ExoplayerView :
     }
 
     private fun releasePlayer() {
+        val wasLive = liveSupportRegistered || liveDetectedFromPlayer || isDeclaredLiveStream()
+        if (wasLive) {
+            Logger.log(
+                Log.INFO,
+                "Exo LIVE: release media=${media.id} episode=${media.anime?.selectedEpisode ?: "?"} " +
+                    "position=${exoPlayer.currentPosition} duration=${exoPlayer.duration}"
+            )
+        }
         isPlayerPlaying = exoPlayer.playWhenReady
         playbackPosition = exoPlayer.currentPosition
         disappeared = false
         functionstarted = false
         exoSubtitleView.setCues(emptyList())
+        LiveHelper.unregisterPlayer(exoPlayer)
+        liveSupportRegistered = false
         exoPlayer.release()
         VideoCache.release()
         mediaSession?.release()
@@ -3713,7 +3741,7 @@ class ExoplayerView :
             }
         }
         // Simkl scrobble for TMDB content (id < 0) AND anime content (id > 0, AniList)
-        if (Simkl.token != null) {
+        if (!isLiveStream() && Simkl.token != null) {
             // Capture player position on the main thread before switching to IO
             val playerCurrentPosition = if (::exoPlayer.isInitialized) exoPlayer.currentPosition else 0L
             val playerDuration = if (::exoPlayer.isInitialized) exoPlayer.duration else 0L
@@ -3809,6 +3837,17 @@ class ExoplayerView :
         reason: Int
     ) {
         super.onPositionDiscontinuity(oldPosition, newPosition, reason)
+        if (isLiveStream()) {
+            val aheadOfLive = LiveHelper.getLiveManager(exoPlayer)
+                ?.getTimeAheadOfLive(newPosition.positionMs)
+            Logger.log(
+                Log.INFO,
+                "Exo LIVE: discontinuity reason=$reason old=${oldPosition.positionMs} " +
+                    "new=${newPosition.positionMs} aheadOfLive=${aheadOfLive ?: -1L} " +
+                    "duration=${exoPlayer.duration}"
+            )
+            return
+        }
         // Zangetsu approach: no custom live edge correction — let ExoPlayer handle it natively.
         if (reason == Player.DISCONTINUITY_REASON_SEEK || reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT) {
             if (!userPaused) {
@@ -3825,10 +3864,12 @@ class ExoplayerView :
         // skip button permanently missing.
         maybeLoadTimeStamps("firstFrame")
 
-        PrefManager.setCustomVal(
-            "${media.id}_${media.anime!!.selectedEpisode}_max",
-            exoPlayer.duration,
-        )
+        if (!isLiveStream()) {
+            PrefManager.setCustomVal(
+                "${media.id}_${media.anime!!.selectedEpisode}_max",
+                exoPlayer.duration,
+            )
+        }
 
         val format = exoPlayer.videoFormat ?: return
         var height = format.height
@@ -3863,11 +3904,16 @@ class ExoplayerView :
     private var preloading = false
 
     private fun updateProgress() {
+        if (isLiveStream()) {
+            return
+        }
         if (isInitialized) {
-            if (exoPlayer.currentPosition.toFloat() / exoPlayer.duration >
-                PrefManager.getVal<Float>(
-                    PrefName.WatchPercentage,
-                )
+            val duration = exoPlayer.duration
+            if (duration > 0L &&
+                exoPlayer.currentPosition.toFloat() / duration >
+                    PrefManager.getVal<Float>(
+                        PrefName.WatchPercentage,
+                    )
             ) {
                 preloading = true
                 nextEpisode(false) { i ->
@@ -3995,6 +4041,19 @@ class ExoplayerView :
     }
 
     private fun updateTimeStamp() {
+        if (isLiveStream()) {
+            currentTimeStamp = null
+            lastLoggedStampId = null
+            timeStampText.text = ""
+            exoSkipOpEd.visibility = View.GONE
+            hideSkipTimestampButton()
+            updateTimelineUi()
+            handler.postDelayed({
+                updateTimeStamp()
+            }, 500)
+            return
+        }
+
         maybeLoadTimeStamps("tick")
         if (isInitialized) {
             val playerCurrentTime = exoPlayer.currentPosition / 1000.0
@@ -4105,20 +4164,7 @@ class ExoplayerView :
                 }
         }
 
-        // Force time bar + duration text to update from the player each tick.
-        // For live streams the duration window shifts as new segments arrive,
-        // so we must refresh the seekbar length and duration label every cycle
-        // (Zangetsu / CloudStream behaviour).
-        if (isInitialized && exoPlayer.duration > 0) {
-            try {
-                val timeBar = playerView.findViewById<androidx.media3.ui.DefaultTimeBar>(
-                    androidx.media3.ui.R.id.exo_progress
-                )
-                timeBar?.setDuration(exoPlayer.duration)
-                timeBar?.setPosition(exoPlayer.currentPosition)
-                timeBar?.setBufferedPosition(exoPlayer.bufferedPosition)
-            } catch (_: Exception) { }
-        }
+        updateTimelineUi()
 
         handler.postDelayed({
             updateTimeStamp()
@@ -4380,30 +4426,135 @@ class ExoplayerView :
             if (isInitialized) exoPlayer.play()
         }
 
+    private fun isTmdbMovieMode(): Boolean =
+        media.id < 0 &&
+            TmdbStreamResolver.sessionFor(media.id)?.mediaType
+                ?.equals("movie", ignoreCase = true) == true
+
+    private fun isDeclaredLiveStream(): Boolean =
+        isTmdbMovieMode() && TmdbStreamResolver.sessionFor(media.id)?.isLive == true
+
     private fun isLiveStream(): Boolean =
-        media.id < 0 && (
-            TmdbStreamResolver.sessionFor(media.id)?.isLive == true ||
-            liveDetectedFromPlayer
+        isTmdbMovieMode() &&
+            (
+                isDeclaredLiveStream() ||
+                    liveDetectedFromPlayer ||
+                    (::exoPlayer.isInitialized && !exoPlayer.isReleased && exoPlayer.isCurrentMediaItemDynamic)
+                )
+
+    private fun logLiveEvent(message: String, level: Int = Log.INFO) {
+        if (!isLiveStream()) return
+        val playerReady = ::exoPlayer.isInitialized && !exoPlayer.isReleased
+        val position = if (playerReady) exoPlayer.currentPosition else playbackPosition
+        val duration = if (playerReady) exoPlayer.duration else C.TIME_UNSET
+        Logger.log(
+            level,
+            "Exo LIVE: $message (media=${media.id}, episode=${media.anime?.selectedEpisode ?: "?"}, " +
+                "position=$position, duration=$duration, reconnects=$liveReconnectCount)"
         )
-
-
-    /** Always hide the LIVE badge and always show position/duration stamps.
-     *  ExoPlayer natively updates position/duration for live HLS/DASH so the
-     *  user sees real timestamps like "23:00 / 24:00". */
-    private fun updateLiveBadge() {
-        playerView.findViewById<View>(R.id.exo_live_badge)?.visibility = View.GONE
     }
 
+    private fun playbackStateName(state: Int): String = when (state) {
+        Player.STATE_IDLE -> "IDLE"
+        Player.STATE_BUFFERING -> "BUFFERING"
+        Player.STATE_READY -> "READY"
+        Player.STATE_ENDED -> "ENDED"
+        else -> "UNKNOWN($state)"
+    }
 
+    private fun registerLiveSupport() {
+        if (!isTmdbMovieMode() || !::exoPlayer.isInitialized || exoPlayer.isReleased || liveSupportRegistered) {
+            return
+        }
+        LiveHelper.registerPlayer(exoPlayer)
+        val timeBar = playerView.findViewById<View>(androidx.media3.ui.R.id.exo_progress) as? LivePreviewTimeBar
+        timeBar?.registerPlayerView(playerView)
+        liveSupportRegistered = true
+        logLiveEvent("live support registered server=${media.selected?.server ?: "?"} progressBar=${timeBar != null}")
+    }
+
+    private fun updateTimelineUi() {
+        if (!::exoPlayer.isInitialized || exoPlayer.isReleased || exoPlayer.duration <= 0L) {
+            return
+        }
+        try {
+            val timeBar = playerView.findViewById<DefaultTimeBar>(
+                androidx.media3.ui.R.id.exo_progress
+            )
+            timeBar?.setDuration(exoPlayer.duration)
+            timeBar?.setPosition(exoPlayer.currentPosition)
+            timeBar?.setBufferedPosition(exoPlayer.bufferedPosition)
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun updateLiveBadge() {
+        playerView.findViewById<View>(R.id.exo_live_badge)?.visibility =
+            if (isLiveStream()) View.VISIBLE else View.GONE
+    }
+
+    private fun retryLiveRecovery(error: PlaybackException) {
+        logLiveEvent(
+            "recovery requested code=${error.errorCode} name=${error.errorCodeName} " +
+                "cause=${error.cause?.javaClass?.simpleName ?: "none"}"
+        )
+        if (liveReconnectCount >= MAX_LIVE_RECONNECTS) {
+            liveReconnectCount = 0
+            Logger.log(
+                Log.ERROR,
+                "Exo LIVE: recovery exhausted (${error.errorCodeName}) on '${media.anime?.selectedEpisode ?: "?"}'"
+            )
+            toast("Live stream unavailable")
+            isPlayerPlaying = true
+            sourceClick()
+            return
+        }
+
+        liveReconnectCount++
+        Logger.log(
+            Log.WARN,
+            "Exo LIVE: position recovery $liveReconnectCount/$MAX_LIVE_RECONNECTS " +
+                "(${error.errorCodeName})"
+        )
+        toast("Reconnecting… ($liveReconnectCount/$MAX_LIVE_RECONNECTS)")
+
+        if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
+            exoPlayer.seekToDefaultPosition()
+        } else {
+            val position = exoPlayer.currentPosition
+            val aheadOfLive = LiveHelper.getLiveManager(exoPlayer)?.getTimeAheadOfLive(position) ?: 0L
+            if (aheadOfLive > 100L) {
+                exoPlayer.seekTo(position - aheadOfLive)
+            } else {
+                exoPlayer.seekToDefaultPosition()
+            }
+        }
+        exoPlayer.prepare()
+    }
 
     override fun onPlayerError(error: PlaybackException) {
         val epLabel = media.anime?.selectedEpisode ?: "?"
+        if (isLiveStream()) {
+            Logger.log(
+                Log.ERROR,
+                "Exo LIVE: player error code=${error.errorCode} name=${error.errorCodeName} " +
+                    "cause=${error.cause?.javaClass?.simpleName ?: "none"}"
+            )
+        }
         // DRM license acquisition failed. We no longer retry without DRM because
         // streams that genuinely need DRM will show NO_UNSUPPORTED_DRM on every
         // track — the Zangetsu approach handles this at setup time (only set up
         // DRM when kid+key are available). Log and let normal error handling proceed.
         if (error.errorCode == PlaybackException.ERROR_CODE_DRM_LICENSE_ACQUISITION_FAILED) {
             Logger.log(Log.WARN, "Player: DRM license failed (${error.errorCodeName}) on '$epLabel' — no retry without DRM (Zangetsu approach)")
+        }
+
+        if (isLiveStream() &&
+            (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW ||
+                error.cause is HlsPlaylistTracker.PlaylistStuckException)
+        ) {
+            retryLiveRecovery(error)
+            return
         }
 
         when (error.errorCode) {
@@ -4464,20 +4615,46 @@ class ExoplayerView :
     private var interactionTimer: Timer? = null
 
     override fun onTimelineChanged(timeline: Timeline, reason: Int) {
-        if (::exoPlayer.isInitialized && !exoPlayer.isReleased) {
+        if (::exoPlayer.isInitialized && !exoPlayer.isReleased && isTmdbMovieMode() && timeline.windowCount > 0) {
             val window = Timeline.Window()
-            timeline.getWindow(exoPlayer.currentMediaItemIndex, window)
-            if (window.isDynamic && !liveDetectedFromPlayer) {
-                liveDetectedFromPlayer = true
-                Logger.log("Player: LIVE detected from timeline (window.isDynamic=true)")
+            val windowIndex = exoPlayer.currentMediaItemIndex
+                .takeIf { it in 0 until timeline.windowCount } ?: 0
+            timeline.getWindow(windowIndex, window)
+            if (window.isDynamic) {
+                val detected = !liveDetectedFromPlayer
+                if (detected) {
+                    liveDetectedFromPlayer = true
+                    if (!userPaused) {
+                        exoPlayer.seekToDefaultPosition()
+                    }
+                }
+                registerLiveSupport()
+                if (window.durationMs > 0L) {
+                    LiveHelper.getLiveManager(exoPlayer)?.submitLivestreamChunk(
+                        LivestreamChunk(window.durationMs)
+                    )
+                }
                 updateLiveBadge()
+                logLiveEvent(
+                    "timeline updated reason=$reason window=$windowIndex dynamic=true " +
+                        "durationMs=${window.durationMs} periods=${window.periodCount} detected=$detected"
+                )
             }
+        }
+        if (isLiveStream()) {
+            updateTimelineUi()
         }
         super.onTimelineChanged(timeline, reason)
     }
 
     override fun onPlaybackStateChanged(playbackState: Int) {
         val epLabel = media.anime?.selectedEpisode ?: "?"
+        if (isLiveStream()) {
+            logLiveEvent(
+                "playback state=${playbackStateName(playbackState)} " +
+                    "playWhenReady=${exoPlayer.playWhenReady} buffered=${exoPlayer.bufferedPosition}"
+            )
+        }
         if (playbackState == ExoPlayer.STATE_READY) {
             Logger.log("Player: READY on ep '$epLabel' duration=${exoPlayer.duration} pos=${exoPlayer.currentPosition}")
             if (!userPaused) exoPlayer.play()
@@ -4487,6 +4664,7 @@ class ExoplayerView :
             // Fallback trigger in case onRenderedFirstFrame never fired.
             maybeLoadTimeStamps("ready")
             updateLiveBadge()
+            if (isLiveStream()) updateTimelineUi()
         }
         isBuffering = playbackState == Player.STATE_BUFFERING
         if (isBuffering) {
@@ -4494,7 +4672,7 @@ class ExoplayerView :
         }
         if (playbackState == Player.STATE_ENDED) {
             Logger.log("Player: ENDED on ep '$epLabel'")
-            if (PrefManager.getVal(PrefName.AutoPlay)) {
+            if (!isLiveStream() && PrefManager.getVal(PrefName.AutoPlay)) {
                 val browsingEpisodes =
                     episodeDrawer.isDrawerOpen(episodeDrawerContent) ||
                         episodeCommentPanel.visibility == View.VISIBLE
@@ -4514,7 +4692,7 @@ class ExoplayerView :
         val incognito: Boolean = PrefManager.getVal(PrefName.Incognito)
 
         // Live streams have no episode to track — skip progress entirely
-        if (media.id < 0 && isLiveStream()) {
+        if (isLiveStream()) {
             return
         }
 

@@ -79,6 +79,15 @@ class SettingsAnimeActivity : AppCompatActivity() {
                     ) { idx -> PrefManager.setVal(PrefName.DefaultStartUpTab, idx) },
                 ),
                 SubscreenBuilder.Entry(
+                    title = "TMDB Mode Player",
+                    desc = "Choose the player used for TMDB content",
+                    choice = SubscreenBuilder.Choice(
+                        title = "TMDB Mode Player",
+                        options = arrayOf("CS3 Player", "Exo"),
+                        currentIndex = PrefManager.getVal<Int>(PrefName.TmdbPlayerMode).coerceIn(0, 1),
+                    ) { idx -> PrefManager.setVal(PrefName.TmdbPlayerMode, idx) },
+                ),
+                SubscreenBuilder.Entry(
                     title = "Continue Media",
                     desc = "Auto-resume from last position",
                     switch = PrefManager.getVal<Boolean>(PrefName.ContinueMedia) to { v: Boolean -> PrefManager.setVal(PrefName.ContinueMedia, v) },

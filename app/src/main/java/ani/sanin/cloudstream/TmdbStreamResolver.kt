@@ -10,6 +10,7 @@ import ani.sanin.connections.tmdb.TmdbEpisode
 import ani.sanin.media.Media
 import ani.sanin.media.Selected
 import ani.sanin.media.anime.Anime
+import ani.sanin.media.anime.ExoplayerView
 import ani.sanin.media.anime.Episode
 import ani.sanin.parsers.Video
 import eu.kanade.tachiyomi.animesource.model.Track
@@ -19,6 +20,7 @@ import ani.sanin.parsers.VideoServer
 import ani.sanin.parsers.DrmInfo
 import ani.sanin.parsers.VideoType
 import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import ani.sanin.util.Logger
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MainAPI
@@ -857,9 +859,20 @@ object TmdbStreamResolver {
         val selected = Selected(sourceIndex = 0, server = pickedExtractor.server.name, video = pickedVideoIdx)
         media.selected = selected
         PrefManager.setCustomVal("Selected-$id", selected)
-        // TMDB mode: use CS3 player (GeneratorPlayer) for all content. The
-        // synthetic generator resolves each episode's plugin links on demand so
-        // next/prev buttons and the episode rail navigate every episode.
+        if (PrefManager.getVal<Int>(PrefName.TmdbPlayerMode) == 1) {
+            Logger.log(
+                "TMDB_PLAY: launching ExoplayerView for ${mediaType} id=$id title='$title' " +
+                    "eps=${episodes.size} current='$currentKey' picked='$pickedLabel'"
+            )
+            ExoplayerView.media = media
+            ExoplayerView.initialized = true
+            context.startActivity(
+                Intent(context, ExoplayerView::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+            return
+        }
+
         val episodeKeys = episodes.keys.toList()
         val currentIndex = episodeKeys.indexOf(currentKey).coerceAtLeast(0)
         val generator = TmdbSyntheticGenerator(
