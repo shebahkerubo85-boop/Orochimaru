@@ -2456,6 +2456,7 @@ class ExoplayerView :
         // Reset the error retry counter so fresh sources get the full retry budget.
         playerErrorRetryCount = 0
         liveReconnectCount = 0
+        liveRecoveryFailed = false
 
         // Player
         val bufferSize = PrefManager.getVal<Int>(PrefName.BufferSize)
@@ -2751,9 +2752,13 @@ class ExoplayerView :
                         Log.ERROR,
                         "Player: silent reconnect failed — plugin returned no links (ep=$epLabel)"
                     )
-                    toast("Reconnect failed — no fresh URLs")
-                    isPlayerPlaying = true
-                    sourceClick()
+                    if (isLiveStream()) {
+                        abortLiveRecovery("plugin returned no links")
+                    } else {
+                        toast("Reconnect failed — no fresh URLs")
+                        isPlayerPlaying = true
+                        sourceClick()
+                    }
                 }
                 return@launch
             }
@@ -2770,9 +2775,13 @@ class ExoplayerView :
                         Log.ERROR,
                         "Player: silent reconnect failed — empty extractors (ep=$epLabel)"
                     )
-                    toast("Reconnect failed — no servers")
-                    isPlayerPlaying = true
-                    sourceClick()
+                    if (isLiveStream()) {
+                        abortLiveRecovery("plugin returned no servers")
+                    } else {
+                        toast("Reconnect failed — no servers")
+                        isPlayerPlaying = true
+                        sourceClick()
+                    }
                 }
                 return@launch
             }
@@ -2790,9 +2799,13 @@ class ExoplayerView :
                             "the same URL as the expired one; " +
                             "cannot silently recover (ep=$epLabel)"
                     )
-                    toast("Reconnect failed — same URLs")
-                    isPlayerPlaying = true
-                    sourceClick()
+                    if (isLiveStream()) {
+                        abortLiveRecovery("same URLs returned on every server")
+                    } else {
+                        toast("Reconnect failed — same URLs")
+                        isPlayerPlaying = true
+                        sourceClick()
+                    }
                 }
                 return@launch
             }
@@ -2878,6 +2891,7 @@ class ExoplayerView :
                         "server='${freshExt.server.name}' ep=$epLabel"
                 )
                 toast("Reconnected ✓")
+                liveRecoveryFailed = false
                 exoPlayer.setMediaSource(mediaSource)
                 exoPlayer.prepare()
                 exoPlayer.play()
@@ -4493,43 +4507,74 @@ class ExoplayerView :
             if (isLiveStream()) View.VISIBLE else View.GONE
     }
 
+    /**
+     * Terminal guard for live recovery.  Without this the retry budget was
+     * reset by [buildExoplayer] / the exhaustion branch itself, so a failing
+     * live stream could reconnect forever.
+     */
+    private var liveRecoveryFailed = false
+
+    /**
+     * Terminal stop for live recovery.  Never resets [liveReconnectCount] and
+     * never calls [sourceClick] (which would rebuild the player, reset the
+     * counters and re-enter recovery), so the loop cannot restart.
+     */
+    private fun abortLiveRecovery(reason: String) {
+        liveRecoveryFailed = true
+        Logger.log(
+            Log.ERROR,
+            "Exo LIVE: giving up after $liveReconnectCount/$MAX_LIVE_RECONNECTS attempts " +
+                "on '${media.anime?.selectedEpisode ?: "?"}' ($reason)"
+        )
+        toast("Live stream unavailable")
+        if (::exoPlayer.isInitialized && !exoPlayer.isReleased) {
+            exoPlayer.pause()
+        }
+    }
+
+    /**
+     * Recover a live stream that errored mid-playback.
+     *
+     * A stuck/stalled playlist (HlsPlaylistTracker.PlaylistStuckException) always
+     * trips at the end of the currently buffered window, so seeking inside that
+     * window just replays the same stale segments and re-triggers the stall
+     * forever.  Recovery therefore re-reads the playlist and restarts at the
+     * live edge instead of resuming inside the dead window.
+     */
     private fun retryLiveRecovery(error: PlaybackException) {
         logLiveEvent(
             "recovery requested code=${error.errorCode} name=${error.errorCodeName} " +
                 "cause=${error.cause?.javaClass?.simpleName ?: "none"}"
         )
-        if (liveReconnectCount >= MAX_LIVE_RECONNECTS) {
-            liveReconnectCount = 0
+        if (liveRecoveryFailed) {
             Logger.log(
-                Log.ERROR,
-                "Exo LIVE: recovery exhausted (${error.errorCodeName}) on '${media.anime?.selectedEpisode ?: "?"}'"
+                Log.WARN,
+                "Exo LIVE: ignoring ${error.errorCodeName} — recovery already exhausted"
             )
-            toast("Live stream unavailable")
-            isPlayerPlaying = true
-            sourceClick()
+            return
+        }
+        if (liveReconnectCount >= MAX_LIVE_RECONNECTS) {
+            abortLiveRecovery(error.errorCodeName)
             return
         }
 
         liveReconnectCount++
         Logger.log(
             Log.WARN,
-            "Exo LIVE: position recovery $liveReconnectCount/$MAX_LIVE_RECONNECTS " +
+            "Exo LIVE: live-edge recovery $liveReconnectCount/$MAX_LIVE_RECONNECTS " +
                 "(${error.errorCodeName})"
         )
         toast("Reconnecting… ($liveReconnectCount/$MAX_LIVE_RECONNECTS)")
 
-        if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
+        if (::exoPlayer.isInitialized && exoPlayer.isReleased.not() && ::mediaSource.isInitialized) {
+            // Re-attach the source so the playlist is fetched again; a freshly
+            // prepared live source starts at the live edge.
+            exoPlayer.setMediaSource(mediaSource, C.TIME_UNSET)
+        } else if (::exoPlayer.isInitialized && exoPlayer.isReleased.not()) {
             exoPlayer.seekToDefaultPosition()
-        } else {
-            val position = exoPlayer.currentPosition
-            val aheadOfLive = LiveHelper.getLiveManager(exoPlayer)?.getTimeAheadOfLive(position) ?: 0L
-            if (aheadOfLive > 100L) {
-                exoPlayer.seekTo(position - aheadOfLive)
-            } else {
-                exoPlayer.seekToDefaultPosition()
-            }
         }
         exoPlayer.prepare()
+        exoPlayer.play()
     }
 
     override fun onPlayerError(error: PlaybackException) {
@@ -4562,16 +4607,21 @@ class ExoplayerView :
             PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
             PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
                 -> {
-                if (isLiveStream() && liveReconnectCount < MAX_LIVE_RECONNECTS) {
-                    liveReconnectCount++
-                    Logger.log(Log.WARN, "Player: live reconnect $liveReconnectCount/$MAX_LIVE_RECONNECTS " +
-                        "on ep '$epLabel' (${error.errorCodeName}): ${error.message}")
-                    toast("Reconnecting… ($liveReconnectCount/$MAX_LIVE_RECONNECTS)")
-                    // Re-fetch fresh URLs from the plugin — the old auth_key has expired
-                    isPlayerPlaying = true
-                    silentLiveReconnect()
+                if (isLiveStream() && !liveRecoveryFailed) {
+                    if (liveReconnectCount < MAX_LIVE_RECONNECTS) {
+                        liveReconnectCount++
+                        Logger.log(Log.WARN, "Player: live reconnect $liveReconnectCount/$MAX_LIVE_RECONNECTS " +
+                            "on ep '$epLabel' (${error.errorCodeName}): ${error.message}")
+                        toast("Reconnecting… ($liveReconnectCount/$MAX_LIVE_RECONNECTS)")
+                        // Re-fetch fresh URLs from the plugin — the old auth_key has expired
+                        isPlayerPlaying = true
+                        silentLiveReconnect()
+                    } else {
+                        abortLiveRecovery(error.errorCodeName)
+                    }
+                } else if (isLiveStream()) {
+                    Logger.log(Log.WARN, "Player: ignoring ${error.errorCodeName} on ep '$epLabel' — recovery exhausted")
                 } else {
-                    if (isLiveStream()) liveReconnectCount = 0
                     Logger.log(Log.ERROR, "Player: source exception (${error.errorCode}) on ep '$epLabel': ${error.message}")
                     toast("Source Exception : ${error.message}")
                     isPlayerPlaying = true
