@@ -4496,12 +4496,15 @@ class ExoplayerView :
                 androidx.media3.ui.R.id.exo_progress
             ) ?: return
             if (isLiveStream()) {
-                // A live window reports a finite, constantly shifting duration
-                // (the length of the sliding DVR window, e.g. 11.84s).  Painting
-                // it as a fixed duration turns the live edge into an apparent end
-                // of the video, so only the buffered/position markers are updated.
+                // A live window reports a finite but constantly shifting
+                // duration (the length of the sliding DVR window).  That value
+                // is legitimate and is updated as the playlist slides, so feed
+                // it to the bar as-is: no fixed/pinned duration, and no manual
+                // position clamping, otherwise the displayed time stops
+                // advancing (or jumps around) while playback continues.
+                timeBar.setDuration(exoPlayer.duration)
+                timeBar.setPosition(exoPlayer.currentPosition)
                 timeBar.setBufferedPosition(exoPlayer.bufferedPosition)
-                timeBar.setPosition(exoPlayer.bufferedPosition)
                 return
             }
             timeBar.setDuration(exoPlayer.duration)
@@ -4544,11 +4547,13 @@ class ExoplayerView :
     /**
      * Recover a live stream that errored mid-playback.
      *
-     * A stuck/stalled playlist (HlsPlaylistTracker.PlaylistStuckException) always
-     * trips at the end of the currently buffered window, so seeking inside that
-     * window just replays the same stale segments and re-triggers the stall
-     * forever.  Recovery therefore re-reads the playlist and restarts at the
-     * live edge instead of resuming inside the dead window.
+     * A stuck/stalled playlist (HlsPlaylistTracker.PlaylistStuckException) trips
+     * when the playhead has drifted ahead of the sliding live window, so
+     * seeking inside that window just replays the same stale segments and
+     * re-triggers the stall forever.  Recovery mirrors CS3: seek back to the
+     * window's default position (the live edge) and re-prepare.  There is no
+     * fixed/pinned duration here — the reported window length keeps advancing
+     * as the playlist slides.
      */
     private fun retryLiveRecovery(error: PlaybackException) {
         logLiveEvent(
@@ -4575,15 +4580,18 @@ class ExoplayerView :
         )
         toast("Reconnecting… ($liveReconnectCount/$MAX_LIVE_RECONNECTS)")
 
-        if (::exoPlayer.isInitialized && exoPlayer.isReleased.not() && ::mediaSource.isInitialized) {
-            // Re-attach the source so the playlist is fetched again; a freshly
-            // prepared live source starts at the live edge.
-            exoPlayer.setMediaSource(mediaSource, C.TIME_UNSET)
-        } else if (::exoPlayer.isInitialized && exoPlayer.isReleased.not()) {
+        // Mirror CS3 (CS3IPlayer.onPlayerError): a stuck playlist means the
+        // playhead drifted ahead of the live window, so jump back to the
+        // window's default position (the live edge) and re-prepare.  Deliberately
+        // no setMediaSource/mediaItem rebuild: re-attaching a source re-reads
+        // nothing new and can resume inside the dead window.
+        if (::exoPlayer.isInitialized && exoPlayer.isReleased.not()) {
             exoPlayer.seekToDefaultPosition()
+            exoPlayer.prepare()
+            exoPlayer.play()
+        } else {
+            abortLiveRecovery("player unavailable")
         }
-        exoPlayer.prepare()
-        exoPlayer.play()
     }
 
     override fun onPlayerError(error: PlaybackException) {
