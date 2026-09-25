@@ -4637,7 +4637,7 @@ class ExoplayerView :
                 updateLiveBadge()
                 logLiveEvent(
                     "timeline updated reason=$reason window=$windowIndex dynamic=true " +
-                        "durationMs=${window.durationMs} periods=${window.periodCount} detected=$detected"
+                        "durationMs=${window.durationMs} detected=$detected"
                 )
             }
         }
