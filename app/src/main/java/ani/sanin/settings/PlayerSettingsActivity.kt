@@ -678,7 +678,7 @@ class PlayerSettingsActivity :
                 sl.valueFrom = 0f
                 sl.valueTo = 1f
                 sl.stepSize = 0.05f
-                sl.value = PrefManager.getVal(PrefName.SubAlpha).coerceIn(0f, 1f)
+                sl.value = PrefManager.getVal<Float>(PrefName.SubAlpha).coerceIn(0f, 1f)
                 slValue.text = "${(sl.value * 100).roundToInt()}%"
                 if (backgroundOff) {
                     // Nothing to make transparent, so the slider is inert until a
