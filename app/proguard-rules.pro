@@ -1,48 +1,28 @@
 #############################################
-# Attributes
+# General / Debugging
 #############################################
+
+#-keepattributes SourceFile,LineNumberTable
+#-renamesourcefileattribute SourceFile
 
 -keepattributes Signature
 -keepattributes *Annotation*
 -keepattributes EnclosingMethod
 -keepattributes RuntimeVisibleAnnotations,AnnotationDefault
 
-# Keep file + line info so Firebase Crashlytics and the in-app crash screen
-# (ani.sanin.others.CrashActivity) show readable stack traces. Obfuscation renames
-# classes and methods, but without these two lines the reports lose the source file
-# and line number entirely, which makes them far harder to act on.
--keepattributes SourceFile,LineNumberTable
--renamesourcefileattribute SourceFile
+-dontobfuscate
+
 
 #############################################
-# Looked up by name at runtime
+# Kotlin / Coroutines / Serialization
 #############################################
 
-# Custom views are instantiated by fully-qualified tag name when a layout is inflated,
-# so aapt2 knows the name but R8 does not. These are the only app classes in res/layout.
--keep class ani.sanin.FadingEdgeRecyclerView { public <init>(...); }
--keep class ani.sanin.NoGestureSubsamplingImageView { public <init>(...); }
--keep class ani.sanin.SpinnerNoSwipe { public <init>(...); }
--keep class ani.sanin.home.status.CircleView { public <init>(...); }
--keep class ani.sanin.home.status.Stories { public <init>(...); }
--keep class ani.sanin.others.Xpandable { public <init>(...); }
--keep class ani.sanin.others.Xubtitle { public <init>(...); }
--keep class ani.sanin.ui.components.SnakeNavRailView { public <init>(...); }
+-keep class kotlin.** { *; }
+-dontwarn kotlin.**
 
-# CrashlyticsFactory does Class.forName("com.google.firebase.crashlytics.FirebaseCrashlytics")
--keep class com.google.firebase.crashlytics.FirebaseCrashlytics { public *; }
--keep class com.google.firebase.crashlytics.ktx.** { public *; }
--dontwarn com.google.firebase.**
+-keep class kotlinx.** { *; }
 
-# WorkManager loads its Room-generated implementation by name
--keep class androidx.work.impl.WorkDatabase_Impl { *; }
-
-#############################################
-# Serialization
-#############################################
-
-# Companion/serializer handling for @Serializable classes. The serializers themselves
-# are generated at compile time and reference members directly, so they survive renaming.
+# Serializable Companion handling
 -if @kotlinx.serialization.Serializable class **
 -keepclassmembers class <1> {
     static <1>$Companion Companion;
@@ -63,166 +43,188 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 
-# Gson reads fields reflectively, so a renamed field turns parsed data into empty values.
-# These are the only app classes handed to a reflective serializer:
-#   ani.sanin.notifications.comment.MediaResponse  - Gson in MediaNameFetch
-#   ani.sanin.connections.**                        - AniList/MAL/Simkl DTOs
-# The Jackson fallback in AppUtils.toJsonLiteral()/parseJson() goes through public
-# accessors, which the public-member keeps below already pin.
--keep class ani.sanin.notifications.comment.** { public *; }
--keep class ani.sanin.connections.** { public *; }
-
-# Gson reads fields directly, including the private backing field of a Kotlin val,
-# so the class and member keeps above are not enough on their own.
--keepclassmembers class ani.sanin.notifications.** { <fields>; }
--keepclassmembers class ani.sanin.connections.** { <fields>; }
+-keep class kotlinx.serialization.** { *; }
 
 #############################################
-# Kotlin
+# Core App / Extensions
 #############################################
 
-# kotlin-reflect is reached through KClass by the plugin API and the extractor JS bridge,
-# so its internals have to stay. The rest of the stdlib keeps only its public API.
--keep class kotlin.reflect.** { *; }
--keep class kotlin.** { public *; }
--dontwarn kotlin.**
+-keep class ani.sanin.** { *; }
+-keep class ani.sanin.download.DownloadsManager { *; }
 
--keep class kotlinx.** { public *; }
--dontwarn kotlinx.**
-
-#############################################
-# Plugin and extension ABI
-#
-# Plugins (.cs3 dex) and anime extensions are compiled separately and call these
-# classes and their public members by name through a classloader, so nothing public may
-# be stripped or renamed. Private and internal members are not reachable from outside and
-# stay shrinkable, which is where most of the size comes from.
-#############################################
-
--keep class com.lagradost.** { public *; }
--dontwarn com.lagradost.**
-
--keep class eu.kanade.** { public *; }
--dontwarn eu.kanade.**
-
--keep class tachiyomi.** { public *; }
--dontwarn tachiyomi.**
-
-# The "**" above does not cover nested classes, and a plugin compiled against
-# Kotlin may call Foo$Companion or Foo$DefaultImpls by name, so pin those too.
--keep class com.lagradost.**$* { public *; }
--keep class eu.kanade.**$* { public *; }
--keep class tachiyomi.**$* { public *; }
-
--keep class uy.kohesive.injekt.** { public *; }
--dontwarn uy.kohesive.injekt.**
+-keep class eu.kanade.** { *; }
+-keep class uy.kohesive.injekt.** { *; }
 
 -keepclassmembers class uy.kohesive.injekt.api.FullTypeReference {
     <init>(...);
 }
 
--keep class com.fasterxml.jackson.** { public *; }
--dontwarn com.fasterxml.jackson.**
-
--keep class com.google.gson.** { public *; }
--keep class com.google.gson.reflect.TypeToken { *; }
-
--keep class org.jsoup.** { public *; }
--dontwarn org.jsoup.**
-
--keep class org.json.** { public *; }
--dontwarn org.json.**
-
--keep class com.fleeksoft.ksoup.** { public *; }
--dontwarn com.fleeksoft.ksoup.**
-
--keep class io.ktor.** { public *; }
--dontwarn io.ktor.**
-
--keep class dev.whyoleg.cryptography.** { public *; }
--dontwarn dev.whyoleg.cryptography.**
-
--keep class org.schabi.newpipe.** { public *; }
--dontwarn org.schabi.newpipe.**
-
--keep class org.mozilla.javascript.** { public *; }
--dontwarn org.mozilla.javascript.**
-
--keep class com.github.aachartmodel.** { public *; }
--dontwarn com.github.aachartmodel.**
-
-# RxJava 1, used by the local anime source
--keep class rx.** { public *; }
--dontwarn rx.**
-
-# QuickJS runs extractor scripts
--keep,allowoptimization class app.cash.quickjs.** { public protected *; }
-
 #############################################
-# AndroidX / Material
-#
-# Plugin-provided activities link against these public APIs from their own dex. Public
-# members are pinned; everything else shrinks normally.
+# Firebase
 #############################################
 
--keep class androidx.appcompat.** { public *; }
--dontwarn androidx.appcompat.**
+-keep class com.google.firebase.** { *; }
+-dontwarn com.google.firebase.**
 
--keep class androidx.fragment.** { public *; }
--dontwarn androidx.fragment.**
+#############################################
+# Networking (OkHttp + Okio)
+#############################################
 
--keep class androidx.activity.** { public *; }
--dontwarn androidx.activity.**
+-keep class okhttp3.** { *; }
+-dontwarn okhttp3.**
 
--keep class androidx.lifecycle.** { public *; }
--dontwarn androidx.lifecycle.**
+-keep class okio.** { *; }
+-dontwarn okio.**
 
--keep class androidx.savedstate.** { public *; }
--dontwarn androidx.savedstate.**
 
--keep class androidx.preference.** { public *; }
--dontwarn androidx.preference.**
+#############################################
+# Android / Jetpack
 
--keep class com.google.android.material.bottomsheet.** { public *; }
--keep class com.google.android.material.dialog.** { public *; }
--dontwarn com.google.android.material.**
-
--keep class androidx.core.content.res.ResourcesCompat { public *; }
+# Plugin settings UIs (compiled .cs3 dex) call AndroidX helper methods at runtime
+# that are otherwise unused by the host app and would be stripped by R8. Keep
+# the helpers they can reference so opening a plugin's settings doesn't crash.
+-keep class androidx.core.content.res.ResourcesCompat { *; }
 -keepclassmembers,allowoptimization class androidx.core.content.res.ResourcesCompat {
     public static ** getDrawable(...);
     public static ** getColor(...);
     public static ** getColorStateList(...);
 }
--keepclassmembers,allowoptimization class androidx.core.content.res.ContextCompat {
+-keepclassmembers,allowoptimization class androidx.core.content.ContextCompat {
     public static ** getDrawable(...);
     public static ** getColor(...);
 }
 -keepclassmembers,allowoptimization class androidx.core.content.res.ColorStateListInflaterCompat { *; }
+-dontwarn androidx.core.content.res.ResourcesCompat
 
 #############################################
-# Networking
+
+# Plugin settings UI (.cs3 dex) links against the AndroidX/Material bottom-sheet
+# dialog stack by classloader at runtime. R8 optimization strips/inlines methods
+# those precompiled dex call (e.g. BottomSheetDialog.getBehavior, and the
+# getClass() on the ComponentDialog host). Keep this dialog chain unoptimized so
+# opening a plugin's settings doesn't crash. Scope is tiny (sheet+host dialog).
+-keep class androidx.activity.** { *; }
+-dontwarn androidx.activity.**
+-keep class androidx.appcompat.** { *; }
+-dontwarn androidx.appcompat.**
+-keep class androidx.fragment.** { *; }
+-dontwarn androidx.fragment.**
+-keep class androidx.savedstate.** { *; }
+-dontwarn androidx.savedstate.**
+-keep class androidx.lifecycle.** { *; }
+-dontwarn androidx.lifecycle.**
+-keep class com.google.android.material.bottomsheet.** { *; }
+-keep class com.google.android.material.dialog.** { *; }
+-dontwarn com.google.android.material.**
+
+-keep class androidx.preference.** { *; }
+
+# WorkManager database
+-keep class androidx.work.impl.WorkDatabase_Impl { *; }
+
+
+#############################################
+# Gson / JSON / HTML Parsing
 #############################################
 
--keep class okhttp3.** { public *; }
--dontwarn okhttp3.**
+-keep class com.google.gson.** { *; }
+-keep class com.google.gson.reflect.TypeToken { *; }
 
--keep class okio.** { public *; }
--dontwarn okio.**
+-keep class org.jsoup.** { *; }
+-keepclassmembers class org.jsoup.nodes.Document { *; }
+
 
 #############################################
-# Suppressions
+# QuickJS / Native / Unsafe
 #############################################
+
+-keep,allowoptimization class app.cash.quickjs.** { public protected *; }
+
+-keep class rx.internal.util.unsafe.** { *; }
 
 -dontwarn sun.misc.Unsafe
 -dontwarn org.graalvm.nativeimage.**
 -dontwarn com.oracle.svm.core.annotate.**
+
+
+
+# Keep RxJava unsafe internals
+-keep class rx.internal.util.unsafe.** { *; }
+
+# Keep fields (VERY IMPORTANT)
+-keepclassmembers class rx.internal.util.unsafe.** {
+    long producerIndex;
+    long consumerIndex;
+}
+
+# Keep all rx internal operators (safe side)
+-keep class rx.internal.** { *; }
+
+# Prevent stripping Unsafe usage
+-dontwarn sun.misc.Unsafe
+
+#############################################
+# Charts (AAChart)
+#############################################
+
+-keep class com.github.aachartmodel.** { *; }
+-dontwarn com.github.aachartmodel.**
+
+
+#############################################
+# CloudStream .cs3 plugin runtime
+# Plugins are compiled dex archives that link against these class names
+# by reflection/classloader, so nothing here may be stripped or renamed.
+#############################################
+
+-keep class com.lagradost.** { *; }
+-dontwarn com.lagradost.**
+
+-keep class com.fasterxml.jackson.** { *; }
+-dontwarn com.fasterxml.jackson.**
+
+-keep class org.mozilla.javascript.** { *; }
+-dontwarn org.mozilla.javascript.**
+
+-keep class dev.whyoleg.cryptography.** { *; }
+-dontwarn dev.whyoleg.cryptography.**
+
+-keep class com.fleeksoft.ksoup.** { *; }
+-dontwarn com.fleeksoft.ksoup.**
+
+-keep class org.schabi.newpipe.** { *; }
+-dontwarn org.schabi.newpipe.**
+
+-keep class io.ktor.** { *; }
+-dontwarn io.ktor.**
+
+-keep class kotlinx.datetime.** { *; }
+-dontwarn kotlinx.datetime.**
+
+-keep class kotlinx.io.** { *; }
+-dontwarn kotlinx.io.**
+
+-keep class kotlinx.atomicfu.** { *; }
+-dontwarn kotlinx.atomicfu.**
+
+# Keep org.json classes used for parsing API responses (system class on Android)
+-keep class org.json.** { *; }
+-dontwarn org.json.**
+
+#############################################
+# AppCompat dialogs used by CloudStream plugin settings
+# Plugin settings screens (com.cncverse.*, etc.) call AlertDialog.Builder
+# methods (setMessage, setTitle, setPositiveButton, ...) that the host app
+# doesn't use and R8 would otherwise strip, crashing with NoSuchMethodError.
+#############################################
+
+-keep class androidx.appcompat.app.AlertDialog { *; }
+-keep class androidx.appcompat.app.AlertDialog$Builder { *; }
+-keep class androidx.appcompat.app.AlertDialog$Builder$* { *; }
+-dontwarn androidx.appcompat.app.AlertDialog
+
+#############################################
+# R8: desugar_jdk_libs_nio class conflicts
+#############################################
+-dontwarn jdk.internal.misc.Unsafe
 -dontwarn jdk.internal.misc.**
-
-# A release build crashed on startup with shrinking on, so the app's own code is
-# held intact: a build that works is worth more than the few MB hiding in here.
-# The libraries, which are the bulk of the dex, still shrink.
--keep class ani.sanin.** { *; }
-
-# No renaming yet. Shrinking alone already reproduced the crash, so renaming is
-# not implicated, and stable names keep the crash screen readable.
--dontobfuscate
