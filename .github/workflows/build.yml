@@ -112,24 +112,25 @@ jobs:
           echo "using $MAPPING"
           # Compiler-generated holders (lambda wrappers, suspend continuations) and
           # classes R8 merged away are internal to a single dex, never linked to by
-          # name from outside, so their names do not have to be stable.
-          SYNTH='\$\$ExternalSynthetic|\$-CC|R8\$\$REMOVED\$\$CLASS\$\$'
-          echo "--- classes R8 renamed, grouped by package ---"
-          awk -v syn="$SYNTH" '/^[^#[:space:]]/ { o=$1; r=$3; sub(/:$/,"",r)
-                if (o != r && o !~ syn) {
+          # name from outside, so their names do not have to be stable. The pattern is
+          # an awk regex literal rather than a -v value, because how an awk handles
+          # backslash escapes in a -v value is not the same everywhere.
+                    echo "--- classes R8 renamed, grouped by package ---"
+          awk '/^[^#[:space:]]/ { o=$1; r=$3; sub(/:$/,"",r)
+                if (o != r && o !~ /\$\$ExternalSynthetic|\$-CC|R8\$\$REMOVED\$\$CLASS\$\$/) {
                 p=o; sub(/\.[A-Z][A-Za-z0-9_$]*$/,"",p); n[p]++ }
               } END { for (k in n) printf "%6d  %s\n", n[k], k }' "$MAPPING" | sort -rn | head -25
           echo "--- total classes R8 renamed ---"
-          awk -v syn="$SYNTH" '/^[^#[:space:]]/ { o=$1; r=$3; sub(/:$/,"",r); if (o != r && o !~ syn) n++ } END { print n+0 }' "$MAPPING"
+          awk '/^[^#[:space:]]/ { o=$1; r=$3; sub(/:$/,"",r); if (o != r && o !~ /\$\$ExternalSynthetic|\$-CC|R8\$\$REMOVED\$\$CLASS\$\$/) n++ } END { print n+0 }' "$MAPPING"
           echo "--- API that plugins and extensions link against ---"
           FAILED=0
           # Every class name in these packages is part of an external ABI, nested
           # classes and compiler-generated ones included, because a plugin is a
           # separate dex file that links to those names.
           for prefix in "com.lagradost" "eu.kanade" "tachiyomi"; do
-            renamed=$(awk -v p="$prefix" -v syn="$SYNTH" '/^[^[:space:]]/ && index($1, p) == 1 && / -> / {
+            renamed=$(awk -v p="$prefix" '/^[^[:space:]]/ && index($1, p) == 1 && / -> / {
                 o=$1; r=$3; sub(/:$/,"",r)
-                if (o ~ syn) next
+                if (o ~ /\$\$ExternalSynthetic|\$-CC|R8\$\$REMOVED\$\$CLASS\$\$/) next
                 if (o != r) print o" -> "r }' "$MAPPING" | head -5)
             if [ -n "$renamed" ]; then
               echo "::error::R8 renamed classes under $prefix - plugins or extensions would crash:"
