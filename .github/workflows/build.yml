@@ -189,28 +189,31 @@ jobs:
               if line[:1] not in (" ", ""):
                   m = re.match(r"^([\w.$]+) -> ([\w.$]+):?$", line)
                   current = m.group(1) if m else None
-                  if m:
-                      blocks[current] = {"self": m.group(1) == m.group(2), "members": {}}
-              elif current and line.strip():
-                  m = re.match(r"^    [\w.$\[\]<>, ]*?([\w$]+)\(.*\) -> (.*)$", line)
-                  if m:
-                      blocks[current]["members"][m.group(1)] = m.group(2)
+                  blocks[current] = {"self": bool(m) and m.group(1) == m.group(2), "members": []}
+              elif current:
+                  blocks[current]["members"].append(line)
           bad = []
-          for cls, members in wanted.items():
-              if cls not in blocks:
+          for cls, names in wanted.items():
+              blk = blocks.get(cls)
+              if blk is None:
                   bad.append(f"{cls} missing from mapping")
                   continue
-              if not blocks[cls]["self"]:
+              if not blk["self"]:
                   bad.append(f"{cls} was renamed")
-              for name in members:
-                  if name not in blocks[cls]["members"]:
+              for name in names:
+                  hits = [l for l in blk["members"] if f"{name}(" in l and " -> " in l]
+                  if not hits:
                       bad.append(f"{cls}.{name}() was removed")
-                  elif name not in blocks[cls]["members"][name]:
-                      bad.append(f"{cls}.{name}() was renamed to {blocks[cls]['members'][name]}")
+                  else:
+                      # A renamed member shows the new name on the right of the arrow.
+                      for l in hits:
+                          rhs = l.split(" -> ", 1)[1]
+                          if f"{name}(" not in rhs:
+                              bad.append(f"{cls}.{name}() was renamed to {rhs.strip()}")
           if bad:
-              print("::error::plugin entry points are not intact: " + "; ".join(bad))
+              print("::error::plugin entry points are not intact: " + "; ".join(sorted(set(bad))))
               sys.exit(1)
-          print("ok: " + ", ".join(f"{c}.{m}()" for c, ms in wanted.items() for m in ms))
+          print("ok: " + ", ".join(f"{c}.{n}()" for c, ns in wanted.items() for n in ns))
           PY
           echo "OK: plugin-facing API kept its names"
 
