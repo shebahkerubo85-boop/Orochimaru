@@ -8,6 +8,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.DialogInterface
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.database.Cursor
 import android.media.AudioAttributes
@@ -33,6 +34,7 @@ import androidx.core.net.toUri
 import androidx.core.text.HtmlCompat
 import androidx.core.text.toSpanned
 import androidx.core.widget.ContentLoadingProgressBar
+import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -616,6 +618,54 @@ object AppContextUtils {
         } catch (e: PackageManager.NameNotFoundException) {
             false
         }
+    }
+
+    fun Context.openBrowser(
+        url: String,
+        fallbackWebview: Boolean = false,
+        fragment: Fragment? = null,
+    ) {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW)
+            intent.data = url.toUri()
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            this.startActivity(intent)
+        } catch (e: Exception) {
+            logError(e)
+        }
+    }
+
+    /**| S1:E2 Hello World
+     * | Episode 2. Hello world
+     * | Hello World
+     * | Season 1 - Episode 2
+     * | Episode 2
+     * **/
+    fun Context.getNameFull(name: String?, episode: Int?, season: Int?): String {
+        val rEpisode = if (episode == 0) null else episode
+        val rSeason = if (season == 0) null else season
+
+        val seasonName = getString(R.string.season)
+        val episodeName = getString(R.string.episode)
+        val seasonNameShort = getString(R.string.season_short)
+        val episodeNameShort = getString(R.string.episode_short)
+
+        if (name != null) {
+            return if (rEpisode != null && rSeason != null) {
+                "$seasonNameShort${rSeason}:$episodeNameShort${rEpisode} $name"
+            } else if (rEpisode != null) {
+                "$episodeName $rEpisode. $name"
+            } else {
+                name
+            }
+        } else {
+            if (rEpisode != null && rSeason != null) {
+                return "$seasonName $rSeason - $episodeName $rEpisode"
+            } else if (rSeason == null) {
+                return "$episodeName $rEpisode"
+            }
+        }
+        return ""
     }
 
     fun getFocusRequest(): AudioFocusRequest? {

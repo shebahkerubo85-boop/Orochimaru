@@ -4608,7 +4608,12 @@ class ExoplayerView :
             if (live) View.VISIBLE else View.GONE
         playerView.findViewById<View>(R.id.exo_live_offset)?.visibility =
             if (live) View.VISIBLE else View.GONE
-        listOf(R.id.exo_position, R.id.exo_time_sep, R.id.exo_duration, R.id.exo_dot_sep)
+        listOf(
+            androidx.media3.ui.R.id.exo_position,
+            R.id.exo_time_sep,
+            androidx.media3.ui.R.id.exo_duration,
+            R.id.exo_dot_sep
+        )
             .forEach { id ->
                 playerView.findViewById<View>(id)?.visibility =
                     if (live) View.GONE else View.VISIBLE
