@@ -218,7 +218,11 @@
 -dontwarn com.oracle.svm.core.annotate.**
 -dontwarn jdk.internal.misc.**
 
-# Obfuscation off for now: a release build is crashing on startup before the splash
-# screen, so class names are being held stable while that is diagnosed. Shrinking and
-# resource shrinking stay on, so only name rewriting changes between the two builds.
+# A release build crashed on startup with shrinking on, so the app's own code is
+# held intact: a build that works is worth more than the few MB hiding in here.
+# The libraries, which are the bulk of the dex, still shrink.
+-keep class ani.sanin.** { *; }
+
+# No renaming yet. Shrinking alone already reproduced the crash, so renaming is
+# not implicated, and stable names keep the crash screen readable.
 -dontobfuscate

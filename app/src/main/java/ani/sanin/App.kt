@@ -51,6 +51,9 @@ class App : Application() {
     @OptIn(DelicateCoroutinesApi::class)
     override fun onCreate() {
         super.onCreate()
+        // Installed first: a throw anywhere below in onCreate otherwise happens
+        // before anything is listening, and the process just dies with no trace.
+        Thread.setDefaultUncaughtExceptionHandler(FinalExceptionHandler())
         PrefManager.init(this)
 
         val crashlytics =
@@ -62,7 +65,6 @@ class App : Application() {
             LogcatBuffer.start()
             Logger.log(Log.WARN, "App: Logging started")
         }
-        Thread.setDefaultUncaughtExceptionHandler(FinalExceptionHandler())
 
         Injekt.importModule(AppModule(this))
         Injekt.importModule(PreferenceModule(this))

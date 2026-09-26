@@ -74,8 +74,8 @@ android {
             applicationIdSuffix = ".beta"
             versionNameSuffix = "-alpha01-$gitCommitHash"
             isDebuggable = true
-            isMinifyEnabled = false // R8 off: release build crashes on startup
-            isShrinkResources = false // needs minify; follows isMinifyEnabled
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -87,8 +87,8 @@ android {
             applicationIdSuffix = ".beta"
             versionNameSuffix = "-beta01"
             isDebuggable = false
-            isMinifyEnabled = false // R8 off: release build crashes on startup
-            isShrinkResources = false // needs minify; follows isMinifyEnabled
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -97,8 +97,8 @@ android {
 
         getByName("release") {
             isDebuggable = false
-            isMinifyEnabled = false // R8 off: release build crashes on startup
-            isShrinkResources = false // needs minify; follows isMinifyEnabled
+            isMinifyEnabled = true
+            isShrinkResources = true
             signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
