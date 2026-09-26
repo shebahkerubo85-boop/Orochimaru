@@ -232,11 +232,6 @@
             android:excludeFromRecents="true"
             android:supportsPictureInPicture="true" />
         <activity
-            android:name=".cloudstream.CsPlayerActivity"
-            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation"
-            android:excludeFromRecents="true"
-            android:supportsPictureInPicture="true" />
-        <activity
             android:name=".media.anime.ExoplayerView"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation"
             android:excludeFromRecents="true"
@@ -294,22 +289,6 @@
                 <data
                     android:host="simkl-auth"
                     android:scheme="ani.sanin" />
-            </intent-filter>
-        </activity>
-        <activity
-            android:name=".connections.discord.Login"
-            android:configChanges="orientation|screenSize|layoutDirection"
-            android:excludeFromRecents="true"
-            android:exported="true"
-            android:launchMode="singleTask">
-            <intent-filter android:label="Discord Login for Sanin">
-                <action android:name="android.intent.action.VIEW" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-
-                <data android:scheme="dantotsu" />
-                <data android:host="discord" />
             </intent-filter>
         </activity>
         <activity
@@ -432,13 +411,6 @@
             android:theme="@style/Theme.AppCompat" />
 
         <receiver
-            android:name=".notifications.AlarmPermissionStateReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
-            </intent-filter>
-        </receiver>
-        <receiver
             android:name=".notifications.BootCompletedReceiver"
             android:exported="true">
             <intent-filter>
@@ -478,23 +450,9 @@
             android:foregroundServiceType="dataSync" />
 
         <service
-            android:name=".download.anime.AnimeDownloaderService"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
-        <service
-            android:name=".connections.discord.DiscordService"
-            android:exported="false"
-            android:stopWithTask="false"
-            android:foregroundServiceType="dataSync" />
-        <service
             android:name="androidx.media3.exoplayer.scheduler.PlatformScheduler$PlatformSchedulerService"
             android:exported="true"
             android:permission="android.permission.BIND_JOB_SERVICE" />
-        <service
-            android:name=".addons.torrent.TorrentServerService"
-            android:exported="false"
-            android:foregroundServiceType="dataSync"
-            android:stopWithTask="true" />
 
         <!-- Necessary for WorkManager services: https://stackoverflow.com/a/77186316 -->
         <service

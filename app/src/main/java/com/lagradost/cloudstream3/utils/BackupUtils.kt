@@ -28,14 +28,9 @@ import com.lagradost.cloudstream3.utils.DataStore.getDefaultSharedPrefs
 import com.lagradost.cloudstream3.utils.DataStore.getSharedPrefs
 import com.lagradost.cloudstream3.utils.UIHelper.checkWrite
 import com.lagradost.cloudstream3.utils.UIHelper.requestRW
-import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager.setupStream
-import com.lagradost.cloudstream3.utils.downloader.DownloadObjects
-import com.lagradost.cloudstream3.utils.downloader.DownloadQueueManager.QUEUE_KEY
-import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager.KEY_DOWNLOAD_INFO
-import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager.KEY_RESUME_IN_QUEUE
-import com.lagradost.cloudstream3.utils.downloader.VideoDownloadManager.KEY_RESUME_PACKAGES
 import com.lagradost.safefile.MediaFileContentType
 import com.lagradost.safefile.SafeFile
+import ani.sanin.media.model.setupStream
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import okhttp3.internal.closeQuietly
@@ -99,14 +94,6 @@ object BackupUtils {
         // DOWNLOAD_HEADER_CACHE_BACKUP,
         // DOWNLOAD_HEADER_CACHE,
         
-
-        // This may overwrite valid local data with invalid data
-        KEY_DOWNLOAD_INFO,
-
-        // Prevent backups from automatically starting downloads
-        KEY_RESUME_IN_QUEUE,
-        KEY_RESUME_PACKAGES,
-        QUEUE_KEY,
 
         // Prevent automatic plugin download after restoring backup
         "auto_download_plugins_key2"
@@ -212,7 +199,14 @@ object BackupUtils {
             val date = SimpleDateFormat("yyyy_MM_dd_HH_mm", Locale.getDefault()).format(Date(currentTimeMillis()))
             val displayName = "CS3_Backup_${date}"
             val backupFile = getBackup(context)
-            val stream = setupBackupStream(context, displayName)
+            val stream = setupStream(
+                baseFile = getCurrentBackupDir(context).first ?: getDefaultBackupDir(context)
+                    ?: throw IOException("Bad config"),
+                name = displayName,
+                folder = null,
+                extension = "txt",
+                tryResume = false,
+            )
 
             fileStream = stream.openNew()
             printStream = PrintWriter(fileStream)
@@ -232,18 +226,6 @@ object BackupUtils {
             printStream?.closeQuietly()
             fileStream?.closeQuietly()
         }
-    }
-
-    @Throws(IOException::class)
-    private fun setupBackupStream(context: Context, name: String, ext: String = "txt"): DownloadObjects.StreamData {
-        return setupStream(
-            baseFile = getCurrentBackupDir(context).first ?: getDefaultBackupDir(context)
-            ?: throw IOException("Bad config"),
-            name,
-            folder = null,
-            extension = ext,
-            tryResume = false,
-        )
     }
 
     fun FragmentActivity.setUpBackup() {
@@ -317,7 +299,7 @@ object BackupUtils {
     }
 
     /**
-     * Copy of [com.lagradost.cloudstream3.utils.downloader.DownloadFileManagement.getDefaultDir],
+     * Copy of the downloader default-dir logic,
      * modified for backup-specific paths.
      */
     fun getDefaultBackupDir(context: Context): SafeFile? {
@@ -325,7 +307,7 @@ object BackupUtils {
     }
 
     /**
-     * Copy of [com.lagradost.cloudstream3.utils.downloader.DownloadFileManagement.getBasePath],
+     * Copy of the downloader base-path logic,
      * modified for backup-specific paths.
      */
     fun getCurrentBackupDir(context: Context): Pair<SafeFile?, String?> {
@@ -335,7 +317,7 @@ object BackupUtils {
     }
 
     /**
-     * Copy of [com.lagradost.cloudstream3.utils.downloader.DownloadFileManagement.basePathToFile],
+     * Copy of the downloader path-to-file logic,
      * modified for backup-specific paths.
      */
     private fun baseBackupPathToFile(context: Context, path: String?): SafeFile? {

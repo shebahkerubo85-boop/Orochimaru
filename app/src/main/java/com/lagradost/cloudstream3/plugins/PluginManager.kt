@@ -29,15 +29,12 @@ import com.lagradost.cloudstream3.CloudStreamApp.Companion.removeKey
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
 import com.lagradost.cloudstream3.CommonActivity.showToast
 import com.lagradost.cloudstream3.InternalAPI
-import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainAPI.Companion.settingsForProvider
-import com.lagradost.cloudstream3.MainActivity.Companion.afterPluginsLoadedEvent
-import com.lagradost.cloudstream3.MainActivity.Companion.lastError
+import com.lagradost.cloudstream3.PluginRuntime.afterPluginsLoadedEvent
+import com.lagradost.cloudstream3.PluginRuntime.lastError
 import com.lagradost.cloudstream3.PROVIDER_STATUS_DOWN
 import com.lagradost.cloudstream3.PROVIDER_STATUS_OK
 import com.lagradost.cloudstream3.TvType
-import com.lagradost.cloudstream3.actions.VideoClickAction
-import com.lagradost.cloudstream3.actions.VideoClickActionHolder
 import com.lagradost.cloudstream3.amap
 import com.lagradost.cloudstream3.mvvm.debugPrint
 import com.lagradost.cloudstream3.mvvm.logError
@@ -46,16 +43,13 @@ import com.lagradost.cloudstream3.plugins.RepositoryManager.ONLINE_PLUGINS_FOLDE
 import com.lagradost.cloudstream3.plugins.RepositoryManager.PREBUILT_REPOSITORIES
 import com.lagradost.cloudstream3.plugins.RepositoryManager.downloadPluginToFile
 import com.lagradost.cloudstream3.plugins.RepositoryManager.getRepoPlugins
-import com.lagradost.cloudstream3.plugins.RepositoryManager.sha256
-import com.lagradost.cloudstream3.ui.settings.extensions.REPOSITORIES_KEY
-import com.lagradost.cloudstream3.ui.settings.extensions.RepositoryData
+import com.lagradost.cloudstream3.plugins.REPOSITORIES_KEY
+import com.lagradost.cloudstream3.plugins.RepositoryData
 import com.lagradost.cloudstream3.utils.AppContextUtils.getApiProviderLangSettings
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.Coroutines.main
-import com.lagradost.cloudstream3.utils.ExtractorApi
 import com.lagradost.cloudstream3.utils.UIHelper.colorFromAttribute
 import com.lagradost.cloudstream3.utils.UiText
-import com.lagradost.cloudstream3.utils.downloader.DownloadFileManagement.sanitizeFilename
 import com.lagradost.cloudstream3.utils.extractorApis
 import com.lagradost.cloudstream3.utils.txt
 import dalvik.system.PathClassLoader
@@ -713,10 +707,6 @@ object PluginManager {
             extractorApis.removeAll { provider -> provider.sourcePlugin == plugin.filename }
         }
 
-        VideoClickActionHolder.allVideoClickActions.withLock {
-            VideoClickActionHolder.allVideoClickActions.removeAll { action -> action.sourcePlugin == plugin.filename }
-        }
-
         synchronized(classLoaders) {
             classLoaders.values.removeIf { v -> v == plugin }
         }
@@ -735,10 +725,11 @@ object PluginManager {
      * Used for repo folders (using repo url) and plugin file names (using internalName)
      * */
     fun getPluginSanitizedFileName(name: String): String {
-        return sanitizeFilename(
-            name,
-            true
-        ) + "." + name.hashCode()
+        var tempName = name
+        for (c in "|\\?*<\":>+[]/'") {
+            tempName = tempName.replace(c, ' ')
+        }
+        return tempName.replace(" ", "") + "." + name.hashCode()
     }
 
     /**

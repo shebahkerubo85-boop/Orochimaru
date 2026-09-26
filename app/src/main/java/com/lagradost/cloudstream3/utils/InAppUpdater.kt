@@ -15,7 +15,7 @@ import androidx.preference.PreferenceManager
 import com.fasterxml.jackson.annotation.JsonProperty
 import ani.sanin.BuildConfig
 import com.lagradost.cloudstream3.CommonActivity.showToast
-import com.lagradost.cloudstream3.MainActivity.Companion.deleteFileOnExit
+import com.lagradost.cloudstream3.PluginRuntime.deleteFileOnExit
 import ani.sanin.R
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.mvvm.logError

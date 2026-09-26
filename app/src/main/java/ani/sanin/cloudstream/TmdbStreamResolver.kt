@@ -20,7 +20,6 @@ import ani.sanin.parsers.VideoServer
 import ani.sanin.parsers.DrmInfo
 import ani.sanin.parsers.VideoType
 import ani.sanin.settings.saving.PrefManager
-import ani.sanin.settings.saving.PrefName
 import ani.sanin.util.Logger
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MainAPI
@@ -32,8 +31,6 @@ import com.lagradost.cloudstream3.TvSeriesLoadResponse
 import com.lagradost.cloudstream3.isMovieType
 import com.lagradost.cloudstream3.LiveStreamLoadResponse
 import com.lagradost.cloudstream3.MainPageRequest
-import com.lagradost.cloudstream3.Score
-import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.utils.DrmExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.CLEARKEY_DRM_UUID
@@ -43,10 +40,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import com.lagradost.cloudstream3.ui.player.GeneratorPlayer
-import com.lagradost.cloudstream3.ui.player.TmdbSyntheticGenerator
-import com.lagradost.cloudstream3.ui.result.ResultEpisode
-import com.lagradost.cloudstream3.ui.result.VideoWatchState
 
 /**
  * Shared CloudStream resolution + player-launch helpers used by the TMDB
@@ -741,52 +734,6 @@ object TmdbStreamResolver {
             true
         }
 
-    /** ResultEpisode rows for the CS3 player rail + next/prev, in the same
-     *  order as `episodes`. The synthetic generator resolves the actual links
-     *  through the anime-side Episode shells, so `data` stays empty (there is
-     *  no plugin URL to load here). */
-    private fun resultEpisodeRows(
-        media: Media,
-        d: TmdbDetail,
-        episodes: Map<String, Episode>,
-        sourceName: String,
-        mediaType: String,
-    ): List<ResultEpisode> {
-        val tvType = if (mediaType == "tv") TvType.TvSeries else TvType.Movie
-        return episodes.values.mapIndexed { index, ep ->
-            val season = ep.extra?.get("season")?.toIntOrNull()
-            val episodeNumber = ep.extra?.get("episode")?.toIntOrNull() ?: (index + 1)
-            ResultEpisode(
-                headerName = ep.title ?: d.displayTitle,
-                name = ep.title ?: d.displayTitle,
-                poster = ep.thumb?.url,
-                episode = episodeNumber,
-                seasonIndex = season,
-                season = season,
-                data = "",
-                apiName = sourceName,
-                id = media.id - index,
-                index = index + 1,
-                position = 0,
-                duration = 0,
-                score = d.voteAverage.takeIf { it > 0 }?.let { Score.from(it, 10) },
-                description = ep.desc,
-                isFiller = ep.filler.takeIf { it },
-                tvType = tvType,
-                parentId = media.id,
-                videoWatchState = VideoWatchState.None,
-                totalEpisodeIndex = index + 1,
-                airDate = ep.date?.let { date ->
-                    runCatching {
-                        java.time.LocalDate.parse(date)
-                            .atStartOfDay(java.time.ZoneOffset.UTC)
-                            .toInstant().toEpochMilli()
-                    }.getOrNull()
-                },
-            )
-        }
-    }
-
     /** Launches the full anime player for a TMDB title: all episodes across all
      *  seasons are wired into the rail, the picked episode carries every server
      *  the plugin returned (server button switches without re-fetching), and the
@@ -859,39 +806,16 @@ object TmdbStreamResolver {
         val selected = Selected(sourceIndex = 0, server = pickedExtractor.server.name, video = pickedVideoIdx)
         media.selected = selected
         PrefManager.setCustomVal("Selected-$id", selected)
-        if (PrefManager.getVal<Int>(PrefName.TmdbPlayerMode) == 1) {
-            Logger.log(
-                "TMDB_PLAY: launching ExoplayerView for ${mediaType} id=$id title='$title' " +
-                    "eps=${episodes.size} current='$currentKey' picked='$pickedLabel'"
-            )
-            ExoplayerView.media = media
-            ExoplayerView.initialized = true
-            context.startActivity(
-                Intent(context, ExoplayerView::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
-            return
-        }
-
-        val episodeKeys = episodes.keys.toList()
-        val currentIndex = episodeKeys.indexOf(currentKey).coerceAtLeast(0)
-        val generator = TmdbSyntheticGenerator(
-            context.applicationContext,
-            media,
-            resultEpisodeRows(media, d, episodes, source.name, mediaType),
-            episodeKeys
-        )
         Logger.log(
-            "TMDB_PLAY: launching CS3 GeneratorPlayer for ${mediaType} id=$id title='$title' " +
-                "eps=${episodes.size} current='$currentKey' index=$currentIndex picked='$pickedLabel'"
+            "TMDB_PLAY: launching ExoplayerView for ${mediaType} id=$id title='$title' " +
+                "eps=${episodes.size} current='$currentKey' picked='$pickedLabel'"
         )
-        val playerArgs = GeneratorPlayer.newInstance(generator, currentIndex)
+        ExoplayerView.media = media
+        ExoplayerView.initialized = true
         context.startActivity(
-            Intent(context, CsPlayerActivity::class.java)
-                .putExtra(CsPlayerActivity.EXTRA_PLAYER_ARGS, playerArgs)
+            Intent(context, ExoplayerView::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
         return
-
     }
 }

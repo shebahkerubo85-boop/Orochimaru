@@ -45,7 +45,7 @@ data class SyncCue(
 
 /**
  * Activity-hosted interface so the sync dialog works in both
- * anime ExoplayerView and CS3 CsPlayerActivity.
+ * anime ExoplayerView.
  */
 interface SubtitleSyncHost {
     fun getSyncPlayerPosition(): Long

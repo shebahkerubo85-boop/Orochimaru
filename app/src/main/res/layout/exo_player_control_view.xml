@@ -523,6 +523,19 @@
                     tools:ignore="TextContrastCheck" />
 
                 <TextView
+                    android:id="@+id/exo_live_offset"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:fontFamily="@font/poppins"
+                    android:includeFontPadding="false"
+                    android:textColor="#F1F1F1"
+                    android:textSize="14sp"
+                    android:visibility="gone"
+                    tools:ignore="TextContrastCheck"
+                    tools:text="-0:05" />
+
+                <TextView
                     android:id="@id/exo_position"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"

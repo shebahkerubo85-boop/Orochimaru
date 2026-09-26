@@ -9,7 +9,7 @@ import com.lagradost.cloudstream3.LoadResponse.Companion.getKitsuId
 import com.lagradost.cloudstream3.LoadResponse.Companion.getMalId
 import com.lagradost.cloudstream3.LoadResponse.Companion.getTMDbId
 import com.lagradost.cloudstream3.TvType
-import com.lagradost.cloudstream3.ui.result.getId
+import com.lagradost.cloudstream3.APIHolder.getApiFromNameNull
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.Coroutines.main
 import kotlinx.serialization.SerialName
@@ -126,7 +126,7 @@ object FillerEpisodeCheck {
             return null
         }
         /** Try to hit the cache for this entry, to avoid recreating the hashset */
-        loadCache[data.getId()]?.let { cachedResponse ->
+        loadCache[data.fillerCacheId()]?.let { cachedResponse ->
             return cachedResponse
         }
         val db = loadJson()
@@ -140,7 +140,7 @@ object FillerEpisodeCheck {
                 ?: db.name[stripName(data.name)]
 
         return media?.show?.filler?.toHashSet().also { response ->
-            loadCache[data.getId()] = response
+            loadCache[data.fillerCacheId()] = response
         }
     }
 
@@ -162,3 +162,10 @@ object FillerEpisodeCheck {
         return counter
     }
 }
+
+/** Stable per-response cache key, derived from the plugin's unique URL. */
+fun LoadResponse.fillerCacheId(): Int =
+    uniqueUrl
+        .replace(getApiFromNameNull(apiName)?.mainUrl ?: "", "")
+        .replace("/", "")
+        .hashCode()

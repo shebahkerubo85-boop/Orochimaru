@@ -4,6 +4,7 @@ import ani.sanin.R
 import android.content.Context
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
+import ani.sanin.media.model.ResumeWatching
 import com.lagradost.cloudstream3.APIHolder.unixTimeMS
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.context
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
@@ -16,7 +17,6 @@ import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKeyClass
 import com.lagradost.cloudstream3.CommonActivity.showToast
 import com.lagradost.cloudstream3.DubStatus
 import com.lagradost.cloudstream3.EpisodeResponse
-import com.lagradost.cloudstream3.MainActivity
 import com.lagradost.cloudstream3.Score
 import com.lagradost.cloudstream3.SearchQuality
 import com.lagradost.cloudstream3.SearchResponse
@@ -24,14 +24,11 @@ import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.syncproviders.AccountManager
 import com.lagradost.cloudstream3.syncproviders.SyncAPI
 import com.lagradost.cloudstream3.ui.WatchType
-import com.lagradost.cloudstream3.ui.library.ListSorting
-import com.lagradost.cloudstream3.ui.player.ExtractorUri
-import com.lagradost.cloudstream3.ui.player.NEXT_WATCH_EPISODE_PERCENTAGE
-import com.lagradost.cloudstream3.ui.result.EpisodeSortType
-import com.lagradost.cloudstream3.ui.result.ResultEpisode
-import com.lagradost.cloudstream3.ui.result.VideoWatchState
+import com.lagradost.cloudstream3.syncproviders.ListSorting
+import ani.sanin.media.model.ExtractorUri
+import ani.sanin.media.model.ResultEpisode
+import ani.sanin.media.model.VideoWatchState
 import com.lagradost.cloudstream3.utils.AppContextUtils.filterProviderByPreferredMedia
-import com.lagradost.cloudstream3.utils.downloader.DownloadObjects
 import com.lagradost.cloudstream3.utils.serializers.WriteOnlySerializer
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KeepGeneratedSerializer
@@ -80,6 +77,9 @@ class UserPreferenceDelegate<T : Any>(
         }
     }
 }
+
+/** Percentage after which the next episode is queued for resuming. */
+const val NEXT_WATCH_EPISODE_PERCENTAGE = 90
 
 object DataStoreHelper {
     // be aware, don't change the index of these as Account uses the index for the art
@@ -149,16 +149,6 @@ object DataStoreHelper {
         ListSorting.AlphabeticalA.ordinal
     )
 
-    private var _resultsSortingMode: Int by UserPreferenceDelegate(
-        "results_sorting_mode",
-        EpisodeSortType.NUMBER_ASC.ordinal
-    )
-
-    var resultsSortingMode: EpisodeSortType
-        get() = EpisodeSortType.entries.getOrNull(_resultsSortingMode) ?: EpisodeSortType.NUMBER_ASC
-        set(value) {
-            _resultsSortingMode = value.ordinal
-        }
 
     @Serializable
     data class Account(
@@ -196,17 +186,9 @@ object DataStoreHelper {
         }
 
     fun setAccount(account: Account) {
-        val homepage = currentHomePage
         selectedKeyIndex = account.keyIndex
         AccountManager.updateAccountIds()
         showToast(context?.getString(R.string.logged_account, account.name) ?: account.name)
-        MainActivity.bookmarksUpdatedEvent(true)
-        MainActivity.reloadLibraryEvent(true)
-        val oldAccount = accounts.find { it.keyIndex == account.keyIndex }
-        if (oldAccount != null && currentHomePage != homepage) {
-            // This is not a new account, and the homepage has changed, reload it
-            MainActivity.reloadHomeEvent(true)
-        }
     }
 
     fun getDefaultAccount(context: Context): Account {
@@ -576,7 +558,7 @@ object DataStoreHelper {
         setKey(
             "$currentAccount/$RESULT_RESUME_WATCHING",
             parentId.toString(),
-            DownloadObjects.ResumeWatching(
+            ResumeWatching(
                 parentId,
                 episodeId,
                 episode,
@@ -597,17 +579,17 @@ object DataStoreHelper {
         removeKey("$currentAccount/$RESULT_RESUME_WATCHING", parentId.toString())
     }
 
-    fun getLastWatched(id: Int?): DownloadObjects.ResumeWatching? {
+    fun getLastWatched(id: Int?): ResumeWatching? {
         if (id == null) return null
-        return getKey<DownloadObjects.ResumeWatching>(
+        return getKey<ResumeWatching>(
             "$currentAccount/$RESULT_RESUME_WATCHING",
             id.toString(),
         )
     }
 
-    private fun getLastWatchedOld(id: Int?): DownloadObjects.ResumeWatching? {
+    private fun getLastWatchedOld(id: Int?): ResumeWatching? {
         if (id == null) return null
-        return getKey<DownloadObjects.ResumeWatching>(
+        return getKey<ResumeWatching>(
             "$currentAccount/$RESULT_RESUME_WATCHING_OLD",
             id.toString(),
         )

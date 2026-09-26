@@ -1,8 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- IDs referenced by trailer_custom_layout.xml that were previously in player_custom_layout.xml -->
-    <item name="player_rew" type="id" />
-    <item name="player_ffwd" type="id" />
     <!-- Per-view generation tag guarding stale episode-notification enrichment -->
     <item name="episode_enrichment_gen" type="id" />
 </resources>

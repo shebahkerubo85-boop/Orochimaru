@@ -4,12 +4,10 @@ import ani.sanin.R
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.app.Activity.RESULT_CANCELED
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.DialogInterface
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.database.Cursor
 import android.media.AudioAttributes
@@ -28,8 +26,6 @@ import android.view.View
 import android.view.View.LAYOUT_DIRECTION_LTR
 import android.view.View.LAYOUT_DIRECTION_RTL
 import android.view.animation.DecelerateInterpolator
-import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.annotation.WorkerThread
 import androidx.appcompat.app.AlertDialog
@@ -37,9 +33,6 @@ import androidx.core.net.toUri
 import androidx.core.text.HtmlCompat
 import androidx.core.text.toSpanned
 import androidx.core.widget.ContentLoadingProgressBar
-import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentActivity
-import androidx.navigation.fragment.findNavController
 import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -54,38 +47,25 @@ import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.gms.common.wrappers.Wrappers
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import ani.sanin.media.model.ResumeWatching
 import com.lagradost.cloudstream3.APIHolder.apis
 import com.lagradost.cloudstream3.AllLanguagesName
-import com.lagradost.cloudstream3.CloudStreamApp.Companion.getActivity
-import com.lagradost.cloudstream3.CommonActivity.activity
-import com.lagradost.cloudstream3.CommonActivity.showToast
 import com.lagradost.cloudstream3.DubStatus
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MainAPI
-import com.lagradost.cloudstream3.MainActivity.Companion.afterRepositoryLoadedEvent
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.isMovieType
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.mvvm.safe
-import com.lagradost.cloudstream3.plugins.RepositoryManager
 import com.lagradost.cloudstream3.syncproviders.AccountManager.Companion.APP_STRING_RESUME_WATCHING
-import com.lagradost.cloudstream3.syncproviders.providers.Kitsu
-import com.lagradost.cloudstream3.ui.WebviewFragment
-import com.lagradost.cloudstream3.ui.player.SubtitleData
-import com.lagradost.cloudstream3.ui.result.ResultFragment
+import ani.sanin.media.model.SubtitleData
 import com.lagradost.cloudstream3.ui.settings.Globals
-import com.lagradost.cloudstream3.ui.settings.extensions.PluginsFragment
-import com.lagradost.cloudstream3.ui.settings.extensions.RepositoryData
-import com.lagradost.cloudstream3.utils.Coroutines.ioSafe
 import com.lagradost.cloudstream3.utils.Coroutines.main
 import com.lagradost.cloudstream3.utils.DataStoreHelper.getAllResumeStateIds
 import com.lagradost.cloudstream3.utils.DataStoreHelper.getLastWatched
 import com.lagradost.cloudstream3.utils.FillerEpisodeCheck.toClassDir
-import com.lagradost.cloudstream3.utils.JsUnpacker.Companion.load
-import com.lagradost.cloudstream3.utils.UIHelper.navigate
-import com.lagradost.cloudstream3.utils.downloader.DownloadObjects
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.Cache
@@ -150,7 +130,7 @@ object AppContextUtils {
     private fun buildWatchNextProgramUri(
         context: Context,
         card: DataStoreHelper.ResumeWatchingResult,
-        resumeWatching: DownloadObjects.ResumeWatching?
+        resumeWatching: ResumeWatching?
     ): WatchNextProgram {
         val isSeries = card.type?.isMovieType() == false
         val title = if (isSeries) {
@@ -317,7 +297,7 @@ object AppContextUtils {
         val context = this
         continueWatchingLock.withLock {
             // A way to get all last watched timestamps
-            val timeStampHashMap = HashMap<Int, DownloadObjects.ResumeWatching>()
+            val timeStampHashMap = HashMap<Int, ResumeWatching>()
             getAllResumeStateIds()?.forEach { id ->
                 val lastWatched = getLastWatched(id) ?: return@forEach
                 timeStampHashMap[lastWatched.parentId] = lastWatched
@@ -518,250 +498,6 @@ object AppContextUtils {
             }
         }
         return data
-    }
-
-    fun Activity.loadRepository(url: String) {
-        ioSafe {
-            val repo = RepositoryManager.parseRepository(url) ?: return@ioSafe
-            val data = RepositoryData(
-                repo.iconUrl ?: "",
-                repo.name,
-                url
-            )
-            RepositoryManager.addRepository(data)
-            main {
-                showToast(
-                    getString(R.string.player_loaded_subtitles, repo.name),
-                    Toast.LENGTH_LONG
-                )
-            }
-            afterRepositoryLoadedEvent.invoke(true)
-            addRepositoryDialog(data)
-        }
-    }
-
-    fun Activity.addRepositoryDialog(
-        repositoryData: RepositoryData
-    ) {
-        val repos = RepositoryManager.getRepositories()
-
-        // navigate to newly added repository on pressing Open Repository
-        fun openAddedRepo() {
-            if (repos.isNotEmpty()) {
-                navigate(
-                    R.id.global_to_navigation_settings_plugins,
-                    PluginsFragment.newInstance(
-                        repositoryData,
-                    )
-                )
-            }
-        }
-
-        runOnUiThread {
-            AlertDialog.Builder(this).apply {
-                setTitle(repositoryData.name)
-                setMessage(R.string.download_all_plugins_from_repo)
-                setPositiveButton(R.string.open_downloaded_repo) { _, _ ->
-                    openAddedRepo()
-                }
-                setNegativeButton(R.string.dismiss, null)
-                show().setDefaultFocus()
-            }
-        }
-    }
-
-    private fun Context.hasWebView(): Boolean {
-        return this.packageManager.hasSystemFeature("android.software.webview")
-    }
-
-    fun openWebView(fragment: Fragment?, url: String) {
-        if (fragment?.context?.hasWebView() == true)
-            safe {
-                fragment
-                    .findNavController()
-                    .navigate(R.id.navigation_webview, WebviewFragment.newInstance(url))
-            }
-    }
-
-    /**
-     * If fallbackWebview is true and a fragment is supplied then it will open a webview with the url if the browser fails.
-     * */
-    fun Context.openBrowser(
-        url: String,
-        fallbackWebview: Boolean = false,
-        fragment: Fragment? = null,
-    ) = (this.getActivity() ?: activity)?.runOnUiThread {
-        try {
-            val intent = Intent(Intent.ACTION_VIEW)
-            intent.data = url.toUri()
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-
-            // activityResultRegistry is used to fall back to webview if a browser is missing
-            // On older versions the startActivity just crashes, but on newer android versions
-            // You need to check the result to make sure it failed
-            val activityResultRegistry = fragment?.activity?.activityResultRegistry
-            if (activityResultRegistry != null) {
-                activityResultRegistry.register(
-                    url,
-                    ActivityResultContracts.StartActivityForResult()
-                ) { result ->
-                    if (result.resultCode == RESULT_CANCELED && fallbackWebview) {
-                        openWebView(fragment, url)
-                    }
-                }.launch(intent)
-            } else this.startActivity(intent)
-        } catch (e: Exception) {
-            logError(e)
-            if (fallbackWebview) {
-                openWebView(fragment, url)
-            }
-        }
-    }
-
-    fun Context.isNetworkAvailable(): Boolean {
-        val connectivityManager =
-            getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val network = connectivityManager.activeNetwork ?: return false
-            val networkCapabilities =
-                connectivityManager.getNetworkCapabilities(network) ?: return false
-            networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-        } else {
-            @Suppress("DEPRECATION")
-            connectivityManager.activeNetworkInfo?.isConnected == true
-        }
-    }
-
-    // Deprecate after next stable
-    /* @Deprecated(
-        message = "Use splitUrlParameters instead.",
-        replaceWith = ReplaceWith(
-            expression = "splitUrlParameters(url.toString())",
-            imports = ["com.lagradost.cloudstream3.splitUrlParameters"],
-        ),
-        level = DeprecationLevel.WARNING,
-    ) */
-    fun splitQuery(url: java.net.URL): Map<String, String> {
-        return com.lagradost.cloudstream3.splitUrlParameters(url.toString())
-    }
-
-    /**| S1:E2 Hello World
-     * | Episode 2. Hello world
-     * | Hello World
-     * | Season 1 - Episode 2
-     * | Episode 2
-     * **/
-    fun Context.getNameFull(name: String?, episode: Int?, season: Int?): String {
-        val rEpisode = if (episode == 0) null else episode
-        val rSeason = if (season == 0) null else season
-
-        val seasonName = getString(R.string.season)
-        val episodeName = getString(R.string.episode)
-        val seasonNameShort = getString(R.string.season_short)
-        val episodeNameShort = getString(R.string.episode_short)
-
-        if (name != null) {
-            return if (rEpisode != null && rSeason != null) {
-                "$seasonNameShort${rSeason}:$episodeNameShort${rEpisode} $name"
-            } else if (rEpisode != null) {
-                "$episodeName $rEpisode. $name"
-            } else {
-                name
-            }
-        } else {
-            if (rEpisode != null && rSeason != null) {
-                return "$seasonName $rSeason - $episodeName $rEpisode"
-            } else if (rSeason == null) {
-                return "$episodeName $rEpisode"
-            }
-        }
-        return ""
-    }
-
-    fun Context.getShortSeasonText(episode: Int?, season: Int?): String? {
-        val rEpisode = if (episode == 0) null else episode
-        val rSeason = if (season == 0) null else season
-        val seasonNameShort = getString(R.string.season_short)
-        val episodeNameShort = getString(R.string.episode_short)
-        return if (rEpisode != null && rSeason != null) {
-            "$seasonNameShort${rSeason}:$episodeNameShort${rEpisode}"
-        } else if (rEpisode != null) {
-            "$episodeNameShort$rEpisode"
-        } else null
-    }
-
-    fun Activity?.loadCache() {
-        try {
-            cacheClass("android.net.NetworkCapabilities".load())
-        } catch (_: Exception) {
-        }
-    }
-
-    //private val viewModel: ResultViewModel by activityViewModels()
-
-    private fun getResultsId(): Int {
-        return if (Globals.isLayout(Globals.TV or Globals.EMULATOR)) {
-            R.id.global_to_navigation_results_tv
-        } else {
-            R.id.global_to_navigation_results_phone
-        }
-    }
-
-    fun loadResult(
-        url: String,
-        apiName: String,
-        name: String,
-        startAction: Int = 0,
-        startValue: Int = 0
-    ) {
-        (activity as FragmentActivity?)?.loadResult(url, apiName, name, startAction, startValue)
-    }
-
-    fun FragmentActivity.loadResult(
-        url: String,
-        apiName: String,
-        name: String,
-        startAction: Int = 0,
-        startValue: Int = 0
-    ) {
-        try {
-            val settingsManager = PreferenceManager.getDefaultSharedPreferences(this)
-            Kitsu.isEnabled =
-                settingsManager.getBoolean(this.getString(R.string.show_kitsu_posters_key), true)
-        } catch (t: Throwable) {
-            logError(t)
-        }
-
-        this.runOnUiThread {
-            // viewModelStore.clear()
-            this.navigate(
-                getResultsId(),
-                ResultFragment.newInstance(url, apiName, name, startAction, startValue)
-            )
-        }
-    }
-
-    fun loadSearchResult(
-        card: SearchResponse,
-        startAction: Int = 0,
-        startValue: Int? = null,
-    ) {
-        activity?.loadSearchResult(card, startAction, startValue)
-    }
-
-    fun Activity?.loadSearchResult(
-        card: SearchResponse,
-        startAction: Int = 0,
-        startValue: Int? = null,
-    ) {
-        this?.runOnUiThread {
-            // viewModelStore.clear()
-            this.navigate(
-                getResultsId(),
-                ResultFragment.newInstance(card, startAction, startValue)
-            )
-        }
-        //(this as? AppCompatActivity?)?.loadResult(card.url, card.apiName, startAction, startValue)
     }
 
     fun Activity.requestLocalAudioFocus(focusRequest: AudioFocusRequest?) {

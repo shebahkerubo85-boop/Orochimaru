@@ -81,6 +81,7 @@ import androidx.media3.common.text.CueGroup
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.extractor.DefaultExtractorsFactory
@@ -97,6 +98,7 @@ import androidx.media3.exoplayer.drm.DefaultDrmSessionManager
 import androidx.media3.exoplayer.drm.FrameworkMediaDrm
 import androidx.media3.exoplayer.drm.DrmSessionManager
 import androidx.media3.exoplayer.drm.LocalMediaDrmCallback
+import androidx.media3.exoplayer.drm.HttpMediaDrmCallback
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.util.EventLogger
 import androidx.media3.session.MediaSession
@@ -2279,22 +2281,56 @@ class ExoplayerView :
         }
 
         // DRM session manager for encrypted streams.
-        // Zangetsu approach: only set up DRM when kid+key are provided (ClearKey).
-        // If a plugin provides DrmExtractorLink with only a licenseUrl but no
-        // kid/key, the license server is typically unreachable and the stream
-        // plays fine without DRM — so we skip DRM setup entirely.
+        // Two shapes come out of plugins (see TmdbStreamResolver.drmForLink):
+        //  - kid + key    -> local ClearKey, no license server involved
+        //  - licenseUrl   -> remote license request (Widevine/PlayReady), no kid/key
+        // Both have to be handled. The license-URL shape used to be served by the
+        // CS3 player only, so leaving it out here silently breaks those sources.
         video?.drm?.let { drm ->
-            if (drm.uuid != null && !drm.kid.isNullOrEmpty() && !drm.key.isNullOrEmpty()) {
-                val json = "{\"keys\":[{\"kty\":\"oct\",\"k\":\"" + (drm.key ?: "") + "\",\"kid\":\"" + (drm.kid ?: "") + "\"}],\"type\":\"temporary\"}"
-                Logger.log("Player: Setting up local ClearKey DRM uuid=${drm.uuid} kid=${drm.kid?.take(20)}")
-                val drmManager = DefaultDrmSessionManager.Builder()
-                    .setMultiSession(false)
-                    .setUuidAndExoMediaDrmProvider(
-                        drm.uuid,
-                        FrameworkMediaDrm.DEFAULT_PROVIDER
+            val uuid = drm.uuid
+            val licenseUrl = drm.licenseUrl?.takeIf { it.isNotBlank() }
+            val hasKidKey = !drm.kid.isNullOrEmpty() && !drm.key.isNullOrEmpty()
+            if (uuid != null && (licenseUrl != null || hasKidKey)) {
+                val manager = if (licenseUrl != null) {
+                    Logger.log(
+                        "Player: Setting up remote license DRM uuid=$uuid " +
+                            "license=${licenseUrl.take(80)}"
                     )
-                    .build(LocalMediaDrmCallback(json.toByteArray(Charsets.UTF_8)))
-                assMediaSourceFactory.setDrmSessionManagerProvider { drmManager }
+                    DefaultDrmSessionManager.Builder()
+                        .setPlayClearSamplesWithoutKeys(true)
+                        .setMultiSession(true)
+                        .setKeyRequestParameters(drm.keyRequestParameters)
+                        .setUuidAndExoMediaDrmProvider(
+                            uuid,
+                            FrameworkMediaDrm.DEFAULT_PROVIDER
+                        )
+                        .build(
+                            HttpMediaDrmCallback(
+                                licenseUrl,
+                                DefaultHttpDataSource.Factory()
+                                    .setAllowCrossProtocolRedirects(true)
+                            )
+                        )
+                } else {
+                    val kty = drm.kty ?: "oct"
+                    val json = "{\"keys\":[{\"kty\":\"$kty\",\"k\":\"" +
+                        (drm.key ?: "") + "\",\"kid\":\"" + (drm.kid ?: "") +
+                        "\"}],\"type\":\"temporary\"}"
+                    Logger.log(
+                        "Player: Setting up local ClearKey DRM uuid=$uuid kty=$kty " +
+                            "kid=${drm.kid?.take(20)}"
+                    )
+                    DefaultDrmSessionManager.Builder()
+                        .setPlayClearSamplesWithoutKeys(true)
+                        .setMultiSession(false)
+                        .setKeyRequestParameters(drm.keyRequestParameters)
+                        .setUuidAndExoMediaDrmProvider(
+                            uuid,
+                            FrameworkMediaDrm.DEFAULT_PROVIDER
+                        )
+                        .build(LocalMediaDrmCallback(json.toByteArray(Charsets.UTF_8)))
+                }
+                assMediaSourceFactory.setDrmSessionManagerProvider { manager }
             }
         }
 
@@ -4520,7 +4556,11 @@ class ExoplayerView :
     }
 
     private fun updateTimelineUi() {
-        if (!::exoPlayer.isInitialized || exoPlayer.isReleased || exoPlayer.duration <= 0L) {
+        if (!::exoPlayer.isInitialized || exoPlayer.isReleased) {
+            return
+        }
+        updateLiveOffsetText()
+        if (exoPlayer.duration <= 0L) {
             return
         }
         try {
@@ -4556,9 +4596,39 @@ class ExoplayerView :
         }
     }
 
+    /**
+     * For a sliding live window [exo_duration] is only the length of the DVR
+     * window, so the stock "position / duration" pair shows a meaningless
+     * "29:40 / 29:59".  Hide it while live and show the offset from the live
+     * edge in [R.id.exo_live_offset] instead.  VOD keeps the stock labels.
+     */
     private fun updateLiveBadge() {
+        val live = isLiveStream()
         playerView.findViewById<View>(R.id.exo_live_badge)?.visibility =
-            if (isLiveStream()) View.VISIBLE else View.GONE
+            if (live) View.VISIBLE else View.GONE
+        playerView.findViewById<View>(R.id.exo_live_offset)?.visibility =
+            if (live) View.VISIBLE else View.GONE
+        listOf(R.id.exo_position, R.id.exo_time_sep, R.id.exo_duration, R.id.exo_dot_sep)
+            .forEach { id ->
+                playerView.findViewById<View>(id)?.visibility =
+                    if (live) View.GONE else View.VISIBLE
+            }
+    }
+
+    /** Renders how far behind the live edge we are, e.g. "-0:05". */
+    private fun updateLiveOffsetText() {
+        val view = playerView.findViewById<TextView>(R.id.exo_live_offset) ?: return
+        val offset = if (isLiveStream() && ::exoPlayer.isInitialized && !exoPlayer.isReleased) {
+            exoPlayer.currentLiveOffset
+        } else {
+            C.TIME_UNSET
+        }
+        view.text = if (offset == C.TIME_UNSET) {
+            ""
+        } else {
+            val totalSeconds = (offset / 1000L).coerceAtLeast(0L)
+            String.format(Locale.US, "-%d:%02d", totalSeconds / 60L, totalSeconds % 60L)
+        }
     }
 
     /**
@@ -5440,7 +5510,7 @@ class ExoplayerView :
             KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
                 if (event.action == KeyEvent.ACTION_DOWN) ensureControllerVisible()
                 // Trap focus inside open rails/panels — prevent DPAD from leaking
-                // to background media buttons (same pattern as CS3 GeneratorPlayer).
+                // to background media buttons.
                 val epOpen = episodeDrawer.isDrawerOpen(episodeDrawerContent)
                 val subOpen = binding.root.isDrawerOpen(subtitleDrawerContent)
                 val tracksOpen = trackRailController?.isOpen() == true

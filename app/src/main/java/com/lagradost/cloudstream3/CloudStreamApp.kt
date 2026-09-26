@@ -6,35 +6,24 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.os.Build
-import android.widget.Toast
-import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentActivity
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import com.lagradost.api.setContext
 import ani.sanin.BuildConfig
-import com.lagradost.cloudstream3.mvvm.safe
-import com.lagradost.cloudstream3.mvvm.safeAsync
 import com.lagradost.cloudstream3.plugins.PluginManager
-import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
-import com.lagradost.cloudstream3.ui.settings.Globals.TV
-import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
 import com.lagradost.cloudstream3.utils.AppContextUtils.openBrowser
 import com.lagradost.cloudstream3.utils.AppDebug
-import com.lagradost.cloudstream3.utils.Coroutines.runOnMainThread
 import com.lagradost.cloudstream3.utils.DataStore.getKey
 import com.lagradost.cloudstream3.utils.DataStore.getKeys
 import com.lagradost.cloudstream3.utils.DataStore.removeKey
 import com.lagradost.cloudstream3.utils.DataStore.removeKeys
 import com.lagradost.cloudstream3.utils.DataStore.setKey
 import com.lagradost.cloudstream3.utils.ImageLoader.buildImageLoader
-import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.PrintStream
 import java.lang.ref.WeakReference
-import java.util.Locale
 import kotlin.concurrent.thread
 import kotlin.system.exitProcess
 
@@ -166,18 +155,8 @@ class CloudStreamApp : Application(), SingletonImageLoader.Factory {
             context?.removeKey(path)
         }
 
-        /** If fallbackWebView is true and a fragment is supplied then it will open a WebView with the URL if the browser fails. */
-        fun openBrowser(url: String, fallbackWebView: Boolean = false, fragment: Fragment? = null) {
-            context?.openBrowser(url, fallbackWebView, fragment)
-        }
-
-        /** Will fall back to WebView if in TV or emulator layout. */
-        fun openBrowser(url: String, activity: FragmentActivity?) {
-            openBrowser(
-                url,
-                isLayout(TV or EMULATOR),
-                activity?.supportFragmentManager?.fragments?.lastOrNull()
-            )
+        fun openBrowser(url: String) {
+            context?.openBrowser(url)
         }
     }
 }

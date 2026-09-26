@@ -3,12 +3,10 @@ package com.lagradost.cloudstream3.utils
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.app.AppOpsManager
 import android.app.Dialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.content.res.Resources
@@ -20,7 +18,6 @@ import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.drawable.Drawable
 import android.os.Build
-import android.os.Bundle
 import android.os.TransactionTooLargeException
 import android.util.Log
 import android.view.Gravity
@@ -60,8 +57,6 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
-import androidx.navigation.NavOptions
-import androidx.navigation.fragment.NavHostFragment
 import androidx.palette.graphics.Palette
 import androidx.preference.PreferenceManager
 import com.google.android.material.appbar.AppBarLayout
@@ -240,43 +235,6 @@ object UIHelper {
         }
     }
 
-    fun Activity?.navigate(
-        navigationId: Int,
-        args: Bundle? = null,
-        navOptions: NavOptions? = null // To control nav graph & manage back stack
-    ) {
-        val tag = "NavComponent"
-        if (this is FragmentActivity) {
-            try {
-                runOnUiThread {
-                    // Navigate using navigation ID
-                    val navHostFragment =
-                        supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment
-                    Log.i(tag, "Navigating to fragment: $navigationId")
-                    navHostFragment?.navController?.navigate(navigationId, args, navOptions)
-                }
-            } catch (t: Throwable) {
-                logError(t)
-            }
-        }
-    }
-
-    // Open activities from an activity outside the nav graph
-    fun Context.openActivity(activity: Class<*>, args: Bundle? = null, baseIntent: Intent? = null) {
-        val tag = "NavComponent"
-        try {
-            val intent = baseIntent ?: Intent()
-            intent.setClass(this, activity)
-
-            if (args != null) {
-                intent.putExtras(args)
-            }
-            Log.i(tag, "Navigating to Activity: ${activity.simpleName}")
-            startActivity(intent)
-        } catch (t: Throwable) {
-            logError(t)
-        }
-    }
 
     /** If you want to call this from a BackPressedCallback, pass the name of the callback to temporarily disable it */
     fun FragmentActivity.popCurrentPage(fromBackPressedCallback: String? = null) {

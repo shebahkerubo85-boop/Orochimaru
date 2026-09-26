@@ -14,8 +14,8 @@ import com.lagradost.cloudstream3.mvvm.safe
 import com.lagradost.cloudstream3.mvvm.safeAsync
 import com.lagradost.cloudstream3.plugins.PluginManager.getPluginSanitizedFileName
 import com.lagradost.cloudstream3.plugins.PluginManager.unloadPlugin
-import com.lagradost.cloudstream3.ui.settings.extensions.REPOSITORIES_KEY
-import com.lagradost.cloudstream3.ui.settings.extensions.RepositoryData
+import com.lagradost.cloudstream3.plugins.REPOSITORIES_KEY
+import com.lagradost.cloudstream3.plugins.RepositoryData
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerialName
