@@ -79,10 +79,7 @@ private fun addChips(row: ViewGroup, labels: List<String>) {
             layoutParams = FlexboxLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 height,
-            ).apply {
-                marginEnd = gap
-                flexBasis = 0f
-            }
+            ).apply { marginEnd = gap }
         }
         row.addView(chip)
     }

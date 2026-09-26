@@ -7,6 +7,7 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.drawable.Drawable
 import ani.sanin.BANNER_TYPE_CLASSIC
+import ani.sanin.BANNER_TYPE_COMPACT
 import ani.sanin.BANNER_TYPE_MODERN
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
@@ -83,11 +84,11 @@ const val BANNER_BLUR_SAMPLING = 2
 const val BANNER_MAX_WIDTH = 720
 
 /**
- * How much of the Large banner's height gets blurred. The bottom band is where
- * the title, tags and actions sit, so that is the part worth softening; the art
+ * How much of the Classic banner's height gets blurred. The bottom band is where
+ * the chips and watch pill sit, so that is the part worth softening; the art
  * above it stays sharp.
  */
-const val LARGE_BLUR_BAND = 0.25f
+const val CLASSIC_BLUR_BAND = 0.25f
 
 /**
  * Blurs only the bottom band of the image, feathering the top edge of the band
@@ -96,7 +97,7 @@ const val LARGE_BLUR_BAND = 0.25f
  */
 class BottomBlurTransformation(
     private val radius: Int,
-    private val fraction: Float = LARGE_BLUR_BAND,
+    private val fraction: Float = CLASSIC_BLUR_BAND,
     private val sampling: Int = BANNER_BLUR_SAMPLING,
 ) : BitmapTransformation() {
 
@@ -175,7 +176,7 @@ class BottomBlurTransformation(
  */
 fun bannerLoadOptions(bannerType: Int): RequestOptions<Drawable> {
     val options = RequestOptions<Drawable>().override(BANNER_MAX_WIDTH)
-    if (!PrefManager.getVal(PrefName.BlurBanners)) return options
+    if (!PrefManager.getVal<Boolean>(PrefName.BlurBanners)) return options
     val radius = PrefManager.getVal<Float>(PrefName.BlurStrength).toInt()
     if (radius <= 0) return options
     val r = radius.coerceIn(1, 25)
@@ -192,3 +193,15 @@ fun currentBannerType(modern: Boolean, large: Boolean): Int = when {
     large -> BANNER_TYPE_CLASSIC
     else -> BANNER_TYPE_COMPACT
 }
+
+/**
+ * Blur for unwatched episode stills, where the point is to hide spoilers without
+ * hiding the shot. This was 15 of a possible 25, which turned every unwatched
+ * episode into an unreadable smear; 5 still obscures detail but you can make out
+ * the frame. Fixed rather than user-adjustable: it lives with the spoiler toggle
+ * in the Anime settings, and the banner blur slider is a different control.
+ */
+const val EPISODE_BLUR_RADIUS = 5
+
+/** Episode stills are small list thumbnails, so they can afford a heavier down-sample. */
+const val EPISODE_BLUR_SAMPLING = 3

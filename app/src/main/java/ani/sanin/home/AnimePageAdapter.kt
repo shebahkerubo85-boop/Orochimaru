@@ -381,7 +381,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
                 )
             },
             nextFocusDownId = R.id.animeSeasons,
-            layoutRes = BannerCarouselAdapter.layoutForBannerType(isModernBanner()),
+            layoutRes = layoutForBannerType(isModernBanner()),
             // Classic and Modern carry their own watch pill, so the cardMode
             // path that hides it only applies to Compact.
             cardMode = !isModernBanner() && !isClassicBanner(),

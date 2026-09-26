@@ -58,16 +58,6 @@ class BannerCarouselAdapter(
 
     val actualCount: Int get() = items.size
 
-    /**
-     * Modern gets its own layout, Classic gets its own, and Compact keeps the
-     * original card layout it has always used.
-     */
-    fun layoutForBannerType(modern: Boolean): Int = when {
-        modern -> R.layout.item_banner_modern
-        isClassicBanner() -> R.layout.item_banner_classic
-        else -> R.layout.item_banner_card
-    }
-
     fun realPosition(virtualPos: Int): Int = virtualPos % items.size
 
     fun updateUrls(backdrops: Map<Int, String?>, logos: Map<Int, String?>) {
@@ -674,4 +664,14 @@ private fun setChip(view: TextView?, text: String?) {
     } else {
         view.isVisible = false
     }
+}
+
+/**
+ * Modern gets its own layout, Classic gets its own, and Compact keeps the
+ * original card layout it has always used.
+ */
+fun layoutForBannerType(modern: Boolean): Int = when {
+    modern -> R.layout.item_banner_modern
+    isClassicBanner() -> R.layout.item_banner_classic
+    else -> R.layout.item_banner_card
 }

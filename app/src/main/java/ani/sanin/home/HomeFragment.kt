@@ -790,7 +790,7 @@ class HomeFragment : Fragment() {
                                 startActivity(intent)
                             }, urls, logos,
                             nextFocusDownId = R.id.homeWatchingRecyclerView,
-                            layoutRes = BannerCarouselAdapter.layoutForBannerType(modern),
+                            layoutRes = layoutForBannerType(modern),
                             cardMode = !modern,
                             hideDescription = !modern,
                             modernMode = modern,
