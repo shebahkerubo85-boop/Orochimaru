@@ -128,10 +128,9 @@ import ani.sanin.Refresh
 import ani.sanin.connections.updateProgress
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.cloudstream.TmdbStreamResolver
-import com.lagradost.cloudstream3.ui.player.live.LiveHelper
-import com.lagradost.cloudstream3.ui.player.live.LivePreviewTimeBar
-import com.lagradost.cloudstream3.ui.player.live.LivestreamChunk
-import com.lagradost.cloudstream3.ui.player.live.PREFERRED_LIVE_OFFSET
+import ani.sanin.media.anime.live.LiveHelper
+import ani.sanin.media.anime.live.LivestreamChunk
+import ani.sanin.media.anime.live.PREFERRED_LIVE_OFFSET
 import ani.sanin.databinding.ActivityExoplayerBinding
 import ani.sanin.defaultHeaders
 import ani.sanin.dp
@@ -4516,10 +4515,8 @@ class ExoplayerView :
             return
         }
         LiveHelper.registerPlayer(exoPlayer)
-        val timeBar = playerView.findViewById<View>(androidx.media3.ui.R.id.exo_progress) as? LivePreviewTimeBar
-        timeBar?.registerPlayerView(playerView)
         liveSupportRegistered = true
-        logLiveEvent("live support registered server=${media.selected?.server ?: "?"} progressBar=${timeBar != null}")
+        logLiveEvent("live support registered server=${media.selected?.server ?: "?"}")
     }
 
     private fun updateTimelineUi() {

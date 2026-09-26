@@ -86,8 +86,8 @@ import com.lagradost.cloudstream3.mvvm.debugAssert
 import com.lagradost.cloudstream3.mvvm.logError
 import com.lagradost.cloudstream3.mvvm.safe
 import com.lagradost.cloudstream3.ui.player.CustomDecoder.Companion.fixSubtitleAlignment
-import com.lagradost.cloudstream3.ui.player.live.LiveHelper
-import com.lagradost.cloudstream3.ui.player.live.PREFERRED_LIVE_OFFSET
+import ani.sanin.media.anime.live.LiveHelper
+import ani.sanin.media.anime.live.PREFERRED_LIVE_OFFSET
 import com.lagradost.cloudstream3.ui.settings.Globals.EMULATOR
 import com.lagradost.cloudstream3.ui.settings.Globals.PHONE
 import com.lagradost.cloudstream3.ui.settings.Globals.isLayout

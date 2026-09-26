@@ -1,4 +1,4 @@
-package com.lagradost.cloudstream3.ui.player.live
+package ani.sanin.media.anime.live
 
 import androidx.annotation.OptIn
 import androidx.media3.common.Player
