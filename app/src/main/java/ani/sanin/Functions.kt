@@ -169,11 +169,19 @@ private const val MARKDOWN_IMAGE_MAX_SCREEN_SCALE_FACTOR = 2L
 val Int.dp: Float get() = (this / getSystem().displayMetrics.density)
 val Float.px: Int get() = (this * getSystem().displayMetrics.density).toInt()
 
-fun isLargeBanner(): Boolean = try {
-    PrefManager.getVal<Int>(PrefName.BannerType) == 1
+const val BANNER_TYPE_COMPACT = 0
+const val BANNER_TYPE_LARGE = 1
+const val BANNER_TYPE_MODERN = 2
+
+fun bannerType(): Int = try {
+    PrefManager.getVal<Int>(PrefName.BannerType)
 } catch (_: Exception) {
-    false
+    BANNER_TYPE_COMPACT
 }
+
+fun isLargeBanner(): Boolean = bannerType() == BANNER_TYPE_LARGE
+
+fun isModernBanner(): Boolean = bannerType() == BANNER_TYPE_MODERN
 
 fun View.bannerCardSizePx(maxHeightFraction: Float = 0.55f): Pair<Int, Int> {
     val dm = resources.displayMetrics
@@ -182,7 +190,11 @@ fun View.bannerCardSizePx(maxHeightFraction: Float = 0.55f): Pair<Int, Int> {
     val screenH = dm.heightPixels / density
     val finalH: Float
     val finalW: Float
-    if (isLargeBanner()) {
+    if (isModernBanner()) {
+        // Modern: full-bleed cinematic strip. 300dp on TV/landscape, shorter on phones.
+        finalH = resources.getDimension(R.dimen.banner_modern_height) / density
+        finalW = screenW
+    } else if (isLargeBanner()) {
         // Large type: full-width 360dp strip — no left empty bar.
         finalH = 360f
         finalW = screenW

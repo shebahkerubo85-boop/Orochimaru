@@ -223,7 +223,7 @@ enum class PrefName(val data: Pref) {
 
     //Home
     HomeBannerMode(Pref(Location.UI, Int::class, 2)),
-    BannerType(Pref(Location.UI, Int::class, 0)), // 0=Compact, 1=Large
+    BannerType(Pref(Location.UI, Int::class, 0)), // 0=Compact, 1=Large, 2=Modern
     ShowContinueWatching(Pref(Location.UI, Boolean::class, true)),
     ShowPlanned(Pref(Location.UI, Boolean::class, true)),
     ShowRecommendations(Pref(Location.UI, Boolean::class, true)),

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Left-to-right darkening, with the flat 50% wash already composited in:
+  1-(1-wash)(1-gradient) gives 85% / 72.5% / 62.5% black. Folding the wash in
+  here means one full-screen pass instead of two, with identical output.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="0"
+        android:centerColor="#B9000000"
+        android:centerX="0.5"
+        android:endColor="#A0000000"
+        android:startColor="#D9000000"
+        android:type="linear" />
+</shape>

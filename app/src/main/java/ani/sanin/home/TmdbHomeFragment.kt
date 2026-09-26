@@ -24,6 +24,7 @@ import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
 import ani.sanin.isLargeBanner
+import ani.sanin.isModernBanner
 import ani.sanin.bannerCardSizePx
 import ani.sanin.cloudstream.CsInstalledSource
 import ani.sanin.cloudstream.CsRepos
@@ -34,6 +35,7 @@ import ani.sanin.cloudstream.TmdbWatchActivity
 import ani.sanin.Refresh
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.connections.tmdb.Tmdb
+import ani.sanin.connections.tmdb.TmdbDetail
 import ani.sanin.connections.tmdb.TmdbGenre
 import ani.sanin.connections.tmdb.TmdbMedia
 import ani.sanin.databinding.FragmentTmdbHomeBinding
@@ -436,6 +438,9 @@ class TmdbHomeFragment : Fragment() {
         // watch-now button is the banner focus point and moves this carousel.
         rv.isFocusable = false
         rv.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+        // The default animator cross-fades a full-bleed banner on every bind,
+        // which is the most expensive thing on a low-RAM TV. The slide is enough.
+        rv.itemAnimator = null
         bannerSnapHelper.attachToRecyclerView(rv)
 
         // Paint the carousel immediately with basic data; logos/status/scores
@@ -449,7 +454,8 @@ class TmdbHomeFragment : Fragment() {
             genreNames,
             logos,
             statuses,
-            scores
+            scores,
+            modernMode = isModernBanner()
         )
         bannerCarouselAdapter = adapter
         rv.adapter = adapter
@@ -488,7 +494,13 @@ class TmdbHomeFragment : Fragment() {
         startAutoAdvance()
         applyTmdbBannerFocusChain()
 
-        // Enrich per-item logos/status/scores with bounded parallelism.
+        // Enrich per-item logos/status/scores with bounded parallelism. The whole
+        // TMDB detail is kept, not just the logo: Modern mode needs the synopsis,
+        // genres, rating, year and poster from it. Plugin items are matched to a
+        // TMDB entry upstream, so they get the same treatment; anything TMDB does
+        // not know about is simply left out of the banner.
+        val posters = mutableMapOf<Int, String?>()
+        val details = mutableMapOf<Int, TmdbDetail?>()
         lifecycleScope.launch(Dispatchers.IO) {
             val snapshot = bannerItems.toList()
             val enriched = snapshot.mapIndexed { idx, item -> idx to item }
@@ -502,14 +514,16 @@ class TmdbHomeFragment : Fragment() {
                                 val score = if (item.media.voteAverage > 0) {
                                     String.format("%.1f", item.media.voteAverage) + "%"
                                 } else null
-                                Triple(logo, st, score)
+                                val poster = d?.posterPath?.let { Tmdb.imageUrl(it, 342) }
+                                BannerEnrichment(logo, st, score, d, poster)
                             }
                             is BannerItem.Plugin -> {
                                 if (item.tmdbId != null && item.tmdbType != null) {
                                     val d = Tmdb.detail(item.tmdbType, item.tmdbId)
                                     val logo = d?.let { Tmdb.logoUrl(it) }
                                     val st = d?.status?.let { statusLabel(it) }.orEmpty().ifBlank { null }
-                                    Triple(logo, st, null)
+                                    val poster = d?.posterPath?.let { Tmdb.imageUrl(it, 342) }
+                                    BannerEnrichment(logo, st, null, d, poster)
                                 } else null
                             }
                         }
@@ -517,17 +531,27 @@ class TmdbHomeFragment : Fragment() {
                 }
             withContext(Dispatchers.Main) {
                 if (_binding == null) return@withContext
-                enriched.forEach { (idx, triple) ->
-                    triple?.let { (logo, st, score) ->
-                        if (logo != null) logos[idx] = logo
-                        if (st != null) statuses[idx] = st
-                        if (score != null) scores[idx] = score
+                enriched.forEach { (idx, e) ->
+                    e?.let {
+                        if (it.logo != null) logos[idx] = it.logo
+                        if (it.status != null) statuses[idx] = it.status
+                        if (it.score != null) scores[idx] = it.score
+                        if (it.detail != null) details[idx] = it.detail
+                        if (it.poster != null) posters[idx] = it.poster
                     }
                 }
-                bannerCarouselAdapter?.notifyDataSetChanged()
+                bannerCarouselAdapter?.updateDetails(logos, statuses, scores, details, posters)
             }
         }
     }
+
+    private data class BannerEnrichment(
+        val logo: String?,
+        val status: String?,
+        val score: String?,
+        val detail: TmdbDetail?,
+        val poster: String?,
+    )
 
     private fun updateDots() {
         val dots = binding.tmdbBannerDots
@@ -937,6 +961,20 @@ class TmdbHomeFragment : Fragment() {
             binding.tmdbBannerImage.isVisible = false
             binding.tmdbBannerContent.isVisible = false
             binding.tmdbBannerDots.isVisible = bannerItems.size > 1
+
+            // Modern is full-bleed in every orientation: the metadata lives inside
+            // the banner, so the side panel and the left fade are never used.
+            if (isModernBanner()) {
+                card.sizeBannerCard()
+                card.updateLayoutParams<FrameLayout.LayoutParams> {
+                    gravity = Gravity.CENTER or Gravity.TOP
+                }
+                binding.tmdbBannerFade.isVisible = false
+                binding.tmdbBannerCardScrim.isVisible = false
+                binding.tmdbBannerSide.isVisible = false
+                return
+            }
+
             if (isLandscape) {
                 card.sizeBannerCard(0.65f)
                 val (cardW, cardH) = card.bannerCardSizePx(0.65f)
@@ -1081,7 +1119,7 @@ class TmdbHomeFragment : Fragment() {
         // D-pad moves from the watch button must always scroll (force);
         // auto-advance stays hands-off while the user is on the banner.
         if (!onBanner || force) {
-            rv.smoothScrollToPosition(pos + (if (forward) 1 else -1))
+            scrollBanner(rv, pos + (if (forward) 1 else -1))
         }
     }
 

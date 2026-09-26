@@ -207,10 +207,10 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                     ),
                     SubscreenBuilder.Entry(
                         title = "Banner Type",
-                        desc = "Compact keeps the current size; Large is 360dp tall with center-cropped art",
+                        desc = "Compact keeps the current size; Large is 360dp tall with center-cropped art; Modern is a full-bleed cinematic banner with the logo, synopsis and a portrait poster",
                         choice = SubscreenBuilder.Choice(
                             title = "Banner Type",
-                            options = arrayOf("Compact", "Large"),
+                            options = arrayOf("Compact", "Large", "Modern"),
                             currentIndex = PrefManager.getVal<Int>(PrefName.BannerType),
                         ) { idx -> PrefManager.setVal(PrefName.BannerType, idx) },
                     ),

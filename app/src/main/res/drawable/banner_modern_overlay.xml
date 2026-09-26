@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  All of the Modern banner's dimming in one view. The left-to-right wash covers
+  the banner; the bottom fade sits over the lower 45%. The bottom stops just
+  short of pure black so it is not AMOLED-black.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/banner_modern_gradient_ltr" />
+    <item
+        android:drawable="@drawable/banner_modern_gradient_bottom"
+        android:gravity="bottom"
+        android:height="45%" />
+</layer-list>

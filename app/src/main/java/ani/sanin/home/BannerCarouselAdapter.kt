@@ -11,6 +11,8 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.LinearSmoothScroller
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
@@ -36,6 +38,7 @@ class BannerCarouselAdapter(
     private val layoutRes: Int = R.layout.item_banner_carousel,
     private val cardMode: Boolean = false,
     private val hideDescription: Boolean = false,
+    private val modernMode: Boolean = false,
 ) : RecyclerView.Adapter<BannerCarouselAdapter.ViewHolder>() {
 
     private var landscapeOverlay = false
@@ -68,14 +71,20 @@ class BannerCarouselAdapter(
         val media = items[realPosition(position)]
         val ctx = holder.itemView.context
 
+        if (modernMode) {
+            bindModern(holder, media)
+            return
+        }
+
         // --- Banner image (AniZip backdrop, fallback AniList banner/cover) ---
         val anizipUrl = backdropUrls[media.id]
         val imageUrl = if (!anizipUrl.isNullOrBlank()) anizipUrl
                        else media.banner ?: media.cover
+        val bannerImage = holder.bannerImage
         if (!imageUrl.isNullOrBlank()) {
             holder.bannerBg.visibility = View.VISIBLE
-            holder.bannerImage.visibility = View.VISIBLE
-            holder.bannerImage.scaleType = if (isLargeBanner()) ImageView.ScaleType.CENTER_CROP
+            bannerImage?.visibility = View.VISIBLE
+            bannerImage?.scaleType = if (isLargeBanner()) ImageView.ScaleType.CENTER_CROP
                 else ImageView.ScaleType.FIT_CENTER
             Glide.with(holder.itemView.context)
                 .load(imageUrl)
@@ -91,7 +100,7 @@ class BannerCarouselAdapter(
                         resource: Drawable, model: Any, target: Target<Drawable>,
                         dataSource: DataSource, isFirstResource: Boolean
                     ): Boolean {
-                        holder.bannerImage.scaleType = if (isLargeBanner() ||
+                        bannerImage?.scaleType = if (isLargeBanner() ||
                             resource.intrinsicHeight > resource.intrinsicWidth)
                             ImageView.ScaleType.CENTER_CROP
                         else
@@ -102,12 +111,12 @@ class BannerCarouselAdapter(
                         e: GlideException?, model: Any?, target: Target<Drawable>,
                         isFirstResource: Boolean
                     ): Boolean {
-                        holder.bannerImage.scaleType = if (isLargeBanner()) ImageView.ScaleType.CENTER_CROP
+                        bannerImage?.scaleType = if (isLargeBanner()) ImageView.ScaleType.CENTER_CROP
                             else ImageView.ScaleType.FIT_CENTER
                         return false
                     }
                 })
-                .into(holder.bannerImage)
+                .into(bannerImage ?: holder.bannerBg)
         }
 
         // --- Clearlogo (pre-fetched) / Title fallback ---
@@ -133,40 +142,44 @@ class BannerCarouselAdapter(
                 else -> fmt
             }
         }
-        if (!formatText.isNullOrBlank()) {
-            holder.formatTag.text = formatText
-            holder.formatTag.isVisible = true
+        val formatTag = holder.formatTag
+        if (!formatText.isNullOrBlank() && formatTag != null) {
+            formatTag.text = formatText
+            formatTag.isVisible = true
         } else {
-            holder.formatTag.isVisible = false
+            formatTag?.isVisible = false
         }
 
         // --- Status tag ---
         val statusText = media.status?.replace("_", " ")?.lowercase()?.replaceFirstChar { it.uppercase() }
-        if (!statusText.isNullOrBlank()) {
-            holder.statusTag.text = statusText
-            holder.statusTag.isVisible = true
+        val statusTag = holder.statusTag
+        if (!statusText.isNullOrBlank() && statusTag != null) {
+            statusTag.text = statusText
+            statusTag.isVisible = true
         } else {
-            holder.statusTag.isVisible = false
+            statusTag?.isVisible = false
         }
 
         // --- Season tag ---
         val season = media.anime?.season?.lowercase()
         val year = media.anime?.seasonYear
         val seasonText = if (season != null && year != null) "$season $year" else null
-        if (seasonText != null) {
-            holder.seasonTag.text = seasonText
-            holder.seasonTag.isVisible = true
+        val seasonTag = holder.seasonTag
+        if (seasonText != null && seasonTag != null) {
+            seasonTag.text = seasonText
+            seasonTag.isVisible = true
         } else {
-            holder.seasonTag.isVisible = false
+            seasonTag?.isVisible = false
         }
 
         // --- Score tag ---
         val score = media.meanScore
-        if (score != null) {
-            holder.scoreTag.text = "$score%"
-            holder.scoreTag.isVisible = true
+        val scoreTag = holder.scoreTag
+        if (score != null && scoreTag != null) {
+            scoreTag.text = "$score%"
+            scoreTag.isVisible = true
         } else {
-            holder.scoreTag.isVisible = false
+            scoreTag?.isVisible = false
         }
 
         // --- Description ---
@@ -184,8 +197,9 @@ class BannerCarouselAdapter(
         }
 
         // --- Genre chips ---
-        holder.genresRow.removeAllViews()
-        if (media.genres.isNotEmpty()) {
+        val genresRow = holder.genresRow
+        genresRow?.removeAllViews()
+        if (media.genres.isNotEmpty() && genresRow != null) {
             val density = ctx.resources.displayMetrics.density
             for (genre in media.genres.take(4)) {
                 val chip = TextView(ctx).apply {
@@ -207,11 +221,11 @@ class BannerCarouselAdapter(
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
                 lp.marginEnd = (6 * density).toInt()
-                holder.genresRow.addView(chip, lp)
+                genresRow.addView(chip, lp)
             }
-            holder.genresRow.isVisible = true
+            genresRow.isVisible = true
         } else {
-            holder.genresRow.isVisible = false
+            genresRow?.isVisible = false
         }
 
         // --- Play button ---
@@ -221,18 +235,19 @@ class BannerCarouselAdapter(
         holder.playBtn.visibility = View.VISIBLE
 
         // --- Favorite button ---
+        val favBtn = holder.favBtn
         val isFav = media.isFav
-        holder.favBtn.setImageDrawable(
+        favBtn?.setImageDrawable(
             ContextCompat.getDrawable(
                 ctx,
                 if (isFav) R.drawable.ic_round_favorite_24
                 else R.drawable.ic_round_favorite_border_24
             )
         )
-        holder.favBtn.setOnClickListener {
+        favBtn?.setOnClickListener {
             val newState = !media.isFav
             media.isFav = newState
-            holder.favBtn.setImageDrawable(
+            favBtn.setImageDrawable(
                 ContextCompat.getDrawable(
                     ctx,
                     if (newState) R.drawable.ic_round_favorite_24
@@ -243,7 +258,7 @@ class BannerCarouselAdapter(
                 Anilist.mutation.toggleFav(media.anime != null, media.id)
             }
         }
-        holder.favBtn.visibility = View.VISIBLE
+        favBtn?.visibility = View.VISIBLE
 
         // --- Item click ---
         holder.itemView.setOnClickListener { onItemClick(media) }
@@ -253,13 +268,13 @@ class BannerCarouselAdapter(
         // --- D-pad focus chain ---
         if (nextFocusDownId != View.NO_ID) {
             holder.playBtn.nextFocusDownId = nextFocusDownId
-            holder.favBtn.nextFocusDownId = nextFocusDownId
+            favBtn?.nextFocusDownId = nextFocusDownId
         }
 
         if (cardMode) {
             holder.description.isVisible = false
             holder.playBtn.isVisible = false
-            holder.favBtn.isVisible = false
+            favBtn?.isVisible = false
         }
 
         applyLandscapeOverlay(holder)
@@ -279,21 +294,130 @@ class BannerCarouselAdapter(
 
     override fun getItemCount() = if (items.isEmpty()) 0 else Int.MAX_VALUE
 
+    /**
+     * Modern mode: the landscape artwork is the background and every piece of metadata
+     * lives inside the banner, so the side overlay and the compact tag chips are unused.
+     */
+    private fun bindModern(holder: ViewHolder, media: Media) {
+        val ctx = holder.itemView.context
+        val density = ctx.resources.displayMetrics.density
+
+        // --- Background art: AniZip backdrop, then AniList banner, then cover. ---
+        val imageUrl = backdropUrls[media.id]?.takeIf { it.isNotBlank() }
+            ?: media.banner?.takeIf { it.isNotBlank() }
+            ?: media.cover
+        if (!imageUrl.isNullOrBlank()) {
+            holder.bannerBg.isVisible = true
+            holder.bannerBg.scaleType = ImageView.ScaleType.CENTER_CROP
+            Glide.with(ctx)
+                .load(imageUrl)
+                .placeholder(R.color.bg_black)
+                .error(R.drawable.ic_round_person_24)
+                .into(holder.bannerBg)
+        } else {
+            holder.bannerBg.isVisible = false
+        }
+
+        // --- Portrait poster, floated on the right. ---
+        val poster = holder.poster
+        val posterUrl = media.cover
+        if (!posterUrl.isNullOrBlank() && poster != null) {
+            poster.isVisible = true
+            Glide.with(ctx)
+                .load(posterUrl)
+                .placeholder(R.color.bg_black)
+                .error(R.drawable.ic_round_person_24)
+                .into(poster)
+        } else {
+            poster?.isVisible = false
+        }
+
+        // --- Logo art, falling back to the title text. ---
+        val logoUrl = logoUrls[media.id]
+        if (!logoUrl.isNullOrBlank()) {
+            holder.clearlogo.isVisible = true
+            holder.clearlogo.setImageDrawable(null)
+            holder.title.isVisible = false
+            Glide.with(ctx)
+                .load(logoUrl)
+                .override(520, 160)
+                .into(holder.clearlogo)
+        } else {
+            holder.clearlogo.isVisible = false
+            holder.clearlogo.setImageDrawable(null)
+            holder.title.isVisible = true
+            holder.title.text = media.userPreferredName ?: media.name
+        }
+
+        // --- Synopsis ---
+        val desc = media.description
+            ?.replace(Regex("<.*?>"), "")
+            ?.replace(Regex("\\s+"), " ")
+            ?.trim()
+        if (!desc.isNullOrBlank()) {
+            holder.description.text = desc
+            holder.description.isVisible = true
+        } else {
+            holder.description.isVisible = false
+        }
+
+        // --- Genres · Year · Rating · Status · Type · Country ---
+        val metaRow = holder.metaRow
+        metaRow?.removeAllViews()
+        metaRow?.let { row ->
+            for (genre in media.genres.take(MODERN_MAX_GENRES)) {
+                addModernMetaItem(row, genre, density)
+            }
+            addModernMetaItem(row, media.anime?.seasonYear?.toString(), density)
+            media.meanScore?.let { score ->
+                // AniList scores 0-100; the meta row shows them out of 10.
+                addModernMetaItem(row, String.format("%.1f", score / 10f), density, withStar = true)
+            }
+            addModernMetaItem(
+                row,
+                media.status?.replace("_", " ")?.lowercase()?.replaceFirstChar { it.uppercase() },
+                density,
+                accent = true,
+            )
+            addModernMetaItem(row, media.format?.replace("_", " "), density)
+            addModernMetaItem(row, media.countryOfOrigin, density)
+            row.isVisible = row.childCount > 0
+        }
+
+        // --- Watch Now: the banner's only D-pad stop, so it drives slide navigation. ---
+        holder.playBtn.setOnClickListener { onItemClick(media) }
+        holder.playBtn.isFocusable = true
+        holder.playBtn.isFocusableInTouchMode = false
+        holder.playBtn.isVisible = true
+
+        holder.itemView.setOnClickListener { onItemClick(media) }
+        // Watch Now is the banner's only D-pad stop, so the card itself stays
+        // out of the focus chain.
+        holder.itemView.isFocusable = false
+        holder.itemView.isFocusableInTouchMode = false
+
+        if (nextFocusDownId != View.NO_ID) {
+            holder.playBtn.nextFocusDownId = nextFocusDownId
+        }
+    }
+
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val bannerBg: ImageView = view.findViewById(R.id.bannerBg)
-        val bannerImage: ImageView = view.findViewById(R.id.bannerImage)
+        val bannerImage: ImageView? = view.findViewById(R.id.bannerImage)
         val clearlogo: ImageView = view.findViewById(R.id.bannerClearlogo)
         val title: TextView = view.findViewById(R.id.bannerTitle)
-        val formatTag: TextView = view.findViewById(R.id.bannerFormatTag)
-        val statusTag: TextView = view.findViewById(R.id.bannerStatusTag)
-        val seasonTag: TextView = view.findViewById(R.id.bannerSeasonTag)
-        val scoreTag: TextView = view.findViewById(R.id.bannerScoreTag)
+        val formatTag: TextView? = view.findViewById(R.id.bannerFormatTag)
+        val statusTag: TextView? = view.findViewById(R.id.bannerStatusTag)
+        val seasonTag: TextView? = view.findViewById(R.id.bannerSeasonTag)
+        val scoreTag: TextView? = view.findViewById(R.id.bannerScoreTag)
 
         val description: TextView = view.findViewById(R.id.bannerDescription)
-        val genresRow: LinearLayout = view.findViewById(R.id.bannerGenresRow)
+        val genresRow: LinearLayout? = view.findViewById(R.id.bannerGenresRow)
+        val metaRow: LinearLayout? = view.findViewById(R.id.bannerMetaRow)
 
         val playBtn: android.widget.Button = view.findViewById(R.id.bannerPlayBtn)
-        val favBtn: ImageView = view.findViewById(R.id.bannerFavBtn)
+        val favBtn: ImageView? = view.findViewById(R.id.bannerFavBtn)
+        val poster: ImageView? = view.findViewById(R.id.bannerModernPoster)
 
         val scrim: View? = view.findViewById(R.id.bannerScrimLeft)
         val content: LinearLayout? = view.findViewById(R.id.bannerContent)
@@ -326,11 +450,101 @@ class BannerCarouselAdapter(
         bottomGradient.isVisible = largeBanner
         holder.clearlogo.isVisible = false
         holder.title.isVisible = false
-        holder.formatTag.isVisible = false
-        holder.statusTag.isVisible = false
-        holder.seasonTag.isVisible = false
-        holder.scoreTag.isVisible = false
+        holder.formatTag?.isVisible = false
+        holder.statusTag?.isVisible = false
+        holder.seasonTag?.isVisible = false
+        holder.scoreTag?.isVisible = false
         holder.description.isVisible = false
-        holder.genresRow.isVisible = false
+        holder.genresRow?.isVisible = false
     }
+}
+
+/** Genres get their own budget in the meta row; the rest of the line is short. */
+const val MODERN_MAX_GENRES = 3
+
+/**
+ * A snap scroller in the 400ms window the banner spec asks for, with no app-side
+ * per-frame work: RecyclerView drives it from its own layout pass, so it costs
+ * nothing on a low-RAM device. The default item animator is switched off for the
+ * banner instead, since its full-screen cross-fade is the expensive part.
+ */
+internal fun scrollBanner(rv: RecyclerView, position: Int) {
+    val lm = rv.layoutManager as? LinearLayoutManager ?: run {
+        rv.smoothScrollToPosition(position)
+        return
+    }
+    val scroller = object : LinearSmoothScroller(rv.context) {
+        override fun getHorizontalSnapPreference() = SNAP_TO_START
+        override fun calculateSpeedPerPixel(displayMetrics: android.util.DisplayMetrics) =
+            1000f / 400f
+        override fun calculateTimeForDeceleration(msScroller: android.widget.Scroller) = 0
+        override fun interpolate(t: Float) = android.view.animation.Interpolators.easeInOut(t)
+    }
+    scroller.targetPosition = position
+    lm.startSmoothScroll(scroller)
+}
+
+/** Slightly muted white for the metadata line. */
+private val MODERN_META_MUTED = 0xCCFFFFFF.toInt()
+
+/**
+ * Appends one item to a Modern banner's metadata line, prefixed by a centred
+ * dot when it is not the first. Blank text is skipped, so callers can pass
+ * whatever fields happen to be populated.
+ */
+internal fun addModernMetaItem(
+    row: LinearLayout,
+    text: String?,
+    density: Float,
+    withStar: Boolean = false,
+    accent: Boolean = false,
+) {
+    if (text.isNullOrBlank()) return
+    val ctx = row.context
+    val res = ctx.resources
+    val textSp = res.getDimension(R.dimen.banner_modern_meta_text) / res.displayMetrics.density
+    val gap = res.getDimension(R.dimen.banner_modern_meta_gap).toInt()
+
+    if (row.childCount > 0) {
+        val dot = TextView(ctx).apply {
+            text = "·"
+            setTextColor(MODERN_META_MUTED)
+            setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, textSp)
+            includeFontPadding = false
+            isFocusable = false
+        }
+        row.addView(
+            dot,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply {
+                marginStart = gap
+                marginEnd = gap
+            },
+        )
+    }
+
+    val item = TextView(ctx).apply {
+        this.text = text
+        setTextColor(
+            if (accent) ctx.getThemeColor(com.google.android.material.R.attr.colorPrimary)
+            else MODERN_META_MUTED
+        )
+        setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, textSp)
+        maxLines = 1
+        ellipsize = android.text.TextUtils.TruncateAt.END
+        isFocusable = false
+        if (withStar) {
+            setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_star_rating, 0, 0, 0)
+            compoundDrawablePadding = (3 * density).toInt()
+        }
+    }
+    row.addView(
+        item,
+        LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+        ),
+    )
 }

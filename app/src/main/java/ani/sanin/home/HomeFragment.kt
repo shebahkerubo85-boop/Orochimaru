@@ -43,6 +43,7 @@ import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
 import ani.sanin.MainActivity
 import ani.sanin.isLargeBanner
+import ani.sanin.isModernBanner
 import ani.sanin.R
 import ani.sanin.Refresh
 import ani.sanin.blurImage
@@ -756,6 +757,9 @@ class HomeFragment : Fragment() {
         rv.isFocusable = true
         rv.descendantFocusability = android.view.ViewGroup.FOCUS_AFTER_DESCENDANTS
         rv.nextFocusDownId = R.id.homeWatchingRecyclerView
+        // The default animator cross-fades a full-bleed banner on every bind,
+        // which is the most expensive thing on a low-RAM TV. The slide is enough.
+        rv.itemAnimator = null
         bannerSnapHelper.attachToRecyclerView(rv)
 
         model.getTrendingBanner().observe(viewLifecycleOwner) { items ->
@@ -777,6 +781,7 @@ class HomeFragment : Fragment() {
                     }
                     val logos = allImages.mapValues { it.value.logoUrl }
                     withContext(Dispatchers.Main) {
+                        val modern = isModernBanner()
                         bannerCarouselAdapter = BannerCarouselAdapter(
                             items, lifecycleScope, { media ->
                                 val intent = Intent(requireContext(), ani.sanin.media.MediaDetailsActivity::class.java)
@@ -785,9 +790,10 @@ class HomeFragment : Fragment() {
                                 startActivity(intent)
                             }, urls, logos,
                             nextFocusDownId = R.id.homeWatchingRecyclerView,
-                            layoutRes = R.layout.item_banner_card,
-                            cardMode = true,
-                            hideDescription = true
+                            layoutRes = if (modern) R.layout.item_banner_modern else R.layout.item_banner_card,
+                            cardMode = !modern,
+                            hideDescription = !modern,
+                            modernMode = modern,
                         )
                         rv.adapter = bannerCarouselAdapter
                         homeBannerLogos = logos
@@ -916,7 +922,7 @@ class HomeFragment : Fragment() {
                 )
                 if (!onBannerControl) {
                     homeBannerAutoIndex++
-                    rv.smoothScrollToPosition(homeBannerAutoIndex)
+                    scrollBanner(rv, homeBannerAutoIndex)
                 }
                 bannerAutoScrollHandler?.postDelayed(this, 5000L)
             }
@@ -1071,7 +1077,7 @@ class HomeFragment : Fragment() {
         val lm = rv.layoutManager as? LinearLayoutManager ?: return
         val pos = lm.findFirstVisibleItemPosition()
         if (pos == RecyclerView.NO_POSITION) return
-        rv.smoothScrollToPosition(pos + (if (forward) 1 else -1))
+        scrollBanner(rv, pos + (if (forward) 1 else -1))
     }
 
     private fun applyHomeBannerFocusChain() {
@@ -1134,6 +1140,32 @@ class HomeFragment : Fragment() {
             lp.startToStart = ConstraintLayout.LayoutParams.PARENT_ID
             lp.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID
             c.layoutParams = lp
+        }
+
+        // Modern is full-bleed in every orientation: the artwork, logo, synopsis and
+        // metadata all live inside the banner, so the side strip is never used.
+        if (isModernBanner() && hasBanner) {
+            card.sizeBannerCard()
+            setCardCentered(card)
+            fade.isVisible = false
+            fade.translationX = 0f
+            overlay.isVisible = false
+            overlay.translationX = 0f
+            if (navActive) {
+                b.navBannerContent.isVisible = false
+                b.navBannerBottomGradient.isVisible = false
+                b.navBannerScrim.isVisible = false
+                b.navBannerCard.isFocusable = true
+                b.navBannerCard.nextFocusDownId = R.id.homeContinueWatchRow
+                navBannerCurrentMedia?.let { updateHomeBannerOverlay(it) }
+            } else {
+                b.navBannerContent.isVisible = true
+                b.navBannerBottomGradient.isVisible = true
+                b.navBannerScrim.isVisible = false
+                b.navBannerCard.isFocusable = false
+                bannerCarouselAdapter?.setLandscapeMode(false, 0)
+            }
+            return
         }
 
         if (!isLandscape || !hasBanner) {

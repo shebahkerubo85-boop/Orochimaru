@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="library_top_push">0dp</dimen>
-
-    <!-- Modern banner: full 300dp cinematic strip in landscape. -->
+    <!-- Modern banner: tablets and Android TV get the full 300dp strip even in portrait. -->
     <dimen name="banner_modern_height">300dp</dimen>
     <dimen name="banner_modern_content_start">34dp</dimen>
     <dimen name="banner_modern_poster_width">145dp</dimen>
