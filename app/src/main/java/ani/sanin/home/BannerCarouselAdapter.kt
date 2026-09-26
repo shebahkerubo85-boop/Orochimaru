@@ -301,6 +301,7 @@ class BannerCarouselAdapter(
     private fun bindModern(holder: ViewHolder, media: Media) {
         val ctx = holder.itemView.context
         val density = ctx.resources.displayMetrics.density
+        applyModernContentWidth(holder.itemView, holder.modernContent)
 
         // --- Background art: AniZip backdrop, then AniList banner, then cover. ---
         val imageUrl = backdropUrls[media.id]?.takeIf { it.isNotBlank() }
@@ -418,6 +419,7 @@ class BannerCarouselAdapter(
         val playBtn: android.widget.Button = view.findViewById(R.id.bannerPlayBtn)
         val favBtn: ImageView? = view.findViewById(R.id.bannerFavBtn)
         val poster: ImageView? = view.findViewById(R.id.bannerModernPoster)
+        val modernContent: LinearLayout? = view.findViewById(R.id.bannerModernContent)
 
         val scrim: View? = view.findViewById(R.id.bannerScrimLeft)
         val content: LinearLayout? = view.findViewById(R.id.bannerContent)
@@ -461,6 +463,30 @@ class BannerCarouselAdapter(
 
 /** Genres get their own budget in the meta row; the rest of the line is short. */
 const val MODERN_MAX_GENRES = 3
+
+/** The content column is capped to this fraction of the banner so it clears the poster. */
+private const val MODERN_CONTENT_WIDTH_FRACTION = 0.58f
+
+/**
+ * Caps the Modern banner's content column to a fraction of the banner width.
+ * AAPT2 rejects a percentage on a FrameLayout child's layout_width, so the
+ * fraction is applied here once the item has been measured.
+ */
+internal fun applyModernContentWidth(root: View, content: View?) {
+    content ?: return
+    val apply = {
+        val total = root.width
+        if (total > 0) {
+            val target = (total * MODERN_CONTENT_WIDTH_FRACTION).toInt()
+            val lp = content.layoutParams
+            if (lp != null && lp.width != target) {
+                lp.width = target
+                content.layoutParams = lp
+            }
+        }
+    }
+    if (root.width > 0) apply() else root.post { apply() }
+}
 
 /**
  * A snap scroller in the 400ms window the banner spec asks for, with no app-side

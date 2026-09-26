@@ -238,6 +238,7 @@ class TmdbBannerCarouselAdapter(
         val playBtn: android.widget.Button = view.findViewById(R.id.bannerPlayBtn)
         val favBtn: ImageView? = view.findViewById(R.id.bannerFavBtn)
         val poster: ImageView? = view.findViewById(R.id.bannerModernPoster)
+        val modernContent: LinearLayout? = view.findViewById(R.id.bannerModernContent)
         val scrim: View? = view.findViewById(R.id.bannerScrimLeft)
         val content: LinearLayout? = view.findViewById(R.id.bannerContent)
     }
@@ -289,6 +290,7 @@ class TmdbBannerCarouselAdapter(
     private fun bindModern(holder: ViewHolder, item: TmdbHomeFragment.BannerItem, pos: Int) {
         val ctx = holder.itemView.context
         val density = ctx.resources.displayMetrics.density
+        applyModernContentWidth(holder.itemView, holder.modernContent)
         val detail = detailsByIndex[pos]
 
         // --- Background art ---

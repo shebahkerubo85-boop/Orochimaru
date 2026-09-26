@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Bottom fade into the content below. Stops just short of pure black so it is not AMOLED-black. -->
+<!--
+  Bottom fade, drawn over the full banner height with a hold above 55% so it
+  only darkens the lower 45%. Doing it this way keeps the whole dimming in one
+  layer-list, since AAPT2 rejects a percentage height on a layer-list item.
+  Stops just short of pure black so it is not AMOLED-black.
+-->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <gradient
         android:angle="90"
-        android:centerColor="#66000000"
-        android:centerX="0.5"
+        android:centerColor="#00000000"
+        android:centerY="0.55"
         android:endColor="#F00A0A0A"
         android:startColor="#00000000"
         android:type="linear" />
