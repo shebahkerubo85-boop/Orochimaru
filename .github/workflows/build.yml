@@ -118,24 +118,10 @@ jobs:
           awk '/^[^[:space:]]/ { o=$1; r=$3; sub(/:$/,"",r); if (o != r) n++ } END { print n+0 }' "$MAPPING"
           echo "--- API that plugins and extensions link against ---"
           FAILED=0
-          for prefix in \
-            "com.lagradost" \
-            "eu.kanade" \
-            "tachiyomi" \
-            "ani.sanin.notifications.comment" \
-            "ani.sanin.connections" \
-            "ani.sanin.FadingEdgeRecyclerView" \
-            "ani.sanin.NoGestureSubsamplingImageView" \
-            "ani.sanin.SpinnerNoSwipe" \
-            "ani.sanin.home.status" \
-            "ani.sanin.others.CrashActivity" \
-            "ani.sanin.others.Xpandable" \
-            "ani.sanin.others.Xubtitle" \
-            "ani.sanin.ui.components.SnakeNavRailView" \
-            "com.google.firebase.crashlytics" \
-            "com.google.gson" \
-            "kotlin.reflect" \
-          ; do
+          # Every class name in these packages is part of an external ABI, nested
+          # classes and compiler-generated ones included, because a plugin is a
+          # separate dex file that links to those names.
+          for prefix in "com.lagradost" "eu.kanade" "tachiyomi"; do
             renamed=$(awk -v p="$prefix" '/^[^[:space:]]/ && index($1, p) == 1 && / -> / {
                 o=$1; r=$3; sub(/:$/,"",r); if (o != r) print o" -> "r }' "$MAPPING" | head -5)
             if [ -n "$renamed" ]; then
@@ -146,17 +132,38 @@ jobs:
               echo "ok: $prefix"
             fi
           done
+          # App classes that Android looks up by name. Only the top-level name
+          # matters here: nothing outside the app refers to their nested or
+          # lambda classes, so those stay free to shrink and rename.
+          for name in \
+            "ani.sanin.FadingEdgeRecyclerView" \
+            "ani.sanin.NoGestureSubsamplingImageView" \
+            "ani.sanin.SpinnerNoSwipe" \
+            "ani.sanin.home.status.CircleView" \
+            "ani.sanin.home.status.Stories" \
+            "ani.sanin.others.CrashActivity" \
+            "ani.sanin.others.Xpandable" \
+            "ani.sanin.others.Xubtitle" \
+            "ani.sanin.ui.components.SnakeNavRailView" \
+          ; do
+            if ! grep -q "^$name -> $name:" "$MAPPING"; then
+              echo "::error::$name was renamed or stripped; Android looks this class up by name"
+              FAILED=1
+            fi
+          done
+          # Present at all, which the prefix scan above cannot tell: a class that
+          # R8 removed outright does not appear in the mapping under any name.
           for sentinel in \
             "com.lagradost.cloudstream3.MainAPI" \
             "com.lagradost.cloudstream3.MainActivityKt" \
             "com.lagradost.cloudstream3.utils.ExtractorApi" \
             "com.lagradost.cloudstream3.plugins.BasePlugin" \
             "com.lagradost.cloudstream3.syncproviders.SyncAPI" \
-            "ani.sanin.others.CrashActivity" \
-            "ani.sanin.FadingEdgeRecyclerView" \
+            "kotlin.reflect.jvm.ReflectJvmMapping" \
+            "com.google.gson.Gson" \
           ; do
-            if ! grep -q "^$sentinel" "$MAPPING"; then
-              echo "::error::$sentinel is missing from the mapping - it was stripped or renamed away"
+            if ! grep -q "^$sentinel -> " "$MAPPING"; then
+              echo "::error::$sentinel is missing from the mapping - it was stripped entirely"
               FAILED=1
             fi
           done
