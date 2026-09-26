@@ -31,7 +31,9 @@ import ani.sanin.util.SizeFormatter
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.model.GlideUrl
-import jp.wasabeef.glide.transformations.BlurTransformation
+import ani.sanin.util.EPISODE_BLUR_RADIUS
+import ani.sanin.util.EPISODE_BLUR_SAMPLING
+import ani.sanin.util.StackBlurTransformation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import android.widget.NumberPicker
@@ -166,7 +168,7 @@ class EpisodeAdapter(
                     val glideRequest = Glide.with(binding.itemMediaImage).load(thumb ?: media.cover)
                         .override(400, 0).diskCacheStrategy(DiskCacheStrategy.ALL)
                     if (blurEnabled) {
-                        glideRequest.transform(BlurTransformation(15, 3)).into(binding.itemMediaImage)
+                        glideRequest.transform(StackBlurTransformation(EPISODE_BLUR_RADIUS, EPISODE_BLUR_SAMPLING)).into(binding.itemMediaImage)
                     } else {
                         glideRequest.into(binding.itemMediaImage)
                     }
@@ -327,7 +329,7 @@ class EpisodeAdapter(
                     val glideRequest = Glide.with(binding.itemMediaImage).load(thumb ?: media.cover)
                         .override(400, 0).diskCacheStrategy(DiskCacheStrategy.ALL)
                     if (blurEnabled) {
-                        glideRequest.transform(BlurTransformation(15, 3)).into(binding.itemMediaImage)
+                        glideRequest.transform(StackBlurTransformation(EPISODE_BLUR_RADIUS, EPISODE_BLUR_SAMPLING)).into(binding.itemMediaImage)
                     } else {
                         glideRequest.into(binding.itemMediaImage)
                     }

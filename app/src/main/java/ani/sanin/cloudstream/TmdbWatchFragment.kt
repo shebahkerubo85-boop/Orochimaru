@@ -39,7 +39,9 @@ import ani.sanin.media.SheetSourceSelector
 import ani.sanin.loadImage
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
-import jp.wasabeef.glide.transformations.BlurTransformation
+import ani.sanin.util.EPISODE_BLUR_RADIUS
+import ani.sanin.util.EPISODE_BLUR_SAMPLING
+import ani.sanin.util.StackBlurTransformation
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.notifications.subscription.TmdbSubscriptionHelper
 import ani.sanin.settings.saving.PrefName
@@ -1480,7 +1482,7 @@ class TmdbWatchFragment : Fragment() {
                 Glide.with(ctx).load(glideUrl)
                     .override(400, 0)
                     .diskCacheStrategy(DiskCacheStrategy.ALL)
-                    .transform(BlurTransformation(15, 3))
+                    .transform(StackBlurTransformation(EPISODE_BLUR_RADIUS, EPISODE_BLUR_SAMPLING))
                     .into(image)
             } else {
                 image.loadImage(url)

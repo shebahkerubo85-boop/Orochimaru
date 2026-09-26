@@ -26,8 +26,8 @@
         android:id="@+id/bannerModernOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:importantForAccessibility="no"
-        android:src="@drawable/banner_modern_overlay" />
+        android:background="@drawable/banner_modern_overlay"
+        android:importantForAccessibility="no" />
 
     <ImageView
         android:id="@+id/bannerModernPoster"
@@ -128,7 +128,7 @@
                 android:stateListAnimator="@null"
                 android:text="@string/watch_now"
                 android:textAllCaps="false"
-                android:textColor="#FF1A1A1A"
+                android:textColor="?attr/colorOnBackground"
                 android:textSize="14sp"
                 android:textStyle="bold" />
 

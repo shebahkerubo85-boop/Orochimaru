@@ -23,7 +23,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
-import ani.sanin.isLargeBanner
+import ani.sanin.isClassicBanner
 import ani.sanin.isModernBanner
 import ani.sanin.bannerCardSizePx
 import ani.sanin.cloudstream.CsInstalledSource
@@ -145,6 +145,9 @@ class TmdbHomeFragment : Fragment() {
         if (_binding != null) {
             applyBannerLayout()
             applyTmdbBannerFocusChain()
+            // Rotation does not re-inflate the banner items, so a rebind is what
+            // makes them pick up the landscape height and synopsis size.
+            bannerCarouselAdapter?.notifyDataSetChanged()
         }
     }
 
@@ -824,7 +827,7 @@ class TmdbHomeFragment : Fragment() {
         val synopsis = item.overview?.takeIf { it.isNotBlank() } ?: ""
         val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
         // Large type: title + chips only, no synopsis.
-        val largeBanner = isLargeBanner()
+        val largeBanner = isClassicBanner()
         binding.tmdbBannerSynopsis.text = synopsis
         binding.tmdbBannerSynopsis.isVisible = !isPortrait && !largeBanner && synopsis.isNotBlank()
         binding.tmdbBannerSideSynopsis.text = synopsis
@@ -991,7 +994,7 @@ class TmdbHomeFragment : Fragment() {
                 binding.tmdbBannerFade.bringToFront()
                 binding.tmdbBannerFade.z = 10f
                 // Large type: no left 3-layer scrim, only gradients below.
-                binding.tmdbBannerCardScrim.isVisible = !isLargeBanner()
+                binding.tmdbBannerCardScrim.isVisible = !isClassicBanner()
                 binding.tmdbBannerCardScrim.layoutParams = binding.tmdbBannerCardScrim.layoutParams.apply {
                     width = cardW / 2
                     height = cardH
@@ -1040,13 +1043,13 @@ class TmdbHomeFragment : Fragment() {
             }
             binding.tmdbBannerFade.bringToFront()
             binding.tmdbBannerFade.z = 10f
-            binding.tmdbBannerCardScrim.isVisible = !isLargeBanner()
+            binding.tmdbBannerCardScrim.isVisible = !isClassicBanner()
             binding.tmdbBannerCardScrim.layoutParams = binding.tmdbBannerCardScrim.layoutParams.apply {
                 width = cardW / 2
                 height = cardH
             }
             binding.tmdbBannerSide.isVisible = true
-            val largeBanner = isLargeBanner()
+            val largeBanner = isClassicBanner()
             binding.tmdbBannerSide.updateLayoutParams<FrameLayout.LayoutParams> {
                 width = if (largeBanner) cardW else stripW + cardW / 4
                 height = cardH

@@ -136,7 +136,7 @@ import io.noties.markwon.html.HtmlPlugin
 import io.noties.markwon.html.TagHandlerNoOp
 import io.noties.markwon.image.AsyncDrawable
 import io.noties.markwon.image.glide.GlideImagesPlugin
-import jp.wasabeef.glide.transformations.BlurTransformation
+import ani.sanin.util.StackBlurTransformation
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -170,7 +170,7 @@ val Int.dp: Float get() = (this / getSystem().displayMetrics.density)
 val Float.px: Int get() = (this * getSystem().displayMetrics.density).toInt()
 
 const val BANNER_TYPE_COMPACT = 0
-const val BANNER_TYPE_LARGE = 1
+const val BANNER_TYPE_CLASSIC = 1
 const val BANNER_TYPE_MODERN = 2
 
 fun bannerType(): Int = try {
@@ -179,7 +179,7 @@ fun bannerType(): Int = try {
     BANNER_TYPE_COMPACT
 }
 
-fun isLargeBanner(): Boolean = bannerType() == BANNER_TYPE_LARGE
+fun isClassicBanner(): Boolean = bannerType() == BANNER_TYPE_CLASSIC
 
 fun isModernBanner(): Boolean = bannerType() == BANNER_TYPE_MODERN
 
@@ -194,9 +194,11 @@ fun View.bannerCardSizePx(maxHeightFraction: Float = 0.55f): Pair<Int, Int> {
         // Modern: full-bleed cinematic strip. 300dp on TV/landscape, shorter on phones.
         finalH = resources.getDimension(R.dimen.banner_modern_height) / density
         finalW = screenW
-    } else if (isLargeBanner()) {
-        // Large type: full-width 360dp strip — no left empty bar.
-        finalH = 360f
+    } else if (isClassicBanner()) {
+        // Classic: full-width strip, no left empty bar. The height comes from a
+        // resource so portrait can be taller and landscape shorter for the same
+        // banner type; see banner_classic_height in values/ and values-land/.
+        finalH = resources.getDimension(R.dimen.banner_classic_height) / density
         finalW = screenW
     } else {
         val maxH = (screenH - statusBarHeight / density) * maxHeightFraction
@@ -1523,20 +1525,26 @@ suspend fun View.pop() {
     delay(100.milliseconds)
 }
 
+/** Fixed blur down-sample divisor. 2 halves each axis, so the blur runs on a
+ *  quarter of the pixels for a result nobody can tell apart. This used to be a
+ *  user-facing choice; it is fixed now to keep the one-knob blur simple. */
+private const val BLUR_SAMPLING = 2
+
 fun blurImage(imageView: ImageView, banner: String?) {
     if (banner != null) {
-        val radius = PrefManager.getVal<Float>(PrefName.BlurRadius).toInt()
-        val sampling = PrefManager.getVal<Float>(PrefName.BlurSampling).toInt()
+        // Clamped because the blur backend rejects a radius above 25 outright,
+        // and the slider only goes that far anyway.
+        val radius = PrefManager.getVal<Float>(PrefName.BlurStrength).toInt().coerceIn(0, 25)
         val context = imageView.context
         if (!(context as Activity).isDestroyed) {
             val url = PrefManager.getVal<String>(PrefName.ImageUrl).ifEmpty { banner }
-            if (PrefManager.getVal(PrefName.BlurBanners)) {
+            if (PrefManager.getVal(PrefName.BlurBanners) && radius > 0) {
                 Glide.with(context as Context)
                     .load(
                         if (banner.startsWith("http")) GlideUrl(url) else if (banner.startsWith("content://")) url.toUri() else File(url)
                     )
                     .diskCacheStrategy(DiskCacheStrategy.RESOURCE).override(400)
-                    .apply(RequestOptions.bitmapTransform(BlurTransformation(radius, sampling)))
+                    .apply(RequestOptions.bitmapTransform(StackBlurTransformation(radius, BLUR_SAMPLING)))
                     .into(imageView)
 
             } else {

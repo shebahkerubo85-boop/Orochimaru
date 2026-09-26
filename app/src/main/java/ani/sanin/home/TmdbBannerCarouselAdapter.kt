@@ -10,10 +10,15 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
+import ani.sanin.BANNER_TYPE_MODERN
+import ani.sanin.util.BANNER_MAX_WIDTH
+import ani.sanin.util.bannerLoadOptions
+import ani.sanin.util.bindClassicChips
+import ani.sanin.util.currentBannerType
 import com.bumptech.glide.Glide
 import ani.sanin.R
 import ani.sanin.connections.tmdb.TmdbDetail
-import ani.sanin.isLargeBanner
+import ani.sanin.isClassicBanner
 import ani.sanin.getThemeColor
 
 class TmdbBannerCarouselAdapter(
@@ -45,7 +50,7 @@ class TmdbBannerCarouselAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(
-                if (modernMode) R.layout.item_banner_modern else R.layout.item_banner_card,
+                BannerCarouselAdapter.layoutForBannerType(modernMode),
                 parent,
                 false,
             )
@@ -65,14 +70,17 @@ class TmdbBannerCarouselAdapter(
         // --- Banner image ---
         val imageUrl = item.bannerUrl
         val bannerImage = holder.bannerImage
+        val loadOptions = bannerLoadOptions(currentBannerType(modernMode, isClassicBanner()))
         if (!imageUrl.isNullOrBlank()) {
             holder.bannerImage?.isVisible = true
             holder.bannerBg.isVisible = true
-            bannerImage?.scaleType = if (isLargeBanner()) android.widget.ImageView.ScaleType.CENTER_CROP
+            bannerImage?.scaleType = if (isClassicBanner()) android.widget.ImageView.ScaleType.CENTER_CROP
                 else android.widget.ImageView.ScaleType.FIT_CENTER
             Glide.with(ctx).load(imageUrl).placeholder(R.color.bg_black).error(R.drawable.ic_round_person_24)
+                .apply(loadOptions)
                 .into(holder.bannerBg)
             Glide.with(ctx).load(imageUrl).placeholder(R.color.bg_black).error(R.drawable.ic_round_person_24)
+                .apply(loadOptions)
                 .into(bannerImage ?: holder.bannerBg)
         } else {
             bannerImage?.isVisible = false
@@ -84,7 +92,18 @@ class TmdbBannerCarouselAdapter(
         if (!logoUrl.isNullOrBlank()) {
             holder.clearlogo.isVisible = true
             holder.title.isVisible = false
-            Glide.with(ctx).load(logoUrl).override(240, 64).into(holder.clearlogo)
+            val logoReq = Glide.with(ctx).load(logoUrl)
+            if (isClassicBanner()) {
+                // Decode to the hardcoded view size rather than an arbitrary
+                // 240x64 that was tuned for the old wrap_content logo.
+                logoReq.override(
+                    holder.clearlogo.layoutParams.width,
+                    holder.clearlogo.layoutParams.height
+                )
+            } else {
+                logoReq.override(240, 64)
+            }
+            logoReq.into(holder.clearlogo)
         } else {
             holder.clearlogo.isVisible = false
             holder.title.isVisible = true
@@ -92,47 +111,75 @@ class TmdbBannerCarouselAdapter(
         }
 
         // --- Tags: transparent pills ---
-        // Format tag (Movie / TV Series)
         val typeText = item.type.replaceFirstChar { it.uppercase() }
-        val formatTag = holder.formatTag
-        if (typeText.isNotBlank() && formatTag != null) {
-            formatTag.text = typeText
-            formatTag.isVisible = true
-        } else {
-            formatTag?.isVisible = false
-        }
-
-        // Status tag (pre-fetched from TMDB detail, optional)
         val statusText = statusByIndex[pos]
-        val statusTag = holder.statusTag
-        if (!statusText.isNullOrBlank() && statusTag != null) {
-            statusTag.text = statusText
-            statusTag.isVisible = true
-        } else {
-            statusTag?.isVisible = false
-        }
 
-        // Season/Year tag. A plugin result carries no year of its own, so the
+        // Season/Year. A plugin result carries no year of its own, so the
         // matched TMDB entry supplies it.
         val year = item.year.ifBlank { detailsByIndex[pos]?.year.orEmpty() }
-        val seasonTag = holder.seasonTag
-        if (year.isNotBlank() && seasonTag != null) {
-            seasonTag.text = year
-            seasonTag.isVisible = true
-        } else {
-            seasonTag?.isVisible = false
-        }
 
-        // Score tag, falling back to the detail's rating for plugin items.
+        // Score, falling back to the detail's rating for plugin items.
         val score = scoreByIndex[pos]
             ?: detailsByIndex[pos]?.voteAverage?.takeIf { it > 0.0 }
                 ?.let { String.format("%.1f", it) + "%" }
-        val scoreTag = holder.scoreTag
-        if (!score.isNullOrBlank() && scoreTag != null) {
-            scoreTag.text = score
-            scoreTag.isVisible = true
+
+        val genres = when (item) {
+            is TmdbHomeFragment.BannerItem.Tmdb ->
+                item.media.genreIds.mapNotNull { genreNames[it] }
+            is TmdbHomeFragment.BannerItem.Plugin ->
+                detailsByIndex[pos]?.genres?.map { it.name }.orEmpty()
+        }
+
+        if (isClassicBanner()) {
+            // One two-line chip area under the pill, genres included.
+            bindClassicChips(
+                holder.genresRow,
+                holder.chipsTop,
+                holder.chipsBottom,
+                listOfNotNull(
+                    typeText.takeIf { it.isNotBlank() },
+                    statusText,
+                    year.takeIf { it.isNotBlank() },
+                    score,
+                ) + genres,
+            )
+            holder.formatTag?.isVisible = false
+            holder.statusTag?.isVisible = false
+            holder.seasonTag?.isVisible = false
+            holder.scoreTag?.isVisible = false
         } else {
-            scoreTag?.isVisible = false
+            setChip(holder.formatTag, typeText)
+            setChip(holder.statusTag, statusText)
+            setChip(holder.seasonTag, year)
+            setChip(holder.scoreTag, score)
+
+            // --- Genre chips (transparent pills) ---
+            val genresRow = holder.genresRow
+            genresRow?.removeAllViews()
+            val density = ctx.resources.displayMetrics.density
+            for (genre in genres.take(4)) {
+                val chip = TextView(ctx).apply {
+                    text = genre
+                    setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnBackground))
+                    textSize = 11f
+                    setBackgroundResource(R.drawable.tag_chip_bg)
+                    setPadding(
+                        (10 * density).toInt(),
+                        (3 * density).toInt(),
+                        (10 * density).toInt(),
+                        (3 * density).toInt()
+                    )
+                    maxLines = 1
+                    isFocusable = false
+                }
+                val lp = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+                lp.marginEnd = (6 * density).toInt()
+                genresRow?.addView(chip, lp)
+            }
+            if (genresRow != null) genresRow.isVisible = genres.isNotEmpty()
         }
 
         // --- Description (hidden in cardMode) ---
@@ -197,8 +244,17 @@ class TmdbBannerCarouselAdapter(
             }
         }
 
-        // --- Hide play / fav buttons (cardMode) ---
-        holder.playBtn.isVisible = false
+        // --- Watch Now pill / fav button ---
+        // Classic shows the pill as its D-pad stop, the same as Modern. Compact
+        // keeps hiding both, since its metadata lives in the side panel.
+        if (isClassicBanner()) {
+            holder.playBtn.setOnClickListener { onItemClick(item) }
+            holder.playBtn.isFocusable = true
+            holder.playBtn.isFocusableInTouchMode = false
+            holder.playBtn.isVisible = true
+        } else {
+            holder.playBtn.isVisible = false
+        }
         holder.favBtn?.isVisible = false
 
         // --- Click (touch only). The carousel is intentionally NOT D-pad
@@ -216,7 +272,12 @@ class TmdbBannerCarouselAdapter(
         for (offset in listOf(-1, 1)) {
             val adjPos = realPosition(position + offset)
             if (adjPos in items.indices) {
-                items[adjPos].bannerUrl?.let { Glide.with(ctx).load(it).preload() }
+                items[adjPos].bannerUrl?.let {
+                    Glide.with(ctx)
+                        .load(it)
+                        .apply(bannerLoadOptions(currentBannerType(modernMode, isClassicBanner())))
+                        .preload(BANNER_MAX_WIDTH, BANNER_MAX_WIDTH)
+                }
             }
         }
     }
@@ -233,7 +294,9 @@ class TmdbBannerCarouselAdapter(
         val seasonTag: TextView? = view.findViewById(R.id.bannerSeasonTag)
         val scoreTag: TextView? = view.findViewById(R.id.bannerScoreTag)
         val description: TextView = view.findViewById(R.id.bannerDescription)
-        val genresRow: LinearLayout? = view.findViewById(R.id.bannerGenresRow)
+        val genresRow: ViewGroup? = view.findViewById(R.id.bannerGenresRow)
+        val chipsTop: ViewGroup? = view.findViewById(R.id.bannerChipsTop)
+        val chipsBottom: ViewGroup? = view.findViewById(R.id.bannerChipsBottom)
         val metaRow: LinearLayout? = view.findViewById(R.id.bannerMetaRow)
         val playBtn: android.widget.Button = view.findViewById(R.id.bannerPlayBtn)
         val favBtn: ImageView? = view.findViewById(R.id.bannerFavBtn)
@@ -247,6 +310,25 @@ class TmdbBannerCarouselAdapter(
         val scrim = holder.scrim ?: return
         val content = holder.content ?: return
         val density = holder.itemView.context.resources.displayMetrics.density
+
+        // Classic keeps its full stack in both orientations; landscape just
+        // centres it and drops the left scrim.
+        if (isClassicBanner()) {
+            scrim.isVisible = false
+            val lp = content.layoutParams as FrameLayout.LayoutParams
+            lp.width = FrameLayout.LayoutParams.MATCH_PARENT
+            lp.gravity = Gravity.BOTTOM
+            content.layoutParams = lp
+            content.gravity = if (landscapeMode) Gravity.CENTER_HORIZONTAL else Gravity.START
+            val padH = if (landscapeMode) (24 * density).toInt() else (16 * density).toInt()
+            val padB = if (landscapeMode) (10 * density).toInt() else (14 * density).toInt()
+            content.setPadding(padH, 0, padH, padB)
+            holder.clearlogo.maxWidth = Int.MAX_VALUE
+            holder.clearlogo.maxHeight = Int.MAX_VALUE
+            holder.favBtn?.isVisible = false
+            return
+        }
+
         if (!landscapeMode) {
             scrim.isVisible = false
             val lp = content.layoutParams as FrameLayout.LayoutParams
@@ -269,7 +351,7 @@ class TmdbBannerCarouselAdapter(
         // scrim; the metadata lives in the side panel (tmdbBannerSide).
         // Large type: no left 3-layer scrim, only the gradient below.
         val half = cardWidthPx / 2
-        scrim.isVisible = !isLargeBanner()
+        scrim.isVisible = !isClassicBanner()
         scrim.layoutParams = scrim.layoutParams.apply { width = half }
         holder.clearlogo.isVisible = false
         holder.title.isVisible = false
@@ -290,6 +372,7 @@ class TmdbBannerCarouselAdapter(
     private fun bindModern(holder: ViewHolder, item: TmdbHomeFragment.BannerItem, pos: Int) {
         val ctx = holder.itemView.context
         val density = ctx.resources.displayMetrics.density
+        applyModernMetrics(holder.itemView, holder.description)
         applyModernContentWidth(holder.itemView, holder.modernContent)
         val detail = detailsByIndex[pos]
 
@@ -299,7 +382,9 @@ class TmdbBannerCarouselAdapter(
             holder.bannerBg.isVisible = true
             holder.bannerBg.scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
             Glide.with(ctx).load(imageUrl).placeholder(R.color.bg_black)
-                .error(R.drawable.ic_round_person_24).into(holder.bannerBg)
+                .error(R.drawable.ic_round_person_24)
+                .apply(bannerLoadOptions(BANNER_TYPE_MODERN))
+                .into(holder.bannerBg)
         } else {
             holder.bannerBg.isVisible = false
         }
@@ -390,5 +475,16 @@ class TmdbBannerCarouselAdapter(
         detailsByIndex = details
         postersByIndex = posters
         notifyDataSetChanged()
+    }
+}
+
+/** Shows a chip view with [text], or hides it when there is nothing to show. */
+private fun setChip(view: TextView?, text: String?) {
+    if (view == null) return
+    if (!text.isNullOrBlank()) {
+        view.text = text
+        view.isVisible = true
+    } else {
+        view.isVisible = false
     }
 }

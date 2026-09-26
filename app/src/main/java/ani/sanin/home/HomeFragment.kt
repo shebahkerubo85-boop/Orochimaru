@@ -42,7 +42,7 @@ import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
 import ani.sanin.MainActivity
-import ani.sanin.isLargeBanner
+import ani.sanin.isClassicBanner
 import ani.sanin.isModernBanner
 import ani.sanin.R
 import ani.sanin.Refresh
@@ -790,7 +790,7 @@ class HomeFragment : Fragment() {
                                 startActivity(intent)
                             }, urls, logos,
                             nextFocusDownId = R.id.homeWatchingRecyclerView,
-                            layoutRes = if (modern) R.layout.item_banner_modern else R.layout.item_banner_card,
+                            layoutRes = BannerCarouselAdapter.layoutForBannerType(modern),
                             cardMode = !modern,
                             hideDescription = !modern,
                             modernMode = modern,
@@ -1032,6 +1032,9 @@ class HomeFragment : Fragment() {
         if (_binding != null) {
             applyHomeBannerLandscapeMode()
             applyHomeBannerFocusChain()
+            // Rotation does not re-inflate the banner items, so a rebind is what
+            // makes them pick up the landscape height and synopsis size.
+            bannerCarouselAdapter?.notifyDataSetChanged()
         }
     }
 
@@ -1206,7 +1209,7 @@ class HomeFragment : Fragment() {
         overlay.bringToFront()
 
         overlay.isVisible = true
-        val largeBanner = isLargeBanner()
+        val largeBanner = isClassicBanner()
         overlay.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             width = if (largeBanner) cardW else stripW + cardW / 4
             height = cardH
@@ -1224,7 +1227,7 @@ class HomeFragment : Fragment() {
         }
 
         if (navActive) {
-            val largeBanner = isLargeBanner()
+            val largeBanner = isClassicBanner()
             b.navBannerContent.isVisible = false
             // Large type: no left 3-layer scrim, only the gradient below.
             b.navBannerBottomGradient.isVisible = largeBanner
@@ -1293,7 +1296,7 @@ class HomeFragment : Fragment() {
             ?.replace(Regex("\\s+"), " ")
             ?.trim()
         // Large type: title + chips only, no synopsis.
-        if (isLargeBanner()) {
+        if (isClassicBanner()) {
             synopsis.isVisible = false
         } else if (!desc.isNullOrBlank()) {
             synopsis.text = desc

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Classic's watch pill. Same translucent wash as the Modern pill
+  (banner_modern_pill_bg) so the two read as one family, but with a tighter
+  18dp radius and a larger footprint, because Classic's logo and chips sit
+  below it and a fully-round pill would look undersized there.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="18dp" />
+    <solid android:color="#26000000" />
+    <stroke
+        android:width="1dp"
+        android:color="#40FFFFFF" />
+</shape>

@@ -14,13 +14,18 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSmoothScroller
 import androidx.recyclerview.widget.RecyclerView
+import ani.sanin.BANNER_TYPE_MODERN
+import ani.sanin.util.BANNER_MAX_WIDTH
+import ani.sanin.util.bannerLoadOptions
+import ani.sanin.util.bindClassicChips
+import ani.sanin.util.currentBannerType
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
 import ani.sanin.R
-import ani.sanin.isLargeBanner
+import ani.sanin.isClassicBanner
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.getThemeColor
 import ani.sanin.loadImage
@@ -53,6 +58,16 @@ class BannerCarouselAdapter(
 
     val actualCount: Int get() = items.size
 
+    /**
+     * Modern gets its own layout, Classic gets its own, and Compact keeps the
+     * original card layout it has always used.
+     */
+    fun layoutForBannerType(modern: Boolean): Int = when {
+        modern -> R.layout.item_banner_modern
+        isClassicBanner() -> R.layout.item_banner_classic
+        else -> R.layout.item_banner_card
+    }
+
     fun realPosition(virtualPos: Int): Int = virtualPos % items.size
 
     fun updateUrls(backdrops: Map<Int, String?>, logos: Map<Int, String?>) {
@@ -81,26 +96,29 @@ class BannerCarouselAdapter(
         val imageUrl = if (!anizipUrl.isNullOrBlank()) anizipUrl
                        else media.banner ?: media.cover
         val bannerImage = holder.bannerImage
+        val loadOptions = bannerLoadOptions(currentBannerType(modernMode, isClassicBanner()))
         if (!imageUrl.isNullOrBlank()) {
             holder.bannerBg.visibility = View.VISIBLE
             bannerImage?.visibility = View.VISIBLE
-            bannerImage?.scaleType = if (isLargeBanner()) ImageView.ScaleType.CENTER_CROP
+            bannerImage?.scaleType = if (isClassicBanner()) ImageView.ScaleType.CENTER_CROP
                 else ImageView.ScaleType.FIT_CENTER
             Glide.with(holder.itemView.context)
                 .load(imageUrl)
                 .placeholder(R.color.bg_black)
                 .error(R.drawable.ic_round_person_24)
+                .apply(loadOptions)
                 .into(holder.bannerBg)
             Glide.with(holder.itemView.context)
                 .load(imageUrl)
                 .placeholder(R.color.bg_black)
                 .error(R.drawable.ic_round_person_24)
+                .apply(loadOptions)
                 .listener(object : RequestListener<Drawable> {
                     override fun onResourceReady(
                         resource: Drawable, model: Any, target: Target<Drawable>,
                         dataSource: DataSource, isFirstResource: Boolean
                     ): Boolean {
-                        bannerImage?.scaleType = if (isLargeBanner() ||
+                        bannerImage?.scaleType = if (isClassicBanner() ||
                             resource.intrinsicHeight > resource.intrinsicWidth)
                             ImageView.ScaleType.CENTER_CROP
                         else
@@ -111,7 +129,7 @@ class BannerCarouselAdapter(
                         e: GlideException?, model: Any?, target: Target<Drawable>,
                         isFirstResource: Boolean
                     ): Boolean {
-                        bannerImage?.scaleType = if (isLargeBanner()) ImageView.ScaleType.CENTER_CROP
+                        bannerImage?.scaleType = if (isClassicBanner()) ImageView.ScaleType.CENTER_CROP
                             else ImageView.ScaleType.FIT_CENTER
                         return false
                     }
@@ -128,13 +146,26 @@ class BannerCarouselAdapter(
         if (!logoUrl.isNullOrBlank()) {
             holder.clearlogo.isVisible = true
             holder.title.isVisible = false
-            com.bumptech.glide.Glide.with(holder.clearlogo.context)
+            val logoReq = com.bumptech.glide.Glide.with(holder.clearlogo.context)
                 .load(logoUrl)
-                .override(240, 64)
-                .into(holder.clearlogo)
+            // Classic has a hardcoded logo size, so decode to exactly that and
+            // let the view scale it; the old fixed 240x64 was tuned for the
+            // wrap_content logo and left Classic's larger box undersampled.
+            if (isClassicBanner()) {
+                logoReq.override(
+                    holder.clearlogo.layoutParams.width,
+                    holder.clearlogo.layoutParams.height
+                )
+            } else {
+                logoReq.override(240, 64)
+            }
+            logoReq.into(holder.clearlogo)
         }
 
-        // --- Format tag ---
+        // --- Chips: format, status, season, score, then genres ---
+        // Classic folds all of these into one two-line area under the pill;
+        // Compact still uses the individual tag views, so those are filled
+        // first and only the genre row is shared.
         val formatText = media.format?.replace("_", " ")?.let { fmt ->
             when {
                 fmt.equals("TV", true) -> "TV Series"
@@ -142,44 +173,29 @@ class BannerCarouselAdapter(
                 else -> fmt
             }
         }
-        val formatTag = holder.formatTag
-        if (!formatText.isNullOrBlank() && formatTag != null) {
-            formatTag.text = formatText
-            formatTag.isVisible = true
-        } else {
-            formatTag?.isVisible = false
-        }
-
-        // --- Status tag ---
         val statusText = media.status?.replace("_", " ")?.lowercase()?.replaceFirstChar { it.uppercase() }
-        val statusTag = holder.statusTag
-        if (!statusText.isNullOrBlank() && statusTag != null) {
-            statusTag.text = statusText
-            statusTag.isVisible = true
-        } else {
-            statusTag?.isVisible = false
-        }
+        val seasonText = media.anime?.season?.lowercase()
+            ?.let { season ->
+                media.anime?.seasonYear?.let { year -> "$season $year" } ?: season
+            }
+        val scoreText = media.meanScore?.let { "$it%" }
 
-        // --- Season tag ---
-        val season = media.anime?.season?.lowercase()
-        val year = media.anime?.seasonYear
-        val seasonText = if (season != null && year != null) "$season $year" else null
-        val seasonTag = holder.seasonTag
-        if (seasonText != null && seasonTag != null) {
-            seasonTag.text = seasonText
-            seasonTag.isVisible = true
+        if (isClassicBanner()) {
+            bindClassicChips(
+                holder.genresRow,
+                holder.chipsTop,
+                holder.chipsBottom,
+                listOfNotNull(formatText, statusText, seasonText, scoreText) + media.genres,
+            )
+            holder.formatTag?.isVisible = false
+            holder.statusTag?.isVisible = false
+            holder.seasonTag?.isVisible = false
+            holder.scoreTag?.isVisible = false
         } else {
-            seasonTag?.isVisible = false
-        }
-
-        // --- Score tag ---
-        val score = media.meanScore
-        val scoreTag = holder.scoreTag
-        if (score != null && scoreTag != null) {
-            scoreTag.text = "$score%"
-            scoreTag.isVisible = true
-        } else {
-            scoreTag?.isVisible = false
+            setChip(holder.formatTag, formatText)
+            setChip(holder.statusTag, statusText)
+            setChip(holder.seasonTag, seasonText)
+            setChip(holder.scoreTag, scoreText)
         }
 
         // --- Description ---
@@ -187,7 +203,7 @@ class BannerCarouselAdapter(
             ?.replace(Regex("<.*?>"), "")
             ?.replace(Regex("\\s+"), " ")
             ?.trim()
-        if (hideDescription || isLargeBanner()) {
+        if (hideDescription || isClassicBanner()) {
             holder.description.isVisible = false
         } else if (!desc.isNullOrBlank()) {
             holder.description.text = desc
@@ -197,35 +213,39 @@ class BannerCarouselAdapter(
         }
 
         // --- Genre chips ---
+        // In Classic the genres were already folded into the chip list above,
+        // so only Compact/Large still build the separate genre row here.
         val genresRow = holder.genresRow
-        genresRow?.removeAllViews()
-        if (media.genres.isNotEmpty() && genresRow != null) {
-            val density = ctx.resources.displayMetrics.density
-            for (genre in media.genres.take(4)) {
-                val chip = TextView(ctx).apply {
-                    text = genre
-                    setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnBackground))
-                    textSize = 11f
-                    setBackgroundResource(R.drawable.tag_chip_bg)
-                    setPadding(
-                        (10 * density).toInt(),
-                        (3 * density).toInt(),
-                        (10 * density).toInt(),
-                        (3 * density).toInt()
+        if (!isClassicBanner()) {
+            genresRow?.removeAllViews()
+            if (media.genres.isNotEmpty() && genresRow != null) {
+                val density = ctx.resources.displayMetrics.density
+                for (genre in media.genres.take(4)) {
+                    val chip = TextView(ctx).apply {
+                        text = genre
+                        setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnBackground))
+                        textSize = 11f
+                        setBackgroundResource(R.drawable.tag_chip_bg)
+                        setPadding(
+                            (10 * density).toInt(),
+                            (3 * density).toInt(),
+                            (10 * density).toInt(),
+                            (3 * density).toInt()
+                        )
+                        maxLines = 1
+                        isFocusable = false
+                    }
+                    val lp = LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT
                     )
-                    maxLines = 1
-                    isFocusable = false
+                    lp.marginEnd = (6 * density).toInt()
+                    genresRow.addView(chip, lp)
                 }
-                val lp = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-                lp.marginEnd = (6 * density).toInt()
-                genresRow.addView(chip, lp)
+                genresRow.isVisible = true
+            } else {
+                genresRow?.isVisible = false
             }
-            genresRow.isVisible = true
-        } else {
-            genresRow?.isVisible = false
         }
 
         // --- Play button ---
@@ -286,7 +306,10 @@ class BannerCarouselAdapter(
                 val item = items[pos]
                 val url = backdropUrls[item.id] ?: item.banner ?: item.cover
                 if (!url.isNullOrBlank()) {
-                    Glide.with(ctx).load(url).preload()
+                    Glide.with(ctx)
+                        .load(url)
+                        .apply(bannerLoadOptions(currentBannerType(modernMode, isClassicBanner())))
+                        .preload(BANNER_MAX_WIDTH, BANNER_MAX_WIDTH)
                 }
             }
         }
@@ -301,6 +324,7 @@ class BannerCarouselAdapter(
     private fun bindModern(holder: ViewHolder, media: Media) {
         val ctx = holder.itemView.context
         val density = ctx.resources.displayMetrics.density
+        applyModernMetrics(holder.itemView, holder.description)
         applyModernContentWidth(holder.itemView, holder.modernContent)
 
         // --- Background art: AniZip backdrop, then AniList banner, then cover. ---
@@ -314,6 +338,7 @@ class BannerCarouselAdapter(
                 .load(imageUrl)
                 .placeholder(R.color.bg_black)
                 .error(R.drawable.ic_round_person_24)
+                .apply(bannerLoadOptions(BANNER_TYPE_MODERN))
                 .into(holder.bannerBg)
         } else {
             holder.bannerBg.isVisible = false
@@ -413,7 +438,9 @@ class BannerCarouselAdapter(
         val scoreTag: TextView? = view.findViewById(R.id.bannerScoreTag)
 
         val description: TextView = view.findViewById(R.id.bannerDescription)
-        val genresRow: LinearLayout? = view.findViewById(R.id.bannerGenresRow)
+        val genresRow: ViewGroup? = view.findViewById(R.id.bannerGenresRow)
+        val chipsTop: ViewGroup? = view.findViewById(R.id.bannerChipsTop)
+        val chipsBottom: ViewGroup? = view.findViewById(R.id.bannerChipsBottom)
         val metaRow: LinearLayout? = view.findViewById(R.id.bannerMetaRow)
 
         val playBtn: android.widget.Button = view.findViewById(R.id.bannerPlayBtn)
@@ -431,6 +458,28 @@ class BannerCarouselAdapter(
         val content = holder.content ?: return
         val bottomGradient = holder.bottomGradient ?: return
         val density = holder.itemView.context.resources.displayMetrics.density
+
+        // Classic keeps its full stack (pill, chips, logo) in both orientations;
+        // landscape just centres it and drops the left scrim.
+        if (isClassicBanner()) {
+            scrim.isVisible = false
+            bottomGradient.isVisible = true
+            val lp = content.layoutParams as FrameLayout.LayoutParams
+            lp.width = FrameLayout.LayoutParams.MATCH_PARENT
+            lp.gravity = Gravity.BOTTOM
+            content.layoutParams = lp
+            content.gravity = if (landscapeOverlay) Gravity.CENTER_HORIZONTAL else Gravity.START
+            val padH = if (landscapeOverlay) (24 * density).toInt() else (16 * density).toInt()
+            val padB = if (landscapeOverlay) (10 * density).toInt() else (14 * density).toInt()
+            content.setPadding(padH, 0, padH, padB)
+            // The logo has a fixed size from the layout, so clear the old
+            // maxWidth/maxHeight that used to make it vary per logo.
+            holder.clearlogo.maxWidth = Int.MAX_VALUE
+            holder.clearlogo.maxHeight = Int.MAX_VALUE
+            holder.favBtn?.isVisible = false
+            return
+        }
+
         if (!landscapeOverlay) {
             scrim.isVisible = false
             bottomGradient.isVisible = true
@@ -446,7 +495,7 @@ class BannerCarouselAdapter(
         }
         val half = cardWidthPx / 2
         // Large type: no left 3-layer scrim, only the gradient below.
-        val largeBanner = isLargeBanner()
+        val largeBanner = isClassicBanner()
         scrim.isVisible = !largeBanner
         scrim.layoutParams = scrim.layoutParams.apply { width = half }
         bottomGradient.isVisible = largeBanner
@@ -469,6 +518,34 @@ private const val BANNER_SCROLL_MS = 400f
 
 /** The content column is capped to this fraction of the banner so it clears the poster. */
 private const val MODERN_CONTENT_WIDTH_FRACTION = 0.58f
+
+/**
+ * Re-applies the Modern banner's dimension-driven metrics on every bind.
+ *
+ * MainActivity handles rotation itself via android:configChanges, so the banner
+ * items are never re-inflated and a dimension resolved at inflate time would stay
+ * at the portrait value for the life of the recycled ViewHolder. That is what made
+ * some banners keep the 240dp/12sp portrait metrics after rotating to landscape
+ * while freshly inflated ones picked up 300dp/15sp.
+ *
+ * Reading them here fixes it because the Resources object is refreshed on a
+ * configuration change even when the activity is not recreated, so any holder
+ * corrects itself the next time it is bound. The px form of the synopsis size is
+ * deliberate: it already carries fontScale, exactly as the inflated attribute did.
+ */
+internal fun applyModernMetrics(root: View, description: TextView?) {
+    val res = root.resources
+    val height = res.getDimensionPixelSize(R.dimen.banner_modern_height)
+    val lp = root.layoutParams
+    if (lp != null && lp.height != height) {
+        lp.height = height
+        root.layoutParams = lp
+    }
+    description?.setTextSize(
+        android.util.TypedValue.COMPLEX_UNIT_PX,
+        res.getDimension(R.dimen.banner_modern_synopsis_text),
+    )
+}
 
 /**
  * Caps the Modern banner's content column to a fraction of the banner width.
@@ -539,14 +616,16 @@ internal fun addModernMetaItem(
     if (value.isNullOrBlank()) return
     val ctx = row.context
     val res = ctx.resources
-    val textSp = res.getDimension(R.dimen.banner_modern_meta_text) / res.displayMetrics.density
+    // Read as px: the dimen is declared in sp, so this carries fontScale, which
+    // dividing by density alone would drop.
+    val textPx = res.getDimension(R.dimen.banner_modern_meta_text)
     val gap = res.getDimension(R.dimen.banner_modern_meta_gap).toInt()
 
     if (row.childCount > 0) {
         val dot = TextView(ctx).apply {
             setText("·")
             setTextColor(MODERN_META_MUTED)
-            setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, textSp)
+            setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, textPx)
             includeFontPadding = false
             isFocusable = false
         }
@@ -568,7 +647,7 @@ internal fun addModernMetaItem(
             if (accent) ctx.getThemeColor(com.google.android.material.R.attr.colorPrimary)
             else MODERN_META_MUTED
         )
-        setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, textSp)
+        setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, textPx)
         maxLines = 1
         ellipsize = android.text.TextUtils.TruncateAt.END
         isFocusable = false
@@ -584,4 +663,15 @@ internal fun addModernMetaItem(
             ViewGroup.LayoutParams.WRAP_CONTENT,
         ),
     )
+}
+
+/** Shows a chip view with [text], or hides it when there is nothing to show. */
+private fun setChip(view: TextView?, text: String?) {
+    if (view == null) return
+    if (!text.isNullOrBlank()) {
+        view.text = text
+        view.isVisible = true
+    } else {
+        view.isVisible = false
+    }
 }

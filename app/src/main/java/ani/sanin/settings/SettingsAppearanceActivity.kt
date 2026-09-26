@@ -167,25 +167,8 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                         desc = "Apply blur to home banners",
                         switch = PrefManager.getVal<Boolean>(PrefName.BlurBanners) to {
                             PrefManager.setVal(PrefName.BlurBanners, it)
+                            rebuildSubscreen()
                         },
-                    ),
-                    SubscreenBuilder.Entry(
-                        title = "Blur Radius",
-                        desc = "How strong the blur is",
-                        choice = floatChoice("Blur Radius",
-                            arrayOf("1", "2", "4", "6", "8", "10", "15", "20", "25", "30"),
-                            floatArrayOf(1f, 2f, 4f, 6f, 8f, 10f, 15f, 20f, 25f, 30f),
-                            PrefManager.getVal<Float>(PrefName.BlurRadius),
-                        ) { PrefManager.setVal(PrefName.BlurRadius, it) },
-                    ),
-                    SubscreenBuilder.Entry(
-                        title = "Down-sample",
-                        desc = "Performance vs quality trade-off",
-                        choice = floatChoice("Down-sample",
-                            arrayOf("1×", "2×", "3×", "4×", "5×", "6×", "8×"),
-                            floatArrayOf(1f, 2f, 3f, 4f, 5f, 6f, 8f),
-                            PrefManager.getVal<Float>(PrefName.BlurSampling),
-                        ) { PrefManager.setVal(PrefName.BlurSampling, it) },
                     ),
                     SubscreenBuilder.Entry(
                         title = "Show Media Banner",
@@ -207,12 +190,21 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                     ),
                     SubscreenBuilder.Entry(
                         title = "Banner Type",
-                        desc = "Compact keeps the current size; Large is 360dp tall with center-cropped art; Modern is a full-bleed cinematic banner with the logo, synopsis and a portrait poster",
+                        desc = "Compact keeps the current size; Classic is taller in portrait with the logo centred at the bottom; Modern is a full-bleed cinematic banner with the logo, synopsis and a portrait poster",
                         choice = SubscreenBuilder.Choice(
                             title = "Banner Type",
-                            options = arrayOf("Compact", "Large", "Modern"),
+                            options = arrayOf("Compact", "Classic", "Modern"),
                             currentIndex = PrefManager.getVal<Int>(PrefName.BannerType),
                         ) { idx -> PrefManager.setVal(PrefName.BannerType, idx) },
+                    ),
+                    SubscreenBuilder.Entry(
+                        title = "Blur Strength",
+                        desc = "How strong the blur looks. 0 leaves the art sharp.",
+                        slider = SubscreenBuilder.SliderOption(
+                            value = PrefManager.getVal<Float>(PrefName.BlurStrength),
+                            valueFrom = 0f, valueTo = 25f, step = 5f,
+                        ) { PrefManager.setVal(PrefName.BlurStrength, it) },
+                        isEnabled = PrefManager.getVal<Boolean>(PrefName.BlurBanners),
                     ),
                 ),
             ),

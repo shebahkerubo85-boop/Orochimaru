@@ -102,8 +102,10 @@ enum class PrefName(val data: Pref) {
     AnimeDefaultView(Pref(Location.UI, Int::class, 3)),
 
     BlurBanners(Pref(Location.UI, Boolean::class, true)),
-    BlurRadius(Pref(Location.UI, Float::class, 2f)),
-    BlurSampling(Pref(Location.UI, Float::class, 2f)),
+    // Single knob for blur strength, replacing the old radius and down-sample
+    // choices. 0 is unused: BlurBanners is the on/off switch. Capped at 25
+    // because that is the ceiling the blur backend accepts.
+    BlurStrength(Pref(Location.UI, Float::class, 10f)),
     ImmersiveMode(Pref(Location.UI, Boolean::class, false)),
     SmallView(Pref(Location.UI, Boolean::class, true)),
     DefaultStartUpTab(Pref(Location.UI, Int::class, 0)),
@@ -223,7 +225,7 @@ enum class PrefName(val data: Pref) {
 
     //Home
     HomeBannerMode(Pref(Location.UI, Int::class, 2)),
-    BannerType(Pref(Location.UI, Int::class, 0)), // 0=Compact, 1=Large, 2=Modern
+    BannerType(Pref(Location.UI, Int::class, 0)), // 0=Compact, 1=Classic, 2=Modern
     ShowContinueWatching(Pref(Location.UI, Boolean::class, true)),
     ShowPlanned(Pref(Location.UI, Boolean::class, true)),
     ShowRecommendations(Pref(Location.UI, Boolean::class, true)),

@@ -23,7 +23,8 @@ import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.home.BannerCarouselAdapter
 import ani.sanin.R
-import ani.sanin.isLargeBanner
+import ani.sanin.isClassicBanner
+import ani.sanin.isModernBanner
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.anizip.AniZip
 import ani.sanin.connections.mal.MAL
@@ -58,6 +59,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
     lateinit var binding: ItemAnimePageBinding
     private lateinit var trendingBinding: LayoutTrendingBinding
     var bannerAdapter: BannerCarouselAdapter? = null
+        private set
     private var bannerSnap: PagerSnapHelper? = null
     private var trendingMedia: List<Media> = emptyList()
     private var trendingLogos: Map<Int, String?> = emptyMap()
@@ -129,6 +131,9 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             }
             applyTrendingBannerMode()
             applySeasonSelectorSpacing()
+            // Rotation does not re-inflate the pager items, so the banner has to
+            // be rebound to pick up the new portrait/landscape height.
+            bannerAdapter?.notifyDataSetChanged()
         }
     }
 
@@ -209,7 +214,15 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         cardLp.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID
         trendingBinding.trendingCard.layoutParams = cardLp
 
-        trendingBinding.trendingLeftFade.isVisible = isLandscape
+        // Modern and Classic fill the whole width, so there is no left strip to
+        // fade and no room for a side panel — and the banner already carries the
+        // logo, chips and watch pill that the panel used to supply. Only Compact
+        // is narrow enough to keep the side panel.
+        val modern = isModernBanner()
+        val classic = isClassicBanner()
+        val fullBleed = modern || classic
+
+        trendingBinding.trendingLeftFade.isVisible = isLandscape && !fullBleed
         if (isLandscape) {
             trendingBinding.trendingLeftFade.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                 width = ctx.resources.displayMetrics.widthPixels - cardW
@@ -218,14 +231,13 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         }
 
         val overlay = trendingBinding.trendingOverlay
-        if (isLandscape) {
+        if (isLandscape && !fullBleed) {
             overlay.isVisible = true
             val density = ctx.resources.displayMetrics.density
             val sidePad = (24 * density).toInt()
             val stripW = ctx.resources.displayMetrics.widthPixels - cardW
-            val largeBanner = isLargeBanner()
             overlay.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                width = if (largeBanner) cardW else stripW + cardW / 4
+                width = stripW + cardW / 4
                 height = cardH
             }
             overlay.setPadding(sidePad, 0, sidePad, 0)
@@ -235,17 +247,13 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             trendingBinding.trendingOverlaySynopsis.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                 width = (stripW - sidePad * 2 + cardW / 4).coerceAtLeast(1)
             }
-            if (largeBanner) {
-                trendingBinding.trendingOverlayTitle.updateLayoutParams<ViewGroup.MarginLayoutParams> { bottomMargin = (5 * density).toInt() }
-                trendingBinding.trendingWatchBtn.updateLayoutParams<ViewGroup.MarginLayoutParams> { topMargin = (2 * density).toInt() }
-            }
             updateTrendingOverlayForCurrent()
         } else {
             overlay.isVisible = false
         }
 
         bannerAdapter?.setLandscapeMode(isLandscape, cardW)
-        trendingBinding.trendingWatchBtn.isVisible = isLandscape
+        trendingBinding.trendingWatchBtn.isVisible = isLandscape && !fullBleed
         setupTrendingWatchBtn()
     }
 
@@ -291,7 +299,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             ?.replace(Regex("\\s+"), " ")
             ?.trim()
         // Large type: title + chips only, no synopsis.
-        if (isLargeBanner()) {
+        if (isClassicBanner()) {
             synopsis.isVisible = false
         } else if (!desc.isNullOrBlank()) {
             synopsis.text = desc
@@ -373,8 +381,12 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
                 )
             },
             nextFocusDownId = R.id.animeSeasons,
-            layoutRes = R.layout.item_banner_card,
-            cardMode = true
+            layoutRes = BannerCarouselAdapter.layoutForBannerType(isModernBanner()),
+            // Classic and Modern carry their own watch pill, so the cardMode
+            // path that hides it only applies to Compact.
+            cardMode = !isModernBanner() && !isClassicBanner(),
+            hideDescription = !isModernBanner(),
+            modernMode = isModernBanner(),
         )
         rv.adapter = bannerAdapter
         applyTrendingBannerMode()
