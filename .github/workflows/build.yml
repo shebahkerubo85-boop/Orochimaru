@@ -71,6 +71,51 @@ jobs:
           find app/build/outputs/apk -name "*.apk" -exec cp {} /tmp/apks/ \;
           find app/build/outputs/apk -name "*.apk" -exec ls -lh {} \;
 
+      - name: APK size report
+        run: |
+          for apk in app/build/outputs/apk/google/release/*.apk; do
+            echo "::group::$(basename "$apk")"
+            ls -lh "$apk" | awk '{print "apk total: " $5}'
+            echo "--- uncompressed size by area ---"
+            unzip -l "$apk" | awk 'NF>3 && $1 ~ /^[0-9]+$/ {
+              n=$NF
+              if (n ~ /^classes[0-9]*\.dex$/) k="dex (app code)"
+              else if (n ~ /^lib\//) k="lib (native code)"
+              else if (n ~ /^res\//) k="res (fonts/images/layouts)"
+              else if (n ~ /^assets\//) k="assets"
+              else k="other"
+              t[k]+=$1
+            } END { for (k in t) printf "%10.1f MB  %s\n", t[k]/1048576, k }' | sort -rn
+            echo "--- dex files ---"
+            unzip -l "$apk" | awk '$NF ~ /^classes[0-9]*\.dex$/ {printf "%8.2f MB  %s\n", $1/1048576, $NF}' | sort -rn
+            echo "--- native libs ---"
+            unzip -l "$apk" | awk '$NF ~ /^lib\// {printf "%8.2f MB  %s\n", $1/1048576, $NF}' | sort -rn
+            echo "--- fonts actually packaged ---"
+            unzip -l "$apk" | awk '$NF ~ /^res\/.*\.(ttf|otf|ttc)$/ {printf "%8.1f KB  %s\n", $1/1024, $NF}' | sort -rn
+            echo "--- 20 largest res entries ---"
+            unzip -l "$apk" | awk '$NF ~ /^res\// {printf "%8.1f KB  %s\n", $1/1024, $NF}' | sort -rn | head -20
+            echo "::endgroup::"
+          done
+
+      - name: Verify plugin API survived R8
+        run: |
+          MAPPING=$(find app/build/outputs/mapping -name mapping.txt | head -1)
+          if [ -z "$MAPPING" ]; then
+            echo "::warning::no mapping.txt found, skipping rename check"
+            exit 0
+          fi
+          echo "using $MAPPING"
+          echo "--- plugin-facing classes R8 renamed (kept classes map to themselves) ---"
+          OBF=$(awk '/^(com\.lagradost\.cloudstream3\.(MainAPI|ExtractorApi|plugin\.|syncproviders\.|utils\.)|com\.google\.firebase\.crashlytics|eu\.kanade\.tachiyomi\.source\.api|ani\.sanin\.others\.CrashActivity)[A-Za-z0-9_.$]* -> / { o=$1; r=$3; sub(/:$/,"",r); if (o != r) print o" -> "r }' "$MAPPING")
+          if [ -n "$OBF" ]; then
+            echo "$OBF" | head -30
+            echo "::error::$(echo "$OBF" | wc -l) plugin-facing classes were renamed by R8 - plugins would crash"
+            exit 1
+          fi
+          echo "OK: no plugin-facing class was renamed"
+          echo "--- total classes R8 renamed ---"
+          awk '{ o=$1; r=$3; sub(/:$/,"",r); if (o != r) n++ } END { print n+0 }' "$MAPPING"
+
       - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
