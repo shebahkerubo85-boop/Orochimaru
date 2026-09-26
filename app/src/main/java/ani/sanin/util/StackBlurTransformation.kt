@@ -5,7 +5,6 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
-import android.graphics.drawable.Drawable
 import ani.sanin.BANNER_TYPE_CLASSIC
 import ani.sanin.BANNER_TYPE_COMPACT
 import ani.sanin.BANNER_TYPE_MODERN
@@ -174,8 +173,8 @@ class BottomBlurTransformation(
  * just its bottom band, Modern blurs the dimmed backdrop it is built around, and
  * Compact is left sharp.
  */
-fun bannerLoadOptions(bannerType: Int): RequestOptions<Drawable> {
-    val options = RequestOptions<Drawable>().override(BANNER_MAX_WIDTH)
+fun bannerLoadOptions(bannerType: Int): RequestOptions {
+    val options = RequestOptions().override(BANNER_MAX_WIDTH)
     if (!PrefManager.getVal<Boolean>(PrefName.BlurBanners)) return options
     val radius = PrefManager.getVal<Float>(PrefName.BlurStrength).toInt()
     if (radius <= 0) return options
