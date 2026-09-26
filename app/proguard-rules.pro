@@ -217,3 +217,8 @@
 -dontwarn org.graalvm.nativeimage.**
 -dontwarn com.oracle.svm.core.annotate.**
 -dontwarn jdk.internal.misc.**
+
+# Obfuscation off for now: a release build is crashing on startup before the splash
+# screen, so class names are being held stable while that is diagnosed. Shrinking and
+# resource shrinking stay on, so only name rewriting changes between the two builds.
+-dontobfuscate
