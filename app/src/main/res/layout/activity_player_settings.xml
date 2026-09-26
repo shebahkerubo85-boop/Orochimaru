@@ -82,6 +82,15 @@
         app:tabTextAppearance="@style/NavBarText" />
 
     <!-- Content area -->
+    <!-- Subtitle preview: outside the scroll view so it stays put on the Subtitle tab -->
+    <FrameLayout
+        android:id="@+id/subtitlePreviewContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="12dp"
+        android:visibility="gone" />
+
     <androidx.core.widget.NestedScrollView
         android:id="@+id/tabScroll"
         android:layout_width="match_parent"
@@ -96,15 +105,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
-
-            <!-- Subtitle preview container (shown only on subtitle tab) -->
-            <FrameLayout
-                android:id="@+id/subtitlePreviewContainer"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="16dp"
-                android:layout_marginTop="12dp"
-                android:visibility="gone" />
 
             <!-- Dynamic tab content -->
             <LinearLayout

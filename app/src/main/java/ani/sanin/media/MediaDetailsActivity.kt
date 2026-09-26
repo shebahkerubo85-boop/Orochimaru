@@ -29,6 +29,8 @@ import androidx.lifecycle.lifecycleScope
 import ani.sanin.GesturesListener
 import ani.sanin.R
 import ani.sanin.Refresh
+import ani.sanin.bannerFallbackColor
+import ani.sanin.isDarkTheme
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.anizip.AniZip
 import ani.sanin.connections.mal.MAL
@@ -122,25 +124,20 @@ class MediaDetailsActivity : AppCompatActivity() {
         // Load full-screen banner background.
         // Portrait: use the AniList poster (media.cover) — leave landscape on the
         // wide backdrop (media.banner + AniZip backdrop override).
-        val bannerBrightness = PrefManager.getVal<Float>(PrefName.BannerBrightness)
+        val bannerTransparency = PrefManager.getVal<Float>(PrefName.BannerTransparency)
         val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
-        val isDarkMode = (resources.configuration.uiMode and
-            android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
-            android.content.res.Configuration.UI_MODE_NIGHT_YES
-        if (bannerBrightness > 0f) {
+        if (bannerTransparency > 0f) {
             val fallbackUrl = if (isPortrait) media.cover ?: media.banner else media.banner ?: media.cover
             binding.mediaBg?.loadImage(fallbackUrl)
-            binding.mediaBg?.alpha = bannerBrightness
-            binding.mediaBgGradient?.alpha = bannerBrightness
-            binding.mediaDarkenOverlay?.setBackgroundColor(
-                if (isDarkMode) android.graphics.Color.BLACK else android.graphics.Color.WHITE
-            )
-            binding.mediaDarkenOverlay?.alpha = 1f - bannerBrightness
+            binding.mediaBg?.alpha = bannerTransparency
+            binding.mediaBgGradient?.alpha = bannerTransparency
+            binding.mediaDarkenOverlay?.setBackgroundColor(bannerFallbackColor())
+            binding.mediaDarkenOverlay?.alpha = 1f - bannerTransparency
             binding.mediaDarkenOverlay?.visibility = View.VISIBLE
             binding.mediaBanner?.loadImage(fallbackUrl)
-            binding.mediaBanner?.alpha = bannerBrightness
+            binding.mediaBanner?.alpha = bannerTransparency
             binding.mediaBannerNoKen?.loadImage(fallbackUrl)
-            binding.mediaBannerNoKen?.alpha = bannerBrightness
+            binding.mediaBannerNoKen?.alpha = bannerTransparency
             if (!isPortrait) {
                 lifecycleScope.launch {
                     val tmdbUrl = AniZip.getBackdropUrlWithTmdbFallback(media.id, media.nameRomaji)
@@ -190,7 +187,7 @@ class MediaDetailsActivity : AppCompatActivity() {
         val primaryColor = getThemeColor(com.google.android.material.R.attr.colorPrimary)
         val onBgColor = getThemeColor(com.google.android.material.R.attr.colorOnBackground)
         val isMonochrome = PrefManager.getVal<String>(PrefName.Theme).contains("MONOCHROME", ignoreCase = true)
-        val navFocusColor = if (isMonochrome && isDarkMode) android.graphics.Color.WHITE else if (isMonochrome) android.graphics.Color.BLACK else null
+        val navFocusColor = if (isMonochrome && isDarkTheme()) android.graphics.Color.WHITE else if (isMonochrome) android.graphics.Color.BLACK else null
         val navInfo = binding.navPillInfo
         val navWatch = binding.navPillWatch
         val navComments = binding.navPillComments

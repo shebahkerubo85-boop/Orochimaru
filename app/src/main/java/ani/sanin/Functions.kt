@@ -1540,6 +1540,15 @@ fun blurImage(imageView: ImageView, banner: String?) {
     }
 }
 
+/** Whether the app is currently rendering its dark theme. Follows the in-app
+ *  "Light or Dark" choice (PrefName.DarkMode), not the system uiMode, so banner
+ *  overlays tint correctly for a user who forced light or dark. */
+fun isDarkTheme(): Boolean = PrefManager.getVal<Int>(PrefName.DarkMode) == 1
+
+/** Flat surface colour standing in for a hidden banner: black on the dark
+ *  theme, white on the light one. */
+fun bannerFallbackColor(): Int = if (isDarkTheme()) Color.BLACK else Color.WHITE
+
 fun Context.getThemeColor(@AttrRes attribute: Int): Int {
     val typedValue = TypedValue()
     theme.resolveAttribute(attribute, typedValue, true)

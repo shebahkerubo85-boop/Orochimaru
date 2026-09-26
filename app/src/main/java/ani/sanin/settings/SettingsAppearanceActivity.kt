@@ -14,6 +14,8 @@ import android.widget.GridLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.RadioGroup
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
@@ -31,6 +33,7 @@ import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.customAlertDialog
 import com.google.android.material.materialswitch.MaterialSwitch
+import com.google.android.material.slider.Slider
 
 class SettingsAppearanceActivity : AppCompatActivity() {
 
@@ -75,21 +78,7 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                     SubscreenBuilder.Entry(
                         title = "OLED Background",
                         desc = "Deep black or dark surface style",
-                        choice = SubscreenBuilder.Choice(
-                            title = "OLED Background",
-                            options = arrayOf("Off", "Pure AMOLED", "Glow Spots", "Gradient", "Vignette"),
-                            currentIndex = PrefManager.getVal<Int>(PrefName.OledMode),
-                        ) { idx -> PrefManager.setVal(PrefName.OledMode, idx); restartApp() },
-                        expandSlider = SubscreenBuilder.ExpandSlider(
-                            slider = SubscreenBuilder.SliderOption(
-                                value = PrefManager.getVal<Float>(PrefName.OledIntensity) * 100f,
-                                valueFrom = 0f,
-                                valueTo = 100f,
-                                step = 5f,
-                                suffix = "%",
-                            ) { PrefManager.setVal(PrefName.OledIntensity, it / 100f) },
-                            showOnIndex = 0,
-                        ),
+                        onClick = { ctx -> showOledBackgroundDialog() },
                     ),
                     SubscreenBuilder.Entry(
                         title = "Accent Tint",
@@ -133,10 +122,7 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                     SubscreenBuilder.Entry(
                         title = "Title Placement",
                         desc = "Where the card title sits",
-                        choice = SubscreenBuilder.Choice(
-                            title = "Title Placement", options = arrayOf("Overlay Bottom (Landscape)", "Below Card", "Hidden"),
-                            currentIndex = PrefManager.getVal<Int>(PrefName.CardTitlePosition),
-                        ) { idx -> PrefManager.setVal(PrefName.CardTitlePosition, idx); restartApp() },
+                        onClick = { ctx -> showTitlePlacementDialog() },
                     ),
                     SubscreenBuilder.Entry(
                         title = "Card Metadata",
@@ -202,22 +188,22 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                         ) { PrefManager.setVal(PrefName.BlurSampling, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Banner Brightness",
-                        desc = "Brightness of the info-page banner. 0 keeps a plain surface, 100% shows the art fully.",
-                        slider = SubscreenBuilder.SliderOption(
-                            value = PrefManager.getVal<Float>(PrefName.BannerBrightness) * 100f,
-                            valueFrom = 0f, valueTo = 100f, step = 1f,
-                            suffix = "%"
-                        ) { PrefManager.setVal(PrefName.BannerBrightness, it / 100f) },
+                        title = "Show Media Banner",
+                        desc = "Load banner art behind the info, watch & comment tabs",
+                        switch = PrefManager.getVal<Boolean>(PrefName.ShowMediaBanner) to {
+                            PrefManager.setVal(PrefName.ShowMediaBanner, it)
+                            rebuildSubscreen()
+                        },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Gradient Intensity",
-                        desc = "How dark the gradient behind the card title is. Lower looks cleaner.",
+                        title = "Banner Transparency",
+                        desc = "How much banner art shows through. 0% hides it behind a flat surface, 100% shows the art fully.",
                         slider = SubscreenBuilder.SliderOption(
-                            value = PrefManager.getVal<Float>(PrefName.CardGradientIntensity) * 100f,
+                            value = PrefManager.getVal<Float>(PrefName.BannerTransparency) * 100f,
                             valueFrom = 0f, valueTo = 100f, step = 1f,
                             suffix = "%"
-                        ) { PrefManager.setVal(PrefName.CardGradientIntensity, it / 100f) },
+                        ) { PrefManager.setVal(PrefName.BannerTransparency, it / 100f) },
+                        isEnabled = PrefManager.getVal<Boolean>(PrefName.ShowMediaBanner),
                     ),
                     SubscreenBuilder.Entry(
                         title = "Banner Type",
@@ -701,6 +687,116 @@ class SettingsAppearanceActivity : AppCompatActivity() {
 
 
     // ─── Card Metadata Dialog ─────────────────────────────────
+    private fun showOledBackgroundDialog() {
+        val initialMode = PrefManager.getVal<Int>(PrefName.OledMode)
+        val view = layoutInflater.inflate(R.layout.dialog_oled_background, null)
+
+        val group = view.findViewById<RadioGroup>(R.id.oledModeGroup)
+        val buttons = listOf(
+            view.findViewById<RadioButton>(R.id.oledModeOff),
+            view.findViewById<RadioButton>(R.id.oledModeAmoled),
+            view.findViewById<RadioButton>(R.id.oledModeGlow),
+            view.findViewById<RadioButton>(R.id.oledModeGradient),
+            view.findViewById<RadioButton>(R.id.oledModeVignette),
+        )
+
+        group.clearCheck()
+        buttons.getOrNull(initialMode)?.isChecked = true
+
+        val slider = view.findViewById<Slider>(R.id.slider)
+        val sliderValue = view.findViewById<TextView>(R.id.sliderValue)
+        view.findViewById<TextView>(R.id.sliderTitle).text = "Intensity"
+        view.findViewById<TextView>(R.id.sliderDesc).apply {
+            text = "Strength of the selected OLED effect"
+            visibility = View.VISIBLE
+        }
+
+        // Only meaningful once a style is picked, so mirror the old
+        // expandSlider behaviour: inert on "Off".
+        fun syncSliderEnabled() {
+            val enabled = buttons.indexOfFirst { it.id == group.checkedRadioButtonId } != 0
+            slider.isEnabled = enabled
+            slider.alpha = if (enabled) 1f else 0.35f
+            sliderValue.alpha = if (enabled) 1f else 0.35f
+        }
+
+        slider.valueFrom = 0f
+        slider.valueTo = 100f
+        slider.stepSize = 5f
+        slider.value = PrefManager.getVal<Float>(PrefName.OledIntensity) * 100f
+        sliderValue.text = "${slider.value.toInt()}%"
+        syncSliderEnabled()
+        slider.addOnChangeListener { _, value, fromUser ->
+            sliderValue.text = "${value.toInt()}%"
+            if (fromUser) PrefManager.setVal(PrefName.OledIntensity, value / 100f)
+        }
+
+        var changed = false
+        group.setOnCheckedChangeListener { _, checkedId ->
+            val idx = buttons.indexOfFirst { it.id == checkedId }
+            if (idx >= 0) {
+                PrefManager.setVal(PrefName.OledMode, idx)
+                if (idx != initialMode) changed = true
+                syncSliderEnabled()
+            }
+        }
+
+        customAlertDialog().apply {
+            setCustomView(view)
+            setCancelable(true)
+            onDismiss { if (changed) restartApp() }
+            show()
+        }
+    }
+
+    private fun showTitlePlacementDialog() {
+        val initialPosition = PrefManager.getVal<Int>(PrefName.CardTitlePosition)
+        val view = layoutInflater.inflate(R.layout.dialog_title_placement, null)
+
+        val group = view.findViewById<RadioGroup>(R.id.titlePlacementGroup)
+        val buttons = listOf(
+            view.findViewById<RadioButton>(R.id.titlePlacementOverlay),
+            view.findViewById<RadioButton>(R.id.titlePlacementBelow),
+            view.findViewById<RadioButton>(R.id.titlePlacementHidden),
+        )
+
+        group.clearCheck()
+        buttons.getOrNull(initialPosition)?.isChecked = true
+
+        var changed = false
+        group.setOnCheckedChangeListener { _, checkedId ->
+            val idx = buttons.indexOfFirst { it.id == checkedId }
+            if (idx >= 0 && idx != initialPosition) {
+                PrefManager.setVal(PrefName.CardTitlePosition, idx)
+                changed = true
+            }
+        }
+
+        val slider = view.findViewById<Slider>(R.id.slider)
+        val sliderValue = view.findViewById<TextView>(R.id.sliderValue)
+        view.findViewById<TextView>(R.id.sliderTitle).text = "Gradient Intensity"
+        view.findViewById<TextView>(R.id.sliderDesc).apply {
+            text = "How dark the gradient behind the card title is. Lower looks cleaner."
+            visibility = View.VISIBLE
+        }
+        slider.valueFrom = 0f
+        slider.valueTo = 100f
+        slider.stepSize = 1f
+        slider.value = PrefManager.getVal<Float>(PrefName.CardGradientIntensity) * 100f
+        sliderValue.text = "${slider.value.toInt()}%"
+        slider.addOnChangeListener { _, value, _ ->
+            sliderValue.text = "${value.toInt()}%"
+            PrefManager.setVal(PrefName.CardGradientIntensity, value / 100f)
+        }
+
+        customAlertDialog().apply {
+            setCustomView(view)
+            setCancelable(true)
+            onDismiss { if (changed) restartApp() }
+            show()
+        }
+    }
+
     private fun showCardMetadataDialog() {
         val topPref = PrefManager.getVal<Int>(PrefName.CardMetadataTop)
         val bottomPref = PrefManager.getVal<Int>(PrefName.CardMetadataBottom)

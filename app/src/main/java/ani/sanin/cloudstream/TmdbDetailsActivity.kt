@@ -26,6 +26,8 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
+import ani.sanin.bannerFallbackColor
+import ani.sanin.isDarkTheme
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.tmdb.TmdbCast
 import ani.sanin.connections.tmdb.TmdbDetail
@@ -177,7 +179,10 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         super.onResume()
         CommonActivity.setActivityInstance(this)
         // Re-apply the banner brightness slider when returning from settings.
-        if (::shell.isInitialized) applyBannerBrightness()
+        if (::shell.isInitialized) {
+            if (PrefManager.getVal<Boolean>(PrefName.ShowMediaBanner)) applyBannerTransparency()
+            else applyBannerHidden()
+        }
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
@@ -296,9 +301,13 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
                 Tmdb.imageUrl(d.posterPath, 780) ?: Tmdb.imageUrl(d.backdropPath, 780)
             else
                 Tmdb.imageUrl(d.backdropPath, 1280) ?: Tmdb.imageUrl(d.posterPath, 780)
-            bg?.let {
-                shell.tmdbDetailBackdrop.loadImage(it)
-                applyBannerBrightness()
+            if (PrefManager.getVal<Boolean>(PrefName.ShowMediaBanner)) {
+                bg?.let {
+                    shell.tmdbDetailBackdrop.loadImage(it)
+                    applyBannerTransparency()
+                }
+            } else {
+                applyBannerHidden()
             }
 
             val logo = Tmdb.logoUrl(d)
@@ -514,18 +523,28 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         binding.mediaInfoNextRow.visibility = View.GONE
     }
 
-    private fun applyBannerBrightness() {
-        val brightness = PrefManager.getVal<Float>(PrefName.BannerBrightness)
+    /** Banner art disabled: drop the image + gradient and paint a flat
+     *  theme-aware surface (black in dark, white in light) instead. */
+    private fun applyBannerHidden() {
+        shell.tmdbDetailBackdrop.setImageDrawable(null)
+        shell.tmdbDetailBackdrop.visibility = View.GONE
+        shell.tmdbDetailGradient.visibility = View.GONE
+        shell.tmdbDetailDarkenOverlay?.apply {
+            visibility = View.VISIBLE
+            alpha = 1f
+            setBackgroundColor(bannerFallbackColor())
+        }
+    }
+
+    private fun applyBannerTransparency() {
+        val brightness = PrefManager.getVal<Float>(PrefName.BannerTransparency)
         if (brightness > 0f) {
             shell.tmdbDetailBackdrop.alpha = brightness
             shell.tmdbDetailGradient.alpha = brightness
         }
-        val isDarkMode = (resources.configuration.uiMode and
-            android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
-            android.content.res.Configuration.UI_MODE_NIGHT_YES
-        shell.tmdbDetailDarkenOverlay?.setBackgroundColor(
-            if (isDarkMode) Color.BLACK else Color.WHITE
-        )
+        // Tinted veil: black over the dark theme, white over the light one, so
+        // lowering the slider darkens (or washes out) instead of just fading.
+        shell.tmdbDetailDarkenOverlay?.setBackgroundColor(bannerFallbackColor())
         if (shell.tmdbDetailBackdrop.visibility != View.VISIBLE) {
             shell.tmdbDetailBackdrop.visibility = View.VISIBLE
             shell.tmdbDetailGradient.visibility = View.VISIBLE

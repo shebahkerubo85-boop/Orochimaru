@@ -40,7 +40,27 @@ object PrefManager {
         protectedPreferences =
             context.getSharedPreferences(Location.Protected.location, Context.MODE_PRIVATE)
         Compat.importOldPrefs(context)
+        migrateRenamedFloatPrefs()
     }
+
+    /**
+     * Stored keys are the PrefName constant names, so renaming a PrefName orphans the
+     * old key and silently resets the user's setting to its default. Carry those values
+     * across once, then drop the stale keys.
+     */
+    private fun migrateRenamedFloatPrefs() {
+        if (getVal(PrefName.HasMigratedBannerTransparency)) return
+        val uiPref = getPrefLocation(Location.UI)
+        uiPref.getFloat(LEGACY_BANNER_BRIGHTNESS, Float.NaN).let { old ->
+            if (!old.isNaN() && !uiPref.contains(PrefName.BannerTransparency.name)) {
+                uiPref.edit().putFloat(PrefName.BannerTransparency.name, old).apply()
+            }
+        }
+        uiPref.edit().remove(LEGACY_BANNER_BRIGHTNESS).apply()
+        setVal(PrefName.HasMigratedBannerTransparency, true)
+    }
+
+    private const val LEGACY_BANNER_BRIGHTNESS = "BannerBrightness"
 
     @Suppress("UNCHECKED_CAST")
     fun <T> setVal(prefName: PrefName, value: T?) {

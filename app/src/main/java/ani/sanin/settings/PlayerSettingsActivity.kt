@@ -1,5 +1,6 @@
 package ani.sanin.settings
 
+import android.app.AlertDialog
 import android.content.res.Resources
 import android.graphics.Color
 import android.os.Build
@@ -31,6 +32,7 @@ import ani.sanin.themes.ThemeManager
 import ani.sanin.toast
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.customAlertDialog
+import com.google.android.material.slider.Slider
 import com.google.android.material.slider.Slider.OnChangeListener
 import com.google.android.material.tabs.TabLayout
 import kotlin.math.roundToInt
@@ -287,10 +289,8 @@ class PlayerSettingsActivity :
             override fun onRetract() {}
         })
         updateSubPreview()
-        pv.subtitlePreviewHeader.setOnClickListener {
-            val isVisible = pv.subtitleTestWindow.visibility == View.VISIBLE
-            pv.subtitleTestWindow.visibility = if (isVisible) View.GONE else View.VISIBLE
-        }
+        // No click listener on the header here on purpose: Xpandable already binds
+        // its first child, and a second one fought with the animation.
 
         val allProviders = arrayOf("Wyzie", "Stremio", "OpenSubtitles", "SubSource", "SubDL")
         val allLanguages = arrayOf("en","ar","pt","es","id","fr","ru","zh","ja","tr","it","de","pl","th","vi","ko")
@@ -376,6 +376,18 @@ class PlayerSettingsActivity :
                     },
                 ),
                 SubscreenBuilder.Entry(
+                    title = getString(R.string.sub_alpha),
+                    desc = "Subtitle transparency level",
+                    isEnabled = subtitlesEnabled,
+                    slider = SubscreenBuilder.SliderOption(
+                        value = PrefManager.getVal(PrefName.SubAlpha),
+                        valueFrom = 0f, valueTo = 1f, step = 0.05f, suffix = ""
+                    ) {
+                        PrefManager.setVal(PrefName.SubAlpha, it)
+                        updateSubPreview()
+                    },
+                ),
+                SubscreenBuilder.Entry(
                     title = getString(R.string.subtitle_font),
                     desc = "Subtitle typeface",
                     isEnabled = subtitlesEnabled,
@@ -427,7 +439,7 @@ class PlayerSettingsActivity :
                     title = getString(R.string.sub_background_color_select),
                     desc = "Subtitle background color",
                     isEnabled = subtitlesEnabled,
-                    onClick = { showColorPicker(PrefManager.getVal<Int>(PrefName.SubBackground), getString(R.string.sub_background_color_select)) { PrefManager.setVal(PrefName.SubBackground, it); updateSubPreview() } },
+                    onClick = { showColorPicker(PrefManager.getVal<Int>(PrefName.SubBackground), getString(R.string.sub_background_color_select), allowNone = true) { PrefManager.setVal(PrefName.SubBackground, it); updateSubPreview() } },
                 ),
                 SubscreenBuilder.Entry(
                     title = getString(R.string.sub_window_color_select),
@@ -438,23 +450,11 @@ class PlayerSettingsActivity :
                             setTitle(getString(R.string.sub_window_color_select))
                             setMessage(getString(R.string.sub_window_color_info))
                             setPosButton(R.string.ok) {
-                                showColorPicker(PrefManager.getVal<Int>(PrefName.SubWindow), getString(R.string.sub_window_color_select)) { PrefManager.setVal(PrefName.SubWindow, it); updateSubPreview() }
+                                showColorPicker(PrefManager.getVal<Int>(PrefName.SubWindow), getString(R.string.sub_window_color_select), allowNone = true) { PrefManager.setVal(PrefName.SubWindow, it); updateSubPreview() }
                             }
                             setNegButton(R.string.cancel)
                             show()
                         }
-                    },
-                ),
-                SubscreenBuilder.Entry(
-                    title = getString(R.string.sub_alpha),
-                    desc = "Subtitle transparency level",
-                    isEnabled = subtitlesEnabled,
-                    slider = SubscreenBuilder.SliderOption(
-                        value = PrefManager.getVal(PrefName.SubAlpha),
-                        valueFrom = 0f, valueTo = 1f, step = 0.05f, suffix = ""
-                    ) {
-                        PrefManager.setVal(PrefName.SubAlpha, it)
-                        updateSubPreview()
                     },
                 ),
                 SubscreenBuilder.Entry(
@@ -635,12 +635,92 @@ class PlayerSettingsActivity :
         Color.GRAY
     )
 
-    private fun showColorPicker(originalColor: Int, title: String, callback: (Int) -> Unit) {
-        val current = presetColors.indexOf(originalColor).coerceAtLeast(0)
+    private fun showColorPicker(
+        originalColor: Int,
+        title: String,
+        allowNone: Boolean = false,
+        callback: (Int) -> Unit,
+    ) {
+        // "None" is only meaningful where the colour is a background, and it is
+        // stored as a fully transparent colour so the existing pref shape is kept.
+        val names = if (allowNone) arrayOf("None") + presetColorNames else presetColorNames
+        val colors = if (allowNone) intArrayOf(Color.TRANSPARENT) + presetColors else presetColors
+        val current = colors.indexOf(originalColor).let { found ->
+            // A saved colour that is not one of the presets must not fall back to
+            // index 0, or "None" would look selected when it is not.
+            if (found >= 0) found else if (allowNone) -1 else 0
+        }
+        val backgroundOff = allowNone && originalColor == Color.TRANSPARENT
+        var shown: AlertDialog? = null
         customAlertDialog().apply {
             setTitle(title)
-            singleChoiceItems(presetColorNames, current) { idx ->
-                callback(presetColors[idx])
+            singleChoiceItems(names, current) { idx ->
+                callback(colors[idx])
+            }
+            attach { dialog -> shown = dialog }
+            // The list fills the dialog body, so the slider is grafted in under it.
+            // This has to wait for onShow: the list view does not exist until then.
+            setOnShowListener {
+                val list = shown?.listView
+                // list.parent is a FrameLayout that the list fills, so adding a view
+                // there would draw it on top of the list. The slot below the list is
+                // in the vertical container one level up.
+                val listFrame = list?.parent as? ViewGroup
+                val column = listFrame?.parent as? ViewGroup ?: return@setOnShowListener
+                val sliderView = layoutInflater.inflate(
+                    R.layout.item_settings_section_slider, column, false
+                )
+                val sl = sliderView.findViewById<Slider>(R.id.slider)
+                val slTitle = sliderView.findViewById<TextView>(R.id.sliderTitle)
+                val slDesc = sliderView.findViewById<TextView>(R.id.sliderDesc)
+                val slValue = sliderView.findViewById<TextView>(R.id.sliderValue)
+                slTitle.text = getString(R.string.sub_alpha)
+                sl.valueFrom = 0f
+                sl.valueTo = 1f
+                sl.stepSize = 0.05f
+                sl.value = PrefManager.getVal(PrefName.SubAlpha).coerceIn(0f, 1f)
+                slValue.text = "${(sl.value * 100).roundToInt()}%"
+                if (backgroundOff) {
+                    // Nothing to make transparent, so the slider is inert until a
+                    // background colour is picked.
+                    slDesc.text = "Background transparency (off with no background)"
+                    sl.isEnabled = false
+                    sl.alpha = 0.4f
+                    slValue.alpha = 0.4f
+                } else {
+                    slDesc.text = "Background transparency"
+                }
+                slDesc.visibility = View.VISIBLE
+                sl.addOnChangeListener { _, value, fromUser ->
+                    // fromUser is false for programmatic DPAD steps, so label both but
+                    // only persist an actual user drag.
+                    slValue.text = "${(value * 100).roundToInt()}%"
+                    if (fromUser && !backgroundOff) {
+                        PrefManager.setVal(PrefName.SubAlpha, value)
+                        updateSubPreview()
+                    }
+                }
+                // Material Slider is not reachable by DPAD on its own here, so wire the
+                // arrows to nudge it, matching the sliders in the settings list.
+                sliderView.setOnKeyListener { _, keyCode, event ->
+                    if (backgroundOff) return@setOnKeyListener false
+                    if (event.action != android.view.KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+                    val nv = when (keyCode) {
+                        android.view.KeyEvent.KEYCODE_DPAD_LEFT -> sl.value - sl.stepSize
+                        android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> sl.value + sl.stepSize
+                        else -> return@setOnKeyListener false
+                    }.coerceIn(sl.valueFrom, sl.valueTo)
+                    if (nv != sl.value) {
+                        sl.value = nv
+                        PrefManager.setVal(PrefName.SubAlpha, nv)
+                        updateSubPreview()
+                        true
+                    } else false
+                }
+                column.addView(
+                    sliderView,
+                    column.indexOfChild(listFrame) + 1
+                )
             }
             show()
         }

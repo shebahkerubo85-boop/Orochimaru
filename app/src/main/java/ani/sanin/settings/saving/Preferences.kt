@@ -195,7 +195,8 @@ enum class PrefName(val data: Pref) {
     ContinueWatchingCardRoundness(Pref(Location.UI, Int::class, 60)),
     CardTitlePosition(Pref(Location.UI, Int::class, 0)),
     CardSize(Pref(Location.UI, Float::class, 1.5f)),
-    BannerBrightness(Pref(Location.UI, Float::class, 1.0f)),
+    ShowMediaBanner(Pref(Location.UI, Boolean::class, true)),
+    BannerTransparency(Pref(Location.UI, Float::class, 1.0f)),
     CardGradientIntensity(Pref(Location.UI, Float::class, 0.7f)),
     CardMetadataTop(Pref(Location.UI, Int::class, 3)),   // bitmask: 1=Rating badge, 2=Airing status
     CardMetadataBottom(Pref(Location.UI, Int::class, 1)), // 0=None, 1=Sub & Dub badge, 2=Progress badge
@@ -306,6 +307,7 @@ enum class PrefName(val data: Pref) {
     AllowOpeningLinks(Pref(Location.Irrelevant, Boolean::class, false)),
     SearchStyle(Pref(Location.Irrelevant, Int::class, 0)),
     HasUpdatedPrefs(Pref(Location.Irrelevant, Boolean::class, false)),
+    HasMigratedBannerTransparency(Pref(Location.Irrelevant, Boolean::class, false)),
     LangSort(Pref(Location.Irrelevant, String::class, "all")),
     GenresList(Pref(Location.Irrelevant, Set::class, setOf<String>())),
     TagsListIsAdult(Pref(Location.Irrelevant, Set::class, setOf<String>())),

@@ -14,6 +14,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
+import ani.sanin.bannerFallbackColor
+import ani.sanin.isDarkTheme
 import ani.sanin.dp
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.connections.tmdb.Tmdb
@@ -231,21 +233,27 @@ class TmdbWatchFragment : Fragment() {
     }
 
     /** Darkens the banner exactly like anime mode: gradient + full-screen
-     *  overlay whose alpha follows BannerBrightness and theme. */
+     *  overlay whose alpha follows BannerTransparency and theme. */
     private fun applyBannerOverlay() {
-        val brightness = PrefManager.getVal<Float>(PrefName.BannerBrightness)
+        if (!PrefManager.getVal<Boolean>(PrefName.ShowMediaBanner)) {
+            binding.mediaBg?.setImageDrawable(null)
+            binding.mediaBg?.visibility = View.GONE
+            binding.mediaBgGradient?.visibility = View.GONE
+            binding.mediaDarkenOverlay?.apply {
+                visibility = View.VISIBLE
+                alpha = 1f
+                setBackgroundColor(bannerFallbackColor())
+            }
+            return
+        }
+        val brightness = PrefManager.getVal<Float>(PrefName.BannerTransparency)
         if (brightness <= 0f) {
             binding.mediaBg?.visibility = View.GONE
             binding.mediaBgGradient?.visibility = View.GONE
             binding.mediaDarkenOverlay?.visibility = View.GONE
             return
         }
-        val isDarkMode = (resources.configuration.uiMode and
-            android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
-            android.content.res.Configuration.UI_MODE_NIGHT_YES
-        binding.mediaDarkenOverlay?.setBackgroundColor(
-            if (isDarkMode) android.graphics.Color.BLACK else android.graphics.Color.WHITE
-        )
+        binding.mediaDarkenOverlay?.setBackgroundColor(bannerFallbackColor())
         binding.mediaBg?.alpha = brightness
         binding.mediaBgGradient?.alpha = brightness
         binding.mediaDarkenOverlay?.alpha = 1f - brightness
@@ -264,7 +272,11 @@ class TmdbWatchFragment : Fragment() {
                 return@launch
             }
             detail = d
-            binding.mediaBg?.loadImage(bannerUrl(d))
+            if (PrefManager.getVal<Boolean>(PrefName.ShowMediaBanner)) {
+                binding.mediaBg?.loadImage(bannerUrl(d))
+            } else {
+                binding.mediaBg?.setImageDrawable(null)
+            }
             applyBannerOverlay()
 
             val logo = Tmdb.logoUrl(d)
@@ -403,7 +415,11 @@ class TmdbWatchFragment : Fragment() {
         }
 
         val d = detail ?: return
-        binding.mediaBg?.loadImage(bannerUrl(d))
+        if (PrefManager.getVal<Boolean>(PrefName.ShowMediaBanner)) {
+            binding.mediaBg?.loadImage(bannerUrl(d))
+        } else {
+            binding.mediaBg?.setImageDrawable(null)
+        }
         applyBannerOverlay()
         val logo = Tmdb.logoUrl(d)
         if (logo != null) {
