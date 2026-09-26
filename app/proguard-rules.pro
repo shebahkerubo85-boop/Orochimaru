@@ -72,6 +72,11 @@
 -keep class ani.sanin.notifications.comment.** { public *; }
 -keep class ani.sanin.connections.** { public *; }
 
+# Gson reads fields directly, including the private backing field of a Kotlin val,
+# so the class and member keeps above are not enough on their own.
+-keepclassmembers class ani.sanin.notifications.** { <fields>; }
+-keepclassmembers class ani.sanin.connections.** { <fields>; }
+
 #############################################
 # Kotlin
 #############################################
@@ -102,6 +107,12 @@
 
 -keep class tachiyomi.** { public *; }
 -dontwarn tachiyomi.**
+
+# The "**" above does not cover nested classes, and a plugin compiled against
+# Kotlin may call Foo$Companion or Foo$DefaultImpls by name, so pin those too.
+-keep class com.lagradost.**$* { public *; }
+-keep class eu.kanade.**$* { public *; }
+-keep class tachiyomi.**$* { public *; }
 
 -keep class uy.kohesive.injekt.** { public *; }
 -dontwarn uy.kohesive.injekt.**
