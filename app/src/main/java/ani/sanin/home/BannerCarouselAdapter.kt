@@ -464,6 +464,9 @@ class BannerCarouselAdapter(
 /** Genres get their own budget in the meta row; the rest of the line is short. */
 const val MODERN_MAX_GENRES = 3
 
+/** How long a banner slide should take, in ms. */
+private const val BANNER_SCROLL_MS = 400f
+
 /** The content column is capped to this fraction of the banner so it clears the poster. */
 private const val MODERN_CONTENT_WIDTH_FRACTION = 0.58f
 
@@ -499,12 +502,20 @@ internal fun scrollBanner(rv: RecyclerView, position: Int) {
         rv.smoothScrollToPosition(position)
         return
     }
+    if (rv.width <= 0) {
+        rv.smoothScrollToPosition(position)
+        return
+    }
+    val steps = kotlin.math.abs(position - lm.findFirstVisibleItemPosition())
+        .coerceAtLeast(1)
+    val pxPerMs = (rv.width * steps).toFloat() / BANNER_SCROLL_MS
     val scroller = object : LinearSmoothScroller(rv.context) {
         override fun getHorizontalSnapPreference() = SNAP_TO_START
-        override fun calculateSpeedPerPixel(displayMetrics: android.util.DisplayMetrics) =
-            1000f / 400f
-        override fun calculateTimeForDeceleration(msScroller: android.widget.Scroller) = 0
-        override fun interpolate(t: Float) = android.view.animation.Interpolators.easeInOut(t)
+        override fun calculateSpeedPerPixel(displayMetrics: android.util.DisplayMetrics) = pxPerMs
+
+        // No deceleration phase, so the move is a plain constant-speed 400ms
+        // rather than RecyclerView's default speed-then-decel.
+        override fun calculateTimeForDeceleration(msScroller: Int) = 0
     }
     scroller.targetPosition = position
     lm.startSmoothScroll(scroller)
@@ -520,12 +531,12 @@ private val MODERN_META_MUTED = 0xCCFFFFFF.toInt()
  */
 internal fun addModernMetaItem(
     row: LinearLayout,
-    text: String?,
+    value: String?,
     density: Float,
     withStar: Boolean = false,
     accent: Boolean = false,
 ) {
-    if (text.isNullOrBlank()) return
+    if (value.isNullOrBlank()) return
     val ctx = row.context
     val res = ctx.resources
     val textSp = res.getDimension(R.dimen.banner_modern_meta_text) / res.displayMetrics.density
@@ -533,7 +544,7 @@ internal fun addModernMetaItem(
 
     if (row.childCount > 0) {
         val dot = TextView(ctx).apply {
-            text = "·"
+            setText("·")
             setTextColor(MODERN_META_MUTED)
             setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, textSp)
             includeFontPadding = false
@@ -552,7 +563,7 @@ internal fun addModernMetaItem(
     }
 
     val item = TextView(ctx).apply {
-        this.text = text
+        setText(value)
         setTextColor(
             if (accent) ctx.getThemeColor(com.google.android.material.R.attr.colorPrimary)
             else MODERN_META_MUTED
