@@ -30,6 +30,7 @@ import ani.sanin.statusBarHeight
 import ani.sanin.navBarHeight
 import ani.sanin.themes.ThemeManager
 import ani.sanin.toast
+import ani.sanin.withAlphaFraction
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.customAlertDialog
 import com.google.android.material.slider.Slider
@@ -285,8 +286,11 @@ class PlayerSettingsActivity :
         // Handle preview expand/collapse
         val subtitleTest = pv.root.findViewById<ani.sanin.others.Xpandable>(R.id.subtitleTest)
         subtitleTest?.addOnChangeListener(object : Xpandable.OnChangeListener {
-            override fun onExpand() { updateSubPreview() }
-            override fun onRetract() {}
+            override fun onExpand() {
+                pv.subtitlePreviewDesc.setText(R.string.sub_preview_collapse)
+                updateSubPreview()
+            }
+            override fun onRetract() { pv.subtitlePreviewDesc.setText(R.string.sub_preview_expand) }
         })
         updateSubPreview()
         // No click listener on the header here on purpose: Xpandable already binds
@@ -731,7 +735,8 @@ class PlayerSettingsActivity :
     // ──────────────────────────────────────────────
     private fun updateSubPreview() {
         val pv = previewBinding ?: return
-        pv.subtitleTestWindow.alpha = PrefManager.getVal(PrefName.SubAlpha)
+        // Mirrors playback: the slider fades the background colour's alpha, not the
+        // view, so the sample text stays fully legible at every value.
         pv.subtitleTestWindow.setBackgroundColor(PrefManager.getVal<Int>(PrefName.SubWindow))
         pv.subtitleTestText.textSize = PrefManager.getVal<Int>(PrefName.FontSize).toFloat()
         pv.subtitleTestText.typeface = when (PrefManager.getVal<Int>(PrefName.Font)) {
@@ -745,6 +750,9 @@ class PlayerSettingsActivity :
             else -> ResourcesCompat.getFont(this, R.font.poppins_semi_bold)
         }
         pv.subtitleTestText.setTextColor(PrefManager.getVal<Int>(PrefName.PrimaryColor))
-        pv.subtitleTestText.setBackgroundColor(PrefManager.getVal<Int>(PrefName.SubBackground))
+        pv.subtitleTestText.setBackgroundColor(
+            PrefManager.getVal<Int>(PrefName.SubBackground)
+                .withAlphaFraction(PrefManager.getVal<Float>(PrefName.SubAlpha))
+        )
     }
 }

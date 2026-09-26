@@ -122,6 +122,7 @@ import ani.sanin.media.EpisodeMapper
 import ani.sanin.NoPaddingArrayAdapter
 import ani.sanin.R
 import ani.sanin.brightnessConverter
+import ani.sanin.withAlphaFraction
 import ani.sanin.circularReveal
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.crashlytics.CrashlyticsInterface
@@ -483,7 +484,10 @@ class ExoplayerView :
                 else -> EDGE_TYPE_OUTLINE // Normal
             }
 
-        val subBackground = PrefManager.getVal<Int>(PrefName.SubBackground)
+        // Transparency belongs to the background only, so fold it into the colour's
+        // alpha rather than dimming the view, which would fade the text too.
+        val subAlpha = PrefManager.getVal<Float>(PrefName.SubAlpha)
+        val subBackground = PrefManager.getVal<Int>(PrefName.SubBackground).withAlphaFraction(subAlpha)
 
         val subWindow = PrefManager.getVal<Int>(PrefName.SubWindow)
 
@@ -517,7 +521,7 @@ class ExoplayerView :
 
             subtitles.alpha =
                 when (PrefManager.getVal<Boolean>(PrefName.Subtitles)) {
-                    true -> PrefManager.getVal(PrefName.SubAlpha)
+                    true -> 1f
                     false -> 0f
                 }
 
@@ -529,6 +533,7 @@ class ExoplayerView :
         val primaryColor = PrefManager.getVal<Int>(PrefName.PrimaryColor)
 
         val subBackground = PrefManager.getVal<Int>(PrefName.SubBackground)
+            .withAlphaFraction(PrefManager.getVal<Float>(PrefName.SubAlpha))
 
         val secondaryColor = PrefManager.getVal<Int>(PrefName.SecondaryColor)
 
@@ -565,7 +570,7 @@ class ExoplayerView :
 
         textView.alpha =
             when (PrefManager.getVal<Boolean>(PrefName.Subtitles)) {
-                true -> PrefManager.getVal(PrefName.SubAlpha)
+                true -> 1f
                 false -> 0f
             }
 
@@ -4307,7 +4312,7 @@ class ExoplayerView :
         }
         playerView.subtitleView?.alpha =
             when (isDisabled) {
-                false -> PrefManager.getVal(PrefName.SubAlpha)
+                false -> 1f
                 true -> 0f
             }
     }

@@ -157,6 +157,7 @@ import kotlin.math.log2
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
+import kotlin.math.roundToInt
 import androidx.core.view.isVisible
 import androidx.core.net.toUri
 import kotlin.time.Duration.Companion.milliseconds
@@ -1538,6 +1539,16 @@ fun blurImage(imageView: ImageView, banner: String?) {
     } else {
         imageView.setImageResource(R.drawable.linear_gradient_bg)
     }
+}
+
+/** Replaces a colour's alpha channel with [fraction] (0..1), leaving RGB untouched,
+ *  so a transparency slider can fade a background without dimming the text on it.
+ *  A fully transparent colour means "no background" (the subtitle colour picker's
+ *  None option) and is passed through, otherwise it would become a black box. */
+fun Int.withAlphaFraction(fraction: Float): Int {
+    if (this == Color.TRANSPARENT) return Color.TRANSPARENT
+    val alpha = (fraction.coerceIn(0f, 1f) * 255f).roundToInt()
+    return (this and 0x00FFFFFF) or (alpha shl 24)
 }
 
 /** Whether the app is currently rendering its dark theme. Follows the in-app
