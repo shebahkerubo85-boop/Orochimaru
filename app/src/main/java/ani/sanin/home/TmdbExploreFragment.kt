@@ -537,28 +537,32 @@ class TmdbExploreFragment : Fragment() {
      * Anime mode points every row's `nextFocusUp` at the id of the row above
      * (item_anime_page.xml). These five rows are five includes of one layout, so their
      * child ids repeat and an id would land on the first match rather than the row
-     * meant — so the chain is built from the actual views instead. Down is left to the
-     * outer scroller's spatial search, which is what the anime rows rely on too.
+     * meant — so each rail is tagged with its own id from ids.xml and the chain is
+     * built from those. Down is left to the outer scroller's spatial search, which is
+     * what the anime rows rely on too.
      */
     private fun setupFocusChain() {
         // Each row hangs off whatever is directly above it; the row's arrow shares the
         // rail's target so the header button does not jump a row when focus moves up.
-        var above: View = page.tmdbExploreStreamingRail
+        var aboveId: Int = R.id.tmdbExploreStreamingRail
         for (row in railRows) {
-            val rowBinding = when (row) {
-                Tmdb.ExploreRow.IN_CINEMA -> page.rowInCinema
-                Tmdb.ExploreRow.TRENDING -> page.rowTrending
-                Tmdb.ExploreRow.TOP_RATED -> page.rowTopRated
-                Tmdb.ExploreRow.MOST_FAVOURITE -> page.rowMostFavourite
-                Tmdb.ExploreRow.LATEST_RELEASE -> page.rowLatestRelease
+            val (rowBinding, rowId) = when (row) {
+                Tmdb.ExploreRow.IN_CINEMA -> page.rowInCinema to R.id.tmdbRowInCinema
+                Tmdb.ExploreRow.TRENDING -> page.rowTrending to R.id.tmdbRowTrending
+                Tmdb.ExploreRow.TOP_RATED -> page.rowTopRated to R.id.tmdbRowTopRated
+                Tmdb.ExploreRow.MOST_FAVOURITE ->
+                    page.rowMostFavourite to R.id.tmdbRowMostFavourite
+                Tmdb.ExploreRow.LATEST_RELEASE ->
+                    page.rowLatestRelease to R.id.tmdbRowLatestRelease
                 Tmdb.ExploreRow.POPULAR -> continue
             }
-            rowBinding.rowRecyclerView.setNextFocusUpView(above)
-            rowBinding.rowMore.setNextFocusUpView(above)
-            above = rowBinding.rowRecyclerView
+            rowBinding.rowRecyclerView.id = rowId
+            rowBinding.rowRecyclerView.nextFocusUpId = aboveId
+            rowBinding.rowMore.nextFocusUpId = aboveId
+            aboveId = rowId
         }
         // The Popular switch sits under the last rail.
-        page.tmdbIncludeList.setNextFocusUpView(above)
+        page.tmdbIncludeList.nextFocusUpId = aboveId
     }
 
     // ---- Rows: five rails plus the Popular list, all driven by the type chip ----

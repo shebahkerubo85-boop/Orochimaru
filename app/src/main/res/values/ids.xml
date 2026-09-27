@@ -2,4 +2,15 @@
 <resources>
     <!-- Per-view generation tag guarding stale episode-notification enrichment -->
     <item name="episode_enrichment_gen" type="id" />
+
+    <!--
+      One anchor per Explore rail. The five rows are five includes of a single row
+      layout, so their child ids repeat; these give the focus chain one distinct id
+      per row instead of an ambiguous shared one.
+    -->
+    <item name="tmdbRowInCinema" type="id" />
+    <item name="tmdbRowTrending" type="id" />
+    <item name="tmdbRowTopRated" type="id" />
+    <item name="tmdbRowMostFavourite" type="id" />
+    <item name="tmdbRowLatestRelease" type="id" />
 </resources>
