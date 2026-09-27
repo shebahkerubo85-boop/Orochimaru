@@ -25,41 +25,42 @@
         android:paddingEnd="2dp"
         android:scrollbarSize="0dp">
 
+        <!--
+          Visual order is upcoming | current | previous, so the present season
+          always sits in the middle and the other two fall either side of it.
+          The text is set in AnimePageAdapter from Anilist.currentSeasons, which
+          is already ordered previous, current, next, so the label always names
+          the season it actually loads. The dead layout_constraint attributes
+          that used to sit on these chips are gone: they are children of a
+          LinearLayout, not a ConstraintLayout, so they never did anything.
+        -->
         <LinearLayout
             android:id="@+id/animeSeasonsCont"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
-        
-            <com.google.android.material.chip.Chip
-                android:id="@+id/animePreviousSeason"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:text="@string/previous_season"
-                android:textAppearance="@style/Suffix"
-                app:chipStrokeColor="?attr/colorPrimaryContainer"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent" />
-        
-            <com.google.android.material.chip.Chip
-                android:id="@+id/animeThisSeason"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:text="@string/this_season"
-                android:textAppearance="@style/Suffix"
-                app:chipStrokeColor="?attr/colorPrimaryContainer"
-                app:layout_constraintBaseline_toBaselineOf="@+id/animeNextSeason"
-                app:layout_constraintEnd_toStartOf="@+id/animeNextSeason"
-                app:layout_constraintStart_toStartOf="parent" />
-        
+
             <com.google.android.material.chip.Chip
                 android:id="@+id/animeNextSeason"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
-                android:text="@string/next_season"
+                android:textAppearance="@style/Suffix"
+                app:chipStrokeColor="?attr/colorPrimaryContainer" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/animeThisSeason"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:textAppearance="@style/Suffix"
+                app:chipStrokeColor="?attr/colorPrimaryContainer" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/animePreviousSeason"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
                 android:textAppearance="@style/Suffix"
                 app:chipStrokeColor="?attr/colorPrimaryContainer" />
         </LinearLayout>

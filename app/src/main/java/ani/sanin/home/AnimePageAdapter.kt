@@ -56,6 +56,18 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHolder>() {
+    /**
+     * Positions into Anilist.currentSeasons, which is built as
+     * listOf(previous, current, next). Every season callback takes one of these,
+     * so they are named here to keep the view order and the data order from
+     * being confused for one another.
+     */
+    private companion object {
+        const val PREVIOUS_SEASON = 0
+        const val CURRENT_SEASON = 1
+        const val NEXT_SEASON = 2
+    }
+
     val ready = MutableLiveData(false)
     lateinit var binding: ItemAnimePageBinding
     private lateinit var trendingBinding: LayoutTrendingBinding
@@ -90,14 +102,21 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             bottomMargin = (-108f).px
         }
 
+        // The chips sit in the layout as upcoming | current | previous, but
+        // Anilist.currentSeasons is ordered previous, current, next and that is
+        // the index both callbacks expect. So the index travels with the view
+        // instead of being taken from its position.
+        val seasons = Anilist.currentSeasons
         listOf(
-            binding.animePreviousSeason,
-            binding.animeThisSeason,
-            binding.animeNextSeason
-        ).forEachIndexed { i, it ->
-            it.setSafeOnClickListener { onSeasonClick.invoke(i) }
-            it.setOnLongClickListener { onSeasonLongClick.invoke(i) }
-            FocusEffectUtil.applyFocusListener(it)
+            binding.animeNextSeason to NEXT_SEASON,
+            binding.animeThisSeason to CURRENT_SEASON,
+            binding.animePreviousSeason to PREVIOUS_SEASON,
+        ).forEach { (chip, index) ->
+            val (season, year) = seasons[index]
+            chip.text = seasonLabel(season, year)
+            chip.setSafeOnClickListener { onSeasonClick.invoke(index) }
+            chip.setOnLongClickListener { onSeasonLongClick.invoke(index) }
+            FocusEffectUtil.applyFocusListener(chip)
         }
 
         val rescueMode = PrefManager.getVal<Boolean>(PrefName.RescueMode)
@@ -402,6 +421,17 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
                 else -> fmt
             }
         }
+
+    /**
+     * Renders an Anilist season pair as e.g. "Summer '27". The API sends the
+     * season upper case and a four digit year, neither of which wants showing
+     * on a chip that is only as wide as its text.
+     */
+    private fun seasonLabel(season: String, year: Int): String {
+        val name = season.lowercase().replaceFirstChar { it.uppercase() }
+        // %02d, not string padding: 2005 has to read as '05 and not '50.
+        return "$name '${"%02d".format(year % 100)}"
+    }
 
     private fun trendingStatusText(media: Media): String? =
         media.status?.replace("_", " ")?.lowercase()?.replaceFirstChar { it.uppercase() }
