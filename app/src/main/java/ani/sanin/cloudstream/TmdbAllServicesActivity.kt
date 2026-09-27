@@ -14,6 +14,7 @@ import ani.sanin.databinding.ActivityTmdbAllServicesBinding
 import ani.sanin.getThemeColor
 import ani.sanin.hideSystemBarsExtendView
 import ani.sanin.initActivity
+import ani.sanin.isTvDevice
 import ani.sanin.setSafeOnClickListener
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName

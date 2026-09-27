@@ -100,6 +100,7 @@ class TmdbExploreFragment : Fragment() {
 
 
     private var trendingMedia: List<TmdbMedia> = emptyList()
+    private var bannerAdapter: BannerCarouselAdapter? = null
     private var bannerAdapterType = -1
     private var bannerSnap: PagerSnapHelper? = null
     private var trendingAutoIndex = 0
@@ -552,12 +553,12 @@ class TmdbExploreFragment : Fragment() {
                 Tmdb.ExploreRow.LATEST_RELEASE -> page.rowLatestRelease
                 Tmdb.ExploreRow.POPULAR -> continue
             }
-            rowBinding.rowRecyclerView.nextFocusUpView = above
-            rowBinding.rowMore.nextFocusUpView = above
+            rowBinding.rowRecyclerView.setNextFocusUpView(above)
+            rowBinding.rowMore.setNextFocusUpView(above)
             above = rowBinding.rowRecyclerView
         }
         // The Popular switch sits under the last rail.
-        page.tmdbIncludeList.nextFocusUpView = above
+        page.tmdbIncludeList.setNextFocusUpView(above)
     }
 
     // ---- Rows: five rails plus the Popular list, all driven by the type chip ----
@@ -649,7 +650,7 @@ class TmdbExploreFragment : Fragment() {
     private fun setupPopularHeader() {
         val header = page.tmdbPopularHeader
         val toggle = page.tmdbIncludeList
-        toggle.isChecked = PrefManager.getVal(PrefName.PopularMovieList)
+        toggle.isChecked = PrefManager.getVal<Boolean>(PrefName.PopularMovieList)
         header.isVisible = true
         toggle.setOnCheckedChangeListener { _, checked ->
             PrefManager.setVal(PrefName.PopularMovieList, checked)
@@ -669,7 +670,7 @@ class TmdbExploreFragment : Fragment() {
             ExploreType.TV -> "tv"
             ExploreType.ANIMATION -> "animation"
         }
-        val includeList = PrefManager.getVal(PrefName.PopularMovieList)
+        val includeList = PrefManager.getVal<Boolean>(PrefName.PopularMovieList)
         viewLifecycleOwner.lifecycleScope.launch {
             popularMedia.clear()
             popularMedia.addAll(

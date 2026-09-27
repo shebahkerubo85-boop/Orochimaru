@@ -149,6 +149,7 @@ class StreamingServicesAdapter(
             if (!StreamingLogoTint.isKnown(logoUrl) && !StreamingLogoTint.beginLoad(logoUrl)) return
 
             Glide.with(logo)
+                .asBitmap()
                 .load(logoUrl)
                 .diskCacheStrategy(DiskCacheStrategy.RESOURCE)
                 .override(LOGO_SAMPLE_PX, LOGO_SAMPLE_PX)
