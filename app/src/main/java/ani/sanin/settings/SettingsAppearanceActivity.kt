@@ -202,7 +202,7 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                         desc = "How strong the blur looks. 0 leaves the art sharp.",
                         slider = SubscreenBuilder.SliderOption(
                             value = PrefManager.getVal<Float>(PrefName.BlurStrength),
-                            valueFrom = 0f, valueTo = 25f, step = 5f,
+                            valueFrom = 0f, valueTo = 25f, step = 1f,
                         ) { PrefManager.setVal(PrefName.BlurStrength, it) },
                         isEnabled = PrefManager.getVal<Boolean>(PrefName.BlurBanners),
                     ),
