@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The TMDB (movie) mode's Explore page: the anime page plus the streaming-services rail.
+
+  This is the content of the page adapter's single item, so it scrolls inside the
+  explore RecyclerView exactly as the anime page does — which is what lets the Popular
+  list live in the same ConcatAdapter as this page.
+
+  The rows are five includes of one row layout, so every row has the same title/arrow/
+  rail treatment and there is no fifth copy to forget to update.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/tmdbExploreContainer"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <!-- The same banner the anime explore uses; driven by TmdbMedia instead of AniList. -->
+    <include layout="@layout/layout_trending" />
+
+    <HorizontalScrollView
+        android:id="@+id/tmdbExploreTypeScroll"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="108dp"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:focusable="true"
+        android:nextFocusUp="@+id/trendingViewPager"
+        android:paddingStart="2dp"
+        android:paddingEnd="2dp"
+        android:scrollbarSize="0dp">
+
+        <LinearLayout
+            android:id="@+id/tmdbExploreTypeCont"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <!-- Mirrors the season-selector chips exactly so the two pages match. -->
+            <com.google.android.material.chip.Chip
+                android:id="@+id/tmdbExploreChipMovie"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="Movie"
+                android:textAppearance="@style/SeasonChipLabel"
+                app:chipStrokeColor="?attr/colorPrimaryContainer" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/tmdbExploreChipTv"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="TV show"
+                android:textAppearance="@style/SeasonChipLabel"
+                app:chipStrokeColor="?attr/colorPrimaryContainer" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/tmdbExploreChipAnimation"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Animation"
+                android:textAppearance="@style/SeasonChipLabel"
+                app:chipStrokeColor="?attr/colorPrimaryContainer" />
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!--
+      The streaming-services rail sits 2dp under the type chips. It has no "Streaming
+      Services" header, so the See All that Zangetsu puts beside the title on phone is a
+      trailing card in the rail instead (its TV treatment) — the D-pad walks onto it.
+      This is the extra row the movie page has over the anime page.
+    -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/tmdbExploreStreamingRail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:clipToPadding="false"
+        android:nextFocusUp="@+id/tmdbExploreTypeScroll"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:scrollbarSize="0dp"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+
+    <include
+        android:id="@+id/rowInCinema"
+        layout="@layout/item_explore_row" />
+
+    <include
+        android:id="@+id/rowTrending"
+        layout="@layout/item_explore_row" />
+
+    <include
+        android:id="@+id/rowTopRated"
+        layout="@layout/item_explore_row" />
+
+    <include
+        android:id="@+id/rowMostFavourite"
+        layout="@layout/item_explore_row" />
+
+    <include
+        android:id="@+id/rowLatestRelease"
+        layout="@layout/item_explore_row" />
+
+    <!--
+      Popular is a header only, exactly as in anime mode: the list itself is a separate
+      MediaAdaptor in the fragment's ConcatAdapter, and this switch says whether the
+      viewer's own list joins it.
+    -->
+    <LinearLayout
+        android:id="@+id/tmdbPopularHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="11dp"
+        android:orientation="horizontal"
+        android:visibility="invisible">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="@font/poppins_bold"
+            android:padding="8dp"
+            android:text="@string/row_popular"
+            android:textSize="16sp" />
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/tmdbIncludeList"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/poppins_bold"
+            android:text="@string/include_media_in_list"
+            android:textSize="12sp" />
+    </LinearLayout>
+</LinearLayout>

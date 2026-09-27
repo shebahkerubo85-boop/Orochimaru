@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="14dp" />
+    <!-- Solid white so the runtime brand-colour tint reads as an exact fill;
+         a neutral fallback colour is applied when no logo colour is sampled. -->
+    <solid android:color="#FFFFFFFF" />
+</shape>

@@ -44,16 +44,16 @@ import ani.sanin.R
 import ani.sanin.util.GlassComponent
 import ani.sanin.util.GlassEffectManager
 
-private val TAB_ORDER = listOf("home", "anime", "discovery", "library")
+private val TAB_ORDER = listOf("home", "explore", "discovery", "library")
 private val TAB_ICONS = mapOf(
     "home" to R.drawable.ic_round_home_24,
-    "anime" to R.drawable.ic_round_movie_filter_24,
+    "explore" to R.drawable.ic_round_media_24,
     "discovery" to R.drawable.ic_round_filter_list_24,
     "library" to R.drawable.ic_library_shelves_24
 )
 private val TAB_LABELS = mapOf(
     "home" to "Home",
-    "anime" to "Anime",
+    "explore" to "Explore",
     "discovery" to "Discovery",
     "library" to "Library"
 )

@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  One Explore row: a titled horizontal rail with the app's arrow-mark "more" button,
+  which is the same shape the anime rows use (item_anime_page.xml). Included five times
+  by the explore page, once per row, so the rows cannot drift apart from each other.
+
+  The three id-less children are reached through the include's own id, so this file
+  needs no per-row id juggling: binding.rowTrending.rowTitle and so on.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        tools:ignore="UseCompoundDrawables">
+
+        <TextView
+            android:id="@+id/rowTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="24dp"
+            android:layout_weight="1"
+            android:fontFamily="@font/poppins_bold"
+            android:padding="8dp"
+            android:textSize="16sp"
+            android:visibility="invisible"
+            tools:text="Trending"
+            tools:visibility="visible" />
+
+        <ImageView
+            android:id="@+id/rowMore"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_marginEnd="12dp"
+            android:padding="8dp"
+            android:src="@drawable/arrow_mark"
+            android:visibility="invisible"
+            tools:ignore="ContentDescription" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="11dp">
+
+        <FrameLayout
+            android:id="@+id/rowProgress"
+            android:layout_width="76.5dp"
+            android:layout_height="76.5dp"
+            android:layout_gravity="center">
+
+            <com.airbnb.lottie.LottieAnimationView
+                android:layout_width="45dp"
+                android:layout_height="45dp"
+                android:layout_gravity="center_horizontal|top"
+                android:layout_marginTop="4dp"
+                android:rotation="75"
+                app:lottie_autoPlay="true"
+                app:lottie_colorFilter="?attr/colorSecondary"
+                app:lottie_loop="true"
+                app:lottie_rawRes="@raw/tomoe"
+                app:lottie_speed="1.75" />
+
+            <com.airbnb.lottie.LottieAnimationView
+                android:layout_width="45dp"
+                android:layout_height="45dp"
+                android:layout_gravity="bottom|start"
+                android:layout_marginStart="4dp"
+                android:layout_marginBottom="8dp"
+                android:rotation="-45"
+                app:lottie_autoPlay="true"
+                app:lottie_colorFilter="?attr/colorSecondary"
+                app:lottie_loop="true"
+                app:lottie_rawRes="@raw/tomoe"
+                app:lottie_speed="1.75" />
+
+            <com.airbnb.lottie.LottieAnimationView
+                android:layout_width="45dp"
+                android:layout_height="45dp"
+                android:layout_gravity="bottom|end"
+                android:layout_marginEnd="4dp"
+                android:layout_marginBottom="8dp"
+                android:rotation="195"
+                app:lottie_autoPlay="true"
+                app:lottie_colorFilter="?attr/colorSecondary"
+                app:lottie_loop="true"
+                app:lottie_rawRes="@raw/tomoe"
+                app:lottie_speed="1.75" />
+        </FrameLayout>
+
+        <ani.sanin.FadingEdgeRecyclerView
+            android:id="@+id/rowRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clipToPadding="false"
+            android:nestedScrollingEnabled="true"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:requiresFadingEdge="horizontal"
+            tools:itemCount="4"
+            tools:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            tools:listitem="@layout/item_media_compact"
+            tools:orientation="horizontal" />
+    </FrameLayout>
+</LinearLayout>

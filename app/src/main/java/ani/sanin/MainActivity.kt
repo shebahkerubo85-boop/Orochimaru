@@ -58,6 +58,7 @@ import ani.sanin.home.DiscoveryFragment
 import ani.sanin.home.HomeFragment
 import ani.sanin.home.LibraryFragment
 import ani.sanin.home.TmdbDiscoveryFragment
+import ani.sanin.home.TmdbExploreFragment
 import ani.sanin.home.TmdbHomeFragment
 import ani.sanin.home.TmdbLibraryFragment
 import ani.sanin.media.MediaDetailsActivity
@@ -113,7 +114,7 @@ class MainActivity : AppCompatActivity() {
 
     private val tabFragments = mapOf(
         0 to "home",
-        1 to "anime",
+        1 to "explore",
         2 to "discovery",
         3 to "library"
     )
@@ -123,7 +124,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun getFragmentForTab(index: Int): Fragment = when (index) {
         0 -> if (isAnimeMode()) HomeFragment() else TmdbHomeFragment()
-        1 -> if (isAnimeMode()) AnimeFragment() else TmdbDiscoveryFragment()
+        // No movie-mode branch: explore is the empty TMDB slot until it has
+        // contents, so it resolves to nothing rather than to another screen.
+        1 -> if (isAnimeMode()) AnimeFragment() else TmdbExploreFragment()
         2 -> if (isAnimeMode()) DiscoveryFragment() else TmdbDiscoveryFragment()
         3 -> if (isAnimeMode()) LibraryFragment() else TmdbLibraryFragment()
         else -> if (isAnimeMode()) HomeFragment() else TmdbHomeFragment()
@@ -507,7 +510,7 @@ class MainActivity : AppCompatActivity() {
             when (event.keyCode) {
                 KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
                     val id = currentFocus?.id
-                    if (id == R.id.homeNavHome || id == R.id.homeNavAnime || id == R.id.homeNavDiscovery || id == R.id.homeNavLibrary) {
+                    if (id == R.id.homeNavHome || id == R.id.homeNavExplore || id == R.id.homeNavDiscovery || id == R.id.homeNavLibrary) {
                         if (PrefManager.getVal<Boolean>(PrefName.SideRailPersist)) {
                             setHomeNavPillsFocusable(false)
                             val tag = currentFragmentTag
@@ -522,7 +525,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 KeyEvent.KEYCODE_DPAD_RIGHT -> {
                     val id = currentFocus?.id
-                    if (id == R.id.homeNavHome || id == R.id.homeNavAnime || id == R.id.homeNavDiscovery || id == R.id.homeNavLibrary) {
+                    if (id == R.id.homeNavHome || id == R.id.homeNavExplore || id == R.id.homeNavDiscovery || id == R.id.homeNavLibrary) {
                         if (PrefManager.getVal<Boolean>(PrefName.SideRailPersist)) {
                             setHomeNavPillsFocusable(false)
                             return false
@@ -536,7 +539,7 @@ class MainActivity : AppCompatActivity() {
                     if (id == R.id.homeBannerWatchBtn || id == R.id.trendingWatchBtn) {
                         return false
                     }
-                    if (id == R.id.homeNavHome || id == R.id.homeNavAnime || id == R.id.homeNavDiscovery || id == R.id.homeNavLibrary) {
+                    if (id == R.id.homeNavHome || id == R.id.homeNavExplore || id == R.id.homeNavDiscovery || id == R.id.homeNavLibrary) {
                         return true
                     }
                     if (binding.homeNavRail.visibility == View.VISIBLE && PrefManager.getVal<Boolean>(PrefName.SideRailPersist)) {
@@ -549,7 +552,7 @@ class MainActivity : AppCompatActivity() {
                         if (atLeftEdge) {
                             setHomeNavPillsFocusable(true)
                             val tab = navPillsViewModel.currentTab.value
-                            val targetId = when (tab) { 0 -> R.id.homeNavHome; 1 -> R.id.homeNavAnime; 2 -> R.id.homeNavDiscovery; 3 -> R.id.homeNavLibrary; else -> R.id.homeNavHome }
+                            val targetId = when (tab) { 0 -> R.id.homeNavHome; 1 -> R.id.homeNavExplore; 2 -> R.id.homeNavDiscovery; 3 -> R.id.homeNavLibrary; else -> R.id.homeNavHome }
                             binding.root.findViewById<View>(targetId)?.requestFocus()
                             return true
                         }
@@ -598,7 +601,7 @@ class MainActivity : AppCompatActivity() {
                     if (binding.homeNavRail.visibility == View.VISIBLE && PrefManager.getVal<Boolean>(PrefName.SideRailPersist)) {
                         setHomeNavPillsFocusable(true)
                         val tab = navPillsViewModel.currentTab.value
-                        val targetId = when (tab) { 0 -> R.id.homeNavHome; 1 -> R.id.homeNavAnime; 2 -> R.id.homeNavDiscovery; 3 -> R.id.homeNavLibrary; else -> R.id.homeNavHome }
+                        val targetId = when (tab) { 0 -> R.id.homeNavHome; 1 -> R.id.homeNavExplore; 2 -> R.id.homeNavDiscovery; 3 -> R.id.homeNavLibrary; else -> R.id.homeNavHome }
                         binding.root.findViewById<View>(targetId)?.requestFocus()
                         return true
                     }
@@ -625,18 +628,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateNavPillForMode() {
-        val anime = isAnimeMode()
-        binding.homeNavAnime.visibility = if (anime) View.VISIBLE else View.GONE
-        
-        if (anime) {
-            binding.homeNavHome.nextFocusDownId = R.id.homeNavAnime
-            binding.homeNavAnime.nextFocusUpId = R.id.homeNavHome
-            binding.homeNavAnime.nextFocusDownId = R.id.homeNavDiscovery
-            binding.homeNavDiscovery.nextFocusUpId = R.id.homeNavAnime
-        } else {
-            binding.homeNavHome.nextFocusDownId = R.id.homeNavDiscovery
-            binding.homeNavDiscovery.nextFocusUpId = R.id.homeNavHome
-        }
+        // Never hidden. Movie mode keeps it as the slot that will hold the TMDB
+        // content, so the rail is four pills in both modes.
+        binding.homeNavExplore.visibility = View.VISIBLE
+        binding.homeNavHome.nextFocusDownId = R.id.homeNavExplore
+        binding.homeNavExplore.nextFocusUpId = R.id.homeNavHome
+        binding.homeNavExplore.nextFocusDownId = R.id.homeNavDiscovery
+        binding.homeNavDiscovery.nextFocusUpId = R.id.homeNavExplore
         binding.homeNavDiscovery.nextFocusDownId = R.id.homeNavLibrary
         binding.homeNavLibrary.nextFocusUpId = R.id.homeNavDiscovery
         binding.homeNavLibrary.nextFocusDownId = R.id.homeNavHome
@@ -895,7 +893,7 @@ class MainActivity : AppCompatActivity() {
             updateHomeNavIconTints()
         }
 
-        val pills = listOfNotNull(binding.homeNavHome, binding.homeNavAnime, binding.homeNavDiscovery, binding.homeNavLibrary)
+        val pills = listOfNotNull(binding.homeNavHome, binding.homeNavExplore, binding.homeNavDiscovery, binding.homeNavLibrary)
         val isMonochrome = PrefManager.getVal<String>(PrefName.Theme).contains("MONOCHROME", ignoreCase = true)
         val isDarkMode = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
         val navFocusColor = if (isMonochrome && isDarkMode) android.graphics.Color.WHITE else if (isMonochrome) android.graphics.Color.BLACK else null
@@ -936,7 +934,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateHomeNavIconTints() {
         val bg = binding.homeNavRailBg
         if (bg.height <= 0) return
-        val pills = listOfNotNull(binding.homeNavHome, binding.homeNavAnime, binding.homeNavDiscovery, binding.homeNavLibrary)
+        val pills = listOfNotNull(binding.homeNavHome, binding.homeNavExplore, binding.homeNavDiscovery, binding.homeNavLibrary)
         val customColor = NavPillCustomizer.getIconColor()
         pills.forEachIndexed { i, pill ->
             pill.imageTintList = android.content.res.ColorStateList.valueOf(customColor)
@@ -945,7 +943,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setHomeNavPillsFocusable(focusable: Boolean) {
-        listOfNotNull(binding.homeNavHome, binding.homeNavAnime, binding.homeNavDiscovery, binding.homeNavLibrary).forEach {
+        listOfNotNull(binding.homeNavHome, binding.homeNavExplore, binding.homeNavDiscovery, binding.homeNavLibrary).forEach {
             it.isFocusable = focusable
             it.isFocusableInTouchMode = false
         }
@@ -984,7 +982,7 @@ class MainActivity : AppCompatActivity() {
         val tab = navPillsViewModel.currentTab.value
         val id = when (tab) {
             0 -> R.id.homeNavHome
-            1 -> R.id.homeNavAnime
+            1 -> R.id.homeNavExplore
             2 -> R.id.homeNavDiscovery
             3 -> R.id.homeNavLibrary
             else -> R.id.homeNavHome

@@ -129,6 +129,8 @@ enum class PrefName(val data: Pref) {
     AnimationSpeed(Pref(Location.UI, Float::class, 1f)),
     ListGrid(Pref(Location.UI, Boolean::class, true)),
     PopularAnimeList(Pref(Location.UI, Boolean::class, true)),
+    /** The movie mode's Popular row switch, which is the same idea on a different library. */
+    PopularMovieList(Pref(Location.UI, Boolean::class, true)),
     AnimeListSortOrder(Pref(Location.UI, String::class, "score")),
 
     CommentSortOrder(Pref(Location.UI, String::class, "newest")),

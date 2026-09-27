@@ -34,6 +34,95 @@ data class TmdbMedia(
 @Serializable
 data class TmdbPage<T>(val page: Int = 1, val results: List<T> = emptyList())
 
+/**
+ * A streaming service as TMDB knows it in a given country, from `/watch/providers/*`.
+ *
+ * The logo is TMDB's own `logo_path`, served from its image CDN like any poster —
+ * nothing brand-owned is shipped in the app. [logoUrl] is resolved by [Tmdb.imageUrl]
+ * at the standard provider-logo size.
+ */
+@Serializable
+data class TmdbProvider(
+    @SerialName("provider_id") val id: Int = 0,
+    @SerialName("provider_name") val name: String? = null,
+    @SerialName("logo_path") val logoPath: String? = null,
+    @SerialName("display_priority") val priority: Int = 9999
+) {
+    val displayName: String get() = name.orEmpty()
+}
+
+/**
+ * The region the streaming-services rail is pinned to until a region setting exists.
+ * Hardcoded like every other TMDB locale in the app (`en-US`).
+ */
+private const val DEFAULT_PROVIDER_REGION = "US"
+
+/** TMDB genre 16 — the animation shelf the third chip selects. */
+private const val ANIMATION_GENRE = "16"
+
+private const val TYPE_MOVIE = "movie"
+private const val TYPE_TV = "tv"
+private const val TYPE_ANIMATION = "animation"
+
+/**
+ * `vote_average` on its own surfaces the one perfect ten from a single rater, so
+ * most-favourite and top-rated both ask for a floor of real votes first.
+ */
+private val VOTE_FLOOR = listOf("vote_count.gte" to "200")
+
+/**
+ * The big services, in the order most people expect to see them.
+ *
+ * TMDB's own `display_priority` is per-region and mixes the majors in with long-tail
+ * catalogues — in India it puts FilmBox+, Cultpix and DOCSVILLE ahead of Crunchyroll — so
+ * the rail, which only shows the first handful, would bury the ones people actually have.
+ * These ids are pinned to the front in this order; everything else keeps TMDB's order
+ * behind them. Ids read from the live API, not guessed. Amazon and Apple appear twice on
+ * purpose: TMDB uses a different id for the same brand in different regions.
+ */
+private val POPULAR_PROVIDER_IDS = intArrayOf(
+    8,    // Netflix
+    9,    // Amazon Prime Video (US, GB)
+    119,  // Amazon Prime Video (IN)
+    337,  // Disney Plus
+    350,  // Apple TV
+    283,  // Crunchyroll
+    1899, // HBO Max
+    15,   // Hulu
+    531,  // Paramount Plus
+    386,  // Peacock Premium
+    2336, // JioHotstar
+    232   // Zee5
+)
+
+/** Rent-and-buy stores and profile variants — not services you subscribe to. */
+private val NOT_A_SUBSCRIPTION = setOf(
+    2,    // Apple TV Store — rent/buy
+    3,    // Google Play Movies — rent/buy
+    10,   // Amazon Video — rent/buy
+    68,   // Microsoft Store — rent/buy
+    192,  // YouTube — free/rent, not a subscription catalogue
+    175,  // Netflix Kids — a profile, not a service
+    2285  // JustWatch TV — the comparison site's own channel
+)
+
+/**
+ * Whether this entry is a streaming service someone can subscribe to.
+ *
+ * TMDB's list is mostly resellers: of 92 entries in India, 38 are `<name> Amazon Channel`,
+ * `<name> Apple TV channel`, a rent/buy store, or an ad-supported duplicate of a service
+ * already in the list. In the US it is 163 of 333. They clutter the rail and duplicate the
+ * brands next to them with near-identical logos. A service sold ONLY as an Amazon channel
+ * drops out with them — the accepted cost, because the alternative is a rail where Apple
+ * appears twice.
+ */
+private fun isSubscribableService(id: Int, name: String): Boolean {
+    if (id in NOT_A_SUBSCRIPTION) return false
+    val n = name.lowercase().trim()
+    return !n.endsWith("channel") && !n.endsWith("store") &&
+        !n.endsWith("kids") && !n.contains("with ads")
+}
+
 @Serializable
 data class TmdbDetail(
     val id: Int,
@@ -261,6 +350,138 @@ object Tmdb {
             ?: emptyList()
         return movies + shows
     }
+
+    /**
+     * The Explore rows, in the order the page shows them.
+     *
+     * `POPULAR` and `MOST_FAVOURITE` are deliberately different orderings of the same
+     * library: TMDB's `/popular` ranks by its own popularity metric (views and trailer
+     * plays), while most-favourite ranks by what viewers actually rated. They must not
+     * collapse into the same list, so neither is derived from the other.
+     */
+    enum class ExploreRow { IN_CINEMA, TRENDING, TOP_RATED, MOST_FAVOURITE, LATEST_RELEASE, POPULAR }
+
+    /**
+     * One Explore row for the type chip in use.
+     *
+     * `mediaType` is "movie", "tv" or "animation". Animation has no TMDB endpoint of its
+     * own, so it is genre [ANIMATION_GENRE] and every row that `/now_playing`,
+     * `/trending` and `/top_rated` cannot filter (those endpoints take no `with_genres`)
+     * is re-sourced from `/discover`, which can.
+     */
+    suspend fun exploreRow(
+        row: ExploreRow,
+        mediaType: String,
+        page: Int = 1
+    ): List<TmdbMedia> {
+        val animation = mediaType == TYPE_ANIMATION
+        val type = if (animation) TYPE_MOVIE else mediaType
+        val genres = if (animation) ANIMATION_GENRE else null
+        return when (row) {
+            ExploreRow.IN_CINEMA -> when {
+                type == TYPE_TV -> list("/tv/airing_today")
+                // "Now playing" is films only, and it takes no genre filter, so the
+                // animation chip falls back to the newest animated releases.
+                genres != null -> discover(
+                    type, genres = genres, sort = "primary_release_date.desc", page = page,
+                    extra = listOf("primary_release_date.lte" to todayIso())
+                )
+                else -> list("/movie/now_playing")
+            }
+            ExploreRow.TRENDING -> when {
+                // Trending has no genre parameter either, but it does return genre_ids,
+                // so the animated shelf is the mixed week list narrowed to animation.
+                genres != null -> list("/trending/all/week")
+                    .filter { ANIMATION_GENRE.toInt() in it.genreIds }
+                type == TYPE_TV -> list("/trending/tv/week")
+                else -> list("/trending/movie/week")
+            }
+            ExploreRow.TOP_RATED -> when {
+                genres != null -> discover(
+                    type, genres = genres, sort = "vote_average.desc", page = page,
+                    extra = VOTE_FLOOR
+                )
+                else -> list("/$type/top_rated", "page" to page.toString())
+            }
+            ExploreRow.MOST_FAVOURITE -> discover(
+                type, genres = genres, sort = "vote_average.desc", page = page,
+                extra = VOTE_FLOOR
+            )
+            ExploreRow.LATEST_RELEASE -> discover(
+                type, genres = genres, page = page,
+                sort = if (type == TYPE_TV) "first_air_date.desc" else "primary_release_date.desc",
+                extra = listOf(
+                    (if (type == TYPE_TV) "first_air_date.lte" else "primary_release_date.lte")
+                        to todayIso()
+                )
+            )
+            ExploreRow.POPULAR -> when {
+                genres != null -> discover(
+                    type, genres = genres, sort = "popularity.desc", page = page
+                )
+                else -> list("/$type/popular", "page" to page.toString())
+            }
+        }
+    }
+
+    /** A plain list endpoint, decoded like every other. */
+    private suspend fun list(path: String, vararg query: Pair<String, String>): List<TmdbMedia> {
+        val body = get(path, *query) ?: return emptyList()
+        return runCatching { json.decodeFromString<TmdbPage<TmdbMedia>>(body).results }
+            .getOrDefault(emptyList())
+    }
+
+     * majors first, de-duplicated and filtered to real subscriptions.
+     *
+     * Merged from the `/watch/providers/movie` and `/watch/providers/tv` endpoints because a
+     * service usually appears in both and the browse screen shows one tile per service, not
+     * two. Region is hardcoded to [DEFAULT_PROVIDER_REGION] for now, until a region setting
+     * lands; every TMDB call in the app otherwise hardcodes `en-US` too.
+     */
+    suspend fun watchProviders(region: String = DEFAULT_PROVIDER_REGION): List<TmdbProvider> {
+        val byId = LinkedHashMap<Int, TmdbProvider>()
+        for (endpoint in listOf("/watch/providers/movie", "/watch/providers/tv")) {
+            val body = get(endpoint, "watch_region" to region) ?: continue
+            val results = runCatching {
+                json.decodeFromString<TmdbPage<TmdbProvider>>(body).results
+            }.getOrDefault(emptyList())
+            for (p in results) {
+                val name = p.displayName
+                if (p.id == 0 || name.isEmpty()) continue
+                if (!isSubscribableService(p.id, name)) continue
+                // First endpoint wins; the rows are identical where they overlap.
+                byId.putIfAbsent(p.id, p)
+            }
+        }
+        return byId.values.sortedWith(
+            compareBy(
+                { POPULAR_PROVIDER_IDS.indexOf(it.id).let { i -> if (i < 0) POPULAR_PROVIDER_IDS.size else i } },
+                { it.priority },
+                { it.displayName }
+            )
+        )
+    }
+
+    /**
+     * One page of what [providerId] carries in [region], filtered to [mediaType]
+     * ("movie" or "tv"). Mirrors Zangetsu's provider catalogue: `with_watch_providers`
+     * plus the region, sorted by popularity. The service grid calls this for the type the
+     * user's movie/TV filter has selected.
+     */
+    suspend fun providerTitles(
+        providerId: Int,
+        mediaType: String,
+        page: Int = 1,
+        region: String = DEFAULT_PROVIDER_REGION
+    ): List<TmdbMedia> = discover(
+        mediaType = mediaType,
+        sort = "popularity.desc",
+        page = page,
+        extra = listOf(
+            "with_watch_providers" to providerId.toString(),
+            "watch_region" to region
+        )
+    )
 
     /** Today as "yyyy-MM-dd" — ceiling so "latest" never includes unreleased entries. */
     private fun todayIso(): String =

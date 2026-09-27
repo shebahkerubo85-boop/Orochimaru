@@ -221,19 +221,20 @@
                     android:background="@android:color/transparent"
                     android:focusable="true"
                     android:nextFocusUp="@id/homeNavLibrary"
-                    android:nextFocusDown="@id/homeNavAnime" />
+                    android:nextFocusDown="@id/homeNavExplore" />
 
                 <ImageButton
-                    android:id="@+id/homeNavAnime"
+                    android:id="@+id/homeNavExplore"
                     android:layout_width="44dp"
                     android:layout_height="44dp"
                     android:padding="12dp"
-                    android:src="@drawable/ic_round_movie_filter_24"
+                    android:src="@drawable/ic_round_media_24"
                     android:scaleType="fitCenter"
                     android:background="@android:color/transparent"
                     android:focusable="true"
                     android:nextFocusUp="@id/homeNavHome"
                     android:nextFocusDown="@id/homeNavDiscovery" />
+
 
                 <ImageButton
                     android:id="@+id/homeNavDiscovery"
@@ -244,7 +245,7 @@
                     android:scaleType="fitCenter"
                     android:background="@android:color/transparent"
                     android:focusable="true"
-                    android:nextFocusUp="@id/homeNavAnime"
+                    android:nextFocusUp="@id/homeNavExplore"
                     android:nextFocusDown="@id/homeNavLibrary" />
 
                 <ImageButton

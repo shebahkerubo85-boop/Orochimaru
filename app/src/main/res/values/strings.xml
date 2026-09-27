@@ -470,6 +470,11 @@
     <string name="author">Author</string>
     <string name="forks">Versions</string>
     <string name="faq">FAQ</string>
+    <string name="streaming_services">Streaming services</string>
+    <string name="in_cinema">In cinema</string>
+    <string name="row_trending">Trending</string>
+    <string name="latest_release">Latest release</string>
+    <string name="row_popular">Popular</string>
     <string name="accounts">Accounts</string>
     <string name="addons">Add-ons</string>
     <string name="myanimelist">MyAnimeList</string>
