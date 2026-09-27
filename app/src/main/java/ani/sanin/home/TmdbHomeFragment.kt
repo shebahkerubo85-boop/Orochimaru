@@ -945,7 +945,33 @@ class TmdbHomeFragment : Fragment() {
         else -> status
     }
 
+    /**
+     * Classic stacks the logo, the metadata line and the watch pill down the
+     * middle of the banner. The carousel gets that from item_banner_classic,
+     * but this single-banner view is laid out here and every row in it defaults
+     * to left, which is what left the chips stacked against the edge in movie
+     * mode. Compact and Modern keep the left alignment they have always had.
+     */
+    private fun centerStack(root: View, centered: Boolean) {
+        if (root !is ViewGroup) return
+        val gravity = if (centered) Gravity.CENTER_HORIZONTAL else Gravity.START
+        for (i in 0 until root.childCount) {
+            val child = root.getChildAt(i)
+            (child.layoutParams as? LinearLayout.LayoutParams)?.let {
+                it.gravity = gravity
+                child.layoutParams = it
+            }
+            centerStack(child, centered)
+        }
+    }
+
     private fun applyBannerLayout() {
+        // Done here rather than with a gravity per child in the XML, so both
+        // banner views stay in step with the carousel.
+        val classic = isClassicBanner()
+        centerStack(binding.tmdbBannerContent, classic)
+        centerStack(binding.tmdbBannerSide, classic)
+
         val ctx = requireContext()
         val isLandscape = ctx.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         val card = binding.tmdbBannerCard

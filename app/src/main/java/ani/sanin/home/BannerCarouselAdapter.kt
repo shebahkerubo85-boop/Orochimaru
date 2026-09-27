@@ -274,11 +274,19 @@ class BannerCarouselAdapter(
                 Anilist.mutation.toggleFav(media.anime != null, media.id)
             }
         }
-        favBtn?.visibility = View.VISIBLE
+        // Hidden: a second focus stop inside a banner means the user has to press
+        // D-pad right twice to reach the next slide. The favourite is still one
+        // tap away on the details screen.
+        favBtn?.visibility = View.GONE
 
         // --- Item click ---
         holder.itemView.setOnClickListener { onItemClick(media) }
-        holder.itemView.isFocusable = true
+        // Exactly one D-pad stop per banner, so left and right always mean the
+        // previous and next slide. That stop is the watch pill when the card
+        // carries one; only Compact in card mode has no pill, so it keeps the
+        // card itself as the stop. Either way the RecyclerView's focus search
+        // moves to the neighbouring card and scrolls it into view.
+        holder.itemView.isFocusable = cardMode
         holder.itemView.isFocusableInTouchMode = false
 
         // --- D-pad focus chain ---
