@@ -90,7 +90,7 @@
             android:layout_marginTop="6dp"
             android:ellipsize="end"
             android:fontFamily="@font/poppins"
-            android:lineSpacingExtra="5dp"
+            android:lineSpacingExtra="@dimen/banner_modern_synopsis_spacing"
             android:maxLines="@integer/banner_modern_synopsis_lines"
             android:shadowColor="#99000000"
             android:shadowDx="1"
@@ -104,7 +104,7 @@
             android:id="@+id/bannerMetaRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="@dimen/banner_modern_meta_top"
             android:gravity="center_vertical"
             android:orientation="horizontal" />
 
@@ -116,6 +116,8 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
+            <!-- Long and low, not a tall pill: a min width keeps the bar the
+                 same length whether it says Watch Now or Continue. -->
             <Button
                 android:id="@+id/bannerPlayBtn"
                 android:layout_width="wrap_content"
@@ -123,13 +125,14 @@
                 android:background="@drawable/banner_modern_pill_bg"
                 android:focusable="true"
                 android:focusableInTouchMode="false"
-                android:minWidth="0dp"
+                android:gravity="center"
+                android:minWidth="@dimen/banner_modern_watch_min_width"
                 android:paddingHorizontal="@dimen/banner_modern_watch_padding"
                 android:stateListAnimator="@null"
                 android:text="@string/watch_now"
                 android:textAllCaps="false"
                 android:textColor="?attr/colorOnBackground"
-                android:textSize="14sp"
+                android:textSize="@dimen/banner_modern_watch_text"
                 android:textStyle="bold" />
 
         </LinearLayout>

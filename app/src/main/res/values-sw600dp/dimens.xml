@@ -6,11 +6,11 @@
     <dimen name="banner_modern_poster_width">145dp</dimen>
     <dimen name="banner_modern_poster_height">220dp</dimen>
     <dimen name="banner_modern_poster_margin_end">28dp</dimen>
-    <dimen name="banner_modern_watch_height">46dp</dimen>
-    <dimen name="banner_modern_watch_padding">24dp</dimen>
+    <dimen name="banner_modern_watch_height">38dp</dimen>
+    <dimen name="banner_modern_watch_padding">40dp</dimen>
     <dimen name="banner_modern_title_text">22sp</dimen>
-    <dimen name="banner_modern_synopsis_text">15sp</dimen>
-    <dimen name="banner_modern_meta_text">15sp</dimen>
+    <dimen name="banner_modern_synopsis_text">12sp</dimen>
+    <dimen name="banner_modern_meta_text">12sp</dimen>
     <dimen name="banner_modern_meta_gap">8dp</dimen>
     <integer name="banner_modern_synopsis_lines">3</integer>
     <!-- Classic banner: large screens stay at the portrait height. -->
@@ -27,4 +27,8 @@
     <dimen name="banner_classic_logo_top">0dp</dimen>
     <dimen name="banner_classic_gradient">80dp</dimen>
     <dimen name="banner_classic_title_text">18sp</dimen>
+    <dimen name="banner_modern_meta_top">18dp</dimen>
+    <dimen name="banner_modern_watch_min_width">196dp</dimen>
+    <dimen name="banner_modern_watch_text">14sp</dimen>
+    <dimen name="banner_modern_synopsis_spacing">3dp</dimen>
 </resources>
