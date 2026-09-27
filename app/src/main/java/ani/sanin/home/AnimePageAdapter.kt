@@ -149,7 +149,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
 
         val rv = trendingBinding.trendingViewPager
         bannerAdapter = BannerCarouselAdapter(
-            media = media,
+            items = media,
             scope = CoroutineScope(Dispatchers.Main),
             onItemClick = { item ->
                 ContextCompat.startActivity(
