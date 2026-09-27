@@ -26,13 +26,16 @@
         android:scrollbarSize="0dp">
 
         <!--
-          Visual order is upcoming | current | previous, so the present season
-          always sits in the middle and the other two fall either side of it.
-          The text is set in AnimePageAdapter from Anilist.currentSeasons, which
-          is already ordered previous, current, next, so the label always names
-          the season it actually loads. The dead layout_constraint attributes
-          that used to sit on these chips are gone: they are children of a
-          LinearLayout, not a ConstraintLayout, so they never did anything.
+          Order is previous | current | next, so the seasons read oldest to newest
+          left to right with the present one in the middle. That matches
+          Anilist.currentSeasons, which is built in the same order, so a chip's
+          position and the index it loads agree. The text is set in
+          AnimePageAdapter from that same list, so each label names the season its
+          chip actually loads.
+
+          The dead layout_constraint attributes that used to sit on these chips
+          are gone: they are children of a LinearLayout, not a ConstraintLayout,
+          so they never did anything.
         -->
         <LinearLayout
             android:id="@+id/animeSeasonsCont"
@@ -41,11 +44,11 @@
             android:orientation="horizontal">
 
             <com.google.android.material.chip.Chip
-                android:id="@+id/animeNextSeason"
+                android:id="@+id/animePreviousSeason"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
-                android:textAppearance="@style/Suffix"
+                android:textAppearance="@style/SeasonChipLabel"
                 app:chipStrokeColor="?attr/colorPrimaryContainer" />
 
             <com.google.android.material.chip.Chip
@@ -53,15 +56,15 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
-                android:textAppearance="@style/Suffix"
+                android:textAppearance="@style/SeasonChipLabel"
                 app:chipStrokeColor="?attr/colorPrimaryContainer" />
 
             <com.google.android.material.chip.Chip
-                android:id="@+id/animePreviousSeason"
+                android:id="@+id/animeNextSeason"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
-                android:textAppearance="@style/Suffix"
+                android:textAppearance="@style/SeasonChipLabel"
                 app:chipStrokeColor="?attr/colorPrimaryContainer" />
         </LinearLayout>
 

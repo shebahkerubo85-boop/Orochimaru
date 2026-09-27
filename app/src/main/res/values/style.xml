@@ -23,6 +23,17 @@
         <item name="android:layout_gravity">center</item>
     </style>
 
+    <!--
+      Lighter than Suffix, which is 14sp and also drives the media list chips and
+      both bottom sheets. The season labels are three short labels sitting side by
+      side under a banner, so they need to sit lighter than a standalone chip.
+    -->
+    <style name="SeasonChipLabel">
+        <item name="android:fontFamily">@font/poppins_bold</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:layout_gravity">center</item>
+    </style>
+
     <style name="text10sp">
         <item name="android:textSize">10sp</item>
         <item name="fontFamily">@font/poppins_family</item>

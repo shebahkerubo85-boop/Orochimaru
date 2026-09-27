@@ -61,9 +61,7 @@ import kotlinx.coroutines.withContext
 class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHolder>() {
     /**
      * Positions into Anilist.currentSeasons, which is built as
-     * listOf(previous, current, next). Every season callback takes one of these,
-     * so they are named here to keep the view order and the data order from
-     * being confused for one another.
+     * listOf(previous, current, next). Every season callback takes one of these.
      */
     private companion object {
         const val PREVIOUS_SEASON = 0
@@ -118,15 +116,16 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             bottomMargin = (-108f).px
         }
 
-        // The chips sit in the layout as upcoming | current | previous, but
-        // Anilist.currentSeasons is ordered previous, current, next and that is
-        // the index both callbacks expect. So the index travels with the view
-        // instead of being taken from its position.
+        // Order matches Anilist.currentSeasons, previous | current | next, so a
+        // chip's position and the index it loads are the same thing. The index is
+        // still carried explicitly rather than read off the position: the two
+        // orders living in different files is exactly the kind of thing that
+        // drifts, and a wrong index here loads the wrong season silently.
         val seasons = Anilist.currentSeasons
         listOf(
-            binding.animeNextSeason to NEXT_SEASON,
-            binding.animeThisSeason to CURRENT_SEASON,
             binding.animePreviousSeason to PREVIOUS_SEASON,
+            binding.animeThisSeason to CURRENT_SEASON,
+            binding.animeNextSeason to NEXT_SEASON,
         ).forEach { (chip, index) ->
             val (season, year) = seasons[index]
             chip.text = seasonLabel(season, year)
