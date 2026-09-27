@@ -977,17 +977,23 @@ class TmdbHomeFragment : Fragment() {
             // Compact can hold it against the far right edge, and that same
             // weight is what pins the whole block to the left in Classic.
             binding.tmdbBannerMetaRow?.let { row ->
-                (row.layoutParams as? LinearLayout.LayoutParams)?.let {
-                    it.gravity = Gravity.CENTER_HORIZONTAL
-                    row.layoutParams = it
+                // The row spans the full card, so the gravity that matters is the
+                // row's own: it is what lines its children up in the middle. Its
+                // layout gravity only positions the row, and the row is
+                // match_parent, so there is nothing to position.
+                (row as? LinearLayout)?.let { line ->
+                    line.gravity = Gravity.CENTER_HORIZONTAL or Gravity.CENTER_VERTICAL
                 }
-                (row as ViewGroup).let { group ->
+                (row as? ViewGroup)?.let { group ->
                     for (i in 0 until group.childCount) {
-                        val lp = group.getChildAt(i).layoutParams as? LinearLayout.LayoutParams
+                        val child = group.getChildAt(i)
+                        val lp = child.layoutParams as? LinearLayout.LayoutParams
                         if (lp != null && lp.weight > 0f) {
+                            // Weight would hand the leftover width back to one
+                            // child and undo the centring just applied.
                             lp.weight = 0f
                             lp.width = ViewGroup.LayoutParams.WRAP_CONTENT
-                            group.getChildAt(i).layoutParams = lp
+                            child.layoutParams = lp
                         }
                     }
                 }
