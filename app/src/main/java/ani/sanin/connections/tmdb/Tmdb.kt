@@ -35,7 +35,8 @@ data class TmdbMedia(
 data class TmdbPage<T>(val page: Int = 1, val results: List<T> = emptyList())
 
 /**
- * A streaming service as TMDB knows it in a given country, from `/watch/providers/*`.
+ * A streaming service as TMDB knows it in a given country, from the watch-provider
+ * endpoints.
  *
  * The logo is TMDB's own `logo_path`, served from its image CDN like any poster —
  * nothing brand-owned is shipped in the app. [logoUrl] is resolved by [Tmdb.imageUrl]
@@ -431,6 +432,8 @@ object Tmdb {
             .getOrDefault(emptyList())
     }
 
+    /**
+     * The streaming services TMDB lists for [region] (ISO 3166-1 alpha-2, e.g. "US"),
      * majors first, de-duplicated and filtered to real subscriptions.
      *
      * Merged from the `/watch/providers/movie` and `/watch/providers/tv` endpoints because a
