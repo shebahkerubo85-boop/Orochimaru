@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Classic banner. Split out from item_banner_card.xml because that layout is
-  shared with Compact, and Classic wants a different order: watch pill first,
-  then the chips, then the logo centred at the very bottom.
+  shared with Compact, and Classic wants a different order: clearlogo first,
+  then the watch pill, then the chips.
 
   Every size here is a fixed resource, not wrap_content, so the logo and pill
   render at the same size on every launch instead of tracking whatever the
@@ -43,7 +43,7 @@
     <View
         android:id="@+id/bannerBottomGradient"
         android:layout_width="match_parent"
-        android:layout_height="170dp"
+        android:layout_height="@dimen/banner_classic_gradient"
         android:layout_gravity="bottom"
         android:background="@drawable/linear_gradient_bg"
         android:importantForAccessibility="no" />
@@ -56,6 +56,41 @@
         android:orientation="vertical"
         android:paddingHorizontal="16dp"
         android:paddingBottom="14dp">
+
+        <!-- Clearlogo leads: it is the artwork, and the controls sit under it
+             rather than competing with it. Fixed width, fitCenter, so a wide
+             logo keeps its aspect and a tall one is not stretched. -->
+        <ImageView
+            android:id="@+id/bannerClearlogo"
+            android:layout_width="@dimen/banner_classic_logo_width"
+            android:layout_height="@dimen/banner_classic_logo_height"
+            android:layout_gravity="center_horizontal"
+            android:importantForAccessibility="no"
+            android:scaleType="fitCenter"
+            android:visibility="gone"
+            tools:src="@tools:sample/backgrounds/scenic"
+            tools:visibility="visible" />
+
+        <!-- Title only appears when there is no clearlogo to stand in for it. -->
+        <TextView
+            android:id="@+id/bannerTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:fontFamily="@font/poppins_bold"
+            android:gravity="center_horizontal"
+            android:maxLines="1"
+            android:shadowColor="#99000000"
+            android:shadowDx="1"
+            android:shadowDy="1"
+            android:shadowRadius="4"
+            android:textColor="@color/bg_white"
+            android:textSize="@dimen/banner_classic_title_text"
+            android:textStyle="bold"
+            android:visibility="gone"
+            tools:text="Attack on Titan"
+            tools:visibility="visible" />
 
         <!-- Watch Now: same translucent pill language as Modern, larger and with
              a tighter corner radius so the two read as the same family. -->
@@ -104,39 +139,6 @@
                 app:justifyContent="flex_start" />
 
         </LinearLayout>
-
-        <!-- Logo sits last, centred, at fixed dimensions. -->
-        <ImageView
-            android:id="@+id/bannerClearlogo"
-            android:layout_width="@dimen/banner_classic_logo_width"
-            android:layout_height="@dimen/banner_classic_logo_height"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="@dimen/banner_classic_logo_top"
-            android:importantForAccessibility="no"
-            android:scaleType="fitCenter"
-            android:visibility="gone"
-            tools:src="@tools:sample/backgrounds/scenic"
-            tools:visibility="visible" />
-
-        <TextView
-            android:id="@+id/bannerTitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:ellipsize="end"
-            android:fontFamily="@font/poppins_bold"
-            android:gravity="center_horizontal"
-            android:maxLines="1"
-            android:shadowColor="#99000000"
-            android:shadowDx="1"
-            android:shadowDy="1"
-            android:shadowRadius="4"
-            android:textColor="@color/bg_white"
-            android:textSize="15sp"
-            android:textStyle="bold"
-            android:visibility="gone"
-            tools:text="Attack on Titan"
-            tools:visibility="visible" />
 
         <!-- Retained so the shared ViewHolder lookups still resolve. Classic
              never shows the description; it is hidden in the bind. -->

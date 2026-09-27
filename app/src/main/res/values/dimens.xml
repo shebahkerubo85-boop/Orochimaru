@@ -50,9 +50,9 @@
 
     <!-- Classic banner: taller in portrait to fit the logo, the watch pill and
          two rows of chips without crowding the art. -->
-    <dimen name="banner_classic_height">430dp</dimen>
-    <dimen name="banner_classic_logo_width">200dp</dimen>
-    <dimen name="banner_classic_logo_height">50dp</dimen>
+    <dimen name="banner_classic_height">290dp</dimen>
+    <dimen name="banner_classic_logo_width">260dp</dimen>
+    <dimen name="banner_classic_logo_height">72dp</dimen>
     <dimen name="banner_classic_watch_height">46dp</dimen>
     <dimen name="banner_classic_watch_padding">24dp</dimen>
     <dimen name="banner_classic_watch_text">14sp</dimen>
@@ -60,5 +60,7 @@
     <dimen name="banner_classic_chip_height">22dp</dimen>
     <dimen name="banner_classic_chip_gap">6dp</dimen>
     <dimen name="banner_classic_chip_pad">10dp</dimen>
-    <dimen name="banner_classic_logo_top">10dp</dimen>
+    <dimen name="banner_classic_logo_top">0dp</dimen>
+    <dimen name="banner_classic_gradient">96dp</dimen>
+    <dimen name="banner_classic_title_text">17sp</dimen>
 </resources>

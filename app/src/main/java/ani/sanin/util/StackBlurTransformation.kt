@@ -87,7 +87,7 @@ const val BANNER_MAX_WIDTH = 720
  * the chips and watch pill sit, so that is the part worth softening; the art
  * above it stays sharp.
  */
-const val CLASSIC_BLUR_BAND = 0.25f
+const val CLASSIC_BLUR_BAND = 0.45f
 
 /**
  * Blurs only the bottom band of the image, feathering the top edge of the band

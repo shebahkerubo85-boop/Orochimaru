@@ -791,7 +791,9 @@ class HomeFragment : Fragment() {
                             }, urls, logos,
                             nextFocusDownId = R.id.homeWatchingRecyclerView,
                             layoutRes = layoutForBannerType(modern),
-                            cardMode = !modern,
+                            // Classic carries its own watch pill, same as Modern.
+                            // Leaving it in cardMode hid the button entirely.
+                            cardMode = !modern && !isClassicBanner(),
                             hideDescription = !modern,
                             modernMode = modern,
                         )

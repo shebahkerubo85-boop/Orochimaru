@@ -239,9 +239,15 @@ class BannerCarouselAdapter(
         }
 
         // --- Play button ---
+        // Says Continue once the user is actually watching something, matching
+        // the nav banner, so the label never promises a start they already did.
         holder.playBtn.setOnClickListener { onItemClick(media) }
         holder.playBtn.isFocusable = true
         holder.playBtn.isFocusableInTouchMode = false
+        holder.playBtn.text = ctx.getString(
+            if (media.userStatus == "CURRENT") R.string.continue_watching_short
+            else R.string.watch_now
+        )
         holder.playBtn.visibility = View.VISIBLE
 
         // --- Favorite button ---
