@@ -122,8 +122,11 @@ class TmdbServiceCatalogueActivity : AppCompatActivity() {
         // A new type is a different shelf, so drop what the old one loaded and start over.
         page = 0
         hasMore = true
-        media.clear()
-        mediaAdaptor.notifyDataSetChanged()
+        if (media.isNotEmpty()) {
+            val old = media.size
+            media.clear()
+            mediaAdaptor.notifyItemRangeRemoved(0, old)
+        }
         updateTitle()
         load()
     }
@@ -195,10 +198,15 @@ class TmdbServiceCatalogueActivity : AppCompatActivity() {
                 result.onSuccess { results ->
                     page = next
                     hasMore = results.isNotEmpty()
+                    val start = media.size
                     for (item in results) {
                         media.add(item.toGridMedia())
                     }
-                    mediaAdaptor.notifyDataSetChanged()
+                    // Append only what arrived. notifyDataSetChanged would rebind every
+                    // card already on screen, which reads as a flash on each page.
+                    if (results.isNotEmpty()) {
+                        mediaAdaptor.notifyItemRangeInserted(start, results.size)
+                    }
                     updateTitle()
                     if (results.isEmpty() && media.isEmpty()) {
                         Snackbar.make(binding.root, R.string.nothing_here, Snackbar.LENGTH_SHORT)

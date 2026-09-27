@@ -65,6 +65,10 @@ private fun TmdbMedia.toExploreMedia(): Media = Media(
     banner = Tmdb.imageUrl(backdropPath, 1280) ?: Tmdb.imageUrl(posterPath, 780),
     cover = Tmdb.imageUrl(posterPath, 500),
     description = overview,
+    // The classic banner builds its centred chip row from format, status, season, score
+    // and genres. TMDB has no season and no clear logo on a list response, but genres are
+    // there as ids — without them the banner's middle is empty but for a score chip.
+    genres = ArrayList(Tmdb.genreNames(this)),
     // TMDB votes are 0-10; the banner's score chip is a 0-100 percentage.
     meanScore = if (voteAverage > 0) (voteAverage * 10).toInt() else null,
     tmdbType = type
@@ -98,11 +102,32 @@ class TmdbExploreFragment : Fragment() {
     private lateinit var popularAdapter: MediaAdaptor
     private val popularMedia = ArrayList<Media>()
 
+    /**
+     * One adapter and one backing list per row, created on the row's first load and
+     * updated in place after that.
+     *
+     * Handing a rail a fresh MediaAdaptor on every load throws away every card it had
+     * already inflated, so the whole row — and the page item around it — re-measures and
+     * re-binds from scratch. That is the visible twitch on a chip change.
+     */
+    private val rowAdapters = mutableMapOf<Tmdb.ExploreRow, MediaAdaptor>()
+    private val rowMedia = mutableMapOf<Tmdb.ExploreRow, ArrayList<Media>>()
+
+    /** Guards the one-time setup in [TmdbExplorePageAdapter.onPageBound]. */
+    private var pageBound = false
+
+    /**
+     * Bumped on every chip pick. A request that comes back after the viewer has already
+     * moved on is dropped, so a slow row cannot land on top of the new chip's data.
+     */
+    private var loadGeneration = 0
 
     private var trendingMedia: List<TmdbMedia> = emptyList()
     private var bannerAdapter: BannerCarouselAdapter? = null
     private var bannerAdapterType = -1
     private var bannerSnap: PagerSnapHelper? = null
+    private var bannerScrollListener: RecyclerView.OnScrollListener? = null
+    private var bannerTitleShown = false
     private var trendingAutoIndex = 0
     private var trendingAutoScrollHandler: Handler? = null
     private var trendingAutoScrollRunnable: Runnable? = null
@@ -127,6 +152,12 @@ class TmdbExploreFragment : Fragment() {
     override fun onDestroyView() {
         trendingAutoScrollHandler?.removeCallbacksAndMessages(null)
         pageBinding = null
+        // The rails are rebuilt against the new page item next time; keeping the old
+        // adapters would hand a new page the previous view's list.
+        rowAdapters.clear()
+        rowMedia.clear()
+        pageBound = false
+        bannerTitleShown = false
         super.onDestroyView()
         _binding = null
     }
@@ -134,8 +165,12 @@ class TmdbExploreFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        pageBound = false
+        loadGeneration++
+        bannerTitleShown = false
+
         // Same assembly as the anime explore: the page is one item, the Popular list hangs
-        // off the end of it, and the pager's progress bar off that.
+        // off the end of it.
         pageAdapter = TmdbExplorePageAdapter()
         popularAdapter = MediaAdaptor(1, popularMedia, requireActivity())
         binding.tmdbExploreRecyclerView.adapter =
@@ -144,12 +179,37 @@ class TmdbExploreFragment : Fragment() {
         pageAdapter.onPageBound = { page ->
             pageBinding = page
             trendingBinding = LayoutTrendingBinding.bind(page.root)
+            // Cheap and idempotent: put each rail's existing adapter back on this page's
+            // rail. A recycled holder has freshly inflated, adapter-less rails, and
+            // without this they would sit there empty.
+            reattachRowAdapters()
+            // ConcatAdapter rebinds the page whenever the Popular list below it changes, so
+            // this runs again on every Popular reload. Re-running the setup from here would
+            // reload Popular again, which rebinds the page again: a loop that reloads the
+            // whole tab forever. The wiring is per view, not per bind, so it runs once.
+            if (pageBound) return@onPageBound
+            pageBound = true
             setupChips()
             setupStreamingRail()
             setupFocusChain()
             setupPopularHeader()
             selectType(ExploreType.MOVIE)
             loadStreamingServices()
+        }
+    }
+
+    /**
+     * Re-points each row's RecyclerView at the adapter it already owns. No data is
+     * touched, so a rebind of the page repaints without reloading anything.
+     */
+    private fun reattachRowAdapters() {
+        for (row in railRows) {
+            if (row == Tmdb.ExploreRow.POPULAR) continue
+            val adapter = rowAdapters[row] ?: continue
+            val rail = rowFor(row)?.first ?: continue
+            rail.rowRecyclerView.layoutManager =
+                LinearLayoutManager(rail.root.context, LinearLayoutManager.HORIZONTAL, false)
+            rail.rowRecyclerView.adapter = adapter
         }
     }
 
@@ -183,11 +243,17 @@ class TmdbExploreFragment : Fragment() {
         )
         bannerAdapterType = ani.sanin.bannerType()
         rv.adapter = bannerAdapter
+        // Before the scroll, same as the anime page: this sets the card's constraints and
+        // the watch button's visibility, and doing it after the carousel has jumped to the
+        // middle makes the banner re-layout under the viewer's thumb.
+        applyTrendingBannerMode()
+        applyTypeSelectorSpacing()
 
         val start = if (media.isEmpty()) 0
         else Int.MAX_VALUE / 2 - (Int.MAX_VALUE / 2 % media.size)
         rv.scrollToPosition(start)
-        rv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+        bannerScrollListener?.let { rv.removeOnScrollListener(it) }
+        bannerScrollListener = object : RecyclerView.OnScrollListener() {
             private var lastTarget = -1
 
             override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
@@ -220,14 +286,23 @@ class TmdbExploreFragment : Fragment() {
                     resetTrendingAutoScroll()
                 }
             }
-        })
+        }
+        rv.addOnScrollListener(bannerScrollListener!!)
         setupTrendingDots(media.size)
+        // The banner mode above ran before the carousel had a position, so the overlay for
+        // the first visible card is filled in now.
         updateTrendingOverlayForCurrent()
-        applyTrendingBannerMode()
 
         if (media.isNotEmpty()) {
-            rv.layoutAnimation = LayoutAnimationController(setSlideIn(), 0.25f)
-            trendingBinding.titleContainer.startAnimation(setSlideUp())
+            // Layout animation is a one-shot on the carousel's children. Re-assigning it
+            // on every chip switch would replay the slide-in over and over.
+            if (rv.layoutAnimation == null) {
+                rv.layoutAnimation = LayoutAnimationController(setSlideIn(), 0.25f)
+            }
+            if (!bannerTitleShown) {
+                bannerTitleShown = true
+                trendingBinding.titleContainer.startAnimation(setSlideUp())
+            }
             startTrendingAutoScroll(rv, start)
         }
     }
@@ -320,6 +395,22 @@ class TmdbExploreFragment : Fragment() {
         val pos = lm.findFirstVisibleItemPosition()
         if (pos == RecyclerView.NO_POSITION) return
         rv.smoothScrollToPosition(pos + (if (forward) 1 else -1))
+    }
+
+    /**
+     * The chip row's gap under the banner, matching the anime season selector's
+     * applySeasonSelectorSpacing(): 108dp with the banner beside the content, 120dp when
+     * the banner is full width and needs the extra breathing room.
+     */
+    private fun applyTypeSelectorSpacing() {
+        val ctx = pageBinding?.root?.context ?: return
+        val density = ctx.resources.displayMetrics.density
+        val landscape =
+            ctx.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val topGap = if (landscape) (108 * density).toInt() else (120 * density).toInt()
+        page.tmdbExploreTypeScroll.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+            topMargin = topGap
+        }
     }
 
     private fun updateTrendingOverlayForCurrent() {
@@ -451,10 +542,13 @@ class TmdbExploreFragment : Fragment() {
         selectedChip?.takeIf { it !== chip }?.let { setChipSelected(it, false) }
         setChipSelected(chip, true)
         selectedChip = chip
-        loadBannerFor(type)
+        // Everything already in flight belongs to the previous chip; drop it on arrival
+        // rather than letting it land on top of this one.
+        val generation = ++loadGeneration
+        loadBannerFor(type, generation)
         // The rows and the Popular list follow the chip, same as the banner.
-        loadRows(type)
-        loadPopular()
+        loadRows(type, generation)
+        loadPopular(generation)
     }
 
     /** Same translucent-primary selected fill the season selector uses. */
@@ -476,7 +570,7 @@ class TmdbExploreFragment : Fragment() {
         chip.isSelected = selected
     }
 
-    private fun loadBannerFor(type: ExploreType) {
+    private fun loadBannerFor(type: ExploreType, generation: Int) {
         viewLifecycleOwner.lifecycleScope.launch {
             val media = when (type) {
                 ExploreType.MOVIE -> Tmdb.trending("movie")
@@ -487,6 +581,7 @@ class TmdbExploreFragment : Fragment() {
                     Tmdb.discover("movie", genres = "16", sort = "popularity.desc") +
                         Tmdb.discover("tv", genres = "16", sort = "popularity.desc")
             }
+            if (generation != loadGeneration) return@launch
             setupBanner(media)
         }
     }
@@ -565,6 +660,33 @@ class TmdbExploreFragment : Fragment() {
         page.tmdbIncludeList.nextFocusUpId = aboveId
     }
 
+    /**
+     * Replaces an adapter's contents without ever leaving the count and the list out of
+     * step.
+     *
+     * MediaAdaptor binds with a hard [MutableList.get], so an item count that runs ahead
+     * of the list crashes the prefetcher. Clearing the list *before* awaiting a request
+     * opens exactly that window — the list is empty while the adapter still reports the
+     * old count, and the next frame binds an index that is not there. So the caller
+     * assembles the new items first, and this swaps them in with no suspension point
+     * between the clear and the notify.
+     */
+    private fun swapAdapterList(
+        list: MutableList<Media>,
+        adapter: RecyclerView.Adapter<*>,
+        items: List<Media>
+    ) {
+        val oldSize = list.size
+        if (oldSize > 0) {
+            list.clear()
+            adapter.notifyItemRangeRemoved(0, oldSize)
+        }
+        if (items.isNotEmpty()) {
+            list.addAll(items)
+            adapter.notifyItemRangeInserted(0, items.size)
+        }
+    }
+
     // ---- Rows: five rails plus the Popular list, all driven by the type chip ----
 
     /** The five rails, in page order, each an include of the one shared row layout. */
@@ -600,7 +722,7 @@ class TmdbExploreFragment : Fragment() {
      * Reloads every row for [type]. Each row is its own request so a slow one cannot hold
      * up the rest, which is why this fans out instead of awaiting in sequence.
      */
-    private fun loadRows(type: ExploreType) {
+    private fun loadRows(type: ExploreType, generation: Int) {
         val tmdbType = when (type) {
             ExploreType.MOVIE -> "movie"
             ExploreType.TV -> "tv"
@@ -610,6 +732,7 @@ class TmdbExploreFragment : Fragment() {
             railRows.forEach { row ->
                 launch {
                     val media = runCatching { Tmdb.exploreRow(row, tmdbType) }.getOrDefault(emptyList())
+                    if (generation != loadGeneration) return@launch
                     bindRow(row, media.map { it.toExploreMedia() })
                 }
             }
@@ -627,16 +750,28 @@ class TmdbExploreFragment : Fragment() {
             rowBinding.root.isVisible = false
             return
         }
+        // Only the first load of a row slides in. Re-animating on every chip change puts
+        // ten running animations on screen at once, which reads as flicker.
+        val firstLoad = row !in rowAdapters
+        val wasHidden = !rowBinding.root.isVisible
         rowBinding.root.isVisible = true
         rowBinding.rowProgress.visibility = View.GONE
         rowBinding.rowTitle.setText(titleRes)
-        rowBinding.rowRecyclerView.adapter = MediaAdaptor(0, ArrayList(media), requireActivity())
-        rowBinding.rowRecyclerView.layoutManager = LinearLayoutManager(
-            rowBinding.root.context, LinearLayoutManager.HORIZONTAL, false
-        )
+        val list = rowMedia.getOrPut(row) { ArrayList() }
+        val adapter = rowAdapters.getOrPut(row) {
+            val created = MediaAdaptor(0, list, requireActivity())
+            rowBinding.rowRecyclerView.layoutManager = LinearLayoutManager(
+                rowBinding.root.context, LinearLayoutManager.HORIZONTAL, false
+            )
+            rowBinding.rowRecyclerView.adapter = created
+            created
+        }
+        // The list is filled and swapped without a suspension point, so the adapter's
+        // count never runs ahead of the cards it can bind.
+        swapAdapterList(list, adapter, media)
         // The row's arrow opens the same screen every other row's arrow opens.
         rowBinding.rowMore.setSafeOnClickListener {
-            MediaListViewActivity.passedMedia = ArrayList(media)
+            MediaListViewActivity.passedMedia = ArrayList(list)
             startActivity(
                 Intent(requireContext(), MediaListViewActivity::class.java)
                     .putExtra("title", getString(titleRes))
@@ -645,8 +780,10 @@ class TmdbExploreFragment : Fragment() {
         rowBinding.rowTitle.isVisible = true
         rowBinding.rowMore.isVisible = true
         rowBinding.rowRecyclerView.isVisible = true
-        rowBinding.rowTitle.startAnimation(setSlideUp())
-        rowBinding.rowMore.startAnimation(setSlideUp())
+        if (firstLoad || wasHidden) {
+            rowBinding.rowTitle.startAnimation(setSlideUp())
+            rowBinding.rowMore.startAnimation(setSlideUp())
+        }
     }
 
     // ---- Popular: a list, not a rail, with the include-list switch ----
@@ -668,7 +805,7 @@ class TmdbExploreFragment : Fragment() {
      * popularity list; the two are different things, so the row is not just a re-skin of
      * Most Favourite.
      */
-    private fun loadPopular() {
+    private fun loadPopular(generation: Int = loadGeneration) {
         val tmdbType = when (selectedType) {
             ExploreType.MOVIE -> "movie"
             ExploreType.TV -> "tv"
@@ -676,16 +813,15 @@ class TmdbExploreFragment : Fragment() {
         }
         val includeList = PrefManager.getVal<Boolean>(PrefName.PopularMovieList)
         viewLifecycleOwner.lifecycleScope.launch {
-            popularMedia.clear()
-            popularMedia.addAll(
-                runCatching { Tmdb.exploreRow(Tmdb.ExploreRow.POPULAR, tmdbType) }
-                    .getOrDefault(emptyList())
-                    .map { it.toExploreMedia() }
-            )
-            if (includeList) {
-                popularMedia.addAll(viewerListMedia())
-            }
-            popularAdapter.notifyDataSetChanged()
+            // Assemble everything before touching the list the adapter is bound to.
+            // Clearing first left the list empty across the requests below, and the
+            // prefetcher bound the stale count into an empty list.
+            val global = runCatching { Tmdb.exploreRow(Tmdb.ExploreRow.POPULAR, tmdbType) }
+                .getOrDefault(emptyList())
+                .map { it.toExploreMedia() }
+            val mine = if (includeList) viewerListMedia() else emptyList()
+            if (generation != loadGeneration) return@launch
+            swapAdapterList(popularMedia, popularAdapter, global + mine)
         }
     }
 

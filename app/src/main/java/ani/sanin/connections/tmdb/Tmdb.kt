@@ -66,6 +66,55 @@ private const val TYPE_TV = "tv"
 private const val TYPE_ANIMATION = "animation"
 
 /**
+ * TMDB's genre vocabulary, so a list response's bare `genre_ids` can be turned into the
+ * names the classic banner's chips show. Movie and TV number some of the same ideas
+ * differently — 28 is Action for film but 10759 is Action & Adventure for TV, and Fantasy
+ * splits the same way — so the table is picked by media type rather than merged.
+ *
+ * Hardcoded like [DEFAULT_PROVIDER_REGION]: these ids are TMDB's own stable genre
+ * vocabulary, and `/genre/{movie,tv}/list` would only be re-fetching this table.
+ */
+private val MOVIE_GENRES = mapOf(
+    28 to "Action",
+    12 to "Adventure",
+    16 to "Animation",
+    35 to "Comedy",
+    80 to "Crime",
+    99 to "Documentary",
+    18 to "Drama",
+    10751 to "Family",
+    14 to "Fantasy",
+    36 to "History",
+    27 to "Horror",
+    10402 to "Music",
+    9648 to "Mystery",
+    10749 to "Romance",
+    878 to "Science Fiction",
+    53 to "Thriller",
+    10752 to "War",
+    37 to "Western",
+)
+
+private val TV_GENRES = mapOf(
+    10759 to "Action & Adventure",
+    16 to "Animation",
+    35 to "Comedy",
+    80 to "Crime",
+    99 to "Documentary",
+    18 to "Drama",
+    10751 to "Family",
+    10762 to "Kids",
+    9648 to "Mystery",
+    10763 to "News",
+    10764 to "Reality",
+    10765 to "Sci-Fi & Fantasy",
+    10766 to "Soap",
+    10767 to "Talk",
+    10768 to "War & Politics",
+    37 to "Western",
+)
+
+/**
  * `vote_average` on its own surfaces the one perfect ten from a single rater, so
  * most-favourite and top-rated both ask for a floor of real votes first.
  */
@@ -565,6 +614,18 @@ object Tmdb {
         }
     }
 
+
+    /**
+     * [TmdbMedia.genreIds] as the display names a card can show, in TMDB's own order.
+     *
+     * The classic banner's chip row is built from [ani.sanin.media.Media.genres] plus
+     * format, status and score. Without this, a TMDB title arrives with no genres and the
+     * banner falls back to a lone score chip, leaving the middle of the card empty.
+     */
+    fun genreNames(media: TmdbMedia): List<String> {
+        val table = if (media.type == TYPE_TV) TV_GENRES else MOVIE_GENRES
+        return media.genreIds.mapNotNull { table[it] }
+    }
 
     fun imageUrl(path: String?, width: Int = 500): String? {
         if (path.isNullOrBlank()) return null

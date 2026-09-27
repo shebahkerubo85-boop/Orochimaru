@@ -17,7 +17,15 @@
     android:layout_height="wrap_content"
     android:orientation="vertical">
 
-    <!-- The same banner the anime explore uses; driven by TmdbMedia instead of AniList. -->
+    <!--
+      The same banner the anime explore uses; driven by TmdbMedia instead of AniList.
+
+      Note the chip row below: no fillViewport. fillViewport makes a HorizontalScrollView
+      measure itself at the full width of its parent, which quietly overrides
+      layout_gravity="center_horizontal" and drops the chips to the left edge. The anime
+      season row keeps fillViewport and only looks centred because three long season
+      names happen to fill the width; these three short ones do not.
+    -->
     <include layout="@layout/layout_trending" />
 
     <HorizontalScrollView
@@ -27,7 +35,6 @@
         android:layout_gravity="center_horizontal"
         android:layout_marginTop="108dp"
         android:clipToPadding="false"
-        android:fillViewport="true"
         android:focusable="true"
         android:nextFocusUp="@+id/trendingViewPager"
         android:paddingStart="2dp"
