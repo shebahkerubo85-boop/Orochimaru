@@ -187,14 +187,15 @@ class TmdbExploreFragment : Fragment() {
             // this runs again on every Popular reload. Re-running the setup from here would
             // reload Popular again, which rebinds the page again: a loop that reloads the
             // whole tab forever. The wiring is per view, not per bind, so it runs once.
-            if (pageBound) return@onPageBound
-            pageBound = true
-            setupChips()
-            setupStreamingRail()
-            setupFocusChain()
-            setupPopularHeader()
-            selectType(ExploreType.MOVIE)
-            loadStreamingServices()
+            if (!pageBound) {
+                pageBound = true
+                setupChips()
+                setupStreamingRail()
+                setupFocusChain()
+                setupPopularHeader()
+                selectType(ExploreType.MOVIE)
+                loadStreamingServices()
+            }
         }
     }
 
