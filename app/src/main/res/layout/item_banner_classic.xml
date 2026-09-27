@@ -98,6 +98,7 @@
             android:id="@+id/bannerPlayBtn"
             android:layout_width="wrap_content"
             android:layout_height="@dimen/banner_classic_watch_height"
+            android:layout_gravity="center_horizontal"
             android:background="@drawable/banner_classic_pill_bg"
             android:focusable="true"
             android:focusableInTouchMode="false"
@@ -118,6 +119,7 @@
             android:id="@+id/bannerGenresRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
             android:layout_marginTop="8dp"
             android:orientation="vertical">
 
@@ -127,7 +129,7 @@
                 android:layout_height="wrap_content"
                 app:alignItems="center"
                 app:flexWrap="wrap"
-                app:justifyContent="flex_start" />
+                app:justifyContent="center" />
 
             <com.google.android.flexbox.FlexboxLayout
                 android:id="@+id/bannerChipsBottom"
@@ -136,7 +138,7 @@
                 android:layout_marginTop="@dimen/banner_classic_chip_gap"
                 app:alignItems="center"
                 app:flexWrap="wrap"
-                app:justifyContent="flex_start" />
+                app:justifyContent="center" />
 
         </LinearLayout>
 

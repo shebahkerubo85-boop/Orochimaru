@@ -319,7 +319,7 @@ class TmdbBannerCarouselAdapter(
             lp.width = FrameLayout.LayoutParams.MATCH_PARENT
             lp.gravity = Gravity.BOTTOM
             content.layoutParams = lp
-            content.gravity = if (landscapeMode) Gravity.CENTER_HORIZONTAL else Gravity.START
+            content.gravity = Gravity.CENTER_HORIZONTAL
             val padH = if (landscapeMode) (24 * density).toInt() else (16 * density).toInt()
             val padB = if (landscapeMode) (10 * density).toInt() else (14 * density).toInt()
             content.setPadding(padH, 0, padH, padB)

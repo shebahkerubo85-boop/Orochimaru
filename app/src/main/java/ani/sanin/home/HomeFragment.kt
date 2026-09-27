@@ -1114,11 +1114,17 @@ class HomeFragment : Fragment() {
                 watchBtn.isVisible = true
             }
             else -> {
-                cwItemUpTarget = R.id.homeBannerWatchBtn
-                cwRow?.nextFocusUpId = R.id.homeBannerWatchBtn
-                cal?.nextFocusDownId = R.id.homeBannerWatchBtn
-                avatar?.nextFocusDownId = R.id.homeBannerWatchBtn
-                watchBtn.isVisible = true
+                // Compact keeps the side panel's watch button. Classic and Modern
+                // hide that panel, so pointing the chain at it would strand the
+                // user on a view that is not on screen.
+                val target =
+                    if (isModernBanner() || isClassicBanner()) R.id.homeBannerCarousel
+                    else R.id.homeBannerWatchBtn
+                cwItemUpTarget = target
+                cwRow?.nextFocusUpId = target
+                cal?.nextFocusDownId = target
+                avatar?.nextFocusDownId = target
+                watchBtn.isVisible = target == R.id.homeBannerWatchBtn
             }
         }
         // Keep already-attached continue-watching cards pointed at the mode target
@@ -1202,7 +1208,13 @@ class HomeFragment : Fragment() {
         val sidePad = (24 * density).toInt()
         val stripW = ctx.resources.displayMetrics.widthPixels - cardW
 
-        fade.isVisible = true
+        // Classic and Modern are full-bleed and already carry the logo, the
+        // chips and a watch pill on the card itself, so the side panel would
+        // duplicate all three and leave a second watch button stranded at the
+        // bottom left. Only Compact is still narrow enough to need it.
+        val fullBleed = isModernBanner() || isClassicBanner()
+
+        fade.isVisible = !fullBleed
         fade.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             width = stripW
             height = cardH
@@ -1210,22 +1222,18 @@ class HomeFragment : Fragment() {
         fade.bringToFront()
         overlay.bringToFront()
 
-        overlay.isVisible = true
-        val largeBanner = isClassicBanner()
-        overlay.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-            width = if (largeBanner) cardW else stripW + cardW / 4
-            height = cardH
-        }
-        overlay.setPadding(sidePad, 0, sidePad, 0)
-        b.homeBannerOverlayLogo.maxWidth = (stripW - sidePad * 2).coerceAtLeast(1)
-        b.homeBannerOverlayLogo.maxHeight = (cardH * 0.30f).toInt()
-        b.homeBannerOverlaySynopsis.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-            width = (stripW - sidePad * 2 + cardW / 4).coerceAtLeast(1)
-        }
-        // Large: chips 2dp above Watch, title 5dp spacing.
-        if (largeBanner) {
-            b.homeBannerOverlayTitle.updateLayoutParams<ViewGroup.MarginLayoutParams> { bottomMargin = (5 * density).toInt() }
-            b.homeBannerWatchBtn.updateLayoutParams<ViewGroup.MarginLayoutParams> { topMargin = (2 * density).toInt() }
+        overlay.isVisible = !fullBleed
+        if (!fullBleed) {
+            overlay.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                width = stripW + cardW / 4
+                height = cardH
+            }
+            overlay.setPadding(sidePad, 0, sidePad, 0)
+            b.homeBannerOverlayLogo.maxWidth = (stripW - sidePad * 2).coerceAtLeast(1)
+            b.homeBannerOverlayLogo.maxHeight = (cardH * 0.30f).toInt()
+            b.homeBannerOverlaySynopsis.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                width = (stripW - sidePad * 2 + cardW / 4).coerceAtLeast(1)
+            }
         }
 
         if (navActive) {
@@ -1266,6 +1274,10 @@ class HomeFragment : Fragment() {
 
     private fun updateHomeBannerOverlay(media: Media) {
         val b = _binding ?: return
+        // The panel is hidden for Classic and Modern, which draw this content on
+        // the card instead. Guarded here rather than at each of the call sites,
+        // which include a scroll listener and the nav banner path.
+        if (!b.homeBannerOverlay.isVisible) return
         val logo = b.homeBannerOverlayLogo
         val title = b.homeBannerOverlayTitle
         val chips = b.homeBannerOverlayChips

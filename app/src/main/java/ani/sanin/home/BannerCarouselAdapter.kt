@@ -464,7 +464,7 @@ class BannerCarouselAdapter(
             lp.width = FrameLayout.LayoutParams.MATCH_PARENT
             lp.gravity = Gravity.BOTTOM
             content.layoutParams = lp
-            content.gravity = if (landscapeOverlay) Gravity.CENTER_HORIZONTAL else Gravity.START
+            content.gravity = Gravity.CENTER_HORIZONTAL
             val padH = if (landscapeOverlay) (24 * density).toInt() else (16 * density).toInt()
             val padB = if (landscapeOverlay) (10 * density).toInt() else (14 * density).toInt()
             content.setPadding(padH, 0, padH, padB)

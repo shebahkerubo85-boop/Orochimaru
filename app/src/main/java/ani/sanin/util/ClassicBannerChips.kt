@@ -7,22 +7,26 @@ import com.google.android.flexbox.FlexboxLayout
 import ani.sanin.R
 import ani.sanin.getThemeColor
 
-/** Chips on the top line of the Classic banner. */
-const val CLASSIC_CHIPS_TOP = 5
-
-/** Chips on the bottom line of the Classic banner. */
-const val CLASSIC_CHIPS_BOTTOM = 3
+/**
+ * How the two chip lines are divided: 5 of every 8 chips go on top and the
+ * remaining 3 underneath. A ratio rather than a fixed count, so an anime with
+ * four chips or ten chips still gets a balanced pair of lines instead of
+ * 5-and-rest.
+ */
+private const val CLASSIC_CHIPS_TOP_SHARE = 5f
+private const val CLASSIC_CHIPS_SPLIT_TOTAL = 8f
 
 /** Total chip slots, so a long genre list cannot push the banner taller. */
-const val CLASSIC_CHIPS_MAX = CLASSIC_CHIPS_TOP + CLASSIC_CHIPS_BOTTOM
+const val CLASSIC_CHIPS_MAX = 10
 
 /**
- * Renders the Classic banner's chips into two fixed rows.
+ * Renders the Classic banner's chips into two rows split by
+ * [CLASSIC_CHIPS_TOP_SHARE]:[CLASSIC_CHIPS_SPLIT_TOTAL] - [CLASSIC_CHIPS_SPLIT_TOTAL].
  *
- * The first [CLASSIC_CHIPS_TOP] chips go on the top line and the rest go
- * underneath, which keeps the layout to two lines no matter how long the
- * labels are. Anything past [CLASSIC_CHIPS_MAX] is dropped, since the banner
- * has a fixed height and more chips would just push the logo off the card.
+ * Eight chips therefore land 5 and 3, which is the shape this was designed
+ * around, and any other total is divided by the same ratio. Anything past
+ * [CLASSIC_CHIPS_MAX] is dropped, since the banner has a fixed height and more
+ * chips would push the logo off the card.
  */
 fun bindClassicChips(
     container: ViewGroup?,
@@ -45,7 +49,8 @@ fun bindClassicChips(
     }
     container?.isVisible = true
 
-    val split = minOf(capped.size, CLASSIC_CHIPS_TOP)
+    val split = Math.round(capped.size * CLASSIC_CHIPS_TOP_SHARE / CLASSIC_CHIPS_SPLIT_TOTAL)
+        .coerceIn(0, capped.size)
     addChips(top, capped.take(split))
     addChips(bottom, capped.drop(split))
     top.isVisible = true
