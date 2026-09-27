@@ -971,6 +971,31 @@ class TmdbHomeFragment : Fragment() {
         val classic = isClassicBanner()
         centerStack(binding.tmdbBannerContent, classic)
         centerStack(binding.tmdbBannerSide, classic)
+        if (classic) {
+            // A row centres its own content by gravity, and gravity only bites
+            // when nothing inside it is weighted. Genres carries a weight so
+            // Compact can hold it against the far right edge, and that same
+            // weight is what pins the whole block to the left in Classic.
+            binding.tmdbBannerMetaRow?.let { row ->
+                (row.layoutParams as? LinearLayout.LayoutParams)?.let {
+                    it.gravity = Gravity.CENTER_HORIZONTAL
+                    row.layoutParams = it
+                }
+                (row as ViewGroup).let { group ->
+                    for (i in 0 until group.childCount) {
+                        val lp = group.getChildAt(i).layoutParams as? LinearLayout.LayoutParams
+                        if (lp != null && lp.weight > 0f) {
+                            lp.weight = 0f
+                            lp.width = ViewGroup.LayoutParams.WRAP_CONTENT
+                            group.getChildAt(i).layoutParams = lp
+                        }
+                    }
+                }
+            }
+            // The anime Classic banner has no synopsis either; leaving one here
+            // puts a left-aligned text block under a centred stack.
+            binding.tmdbBannerSynopsis.isVisible = false
+        }
 
         val ctx = requireContext()
         val isLandscape = ctx.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -1009,6 +1034,16 @@ class TmdbHomeFragment : Fragment() {
                 val (cardW, cardH) = card.bannerCardSizePx(0.65f)
                 card.updateLayoutParams<FrameLayout.LayoutParams> {
                     gravity = Gravity.END or Gravity.TOP
+                }
+                // Classic draws the logo, the chips and the pill on the card
+                // itself, so the side panel repeats all three and puts a second
+                // logo above the first. Same reason the anime screen drops its
+                // panel for Classic and Modern.
+                if (isClassicBanner()) {
+                    binding.tmdbBannerFade.isVisible = false
+                    binding.tmdbBannerCardScrim.isVisible = false
+                    binding.tmdbBannerSide.isVisible = false
+                    return
                 }
                 val stripW = ctx.resources.displayMetrics.widthPixels - cardW
                 binding.tmdbBannerFade.isVisible = true
