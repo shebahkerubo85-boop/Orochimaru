@@ -13,6 +13,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.content.ContextCompat
+import android.content.res.ColorStateList
+import androidx.core.graphics.ColorUtils
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
@@ -26,6 +28,7 @@ import ani.sanin.R
 import ani.sanin.bannerType
 import ani.sanin.isClassicBanner
 import ani.sanin.isModernBanner
+import com.google.android.material.chip.Chip
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.anizip.AniZip
 import ani.sanin.connections.mal.MAL
@@ -66,6 +69,9 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         const val PREVIOUS_SEASON = 0
         const val CURRENT_SEASON = 1
         const val NEXT_SEASON = 2
+
+        /** ~30% primary, so the fill reads without swallowing the chip stroke. */
+        const val SELECTED_SEASON_FILL_ALPHA = 0x4D
     }
 
     val ready = MutableLiveData(false)
@@ -82,6 +88,16 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
     private var trendingAutoScrollRunnable: Runnable? = null
     /** Live raw adapter position the auto-scroll continues from (synced on manual scroll). */
     private var trendingAutoIndex = 0
+    /** Season index whose chip carries the selected fill. */
+    private var selectedSeason = CURRENT_SEASON
+    /**
+     * The chip's untouched background, captured before anything overwrites it,
+     * so unselecting restores exactly what the theme gave rather than assuming
+     * the outlined style is fully transparent.
+     */
+    private var unselectedChipBackground: ColorStateList? = null
+    /** The filled chip, so a new selection can clear the one it replaces. */
+    private var selectedSeasonChip: Chip? = null
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AnimePageViewHolder {
         val binding =
@@ -114,7 +130,13 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         ).forEach { (chip, index) ->
             val (season, year) = seasons[index]
             chip.text = seasonLabel(season, year)
-            chip.setSafeOnClickListener { onSeasonClick.invoke(index) }
+            val selected = index == selectedSeason
+            setSeasonSelected(chip, selected)
+            if (selected) selectedSeasonChip = chip
+            chip.setSafeOnClickListener {
+                selectSeason(chip, index)
+                onSeasonClick.invoke(index)
+            }
             chip.setOnLongClickListener { onSeasonLongClick.invoke(index) }
             FocusEffectUtil.applyFocusListener(chip)
         }
@@ -427,6 +449,44 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
      * season upper case and a four digit year, neither of which wants showing
      * on a chip that is only as wide as its text.
      */
+    /**
+     * Marks one season chip as the selected one with a translucent primary fill
+     * and clears the rest back to the theme's own background. The chips stay
+     * non-checkable on purpose: a ChipGroup would own the selection itself, but
+     * it also brings its own spacing that would fight the 8dp margins already
+     * on each chip, and isSelected keeps the state readable to accessibility
+     * services either way.
+     */
+    /** Moves the fill to [chip], clearing whichever chip held it before. */
+    private fun selectSeason(chip: Chip, index: Int) {
+        selectedSeason = index
+        selectedSeasonChip?.takeIf { it !== chip }?.let { setSeasonSelected(it, false) }
+        setSeasonSelected(chip, true)
+        selectedSeasonChip = chip
+    }
+
+    private fun setSeasonSelected(chip: Chip, selected: Boolean) {
+        if (unselectedChipBackground == null) {
+            unselectedChipBackground = chip.chipBackgroundColor
+        }
+        chip.chipBackgroundColor = if (selected) {
+            ColorStateList.valueOf(
+                ColorUtils.setAlphaComponent(
+                    chip.context.getThemeColor(
+                        com.google.android.material.R.attr.colorPrimary
+                    ),
+                    SELECTED_SEASON_FILL_ALPHA,
+                )
+            )
+        } else {
+            // getChipBackgroundColor() is nullable and this runs per chip, so
+            // fall back rather than asserting.
+            unselectedChipBackground
+                ?: ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
+        }
+        chip.isSelected = selected
+    }
+
     private fun seasonLabel(season: String, year: Int): String {
         val name = season.lowercase().replaceFirstChar { it.uppercase() }
         // %02d, not string padding: 2005 has to read as '05 and not '50.
