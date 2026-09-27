@@ -333,6 +333,10 @@ class AnimeFragment : Fragment() {
     override fun onResume() {
         if (!model.loaded) Refresh.activity[this.hashCode()]!!.postValue(true)
         if (this::animePageAdapter.isInitialized && _binding != null) {
+            // The banner type is changed on the settings screen, so the change
+            // is only visible when the user comes back here. Rebuilding just the
+            // banner adapter is enough; it no-ops if the type is unchanged.
+            animePageAdapter.refreshBannerTypeIfChanged()
             binding.root.requestApplyInsets()
             binding.root.requestLayout()
         }

@@ -23,6 +23,7 @@ import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.home.BannerCarouselAdapter
 import ani.sanin.R
+import ani.sanin.bannerType
 import ani.sanin.isClassicBanner
 import ani.sanin.isModernBanner
 import ani.sanin.connections.anilist.Anilist
@@ -60,6 +61,8 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
     private lateinit var trendingBinding: LayoutTrendingBinding
     var bannerAdapter: BannerCarouselAdapter? = null
         private set
+    /** Banner type the live adapter was inflated for, so a no-op resume is free. */
+    private var bannerAdapterType: Int = -1
     private var bannerSnap: PagerSnapHelper? = null
     private var trendingMedia: List<Media> = emptyList()
     private var trendingLogos: Map<Int, String?> = emptyMap()
@@ -121,6 +124,63 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         trendingBinding.trendingContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             topMargin = 0
         }
+    }
+
+    /**
+     * Applies a banner type change without reloading the tab.
+     *
+     * The banner layout is a constructor argument, so switching type cannot be a
+     * rebind: the existing ViewHolders are already inflated with the old layout
+     * and RecyclerView recycles them, so notifyDataSetChanged would keep showing
+     * the old design. The adapter has to be rebuilt. Everything cheaper than
+     * that is kept: the LayoutManager, SnapHelper, scroll listener and auto-scroll
+     * all hang off the RecyclerView rather than the adapter, and the media plus
+     * logo maps are already in memory, so nothing refetches. Only the carousel
+     * re-inflates; the rest of the tab is untouched.
+     *
+     * No-op when the type has not changed, so it is safe to call on every resume.
+     */
+    fun refreshBannerTypeIfChanged() {
+        if (!::trendingBinding.isInitialized) return
+        val type = bannerType()
+        if (type == bannerAdapterType) return
+        val media = trendingMedia
+        if (media.isEmpty()) return
+
+        val rv = trendingBinding.trendingViewPager
+        bannerAdapter = BannerCarouselAdapter(
+            media = media,
+            scope = CoroutineScope(Dispatchers.Main),
+            onItemClick = { item ->
+                ContextCompat.startActivity(
+                    binding.root.context,
+                    Intent(
+                        binding.root.context,
+                        ani.sanin.media.MediaDetailsActivity::class.java
+                    )
+                        .putExtra("media", item)
+                        .putExtra("anime", true),
+                    null
+                )
+            },
+            nextFocusDownId = R.id.animeSeasons,
+            layoutRes = layoutForBannerType(isModernBanner()),
+            cardMode = !isModernBanner() && !isClassicBanner(),
+            hideDescription = !isModernBanner(),
+            modernMode = isModernBanner(),
+        )
+        bannerAdapterType = type
+        rv.adapter = bannerAdapter
+
+        // A fresh adapter starts at 0, which for this endless carousel is the far
+        // left end. Recentre so the reload is not visible as a jump.
+        val start = Int.MAX_VALUE / 2 - (Int.MAX_VALUE / 2 % media.size)
+        rv.scrollToPosition(start)
+        trendingAutoIndex = start
+
+        // Width and the side-panel/fade treatment both depend on the type.
+        applyTrendingBannerMode()
+        updateTrendingOverlayForCurrent()
     }
 
     fun resizeBanner() {
@@ -388,6 +448,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             hideDescription = !isModernBanner(),
             modernMode = isModernBanner(),
         )
+        bannerAdapterType = bannerType()
         rv.adapter = bannerAdapter
         applyTrendingBannerMode()
         val start = Int.MAX_VALUE / 2 - (Int.MAX_VALUE / 2 % media.size)
