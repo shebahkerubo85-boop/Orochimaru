@@ -520,6 +520,13 @@ const val MODERN_MAX_GENRES = 3
 /** How long a banner slide should take, in ms. */
 private const val BANNER_SCROLL_MS = 400f
 
+/**
+ * How often the auto-advance re-checks whether a slide has come to rest. The banner
+ * drives its own auto-advance from a timer, and the timer is restarted when the carousel
+ * reports idle, so this is only a guard for the case where that callback never arrives.
+ */
+internal const val BANNER_SETTLE_POLL_MS = 120L
+
 /** The content column is capped to this fraction of the banner so it clears the poster. */
 private const val MODERN_CONTENT_WIDTH_FRACTION = 0.58f
 

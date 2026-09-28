@@ -84,8 +84,6 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
     private var trendingLogos: Map<Int, String?> = emptyMap()
     private var trendingAutoScrollHandler: android.os.Handler? = null
     private var trendingAutoScrollRunnable: Runnable? = null
-    /** Live raw adapter position the auto-scroll continues from (synced on manual scroll). */
-    private var trendingAutoIndex = 0
     /** Season index whose chip carries the selected fill. */
     private var selectedSeason = CURRENT_SEASON
     /**
@@ -216,7 +214,6 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         // left end. Recentre so the reload is not visible as a jump.
         val start = Int.MAX_VALUE / 2 - (Int.MAX_VALUE / 2 % media.size)
         rv.scrollToPosition(start)
-        trendingAutoIndex = start
 
         // Width and the side-panel/fade treatment both depend on the type.
         applyTrendingBannerMode()
@@ -583,10 +580,17 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             LayoutAnimationController(setSlideIn(), 0.25f)
         trendingAutoScrollHandler?.removeCallbacksAndMessages(null)
         trendingAutoScrollHandler = android.os.Handler(android.os.Looper.getMainLooper())
-        trendingAutoIndex = start
         trendingAutoScrollRunnable = object : Runnable {
             override fun run() {
                 if (media.isEmpty()) return
+                // A tick used to be able to land while the previous slide was still
+                // travelling, and startSmoothScroll replaces the in-flight scroller, so
+                // each tick cut the last one short and aimed again, so the banner crept
+                // forward and never came to rest. Waiting for the settle forces one slide, one pause.
+                if (rv.isSmoothScrolling) {
+                    trendingAutoScrollHandler?.postDelayed(this, BANNER_SETTLE_POLL_MS)
+                    return
+                }
                 val focus = (binding.root.context as? AppCompatActivity)?.currentFocus
                 val onTrendingControl = focus != null && (
                     focus.id == R.id.trendingWatchBtn ||
@@ -594,8 +598,12 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
                     trendingBinding.trendingViewPager.findContainingViewHolder(focus) != null
                 )
                 if (!onTrendingControl) {
-                    trendingAutoIndex++
-                    rv.smoothScrollToPosition(trendingAutoIndex)
+                    // Aimed from what is on screen, not from a remembered index that only
+                    // got corrected on idle; a stale one aimed at a distant target and slid
+                    // through every banner on the way there.
+                    val lm = rv.layoutManager as? LinearLayoutManager
+                    val current = lm?.findFirstVisibleItemPosition() ?: RecyclerView.NO_POSITION
+                    if (current != RecyclerView.NO_POSITION) scrollBanner(rv, current + 1)
                 }
                 trendingAutoScrollHandler?.postDelayed(this, 5000L)
             }
@@ -676,7 +684,6 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
                     val lm = rv.layoutManager as? LinearLayoutManager ?: return
                     val raw = lm.findFirstVisibleItemPosition()
                     if (raw == RecyclerView.NO_POSITION) return
-                    trendingAutoIndex = raw
                     resetTrendingAutoScroll()
                     val pos = raw % itemCount % shown
                     for (i in 0 until dotsList.size) {

@@ -1165,6 +1165,16 @@ class TmdbHomeFragment : Fragment() {
         if (mode != 0 || bannerItems.size < 2) return
         bannerHandler.postDelayed(object : Runnable {
             override fun run() {
+                val rv = binding.tmdbBannerCarousel
+                if (isCarouselMode() && rv.isSmoothScrolling) {
+                    // A tick used to be able to land while the previous slide was still
+                    // travelling, and startSmoothScroll replaces the in-flight scroller, so
+                    // each tick cut the last one short and aimed again, so the banner crept
+                    // forward and never came to rest. Waiting for the settle forces one
+                    // slide, one pause.
+                    bannerHandler.postDelayed(this, BANNER_SETTLE_POLL_MS)
+                    return
+                }
                 if (isCarouselMode()) {
                     scrollBannerCarousel(forward = true)
                 } else {

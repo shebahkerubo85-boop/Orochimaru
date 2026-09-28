@@ -40,6 +40,7 @@ import ani.sanin.getThemeColor
 import ani.sanin.isClassicBanner
 import ani.sanin.isModernBanner
 import ani.sanin.isTvDevice
+import ani.sanin.limitedAsyncMap
 import ani.sanin.media.Media
 import ani.sanin.media.MediaAdaptor
 import ani.sanin.media.MediaListViewActivity
@@ -66,6 +67,12 @@ private fun TmdbMedia.toExploreMedia(): Media = Media(
     banner = Tmdb.imageUrl(backdropPath, 1280) ?: Tmdb.imageUrl(posterPath, 780),
     cover = Tmdb.imageUrl(posterPath, 500),
     description = overview,
+    // The banner's first chip is the format, and it comes from Media.format, which TMDB
+    // never populated here — so the row opened on the score chip instead of saying what
+    // kind of title it was. Upper case matches how the anime side stores it, and "TV" is
+    // the value BannerCarouselAdapter already renders as "TV Series"; "movie" falls
+    // through its own mapping untouched.
+    format = type.uppercase(),
     // The classic banner builds its centred chip row from format, status, season, score
     // and genres. TMDB has no season and no clear logo on a list response, but genres are
     // there as ids — without them the banner's middle is empty but for a score chip.
@@ -129,7 +136,6 @@ class TmdbExploreFragment : Fragment() {
     private var bannerSnap: PagerSnapHelper? = null
     private var bannerScrollListener: RecyclerView.OnScrollListener? = null
     private var bannerTitleShown = false
-    private var trendingAutoIndex = 0
     private var trendingAutoScrollHandler: Handler? = null
     private var trendingAutoScrollRunnable: Runnable? = null
 
@@ -311,7 +317,27 @@ class TmdbExploreFragment : Fragment() {
                 bannerTitleShown = true
                 trendingBinding.titleContainer.startAnimation(setSlideUp())
             }
-            startTrendingAutoScroll(rv, start)
+            startTrendingAutoScroll(rv)
+        }
+        loadBannerLogos(bannerMedia)
+    }
+
+    /**
+     * TMDB list responses carry no logo artwork, and BannerCarouselAdapter only shows the
+     * clearlogo when it is handed one — otherwise it falls back to the plain text title.
+     * Anime mode gets its logos from AniZip for free, so without this the movie banner
+     * would be the only one on the app with no logo. Bounded parallelism keeps it from
+     * firing one request per item at once.
+     */
+    private fun loadBannerLogos(bannerMedia: List<Media>) {
+        if (bannerMedia.isEmpty()) return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val logos = bannerMedia.limitedAsyncMap(concurrency = 6) { media ->
+                val type = media.tmdbType ?: return@limitedAsyncMap null
+                media.id to runCatching { Tmdb.logoUrl(type, media.id) }.getOrNull()
+            }.mapNotNull { it }.toMap()
+            if (logos.isEmpty() || _binding == null) return@launch
+            bannerAdapter?.updateUrls(emptyMap(), logos)
         }
     }
 
@@ -417,18 +443,15 @@ class TmdbExploreFragment : Fragment() {
     }
 
     /**
-     * The chip row's gap under the banner, matching the anime season selector's
-     * applySeasonSelectorSpacing(): 108dp with the banner beside the content, 120dp when
-     * the banner is full width and needs the extra breathing room.
+     * The chip row's gap under the banner. The anime page needs 120dp here because its
+     * season row is a wide, sparse strip; three short chips sitting that far from the
+     * banner read as a hole rather than a group, so the gap is dropped and the banner
+     * container's own 16dp bottom margin is the whole separation.
      */
     private fun applyTypeSelectorSpacing() {
-        val ctx = pageBinding?.root?.context ?: return
-        val density = ctx.resources.displayMetrics.density
-        val landscape =
-            ctx.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-        val topGap = if (landscape) (108 * density).toInt() else (120 * density).toInt()
+        if (pageBinding == null) return
         page.tmdbExploreTypeScroll.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-            topMargin = topGap
+            topMargin = 0
         }
     }
 
@@ -512,13 +535,21 @@ class TmdbExploreFragment : Fragment() {
         dots.visibility = View.VISIBLE
     }
 
-    private fun startTrendingAutoScroll(rv: RecyclerView, start: Int) {
+    private fun startTrendingAutoScroll(rv: RecyclerView) {
         trendingAutoScrollHandler?.removeCallbacksAndMessages(null)
         trendingAutoScrollHandler = Handler(Looper.getMainLooper())
-        trendingAutoIndex = start
         trendingAutoScrollRunnable = object : Runnable {
             override fun run() {
                 if (trendingMedia.isEmpty()) return
+                // A tick used to be able to land while the previous slide was still
+                // travelling, and startSmoothScroll replaces the in-flight scroller, so
+                // each tick cut the last one short and aimed again, so the banner crept
+                // forward and never came to rest. Waiting for the settle forces one
+                // slide, one pause.
+                if (rv.isSmoothScrolling) {
+                    trendingAutoScrollHandler?.postDelayed(this, BANNER_SETTLE_POLL_MS)
+                    return
+                }
                 val focus = (binding.root.context as? androidx.appcompat.app.AppCompatActivity)?.currentFocus
                 val onBannerControl = focus != null && (
                     focus.id == R.id.trendingWatchBtn ||
@@ -526,8 +557,9 @@ class TmdbExploreFragment : Fragment() {
                         trendingBinding.trendingViewPager.findContainingViewHolder(focus) != null
                     )
                 if (!onBannerControl) {
-                    trendingAutoIndex++
-                    rv.smoothScrollToPosition(trendingAutoIndex)
+                    val lm = rv.layoutManager as? LinearLayoutManager
+                    val pos = lm?.findFirstVisibleItemPosition() ?: RecyclerView.NO_POSITION
+                    if (pos != RecyclerView.NO_POSITION) rv.smoothScrollToPosition(pos + 1)
                 }
                 trendingAutoScrollHandler?.postDelayed(this, 5000L)
             }

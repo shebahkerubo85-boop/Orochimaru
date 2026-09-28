@@ -747,8 +747,6 @@ class HomeFragment : Fragment() {
     private val bannerSnapHelper = PagerSnapHelper()
     private var bannerAutoScrollHandler: Handler? = null
     private var bannerAutoScrollRunnable: Runnable? = null
-    /** Live raw adapter position the auto-scroll continues from (synced on manual scroll). */
-    private var homeBannerAutoIndex = 0
 
     private fun setupBannerCarousel() {
         applyHomeBannerLandscapeMode()
@@ -838,7 +836,7 @@ class HomeFragment : Fragment() {
                         setupHomeBannerWatchBtn()
                         applyHomeBannerFocusChain()
                         setupBannerDots(rv, items.size)
-                        startBannerAutoScroll(rv, items.size, start)
+                        startBannerAutoScroll(rv, items.size)
                         updateHomeBannerOverlayForCurrent()
                     }
                 }
@@ -891,7 +889,6 @@ class HomeFragment : Fragment() {
                     val lm = rv.layoutManager as? LinearLayoutManager ?: return
                     val raw = lm.findFirstVisibleItemPosition()
                     if (raw == RecyclerView.NO_POSITION) return
-                    homeBannerAutoIndex = raw
                     resetHomeBannerAutoScroll()
                     val pos = raw % itemCount % shown
                     for (i in 0 until dotsList.size) {
@@ -909,13 +906,21 @@ class HomeFragment : Fragment() {
         })
     }
 
-    private fun startBannerAutoScroll(rv: RecyclerView, itemCount: Int, startPos: Int) {
+    private fun startBannerAutoScroll(rv: RecyclerView, itemCount: Int) {
         bannerAutoScrollHandler?.removeCallbacksAndMessages(null)
         bannerAutoScrollHandler = Handler(Looper.getMainLooper())
-        homeBannerAutoIndex = startPos
         bannerAutoScrollRunnable = object : Runnable {
             override fun run() {
                 if (itemCount == 0) return
+                // The timer used to be its own clock, so a tick could land while the
+                // previous slide was still travelling. startSmoothScroll replaces the
+                // in-flight scroller, so each tick cut the last one off partway and
+                // aimed again: the banner crept forward and never came to rest. Waiting
+                // for the settle makes "slide, then pause" the only possible sequence.
+                if (rv.isSmoothScrolling) {
+                    bannerAutoScrollHandler?.postDelayed(this, BANNER_SETTLE_POLL_MS)
+                    return
+                }
                 val focus = activity?.currentFocus
                 val onBannerControl = focus != null && (
                     focus.id == R.id.homeBannerWatchBtn ||
@@ -923,8 +928,13 @@ class HomeFragment : Fragment() {
                     binding.homeBannerCarousel.findContainingViewHolder(focus) != null
                 )
                 if (!onBannerControl) {
-                    homeBannerAutoIndex++
-                    scrollBanner(rv, homeBannerAutoIndex)
+                    // Aimed from what is on screen rather than from a remembered index:
+                    // the index only got corrected on idle, so any move that did not
+                    // settle through that listener left the next step aimed at a stale
+                    // target, which is what slid through every banner on the way.
+                    val lm = rv.layoutManager as? LinearLayoutManager
+                    val current = lm?.findFirstVisibleItemPosition() ?: RecyclerView.NO_POSITION
+                    if (current != RecyclerView.NO_POSITION) scrollBanner(rv, current + 1)
                 }
                 bannerAutoScrollHandler?.postDelayed(this, 5000L)
             }
