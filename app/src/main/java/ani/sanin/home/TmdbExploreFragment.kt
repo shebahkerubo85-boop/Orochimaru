@@ -546,7 +546,7 @@ class TmdbExploreFragment : Fragment() {
                 // each tick cut the last one short and aimed again, so the banner crept
                 // forward and never came to rest. Waiting for the settle forces one
                 // slide, one pause.
-                if (rv.isSmoothScrolling) {
+                if (rv.isSmoothScrolling()) {
                     trendingAutoScrollHandler?.postDelayed(this, BANNER_SETTLE_POLL_MS)
                     return
                 }

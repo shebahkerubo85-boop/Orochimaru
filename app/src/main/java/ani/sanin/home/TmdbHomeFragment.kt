@@ -1166,7 +1166,7 @@ class TmdbHomeFragment : Fragment() {
         bannerHandler.postDelayed(object : Runnable {
             override fun run() {
                 val rv = binding.tmdbBannerCarousel
-                if (isCarouselMode() && rv.isSmoothScrolling) {
+                if (isCarouselMode() && rv.isSmoothScrolling()) {
                     // A tick used to be able to land while the previous slide was still
                     // travelling, and startSmoothScroll replaces the in-flight scroller, so
                     // each tick cut the last one short and aimed again, so the banner crept

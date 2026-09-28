@@ -917,7 +917,7 @@ class HomeFragment : Fragment() {
                 // in-flight scroller, so each tick cut the last one off partway and
                 // aimed again: the banner crept forward and never came to rest. Waiting
                 // for the settle makes "slide, then pause" the only possible sequence.
-                if (rv.isSmoothScrolling) {
+                if (rv.isSmoothScrolling()) {
                     bannerAutoScrollHandler?.postDelayed(this, BANNER_SETTLE_POLL_MS)
                     return
                 }
