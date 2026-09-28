@@ -28,6 +28,7 @@ import ani.sanin.R
 import ani.sanin.blurImage
 import ani.sanin.connections.LogoApi
 import ani.sanin.connections.anizip.AniZip
+import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.currActivity
 import ani.sanin.databinding.ItemMediaCompactBinding
 import ani.sanin.databinding.ItemMediaCompactLandBinding
@@ -882,60 +883,91 @@ class MediaAdaptor(
         val totalEp = if (isAnime) media.anime?.totalEpisodes else null
         val nextAiring = if (isAnime) media.anime?.nextAiringEpisode else null
         val isReleasing = media.status == currActivity()?.getString(R.string.status_releasing)
-        val released = when {
-            !isAnime -> 1                                                     // a movie is a single released item
-            isReleasing && (nextAiring ?: 0) > 1 -> (nextAiring ?: 1) - 1
-            else -> totalEp
+
+        // TMDB TV rows are not Anime, so the anime-only episode fields are meaningless and
+        // the badge would sit on the "movie" fallback of 1. Fetch the real aired count from
+        // TMDB and drop it straight back into the visible sections once the detail lands.
+        val isTmdbTv = !isAnime && media.tmdbType == "tv"
+        val initialReleased = when {
+            isAnime && isReleasing && (nextAiring ?: 0) > 1 -> (nextAiring ?: 1) - 1
+            isAnime -> totalEp
+            !isTmdbTv -> 1                                          // a movie is a single item
+            else -> null                                           // TMDB TV: filled from detail
         }
-        val allReleased = isAnime && totalEp != null && released != null && released >= totalEp
-        val timeUntil = if (isAnime && isReleasing) media.timeUntilAiring else null
 
-        // Completed shows: just seen + total (no broadcast icon, no divider, no TT).
-        // Ongoing shows: full format with broadcast, divider, TT.
-        val hasReleased = released != null && released > 0
-        val hasTT = timeUntil != null && timeUntil > 0
+        fun render(released: Int?) {
+            val allReleased = isAnime && totalEp != null && released != null && released >= totalEp
+            val timeUntil = if (isAnime && isReleasing) media.timeUntilAiring else null
 
-        // Show the badge if any section has real data (0 progress counts as unknown)
-        if ((watched == null || watched <= 0) && !hasReleased && !hasTT) { badge.visibility = View.GONE; return }
-        // Eye-only is useless (no context). Hide if only watched with no released/tt info.
-        val hasWatched = media.userProgress != null && media.userProgress!! > 0
-        if (hasWatched && !hasReleased && !hasTT) { badge.visibility = View.GONE; return }
+            // Completed shows: just seen + total (no broadcast icon, no divider, no TT).
+            // Ongoing shows: full format with broadcast, divider, TT.
+            val hasReleased = released != null && released > 0
+            val hasTT = timeUntil != null && timeUntil > 0
 
-        badge.visibility = View.VISIBLE
-        val watchedIcon   = badge.findViewById<android.view.View>(R.id.progressWatchedIcon)
-        val watchedCount  = badge.findViewById<TextView>(R.id.progressWatchedCount)
-        val releasedIcon  = badge.findViewById<android.view.View>(R.id.progressReleasedIcon)
-        val releasedCount = badge.findViewById<TextView>(R.id.progressReleasedCount)
-        val midDivider    = badge.findViewById<android.view.View>(R.id.progressDividerMid)
-        val dividerTT     = badge.findViewById<android.view.View>(R.id.progressDividerTT)
-        val ttText        = badge.findViewById<TextView>(R.id.progressTT)
+            // Show the badge if any section has real data (0 progress counts as unknown)
+            if ((watched == null || watched <= 0) && !hasReleased && !hasTT) { badge.visibility = View.GONE; return }
+            // Eye-only is useless (no context). Hide if only watched with no released/tt info.
+            val hasWatched = watched != null && watched > 0
+            if (hasWatched && !hasReleased && !hasTT) { badge.visibility = View.GONE; return }
 
-        // Watched section
-        watchedIcon.visibility = if (hasWatched) View.VISIBLE else View.GONE
-        watchedCount.visibility = View.VISIBLE
-        watchedCount.text = if (hasWatched) media.userProgress.toString() else "~"
+            badge.visibility = View.VISIBLE
+            val watchedIcon   = badge.findViewById<android.view.View>(R.id.progressWatchedIcon)
+            val watchedCount  = badge.findViewById<TextView>(R.id.progressWatchedCount)
+            val releasedIcon  = badge.findViewById<android.view.View>(R.id.progressReleasedIcon)
+            val releasedCount = badge.findViewById<TextView>(R.id.progressReleasedCount)
+            val midDivider    = badge.findViewById<android.view.View>(R.id.progressDividerMid)
+            val dividerTT     = badge.findViewById<android.view.View>(R.id.progressDividerTT)
+            val ttText        = badge.findViewById<TextView>(R.id.progressTT)
 
-        // Released section: icon hidden for completed shows (seen + total = eye 8 | 24),
-        // count always visible when hasReleased (it IS the total for completed shows).
-        releasedIcon.visibility = if (hasReleased && !allReleased) View.VISIBLE else View.GONE
-        releasedCount.visibility = if (hasReleased) View.VISIBLE else View.GONE
-        releasedCount.text = if (hasReleased) released.toString() else "~"
+            // Watched section
+            watchedIcon.visibility = if (hasWatched) View.VISIBLE else View.GONE
+            watchedCount.visibility = View.VISIBLE
+            watchedCount.text = if (hasWatched) watched.toString() else "~"
 
-        // TT section (never for completed shows)
-        if (hasTT && !allReleased) {
-            val DAY_MILLIS = 86_400_000L
-            val HOUR_MILLIS = 3_600_000L
-            val days  = timeUntil!! / DAY_MILLIS
-            val hours = (timeUntil % DAY_MILLIS) / HOUR_MILLIS
-            ttText.text = if (days > 0) "${days}d ${hours}h" else "${hours}h"
+            // Released section: icon hidden for completed shows (seen + total = eye 8 | 24),
+            // count always visible when hasReleased (it IS the total for completed shows).
+            releasedIcon.visibility = if (hasReleased && !allReleased) View.VISIBLE else View.GONE
+            releasedCount.visibility = if (hasReleased) View.VISIBLE else View.GONE
+            releasedCount.text = if (hasReleased) released.toString() else "~"
+
+            // TT section (never for completed shows)
+            if (hasTT && !allReleased) {
+                val DAY_MILLIS = 86_400_000L
+                val HOUR_MILLIS = 3_600_000L
+                val days  = timeUntil!! / DAY_MILLIS
+                val hours = (timeUntil % DAY_MILLIS) / HOUR_MILLIS
+                ttText.text = if (days > 0) "${days}d ${hours}h" else "${hours}h"
+            }
+            dividerTT.visibility = if (hasTT && hasReleased && !allReleased) View.VISIBLE else View.GONE
+            ttText.visibility = if (hasTT) View.VISIBLE else View.GONE
+
+            // Divider: always present when 2+ visible sections. The watched placeholder "~"
+            // renders above whether or not a real progress number exists, so it counts as a
+            // section too - `~ 1` and `8 | 24` both earn a divider.
+            val visibleSections = 1 + listOf(hasReleased, hasTT).count { it }
+            midDivider.visibility = if (visibleSections >= 2) View.VISIBLE else View.GONE
         }
-        dividerTT.visibility = if (hasTT && hasReleased && !allReleased) View.VISIBLE else View.GONE
-        ttText.visibility = if (hasTT) View.VISIBLE else View.GONE
 
-        // Divider: always present when we have 2+ sections.
-        // Completed: eye 8 | 24.  Ongoing: eye 8 | broadcast 12 | 4d.
-        val sectionCount = listOf(hasWatched, hasReleased, hasTT).count { it }
-        midDivider.visibility = if (sectionCount >= 2) View.VISIBLE else View.GONE
+        render(initialReleased)
+
+        if (isTmdbTv) {
+            // Tag guards against the row being recycled to another title while the
+            // request is in flight; only the latest binding may write the badge back.
+            val tag = "tv:${media.id}"
+            badge.tag = tag
+            activity.lifecycleScope.launch {
+                val detail = runCatching { Tmdb.detail("tv", media.id) }.getOrNull()
+                // Aired so far is episode-before-next when a next exists (the anime badge
+                // does the same); without one the show is finished/sleeping, so the total
+                // is the aired count.
+                val aired = detail?.nextEpisodeToAir?.episodeNumber
+                    ?.takeIf { it > 1 }?.minus(1)
+                    ?: detail?.numberOfEpisodes?.takeIf { it > 0 }
+                badge.post {
+                    if (badge.tag == tag) render(aired)
+                }
+            }
+        }
     }
 
 }

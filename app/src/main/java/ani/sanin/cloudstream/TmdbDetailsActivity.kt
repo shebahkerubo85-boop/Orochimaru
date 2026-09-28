@@ -84,6 +84,8 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
     // 0 = Info, 1 = Watch, 2 = Comments
     private var selectedPill = 0
     private var infoTimer: CountDownTimer? = null
+    private var isFavourite = false
+    private var favBusy = false
 
     override fun onWatchBackPressed() {
         selectTab(0)
@@ -657,11 +659,49 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         binding.mediaInfoAuthorLabel.text = authorLabel
         binding.mediaInfoAuthor.text = authorName
         binding.mediaInfoShare.setOnClickListener { shareMovie() }
-        binding.mediaInfoFav.setOnClickListener { snackString("Favorite not available") }
+        binding.mediaInfoFav.setOnClickListener { toggleFavourite(d) }
         binding.mediaInfoComment.setOnClickListener { snackString("Comments not available") }
         FocusEffectUtil.applyFocusListener(
             binding.mediaInfoAddToList, binding.mediaInfoFav,
             binding.mediaInfoShare, binding.mediaInfoComment
+        )
+        lifecycleScope.launch(Dispatchers.IO) {
+            val rating = runCatching {
+                Simkl.getMediaRating(mediaType, d.id, d.externalIds?.imdbId)
+            }.getOrNull()
+            withContext(Dispatchers.Main) { updateFavIcon(rating != null && rating >= 9) }
+        }
+    }
+
+    /** Toggle favourite: set an 8.5+ rating (9/10) or clear it entirely (remove = never rated). */
+    private fun toggleFavourite(d: TmdbDetail) {
+        if (favBusy) return
+        favBusy = true
+        val imdbId = d.externalIds?.imdbId
+        val target = !isFavourite
+        lifecycleScope.launch(Dispatchers.IO) {
+            val ok = if (isFavourite) Simkl.removeMediaRating(mediaType, d.id, imdbId)
+            else Simkl.setMediaRating(mediaType, d.id, imdbId, rating = 9)
+            withContext(Dispatchers.Main) {
+                favBusy = false
+                if (ok) {
+                    updateFavIcon(target)
+                    snackString(if (target) "Added to favourites" else "Removed from favourites")
+                } else {
+                    snackString("Failed to update favourite")
+                }
+            }
+        }
+    }
+
+    private fun updateFavIcon(active: Boolean) {
+        isFavourite = active
+        binding.mediaInfoFav.setImageResource(
+            if (active) R.drawable.ic_round_favorite_24 else R.drawable.ic_round_favorite_border_24
+        )
+        binding.mediaInfoFav.imageTintList = ColorStateList.valueOf(
+            if (active) getThemeColor(com.google.android.material.R.attr.colorPrimary)
+            else getThemeColor(com.google.android.material.R.attr.colorOnSurface)
         )
     }
 

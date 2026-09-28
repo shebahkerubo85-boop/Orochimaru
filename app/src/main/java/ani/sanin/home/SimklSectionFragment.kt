@@ -1,6 +1,7 @@
 package ani.sanin.home
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -109,6 +110,13 @@ class SimklSectionFragment : Fragment() {
         recyclerView = null
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // MainActivity handles configChanges, so this fragment's RecyclerView is the one
+        // built in onCreateView and still carries the portrait span after a rotation.
+        recyclerView?.let { TmdbCards.applyGridSpan(it) }
+    }
+
     class SimklGridAdapter(
         private val items: List<Simkl.SimklWatchedItem>,
         private val scope: CoroutineScope,
@@ -157,7 +165,7 @@ class SimklSectionFragment : Fragment() {
             val userRating = item.userRating
             if (userRating != null && userRating > 0) {
                 rating.isVisible = true
-                ratingText.text = String.format("%.1f", userRating / 10.0)
+                ratingText.text = String.format("%.1f", userRating.toDouble())
             } else {
                 rating.isVisible = false
                 // Async TMDB vote average fallback

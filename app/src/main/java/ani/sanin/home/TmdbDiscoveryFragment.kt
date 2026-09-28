@@ -1,6 +1,7 @@
 package ani.sanin.home
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -139,6 +140,13 @@ class TmdbDiscoveryFragment : Fragment() {
                 .putExtra(TmdbDetailsActivity.ARG_MEDIA_TYPE, item.type)
                 .putExtra(TmdbDetailsActivity.ARG_MEDIA_ID, item.id)
         )
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // MainActivity handles configChanges, so this fragment's view survives the
+        // rotation and the span built in onViewCreated is still the portrait one.
+        _binding?.tmdbDiscoveryGrid?.let { TmdbCards.applyGridSpan(it) }
     }
 
     private fun load() {

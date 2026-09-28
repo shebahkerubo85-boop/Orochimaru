@@ -152,9 +152,16 @@
         </LinearLayout>
     </com.google.android.material.appbar.AppBarLayout>
 
+    <!--
+        Painted with the same surface the TMDB discovery screen uses. The grid inside is
+        wrap_content, so a short result set leaves this container taller than its content
+        and whatever is not painted falls through to the window; on AMOLED that read as
+        the page turning grey behind the pinned chips once scrolled.
+    -->
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:background="?attr/colorSurface"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <FrameLayout

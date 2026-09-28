@@ -8,10 +8,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
+import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.databinding.ActivityMediaListViewBinding
 import ani.sanin.getThemeColor
 import ani.sanin.hideSystemBarsExtendView
+import ani.sanin.home.toExploreMedia
 import ani.sanin.initActivity
 import ani.sanin.others.getSerialized
 import ani.sanin.settings.saving.PrefManager
@@ -19,6 +22,8 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 class MediaListViewActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMediaListViewBinding
@@ -87,9 +92,48 @@ class MediaListViewActivity : AppCompatActivity() {
             this,
             if (view == 1) 1 else (screenWidth / 120f).toInt()
         )
+
+        // TMDB explore rows open this screen with the rail's first page; pull the next two
+        // pages as the viewer scrolls, hard-capped at 60.
+        val exploreRow = passedExploreRow
+        val exploreType = passedExploreType
+        passedExploreRow = null
+        passedExploreType = null
+        if (exploreRow != null && exploreType != null) {
+            var nextPage = 2
+            var loading = false
+            var done = false
+            binding.mediaRecyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                    if (loading || done || mediaList.size >= 60) return
+                    val lastVisible =
+                        (recyclerView.layoutManager as? GridLayoutManager)?.findLastVisibleItemPosition()
+                            ?: return
+                    if (lastVisible < mediaList.size - 8) return
+                    loading = true
+                    lifecycleScope.launch {
+                        val more = runCatching {
+                            Tmdb.exploreRow(exploreRow, exploreType, nextPage++)
+                        }.getOrDefault(emptyList())
+                        if (more.isNotEmpty()) {
+                            val start = mediaList.size
+                            mediaList.addAll(more.map { it.toExploreMedia() })
+                            recyclerView.adapter?.notifyItemRangeInserted(start, more.size)
+                            binding.listTitle.text =
+                                "${intent.getStringExtra("title")} (${mediaList.size})"
+                        } else {
+                            done = true
+                        }
+                        loading = false
+                    }
+                }
+            })
+        }
     }
 
     companion object {
         var passedMedia: ArrayList<Media>? = null
+        var passedExploreRow: Tmdb.ExploreRow? = null
+        var passedExploreType: String? = null
     }
 }

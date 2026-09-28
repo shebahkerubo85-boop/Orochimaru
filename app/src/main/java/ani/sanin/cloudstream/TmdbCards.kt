@@ -7,8 +7,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.TextView
+import androidx.core.view.doOnPreDraw
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
 import ani.sanin.connections.tmdb.Tmdb
@@ -33,14 +35,27 @@ object TmdbCards {
     const val GRID_COLUMN_DP = 120f
 
     /**
-     * Vertical gap between grid rows, matching the card's 12dp horizontal margin.
+     * Space a grid card leaves inside its cell, in dp.
+     *
+     * The same figure the item already reserves horizontally in item_tmdb_card.xml, so
+     * the gap is taken out of the poster rather than added on top of it.
+     */
+    const val GRID_CARD_GAP_DP = 12f
+
+    /** Lift of a grid card, matching the anime grid card's shadow. */
+    const val GRID_CARD_ELEVATION_DP = 4f
+
+    const val GRID_CARD_TRANSLATION_Z_DP = 8f
+
+    /**
+     * Vertical gap between grid rows, matching the card's horizontal gap.
      *
      * The card carries a horizontal margin but no vertical one, and none of the grids use
      * an ItemDecoration, so the bottom of one row sat flush against the top of the next.
      * Applied on the grid path only: a rail is a single row, where a bottom margin would
      * add dead space instead of separating anything.
      */
-    const val GRID_ROW_GAP_DP = 12f
+    const val GRID_ROW_GAP_DP = GRID_CARD_GAP_DP
 
     fun gridRowGapPx(recyclerView: RecyclerView): Int =
         (GRID_ROW_GAP_DP * recyclerView.resources.displayMetrics.density).toInt()
@@ -82,6 +97,38 @@ object TmdbCards {
         return (usable / span).coerceAtLeast(1)
     }
 
+    /**
+     * Re-cuts a grid for the screen as it is now, not as it was when the grid was built.
+     *
+     * Every host of these grids declares configChanges, so rotating the device does not
+     * recreate the activity and onViewCreated does not run again for a fragment that is
+     * already up. The span built in portrait is then kept into landscape and the column
+     * count never changes, which is why tilting on a grid screen showed three cards
+     * while tilting on Home and then navigating to that screen showed the right count.
+     *
+     * displayMetrics is the right source here even though the new layout has not been
+     * applied: the configuration is already in place by the time this runs, so the width
+     * is the new one, whereas the RecyclerView still measures the old one.
+     *
+     * The span is set in the pre-draw pass because the TMDB cards bake their width out of
+     * the RecyclerView's measured width when they bind. Rebinding any earlier would
+     * measure the old width again and leave the cards portrait-sized inside a landscape
+     * grid. The anime grids are MATCH_PARENT and need the span alone, but rebinding them
+     * costs nothing and keeps one code path for every grid.
+     */
+    fun applyGridSpan(recyclerView: RecyclerView) {
+        val layoutManager = recyclerView.layoutManager as? GridLayoutManager ?: return
+        val dm = recyclerView.resources.displayMetrics
+        val span = gridSpan(dm.widthPixels / dm.density)
+        if (layoutManager.spanCount == span) return
+        recyclerView.doOnPreDraw {
+            layoutManager.spanCount = span
+            recyclerView.adapter?.let { adapter ->
+                adapter.notifyItemRangeChanged(0, adapter.itemCount)
+            }
+        }
+    }
+
     fun roundness(): Float {
         return when (PrefManager.getVal<Int>(PrefName.CardStyle)) {
             4 -> 24f
@@ -100,11 +147,18 @@ object TmdbCards {
         val landscape = isLandscapeOrientation()
         val size = cardSize()
         val (baseW, baseH) = if (landscape) 260f to 148f else 102f to 154f
+        val gap = (GRID_CARD_GAP_DP * binding.root.resources.displayMetrics.density).toInt()
         val (w, h) = if (cellWidth != null) {
             // In a grid the column decides the width, not the card preference. The height
             // follows from the same aspect ratio the rail cards use, so a 3-up phone grid
             // gets smaller posters rather than cropped or overlapping ones.
-            cellWidth to (cellWidth * baseH / baseW).toInt()
+            //
+            // The poster takes the cell width less the item's own margin. Sizing it to the
+            // full cell instead makes the item margin wider than its cell, so it spills
+            // into the next column and cancels that margin: the columns end up flush
+            // against each other however much space is asked for.
+            val cell = (cellWidth - gap).coerceAtLeast(1)
+            cell to (cell * baseH / baseW).toInt()
         } else {
             (baseW * size).toInt() to (baseH * size).toInt()
         }
@@ -114,6 +168,17 @@ object TmdbCards {
         }
         val radius = roundness()
         binding.tmdbCard.radius = radius
+        if (cellWidth != null) {
+            // The anime grid card is a raised object sitting in clear space: 4dp of
+            // elevation on 8dp of translationZ, with 18dp of padding pulled back by 8dp
+            // of negative margin. This card is flat, square-cornered at the default
+            // roundness and transparent, so a grid of them reads as a single wall of
+            // artwork however much space is between them. Lifting it the same way is what
+            // separates the rows, rather than only spacing them. Grid path only — the
+            // rails keep the flat card they have always had.
+            binding.tmdbCard.cardElevation = GRID_CARD_ELEVATION_DP * binding.root.resources.displayMetrics.density
+            binding.tmdbCard.translationZ = GRID_CARD_TRANSLATION_Z_DP * binding.root.resources.displayMetrics.density
+        }
         // Keep rating pill inset from the rounded corner so it never clips
         val pillInset = radius.toInt().coerceIn(6, 14)
         binding.tmdbCardRating.updateLayoutParams<FrameLayout.LayoutParams> {

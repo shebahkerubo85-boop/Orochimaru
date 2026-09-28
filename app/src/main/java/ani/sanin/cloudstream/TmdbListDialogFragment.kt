@@ -92,8 +92,15 @@ class TmdbListDialogFragment : DialogFragment() {
         binding.mediaListLayout.visibility = View.VISIBLE
 
         binding.mediaListVolumeProgressLayout.visibility = View.GONE
-        binding.mediaListScoreLayout.visibility = View.GONE
         binding.mediaListExpandable.visibility = View.GONE
+
+        // ── Score field: Simkl rating (1-10). Fabricates favourites: a score of
+        //    8.5+ (rounds to user_rating 9-10) marks the title as a favourite in the
+        //    library tab; lowering it below 8.5 removes it automatically.
+        binding.mediaListScore.filters = arrayOf(
+            InputFilterMinMax(0.0, 10.0),
+            android.text.InputFilter.LengthFilter(4)
+        )
 
         // ── Progress field: enabled only for TV shows ──
         if (totalEpisodes != null && type == "tv") {
@@ -128,6 +135,9 @@ class TmdbListDialogFragment : DialogFragment() {
                     Simkl.getProgress(type, tmdbId, imdbId, anilistId)
                 }.getOrNull()
             } else null
+            val currentRating = runCatching {
+                Simkl.getMediaRating(type, tmdbId, imdbId, anilistId)
+            }.getOrNull()
 
             withContext(Dispatchers.Main) {
                 // Populate status chips
@@ -153,6 +163,10 @@ class TmdbListDialogFragment : DialogFragment() {
                 if (currentProgress != null && currentProgress > 0 && totalEpisodes != null && type == "tv") {
                     binding.mediaListProgress.setText(currentProgress.toString())
                 }
+                // Populate score (Simkl stores 1-10; the field edits 0-10)
+                if (currentRating != null && currentRating > 0) {
+                    binding.mediaListScore.setText(currentRating.toString())
+                }
             }
         }
 
@@ -173,6 +187,11 @@ class TmdbListDialogFragment : DialogFragment() {
                 // Mark-all when completed and no explicit progress typed
                 if (typed == 0 && simklStatus == "completed") totalEpisodes else typed
             } else 0
+            // Simkl stores ratings 1-10; the score field edits 0-10, so round to the
+            // nearest whole rating (8.5+ → 9 = favourite).
+            val score = binding.mediaListScore.text.toString().toDoubleOrNull()
+                ?.let { if (it > 0) Math.round(it).toInt().coerceIn(1, 10) else 0 }
+                ?: 0
 
             scope.launch(Dispatchers.IO) {
                 // 1. Sync episode progress FIRST — Simkl resets the status to watching
@@ -191,7 +210,7 @@ class TmdbListDialogFragment : DialogFragment() {
                     Simkl.setListStatus(
                         type = type, title = title, year = year,
                         tmdbId = tmdbId, imdbId = imdbId, status = simklStatus,
-                        anilistId = anilistId
+                        anilistId = anilistId, rating = score
                     )
                 }.getOrNull()
                 withContext(Dispatchers.Main) {

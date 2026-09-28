@@ -59,7 +59,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.min
 
 /** Folds a TMDB title into the shared domain Media the banner carousel binds. */
-private fun TmdbMedia.toExploreMedia(): Media = Media(
+internal fun TmdbMedia.toExploreMedia(): Media = Media(
     id = id,
     name = displayTitle,
     nameRomaji = displayTitle,
@@ -849,6 +849,12 @@ class TmdbExploreFragment : Fragment() {
         // The row's arrow opens the same screen every other row's arrow opens.
         rowBinding.rowMore.setSafeOnClickListener {
             MediaListViewActivity.passedMedia = ArrayList(list)
+            MediaListViewActivity.passedExploreRow = row
+            MediaListViewActivity.passedExploreType = when (selectedType) {
+                ExploreType.MOVIE -> "movie"
+                ExploreType.TV -> "tv"
+                ExploreType.ANIMATION -> "animation"
+            }
             startActivity(
                 Intent(requireContext(), MediaListViewActivity::class.java)
                     .putExtra("title", getString(titleRes))

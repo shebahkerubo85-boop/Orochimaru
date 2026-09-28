@@ -237,7 +237,9 @@ class TmdbLibraryFragment : Fragment() {
             it.status?.lowercase() == "hold" || it.status?.lowercase() == "onhold" || it.status?.lowercase() == "paused"
         }
         val dropped = items.filter { it.status?.lowercase() == "dropped" }
-        val favourites = items.filter { (it.userRating ?: 0) > 0 }
+        // Favourite = a high Simkl score. 8.5+ (user_rating 9-10) marks the title as
+        // a favourite; lowering the score below 8.5 removes it again.
+        val favourites = items.filter { (it.userRating ?: 0) >= 9 }
 
         if (completedMovies.isNotEmpty()) sections["Completed Movies (${completedMovies.size})"] = completedMovies
         if (completedShows.isNotEmpty()) sections["Completed TV (${completedShows.size})"] = completedShows

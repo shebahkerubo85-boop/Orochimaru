@@ -1,6 +1,7 @@
 package ani.sanin.home
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -33,6 +34,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import ani.sanin.getThemeColor
+import ani.sanin.isTvDevice
 import ani.sanin.loadImage
 import ani.sanin.util.FocusEffectUtil
 
@@ -173,8 +175,12 @@ class DiscoveryFragment : Fragment() {
         binding.seasonChipGroup.nextFocusDownId = R.id.discoverRecyclerView
         binding.discoverRecyclerView.nextFocusUpId = R.id.seasonChipGroup
         discoverViewModel.fetch()
-        // Ensure initial focus on search bar for TV
-        binding.discoverSearchBar.post { if (isAdded) binding.discoverSearchBar.requestFocus() }
+        // Steal initial focus so a TV has somewhere to start. On a touch device the search
+        // bar is focusableInTouchMode, so this also lit its focus border on open — a phone
+        // has no d-pad to seed and should not paint a focus ring nobody asked for.
+        if (isTvDevice(requireContext())) {
+            binding.discoverSearchBar.post { if (isAdded) binding.discoverSearchBar.requestFocus() }
+        }
     }
 
     private fun setupSearchBar() {
@@ -310,5 +316,12 @@ class DiscoveryFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // MainActivity handles configChanges, so this fragment's view survives the
+        // rotation and the span built in setupResultsGrid is still the portrait one.
+        _binding?.discoverRecyclerView?.let { TmdbCards.applyGridSpan(it) }
     }
 }

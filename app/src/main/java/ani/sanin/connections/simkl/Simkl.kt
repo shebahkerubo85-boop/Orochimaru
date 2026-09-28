@@ -512,12 +512,12 @@ object Simkl {
                 ani.sanin.util.Logger.log("Simkl.setListStatus: HTTP ${resp.code} status=$status title=$title type=$type resp=${respBody?.take(200)}")
             }
 
-            // POST /sync/ratings if rating > 0
+            // POST /sync/ratings if rating > 0 (Simkl only accepts 1-10)
             if (rating > 0) {
                 val ratingBody = buildJsonObject {
                     put(collection, buildJsonArray {
                         add(buildJsonObject {
-                            put("rating", JsonPrimitive(rating))
+                            put("rating", JsonPrimitive(rating.coerceIn(1, 10)))
                             put("ids", idsObj)
                         })
                     })
@@ -639,6 +639,101 @@ object Simkl {
             ani.sanin.util.Logger.log("Simkl.getMediaStatus: ${e.message}")
             null
         }
+    }
+
+    /** Get the user's rating (1-10) for a specific show/movie from Simkl library. */
+    suspend fun getMediaRating(
+        type: String,
+        tmdbId: Int? = null,
+        imdbId: String? = null,
+        anilistId: Int? = null
+    ): Int? {
+        val t = token ?: return null
+        return try {
+            val items = if (type == "tv") getShowLibrary() else getMovieLibrary()
+            items.firstOrNull { item ->
+                val ids = item.ids
+                ids != null && (
+                    (tmdbId != null && ids.tmdb == tmdbId) ||
+                    (imdbId != null && ids.imdb == imdbId) ||
+                    (anilistId != null && ids.anilist == anilistId)
+                )
+            }?.userRating
+        } catch (e: Exception) {
+            ani.sanin.util.Logger.log("Simkl.getMediaRating: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Set the user's rating for a specific item (POST /sync/ratings).
+     * Simkl only accepts 1-10; callers pass the 1-10 value here
+     * (8.5+ = favourite maps to 9-10).
+     */
+    suspend fun setMediaRating(
+        type: String,
+        tmdbId: Int? = null,
+        imdbId: String? = null,
+        anilistId: Int? = null,
+        rating: Int
+    ): Boolean {
+        val t = token ?: return false
+        if (rating !in 1..10) return false
+        val idsObj = buildResolvedIdsObj(type, tmdbId, imdbId, anilistId)
+        return tryWithSuspend {
+            val collection = if (type == "tv") "shows" else "movies"
+            val body = buildJsonObject {
+                put(collection, buildJsonArray {
+                    add(buildJsonObject {
+                        put("rating", JsonPrimitive(rating))
+                        put("ids", idsObj)
+                    })
+                })
+            }.toString()
+            val resp = okHttpClient.newCall(
+                Request.Builder()
+                    .url("$BASE/sync/ratings")
+                    .addHeader("Authorization", "Bearer $t")
+                    .addHeader("simkl-api-key", clientId)
+                    .addHeader("Content-Type", "application/json")
+                    .post(body.toRequestBody("application/json".toMediaType()))
+                    .build()
+            ).execute()
+            val bodyStr = resp.body?.string()
+            ani.sanin.util.Logger.log("Simkl.setMediaRating: HTTP ${resp.code} rating=$rating type=$type tmdb=$tmdbId resp=${bodyStr?.take(200)}")
+            resp.isSuccessful || resp.code == 201
+        } == true
+    }
+
+    /** Clear the user's rating for a specific item (POST /sync/ratings/remove). */
+    suspend fun removeMediaRating(
+        type: String,
+        tmdbId: Int? = null,
+        imdbId: String? = null,
+        anilistId: Int? = null
+    ): Boolean {
+        val t = token ?: return false
+        val idsObj = buildResolvedIdsObj(type, tmdbId, imdbId, anilistId)
+        return tryWithSuspend {
+            val collection = if (type == "tv") "shows" else "movies"
+            val body = buildJsonObject {
+                put(collection, buildJsonArray {
+                    add(buildJsonObject { put("ids", idsObj) })
+                })
+            }.toString()
+            val resp = okHttpClient.newCall(
+                Request.Builder()
+                    .url("$BASE/sync/ratings/remove")
+                    .addHeader("Authorization", "Bearer $t")
+                    .addHeader("simkl-api-key", clientId)
+                    .addHeader("Content-Type", "application/json")
+                    .post(body.toRequestBody("application/json".toMediaType()))
+                    .build()
+            ).execute()
+            val bodyStr = resp.body?.string()
+            ani.sanin.util.Logger.log("Simkl.removeMediaRating: HTTP ${resp.code} type=$type tmdb=$tmdbId resp=${bodyStr?.take(200)}")
+            resp.isSuccessful
+        } == true
     }
 
     /** Get the number of watched episodes for a show/movie. */

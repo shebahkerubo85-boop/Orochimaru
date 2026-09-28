@@ -1,5 +1,6 @@
 package ani.sanin.media.user
 
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -95,5 +96,16 @@ class ListFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // MainActivity handles configChanges, so this fragment's view survives the
+        // rotation and the span built in onViewCreated is still the portrait one. This
+        // list can also be showing in list mode, which is a fixed span of 1 and must be
+        // left alone.
+        if (grid == true) {
+            _binding?.listRecyclerView?.let { TmdbCards.applyGridSpan(it) }
+        }
     }
 }

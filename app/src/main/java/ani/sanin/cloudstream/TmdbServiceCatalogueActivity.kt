@@ -58,8 +58,12 @@ class TmdbServiceCatalogueActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityTmdbServiceCatalogueBinding.inflate(layoutInflater)
+        // Theme before inflate. The layout resolves ?attr/colorPrimary for the pill's
+        // checked stroke and label, and inflation is where those are read: inflating
+        // first left them on the pre-setTheme Theme.Sanin, whose inherited Material3
+        // colorPrimary is the default #6750A4 purple.
         ThemeManager(this).applyTheme()
+        binding = ActivityTmdbServiceCatalogueBinding.inflate(layoutInflater)
         initActivity(this)
         if (!PrefManager.getVal<Boolean>(PrefName.ImmersiveMode)) {
             window.statusBarColor = ContextCompat.getColor(this, R.color.nav_bg_inv)

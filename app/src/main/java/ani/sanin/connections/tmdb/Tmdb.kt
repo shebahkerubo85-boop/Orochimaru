@@ -527,24 +527,31 @@ object Tmdb {
         val animation = mediaType == TYPE_ANIMATION
         val type = if (animation) TYPE_MOVIE else mediaType
         val genres = if (animation) ANIMATION_GENRE else null
-        return when (row) {
+        val result = when (row) {
             ExploreRow.IN_CINEMA -> when {
-                type == TYPE_TV -> list("/tv/airing_today")
+                type == TYPE_TV -> list("/tv/airing_today", "page" to page.toString())
                 // "Now playing" is films only, and it takes no genre filter, so the
                 // animation chip falls back to the newest animated releases.
                 genres != null -> discover(
                     type, genres = genres, sort = "primary_release_date.desc", page = page,
                     extra = listOf("primary_release_date.lte" to todayIso())
                 )
-                else -> list("/movie/now_playing")
+                else -> list("/movie/now_playing", "page" to page.toString())
             }
             ExploreRow.TRENDING -> when {
                 // Trending has no genre parameter either, but it does return genre_ids,
-                // so the animated shelf is the mixed week list narrowed to animation.
-                genres != null -> list("/trending/all/week")
-                    .filter { ANIMATION_GENRE.toInt() in it.genreIds }
-                type == TYPE_TV -> list("/trending/tv/week")
-                else -> list("/trending/movie/week")
+                // so the animated shelf is the mixed week list narrowed to animation. One
+                // page of a mixed list holds only a couple of animated titles, so the
+                // first pages are pulled together until the shelf is worth showing.
+                genres != null -> {
+                    val animationGenres = (1..4).flatMap { p ->
+                        list("/trending/all/week", "page" to p.toString())
+                    }.filter { ANIMATION_GENRE.toInt() in it.genreIds }
+                        .distinctBy { it.id }
+                    animationGenres.drop((page - 1) * 20).take(20)
+                }
+                type == TYPE_TV -> list("/trending/tv/week", "page" to page.toString())
+                else -> list("/trending/movie/week", "page" to page.toString())
             }
             ExploreRow.TOP_RATED -> when {
                 genres != null -> discover(
@@ -583,6 +590,10 @@ object Tmdb {
                 else -> list("/$type/popular", "page" to page.toString())
             }
         }
+        // A card with no poster reads as a broken shelf, so items that ship no artwork
+        // are dropped rather than shown blank. This keeps the discovery rails clean
+        // without costing anything for movie/TV, where posterless entries are rare.
+        return result.filter { it.posterPath != null }
     }
 
     /**

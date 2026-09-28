@@ -170,10 +170,10 @@ class SimklListDialogFragment : DialogFragment() {
             binding.mediaListStatusGroup.addView(chip)
         }
 
-        // Score — Simkl uses 0-10 scale
+        // Score — Simkl stores 1-10 (the field edits 0-10)
         val currentRating = arguments?.getInt(ARG_CURRENT_RATING, 0) ?: 0
         if (currentRating > 0) {
-            binding.mediaListScore.setText((currentRating / 10.0).toString())
+            binding.mediaListScore.setText(currentRating.toString())
         }
         binding.mediaListScore.filters = arrayOf(
             ani.sanin.InputFilterMinMax(0.0, 10.0),
@@ -220,7 +220,7 @@ class SimklListDialogFragment : DialogFragment() {
                 withContext(Dispatchers.IO) {
                     Logger.log("SimklListDialog: saving status=$selectedStatus for '$title' (tmdb=$mediaId)")
                     val score = _binding?.mediaListScore?.text.toString().toDoubleOrNull()?.let {
-                        (it * 10).toInt().coerceIn(0, 100)
+                        if (it > 0) Math.round(it).toInt().coerceIn(1, 10) else 0
                     } ?: 0
                     applied = Simkl.setListStatus(
                         type = mediaType,

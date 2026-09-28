@@ -19,6 +19,7 @@ import ani.sanin.databinding.ActivityTmdbPersonBinding
 import ani.sanin.databinding.ItemTmdbCardBinding
 import ani.sanin.databinding.ItemTmdbPersonPhotoBinding
 import ani.sanin.loadImage
+import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -41,6 +42,11 @@ class TmdbPersonActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Theme before inflate, like every other screen. Without it this activity stayed
+        // on the manifest's Theme.Sanin, and every ?attr/colorPrimary in the layout — the
+        // actor's name and dates, the section headings, the rating stars — resolved to
+        // Material3's inherited #6750A4 purple.
+        ThemeManager(this).applyTheme()
         binding = ActivityTmdbPersonBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
