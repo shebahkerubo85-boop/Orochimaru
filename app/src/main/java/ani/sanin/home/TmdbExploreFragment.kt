@@ -546,7 +546,8 @@ class TmdbExploreFragment : Fragment() {
                 // each tick cut the last one short and aimed again, so the banner crept
                 // forward and never came to rest. Waiting for the settle forces one
                 // slide, one pause.
-                if (rv.isSmoothScrolling()) {
+                val lm = rv.layoutManager as? LinearLayoutManager
+                if (lm != null && lm.isSmoothScrolling()) {
                     trendingAutoScrollHandler?.postDelayed(this, BANNER_SETTLE_POLL_MS)
                     return
                 }
@@ -557,7 +558,6 @@ class TmdbExploreFragment : Fragment() {
                         trendingBinding.trendingViewPager.findContainingViewHolder(focus) != null
                     )
                 if (!onBannerControl) {
-                    val lm = rv.layoutManager as? LinearLayoutManager
                     val pos = lm?.findFirstVisibleItemPosition() ?: RecyclerView.NO_POSITION
                     if (pos != RecyclerView.NO_POSITION) rv.smoothScrollToPosition(pos + 1)
                 }

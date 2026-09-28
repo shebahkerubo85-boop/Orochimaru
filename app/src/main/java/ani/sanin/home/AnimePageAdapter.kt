@@ -587,7 +587,8 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
                 // travelling, and startSmoothScroll replaces the in-flight scroller, so
                 // each tick cut the last one short and aimed again, so the banner crept
                 // forward and never came to rest. Waiting for the settle forces one slide, one pause.
-                if (rv.isSmoothScrolling()) {
+                val lm = rv.layoutManager as? LinearLayoutManager
+                if (lm != null && lm.isSmoothScrolling()) {
                     trendingAutoScrollHandler?.postDelayed(this, BANNER_SETTLE_POLL_MS)
                     return
                 }
@@ -601,7 +602,6 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
                     // Aimed from what is on screen, not from a remembered index that only
                     // got corrected on idle; a stale one aimed at a distant target and slid
                     // through every banner on the way there.
-                    val lm = rv.layoutManager as? LinearLayoutManager
                     val current = lm?.findFirstVisibleItemPosition() ?: RecyclerView.NO_POSITION
                     if (current != RecyclerView.NO_POSITION) scrollBanner(rv, current + 1)
                 }

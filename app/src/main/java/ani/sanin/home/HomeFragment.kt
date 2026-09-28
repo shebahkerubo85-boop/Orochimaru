@@ -917,7 +917,8 @@ class HomeFragment : Fragment() {
                 // in-flight scroller, so each tick cut the last one off partway and
                 // aimed again: the banner crept forward and never came to rest. Waiting
                 // for the settle makes "slide, then pause" the only possible sequence.
-                if (rv.isSmoothScrolling()) {
+                val lm = rv.layoutManager as? LinearLayoutManager
+                if (lm != null && lm.isSmoothScrolling()) {
                     bannerAutoScrollHandler?.postDelayed(this, BANNER_SETTLE_POLL_MS)
                     return
                 }
@@ -932,7 +933,6 @@ class HomeFragment : Fragment() {
                     // the index only got corrected on idle, so any move that did not
                     // settle through that listener left the next step aimed at a stale
                     // target, which is what slid through every banner on the way.
-                    val lm = rv.layoutManager as? LinearLayoutManager
                     val current = lm?.findFirstVisibleItemPosition() ?: RecyclerView.NO_POSITION
                     if (current != RecyclerView.NO_POSITION) scrollBanner(rv, current + 1)
                 }
