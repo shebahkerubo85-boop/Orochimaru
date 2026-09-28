@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The chosen entry of the service catalogue's Movie / TV pill is marked by its text
+  turning primary; the other stays on-surface. Deliberately not a fill, so the two
+  entries read as one control rather than two buttons.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_checked="true" android:color="?attr/colorPrimary" />
+    <item android:state_selected="true" android:color="?attr/colorPrimary" />
+    <item android:color="?attr/colorOnSurface" />
+</selector>

@@ -603,7 +603,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
                     // got corrected on idle; a stale one aimed at a distant target and slid
                     // through every banner on the way there.
                     val current = lm?.findFirstVisibleItemPosition() ?: RecyclerView.NO_POSITION
-                    if (current != RecyclerView.NO_POSITION) scrollBanner(rv, current + 1)
+                    if (current != RecyclerView.NO_POSITION) rv.smoothScrollToPosition(current + 1)
                 }
                 trendingAutoScrollHandler?.postDelayed(this, 5000L)
             }

@@ -30,6 +30,7 @@ import ani.sanin.cloudstream.TmdbServiceCatalogueActivity
 import ani.sanin.cloudstream.TmdbWatchActivity
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.tmdb.TmdbMedia
+import ani.sanin.connections.tmdb.TmdbPage
 import ani.sanin.connections.tmdb.TmdbProvider
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.databinding.FragmentTmdbExploreBinding
@@ -111,6 +112,22 @@ class TmdbExploreFragment : Fragment() {
     private val popularMedia = ArrayList<Media>()
 
     /**
+     * Pagination for the Popular list, which is the one Explore row that is a catalogue
+     * rather than a shelf. 20,001 items over 1001 pages, so it has to keep fetching to
+     * feel like the anime list beside it — that one pages AniList on every bottom hit.
+     */
+    private var popularPage = 0
+    private var popularTotalPages = 1
+    private var popularLoading = false
+
+    /**
+     * The viewer's own titles, held apart so a fetched page can be spliced in *above*
+     * them. They belong at the end of the list, and appending a page after them would
+     * push them into the middle once the viewer had scrolled twice.
+     */
+    private var popularViewerItems: List<Media> = emptyList()
+
+    /**
      * One adapter and one backing list per row, created on the row's first load and
      * updated in place after that.
      *
@@ -187,6 +204,16 @@ class TmdbExploreFragment : Fragment() {
         popularAdapter = MediaAdaptor(1, popularMedia, requireActivity())
         binding.tmdbExploreRecyclerView.adapter =
             ConcatAdapter(pageAdapter, popularAdapter)
+
+        // Same trigger the anime page uses for its Popular list: at the very bottom, ask
+        // for one more page. `canScrollVertically(1)` is false only when there is nothing
+        // left below, so this cannot fire mid-list.
+        binding.tmdbExploreRecyclerView.addOnScrollListener(object :
+            RecyclerView.OnScrollListener() {
+            override fun onScrolled(v: RecyclerView, dx: Int, dy: Int) {
+                if (dy > 0 && !v.canScrollVertically(1)) loadNextPopularPage()
+            }
+        })
 
         pageAdapter.onPageBound = { page ->
             pageBinding = page
@@ -696,10 +723,9 @@ class TmdbExploreFragment : Fragment() {
                 Tmdb.ExploreRow.IN_CINEMA -> page.rowInCinema to R.id.tmdbRowInCinema
                 Tmdb.ExploreRow.TRENDING -> page.rowTrending to R.id.tmdbRowTrending
                 Tmdb.ExploreRow.TOP_RATED -> page.rowTopRated to R.id.tmdbRowTopRated
-                Tmdb.ExploreRow.MOST_FAVOURITE ->
-                    page.rowMostFavourite to R.id.tmdbRowMostFavourite
                 Tmdb.ExploreRow.LATEST_RELEASE ->
                     page.rowLatestRelease to R.id.tmdbRowLatestRelease
+                Tmdb.ExploreRow.UPCOMING -> page.rowUpcoming to R.id.tmdbRowUpcoming
                 Tmdb.ExploreRow.POPULAR -> continue
             }
             rowBinding.rowRecyclerView.id = rowId
@@ -747,16 +773,16 @@ class TmdbExploreFragment : Fragment() {
             Tmdb.ExploreRow.IN_CINEMA -> page.rowInCinema
             Tmdb.ExploreRow.TRENDING -> page.rowTrending
             Tmdb.ExploreRow.TOP_RATED -> page.rowTopRated
-            Tmdb.ExploreRow.MOST_FAVOURITE -> page.rowMostFavourite
             Tmdb.ExploreRow.LATEST_RELEASE -> page.rowLatestRelease
+            Tmdb.ExploreRow.UPCOMING -> page.rowUpcoming
             Tmdb.ExploreRow.POPULAR -> return null
         }
         return binding to when (row) {
             Tmdb.ExploreRow.IN_CINEMA -> R.string.in_cinema
             Tmdb.ExploreRow.TRENDING -> R.string.row_trending
             Tmdb.ExploreRow.TOP_RATED -> R.string.top_rated
-            Tmdb.ExploreRow.MOST_FAVOURITE -> R.string.most_favourite
             Tmdb.ExploreRow.LATEST_RELEASE -> R.string.latest_release
+            Tmdb.ExploreRow.UPCOMING -> R.string.upcoming
             Tmdb.ExploreRow.POPULAR -> R.string.row_popular
         }
     }
@@ -765,8 +791,8 @@ class TmdbExploreFragment : Fragment() {
         Tmdb.ExploreRow.IN_CINEMA,
         Tmdb.ExploreRow.TRENDING,
         Tmdb.ExploreRow.TOP_RATED,
-        Tmdb.ExploreRow.MOST_FAVOURITE,
-        Tmdb.ExploreRow.LATEST_RELEASE
+        Tmdb.ExploreRow.LATEST_RELEASE,
+        Tmdb.ExploreRow.UPCOMING
     )
 
     /**
@@ -863,16 +889,69 @@ class TmdbExploreFragment : Fragment() {
             ExploreType.ANIMATION -> "animation"
         }
         val includeList = PrefManager.getVal<Boolean>(PrefName.PopularMovieList)
+        popularPage = 0
+        popularTotalPages = 1
         viewLifecycleOwner.lifecycleScope.launch {
             // Assemble everything before touching the list the adapter is bound to.
             // Clearing first left the list empty across the requests below, and the
             // prefetcher bound the stale count into an empty list.
-            val global = runCatching { Tmdb.exploreRow(Tmdb.ExploreRow.POPULAR, tmdbType) }
-                .getOrDefault(emptyList())
-                .map { it.toExploreMedia() }
             val mine = if (includeList) viewerListMedia() else emptyList()
+            popularViewerItems = mine
+            val firstPage = runCatching { Tmdb.popularPage(tmdbType, 1) }
+                .getOrDefault(TmdbPage())
             if (generation != loadGeneration) return@launch
-            swapAdapterList(popularMedia, popularAdapter, global + mine)
+            popularPage = 1
+            popularTotalPages = firstPage.totalPages
+            popularLoading = false
+            swapAdapterList(
+                popularMedia,
+                popularAdapter,
+                firstPage.results.map { it.toExploreMedia() } + mine
+            )
+        }
+    }
+
+    /**
+     * Fetches the next Popular page and splices it in above the viewer's own titles.
+     *
+     * Called from the bottom-of-list scroll check, so it has to be safe to call twice in a
+     * row: the [popularLoading] flag is the only thing between a fling at the end of the
+     * list and five identical requests for the same page.
+     */
+    private fun loadNextPopularPage() {
+        if (popularLoading) return
+        if (popularPage >= popularTotalPages) return
+        if (popularPage == 0) return
+        val next = popularPage + 1
+        val generation = loadGeneration
+        val tmdbType = when (selectedType) {
+            ExploreType.MOVIE -> "movie"
+            ExploreType.TV -> "tv"
+            ExploreType.ANIMATION -> "animation"
+        }
+        popularLoading = true
+        viewLifecycleOwner.lifecycleScope.launch {
+            val page = runCatching { Tmdb.popularPage(tmdbType, next) }
+                .getOrDefault(TmdbPage())
+            if (generation != loadGeneration) {
+                popularLoading = false
+                return@launch
+            }
+            popularTotalPages = page.totalPages
+            val items = page.results.map { it.toExploreMedia() }
+            if (items.isEmpty()) {
+                // An empty page at a page TMDB claims exists means the ceiling moved or the
+                // request failed. Mark it reached so a bad response cannot spin forever.
+                popularTotalPages = popularPage
+                popularLoading = false
+                return@launch
+            }
+            popularPage = next
+            popularLoading = false
+            // Splice above the viewer's titles rather than after, so those stay last.
+            val at = popularMedia.size - popularViewerItems.size
+            popularMedia.addAll(at.coerceAtLeast(0), items)
+            popularAdapter.notifyItemRangeInserted(at, items.size)
         }
     }
 

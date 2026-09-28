@@ -26,6 +26,7 @@ import ani.sanin.home.SearchBottomSheet
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import ani.sanin.cloudstream.TmdbCards
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -268,8 +269,11 @@ class DiscoveryFragment : Fragment() {
 
     private fun setupResultsGrid() {
         binding.discoverRecyclerView.apply {
-            layoutManager = GridLayoutManager(requireContext(), 3)
-            adapter = MediaAdaptor(0, mutableListOf(), requireActivity())
+            val dm = resources.displayMetrics
+            layoutManager = GridLayoutManager(requireContext(), TmdbCards.gridSpan(dm.widthPixels / dm.density))
+            // matchParent: the card takes the column width, so the count can follow the
+            // screen instead of a hardcoded 3 that is right on a phone and wrong on a TV.
+            adapter = MediaAdaptor(0, mutableListOf(), requireActivity(), true)
             isFocusable = true
             isFocusableInTouchMode = false
             setOnKeyListener { _, keyCode, event ->
@@ -291,7 +295,7 @@ class DiscoveryFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             discoverViewModel.results.collect { media ->
                 binding.discoverRecyclerView.swapAdapter(
-                    MediaAdaptor(0, media.toMutableList(), requireActivity()),
+                    MediaAdaptor(0, media.toMutableList(), requireActivity(), true),
                     false,
                 )
                 if (media.isEmpty() && !discoverViewModel.isLoading.value) {

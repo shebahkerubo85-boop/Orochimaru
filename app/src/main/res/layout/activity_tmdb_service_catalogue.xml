@@ -61,39 +61,37 @@
           The movie/TV filter for this service's catalogue. A service carries both, so
           the grid defaults to Movie and the filter narrows it, matching the app's
           Movie / TV switch elsewhere.
-        -->
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:clipToPadding="false"
-            android:paddingStart="24dp"
-            android:paddingEnd="24dp"
-            android:paddingBottom="8dp"
-            android:scrollbarSize="0dp">
 
-            <LinearLayout
+          One pill with both entries rather than two chips: the pair is a single
+          choice, not two independent filters, and two loose chips left the Material
+          default chip fill showing as the theme's secondary container — a purple
+          that belonged to no part of this app's palette.
+        -->
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/catalogueTypeToggle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="24dp"
+            android:layout_marginEnd="24dp"
+            android:layout_marginBottom="8dp"
+            app:selectionRequired="true"
+            app:singleSelection="true"
+            app:checkedButton="@id/catalogueToggleMovie">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/catalogueToggleMovie"
+                style="@style/CatalogueToggleSegment"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:text="Movie" />
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/catalogueChipMovie"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:text="Movie"
-                    android:textAppearance="@style/SeasonChipLabel"
-                    app:chipStrokeColor="?attr/colorPrimaryContainer" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/catalogueChipTv"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="TV show"
-                    android:textAppearance="@style/SeasonChipLabel"
-                    app:chipStrokeColor="?attr/colorPrimaryContainer" />
-            </LinearLayout>
-        </HorizontalScrollView>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/catalogueToggleTv"
+                style="@style/CatalogueToggleSegment"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="TV show" />
+        </com.google.android.material.button.MaterialButtonToggleGroup>
     </com.google.android.material.appbar.AppBarLayout>
 
     <ani.sanin.FadingEdgeRecyclerView

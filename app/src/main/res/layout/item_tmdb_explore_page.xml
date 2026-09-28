@@ -108,11 +108,11 @@
         layout="@layout/item_explore_row" />
 
     <include
-        android:id="@+id/rowMostFavourite"
+        android:id="@+id/rowLatestRelease"
         layout="@layout/item_explore_row" />
 
     <include
-        android:id="@+id/rowLatestRelease"
+        android:id="@+id/rowUpcoming"
         layout="@layout/item_explore_row" />
 
     <!--

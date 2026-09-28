@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.isVisible
+import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -46,15 +47,10 @@ class TmdbDiscoveryFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-                val dm = resources.displayMetrics
-        val screenWidthPx = dm.widthPixels
-        val density = dm.density
-        val landscape = TmdbCards.isLandscapeOrientation()
-        val size = TmdbCards.cardSize()
-        val cardWidthPx = ((if (landscape) 260f else 102f) * size * density).toInt()
-        val marginEndPx = (12 * density).toInt()
-        val paddingPx = (32 * density).toInt()
-        val cols = ((screenWidthPx - paddingPx) / (cardWidthPx + marginEndPx)).toInt().coerceAtLeast(2)
+        val dm = resources.displayMetrics
+        // Same density cut as every other grid, so this screen matches anime discovery
+        // instead of running two columns behind it on the same phone.
+        val cols = TmdbCards.gridSpan(dm.widthPixels / dm.density)
         binding.tmdbDiscoveryGrid.layoutManager = GridLayoutManager(requireContext(), cols)
         binding.tmdbDiscoveryGrid.adapter = adapter
         val openSearch = { startActivity(Intent(requireContext(), TmdbSearchActivity::class.java)) }
@@ -181,7 +177,17 @@ class TmdbDiscoveryFragment : Fragment() {
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             val item = items[position]
-            TmdbCards.applyCardStyle(holder.binding, item)
+            // The card takes the width of its column so a row of them fills the screen
+            // exactly; the preference that sizes rail cards would overflow a grid cell.
+            val rv = holder.itemView.parent as? RecyclerView
+            val span = (rv?.layoutManager as? GridLayoutManager)?.spanCount ?: 0
+            val cell = if (rv != null && span > 0) TmdbCards.cellWidthPx(rv, span) else null
+            TmdbCards.applyCardStyle(holder.binding, item, cell)
+            if (rv != null) {
+                holder.binding.root.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                    bottomMargin = TmdbCards.gridRowGapPx(rv)
+                }
+            }
             holder.binding.tmdbCardTitle.text = item.displayTitle
             holder.binding.tmdbCardYear.text = item.year
             holder.binding.tmdbCardPoster.setOnClickListener { onOpen(item) }

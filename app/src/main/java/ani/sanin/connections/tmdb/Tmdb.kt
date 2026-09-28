@@ -20,6 +20,7 @@ data class TmdbMedia(
     @SerialName("poster_path") val posterPath: String? = null,
     @SerialName("backdrop_path") val backdropPath: String? = null,
     @SerialName("vote_average") val voteAverage: Double = 0.0,
+    @SerialName("vote_count") val voteCount: Int = 0,
     @SerialName("release_date") val releaseDate: String? = null,
     @SerialName("first_air_date") val firstAirDate: String? = null,
     val overview: String? = null,
@@ -31,8 +32,23 @@ data class TmdbMedia(
     val type: String get() = mediaType ?: if (title != null) "movie" else "tv"
 }
 
+/**
+/**
+ * One page of a TMDB list response.
+ *
+ * [totalPages] is kept because a paged list has to know where it stops: without it there
+ * is no way to tell "the last page" from "a page I have not asked for yet", so an
+ * infinite scroller can only ever stop by guessing. Defaults are 1 page / 0 results so a
+ * response missing them (or a decode that failed) reads as a finished list rather than a
+ * huge one.
+ */
 @Serializable
-data class TmdbPage<T>(val page: Int = 1, val results: List<T> = emptyList())
+data class TmdbPage<T>(
+    val page: Int = 1,
+    val results: List<T> = emptyList(),
+    @SerialName("total_pages") val totalPages: Int = 1,
+    @SerialName("total_results") val totalResults: Int = 0
+)
 
 /**
  * A streaming service as TMDB knows it in a given country, from the watch-provider
@@ -60,6 +76,27 @@ private const val DEFAULT_PROVIDER_REGION = "US"
 
 /** TMDB genre 16 — the animation shelf the third chip selects. */
 private const val ANIMATION_GENRE = "16"
+
+/**
+ * How far ahead [ExploreRow.UPCOMING] looks.
+ *
+ * A year, not a month: the rail is sorted by `popularity` and nothing is filtered on
+ * quality, because an unreleased title has no votes and no vote floor is usable. Widening
+ * the window is therefore free — it adds anticipation-ordered titles (Dune, Avengers)
+ * without demoting the near-term ones, and keeps the shelf from emptying in a month.
+ */
+private const val UPCOMING_WINDOW_DAYS = 370
+
+/**
+ * TMDB's hard ceiling on paging, and it is lower than the number TMDB reports.
+ *
+ * Both `/discover` and the list endpoints answer HTTP 400 past page 500 — "Pages start at 1
+ * and max at 500" — while still reporting `total_pages: 1001`. Verified against
+ * `/movie/popular`, `/tv/popular` and `/discover/movie`. So `total_pages` cannot be trusted
+ * on its own: an unclamped scroller pages happily up to 1001 and then spends its remaining
+ * attempts on requests that can only fail.
+ */
+private const val MAX_PAGE = 500
 
 private const val TYPE_MOVIE = "movie"
 private const val TYPE_TV = "tv"
@@ -118,7 +155,13 @@ private val TV_GENRES = mapOf(
  * `vote_average` on its own surfaces the one perfect ten from a single rater, so
  * most-favourite and top-rated both ask for a floor of real votes first.
  */
-private val VOTE_FLOOR = listOf("vote_count.gte" to "200")
+/**
+ * Minimum votes before a title counts as "rated". A query filter for the released rows,
+ * and again in code to rank a person's credits, so it is one number in one place.
+ */
+private const val VOTE_FLOOR_MIN = 200
+
+private val VOTE_FLOOR = listOf("vote_count.gte" to VOTE_FLOOR_MIN.toString())
 
 /**
  * The big services, in the order most people expect to see them.
@@ -274,6 +317,50 @@ data class TmdbCast(
     val order: Int = 0
 )
 
+/**
+ * One person from `/person/{id}` — the cast member behind a credit, opened from a cast card.
+ *
+ * Every field except [id] and [name] is nullable because TMDB genuinely omits them: a
+ * long-dead actor has no [birthday] range worth showing, an extra in a festival short has
+ * no [biography] at all, and roughly one in a dozen has no [profilePath]. The screen has to
+ * treat each as "not stated" rather than as an error.
+ */
+@Serializable
+data class TmdbPerson(
+    val id: Int,
+    val name: String,
+    val biography: String? = null,
+    val birthday: String? = null,
+    val deathday: String? = null,
+    @SerialName("place_of_birth") val placeOfBirth: String? = null,
+    @SerialName("profile_path") val profilePath: String? = null,
+    @SerialName("known_for_department") val knownForDepartment: String? = null,
+    @SerialName("also_known_as") val alsoKnownAs: List<String> = emptyList(),
+    @SerialName("imdb_id") val imdbId: String? = null,
+    /**
+     * Only present when the request asked for `append_to_response=combined_credits`.
+     *
+     * TMDB merges an appended response into the *top level* of the reply rather than
+     * nesting it, so this arrives beside `name` and `biography` instead of under them.
+     */
+    @SerialName("combined_credits") val combinedCredits: TmdbCombinedCredits? = null
+)
+
+@Serializable
+data class TmdbPersonImage(
+    @SerialName("file_path") val filePath: String? = null,
+    @SerialName("vote_average") val voteAverage: Double = 0.0
+)
+
+@Serializable
+data class TmdbPersonImages(val profiles: List<TmdbPersonImage> = emptyList())
+
+@Serializable
+data class TmdbCombinedCredits(
+    val cast: List<TmdbMedia> = emptyList(),
+    val crew: List<TmdbMedia> = emptyList()
+)
+
 @Serializable
 data class TmdbCrew(
     val id: Int,
@@ -369,16 +456,30 @@ object Tmdb {
         keywords: String? = null,
         page: Int = 1,
         extra: List<Pair<String, String>> = emptyList()
-    ): List<TmdbMedia> {
+    ): List<TmdbMedia> = discoverPage(
+        mediaType, genres, sort, year, keywords, page, extra
+    ).results
+
+    /** [discover], keeping the page counts so a caller that pages can see the ceiling. */
+    suspend fun discoverPage(
+        mediaType: String = "movie",
+        genres: String? = null,
+        sort: String? = null,
+        year: Int? = null,
+        keywords: String? = null,
+        page: Int = 1,
+        extra: List<Pair<String, String>> = emptyList()
+    ): TmdbPage<TmdbMedia> {
         val query = mutableListOf("page" to page.toString())
         genres?.let { query.add("with_genres" to it) }
         sort?.let { query.add("sort_by" to it) }
         year?.let { query.add("year" to it.toString()) }
         keywords?.let { query.add("with_keywords" to it) }
         query.addAll(extra)
-        val body = get("/discover/$mediaType", *query.toTypedArray()) ?: return emptyList()
-        return runCatching { json.decodeFromString<TmdbPage<TmdbMedia>>(body).results }
-            .getOrDefault(emptyList())
+        val body = get("/discover/$mediaType", *query.toTypedArray())
+            ?: return TmdbPage(page = page)
+        return runCatching { json.decodeFromString<TmdbPage<TmdbMedia>>(body) }
+            .getOrDefault(TmdbPage(page = page))
     }
 
     suspend fun popular(page: Int = 1): List<TmdbMedia> {
@@ -402,14 +503,14 @@ object Tmdb {
     }
 
     /**
-     * The Explore rows, in the order the page shows them.
+     * The Explore rows. The first five are the page's rails, in the order it shows them;
+     * `POPULAR` is the viewer's own list and is not a rail.
      *
-     * `POPULAR` and `MOST_FAVOURITE` are deliberately different orderings of the same
-     * library: TMDB's `/popular` ranks by its own popularity metric (views and trailer
-     * plays), while most-favourite ranks by what viewers actually rated. They must not
-     * collapse into the same list, so neither is derived from the other.
+     * `POPULAR` is deliberately not derived from `TOP_RATED`: TMDB's `/popular` ranks by
+     * its own popularity metric (views and trailer plays), while top-rated ranks by what
+     * viewers actually rated, so the two must not collapse into the same list.
      */
-    enum class ExploreRow { IN_CINEMA, TRENDING, TOP_RATED, MOST_FAVOURITE, LATEST_RELEASE, POPULAR }
+    enum class ExploreRow { IN_CINEMA, TRENDING, TOP_RATED, LATEST_RELEASE, UPCOMING, POPULAR }
 
     /**
      * One Explore row for the type chip in use.
@@ -453,16 +554,27 @@ object Tmdb {
                 )
                 else -> list("/$type/top_rated", "page" to page.toString())
             }
-            ExploreRow.MOST_FAVOURITE -> discover(
-                type, genres = genres, sort = "vote_average.desc", page = page,
-                extra = VOTE_FLOOR
-            )
             ExploreRow.LATEST_RELEASE -> discover(
                 type, genres = genres, page = page,
                 sort = if (type == TYPE_TV) "first_air_date.desc" else "primary_release_date.desc",
                 extra = listOf(
                     (if (type == TYPE_TV) "first_air_date.lte" else "primary_release_date.lte")
                         to todayIso()
+                )
+            )
+            // Forward-looking, so it is ranked by `popularity` rather than by rating: TMDB
+            // computes popularity from trailer plays and searches, which exist before a
+            // release, while `vote_average` and any vote floor do not. TV has no
+            // `/movie/upcoming` equivalent worth using, so both sides go through
+            // `/discover` on the date field that actually means "premiere" for the type.
+            ExploreRow.UPCOMING -> discover(
+                type, genres = genres, page = page,
+                sort = "popularity.desc",
+                extra = listOf(
+                    (if (type == TYPE_TV) "first_air_date.gte" else "primary_release_date.gte")
+                        to todayIso(),
+                    (if (type == TYPE_TV) "first_air_date.lte" else "primary_release_date.lte")
+                        to todayPlusDays(UPCOMING_WINDOW_DAYS)
                 )
             )
             ExploreRow.POPULAR -> when {
@@ -474,11 +586,47 @@ object Tmdb {
         }
     }
 
+    /**
+     * [exploreRow.POPULAR] as a page, for a list the viewer can keep scrolling.
+     *
+     * Only this row is worth paging. It is TMDB's entire catalogue rather than a curated
+     * shelf, so the first page is 20 items out of 20,001 — 1001 pages — and the other
+     * rows are fixed shelves where page 2 is not a continuation of anything the viewer
+     * was shown. Returns `totalPages` so the caller can stop at the ceiling instead of
+     * asking past it and getting an empty page forever.
+     */
+    suspend fun popularPage(
+        mediaType: String,
+        page: Int = 1
+    ): TmdbPage<TmdbMedia> {
+        val animation = mediaType == TYPE_ANIMATION
+        val type = if (animation) TYPE_MOVIE else mediaType
+        val genres = if (animation) ANIMATION_GENRE else null
+        // Clamped on the way out as well as on the way in: TMDB reports a ceiling it will
+        // not serve, so the caller's stopping point has to be the smaller of the two.
+        val wanted = page.coerceIn(1, MAX_PAGE)
+        val result = if (genres != null) {
+            discoverPage(
+                type, genres = genres, sort = "popularity.desc", page = wanted
+            )
+        } else {
+            listPage("/$type/popular", "page" to wanted.toString())
+        }
+        return result.copy(totalPages = result.totalPages.coerceIn(1, MAX_PAGE))
+    }
+
     /** A plain list endpoint, decoded like every other. */
-    private suspend fun list(path: String, vararg query: Pair<String, String>): List<TmdbMedia> {
-        val body = get(path, *query) ?: return emptyList()
-        return runCatching { json.decodeFromString<TmdbPage<TmdbMedia>>(body).results }
-            .getOrDefault(emptyList())
+    private suspend fun list(path: String, vararg query: Pair<String, String>): List<TmdbMedia> =
+        listPage(path, *query).results
+
+    /** [list], keeping the page counts. */
+    private suspend fun listPage(
+        path: String,
+        vararg query: Pair<String, String>
+    ): TmdbPage<TmdbMedia> {
+        val body = get(path, *query) ?: return TmdbPage()
+        return runCatching { json.decodeFromString<TmdbPage<TmdbMedia>>(body) }
+            .getOrDefault(TmdbPage())
     }
 
     /**
@@ -539,6 +687,19 @@ object Tmdb {
     private fun todayIso(): String =
         java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
             .format(java.util.Date())
+
+    /**
+     * [todayIso] shifted [days] forward, for the far end of an upcoming window.
+     *
+     * Goes through [java.util.Calendar] rather than adding milliseconds, so a day added
+     * across a DST boundary still lands on the same wall-clock date instead of drifting
+     * to 23:00 the day before.
+     */
+    private fun todayPlusDays(days: Int): String {
+        val cal = java.util.Calendar.getInstance()
+        cal.add(java.util.Calendar.DAY_OF_MONTH, days)
+        return java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(cal.time)
+    }
 
     suspend fun latestMovies(page: Int = 1): List<TmdbMedia> =
         discover(
@@ -652,4 +813,60 @@ object Tmdb {
     }
 
     private fun abs(i: Int): Int = if (i == Int.MIN_VALUE) Int.MAX_VALUE else kotlin.math.abs(i)
+
+    /**
+     * One cast or crew member, for the screen a cast card opens.
+     *
+     * Null on a failed request rather than a stand-in person, so the screen can close
+     * instead of showing an empty page with a blank name.
+     */
+    suspend fun person(id: Int): TmdbPerson? {
+        val body = get("/person/$id") ?: return null
+        return runCatching { json.decodeFromString<TmdbPerson>(body) }.getOrNull()
+    }
+
+    /**
+     * A person's publicity stills, best first.
+     *
+     * TMDB returns them in no useful order and many are near-identical crops of one press
+     * photo, so they are ranked by `vote_average` — the crowd's own ranking of that image.
+     * A person with a single registered photo is normal, so an empty list is not an error.
+     */
+    suspend fun personProfiles(id: Int): List<TmdbPersonImage> {
+        val body = get("/person/$id/images") ?: return emptyList()
+        return runCatching { json.decodeFromString<TmdbPersonImages>(body).profiles }
+            .getOrDefault(emptyList())
+            .filter { !it.filePath.isNullOrBlank() }
+            .sortedByDescending { it.voteAverage }
+    }
+
+    /**
+     * What a person is actually known for, as [TmdbMedia] the rest of the app can open.
+     *
+     * `combined_credits` is not a filmography and does not survive being taken at face
+     * value. Measured on Brad Pitt: 158 raw credits, and sorting by `popularity` — the
+     * obvious choice — puts The Daily Show, Raw and Saturday Night Live at the top, because
+     * a talk-show cameo has more viewers than a film has votes. Ranking by `vote_average`
+     * behind the same [VOTE_FLOOR_MIN] the other rows use gives Fight Club, Se7en and
+     * Inglourious Basterds instead.
+     *
+     * The response also repeats titles: a series a performer returned to across several
+     * seasons comes back once per season, so rows are folded by id — keeping the
+     * best-attended one — before they are ranked.
+     */
+    suspend fun personCredits(id: Int): List<TmdbMedia> {
+        val body = get("/person/$id", "append_to_response" to "combined_credits")
+            ?: return emptyList()
+        val credits = runCatching { json.decodeFromString<TmdbPerson>(body) }
+            .getOrNull()?.combinedCredits ?: return emptyList()
+        val best = LinkedHashMap<Int, TmdbMedia>()
+        for (m in credits.cast) {
+            val seen = best[m.id]
+            if (seen == null || m.voteCount > seen.voteCount) best[m.id] = m
+        }
+        return best.values
+            .filter { it.voteCount >= VOTE_FLOOR_MIN }
+            .sortedByDescending { it.voteAverage }
+    }
+
 }

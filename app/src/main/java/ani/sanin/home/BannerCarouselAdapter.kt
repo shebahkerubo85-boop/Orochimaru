@@ -11,8 +11,6 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.LinearSmoothScroller
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.BANNER_TYPE_MODERN
 import ani.sanin.util.BANNER_MAX_WIDTH
@@ -517,9 +515,6 @@ class BannerCarouselAdapter(
 /** Genres get their own budget in the meta row; the rest of the line is short. */
 const val MODERN_MAX_GENRES = 3
 
-/** How long a banner slide should take, in ms. */
-private const val BANNER_SCROLL_MS = 400f
-
 /**
  * How often the auto-advance re-checks whether a slide has come to rest. The banner
  * drives its own auto-advance from a timer, and the timer is restarted when the carousel
@@ -577,36 +572,6 @@ internal fun applyModernContentWidth(root: View, content: View?) {
         }
     }
     if (root.width > 0) apply() else root.post { apply() }
-}
-
-/**
- * A snap scroller in the 400ms window the banner spec asks for, with no app-side
- * per-frame work: RecyclerView drives it from its own layout pass, so it costs
- * nothing on a low-RAM device. The default item animator is switched off for the
- * banner instead, since its full-screen cross-fade is the expensive part.
- */
-internal fun scrollBanner(rv: RecyclerView, position: Int) {
-    val lm = rv.layoutManager as? LinearLayoutManager ?: run {
-        rv.smoothScrollToPosition(position)
-        return
-    }
-    if (rv.width <= 0) {
-        rv.smoothScrollToPosition(position)
-        return
-    }
-    val steps = kotlin.math.abs(position - lm.findFirstVisibleItemPosition())
-        .coerceAtLeast(1)
-    val pxPerMs = (rv.width * steps).toFloat() / BANNER_SCROLL_MS
-    val scroller = object : LinearSmoothScroller(rv.context) {
-        override fun getHorizontalSnapPreference() = SNAP_TO_START
-        override fun calculateSpeedPerPixel(displayMetrics: android.util.DisplayMetrics) = pxPerMs
-
-        // No deceleration phase, so the move is a plain constant-speed 400ms
-        // rather than RecyclerView's default speed-then-decel.
-        override fun calculateTimeForDeceleration(msScroller: Int) = 0
-    }
-    scroller.targetPosition = position
-    lm.startSmoothScroll(scroller)
 }
 
 /** Slightly muted white for the metadata line. */

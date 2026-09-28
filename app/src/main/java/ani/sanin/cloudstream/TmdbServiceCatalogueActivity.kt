@@ -1,12 +1,10 @@
 package ani.sanin.cloudstream
 
-import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.ViewGroup
 import android.view.Window
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.core.graphics.ColorUtils
 import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -19,13 +17,11 @@ import ani.sanin.hideSystemBarsExtendView
 import ani.sanin.initActivity
 import ani.sanin.media.Media
 import ani.sanin.media.MediaAdaptor
-import ani.sanin.setSafeOnClickListener
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
-import com.google.android.material.chip.Chip
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -60,9 +56,6 @@ class TmdbServiceCatalogueActivity : AppCompatActivity() {
     /** Stop paging once a page comes back empty, the way a real catalogue ends. */
     private var hasMore = true
 
-    private var unselectedChipBackground: ColorStateList? = null
-    private var selectedChip: Chip? = null
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityTmdbServiceCatalogueBinding.inflate(layoutInflater)
@@ -95,62 +88,43 @@ class TmdbServiceCatalogueActivity : AppCompatActivity() {
         providerName = intent.getStringExtra(ARG_PROVIDER_NAME).orEmpty()
         mediaType = intent.getStringExtra(ARG_MEDIA_TYPE)?.takeIf { it == TYPE_TV } ?: TYPE_MOVIE
 
-        setUpChips()
+        setUpTypeToggle()
         setUpGrid()
         updateTitle()
         load()
     }
 
-    private fun setUpChips() {
-        val movie = binding.catalogueChipMovie
-        val tv = binding.catalogueChipTv
+    /**
+     * The Movie / TV pill: one control, two entries, the chosen one marked by its text.
+     *
+     * The group owns the single selection, so there is no index to keep in step with a
+     * pair of chips: it reports which entry is checked and the shelf is reloaded from
+     * there. The initial check is set before the listener is attached, so restoring a
+     * type from the intent does not kick off a second load.
+     */
+    private fun setUpTypeToggle() {
+        val toggle = binding.catalogueTypeToggle
+        val movie = binding.catalogueToggleMovie
+        val tv = binding.catalogueToggleTv
         FocusEffectUtil.applyFocusListener(movie)
         FocusEffectUtil.applyFocusListener(tv)
-        setChipSelected(movie, mediaType == TYPE_MOVIE)
-        setChipSelected(tv, mediaType == TYPE_TV)
-        movie.setSafeOnClickListener { selectType(TYPE_MOVIE) }
-        tv.setSafeOnClickListener { selectType(TYPE_TV) }
-    }
-
-    private fun selectType(type: String) {
-        if (type == mediaType) return
-        mediaType = type
-        selectedChip?.let { setChipSelected(it, false) }
-        val chip = if (type == TYPE_TV) binding.catalogueChipTv else binding.catalogueChipMovie
-        setChipSelected(chip, true)
-        selectedChip = chip
-        // A new type is a different shelf, so drop what the old one loaded and start over.
-        page = 0
-        hasMore = true
-        if (media.isNotEmpty()) {
-            val old = media.size
-            media.clear()
-            mediaAdaptor.notifyItemRangeRemoved(0, old)
+        toggle.check(if (mediaType == TYPE_TV) R.id.catalogueToggleTv else R.id.catalogueToggleMovie)
+        toggle.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
+            val type = if (checkedId == R.id.catalogueToggleTv) TYPE_TV else TYPE_MOVIE
+            if (type == mediaType) return@addOnButtonCheckedListener
+            mediaType = type
+            // A new type is a different shelf, so drop what the old one loaded and start over.
+            page = 0
+            hasMore = true
+            if (media.isNotEmpty()) {
+                val old = media.size
+                media.clear()
+                mediaAdaptor.notifyItemRangeRemoved(0, old)
+            }
+            updateTitle()
+            load()
         }
-        updateTitle()
-        load()
-    }
-
-    /**
-     * The season chip's selected fill, so the filter reads as part of the same
-     * control set as the Explore type chips.
-     */
-    private fun setChipSelected(chip: Chip, selected: Boolean) {
-        if (unselectedChipBackground == null) {
-            unselectedChipBackground = chip.chipBackgroundColor
-        }
-        chip.chipBackgroundColor = if (selected) {
-            ColorStateList.valueOf(
-                ColorUtils.setAlphaComponent(
-                    chip.context.getThemeColor(com.google.android.material.R.attr.colorPrimary),
-                    SELECTED_FILL_ALPHA
-                )
-            )
-        } else {
-            unselectedChipBackground
-                ?: ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
-        }
-        chip.isSelected = selected
     }
 
     private fun setUpGrid() {
@@ -256,9 +230,6 @@ class TmdbServiceCatalogueActivity : AppCompatActivity() {
 
         private const val TYPE_MOVIE = "movie"
         private const val TYPE_TV = "tv"
-
-        /** ~30% primary, matching the season chips' selected fill. */
-        private const val SELECTED_FILL_ALPHA = 0x4D
 
         /** Rows from the end at which the next page is requested. */
         private const val PREFETCH_DISTANCE = 8

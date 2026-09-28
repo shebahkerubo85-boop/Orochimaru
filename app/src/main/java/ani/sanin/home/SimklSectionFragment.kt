@@ -53,17 +53,9 @@ class SimklSectionFragment : Fragment() {
     ): View {
         return RecyclerView(requireContext()).apply {
             val dm = resources.displayMetrics
-            val screenWidthDp = dm.widthPixels / dm.density
-            val landscape = TmdbCards.isLandscapeOrientation()
-            val size = TmdbCards.cardSize()
-            // Match the anime library grid (ListFragment): ~120dp per column
-            // in portrait so both modes show the same number of cards per row.
-            val cols = if (landscape) {
-                val cardWidthDp = 260f * size + 12f
-                (screenWidthDp / cardWidthDp).toInt().coerceAtLeast(3)
-            } else {
-                (screenWidthDp / 120f).toInt().coerceAtLeast(2)
-            }
+            // One shared density rule, so this grid, TMDB discovery and both anime grids
+            // always agree on the column count instead of each guessing its own.
+            val cols = TmdbCards.gridSpan(dm.widthPixels / dm.density)
             layoutManager = GridLayoutManager(requireContext(), cols)
             overScrollMode = View.OVER_SCROLL_NEVER
             clipToPadding = false
@@ -133,14 +125,23 @@ class SimklSectionFragment : Fragment() {
             val b = holder.binding
             val landscape = TmdbCards.isLandscapeOrientation()
             val size = TmdbCards.cardSize()
-            val (w, h) = if (landscape) {
-                (260f * size).toInt() to (148f * size).toInt()
-            } else {
-                (102f * size).toInt() to (154f * size).toInt()
-            }
+            val (baseW, baseH) = if (landscape) 260f to 148f else 102f to 154f
+            // Fill the column. At the preferred card width these cards were wider than a
+            // cell at three columns, so the right-hand one ran under its neighbour.
+            val rv = holder.itemView.parent as? RecyclerView
+            val span = (rv?.layoutManager as? GridLayoutManager)?.spanCount ?: 0
+            val cell = if (rv != null && span > 0) TmdbCards.cellWidthPx(rv, span) else 0
+            val w = if (cell > 0) cell else (baseW * size).toInt()
+            val h = if (cell > 0) (cell * baseH / baseW).toInt() else (baseH * size).toInt()
             b.tmdbCardPoster.updateLayoutParams<ViewGroup.LayoutParams> {
                 width = w
                 height = h
+            }
+            // Same row gap as TMDB discovery, so the two TMDB grids match.
+            (holder.itemView.parent as? RecyclerView)?.let { rv ->
+                b.root.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                    bottomMargin = TmdbCards.gridRowGapPx(rv)
+                }
             }
             b.tmdbCard.radius = TmdbCards.roundness()
 

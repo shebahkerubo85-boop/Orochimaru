@@ -49,6 +49,35 @@ class StreamingServicesAdapter(
 
     private var providers: List<TmdbProvider> = emptyList()
 
+    /**
+     * Grid geometry, handed in by the host; zero width means this adapter is in a rail.
+     *
+     * The rail is a fixed 128x70 tile, but the full services screen is a grid, and that
+     * fixed width is what made its tiles overlap. GridLayoutManager hands a child the
+     * cell's width and then lays it out at that size without clamping, so a tile asking
+     * for 128dp inside a 109dp cell simply spilled over its neighbour. Zangetsu cannot
+     * hit that because Flutter's SliverGrid forces the child to the cell and it passes
+     * the card double.infinity, which is why its grid is clean at any width. So in a
+     * grid the tile is measured to the cell here too, rather than assuming a width.
+     */
+    private var gridTileWidthPx = 0
+    private var gridTileHeightPx = 0
+    private var gridCrossSpacingPx = 0
+    private var gridMainSpacingPx = 0
+
+    /**
+     * Sizes the tiles to one grid cell. The host recomputes this on rotation, because
+     * this screen is not recreated when the device turns.
+     */
+    fun setGridTileSize(widthPx: Int, heightPx: Int, crossSpacingPx: Int, mainSpacingPx: Int) {
+        if (gridTileWidthPx == widthPx && gridTileHeightPx == heightPx) return
+        gridTileWidthPx = widthPx
+        gridTileHeightPx = heightPx
+        gridCrossSpacingPx = crossSpacingPx
+        gridMainSpacingPx = mainSpacingPx
+        notifyDataSetChanged()
+    }
+
     /** Enough to fill a phone rail twice over without waiting on a long tail nobody scrolls to. */
     fun submit(list: List<TmdbProvider>) {
         providers = list.take(limit)
@@ -97,17 +126,26 @@ class StreamingServicesAdapter(
         }
 
         private fun sizeTile() {
-            val w = if (isTv) 168 else 128
-            val h = if (isTv) 92 else 70
             val density = binding.root.resources.displayMetrics.density
             val lp = (binding.root.layoutParams as? ViewGroup.MarginLayoutParams)
                 ?: ViewGroup.MarginLayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
-            lp.width = (w * density).toInt()
-            lp.height = (h * density).toInt()
-            lp.marginEnd = (GAP_DP * density).toInt()
+            if (gridTileWidthPx > 0) {
+                // A grid cell, measured rather than assumed: see setGridTileSize.
+                lp.width = gridTileWidthPx
+                lp.height = gridTileHeightPx
+                lp.marginEnd = gridCrossSpacingPx
+                lp.marginBottom = gridMainSpacingPx
+            } else {
+                val w = if (isTv) 168 else 128
+                val h = if (isTv) 92 else 70
+                lp.width = (w * density).toInt()
+                lp.height = (h * density).toInt()
+                lp.marginEnd = (GAP_DP * density).toInt()
+                lp.marginBottom = (RAIL_MARGIN_BOTTOM_DP * density).toInt()
+            }
             binding.root.layoutParams = lp
         }
 
@@ -219,6 +257,12 @@ class StreamingServicesAdapter(
         const val TYPE_SEE_ALL = 1
         const val MAX_SERVICES = 12
         const val GAP_DP = 10
+
+        /**
+         * The rail's row spacing. It lives here rather than on the layout because the
+         * grid overrides it, and a value set in two places would be one of them wrong.
+         */
+        const val RAIL_MARGIN_BOTTOM_DP = 8
         const val CORNER_DP = 14f
 
         /** Provider logos are 332x332 on TMDB; 185 is the size the CDN serves natively. */

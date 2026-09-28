@@ -9,6 +9,7 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
+import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.tmdb.TmdbMedia
@@ -28,12 +29,58 @@ import kotlinx.coroutines.launch
 
 object TmdbCards {
 
+    /** Card density for every grid in the app, in dp. */
+    const val GRID_COLUMN_DP = 120f
+
+    /**
+     * Vertical gap between grid rows, matching the card's 12dp horizontal margin.
+     *
+     * The card carries a horizontal margin but no vertical one, and none of the grids use
+     * an ItemDecoration, so the bottom of one row sat flush against the top of the next.
+     * Applied on the grid path only: a rail is a single row, where a bottom margin would
+     * add dead space instead of separating anything.
+     */
+    const val GRID_ROW_GAP_DP = 12f
+
+    fun gridRowGapPx(recyclerView: RecyclerView): Int =
+        (GRID_ROW_GAP_DP * recyclerView.resources.displayMetrics.density).toInt()
+
     private val logoScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val detailScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun isLandscapeOrientation(): Boolean = PrefManager.getVal<Int>(PrefName.CardOrientation) == 0
 
     fun cardSize(): Float = PrefManager.getVal(PrefName.CardSize)
+
+    /**
+     * Columns for a grid, cut from the screen width at a fixed density.
+     *
+     * The card-size preference is a *rail* setting. A rail scrolls sideways, so an
+     * over-wide card only pushes the next one further away, which is why a row can honour
+     * the preference and still look right. A grid has nowhere to scroll to: leave the
+     * cards at the preferred width and three of them simply will not fit on a phone, which
+     * is how TMDB discovery ended up two-up while anime discovery, which fills its cells,
+     * was three-up.
+     *
+     * So a grid ignores the preference and sizes cards by density instead, giving every
+     * grid the same look and letting the count follow the screen — three on a phone, more
+     * on a tablet or a TV. There is deliberately no ceiling: a hardcoded 3 is right on one
+     * screen and wrong on every other one.
+     */
+    fun gridSpan(screenWidthDp: Float, columnDp: Float = GRID_COLUMN_DP): Int =
+        (screenWidthDp / columnDp).toInt().coerceAtLeast(2)
+
+    /**
+     * Width of one grid cell, so a card fills its column exactly at any span.
+     *
+     * None of the grids use an [androidx.recyclerview.widget.RecyclerView.ItemDecoration],
+     * so cell width is just the padded width split evenly.
+     */
+    fun cellWidthPx(recyclerView: RecyclerView, span: Int): Int {
+        val usable = recyclerView.width -
+            recyclerView.paddingStart - recyclerView.paddingEnd
+        return (usable / span).coerceAtLeast(1)
+    }
 
     fun roundness(): Float {
         return when (PrefManager.getVal<Int>(PrefName.CardStyle)) {
@@ -49,13 +96,17 @@ object TmdbCards {
      * uncropped, with the title (or TMDB logo art when available) over a
      * bottom gradient at the bottom-left.
      */
-    fun applyCardStyle(binding: ItemTmdbCardBinding, item: TmdbMedia) {
+    fun applyCardStyle(binding: ItemTmdbCardBinding, item: TmdbMedia, cellWidth: Int? = null) {
         val landscape = isLandscapeOrientation()
         val size = cardSize()
-        val (w, h) = if (landscape) {
-            (260f * size).toInt() to (148f * size).toInt()
+        val (baseW, baseH) = if (landscape) 260f to 148f else 102f to 154f
+        val (w, h) = if (cellWidth != null) {
+            // In a grid the column decides the width, not the card preference. The height
+            // follows from the same aspect ratio the rail cards use, so a 3-up phone grid
+            // gets smaller posters rather than cropped or overlapping ones.
+            cellWidth to (cellWidth * baseH / baseW).toInt()
         } else {
-            (102f * size).toInt() to (154f * size).toInt()
+            (baseW * size).toInt() to (baseH * size).toInt()
         }
         binding.tmdbCardPoster.updateLayoutParams<ViewGroup.LayoutParams> {
             width = w

@@ -1,6 +1,7 @@
 package ani.sanin.cloudstream
 
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
@@ -49,8 +50,17 @@ class TmdbAllServicesActivity : AppCompatActivity() {
         /** Zangetsu's SliverGridDelegateWithMaxCrossAxisExtent. */
         const val GRID_MAX_EXTENT_DP = 150f
 
-        /** Zangetsu's crossAxisSpacing. */
+        /** Zangetsu's crossAxisSpacing: 12 on a phone, 16 on a TV. */
         const val GRID_CROSS_SPACING_DP = 12f
+        const val GRID_CROSS_SPACING_DP_TV = 16f
+
+        /** Zangetsu's mainAxisSpacing: 14 on a phone, 16 on a TV. */
+        const val GRID_MAIN_SPACING_DP = 14f
+        const val GRID_MAIN_SPACING_DP_TV = 16f
+
+        /** Zangetsu's childAspectRatio of 128/92, so a cell's height follows its width. */
+        const val GRID_TILE_RATIO_W = 128f
+        const val GRID_TILE_RATIO_H = 92f
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -91,18 +101,8 @@ class TmdbAllServicesActivity : AppCompatActivity() {
         // The arrow-mark screens (Continue Watching and friends) size their grid from the
         // screen rather than a fixed count, and carry a grid/list pair in the app bar. This
         // screen is one of them, so the shape is theirs.
-        val mode = PrefManager.getCustomVal("mediaView", 0)
-        fun changeView(newMode: Int) {
-            binding.mediaList.alpha = if (newMode == 1) 1f else 0.33f
-            binding.mediaGrid.alpha = if (newMode == 1) 0.33f else 1f
-            PrefManager.setCustomVal("mediaView", newMode)
-            binding.allServicesRecyclerView.layoutManager =
-                GridLayoutManager(this, if (newMode == 1) 1 else gridSpanCount())
-        }
-        binding.mediaList.setOnClickListener { changeView(1) }
-        binding.mediaGrid.setOnClickListener { changeView(0) }
-        changeView(if (mode == 1) 1 else 0)
-
+        // The adapter is attached first: applyGrid() hands it the cell size, so a grid that
+        // is set up before it exists would leave the tiles on their rail dimensions.
         binding.allServicesRecyclerView.adapter = StreamingServicesAdapter(
             isTv = isTvDevice(this),
             onServiceClick = { provider -> openCatalogue(provider) },
@@ -110,6 +110,52 @@ class TmdbAllServicesActivity : AppCompatActivity() {
             showSeeAll = false,
             limit = Int.MAX_VALUE
         )
+        val mode = PrefManager.getCustomVal("mediaView", 0)
+        fun changeView(newMode: Int) {
+            binding.mediaList.alpha = if (newMode == 1) 1f else 0.33f
+            binding.mediaGrid.alpha = if (newMode == 1) 0.33f else 1f
+            PrefManager.setCustomVal("mediaView", newMode)
+            applyGrid(isGrid = newMode == 0)
+        }
+        binding.mediaList.setOnClickListener { changeView(1) }
+        binding.mediaGrid.setOnClickListener { changeView(0) }
+        changeView(if (mode == 1) 1 else 0)
+    }
+
+    /**
+     * Lays out the grid, and sizes the tiles to the cell they land in.
+     *
+     * The span alone is not enough: GridLayoutManager does not clamp a child to its cell,
+     * so a tile of a fixed width spills into the next column once the cells get narrower
+     * than the tile. Zangetsu's grid passes the card double.infinity and lets SliverGrid
+     * do the measuring, so the same numbers here have to be measured out by hand.
+     *
+     * displayMetrics is the source rather than the view, because this runs from
+     * onConfigurationChanged before the new layout has been applied.
+     */
+    private fun applyGrid(isGrid: Boolean) {
+        val rv = binding.allServicesRecyclerView
+        val adapter = rv.adapter as? StreamingServicesAdapter
+        if (!isGrid) {
+            adapter?.setGridTileSize(0, 0, 0, 0)
+            rv.layoutManager = GridLayoutManager(this, 1)
+            return
+        }
+        val tv = isTvDevice(this)
+        val span = gridSpanCount()
+        rv.layoutManager = GridLayoutManager(this, span)
+
+        val density = resources.displayMetrics.density
+        fun dp(value: Float) = (value * density).toInt()
+        val cross = dp(if (tv) GRID_CROSS_SPACING_DP_TV else GRID_CROSS_SPACING_DP)
+        val main = dp(if (tv) GRID_MAIN_SPACING_DP_TV else GRID_MAIN_SPACING_DP)
+        val sidePadding = dp(GRID_SIDE_PADDING_DP)
+        val availablePx = resources.displayMetrics.widthPixels - sidePadding
+        val cellPx = availablePx / span
+        val tileWidthPx = cellPx - cross
+        val tileHeightPx =
+            (tileWidthPx * GRID_TILE_RATIO_H / GRID_TILE_RATIO_W).toInt()
+        adapter?.setGridTileSize(tileWidthPx, tileHeightPx, cross, main)
     }
 
     /**
@@ -128,6 +174,17 @@ class TmdbAllServicesActivity : AppCompatActivity() {
         val availableDp = screenWidthDp - GRID_SIDE_PADDING_DP
         val columnDp = GRID_MAX_EXTENT_DP + GRID_CROSS_SPACING_DP
         return ceil(availableDp / columnDp).toInt().coerceAtLeast(2)
+    }
+
+    /**
+     * This screen declares configChanges, so it is not recreated when the device turns and
+     * onCreate does not run again. Without this the portrait grid is kept into landscape
+     * and the column count never changes, and because the tile is measured to the cell,
+     * the tiles are stale in both dimensions.
+     */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        applyGrid(isGrid = PrefManager.getCustomVal("mediaView", 0) == 0)
     }
 
     private fun load() {

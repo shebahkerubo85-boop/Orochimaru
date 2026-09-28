@@ -224,6 +224,10 @@
     <string name="tag">Tag</string>
     <string name="tags">Tags</string>
     <string name="cast">Cast</string>
+    <string name="tmdb_person_photos">Photos</string>
+    <string name="tmdb_person_known_for">Known for</string>
+    <string name="tmdb_person_born">Born %1$s</string>
+    <string name="tmdb_person_died">Died %1$s</string>
     <string name="more_like_this">More Like This</string>
     <string name="prequel">Prequel</string>
     <string name="sequel">Sequel</string>

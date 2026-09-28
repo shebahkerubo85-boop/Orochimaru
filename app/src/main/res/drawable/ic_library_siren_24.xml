@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:tint="?attr/colorControlNormal"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Navpill library glyph (siren), 24x24 to match the other navpill icons.
+
+         The inner cut-outs are produced by WINDING, not by a fill rule: every inner
+         subpath below is traced opposite to the outer outline, so the nonZero winding
+         number cancels to 0 and leaves them transparent.
+
+         This matters because minSdk is 23 and android:fillType only exists from API 24.
+         The upstream SVG declares fill-rule="evenodd" and relies on it, but its inner
+         subpaths are not consistently wound: two of the three run the same way as the
+         outer outline. On API 23 the fillType attribute is ignored and the default nonZero
+         rule applies, which rendered those two solid (verified coverage 0.6701 instead of
+         0.2951, i.e. a filled blob rather than the outlined siren). The windings here are
+         corrected so nonZero and evenOdd produce byte-identical output on every API level.
+         Do not normalise the path direction; that silently turns the icon into a blob. -->
+
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M8.25 18C8.25 17.5858 8.5858 17.25 9 17.25H15C15.4142 17.25 15.75 17.5858 15.75 18C15.75 18.4142 15.4142 18.75 15 18.75H9C8.5858 18.75 8.25 18.4142 8.25 18Z" />
+
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M8.6994 1.25H15.3004C15.5203 1.2499 15.6888 1.2499 15.8362 1.2657C17.1903 1.411 18.2268 2.5231 18.2897 3.8701C19.4805 4.2257 20.3289 5.3275 20.3443 6.5912C20.9453 6.7715 21.4637 7.056 21.888 7.5143C22.54 8.2186 22.7421 9.0865 22.7498 10.1003C22.7572 11.075 22.5835 12.3067 22.3678 13.8363L21.9288 16.9499C21.7602 18.146 21.6232 19.1176 21.4101 19.879C21.1871 20.6756 20.8585 21.331 20.25 21.8349C19.6463 22.3347 18.9301 22.5502 18.0835 22.6518C17.265 22.75 16.2353 22.75 14.9532 22.75H9.0469C7.7648 22.75 6.735 22.75 5.9165 22.6518C5.0699 22.5502 4.3537 22.3347 3.75 21.8349C3.1415 21.331 2.8129 20.6756 2.5899 19.879C2.3768 19.1176 2.2398 18.146 2.0712 16.9499L1.6322 13.8363C1.4165 12.3067 1.2428 11.075 1.2502 10.1003C1.2579 9.0865 1.46 8.2186 2.112 7.5143C2.5362 7.0561 3.0545 6.7716 3.6553 6.5913C3.6706 5.3275 4.5192 4.2256 5.71 3.8701C5.7729 2.523 6.8094 1.411 8.1636 1.2657C8.3109 1.2499 8.4795 1.2499 8.6994 1.25ZM5.189 6.3278C6.1148 6.25 7.2497 6.25 8.6159 6.25H15.384C16.75 6.25 17.8848 6.25 18.8105 6.3278C18.6734 5.7202 18.1306 5.25 17.4617 5.25H6.5379C5.869 5.25 5.3262 5.7202 5.189 6.3278ZM15.6761 2.7572L15.6761 2.7572C15.6198 2.7511 15.5396 2.75 15.2588 2.75H8.741C8.4601 2.75 8.3799 2.7511 8.3237 2.7572C7.7734 2.8162 7.3386 3.2263 7.2321 3.75H16.7677C16.6611 3.2263 16.2263 2.8162 15.6761 2.7572ZM3.2127 8.5334L3.2127 8.5334C2.9168 8.8529 2.7564 9.2878 2.7502 10.1117C2.7437 10.9618 2.8998 12.0828 3.1262 13.6883L3.5491 16.6883C3.7269 17.9491 3.8514 18.821 4.0344 19.4747C4.2106 20.1042 4.418 20.4405 4.7066 20.6795C5.0001 20.9225 5.3942 21.0784 6.0952 21.1625C6.8139 21.2488 7.7535 21.25 9.0954 21.25H14.9046C16.2465 21.25 17.1861 21.2488 17.9048 21.1625C18.6058 21.0784 18.9999 20.9225 19.2934 20.6795C19.582 20.4405 19.7894 20.1042 19.9656 19.4747C20.1486 18.821 20.2731 17.9491 20.4509 16.6883L20.8738 13.6883C21.1002 12.0828 21.2563 10.9618 21.2498 10.1117C21.2436 9.2878 21.0832 8.8529 20.7873 8.5334C20.4844 8.2062 20.0289 7.9892 19.1439 7.8715C18.2427 7.7516 17.0364 7.75 15.3276 7.75H8.6724C6.9636 7.75 5.7573 7.7516 4.8561 7.8715C3.9711 7.9892 3.5156 8.2062 3.2127 8.5334Z" />
+</vector>

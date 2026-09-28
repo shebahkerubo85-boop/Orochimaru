@@ -11,6 +11,7 @@ import ani.sanin.databinding.FragmentListBinding
 import ani.sanin.media.Media
 import ani.sanin.media.MediaAdaptor
 import ani.sanin.media.OtherDetailsViewModel
+import ani.sanin.cloudstream.TmdbCards
 
 class ListFragment : Fragment() {
     private var _binding: FragmentListBinding? = null
@@ -46,7 +47,7 @@ class ListFragment : Fragment() {
                 binding.listRecyclerView.layoutManager =
                     GridLayoutManager(
                         requireContext(),
-                        if (grid!!) (screenWidth / 120f).toInt() else 1
+                        if (grid!!) TmdbCards.gridSpan(screenWidth) else 1
                     )
                 binding.listRecyclerView.adapter = adapter
             }

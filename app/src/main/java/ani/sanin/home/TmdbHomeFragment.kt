@@ -1199,7 +1199,7 @@ class TmdbHomeFragment : Fragment() {
         // D-pad moves from the watch button must always scroll (force);
         // auto-advance stays hands-off while the user is on the banner.
         if (!onBanner || force) {
-            scrollBanner(rv, pos + (if (forward) 1 else -1))
+            rv.smoothScrollToPosition(pos + (if (forward) 1 else -1))
         }
     }
 

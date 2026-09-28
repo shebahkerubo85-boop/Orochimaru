@@ -105,7 +105,38 @@
         <item name="checkedIconVisible">false</item>
     </style>
 
+    <!--
+      One segment of the service catalogue's Movie / TV pill.
+
+      The group supplies the shared outline and the divider between the two entries, so
+      a segment only has to carry its own label. The fill stays transparent and the
+      chosen entry is marked by its text, which is what makes the pair read as a single
+      control instead of two loose chips.
+    -->
+    <style name="CatalogueToggleSegment" parent="@style/Widget.Material3.Button.OutlinedButton">
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="android:textColor">@color/catalogue_toggle_text</item>
+        <item name="textColor">@color/catalogue_toggle_text</item>
+        <item name="strokeColor">@color/catalogue_toggle_stroke</item>
+        <item name="rippleColor">@color/catalogue_toggle_ripple</item>
+        <item name="android:textAppearance">@style/SeasonChipLabel</item>
+        <item name="android:fontFamily">@font/poppins_bold</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:paddingStart">20dp</item>
+        <item name="android:paddingEnd">20dp</item>
+        <item name="iconTint">@android:color/transparent</item>
+        <item name="iconPadding">0dp</item>
+        <item name="iconSize">0dp</item>
+        <item name="iconGravity">textStart</item>
+        <item name="checkedIconVisible">false</item>
+    </style>
+
     <style name="RoundProgressbar">
+
         <item name="indicatorTrackGapSize">0dp</item>
         <item name="trackStopIndicatorSize">0dp</item>
         <item name="trackColor">@color/color_primary_transparent</item>

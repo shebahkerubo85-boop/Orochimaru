@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The pill's own outline. The toggle group draws one shared outline with the inner
+  dividers, so this only has to carry focus, which the D-pad needs on a TV.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true" android:color="?attr/colorPrimary" />
+    <item android:state_checked="true" android:color="?attr/colorPrimary" />
+    <item android:color="?attr/colorOutline" />
+</selector>

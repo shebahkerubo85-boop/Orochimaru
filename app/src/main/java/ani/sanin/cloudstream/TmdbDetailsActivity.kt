@@ -849,7 +849,12 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         binding.mediaInfoCastRecycler.visibility = View.VISIBLE
         binding.mediaInfoCastRecycler.layoutManager =
             LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
-        binding.mediaInfoCastRecycler.adapter = CastAdapter(cast) {}
+        binding.mediaInfoCastRecycler.adapter = CastAdapter(cast) { person ->
+            startActivity(
+                Intent(this@TmdbDetailsActivity, TmdbPersonActivity::class.java)
+                    .putExtra(TmdbPersonActivity.ARG_PERSON_ID, person.id)
+            )
+        }
     }
 
     private fun buildMoreLikeSection(d: TmdbDetail) {

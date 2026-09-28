@@ -934,7 +934,7 @@ class HomeFragment : Fragment() {
                     // settle through that listener left the next step aimed at a stale
                     // target, which is what slid through every banner on the way.
                     val current = lm?.findFirstVisibleItemPosition() ?: RecyclerView.NO_POSITION
-                    if (current != RecyclerView.NO_POSITION) scrollBanner(rv, current + 1)
+                    if (current != RecyclerView.NO_POSITION) rv.smoothScrollToPosition(current + 1)
                 }
                 bannerAutoScrollHandler?.postDelayed(this, 5000L)
             }
@@ -1092,7 +1092,7 @@ class HomeFragment : Fragment() {
         val lm = rv.layoutManager as? LinearLayoutManager ?: return
         val pos = lm.findFirstVisibleItemPosition()
         if (pos == RecyclerView.NO_POSITION) return
-        scrollBanner(rv, pos + (if (forward) 1 else -1))
+        rv.smoothScrollToPosition(pos + (if (forward) 1 else -1))
     }
 
     private fun applyHomeBannerFocusChain() {
