@@ -111,7 +111,12 @@ class TmdbBannerCarouselAdapter(
         }
 
         // --- Tags: transparent pills ---
-        val typeText = item.type.replaceFirstChar { it.uppercase() }
+        // TMDB's type is a lower-case api id, so capitalising it alone rendered "Tv".
+        val typeText = when (item.type) {
+            "tv" -> "TV"
+            "movie" -> "Movie"
+            else -> item.type.replaceFirstChar { it.uppercase() }
+        }
         val statusText = statusByIndex[pos]
 
         // Season/Year. A plugin result carries no year of its own, so the
@@ -184,65 +189,6 @@ class TmdbBannerCarouselAdapter(
 
         // --- Description (hidden in cardMode) ---
         holder.description.isVisible = false
-
-        // --- Genre chips (transparent pills) ---
-        val genresRow = holder.genresRow
-        genresRow?.removeAllViews()
-        val density = ctx.resources.displayMetrics.density
-        when (item) {
-            is TmdbHomeFragment.BannerItem.Tmdb -> {
-                val genres = item.media.genreIds.mapNotNull { genreNames[it] }
-                for (genre in genres.take(4)) {
-                    val chip = TextView(ctx).apply {
-                        text = genre
-                        setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnBackground))
-                        textSize = 11f
-                        setBackgroundResource(R.drawable.tag_chip_bg)
-                        setPadding(
-                            (10 * density).toInt(),
-                            (3 * density).toInt(),
-                            (10 * density).toInt(),
-                            (3 * density).toInt()
-                        )
-                        maxLines = 1
-                        isFocusable = false
-                    }
-                    val lp = LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT
-                    )
-                    lp.marginEnd = (6 * density).toInt()
-                    genresRow?.addView(chip, lp)
-                }
-                if (genresRow != null) genresRow.isVisible = genres.isNotEmpty()
-            }
-            is TmdbHomeFragment.BannerItem.Plugin -> {
-                val genres = detailsByIndex[pos]?.genres?.map { it.name }.orEmpty()
-                for (genre in genres.take(4)) {
-                    val chip = TextView(ctx).apply {
-                        text = genre
-                        setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnBackground))
-                        textSize = 11f
-                        setBackgroundResource(R.drawable.tag_chip_bg)
-                        setPadding(
-                            (10 * density).toInt(),
-                            (3 * density).toInt(),
-                            (10 * density).toInt(),
-                            (3 * density).toInt()
-                        )
-                        maxLines = 1
-                        isFocusable = false
-                    }
-                    val lp = LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT
-                    )
-                    lp.marginEnd = (6 * density).toInt()
-                    genresRow?.addView(chip, lp)
-                }
-                if (genresRow != null) genresRow.isVisible = genres.isNotEmpty()
-            }
-        }
 
         // --- Watch Now pill / fav button ---
         // Classic shows the pill as its D-pad stop, the same as Modern. Compact

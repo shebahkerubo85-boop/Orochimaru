@@ -48,6 +48,7 @@ import ani.sanin.setSlideIn
 import ani.sanin.setSlideUp
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
+import ani.sanin.sizeBannerCard
 import ani.sanin.util.FocusEffectUtil
 import com.google.android.material.chip.Chip
 import kotlinx.coroutines.CoroutineScope
@@ -162,6 +163,11 @@ class TmdbExploreFragment : Fragment() {
         _binding = null
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        resizeBanner()
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -244,6 +250,7 @@ class TmdbExploreFragment : Fragment() {
         )
         bannerAdapterType = ani.sanin.bannerType()
         rv.adapter = bannerAdapter
+        trendingBinding.trendingCard.sizeBannerCard(0.65f)
         // Before the scroll, same as the anime page: this sets the card's constraints and
         // the watch button's visibility, and doing it after the carousel has jumped to the
         // middle makes the banner re-layout under the viewer's thumb.
@@ -358,6 +365,17 @@ class TmdbExploreFragment : Fragment() {
         bannerAdapter?.setLandscapeMode(isLandscape, cardW)
         trendingBinding.trendingWatchBtn.isVisible = isLandscape && !fullBleed
         setupTrendingWatchBtn()
+    }
+
+    private fun resizeBanner() {
+        if (!::trendingBinding.isInitialized || trendingMedia.isEmpty()) return
+        trendingBinding.trendingCard.sizeBannerCard(0.65f)
+        trendingBinding.trendingContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+            topMargin = 0
+        }
+        applyTrendingBannerMode()
+        applyTypeSelectorSpacing()
+        bannerAdapter?.notifyDataSetChanged()
     }
 
     private fun setupTrendingWatchBtn() {

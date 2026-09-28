@@ -223,6 +223,14 @@
             android:configChanges="orientation|screenSize|layoutDirection"
             android:parentActivityName=".MainActivity" />
         <activity
+            android:name=".cloudstream.TmdbServiceCatalogueActivity"
+            android:configChanges="orientation|screenSize|layoutDirection"
+            android:parentActivityName=".MainActivity" />
+        <activity
+            android:name=".cloudstream.TmdbAllServicesActivity"
+            android:configChanges="orientation|screenSize|layoutDirection"
+            android:parentActivityName=".MainActivity" />
+        <activity
             android:name=".cloudstream.TmdbSearchActivity"
             android:configChanges="orientation|screenSize|layoutDirection"
             android:parentActivityName=".MainActivity" />
