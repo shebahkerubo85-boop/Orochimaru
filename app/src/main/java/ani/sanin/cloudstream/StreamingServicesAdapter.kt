@@ -137,14 +137,14 @@ class StreamingServicesAdapter(
                 lp.width = gridTileWidthPx
                 lp.height = gridTileHeightPx
                 lp.marginEnd = gridCrossSpacingPx
-                lp.marginBottom = gridMainSpacingPx
+                lp.bottomMargin = gridMainSpacingPx
             } else {
                 val w = if (isTv) 168 else 128
                 val h = if (isTv) 92 else 70
                 lp.width = (w * density).toInt()
                 lp.height = (h * density).toInt()
                 lp.marginEnd = (GAP_DP * density).toInt()
-                lp.marginBottom = (RAIL_MARGIN_BOTTOM_DP * density).toInt()
+                lp.bottomMargin = (RAIL_MARGIN_BOTTOM_DP * density).toInt()
             }
             binding.root.layoutParams = lp
         }

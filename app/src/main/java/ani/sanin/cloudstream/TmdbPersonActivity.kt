@@ -10,6 +10,7 @@ import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import ani.sanin.R
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.tmdb.TmdbMedia
 import ani.sanin.connections.tmdb.TmdbPerson
