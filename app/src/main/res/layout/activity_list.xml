@@ -142,16 +142,13 @@
                 android:layout_marginEnd="16dp"
                 android:transitionName="@string/search"
                 app:boxBackgroundColor="?android:attr/colorBackground"
-                app:hintTextColor="?attr/colorOnBackground"
-                app:boxStrokeColor="@color/library_search_stroke"
-                app:cursorColor="?attr/colorOnBackground"
                 app:boxBackgroundMode="outline"
                 app:boxCornerRadiusBottomEnd="28dp"
                 app:boxCornerRadiusBottomStart="28dp"
                 app:boxCornerRadiusTopEnd="28dp"
                 app:boxCornerRadiusTopStart="28dp"
                 app:endIconDrawable="@drawable/ic_round_search_24"
-                app:endIconTint="?attr/colorOnBackground"
+                app:endIconTint="?attr/colorPrimary"
                 android:visibility="gone"
                 tools:visibility="visible"
                 app:hintAnimationEnabled="true">
@@ -171,6 +168,7 @@
                     android:paddingBottom="4dp"
                     android:selectAllOnFocus="true"
                     android:textSize="14sp"
+                    app:boxStrokeColor="?attr/colorPrimary"
                     tools:ignore="LabelFor,TextContrastCheck" />
             </com.google.android.material.textfield.TextInputLayout>
         </LinearLayout>

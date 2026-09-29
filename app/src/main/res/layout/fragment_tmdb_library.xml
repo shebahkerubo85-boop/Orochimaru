@@ -103,12 +103,9 @@
                     app:boxCornerRadiusBottomStart="24dp"
                     app:boxCornerRadiusTopEnd="24dp"
                     app:boxCornerRadiusTopStart="24dp"
-                    app:boxStrokeColor="@color/library_search_stroke"
-                    app:cursorColor="?attr/colorPrimary"
                     app:endIconDrawable="@drawable/ic_round_search_24"
-                    app:endIconTint="?attr/colorOnSurface"
-                    app:hintAnimationEnabled="true"
-                    app:hintTextColor="?attr/colorPrimary">
+                    app:endIconTint="?attr/colorPrimary"
+                    app:hintAnimationEnabled="true">
 
                     <AutoCompleteTextView
                         android:id="@+id/tmdbLibSearchText"
@@ -119,11 +116,9 @@
                         android:imeOptions="actionSearch"
                         android:inputType="textPersonName"
                         android:selectAllOnFocus="true"
-                        android:textColor="?attr/colorOnBackground"
-                        android:textColorHighlight="?attr/colorPrimary"
-                        android:textColorHint="?attr/colorOnSurface"
                         android:padding="8dp"
                         android:textSize="14sp"
+                        app:boxStrokeColor="?attr/colorPrimary"
                         tools:ignore="LabelFor,TextContrastCheck" />
                 </com.google.android.material.textfield.TextInputLayout>
 
