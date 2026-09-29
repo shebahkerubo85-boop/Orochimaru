@@ -1,6 +1,8 @@
 package ani.sanin.settings
 
 import android.os.Bundle
+import android.content.Context
+import android.graphics.Typeface
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
@@ -10,11 +12,13 @@ import android.content.res.Configuration
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import ani.sanin.R
 import ani.sanin.cloudstream.CsRepos
+import ani.sanin.getThemeColor
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.mal.MAL
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.loadImage
 import ani.sanin.util.FocusEffectUtil
+import ani.sanin.util.customAlertDialog
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.MainActivity
@@ -47,7 +51,8 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
         val aniListCheck = v.findViewById<CheckBox>(R.id.sheetAnimeAniListCheck)
         val malCheck = v.findViewById<CheckBox>(R.id.sheetAnimeMALCheck)
         val simklCheck = v.findViewById<CheckBox>(R.id.sheetMovieSimklCheck)
-        val pluginSpinner = v.findViewById<Spinner>(R.id.sheetMoviePluginSpinner)
+        val pluginRowInner = v.findViewById<View>(R.id.sheetMoviePluginRowInner)
+        val pluginNameView = v.findViewById<TextView>(R.id.sheetMoviePluginName)
         val pluginArrow = v.findViewById<View>(R.id.sheetMoviePluginArrow)
 
         // Card banner/scrim/profile/tracker icon views
@@ -85,9 +90,9 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             movieButton.nextFocusUpId = View.NO_ID
             movieButton.nextFocusDownId = simklCheck.id
             simklCheck.nextFocusUpId = movieButton.id
-            simklCheck.nextFocusDownId = pluginArrow.id
-            pluginArrow.nextFocusUpId = simklCheck.id
-            pluginArrow.nextFocusDownId = View.NO_ID
+            simklCheck.nextFocusDownId = pluginRowInner.id
+            pluginRowInner.nextFocusUpId = simklCheck.id
+            pluginRowInner.nextFocusDownId = View.NO_ID
             animeButton.nextFocusUpId = View.NO_ID
             animeButton.nextFocusDownId = View.NO_ID
         }
@@ -230,16 +235,15 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
                     true
                 }
                 event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    pluginArrow.requestFocus()
+                    pluginRowInner.requestFocus()
                     true
                 }
                 else -> false
             }
         }
 
-        pluginArrow.setOnClickListener { pluginSpinner.performClick() }
-        FocusEffectUtil.applyFocusListener(pluginArrow)
-        pluginArrow.setOnKeyListener { _, keyCode, event ->
+        FocusEffectUtil.applyFocusListener(pluginRowInner)
+        pluginRowInner.setOnKeyListener { _, keyCode, event ->
             event.action == KeyEvent.ACTION_DOWN &&
                 keyCode == KeyEvent.KEYCODE_DPAD_UP && simklCheck.requestFocus().let { true }
         }
@@ -296,7 +300,7 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             }
         }
 
-        // --- Plugin spinner ---
+        // --- Plugin source picker (single-choice dialog, same as player speed) ---
         val installedSources = CsRepos.installed(requireContext())
         val pluginNames = mutableListOf("Simkl")
         val pluginIds = mutableListOf("simkl")
@@ -304,29 +308,33 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             pluginNames.add(src.name)
             pluginIds.add(src.id)
         }
-        val adapter = ArrayAdapter(
-            requireContext(),
-            android.R.layout.simple_spinner_item,
-            pluginNames
-        )
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        pluginSpinner.adapter = adapter
 
-        var suppressSpinner = true
-        pluginSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, index: Int, id: Long) {
-                PrefManager.setVal(PrefName.ContentSource, pluginIds[index])
-                if (!suppressSpinner) {
+        fun showSourcePicker() {
+            val savedSource = PrefManager.getVal<String>(PrefName.ContentSource)
+            val restoreIdx = pluginIds.indexOfFirst { it.equals(savedSource, ignoreCase = true) }
+            val currentIdx = if (restoreIdx >= 0) restoreIdx else 0
+            pluginNameView.text = pluginNames[currentIdx]
+            // Dialog layout: [List header] [Simkl] [divider] [Plugin header] [plug 1..n]
+            // so Simkl is position 1 and plugin i (>=1) is position i + 3.
+            val adapterPos = if (currentIdx == 0) 1 else currentIdx + 3
+            requireContext().customAlertDialog().apply {
+                setTitle(R.string.source)
+                singleChoiceAdapter(SourcePickerAdapter(context, pluginNames), adapterPos) { pos ->
+                    val idx = if (pos == 1) 0 else pos - 3
+                    PrefManager.setVal(PrefName.ContentSource, pluginIds[idx])
+                    pluginNameView.text = pluginNames[idx]
                     (activity as? MainActivity)?.setContentMode("movie_tv")
                 }
+                show()
             }
-            override fun onNothingSelected(parent: AdapterView<*>) {}
         }
 
-        val savedSource = PrefManager.getVal<String>(PrefName.ContentSource)
-        val restoreIdx = pluginIds.indexOfFirst { it.equals(savedSource, ignoreCase = true) }
-        if (restoreIdx >= 0) pluginSpinner.setSelection(restoreIdx)
-        pluginSpinner.post { suppressSpinner = false }
+        pluginNameView.text = pluginNames.firstOrNull { it.equals(
+            PrefManager.getVal<String>(PrefName.ContentSource), ignoreCase = true
+        ) } ?: pluginNames[0]
+        pluginRowInner.setOnClickListener { showSourcePicker() }
+        pluginNameView.setOnClickListener { showSourcePicker() }
+        pluginArrow.setOnClickListener { showSourcePicker() }
 
         // --- Restore checkbox state (but always start collapsed) ---
         when (savedTracker) {
@@ -371,5 +379,93 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _view = null
+    }
+}
+
+/**
+ * Source picker rows for the dialog. Layout:
+ *   position 0  -> "List" section header (small, primary color, left aligned)
+ *   position 1  -> Simkl
+ *   position 2  -> low-contrast divider
+ *   position 3  -> "Plugin" section header
+ *   positions 4+ -> installed plugin sources
+ */
+private class SourcePickerAdapter(private val context: Context, private val names: List<String>) :
+    android.widget.BaseAdapter() {
+
+    companion object {
+        private const val TYPE_ROW = 0
+        private const val TYPE_DIVIDER = 1
+        private const val TYPE_HEADER = 2
+    }
+
+    override fun getCount(): Int = names.size + 3
+
+    override fun getItem(position: Int): Any = when {
+        position == 1 -> names[0]
+        position >= 4 -> names[position - 3]
+        else -> "" // header/divider rows; disabled, never bound from a name
+    }
+
+    override fun getItemId(position: Int): Long = position.toLong()
+
+    override fun getViewTypeCount(): Int = 3
+
+    override fun getItemViewType(position: Int): Int = when (position) {
+        0, 3 -> TYPE_HEADER
+        2 -> TYPE_DIVIDER
+        else -> TYPE_ROW
+    }
+
+    override fun isEnabled(position: Int): Boolean =
+        position == 1 || position >= 4
+
+    private fun realIndex(position: Int): Int = when (position) {
+        1 -> 0
+        else -> position - 3
+    }
+
+    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+        val primary = context.getThemeColor(com.google.android.material.R.attr.colorPrimary)
+        return when (position) {
+            0, 3 -> {
+                val header = convertView as? TextView ?: TextView(context).apply {
+                    gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                    setPadding(
+                        (context.resources.displayMetrics.density * 20).toInt(), 0,
+                        (context.resources.displayMetrics.density * 8).toInt(), 0
+                    )
+                    textSize = 12f
+                    setTypeface(Typeface.DEFAULT_BOLD)
+                    isEnabled = false
+                }
+                header.text = if (position == 0) "List" else "Plugin"
+                header.setTextColor(primary)
+                header
+            }
+
+            2 -> {
+                // A fresh divider is always built — its convertView is never
+                // recycled into a text row because of the distinct view type.
+                // White at ~17% alpha reads as a faint grey line on the
+                // AMOLED-black dialog surface (that's what the player's own
+                // dialog looks like), without clashing on light surfaces.
+                View(context).apply {
+                    layoutParams = ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        (context.resources.displayMetrics.density * 1).toInt().coerceAtLeast(1)
+                    )
+                    background = android.graphics.drawable.ColorDrawable(0x2BFFFFFF)
+                }
+            }
+
+            else -> {
+                val row = convertView as? CheckedTextView
+                    ?: LayoutInflater.from(context)
+                        .inflate(android.R.layout.simple_list_item_single_choice, parent, false)
+                row.text = names[realIndex(position)]
+                row
+            }
+        }
     }
 }
