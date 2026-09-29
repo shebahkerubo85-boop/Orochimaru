@@ -31,6 +31,13 @@ class AlertDialogBuilder(private val context: Context) {
     private var onCancel: (() -> Unit)? = null
     private var cancelable: Boolean = true
     private var dismissOnSelect: Boolean = true
+    private var fixedWidthPx: Int? = null
+
+    /** Caps the dialog window width, overriding the theme's default min width. */
+    fun setWidthPx(widthPx: Int): AlertDialogBuilder {
+        this.fixedWidthPx = widthPx
+        return this
+    }
     fun setCancelable(cancelable: Boolean): AlertDialogBuilder {
         this.cancelable = cancelable
         return this
@@ -239,6 +246,9 @@ class AlertDialogBuilder(private val context: Context) {
             onShow?.invoke()
         }
         dialog.window?.apply {
+            fixedWidthPx?.let {
+                setLayout(it, WindowManager.LayoutParams.WRAP_CONTENT)
+            }
             setDimAmount(0.5f)
             attributes.windowAnimations = android.R.style.Animation_Dialog
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

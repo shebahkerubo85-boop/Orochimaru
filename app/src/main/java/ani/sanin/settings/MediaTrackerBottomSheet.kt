@@ -320,6 +320,7 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             val adapterPos = if (currentIdx == 0) 1 else currentIdx + 3
             requireContext().customAlertDialog().apply {
                 setTitle(R.string.home_metadata)
+                setWidthPx((240 * requireContext().resources.displayMetrics.density).toInt())
                 singleChoiceAdapter(SourcePickerAdapter(requireContext(), pluginNames), adapterPos) { pos ->
                     val idx = if (pos == 1) 0 else pos - 3
                     PrefManager.setVal(PrefName.ContentSource, pluginIds[idx])
