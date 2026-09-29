@@ -63,6 +63,7 @@ class EchoNavPillController(
     private var savedPillPadding: IntArray? = null
     private var morphVersion = 0
     private var containerWidthAnimator: ValueAnimator? = null
+    private var appliedMaxWidthPx = -1
     private var indicatorAnimator: ValueAnimator? = null
     private val scrollViews = LinkedHashSet<View>()
     private val trackedLists = mutableSetOf<RecyclerView>()
@@ -270,9 +271,12 @@ class EchoNavPillController(
             lp.width = ViewGroup.LayoutParams.WRAP_CONTENT
             container.layoutParams = lp
         }
+        // View exposes setMaxWidth but no getMaxWidth, so this cannot be a Kotlin
+        // property. Tracked here to avoid a needless requestLayout on every pass.
         val max = maxContainerWidthPx()
-        if (container.maxWidth != max) {
-            container.maxWidth = max
+        if (appliedMaxWidthPx != max) {
+            appliedMaxWidthPx = max
+            container.setMaxWidth(max)
         }
     }
 
