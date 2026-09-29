@@ -3,7 +3,6 @@ package ani.sanin.ui.components
 import android.animation.PropertyValuesHolder
 import android.animation.ValueAnimator
 import android.animation.TimeInterpolator
-import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.view.View
@@ -15,6 +14,8 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
@@ -46,8 +47,11 @@ class EchoNavPillController(
     private val pillH = NavPillCustomizer.getHeightDp()
     private val iconRadiusPx = pillH * density / 2f
     private val indicatorRadiusPx = pillH * density / 2f
-    private val indicatorColor = 0x40FFFFFF.toInt()
-    private val surfaceColor = 0x30FFFFFF.toInt()
+    /** Translucent tint of the pill it sits on, so it reads on black and on white. */
+    private val indicatorColor: Int
+        get() = if (NavPillCustomizer.isDarkTheme()) 0x40FFFFFF.toInt() else 0x33000000
+    /** Collapsed non-glass button fill: a solid pill, matching the expanded one. */
+    private val surfaceColor: Int get() = NavPillCustomizer.getPillFillColor()
 
     private var selectedIndex = 0
     private var collapsed = false
@@ -57,7 +61,6 @@ class EchoNavPillController(
     private var morphVersion = 0
     private var containerWidthAnimator: ValueAnimator? = null
     private var indicatorAnimator: ValueAnimator? = null
-    private var expandedContainerBackground: Drawable? = null
     private val scrollViews = LinkedHashSet<View>()
     private val trackedLists = mutableSetOf<RecyclerView>()
     private val lastScrollY = HashMap<View, Int>()
@@ -91,8 +94,17 @@ class EchoNavPillController(
         }
     }
 
+    /**
+     * The label is a real child of the pill_list, not a free-floating overlay. That
+     * way the LinearLayout reserves genuine horizontal space for it and pushes the
+     * sibling pills out of the way by itself. The overlay version painted wider and
+     * looked right but the icons never moved, so the text landed on the next icon.
+     */
     private val labelView: TextView? by lazy {
         if (labels.isEmpty()) return@lazy null
+        // Horizontal rail only. The vertical/TV rail keeps its original behaviour; the
+        // only change there is that the gradient is gone.
+        if (pillList?.orientation == LinearLayout.VERTICAL) return@lazy null
         TextView(container.context).apply {
             setTextColor(NavPillCustomizer.getIconColor())
             textSize = TypedValue.applyDimension(
@@ -103,14 +115,23 @@ class EchoNavPillController(
             )
             includeFontPadding = false
             isSingleLine = true
+            // Never let a long label stretch the bar past the screen margins.
+            ellipsize = android.text.TextUtils.TruncateAt.END
             visibility = View.GONE
-            layoutParams = FrameLayout.LayoutParams(
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                android.view.Gravity.TOP or android.view.Gravity.START
-            )
+                ViewGroup.LayoutParams.MATCH_PARENT
+            ).apply {
+                leftMargin = labelGapPx
+            }
         }
     }
+
+    /** Width the label currently occupies, so it can be animated to 0 on collapse. */
+    private var labelWidthPx = 0
+
+
 
     private val searchButton: ImageButton? by lazy {
         if (row == null || onSearch == null) return@lazy null
@@ -128,13 +149,19 @@ class EchoNavPillController(
 
     fun attach(initialIndex: Int) {
         selectedIndex = initialIndex
-        expandedContainerBackground = container.background
         if (indicator.parent == null) {
             container.addView(indicator, 1)
         }
         labelView?.let { lbl ->
             if (lbl.parent == null) {
-                container.addView(lbl, 2)
+                // Sits in pill_list, immediately after the selected pill, so the layout
+                // engine gives it real space and shifts the following pills along.
+                val anchor = pillList?.indexOfChild(pills.getOrNull(selectedIndex)) ?: -1
+                if (pillList != null && anchor >= 0) {
+                    pillList.addView(lbl, anchor + 1)
+                } else {
+                    pillList?.addView(lbl)
+                }
             }
         }
         searchButton?.let { sb ->
@@ -147,8 +174,14 @@ class EchoNavPillController(
             }
         }
         container.post {
+            // Two passes: the first gives the label its width, which changes the
+            // container's width and therefore the pills' positions; the second reads
+            // the settled geometry so the indicator lands on the right spot.
             positionLabelOverlay()
-            positionIndicator(selectedIndex, animate = false)
+            repinContainerWidth()
+            container.post {
+                positionIndicator(selectedIndex, animate = false)
+            }
         }
     }
 
@@ -165,11 +198,41 @@ class EchoNavPillController(
         }
         if (index == oldIndex) {
             positionLabelOverlay()
+            repinContainerWidth()
             positionIndicator(index, animate)
         } else {
             container.post {
                 positionLabelOverlay()
-                positionIndicator(index, animate)
+                repinContainerWidth()
+                // The label's new width shifts the pills, so read the settled geometry.
+                container.post { positionIndicator(index, animate) }
+            }
+        }
+    }
+
+    /**
+     * The container width is pinned after a morph, so it has to be re-pinned whenever
+     * the label width changes or the settings change, otherwise the bar keeps a stale
+     * size. Falls back to WRAP_CONTENT so the layout can size itself naturally.
+     */
+    private fun repinContainerWidth() {
+        if (collapsed) return
+        if (labelView == null) {
+            // Vertical rail or no labels: let the layout wrap its content as before.
+            val lp = container.layoutParams ?: return
+            if (lp.width != ViewGroup.LayoutParams.WRAP_CONTENT) {
+                lp.width = ViewGroup.LayoutParams.WRAP_CONTENT
+                container.layoutParams = lp
+            }
+            return
+        }
+        container.post {
+            val want = container.measuredWidth.coerceAtMost(maxContainerWidthPx())
+            if (want <= 0) return@post
+            val lp = container.layoutParams ?: return@post
+            if (lp.width != want) {
+                lp.width = want
+                container.layoutParams = lp
             }
         }
     }
@@ -273,16 +336,38 @@ class EchoNavPillController(
     }
 
     /**
+     * Re-tints the label to match the Icon Tint setting. The activities tint the icon
+     * buttons directly, so without this the text would lag behind them whenever the
+     * setting changes while a tab is already showing.
+     */
+    fun refreshLabelTint() {
+        labelView?.setTextColor(NavPillCustomizer.getIconColor())
+    }
+
+    /**
      * Re-applies the glass/background arrangement for the current state. Call this
      * whenever the rail is re-shown (e.g. onResume) so a collapsed rail keeps its
      * two independent glass buttons instead of regaining the shared pill.
      */
     fun syncGlass() {
+        // Called from onResume and whenever the appearance settings are re-applied, so
+        // this is where a changed pill height, icon size or tint gets picked up.
         if (!isScrollCapable) {
             applySharedContainerGlass()
             return
         }
         if (collapsed) applyCollapsedGlass() else applyExpandedGlass()
+        if (collapsed) {
+            val want = container.measuredWidth.coerceAtMost(maxContainerWidthPx())
+            val lp = container.layoutParams
+            if (want > 0 && lp.width != want) {
+                lp.width = want
+                container.layoutParams = lp
+            }
+        } else {
+            positionLabelOverlay()
+            repinContainerWidth()
+        }
     }
 
     private fun applySharedContainerGlass() {
@@ -293,7 +378,10 @@ class EchoNavPillController(
                 NavPillCustomizer.getCornerRadiusDp().toFloat()
             )
         } else {
+            // No glass: paint one solid fill so the pill actually has a body. Leaving
+            // the transparent bg_clay_pill here is what made the icons look detached.
             GlassEffectManager.removeGlass(container)
+            NavPillCustomizer.applyPillBackground(container)
         }
     }
 
@@ -317,7 +405,6 @@ class EchoNavPillController(
             GlassEffectManager.removeGlass(it)
             it.setBackgroundResource(android.R.color.transparent)
         }
-        container.background = expandedContainerBackground
         container.clipToOutline = true
         applySharedContainerGlass()
     }
@@ -364,6 +451,17 @@ class EchoNavPillController(
         labelView?.let { lbl ->
             fadeAlpha(lbl, 0f)
             lbl.visibility = View.INVISIBLE
+            // Zero the axes the label occupies on this rail, so the list does not keep
+            // a hole where the text was and the floating pill stays centred.
+            lbl.layoutParams = lbl.layoutParams.apply {
+                width = 0
+                height = 0
+                if (this is LinearLayout.LayoutParams) {
+                    leftMargin = 0
+                    topMargin = 0
+                }
+            }
+            labelWidthPx = 0
         }
         fadeAlpha(indicator, 0f)
         backgroundPill?.let { fadeAlpha(it, 0f) }
@@ -389,8 +487,11 @@ class EchoNavPillController(
             pl.requestLayout()
             pl.post {
                 if (version != morphVersion || !collapsed) return@post
-                val targetWidth = container.measuredWidth
-                animateContainerWidth(startWidth, targetWidth) {
+                // The container wraps its content, so measuring after the list has
+                // reflowed gives the settled width. Cap it so a long label can never
+                // push the bar past the screen margins.
+                val target = container.measuredWidth.coerceAtMost(maxContainerWidthPx())
+                animateContainerWidth(startWidth, target) {
                     if (version != morphVersion || !collapsed) return@animateContainerWidth
                     searchButton?.animate()
                         ?.alpha(1f)?.scaleX(1f)?.scaleY(1f)?.setDuration(180)?.start()
@@ -460,21 +561,61 @@ class EchoNavPillController(
         }
     }
 
+    /**
+     * Moves the label into the layout right after the selected pill and sizes it to its
+     * text. Because it is a genuine child of pill_list, the sibling pills reflow to make
+     * room, so nothing can overlap. Horizontal rail only.
+     */
     private fun positionLabelOverlay() {
         val lbl = labelView ?: return
+        val parent = lbl.parent as? LinearLayout ?: return
         val pill = pills.getOrNull(selectedIndex) ?: return
         lbl.text = labels.getOrNull(selectedIndex) ?: ""
-        val mspec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-        lbl.measure(mspec, mspec)
-        val cLoc = IntArray(2)
-        val pLoc = IntArray(2)
-        container.getLocationInWindow(cLoc)
-        pill.getLocationInWindow(pLoc)
-        val iconSizePx = NavPillCustomizer.getIconSizeDp() * density
-        val iconRight = pLoc[0] - cLoc[0] + pill.width / 2f + iconSizePx / 2f
-        lbl.translationX = iconRight + labelGapPx
-        lbl.translationY =
-            (pLoc[1] - cLoc[1] + (pill.height - lbl.measuredHeight) / 2f).toFloat()
+        // The label is built once, but the Icon Tint setting can change underneath us.
+        lbl.setTextColor(NavPillCustomizer.getIconColor())
+
+        val wantAnchor = parent.indexOfChild(pill)
+        if (wantAnchor >= 0 && parent.indexOfChild(lbl) != wantAnchor + 1) {
+            parent.removeView(lbl)
+            parent.addView(lbl, wantAnchor + 1)
+        }
+
+        // The pill may not be laid out yet (first attach), so fall back to its
+        // configured height rather than measuring against zero.
+        val pillSize = if (pill.height > 0) pill.height else (pillH * density).roundToInt()
+        val lp = lbl.layoutParams
+        // Restore both axes: collapse zeroed them, and the rail only needs the width.
+        if (lp is LinearLayout.LayoutParams) {
+            lp.leftMargin = labelGapPx
+            lp.topMargin = 0
+        }
+        // Never let a long label stretch the bar past the screen margins.
+        val roomForText = (maxContainerWidthPx() - pillSize - labelGapPx).coerceAtLeast(0)
+        lbl.measure(
+            View.MeasureSpec.makeMeasureSpec(roomForText, View.MeasureSpec.AT_MOST),
+            View.MeasureSpec.makeMeasureSpec(pillSize, View.MeasureSpec.EXACTLY)
+        )
+        lp.width = lbl.measuredWidth
+        lp.height = pillSize
+        lbl.layoutParams = lp
+        labelWidthPx = lbl.measuredWidth
+        parent.requestLayout()
+    }
+
+    /**
+     * Hard ceiling for the bar: the screen width less the container's own side margins
+     * and the navigation-bar inset. The label ellipsizes past this rather than letting
+     * the pill run off the edge.
+     */
+    private fun maxContainerWidthPx(): Int {
+        val screen = container.resources.displayMetrics.widthPixels
+        val lp = container.layoutParams
+        val margins = if (lp is ViewGroup.MarginLayoutParams) lp.leftMargin + lp.rightMargin else 0
+        // ViewCompat, not rootWindowInsets.getInsets(): the latter is API 30+ and
+        // minSdk here is 23.
+        val insets = ViewCompat.getRootWindowInsets(container)
+            ?.getInsets(WindowInsetsCompat.Type.systemBars())?.left ?: 0
+        return (screen - margins - insets).coerceAtLeast((pillH * density).roundToInt() * 2)
     }
 
     private fun refreshCollapsedSelection(from: Int, to: Int) {
@@ -500,13 +641,15 @@ class EchoNavPillController(
         pill.getLocationInWindow(pLoc)
         val vx = (pLoc[0] - cLoc[0]).toFloat()
         val vy = (pLoc[1] - cLoc[1]).toFloat()
-        var width = pill.width
+        // The label is a sibling that already occupies its own layout space, so the
+        // indicator spans the icon and the text as one continuous pill. The vertical
+        // rail is left exactly as it was, minus the gradient.
+        val vertical = pillList?.orientation == LinearLayout.VERTICAL
+        val stretch = if (vertical) 0 else labelView?.let { lbl ->
+            if (lbl.visibility == View.VISIBLE && !collapsed) labelWidthPx + labelGapPx else 0
+        } ?: 0
+        val width = pill.width + stretch
         val height = pill.height
-        labelView?.let { lbl ->
-            if (lbl.visibility == View.VISIBLE && !collapsed && lbl.measuredWidth > 0) {
-                width = ((lbl.translationX - vx) + lbl.measuredWidth).roundToInt()
-            }
-        }
         if (animate) {
             animateIndicator(vx, vy, width, height)
         } else {
@@ -559,7 +702,9 @@ class EchoNavPillController(
             }
             addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: android.animation.Animator) {
-                    lp.width = ViewGroup.LayoutParams.WRAP_CONTENT
+                    // Settle on the target width rather than WRAP_CONTENT: switching back
+                    // makes the bar re-measure mid-morph and visibly jump.
+                    lp.width = to.coerceAtLeast(1)
                     container.layoutParams = lp
                     done()
                 }

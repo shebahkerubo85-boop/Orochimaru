@@ -1025,6 +1025,7 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         pills.forEach { pill ->
             pill.imageTintList = ColorStateList.valueOf(customColor)
         }
+        tmdbNavPill?.refreshLabelTint()
     }
 
     private var tmdbNavPill: EchoNavPillController? = null

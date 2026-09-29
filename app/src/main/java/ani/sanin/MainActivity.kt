@@ -970,6 +970,7 @@ class MainActivity : AppCompatActivity() {
             pill.imageTintList = android.content.res.ColorStateList.valueOf(customColor)
             pill.alpha = 1f
         }
+        homeNavPill?.refreshLabelTint()
     }
 
     private fun setHomeNavPillsFocusable(focusable: Boolean) {

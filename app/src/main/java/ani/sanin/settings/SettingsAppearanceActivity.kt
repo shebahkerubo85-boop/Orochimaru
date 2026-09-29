@@ -31,7 +31,6 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
-import ani.sanin.util.NavPillCustomizer
 import ani.sanin.util.customAlertDialog
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.slider.Slider
@@ -353,20 +352,11 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                         ) { PrefManager.setVal(PrefName.NavPillCornerRadius, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Icon Tint", desc = "Overrides the automatic icon color",
+                        title = "Icon Tint", desc = "Color of the navigation pill icons",
                         iconRes = R.drawable.ic_set_theme,
                         onClick = { showColorGrid("Icon Tint", PrefName.NavPillIconColor) },
                     ),
-                    SubscreenBuilder.Entry(
-                        title = "Reset Icon Tint", desc = "Go back to automatic (light/dark)",
-                        iconRes = R.drawable.ic_set_theme,
-                        onClick = {
-                            PrefManager.setVal(
-                                PrefName.NavPillIconColor,
-                                NavPillCustomizer.DEFAULT_ICON_COLOR
-                            )
-                        },
-                    ),
+
                 ),
             ),
             SubscreenBuilder.Section(

@@ -246,9 +246,6 @@ class AlertDialogBuilder(private val context: Context) {
             onShow?.invoke()
         }
         dialog.window?.apply {
-            fixedWidthPx?.let {
-                setLayout(it, WindowManager.LayoutParams.WRAP_CONTENT)
-            }
             setDimAmount(0.5f)
             attributes.windowAnimations = android.R.style.Animation_Dialog
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -259,6 +256,12 @@ class AlertDialogBuilder(private val context: Context) {
             }
         }
         dialog.show()
+        // Must be after show(): before the window is attached to the WindowManager,
+        // setLayout() is dropped and the theme's default width wins, so the dialog
+        // came out full-bleed no matter what width was requested here.
+        fixedWidthPx?.let { widthPx ->
+            dialog.window?.setLayout(widthPx, WindowManager.LayoutParams.WRAP_CONTENT)
+        }
     }
 }
 

@@ -545,6 +545,7 @@ class MediaDetailsActivity : AppCompatActivity() {
         pills.forEach { pill ->
             pill.imageTintList = ColorStateList.valueOf(customColor)
         }
+        mediaNavPill?.refreshLabelTint()
     }
 
     private var mediaNavPill: EchoNavPillController? = null

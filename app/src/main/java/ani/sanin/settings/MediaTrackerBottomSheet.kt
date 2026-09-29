@@ -318,10 +318,19 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             // Dialog layout: [List header] [Simkl] [divider] [Plugin header] [plug 1..n]
             // so Simkl is position 1 and plugin i (>=1) is position i + 3.
             val adapterPos = if (currentIdx == 0) 1 else currentIdx + 3
+            val picker = SourcePickerAdapter(requireContext(), pluginNames, adapterPos)
             requireContext().customAlertDialog().apply {
                 setTitle(R.string.home_metadata)
                 setWidthPx((240 * requireContext().resources.displayMetrics.density).toInt())
-                singleChoiceAdapter(SourcePickerAdapter(requireContext(), pluginNames), adapterPos) { pos ->
+                // The framework only ticks a radio for rows it wires up itself, and our
+                // BaseAdapter builds its own CheckedTextViews, so the ListView's checked
+                // set is never populated. Letting the adapter own the checked state is
+                // what actually moves the indicator.
+                attach { d ->
+                    d.listView?.choiceMode = android.widget.ListView.CHOICE_MODE_NONE
+                }
+                singleChoiceAdapter(picker, adapterPos) { pos ->
+                    picker.setChecked(pos)
                     val idx = if (pos == 1) 0 else pos - 3
                     PrefManager.setVal(PrefName.ContentSource, pluginIds[idx])
                     pluginNameView.text = pluginNames[idx]
@@ -392,8 +401,11 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
  *   position 3  -> "Plugin" section header
  *   positions 4+ -> installed plugin sources
  */
-private class SourcePickerAdapter(private val context: Context, private val names: List<String>) :
-    android.widget.BaseAdapter() {
+private class SourcePickerAdapter(
+    private val context: Context,
+    private val names: List<String>,
+    checkedPosition: Int
+) : android.widget.BaseAdapter() {
 
     companion object {
         private const val TYPE_ROW = 0
@@ -407,6 +419,23 @@ private class SourcePickerAdapter(private val context: Context, private val name
     }
 
     private val rowMaxWidth = (context.resources.displayMetrics.density * 280).toInt()
+
+    /**
+     * The adapter owns the checked row. The framework's single-choice handling never
+     * ticks a row that a BaseAdapter built itself, so asking the ListView what is
+     * checked (the previous approach) always came back with nothing and the radio
+     * indicator stayed blank.
+     */
+    private var checkedPosition = checkedPosition
+
+    /**
+     * Moves the indicator. Kept for the case where the dialog is configured not to
+     * dismiss on select, so the tick follows the tap immediately.
+     */
+    fun setChecked(position: Int) {
+        if (position == checkedPosition) return
+        checkedPosition = position
+    }
 
     override fun getCount(): Int = names.size + 3
 
@@ -485,10 +514,9 @@ private class SourcePickerAdapter(private val context: Context, private val name
                 row.ellipsize = android.text.TextUtils.TruncateAt.END
                 row.setSingleLine(true)
                 row.setPadding(0, 0, 0, 0)
-                // Rebind checked state from the ListView so recycled rows stay in sync.
-                (parent as? android.widget.ListView)?.let { list ->
-                    row.isChecked = list.isItemChecked(position)
-                }
+                // Checked state comes from the adapter, not from the ListView: this
+                // BaseAdapter builds its own rows, so the framework never ticks them.
+                row.isChecked = position == checkedPosition
                 row
             }
         }
