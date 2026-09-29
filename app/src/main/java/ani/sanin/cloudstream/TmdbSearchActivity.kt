@@ -49,17 +49,10 @@ class TmdbSearchActivity : AppCompatActivity() {
         binding = ActivityTmdbSearchBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-                val dm = resources.displayMetrics
-        val screenWidthPx = dm.widthPixels
-        val density = dm.density
-        val landscape = TmdbCards.isLandscapeOrientation()
-        val size = TmdbCards.cardSize()
-        val cardWidthPx = ((if (landscape) 260f else 102f) * size * density).toInt()
-        val marginEndPx = (12 * density).toInt()
-        val paddingPx = (32 * density).toInt()
-        val cols = ((screenWidthPx - paddingPx) / (cardWidthPx + marginEndPx)).toInt().coerceAtLeast(2)
+                val cols = TmdbCards.gridSpan(resources.displayMetrics.widthPixels / resources.displayMetrics.density)
         binding.tmdbSearchGrid.layoutManager = GridLayoutManager(this, cols)
         binding.tmdbSearchGrid.adapter = adapter
+        TmdbCards.applyGridSpan(binding.tmdbSearchGrid)
 
         binding.tmdbSearchBack.setOnClickListener { finish() }
         FocusEffectUtil.applyFocusListener(binding.tmdbSearchBack)
@@ -192,20 +185,9 @@ class TmdbSearchActivity : AppCompatActivity() {
         selectedPluginApi = api
         val hasPlugins = api != null || getSelectedPlugins().isNotEmpty()
         binding.tmdbSearchGrid.adapter = if (hasPlugins) pluginAdapter else adapter
-        binding.tmdbSearchGrid.layoutManager = if (hasPlugins)
-            LinearLayoutManager(this)
-        else {
-            val dm = resources.displayMetrics
-            val screenWidthPx = dm.widthPixels
-            val density = dm.density
-            val landscape = TmdbCards.isLandscapeOrientation()
-            val size = TmdbCards.cardSize()
-            val cardWidthPx = ((if (landscape) 260f else 102f) * size * density).toInt()
-            val marginEndPx = (12 * density).toInt()
-            val paddingPx = (32 * density).toInt()
-            val cols = ((screenWidthPx - paddingPx) / (cardWidthPx + marginEndPx)).toInt().coerceAtLeast(2)
-            GridLayoutManager(this, cols)
-        }
+        val cols = TmdbCards.gridSpan(resources.displayMetrics.widthPixels / resources.displayMetrics.density)
+        binding.tmdbSearchGrid.layoutManager = GridLayoutManager(this, cols)
+        TmdbCards.applyGridSpan(binding.tmdbSearchGrid)
     }
 
     private fun showHistory() {
@@ -249,9 +231,11 @@ class TmdbSearchActivity : AppCompatActivity() {
                     if (results.isNotEmpty()) pluginNames.add(name)
                 }
                 binding.tmdbSearchProgress.isVisible = false
-                // Switch RecyclerView to plugin adapter + list layout
+                // Switch RecyclerView to plugin adapter + adaptive grid layout
                 binding.tmdbSearchGrid.adapter = pluginAdapter
-                binding.tmdbSearchGrid.layoutManager = LinearLayoutManager(this@TmdbSearchActivity)
+                val cols = TmdbCards.gridSpan(resources.displayMetrics.widthPixels / resources.displayMetrics.density)
+                binding.tmdbSearchGrid.layoutManager = GridLayoutManager(this@TmdbSearchActivity, cols)
+                TmdbCards.applyGridSpan(binding.tmdbSearchGrid)
                 pluginAdapter.submit(allResults)
                 binding.tmdbSearchEmpty.isVisible = allResults.isEmpty()
                 if (allResults.isEmpty()) snackString("No results for '$query'")
@@ -260,16 +244,9 @@ class TmdbSearchActivity : AppCompatActivity() {
                 binding.tmdbSearchProgress.isVisible = false
                 // Ensure TMDB grid adapter + layout
                 binding.tmdbSearchGrid.adapter = adapter
-                val dm = resources.displayMetrics
-                val screenWidthPx = dm.widthPixels
-                val density = dm.density
-                val landscape = TmdbCards.isLandscapeOrientation()
-                val size = TmdbCards.cardSize()
-                val cardWidthPx = ((if (landscape) 260f else 102f) * size * density).toInt()
-                val marginEndPx = (12 * density).toInt()
-                val paddingPx = (32 * density).toInt()
-                val cols = ((screenWidthPx - paddingPx) / (cardWidthPx + marginEndPx)).toInt().coerceAtLeast(2)
+                val cols = TmdbCards.gridSpan(resources.displayMetrics.widthPixels / resources.displayMetrics.density)
                 binding.tmdbSearchGrid.layoutManager = GridLayoutManager(this@TmdbSearchActivity, cols)
+                TmdbCards.applyGridSpan(binding.tmdbSearchGrid)
                 adapter.submit(results)
                 binding.tmdbSearchEmpty.isVisible = results.isEmpty()
                 if (results.isEmpty()) snackString("No results for '$query'")
@@ -437,7 +414,17 @@ class TmdbSearchActivity : AppCompatActivity() {
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             val item = items[position]
-            TmdbCards.applyCardStyle(holder.binding, item)
+            // The card takes the width of its column so a row of them fills the screen
+            // exactly; the preference that sizes rail cards would overflow a grid cell.
+            val rv = holder.itemView.parent as? RecyclerView
+            val span = (rv?.layoutManager as? GridLayoutManager)?.spanCount ?: 0
+            val cell = if (rv != null && span > 0) TmdbCards.cellWidthPx(rv, span) else null
+            TmdbCards.applyCardStyle(holder.binding, item, cell)
+            if (rv != null) {
+                holder.binding.root.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                    bottomMargin = TmdbCards.gridRowGapPx(rv)
+                }
+            }
             holder.binding.tmdbCardTitle.text = item.displayTitle
             holder.binding.tmdbCardYear.text = item.year
             holder.binding.tmdbCardPoster.setOnClickListener { onOpen(item) }
