@@ -63,7 +63,6 @@ class EchoNavPillController(
     private var savedPillPadding: IntArray? = null
     private var morphVersion = 0
     private var containerWidthAnimator: ValueAnimator? = null
-    private var appliedMaxWidthPx = -1
     private var indicatorAnimator: ValueAnimator? = null
     private val scrollViews = LinkedHashSet<View>()
     private val trackedLists = mutableSetOf<RecyclerView>()
@@ -271,14 +270,24 @@ class EchoNavPillController(
             lp.width = ViewGroup.LayoutParams.WRAP_CONTENT
             container.layoutParams = lp
         }
-        // maxWidth is a write-only property: View has setMaxWidth but no getMaxWidth, so
-        // it can be assigned but never read. The applied value is tracked here instead of
-        // read back, which also avoids a needless requestLayout on every pass.
-        val max = maxContainerWidthPx()
-        if (appliedMaxWidthPx != max) {
-            appliedMaxWidthPx = max
-            container.maxWidth = max
+    }
+
+    /**
+     * Horizontal space in [parent] that [exclude] does not get: the list's own padding
+     * plus every sibling's width and left margin. Read from layout params where possible
+     * so it is correct before the first layout pass, falling back to the measured width.
+     */
+    private fun fixedChildWidthPx(parent: LinearLayout, exclude: View): Int {
+        var total = parent.paddingLeft + parent.paddingRight
+        for (i in 0 until parent.childCount) {
+            val child = parent.getChildAt(i)
+            if (child === exclude) continue
+            val lp = child.layoutParams
+            val width = if (lp != null && lp.width > 0) lp.width else child.width
+            val margin = if (lp is LinearLayout.LayoutParams) lp.leftMargin else 0
+            total += width + margin
         }
+        return total
     }
 
     fun setCollapsed(collapsed: Boolean) {
@@ -701,8 +710,13 @@ class EchoNavPillController(
             lp.leftMargin = leftMargin
             lp.topMargin = 0
         }
-        // Never let a long label stretch the bar past the screen margins.
-        val roomForText = (maxContainerWidthPx() - pillSize - leftMargin).coerceAtLeast(0)
+        // Bound the text so the bar, at WRAP_CONTENT, still fits inside the screen
+        // margins. Every other child already occupies a fixed width, so the label only
+        // gets what is left over. This replaces a maxWidth cap on the container, and is
+        // stricter: the old cap only knew about the selected pill, so it ignored the
+        // other pills and the search button and let the bar overflow on a narrow screen.
+        val roomForText = (maxContainerWidthPx() - fixedChildWidthPx(parent, lbl) - leftMargin)
+            .coerceAtLeast(0)
         lbl.measure(
             View.MeasureSpec.makeMeasureSpec(roomForText, View.MeasureSpec.AT_MOST),
             View.MeasureSpec.makeMeasureSpec(pillSize, View.MeasureSpec.EXACTLY)
