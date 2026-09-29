@@ -298,8 +298,8 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
 
         // --- Plugin spinner ---
         val installedSources = CsRepos.installed(requireContext())
-        val pluginNames = mutableListOf("TMDB")
-        val pluginIds = mutableListOf("tmdb")
+        val pluginNames = mutableListOf("Simkl")
+        val pluginIds = mutableListOf("simkl")
         installedSources.forEach { src ->
             pluginNames.add(src.name)
             pluginIds.add(src.id)

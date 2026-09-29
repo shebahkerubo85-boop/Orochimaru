@@ -300,7 +300,7 @@ class TmdbHomeFragment : Fragment() {
 
     private fun load() {
         val sourceId = PrefManager.getVal<String>(PrefName.ContentSource)
-        val plugin = if (sourceId == "tmdb") null
+        val plugin = if (sourceId == "simkl" || sourceId == "tmdb") null
             else CsRepos.installed(requireContext()).firstOrNull { it.id == sourceId }
         loadJob?.cancel()
         binding.tmdbHomeSections.removeAllViews()
@@ -308,14 +308,18 @@ class TmdbHomeFragment : Fragment() {
         loadJob = viewLifecycleOwner.lifecycleScope.launch {
             // Load banner (single view — adds immediately, no frame skip).
             loadBanner(plugin)
-            // Try plugin home sections first; fall back to TMDB if plugin has none.
+            // Try plugin home sections first; fall back to Simkl if plugin has none.
             val hasPluginSections = if (plugin != null) {
                 loadPluginSections(plugin)
             } else false
             // Continue watching row is shared across every home mode.
             loadSimklContinueWatching()
             if (!hasPluginSections) {
-                loadTmdbSections()
+                if (sourceId == "simkl" || sourceId == "tmdb") {
+                    loadSimklHomeSections()
+                } else {
+                    loadTmdbSections()
+                }
             }
             binding.tmdbHomeSpinner.isVisible = false
         }
@@ -732,6 +736,96 @@ class TmdbHomeFragment : Fragment() {
         }
         binding.tmdbHomeSections.addView(header)
         binding.tmdbHomeSections.addView(list)
+    }
+
+    /**
+     * Simkl-driven home rails (Favourites, Planned, Recommended) shown when the
+     * content source is Simkl. Recommended: seeded from the user's own library via
+     * TMDB "similar", falling back to random TMDB picks when the library is empty.
+     */
+    private suspend fun loadSimklHomeSections() = coroutineScope {
+        val all = if (Simkl.token != null) {
+            withContext(Dispatchers.IO) { Simkl.getLibrary() }
+                ?.let { it.movies.orEmpty() + it.shows.orEmpty() }.orEmpty()
+        } else emptyList()
+        // Favourites = user_rating 9-10 (same rule as the library "Favourites" tab).
+        val favourites = all.filter { (it.userRating ?: 0) >= 9 }
+        if (favourites.isNotEmpty()) addSimklSection("Favourites", favourites)
+        val planned = all.filter {
+            val s = it.status?.lowercase()
+            s == "plantowatch" || s == "planning"
+        }
+        if (planned.isNotEmpty()) addSimklSection("Planned", planned)
+        loadRecommended(all)
+        startAutoAdvance()
+        applyTmdbBannerFocusChain()
+    }
+
+    /** Seeds TMDB "similar" from a few library items; random pick when library is empty. */
+    private suspend fun loadRecommended(libraryItems: List<Simkl.SimklWatchedItem>) = coroutineScope {
+        if (libraryItems.isNotEmpty()) {
+            val seeds = libraryItems
+                .mapNotNull { item ->
+                    val id = item.ids?.tmdb ?: return@mapNotNull null
+                    Triple(item, item.mediaType ?: "tv", id)
+                }
+                .distinctBy { it.second + it.third }
+                .take(3)
+            val liked = seeds.flatMap { (_, mediaType, id) ->
+                runCatching { Tmdb.similar(mediaType, id) }.getOrDefault(emptyList())
+            }
+            // Drop anything already in the library, keep unique ids.
+            val known = libraryItems.mapNotNull { it.ids?.tmdb }.toSet()
+            val recs = liked.asReversed().distinctBy { it.type to it.id }.reversed()
+                .filterNot { it.id in known }
+                .take(20)
+            if (recs.isNotEmpty()) {
+                addSection("Recommended", recs)
+                return@coroutineScope
+            }
+        }
+        // Empty library → random trending picks (TMDB), shuffled into a shelf.
+        val trending = withContext(Dispatchers.IO) {
+            runCatching {
+                Tmdb.trending("movie", "week") + Tmdb.trending("tv", "week")
+            }.getOrDefault(emptyList())
+        }
+        val known = libraryItems.mapNotNull { it.ids?.tmdb }.toSet()
+        val recs = trending.asReversed().distinctBy { it.type to it.id }.reversed()
+            .filterNot { it.id in known }
+            .shuffled()
+            .take(20)
+        if (recs.isNotEmpty()) addSection("Recommended", recs)
+    }
+
+    /** A horizontal Simkl poster rail, reusing the anime-library card style. */
+    private fun addSimklSection(title: String, items: List<Simkl.SimklWatchedItem>) {
+        if (items.isEmpty()) return
+        val ctx = requireContext()
+        val header = TextView(ctx).apply {
+            text = title
+            setPadding(24, 14, 24, 8)
+            textSize = 16f
+            setTypeface(android.graphics.Typeface.DEFAULT_BOLD)
+            setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+        }
+        val list = RecyclerView(ctx).apply {
+            layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
+            adapter = SimklRowAdapter(items) { item ->
+                val tmdbId = item.ids?.tmdb ?: return@SimklRowAdapter
+                openDetails(item.mediaType ?: "tv", tmdbId)
+            }
+            isNestedScrollingEnabled = false
+            overScrollMode = View.OVER_SCROLL_NEVER
+            setPadding(24, 0, 24, 0)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = 11f.px }
+        }
+        binding.tmdbHomeSections.addView(header)
+        binding.tmdbHomeSections.addView(list)
+        applyTmdbBannerFocusChain()
     }
 
     private fun addEmptyState(text: String) {
@@ -1338,6 +1432,67 @@ class TmdbHomeFragment : Fragment() {
                     b.tmdbCardTitle.text = item.name
                     b.tmdbCardYear.isVisible = false
                 }
+            }
+
+            b.tmdbCardPoster.setOnClickListener { onClick(item) }
+            FocusEffectUtil.applyFocusListener(b.tmdbCardPoster)
+        }
+
+        override fun getItemCount(): Int = items.size
+
+        class VH(val binding: ItemTmdbCardBinding) : RecyclerView.ViewHolder(binding.root)
+    }
+
+    /** Portrait poster rail for Simkl library items (Favourites / Planned / Recommended). */
+    class SimklRowAdapter(
+        private val items: List<Simkl.SimklWatchedItem>,
+        private val onClick: (Simkl.SimklWatchedItem) -> Unit
+    ) : RecyclerView.Adapter<SimklRowAdapter.VH>() {
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+            val b = ItemTmdbCardBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+            return VH(b)
+        }
+
+        override fun onBindViewHolder(holder: VH, position: Int) {
+            val item = items[position]
+            val b = holder.binding
+            val landscape = TmdbCards.isLandscapeOrientation()
+            val size = TmdbCards.cardSize()
+            val (w, h) = if (landscape) {
+                (260f * size).toInt() to (148f * size).toInt()
+            } else {
+                (102f * size).toInt() to (154f * size).toInt()
+            }
+            b.tmdbCardPoster.updateLayoutParams<ViewGroup.LayoutParams> {
+                width = w
+                height = h
+            }
+            b.tmdbCard.radius = TmdbCards.roundness()
+
+            val posterUrl = Simkl.imageUrl(item.poster, if (landscape) "w" else "m")
+            if (!posterUrl.isNullOrBlank()) {
+                b.tmdbCardPoster.loadImage(posterUrl)
+            } else {
+                b.tmdbCardPoster.setImageResource(R.drawable.ic_round_person_24)
+            }
+            if (landscape) {
+                // Wide card: gradient + overlay title, no title below.
+                b.tmdbCardTitle.isVisible = false
+                b.tmdbCardYear.isVisible = false
+                b.tmdbCardLogo.isVisible = false
+                b.tmdbCardGradient.isVisible = true
+                b.tmdbCardOverlayTitle.isVisible = true
+                b.tmdbCardOverlayTitle.text = item.title ?: ""
+            } else {
+                // Portrait: poster with title + year below (anime-library rail style).
+                b.tmdbCardTitle.isVisible = true
+                b.tmdbCardTitle.text = item.title ?: ""
+                b.tmdbCardYear.isVisible = item.year != null
+                b.tmdbCardYear.text = item.year?.toString() ?: ""
+                b.tmdbCardGradient.isVisible = false
+                b.tmdbCardOverlayTitle.isVisible = false
+                b.tmdbCardLogo.isVisible = false
             }
 
             b.tmdbCardPoster.setOnClickListener { onClick(item) }

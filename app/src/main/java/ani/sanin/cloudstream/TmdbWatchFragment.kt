@@ -719,7 +719,7 @@ class TmdbWatchFragment : Fragment() {
             if (idx >= 0) return idx
         }
         val preferredId = pluginSourceId
-            ?: PrefManager.getVal<String>(PrefName.ContentSource).takeIf { it != "tmdb" }
+            ?: PrefManager.getVal<String>(PrefName.ContentSource).takeIf { it != "simkl" && it != "tmdb" }
         if (preferredId != null) {
             val idx = sources.indexOfFirst { it.id == preferredId }
             if (idx >= 0) return idx

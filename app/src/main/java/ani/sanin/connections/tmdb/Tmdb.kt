@@ -491,6 +491,13 @@ object Tmdb {
         return movies + shows
     }
 
+    /** Titles similar to a single item, used to seed the Simkl "Recommended" rail. */
+    suspend fun similar(mediaType: String, id: Int): List<TmdbMedia> {
+        val body = get("/$mediaType/$id/similar") ?: return emptyList()
+        return runCatching { json.decodeFromString<TmdbPage<TmdbMedia>>(body).results }
+            .getOrDefault(emptyList())
+    }
+
     suspend fun topRated(page: Int = 1): List<TmdbMedia> {
         val movies = get("/movie/top_rated", "page" to page.toString())
             ?.let { runCatching { json.decodeFromString<TmdbPage<TmdbMedia>>(it).results }.getOrDefault(emptyList()) }

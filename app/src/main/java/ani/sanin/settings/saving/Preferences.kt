@@ -51,7 +51,7 @@ enum class PrefName(val data: Pref) {
     YouTubeApiKey(Pref(Location.General, String::class, "AIzaSyDdQwsx0lYEU8ZnAke0ghcqoS1G5VxM2BE")),
     YouTubeChannelId(Pref(Location.General, String::class, "UC7oi5vkTHCwl3sS9NPBFCZg")),
     TmdbSearchHistory(Pref(Location.General, List::class, listOf<String>())),
-    ContentSource(Pref(Location.General, String::class, "tmdb")),
+    ContentSource(Pref(Location.General, String::class, "simkl")),
     SelectedMediaType(Pref(Location.General, Int::class, 0)),  // 0=anime, 1=movie
     SelectedTracker(Pref(Location.Protected, Int::class, 0)),  // 0=AniList, 1=MAL, 2=Simkl
 

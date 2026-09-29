@@ -621,7 +621,7 @@ class MainActivity : AppCompatActivity() {
             "Anime"
         } else {
             val src = PrefManager.getVal<String>(PrefName.ContentSource)
-            if (src == "tmdb") "TMDB"
+            if (src == "simkl" || src == "tmdb") "Simkl"
             else CsRepos.installed(this).firstOrNull { it.id == src }?.name ?: "Movie & TV"
         }
         binding.mainModeText.text = text
