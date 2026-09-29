@@ -485,7 +485,7 @@ private class SourcePickerAdapter(private val context: Context, private val name
                 row.setSingleLine(true)
                 row.setPadding(0, 0, 0, 0)
                 // Rebind checked state from the ListView so recycled rows stay in sync.
-                (parent as? android.widget.AdapterView<*>)?.let { list ->
+                (parent as? android.widget.ListView)?.let { list ->
                     row.isChecked = list.isItemChecked(position)
                 }
                 row
