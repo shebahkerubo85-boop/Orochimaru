@@ -112,7 +112,6 @@ class MainActivity : AppCompatActivity() {
     private var load = false
     lateinit var navPillsViewModel: NavigationPillsViewModel
     private var homeNavPill: EchoNavPillController? = null
-    private val navPillScrollTargets = mutableSetOf<View>()
     private var currentFragmentTag: String? = null
 
     private val tabFragments = mapOf(
@@ -686,15 +685,7 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         loadAvatar()
         binding.homeNavRailBg.live = PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.LiveSideRail)
-        if (GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)) {
-            GlassEffectManager.applyGlass(
-                binding.homeNavRail,
-                GlassComponent.NavPills,
-                NavPillCustomizer.getCornerRadiusDp().toFloat()
-            )
-        } else {
-            GlassEffectManager.removeGlass(binding.homeNavRail)
-        }
+        homeNavPill?.syncGlass()
 
         binding.homeNavRailBg.setGlassEnabled(
             GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)
@@ -957,40 +948,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun attachNavPillScroll() {
         if (resources.configuration.orientation != Configuration.ORIENTATION_PORTRAIT) return
-        if (homeNavPill?.isScrollCapable != true) return
-        binding.fragmentContainer.postDelayed({ scheduleNavPillScroll(0) }, 120)
-    }
-
-    private fun scheduleNavPillScroll(attempt: Int) {
-        if (attempt >= 14) return
-        attachNavPillScroll(binding.fragmentContainer, 0)
-        binding.fragmentContainer.postDelayed({ scheduleNavPillScroll(attempt + 1) }, 130)
-    }
-
-    private fun attachNavPillScroll(v: View, depth: Int) {
-        if (depth > 6) return
-        when (v) {
-            is RecyclerView -> if (navPillScrollTargets.add(v)) {
-                v.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-                    override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
-                        homeNavPill?.onScroll(dy.toFloat())
-                    }
-                })
-            }
-            is androidx.core.widget.NestedScrollView -> if (navPillScrollTargets.add(v)) {
-                v.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
-                    homeNavPill?.onScroll((scrollY - oldScrollY).toFloat())
-                }
-            }
-            is android.widget.ScrollView -> if (navPillScrollTargets.add(v)) {
-                v.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
-                    homeNavPill?.onScroll((scrollY - oldScrollY).toFloat())
-                }
-            }
-        }
-        if (v is android.view.ViewGroup) {
-            for (i in 0 until v.childCount) attachNavPillScroll(v.getChildAt(i), depth + 1)
-        }
+        homeNavPill?.startScrollTracking(binding.fragmentContainer)
     }
 
     private fun updateNavPillFocusChains() {

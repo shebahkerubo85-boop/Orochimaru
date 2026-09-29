@@ -51,11 +51,9 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.snackString
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
-import ani.sanin.util.GlassComponent
-import ani.sanin.util.GlassEffectManager
 import ani.sanin.util.LauncherWrapper
 import ani.sanin.util.NavPillCustomizer
-import ani.sanin.ui.components.NavPillAnimator
+import ani.sanin.ui.components.EchoNavPillController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -195,13 +193,6 @@ class MediaDetailsActivity : AppCompatActivity() {
         allNav.forEach { FocusEffectUtil.applyFocusListener(it, borderColor = navFocusColor) }
 
         binding.navPillBg?.live = PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.LiveSideRail)
-        if (GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)) {
-            binding.mediaNavPills?.let { frame ->
-                GlassEffectManager.applyGlass(frame, GlassComponent.NavPills, 28f)
-            }
-        } else {
-            binding.mediaNavPills?.let { frame -> GlassEffectManager.removeGlass(frame) }
-        }
         binding.navPillBg?.doOnLayout { updateMediaNavIconTints(selected) }
         binding.mediaNavPills?.let { frame ->
             frame.findViewWithTag<LinearLayout>("pill_list")?.let {
@@ -218,6 +209,29 @@ class MediaDetailsActivity : AppCompatActivity() {
                 insets
             }
         }
+
+        // Echo-style scroll morph. Collapsing leaves only the selected tab, floating
+        // at the bottom-left (no search affordance on this screen).
+        val mediaPillContainer = binding.mediaNavPills
+        mediaNavPill = EchoNavPillController(
+            container = mediaPillContainer!!,
+            backgroundPill = binding.navPillBg,
+            row = null,
+            pillList = mediaPillContainer.findViewWithTag("pill_list"),
+            pills = allNav,
+            labels = listOf(
+                getString(R.string.info),
+                getString(R.string.watch),
+                getString(R.string.reviews)
+            ),
+            onSearch = null,
+            floatToStartOnCollapse = true
+        ).also { controller ->
+            controller.attach(selected)
+            // Defer glass to the next layout pass so the backdrop has rendered.
+            binding.mediaNavPills?.post { controller.syncGlass() }
+        }
+        attachNavPillScroll()
 
         fun showWatchTab(container: FrameLayout, animate: Boolean) {
             val ft = supportFragmentManager.beginTransaction()
@@ -297,7 +311,7 @@ class MediaDetailsActivity : AppCompatActivity() {
 
         fun selectTab(idx: Int, animate: Boolean = true) {
             selected = idx
-            updateMediaNavIconTints(selected)
+            updateMediaNavIconTints(selected, animate)
             val container = binding.mediaTabContent
             val parent = container?.parent as? View
             parent?.layoutParams = (parent?.layoutParams as? ViewGroup.MarginLayoutParams)?.apply {
@@ -336,11 +350,22 @@ class MediaDetailsActivity : AppCompatActivity() {
             model.saveSelected(media.id, sel)
         }
 
-        navInfo?.setOnClickListener { selectTab(0); mediaNavAnimator?.select(0); hideNavPills() }
-        navWatch?.setOnClickListener { selectTab(1); mediaNavAnimator?.select(1); hideNavPills() }
+        // A tap on the floating pill first restores the full rail; only then does it
+        // act as a normal tab switch.
+        fun onNavPillClick(idx: Int) {
+            if (mediaNavPill?.isCollapsed == true) {
+                mediaNavPill?.setCollapsed(false)
+            } else {
+                selectTab(idx)
+            }
+            hideNavPills()
+        }
+
+        navInfo?.setOnClickListener { onNavPillClick(0) }
+        navWatch?.setOnClickListener { onNavPillClick(1) }
         navComments?.visibility = if (hasComments) View.VISIBLE else View.GONE
         if (hasComments) {
-            navComments?.setOnClickListener { selectTab(2); mediaNavAnimator?.select(2); hideNavPills() }
+            navComments?.setOnClickListener { onNavPillClick(2) }
         }
         commentTabOpener = { selectTab(2) }
         watchTabOpener = { selectTab(1) }
@@ -513,19 +538,21 @@ class MediaDetailsActivity : AppCompatActivity() {
         focusTarget?.requestFocus()
     }
 
-    private fun updateMediaNavIconTints(selectedIdx: Int) {
+    private fun updateMediaNavIconTints(selectedIdx: Int, animate: Boolean = false) {
         val customColor = NavPillCustomizer.getIconColor()
         val pills = listOfNotNull(binding.navPillInfo, binding.navPillWatch, binding.navPillComments)
-        if (mediaNavAnimator == null) {
-            mediaNavAnimator = NavPillAnimator(binding.mediaNavPills, pills)
-        }
-        pills.forEachIndexed { i, pill ->
+        mediaNavPill?.select(selectedIdx, animate)
+        pills.forEach { pill ->
             pill.imageTintList = ColorStateList.valueOf(customColor)
-            pill.alpha = 1f
         }
     }
 
-    private var mediaNavAnimator: NavPillAnimator? = null
+    private var mediaNavPill: EchoNavPillController? = null
+
+    private fun attachNavPillScroll() {
+        if (resources.configuration.orientation != Configuration.ORIENTATION_PORTRAIT) return
+        mediaNavPill?.startScrollTracking(binding.root)
+    }
 
     fun focusNavPillForSelectedTab() {
         val targetId = when (selected) {

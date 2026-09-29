@@ -55,7 +55,7 @@ import ani.sanin.util.GlassEffectManager
 import ani.sanin.util.GlassComponent
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
-import ani.sanin.ui.components.NavPillAnimator
+import ani.sanin.ui.components.EchoNavPillController
 import com.google.android.material.card.MaterialCardView
 import com.lagradost.cloudstream3.CommonActivity
 import kotlinx.coroutines.Dispatchers
@@ -267,11 +267,10 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
             // Defer glass to next layout pass so the backdrop capture sees the
             // visible content instead of a blank surface.
             frame.post {
-                val glassOn = GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)
-                shell.tmdbNavPillBg?.setGlassEnabled(glassOn)
-                if (glassOn) {
-                    GlassEffectManager.applyGlass(frame, GlassComponent.NavPills, 28f)
-                }
+                shell.tmdbNavPillBg?.setGlassEnabled(
+                    GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)
+                )
+                tmdbNavPill?.syncGlass()
             }
         }
         updatePillTints()
@@ -935,17 +934,6 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
                 PrefManager.getVal<Boolean>(PrefName.LiveSideRail)
         val glassOn = GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)
         shell.tmdbNavPillBg?.setGlassEnabled(glassOn)
-        shell.tmdbNavPills?.let { frame ->
-            if (glassOn) {
-                // Defer to next layout pass so the backdrop content has rendered
-                // before the glass drawable captures it.
-                frame.post {
-                    GlassEffectManager.applyGlass(frame, GlassComponent.NavPills, 28f)
-                }
-            } else {
-                GlassEffectManager.removeGlass(frame)
-            }
-        }
         shell.tmdbNavPillBg?.doOnLayout { updatePillTints() }
         shell.tmdbNavPills?.let { frame ->
             frame.findViewWithTag<LinearLayout>("pill_list")?.let {
@@ -962,30 +950,49 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
             }
         }
 
-        info.setOnClickListener {
-            selectTab(0)
-            val landscape = resources.configuration.orientation ==
-                android.content.res.Configuration.ORIENTATION_LANDSCAPE
-            if (landscape) hideNavPills()
+        // Echo-style scroll morph. Collapsing leaves only the selected tab, floating
+        // at the bottom-left (no search affordance on this screen).
+        val tmdbPillContainer = shell.tmdbNavPills
+        tmdbNavPill = EchoNavPillController(
+            container = tmdbPillContainer!!,
+            backgroundPill = shell.tmdbNavPillBg,
+            row = null,
+            pillList = tmdbPillContainer.findViewWithTag("pill_list"),
+            pills = pills,
+            labels = listOf(
+                getString(R.string.info),
+                getString(R.string.watch),
+                getString(R.string.reviews)
+            ),
+            onSearch = null,
+            floatToStartOnCollapse = true
+        ).also { controller ->
+            controller.attach(selectedPill)
         }
-        watch.setOnClickListener {
-            selectTab(1)
-            val landscape = resources.configuration.orientation ==
-                android.content.res.Configuration.ORIENTATION_LANDSCAPE
-            if (landscape) hideNavPills()
-        }
-        comments.setOnClickListener {
-            selectTab(2)
-            val landscape = resources.configuration.orientation ==
-                android.content.res.Configuration.ORIENTATION_LANDSCAPE
-            if (landscape) hideNavPills()
-        }
+        attachNavPillScroll()
+
+        info.setOnClickListener { onNavPillClick(0) }
+        watch.setOnClickListener { onNavPillClick(1) }
+        comments.setOnClickListener { onNavPillClick(2) }
         updatePillTints()
+    }
+
+    // A tap on the floating pill first restores the full rail; only then does it
+    // act as a normal tab switch.
+    private fun onNavPillClick(idx: Int) {
+        if (tmdbNavPill?.isCollapsed == true) {
+            tmdbNavPill?.setCollapsed(false)
+        } else {
+            selectTab(idx)
+        }
+        val landscape = resources.configuration.orientation ==
+            android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        if (landscape) hideNavPills()
     }
 
     private fun selectTab(idx: Int) {
         selectedPill = idx
-        mediaNavAnimator?.select(idx)
+        tmdbNavPill?.select(idx, animate = true)
         updatePillTints()
         when (idx) {
             0 -> {
@@ -1015,18 +1022,19 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
             shell.tmdbNavPillWatch,
             shell.tmdbNavPillComments
         )
-        if (mediaNavAnimator == null) {
-            mediaNavAnimator = NavPillAnimator(shell.tmdbNavPills, pills)
-        }
-        pills.forEachIndexed { i, pill ->
+        pills.forEach { pill ->
             pill.imageTintList = ColorStateList.valueOf(customColor)
-            pill.alpha = 1f
-            pill.scaleX = if (i == selectedPill) 1.18f else 1f
-            pill.scaleY = if (i == selectedPill) 1.18f else 1f
         }
     }
 
-    private var mediaNavAnimator: NavPillAnimator? = null
+    private var tmdbNavPill: EchoNavPillController? = null
+
+    private fun attachNavPillScroll() {
+        if (resources.configuration.orientation !=
+            android.content.res.Configuration.ORIENTATION_PORTRAIT
+        ) return
+        tmdbNavPill?.startScrollTracking(shell.root)
+    }
 
     private fun onPlayClick() {
         selectTab(1)

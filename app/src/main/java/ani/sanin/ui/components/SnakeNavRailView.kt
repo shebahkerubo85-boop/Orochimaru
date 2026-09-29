@@ -3,9 +3,7 @@ package ani.sanin.ui.components
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.LinearGradient
 import android.graphics.Paint
-import android.graphics.Shader
 import android.util.AttributeSet
 import android.view.View
 import android.view.ViewGroup
@@ -24,6 +22,7 @@ class SnakeNavRailView @JvmOverloads constructor(
     private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private var cachedWidth = -1f
     private var cachedHeight = -1f
+    private var cachedColor = 0
 
     private var glassDrawable: GlassEffectDrawable? = null
 
@@ -43,12 +42,6 @@ class SnakeNavRailView @JvmOverloads constructor(
     }
 
     var live = true
-        set(value) {
-            field = value
-            invalidate()
-        }
-
-    var horizontal: Boolean = false
         set(value) {
             field = value
             invalidate()
@@ -106,40 +99,27 @@ class SnakeNavRailView @JvmOverloads constructor(
         }
     }
 
-    fun getColorAtFraction(fraction: Float): Int {
-        val split = 0.33f
-        if (fraction >= split) return Color.WHITE
-        val t = fraction / split
-        return lerpColor(Color.BLACK, Color.WHITE, t)
-    }
+    fun getColorAtFraction(fraction: Float): Int =
+        if (NavPillCustomizer.isDarkTheme()) Color.BLACK else Color.WHITE
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (_glassEnabled) return
         val w = width.toFloat().coerceAtLeast(1f)
         val h = height.toFloat().coerceAtLeast(1f)
-        drawGradient(canvas, w, h)
+        drawSolid(canvas, w, h)
     }
 
-    private fun drawGradient(canvas: Canvas, w: Float, h: Float) {
-        if (w != cachedWidth || h != cachedHeight) {
+    private fun drawSolid(canvas: Canvas, w: Float, h: Float) {
+        // Kept in sync with NavPillCustomizer so the pill body and the icon tint can
+        // never disagree about light vs dark.
+        val color = if (NavPillCustomizer.isDarkTheme()) Color.BLACK else Color.WHITE
+        if (w != cachedWidth || h != cachedHeight || color != cachedColor) {
             cachedWidth = w
             cachedHeight = h
-            if (horizontal) {
-                val split = w * 0.33f
-                bgPaint.shader = LinearGradient(
-                    0f, 0f, split, 0f,
-                    Color.BLACK, Color.WHITE,
-                    Shader.TileMode.CLAMP
-                )
-            } else {
-                val split = h * 0.33f
-                bgPaint.shader = LinearGradient(
-                    0f, 0f, 0f, split,
-                    Color.BLACK, Color.WHITE,
-                    Shader.TileMode.CLAMP
-                )
-            }
+            cachedColor = color
+            bgPaint.shader = null
+            bgPaint.color = color
         }
         canvas.drawRect(0f, 0f, w, h, bgPaint)
     }
@@ -149,10 +129,4 @@ class SnakeNavRailView @JvmOverloads constructor(
         invalidate()
     }
 
-    private fun lerpColor(c1: Int, c2: Int, t: Float): Int {
-        val r = (Color.red(c1) + (Color.red(c2) - Color.red(c1)) * t).toInt()
-        val g = (Color.green(c1) + (Color.green(c2) - Color.green(c1)) * t).toInt()
-        val b = (Color.blue(c1) + (Color.blue(c2) - Color.blue(c1)) * t).toInt()
-        return Color.rgb(r, g, b)
-    }
 }

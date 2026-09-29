@@ -31,6 +31,7 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
+import ani.sanin.util.NavPillCustomizer
 import ani.sanin.util.customAlertDialog
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.slider.Slider
@@ -336,22 +337,6 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                         ) { PrefManager.setVal(PrefName.NavPillHeight, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Pill Width", desc = "Button width",
-                        choice = intChoice("Pill Width",
-                            arrayOf("36dp", "42dp", "48dp", "52dp", "58dp", "64dp", "72dp"),
-                            intArrayOf(36, 42, 48, 52, 58, 64, 72),
-                            PrefManager.getVal<Int>(PrefName.NavPillWidth).coerceIn(36, 72),
-                        ) { PrefManager.setVal(PrefName.NavPillWidth, it) },
-                    ),
-                    SubscreenBuilder.Entry(
-                        title = "Gap Between", desc = "Space between buttons",
-                        choice = intChoice("Gap Between",
-                            arrayOf("Tight (12dp)", "Compact (16dp)", "Default (20dp)", "Relaxed (26dp)", "Spacious (32dp)", "Wide (40dp)"),
-                            intArrayOf(12, 16, 20, 26, 32, 40),
-                            PrefManager.getVal<Int>(PrefName.NavPillSpacing).coerceIn(12, 40),
-                        ) { PrefManager.setVal(PrefName.NavPillSpacing, it) },
-                    ),
-                    SubscreenBuilder.Entry(
                         title = "Icon Size", desc = "Size of icons inside pills",
                         choice = intChoice("Icon Size",
                             arrayOf("Tiny (12dp)", "Small (16dp)", "Medium (20dp)", "Default (23dp)", "Large (28dp)"),
@@ -368,9 +353,19 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                         ) { PrefManager.setVal(PrefName.NavPillCornerRadius, it) },
                     ),
                     SubscreenBuilder.Entry(
-                        title = "Icon Tint", desc = "Color of pill icons",
+                        title = "Icon Tint", desc = "Overrides the automatic icon color",
                         iconRes = R.drawable.ic_set_theme,
                         onClick = { showColorGrid("Icon Tint", PrefName.NavPillIconColor) },
+                    ),
+                    SubscreenBuilder.Entry(
+                        title = "Reset Icon Tint", desc = "Go back to automatic (light/dark)",
+                        iconRes = R.drawable.ic_set_theme,
+                        onClick = {
+                            PrefManager.setVal(
+                                PrefName.NavPillIconColor,
+                                NavPillCustomizer.DEFAULT_ICON_COLOR
+                            )
+                        },
                     ),
                 ),
             ),
