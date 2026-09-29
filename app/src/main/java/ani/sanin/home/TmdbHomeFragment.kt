@@ -740,8 +740,8 @@ class TmdbHomeFragment : Fragment() {
 
     /**
      * Simkl-driven home rails (Favourites, Planned, Recommended) shown when the
-     * content source is Simkl. Recommended: seeded from the user's own library via
-     * TMDB "similar", falling back to random TMDB picks when the library is empty.
+     * content source is Simkl. Recommended: TMDB "more like this" from the user's
+     * own library, filtered to the genres they actually watch.
      */
     private suspend fun loadSimklHomeSections() = coroutineScope {
         val all = if (Simkl.token != null) {
@@ -761,39 +761,47 @@ class TmdbHomeFragment : Fragment() {
         applyTmdbBannerFocusChain()
     }
 
-    /** Seeds TMDB "similar" from a few library items; random pick when library is empty. */
+    /**
+     * Builds the Recommended rail from TMDB "more like this" of the user's own
+     * library. Only titles sharing a genre with what they already track survive;
+     * no random fill, and the rail is skipped entirely when there is nothing to
+     * base it on.
+     */
     private suspend fun loadRecommended(libraryItems: List<Simkl.SimklWatchedItem>) = coroutineScope {
-        if (libraryItems.isNotEmpty()) {
-            val seeds = libraryItems
-                .mapNotNull { item ->
-                    val id = item.ids?.tmdb ?: return@mapNotNull null
-                    Triple(item, item.mediaType ?: "tv", id)
-                }
-                .distinctBy { it.second + it.third }
-                .take(3)
-            val liked = seeds.flatMap { (_, mediaType, id) ->
+        // Library items that can seed "more like this" lookups, highest rated first.
+        val seeds = libraryItems
+            .mapNotNull { item ->
+                val id = item.ids?.tmdb ?: return@mapNotNull null
+                Triple(item, item.mediaType ?: "tv", id)
+            }
+            .distinctBy { it.second to it.third }
+            .sortedWith(compareByDescending<Triple<Simkl.SimklWatchedItem, String, Int>> { it.first.userRating ?: 0 })
+            .take(8)
+        if (seeds.isEmpty()) return@coroutineScope
+
+        // Genres the user actually watches, gathered from those seed items.
+        val watchedGenres = async(Dispatchers.IO) {
+            seeds.map { (_, mediaType, id) ->
+                runCatching { Tmdb.detailGenres(mediaType, id).map { it.id } }.getOrDefault(emptyList())
+            }.flatten().toSet()
+        }
+
+        // "More like this" for the strongest seeds, in parallel.
+        val similar = seeds.map { (_, mediaType, id) ->
+            async(Dispatchers.IO) {
                 runCatching { Tmdb.similar(mediaType, id) }.getOrDefault(emptyList())
             }
-            // Drop anything already in the library, keep unique ids.
-            val known = libraryItems.mapNotNull { it.ids?.tmdb }.toSet()
-            val recs = liked.asReversed().distinctBy { it.type to it.id }.reversed()
-                .filterNot { it.id in known }
-                .take(20)
-            if (recs.isNotEmpty()) {
-                addSection("Recommended", recs)
-                return@coroutineScope
-            }
-        }
-        // Empty library → random trending picks (TMDB), shuffled into a shelf.
-        val trending = withContext(Dispatchers.IO) {
-            runCatching {
-                Tmdb.trending("movie", "week") + Tmdb.trending("tv", "week")
-            }.getOrDefault(emptyList())
-        }
+        }.flatMap { it.await() }
+
+        val genres = watchedGenres.await()
         val known = libraryItems.mapNotNull { it.ids?.tmdb }.toSet()
-        val recs = trending.asReversed().distinctBy { it.type to it.id }.reversed()
+        val recs = similar
+            .asReversed().distinctBy { it.type to it.id }.reversed()
             .filterNot { it.id in known }
-            .shuffled()
+            // Only titles with at least one genre the user watches.
+            .filter { it.genreIds.any { g -> g in genres } }
+            // Most genre overlap first → closest to their taste.
+            .sortedByDescending { it.genreIds.count { g -> g in genres } }
             .take(20)
         if (recs.isNotEmpty()) addSection("Recommended", recs)
     }
