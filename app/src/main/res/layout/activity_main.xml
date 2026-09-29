@@ -207,13 +207,21 @@
             android:importantForAccessibility="no" />
 
         <LinearLayout
-            android:tag="pill_list"
+            android:id="@+id/homeNavRow"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_gravity="center"
             android:orientation="horizontal"
-            android:gravity="center"
-            android:paddingStart="6dp"
-            android:paddingEnd="6dp">
+            android:gravity="center">
+
+            <LinearLayout
+                android:tag="pill_list"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp">
 
                 <ImageButton
                     android:id="@+id/homeNavHome"
@@ -256,6 +264,7 @@
                     android:background="@android:color/transparent"
                     android:focusable="false" />
             </LinearLayout>
+        </LinearLayout>
         </FrameLayout>
 
         <androidx.cardview.widget.CardView

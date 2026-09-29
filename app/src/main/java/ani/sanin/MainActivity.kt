@@ -80,7 +80,9 @@ import ani.sanin.settings.saving.internal.PreferencePackager
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.TvKeyboardUtil
 import ani.sanin.ui.components.NavigationPillsViewModel
-import ani.sanin.ui.components.NavPillAnimator
+import ani.sanin.ui.components.EchoNavPillController
+import ani.sanin.media.SearchActivity
+import ani.sanin.cloudstream.TmdbSearchActivity
 import ani.sanin.ui.splash.SaninLandscapeSplash
 import ani.sanin.ui.splash.SaninPortraitSplash
 import ani.sanin.util.AudioHelper
@@ -109,7 +111,8 @@ class MainActivity : AppCompatActivity() {
     private val scope = lifecycleScope
     private var load = false
     lateinit var navPillsViewModel: NavigationPillsViewModel
-    private var navPillAnimator: NavPillAnimator? = null
+    private var homeNavPill: EchoNavPillController? = null
+    private val navPillScrollTargets = mutableSetOf<View>()
     private var currentFragmentTag: String? = null
 
     private val tabFragments = mapOf(
@@ -381,6 +384,7 @@ class MainActivity : AppCompatActivity() {
             lifecycleScope.launch {
                 navPillsViewModel.currentTab.collect { tabIndex ->
                     switchTab(tabIndex)
+                    attachNavPillScroll()
                     // Hide floating avatar+calendar on Discovery and Library tabs
                     binding.mainAvatarContainer.visibility =
                         if (tabIndex == 2 || tabIndex == 3 || tabIndex == 4) View.GONE else View.VISIBLE
@@ -707,6 +711,7 @@ class MainActivity : AppCompatActivity() {
         }
         binding.homeNavRail.post { updateSideRail() }
         updateNavPillFocusChains()
+        attachNavPillScroll()
     }
 
     private fun updateSideRail() {
@@ -897,27 +902,94 @@ class MainActivity : AppCompatActivity() {
         val isMonochrome = PrefManager.getVal<String>(PrefName.Theme).contains("MONOCHROME", ignoreCase = true)
         val isDarkMode = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
         val navFocusColor = if (isMonochrome && isDarkMode) android.graphics.Color.WHITE else if (isMonochrome) android.graphics.Color.BLACK else null
-        navPillAnimator = NavPillAnimator(binding.homeNavRail, pills.filterNotNull())
+
+        val pillList = binding.homeNavRail.findViewWithTag<LinearLayout>("pill_list")
+            ?: binding.homeNavRail.getChildAt(1) as? LinearLayout
+        pillList?.let { NavPillCustomizer.applyToPillList(it) }
+
+        homeNavPill = EchoNavPillController(
+            container = binding.homeNavRail,
+            backgroundPill = binding.homeNavRailBg,
+            row = binding.homeNavRail.findViewById<LinearLayout>(R.id.homeNavRow),
+            pillList = pillList,
+            pills = pills,
+            labels = listOf(
+                getString(R.string.home),
+                getString(R.string.explore),
+                getString(R.string.discover),
+                getString(R.string.library)
+            ),
+            onSearch = { openNavSearch() }
+        )
+        homeNavPill?.attach(navPillsViewModel.currentTab.value)
         pills.forEachIndexed { index, pill ->
             pill.setOnClickListener {
-                navPillsViewModel.setTab(index)
-                navPillAnimator?.select(index)
+                if (homeNavPill?.isCollapsed == true) {
+                    homeNavPill?.setCollapsed(false)
+                } else {
+                    navPillsViewModel.setTab(index)
+                }
+                homeNavPill?.select(index)
                 hideHomeNavRail()
             }
             FocusEffectUtil.applyFocusListener(pill, borderColor = navFocusColor)
         }
 
         updateNavPillFocusChains()
-        val pillList = binding.homeNavRail.findViewWithTag<LinearLayout>("pill_list")
-            ?: binding.homeNavRail.getChildAt(1) as? LinearLayout
-        pillList?.let { NavPillCustomizer.applyToPillList(it) }
 
         lifecycleScope.launch {
             navPillsViewModel.currentTab.collect { tab ->
                 if (binding.homeNavRail.visibility == View.VISIBLE) {
-                    navPillAnimator?.select(tab)
+                    homeNavPill?.select(tab)
                 }
             }
+        }
+    }
+
+    private fun openNavSearch() {
+        val intent = if (isAnimeMode()) {
+            Intent(this, SearchActivity::class.java)
+        } else {
+            Intent(this, TmdbSearchActivity::class.java)
+        }
+        startActivity(intent)
+    }
+
+    private fun attachNavPillScroll() {
+        if (resources.configuration.orientation != Configuration.ORIENTATION_PORTRAIT) return
+        if (homeNavPill?.isScrollCapable != true) return
+        binding.fragmentContainer.postDelayed({ scheduleNavPillScroll(0) }, 120)
+    }
+
+    private fun scheduleNavPillScroll(attempt: Int) {
+        if (attempt >= 14) return
+        attachNavPillScroll(binding.fragmentContainer, 0)
+        binding.fragmentContainer.postDelayed({ scheduleNavPillScroll(attempt + 1) }, 130)
+    }
+
+    private fun attachNavPillScroll(v: View, depth: Int) {
+        if (depth > 6) return
+        when (v) {
+            is RecyclerView -> if (navPillScrollTargets.add(v)) {
+                v.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                    override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
+                        homeNavPill?.onScroll(dy.toFloat())
+                    }
+                })
+            }
+            is androidx.core.widget.NestedScrollView -> if (navPillScrollTargets.add(v)) {
+                v.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
+                    homeNavPill?.onScroll((scrollY - oldScrollY).toFloat())
+                }
+            }
+            is android.widget.ScrollView -> if (navPillScrollTargets.add(v)) {
+                v.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
+                    homeNavPill?.onScroll((scrollY - oldScrollY).toFloat())
+                }
+            }
+        }
+        if (v is android.view.ViewGroup) {
+            for (i in 0 until v.childCount) attachNavPillScroll(v.getChildAt(i), depth + 1)
         }
     }
 
