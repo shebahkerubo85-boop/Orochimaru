@@ -315,11 +315,7 @@ class TmdbHomeFragment : Fragment() {
             // Continue watching row is shared across every home mode.
             loadSimklContinueWatching()
             if (!hasPluginSections) {
-                if (sourceId == "simkl" || sourceId == "tmdb") {
-                    loadSimklHomeSections()
-                } else {
-                    loadTmdbSections()
-                }
+                loadSimklHomeSections()
             }
             binding.tmdbHomeSpinner.isVisible = false
         }
@@ -624,25 +620,6 @@ class TmdbHomeFragment : Fragment() {
                 }
             }
         }
-    }
-
-    /** Fetches TMDB browse rows as the default home content. */
-    private suspend fun loadTmdbSections() = coroutineScope {
-        // Six endpoints in parallel (were sequential).
-        val trendingSeriesD = async(Dispatchers.IO) { Tmdb.trending("tv", "week") }
-        val trendingMoviesD = async(Dispatchers.IO) { Tmdb.trending("movie", "week") }
-        val latestSeriesD = async(Dispatchers.IO) { Tmdb.latestSeries() }
-        val latestMoviesD = async(Dispatchers.IO) { Tmdb.latestMovies() }
-        val popularD = async(Dispatchers.IO) { Tmdb.popular() }
-        val topRatedD = async(Dispatchers.IO) { Tmdb.topRated() }
-        addSection("Trending Series", trendingSeriesD.await())
-        addSection("Trending Movies", trendingMoviesD.await())
-        addSection("Latest Series", latestSeriesD.await())
-        addSection("Latest Movies", latestMoviesD.await())
-        addSection("Popular", popularD.await())
-        addSection("Top Rated", topRatedD.await())
-        startAutoAdvance()
-        applyTmdbBannerFocusChain()
     }
 
     /** Loads plugin home sections (CloudStream-style). Returns true if any
