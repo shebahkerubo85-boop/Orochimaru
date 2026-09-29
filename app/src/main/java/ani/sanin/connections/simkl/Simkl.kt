@@ -889,8 +889,9 @@ object Simkl {
                 return null
             }
             val root = org.json.JSONObject(body)
-            val moviesArr = root.optJSONObject("all")?.optJSONArray("movies")
-            val showsArr = root.optJSONObject("all")?.optJSONArray("shows")
+            // /sync/all-items returns movies/shows/anime at the top level (no "all" wrapper).
+            val moviesArr = root.optJSONArray("movies")
+            val showsArr = root.optJSONArray("shows")
             val movies = if (moviesArr != null) json.decodeFromString<List<SimklWatchedItem>>(moviesArr.toString()) else emptyList()
             val shows = if (showsArr != null) json.decodeFromString<List<SimklWatchedItem>>(showsArr.toString()) else emptyList()
             SimklLibrary(movies = movies, shows = shows)
