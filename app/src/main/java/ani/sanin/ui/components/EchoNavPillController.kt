@@ -271,12 +271,13 @@ class EchoNavPillController(
             lp.width = ViewGroup.LayoutParams.WRAP_CONTENT
             container.layoutParams = lp
         }
-        // View exposes setMaxWidth but no getMaxWidth, so this cannot be a Kotlin
-        // property. Tracked here to avoid a needless requestLayout on every pass.
+        // maxWidth is a write-only property: View has setMaxWidth but no getMaxWidth, so
+        // it can be assigned but never read. The applied value is tracked here instead of
+        // read back, which also avoids a needless requestLayout on every pass.
         val max = maxContainerWidthPx()
         if (appliedMaxWidthPx != max) {
             appliedMaxWidthPx = max
-            container.setMaxWidth(max)
+            container.maxWidth = max
         }
     }
 
