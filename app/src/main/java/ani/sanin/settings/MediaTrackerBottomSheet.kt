@@ -3,6 +3,7 @@ package ani.sanin.settings
 import android.os.Bundle
 import android.content.Context
 import android.graphics.Typeface
+import android.view.Gravity
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
@@ -319,7 +320,7 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             val adapterPos = if (currentIdx == 0) 1 else currentIdx + 3
             requireContext().customAlertDialog().apply {
                 setTitle(R.string.source)
-                singleChoiceAdapter(SourcePickerAdapter(context, pluginNames), adapterPos) { pos ->
+                singleChoiceAdapter(SourcePickerAdapter(requireContext(), pluginNames), adapterPos) { pos ->
                     val idx = if (pos == 1) 0 else pos - 3
                     PrefManager.setVal(PrefName.ContentSource, pluginIds[idx])
                     pluginNameView.text = pluginNames[idx]
@@ -463,6 +464,7 @@ private class SourcePickerAdapter(private val context: Context, private val name
                 val row = convertView as? CheckedTextView
                     ?: LayoutInflater.from(context)
                         .inflate(android.R.layout.simple_list_item_single_choice, parent, false)
+                        as CheckedTextView
                 row.text = names[realIndex(position)]
                 row
             }
