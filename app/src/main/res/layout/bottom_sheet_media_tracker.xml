@@ -364,7 +364,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins"
-                android:text="Plugin:"
+                android:text="Metadata:"
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="12sp" />
 

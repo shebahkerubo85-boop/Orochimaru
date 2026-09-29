@@ -319,7 +319,7 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             // so Simkl is position 1 and plugin i (>=1) is position i + 3.
             val adapterPos = if (currentIdx == 0) 1 else currentIdx + 3
             requireContext().customAlertDialog().apply {
-                setTitle(R.string.source)
+                setTitle(R.string.home_metadata)
                 singleChoiceAdapter(SourcePickerAdapter(requireContext(), pluginNames), adapterPos) { pos ->
                     val idx = if (pos == 1) 0 else pos - 3
                     PrefManager.setVal(PrefName.ContentSource, pluginIds[idx])
@@ -400,6 +400,13 @@ private class SourcePickerAdapter(private val context: Context, private val name
         private const val TYPE_HEADER = 2
     }
 
+    private val radioIndicator: android.graphics.drawable.Drawable? by lazy {
+        context.obtainStyledAttributes(intArrayOf(android.R.attr.listChoiceIndicatorSingle))
+            .getDrawable(0)
+    }
+
+    private val rowMaxWidth = (context.resources.displayMetrics.density * 280).toInt()
+
     override fun getCount(): Int = names.size + 3
 
     override fun getItem(position: Int): Any = when {
@@ -432,16 +439,19 @@ private class SourcePickerAdapter(private val context: Context, private val name
             0, 3 -> {
                 val header = convertView as? TextView ?: TextView(context).apply {
                     gravity = Gravity.START or Gravity.CENTER_VERTICAL
-                    setPadding(
-                        (context.resources.displayMetrics.density * 20).toInt(), 0,
-                        (context.resources.displayMetrics.density * 8).toInt(), 0
-                    )
                     textSize = 12f
                     setTypeface(Typeface.DEFAULT_BOLD)
                     isEnabled = false
                 }
                 header.text = if (position == 0) "List" else "Plugin"
                 header.setTextColor(primary)
+                val dp = context.resources.displayMetrics.density
+                header.setPadding(
+                    (dp * 20).toInt(),
+                    if (position == 3) (dp * 12).toInt() else 0, // breathing room below the divider
+                    (dp * 8).toInt(),
+                    0
+                )
                 header
             }
 
@@ -462,10 +472,22 @@ private class SourcePickerAdapter(private val context: Context, private val name
 
             else -> {
                 val row = convertView as? CheckedTextView
-                    ?: LayoutInflater.from(context)
-                        .inflate(android.R.layout.simple_list_item_single_choice, parent, false)
-                        as CheckedTextView
+                    ?: CheckedTextView(context).apply {
+                        // radio indicator sits on the left, right against the name
+                        setCompoundDrawablesWithIntrinsicBounds(radioIndicator, null, null, null)
+                        compoundDrawablePadding = (context.resources.displayMetrics.density * 2).toInt()
+                        gravity = Gravity.CENTER_VERTICAL
+                    }
+                row.setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
                 row.text = names[realIndex(position)]
+                row.maxWidth = rowMaxWidth
+                row.ellipsize = android.text.TextUtils.TruncateAt.END
+                row.setSingleLine(true)
+                row.setPadding(0, 0, 0, 0)
+                // Rebind checked state from the ListView so recycled rows stay in sync.
+                (parent as? android.widget.AdapterView<*>)?.let { list ->
+                    row.isChecked = list.isItemChecked(position)
+                }
                 row
             }
         }
