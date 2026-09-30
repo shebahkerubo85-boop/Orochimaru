@@ -650,6 +650,21 @@ class EchoNavPillController(
                 "bg=${bg?.javaClass?.simpleName} bgVis=${bg?.visibility} bgSize=${bg?.width}x${bg?.height} bgAlpha=${bg?.alpha} " +
                 "containerBg=${container.background?.javaClass?.simpleName} collapsed=$collapsed"
         )
+        // DIAGNOSTIC: enumerate every child, GONE ones included, with the size its own layout
+        // params request. The stretch has to come from one of them, or from the parent handing
+        // down a spec that ignores wrap_content. This names the culprit instead of guessing.
+        if (stretched) {
+            val kids = (0 until container.childCount).joinToString("; ") { i ->
+                val c = container.getChildAt(i)
+                val clp = c.layoutParams as? ViewGroup.LayoutParams
+                "[$i]${c.javaClass.simpleName} vis=${c.visibility} " +
+                    "lp=${clp?.width}x${clp?.height} m=${c.width}x${c.height} " +
+                    "top=${c.top} bot=${c.bottom} " +
+                    "bgIntr=${c.background?.intrinsicWidth}x${c.background?.intrinsicHeight}"
+            }
+            val parentLp = container.layoutParams
+            Log.i(TAG, "stretched-children: $kids || containerLp=${parentLp?.width}x${parentLp?.height}")
+        }
         if (stretched) {
             normaliseContainerBox()
             pinContainerHeightToContent()

@@ -12,6 +12,7 @@ import android.graphics.PixelFormat
 import android.graphics.RectF
 import android.graphics.drawable.Drawable
 import android.view.View
+import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import androidx.annotation.ColorInt
 import androidx.recyclerview.widget.RecyclerView
@@ -72,9 +73,23 @@ class GlassEffectDrawable(
         targetRef.get()?.invalidate()
     }
 
+    /**
+     * Scoped to the target view instead of the whole window.
+     *
+     * The global listener fired on every layout pass anywhere in the window and each fire threw
+     * away all three blur caches. On a view that resizes every frame that means continuous
+     * recomputation for a background. An OnLayoutChangeListener reports the same "this view moved
+     * or resized" signal scoped to the view that owns the backdrop.
+     */
+    private val targetLayoutListener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+        invalidateCache()
+        targetRef.get()?.invalidate()
+    }
+
     init {
         if (cornerRad > 0f && refreshOnLayout) {
             targetView.viewTreeObserver.addOnGlobalLayoutListener(layoutListener)
+            targetView.addOnLayoutChangeListener(targetLayoutListener)
         }
     }
 
@@ -168,6 +183,17 @@ class GlassEffectDrawable(
         val w = bounds.width()
         val h = bounds.height()
         if (w <= 0 || h <= 0) return
+
+        // DIAGNOSTIC: bounds is the box the View system actually resolved for this drawable.
+        // If this matches the inflated size, the drawable is following layout rather than
+        // driving it, which would rule the intrinsic-size loop out entirely.
+        android.util.Log.i(
+            "EchoNavPill",
+            "glass.draw: bounds=${w}x$h target=${targetRef.get()?.javaClass?.simpleName}" +
+                " measured=${targetRef.get()?.width}x${targetRef.get()?.height}" +
+                " lpH=${(targetRef.get()?.layoutParams as? ViewGroup.LayoutParams)?.height}" +
+                " last=${lastWidth}x$lastHeight"
+        )
 
         val target = targetRef.get() ?: return
 
@@ -339,8 +365,53 @@ class GlassEffectDrawable(
     @Deprecated("Deprecated in Java")
     override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
 
-    override fun getIntrinsicWidth(): Int = lastWidth.coerceAtLeast(0)
-    override fun getIntrinsicHeight(): Int = lastHeight.coerceAtLeast(0)
+    // FIX: report no intrinsic size instead of the measured bounds.
+    //
+    // A View's suggested minimum height is max(background.getIntrinsicHeight(), minimumHeight),
+    // and a wrap_content parent sizes itself to at least that. Reporting the measured bounds
+    // therefore closed a loop: the drawable recorded the view's size in draw(), handed it back as
+    // an intrinsic size, the view grew to fit, and the next pass measured it larger again. With
+    // glass disabled the drawable was absent entirely, which is why toggling it changed the
+    // layout rather than just the appearance.
+    //
+    // -1 means "no intrinsic size", so the drawable contributes nothing to measurement and the
+    // view keeps the size its content dictates. The old value is still logged so a passing run
+    // also proves how large the loop had been growing.
+    override fun getIntrinsicWidth(): Int {
+        logIntrinsic("W", lastWidth)
+        return -1
+    }
+
+    override fun getIntrinsicHeight(): Int {
+        logIntrinsic("H", lastHeight)
+        return -1
+    }
+
+    /**
+     * DIAGNOSTIC: records how large this drawable's intrinsic size would have been, and whether
+     * the View system is asking during measurement at all. A run where these never appear means
+     * the loop was never being driven from here; a run reporting 1536 confirms it was.
+     */
+    private fun logIntrinsic(axis: String, old: Int) {
+        if (inDiagnostic) return
+        inDiagnostic = true
+        try {
+            val t = targetRef.get()
+            android.util.Log.i(
+                "EchoNavPill",
+                "intrinsic$axis: returning -1, would_have_been=$old" +
+                    " target=${t?.javaClass?.simpleName}" +
+                    " measured=${t?.width}x${t?.height}" +
+                    " lp=${(t?.layoutParams as? ViewGroup.LayoutParams)?.width}" +
+                    "x${(t?.layoutParams as? ViewGroup.LayoutParams)?.height}" +
+                    " vis=${t?.visibility}"
+            )
+        } catch (t: Throwable) {
+            android.util.Log.w("EchoNavPill", "intrinsic log failed", t)
+        } finally {
+            inDiagnostic = false
+        }
+    }
 
     private fun computeAverageBrightness(bitmap: Bitmap) {
         val w = bitmap.width
@@ -368,6 +439,7 @@ class GlassEffectDrawable(
             try {
                 target.viewTreeObserver.removeOnGlobalLayoutListener(layoutListener)
             } catch (_: Exception) {}
+            target.removeOnLayoutChangeListener(targetLayoutListener)
             // Restore whatever background existed before glass was applied so the
             // underlying clay/shape background (e.g. bg_clay_pill) survives alongside glass.
             if (target.background === this) {
