@@ -119,7 +119,7 @@ class EchoNavPillController(
         if (labels.isEmpty()) return@lazy null
         // Horizontal rail only. The vertical/TV rail keeps its original behaviour; the
         // only change there is that the gradient is gone.
-        if (pillList?.orientation == LinearLayout.VERTICAL) return@lazy null
+        if (isVerticalRail()) return@lazy null
         TextView(container.context).apply {
             setTextColor(NavPillCustomizer.getIconColor())
             textSize = TypedValue.applyDimension(
@@ -209,9 +209,10 @@ class EchoNavPillController(
                 val lp = LinearLayout.LayoutParams(pillSize, pillSize)
                 lp.leftMargin = searchGapPx
                 row?.addView(sb, lp)
-                // The search icon is one of the nav icons, so it obeys the same Icon Tint
-                // and Icon Size settings as the pills. It is built lazily in here, which is
-                // AFTER the activity already ran applyToPillList over the XML pills, so
+                // The search icon is a collapse-only affordance, not a fifth nav item -- the
+                // expanded rail carries four icons. It still obeys the Icon Tint and Icon Size
+                // settings so it matches the pills while collapsed. It is built lazily here,
+                // which is AFTER the activity already ran applyToPillList over the XML pills, so
                 // without this it kept the drawable's own colour and, having no padding,
                 // stretched to the full pill size instead of the configured icon size.
                 applyIconSettingsToSearch()
@@ -296,10 +297,18 @@ class EchoNavPillController(
      */
     private fun settledExpandedWidthPx(): Int {
         val pl = pillList ?: return container.measuredWidth
-        // Measure the row at rest. scaleX is what made the mid-flight width wrong, and these are
-        // restored immediately afterwards so the animation is unaffected.
+        // Measure the row at rest: four nav icons at full scale. scaleX is what made the
+        // mid-flight width wrong, and it is restored immediately afterwards so the animation is
+        // unaffected.
         val scaled = pills.map { it.scaleX }
         pills.forEach { it.scaleX = 1f }
+        // The search button is excluded rather than pinned. It is a collapse-only affordance,
+        // not one of the four nav icons, so an expanded bar must never be sized to include it.
+        // Hiding it for the measurement is belt-and-braces on top of expand() already hiding it:
+        // if this is ever called from a path that has not, the width still comes out right.
+        val sb = searchButton
+        val sbVisible = sb?.visibility
+        sb?.visibility = View.GONE
         try {
             pl.measure(
                 View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
@@ -311,7 +320,35 @@ class EchoNavPillController(
             return (pl.measuredWidth + padding).coerceAtLeast(1)
         } finally {
             pills.forEachIndexed { i, p -> p.scaleX = scaled.getOrElse(i) { 1f } }
+            if (sb != null && sbVisible != null) sb.visibility = sbVisible
         }
+    }
+
+    /**
+     * Whether this is the vertical (TV) rail.
+     *
+     * Previously this was `pillList?.orientation == VERTICAL`, which is wrong in a way that
+     * fails silently and in the worst direction: when `pillList` was null -- because a layout
+     * had no `pill_list` tag -- `null?.orientation` is null, the comparison is false, and the
+     * rail was treated as *horizontal*. The landscape media layout was exactly that, so the TV
+     * rail was building a text label and stretching its indicator the way the horizontal bar
+     * does. layout-land/activity_media.xml now carries the tag like the others, but the
+     * fallback below means a future layout missing it degrades to vertical (no label, no
+     * stretch) rather than silently picking up horizontal behaviour.
+     */
+    private fun isVerticalRail(): Boolean {
+        pillList?.let { return it.orientation == LinearLayout.VERTICAL }
+        // No tagged row: find the icon container directly. Pills and the label are the only
+        // LinearLayout children of the rail.
+        for (i in 0 until container.childCount) {
+            val child = container.getChildAt(i)
+            if (child is LinearLayout && pills.any { it.parent === child }) {
+                return child.orientation == LinearLayout.VERTICAL
+            }
+        }
+        // Nothing recognisable. Fail safe: the vertical rail is the one that must not gain
+        // horizontal behaviour, so treat the unknown case as vertical.
+        return true
     }
 
     private fun repinContainerWidth() {
@@ -841,6 +878,19 @@ class EchoNavPillController(
         others.forEach { it.alpha = 0f }
         others.forEach { it.scaleX = 0.3f }
         others.forEach { it.scaleY = 0.3f }
+        // Search is a collapse-only affordance, not a fifth nav item: the rail carries four
+        // icons (home, explore, discovery, library). It is hidden here, up front, rather than at
+        // the end of the width animation. Left VISIBLE at 0.3 scale it kept a full pill's width
+        // in the row for the whole morph, so the bar grew to fit a search button that was about
+        // to disappear -- the overshoot, then the snap back. Being visible at partial alpha for
+        // those 220ms was also the flash inside the pill.
+        searchButton?.let { sb ->
+            sb.animate().cancel()
+            sb.visibility = View.GONE
+            sb.alpha = 0f
+            sb.scaleX = 1f
+            sb.scaleY = 1f
+        }
         labelView?.let { lbl ->
             lbl.visibility = View.VISIBLE
             lbl.alpha = 0f
@@ -896,15 +946,9 @@ class EchoNavPillController(
                         if (version != morphVersion || collapsed) return@post
                         positionIndicator(selectedIndex, animate = false)
                     }
-                    searchButton?.let { sb ->
-                        sb.animate()
-                            ?.alpha(0f)?.scaleX(0.3f)?.scaleY(0.3f)
-                            ?.setDuration(160)
-                            ?.withEndAction {
-                                if (!collapsed) sb.visibility = View.GONE
-                            }
-                            ?.start()
-                    }
+                    // No search-button fade-out here: expand() already hid it before the width
+                    // animation began, so it was never part of the expanded bar's measurement.
+                    // Animating it out again at the end could only re-introduce a visible frame.
                 }
             }
         }
@@ -1043,6 +1087,15 @@ class EchoNavPillController(
 
     private fun positionIndicator(index: Int, animate: Boolean) {
         val pill = pills.getOrNull(index) ?: pills.firstOrNull() ?: return
+        // The vertical/TV rail has no indicator. It shows selection with the round focus
+        // border on the background view instead, so a second highlight behind the icon was
+        // always redundant there -- and once the landscape media layout started being
+        // misread as horizontal, it became a stretched icon+label pill as well.
+        if (isVerticalRail()) {
+            indicatorAnimator?.cancel()
+            indicator.visibility = View.GONE
+            return
+        }
         val cLoc = IntArray(2)
         val pLoc = IntArray(2)
         container.getLocationInWindow(cLoc)
@@ -1051,7 +1104,7 @@ class EchoNavPillController(
         // The label is a sibling that already occupies its own layout space, so the
         // indicator spans the icon and the text as one continuous pill. The vertical
         // rail is left exactly as it was, minus the gradient.
-        val vertical = pillList?.orientation == LinearLayout.VERTICAL
+        val vertical = isVerticalRail()
         val stretch = if (vertical) 0 else labelView?.let { lbl ->
             if (lbl.visibility == View.VISIBLE && !collapsed) {
                 // The label's margin can be negative (it starts inside the pill, next to
