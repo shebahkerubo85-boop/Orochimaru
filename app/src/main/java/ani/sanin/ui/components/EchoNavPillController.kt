@@ -4,6 +4,7 @@ import android.animation.PropertyValuesHolder
 import android.animation.ValueAnimator
 import android.animation.TimeInterpolator
 import android.graphics.drawable.GradientDrawable
+import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
@@ -28,6 +29,7 @@ import kotlin.math.roundToInt
 
 private const val INDICATOR_WIDTH = "indicator_width"
 private const val INDICATOR_HEIGHT = "indicator_height"
+private const val TAG = "EchoNavPill"
 
 class EchoNavPillController(
     private val container: FrameLayout,
@@ -69,6 +71,9 @@ class EchoNavPillController(
     private val lastScrollY = HashMap<View, Int>()
     private var observedRoot: View? = null
     private var recollect: Runnable? = null
+    private var geometryWatcher: View.OnLayoutChangeListener? = null
+    private var repositioning = false
+    private var lastAppliedKey: String? = null
     private val treeScrollListener = ViewTreeObserver.OnScrollChangedListener {
         dispatchScrollDeltas()
     }
@@ -176,6 +181,7 @@ class EchoNavPillController(
         // tab never scrolls, so applyCollapseGravity() would not run until much later and
         // a rail sized from its background would keep the pill stranded at the top.
         normaliseContainerBox()
+        installGeometryWatchers()
         if (indicator.parent == null) {
             container.addView(indicator, 1.coerceIn(0, container.childCount))
         }
@@ -551,15 +557,87 @@ class EchoNavPillController(
      */
     private fun normaliseContainerBox() {
         val lp = container.layoutParams
+        val heightWas = lp?.height
         if (lp != null && lp.height != ViewGroup.LayoutParams.WRAP_CONTENT) {
             lp.height = ViewGroup.LayoutParams.WRAP_CONTENT
             container.layoutParams = lp
+            Log.i(
+                TAG,
+                "box: re-pinned container height ${heightWas} -> WRAP_CONTENT " +
+                    "(container ${container.width}x${container.height}, list ${pillList?.width}x${pillList?.height})"
+            )
         }
         val list = pillList ?: return
         val listLp = list.layoutParams ?: return
         if (listLp is FrameLayout.LayoutParams && listLp.gravity != android.view.Gravity.CENTER) {
+            val was = listLp.gravity
             listLp.gravity = android.view.Gravity.CENTER
             list.layoutParams = listLp
+            Log.i(TAG, "box: centred pill_list, gravity $was -> CENTER")
+        }
+    }
+
+    /**
+     * Watches the rail's own box and the pill list for any later layout change and reacts
+     * to it, instead of trusting a one-shot post to have read the final geometry.
+     *
+     * Two symptoms came out of that: the glass running the full height of the screen while
+     * the pill sat centred in it, and an indicator that was briefly correct and then drifted
+     * -- whatever re-laid-out the rail afterwards (icon settings, a tab switch, the rail
+     * re-showing itself, its scale animation settling) invalidated coordinates that had
+     * already been used. `positionIndicator` is now idempotent and re-derived whenever the
+     * geometry it depends on actually changes.
+     */
+    private fun installGeometryWatchers() {
+        if (geometryWatcher != null) return
+        val watcher = View.OnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+            onRailLaidOut(v)
+        }
+        geometryWatcher = watcher
+        container.addOnLayoutChangeListener(watcher)
+        pillList?.addOnLayoutChangeListener(watcher)
+    }
+
+    private fun onRailLaidOut(v: View) {
+        val list = pillList
+        val contentH = list?.height ?: 0
+        val slack = (4f * density).roundToInt()
+        val stretched = contentH > 0 && v.height > contentH + slack
+        val bg = backgroundPill
+        Log.i(
+            TAG,
+            "laidOut: container=${v.width}x${v.height} lpW=${v.layoutParams?.width} lpH=${v.layoutParams?.height} " +
+                "list=${list?.width}x${list?.height} listTop=${list?.top} contentH=$contentH stretched=$stretched " +
+                "bg=${bg?.javaClass?.simpleName} bgVis=${bg?.visibility} bgSize=${bg?.width}x${bg?.height} bgAlpha=${bg?.alpha} " +
+                "containerBg=${container.background?.javaClass?.simpleName} collapsed=$collapsed"
+        )
+        if (stretched) normaliseContainerBox()
+        if (collapsed || !isScrollCapable) return
+        repositionIndicatorIfMoved()
+    }
+
+    /** Cheap fingerprint of everything [positionIndicator] reads. */
+    private fun indicatorGeometryKey(): String {
+        val pill = pills.getOrNull(selectedIndex)
+        val lbl = labelView
+        val lp = lbl?.layoutParams as? LinearLayout.LayoutParams
+        return "${pill?.left}x${pill?.width}|${lbl?.visibility}|$labelWidthPx|" +
+            "${lp?.leftMargin}|${container.width}|${list?.width}|${pill?.height}"
+    }
+
+    private fun repositionIndicatorIfMoved() {
+        if (repositioning) return
+        val key = indicatorGeometryKey()
+        if (key == lastAppliedKey) return
+        val from = lastAppliedKey
+        lastAppliedKey = key
+        Log.i(TAG, "reposition: geometry moved [$from] -> [$key]")
+        repositioning = true
+        positionLabelOverlay()
+        container.post {
+            repositioning = false
+            if (collapsed) return@post
+            positionIndicator(selectedIndex, animate = false)
         }
     }
 
@@ -758,7 +836,21 @@ class EchoNavPillController(
         val lbl = labelView ?: return
         val parent = lbl.parent as? LinearLayout ?: return
         val pill = pills.getOrNull(selectedIndex) ?: return
-        lbl.text = labels.getOrNull(selectedIndex) ?: ""
+        val text = labels.getOrNull(selectedIndex) ?: ""
+        // Idempotence guard. Everything below ends in requestLayout(), and the layout
+        // watcher reads any layout pass as "the geometry moved, re-position". Without this
+        // the two feed each other forever. Cheap enough to check first: it only compares
+        // values that are already computed, and skips the measure when nothing differs.
+        val curLp = lbl.layoutParams as? LinearLayout.LayoutParams
+        val curPillSize = if (pill.height > 0) pill.height else (pillH * density).roundToInt()
+        val curAnchor = parent.indexOfChild(pill)
+        if (curLp != null && labelWidthPx > 0 && !collapsed &&
+            curAnchor >= 0 && parent.indexOfChild(lbl) == curAnchor + 1 &&
+            lbl.text.toString() == text && lbl.visibility == View.VISIBLE &&
+            curLp.leftMargin == labelLeftMarginPx(curPillSize) &&
+            curLp.height == curPillSize && curLp.width == labelWidthPx
+        ) return
+        lbl.text = text
         // The label is built once, but the Icon Tint setting can change underneath us.
         lbl.setTextColor(NavPillCustomizer.getIconColor())
         // The label is constructed GONE, and until now only expand() ever set it back to
@@ -872,6 +964,13 @@ class EchoNavPillController(
         val inset = if (vertical) 0 else indicatorInsetPx
         val height = (pill.height - inset * 2).coerceAtLeast(1)
         val vy = (pLoc[1] - cLoc[1]).toFloat() + inset
+        Log.i(
+            TAG,
+            "indicator[$index]: animate=$animate pill=${pill.width}x${pill.height} at(${(pLoc[0] - cLoc[0])},${(pLoc[1] - cLoc[1])}) " +
+                "stretch=$stretch margin=${(labelView?.layoutParams as? LinearLayout.LayoutParams)?.leftMargin} " +
+                "labelW=$labelWidthPx labelVis=${labelView?.visibility} -> w=$width h=$height vx=$vx vy=$vy " +
+                "container=${container.width}x${container.height} list=${pillList?.width}x${pillList?.height}"
+        )
         if (animate) {
             animateIndicator(vx, vy, width, height)
         } else {
