@@ -179,6 +179,10 @@ enum class PrefName(val data: Pref) {
     NavPillIconSize(Pref(Location.UI, Int::class, 23)),
     NavPillIconColor(Pref(Location.UI, Int::class, 0xFFFFFFFF.toInt())),
     NavPillCornerRadius(Pref(Location.UI, Int::class, 18)),
+    /** False leaves the rail as icons only: no text next to the selected pill. */
+    NavPillShowLabel(Pref(Location.UI, Boolean::class, true)),
+    /** False pins the rail expanded, so scrolling never collapses it to fewer icons. */
+    NavPillShrinkOnScroll(Pref(Location.UI, Boolean::class, true)),
     BlurUnwatchedEpisodes(Pref(Location.UI, Boolean::class, true)),
     GreyWatchedEpisodes(Pref(Location.UI, Boolean::class, true)),
     FocusEffect(Pref(Location.UI, Int::class, 0)),

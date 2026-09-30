@@ -20,6 +20,12 @@ object NavPillCustomizer {
     fun isDarkTheme(): Boolean = ani.sanin.isDarkTheme()
     fun getCornerRadiusDp(): Int = PrefManager.getVal<Int>(PrefName.NavPillCornerRadius).coerceIn(0, 48)
 
+    /** Whether the selected pill shows its text. Off leaves the rail as icons only. */
+    fun getShowLabel(): Boolean = PrefManager.getVal<Boolean>(PrefName.NavPillShowLabel)
+
+    /** Whether scrolling collapses the rail. Off pins it expanded. */
+    fun getShrinkOnScroll(): Boolean = PrefManager.getVal<Boolean>(PrefName.NavPillShrinkOnScroll)
+
     /**
      * The pill's own fill, used whenever glass is off. Previously this lived in
      * SnakeNavRailView as a black-to-white gradient, which only ever drew on the

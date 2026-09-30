@@ -356,6 +356,18 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                         iconRes = R.drawable.ic_set_theme,
                         onClick = { showColorGrid("Icon Tint", PrefName.NavPillIconColor) },
                     ),
+                    SubscreenBuilder.Entry(
+                        title = "Show Icon Labels", desc = "Show the text next to the selected pill",
+                        switch = PrefManager.getVal<Boolean>(PrefName.NavPillShowLabel) to {
+                            PrefManager.setVal(PrefName.NavPillShowLabel, it)
+                        },
+                    ),
+                    SubscreenBuilder.Entry(
+                        title = "Shrink Pill On Scroll", desc = "Collapse the rail to fewer icons while scrolling",
+                        switch = PrefManager.getVal<Boolean>(PrefName.NavPillShrinkOnScroll) to {
+                            PrefManager.setVal(PrefName.NavPillShrinkOnScroll, it)
+                        },
+                    ),
 
                 ),
             ),

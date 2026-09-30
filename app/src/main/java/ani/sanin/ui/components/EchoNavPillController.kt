@@ -117,6 +117,10 @@ class EchoNavPillController(
      */
     private val labelView: TextView? by lazy {
         if (labels.isEmpty()) return@lazy null
+        // Show Icon Labels off: the rail is icons only, with no text next to the selected
+        // pill. Returning null is the same path the TV rail already takes, and every
+        // label call site is null-guarded, so nothing else has to know about this.
+        if (!NavPillCustomizer.getShowLabel()) return@lazy null
         // Horizontal rail only. The vertical/TV rail keeps its original behaviour; the
         // only change there is that the gradient is gone.
         if (isVerticalRail()) return@lazy null
@@ -216,19 +220,28 @@ class EchoNavPillController(
                 // without this it kept the drawable's own colour and, having no padding,
                 // stretched to the full pill size instead of the configured icon size.
                 applyIconSettingsToSearch()
-                sb.updateSurface(surfaceColor)
             }
         }
-        container.post {
-            // Two passes: the first gives the label its width, which changes the
-            // container's width and therefore the pills' positions; the second reads
-            // the settled geometry so the indicator lands on the right spot.
-            positionLabelOverlay()
-            repinContainerWidth()
-            container.post {
-                positionIndicator(selectedIndex, animate = false)
-            }
-        }
+        // One owner for surfaces: syncGlass() applies them from the current collapsed state
+        // and the current glass setting, so it is the only thing that should paint a pill.
+        //
+        // attach() used to call sb.updateSurface(surfaceColor) on the search button instead,
+        // which was wrong twice over. It ignored the glass setting, so search kept an opaque
+        // fill that the sibling pills never had; and it ran only once, guarded by
+        // `if (sb.parent == null)`, so that fill was never reconciled on a later collapse or
+        // expand. That left the search icon the one icon with a background whenever the
+        // rail was mid-scroll, since scrolling is what re-runs the other surfaces but not
+        // this one. It also painted while expanded, where the search icon is meant to be
+        // transparent.
+        //
+        // It has to run on the first frame, not onResume: setupHomeNavRail() calls attach()
+        // from onCreate, and onResume is the first syncGlass() call, so between those the
+        // rail was laid out with nothing but the transparent bg_clay_pill behind the icons.
+        //
+        // syncGlass() already does the two-pass geometry this used to do here (it re-derives
+        // the label, repins the width, then posts the indicator once the list has reflowed),
+        // so this replaces the block below rather than running alongside it.
+        syncGlass()
     }
 
     fun select(index: Int, animate: Boolean = true) {
@@ -388,6 +401,10 @@ class EchoNavPillController(
 
     fun setCollapsed(collapsed: Boolean) {
         if (!isScrollCapable) return
+        // Refuse to collapse when Shrink Pill On Scroll is off. The false case is left
+        // alone on purpose: that is the tap-to-expand path in all three activities, which
+        // has to keep working.
+        if (collapsed && !NavPillCustomizer.getShrinkOnScroll()) return
         if (this.collapsed == collapsed) return
         if (collapsed) shrink() else expand()
     }
@@ -502,6 +519,17 @@ class EchoNavPillController(
     fun onScroll(dyPixels: Float) {
         if (!isScrollCapable) return
         if (dyPixels == 0f) return
+        // Shrink Pill On Scroll off: the rail stays expanded, whatever the user scrolls.
+        // Gated here rather than in setCollapsed() on purpose, because setCollapsed(false)
+        // is also the tap-to-expand path in all three activities, and that has to keep
+        // working. This is the only scroll-driven entry point, so gating it here covers
+        // both the MainActivity bar and the Media Info rail without touching the taps.
+        if (!NavPillCustomizer.getShrinkOnScroll()) {
+            // Drain the accumulator, so switching the setting back on does not immediately
+            // collapse the rail using scroll distance that was banked while it was off.
+            accumulated = 0f
+            return
+        }
         // A signed accumulator, deliberately NOT reset when the direction flips.
         //
         // Real scroll streams contain stray opposite-signed deltas all the time:
@@ -545,6 +573,17 @@ class EchoNavPillController(
         // Called from onResume and whenever the appearance settings are re-applied, so
         // this is where a changed pill height, icon size or tint gets picked up.
         applyIconSettingsToSearch()
+        // Settle Show Icon Labels before anything reads the geometry below, so the width
+        // and the indicator are both derived from the row as it will actually be laid out.
+        syncLabelAttachment()
+        // Turn Shrink Pill On Scroll off while the rail is already collapsed and it would
+        // otherwise stay that way: onScroll no longer expands it, and nothing else calls
+        // setCollapsed. Expanding here also re-measures the label and re-places the
+        // indicator through the normal path, so it lands correctly rather than snapping.
+        if (collapsed && isScrollCapable && !NavPillCustomizer.getShrinkOnScroll()) {
+            expand()
+            return
+        }
         if (!isScrollCapable) {
             applySharedContainerGlass()
             return
@@ -981,6 +1020,41 @@ class EchoNavPillController(
      * text. Because it is a genuine child of pill_list, the sibling pills reflow to make
      * room, so nothing can overlap. Horizontal rail only.
      */
+    /**
+     * Attaches or detaches the label to match the Show Icon Labels setting.
+     *
+     * labelView is built once by 'lazy' and kept for the controller's lifetime, so the
+     * startup check inside it only ever runs once. Switching the setting off while the
+     * activity was already alive therefore did nothing at all: the label stayed in the
+     * view tree and the bar kept its label-sized width, so the toggle looked broken until
+     * the app was restarted. This runs from syncGlass(), which is called when returning
+     * from the appearance settings, and settles it without needing a restart.
+     *
+     * Detaching rather than just hiding is what makes the sizing come out right: the width
+     * is measured by settledExpandedWidthPx(), which measures the row, and a label that is
+     * merely GONE still occupies no space but a label that is VISIBLE is measured. Both are
+     * fine on their own, but only a detached label also disappears from the collapsed
+     * layout, which is the state the setting is really about.
+     */
+    private fun syncLabelAttachment() {
+        val parent = pillList ?: return
+        val lbl = labelView
+        val attached = lbl?.parent === parent
+        if (NavPillCustomizer.getShowLabel()) {
+            if (lbl == null || attached) return
+            val anchor = parent.indexOfChild(pills.getOrNull(selectedIndex))
+            if (anchor >= 0) {
+                parent.addView(lbl, (anchor + 1).coerceIn(0, parent.childCount))
+            } else {
+                parent.addView(lbl)
+            }
+            return
+        }
+        // Setting off: take the label out of the tree. A null label, or one that was never
+        // added, needs nothing doing.
+        if (lbl != null && attached) parent.removeView(lbl)
+    }
+
     private fun positionLabelOverlay() {
         val lbl = labelView ?: return
         val parent = lbl.parent as? LinearLayout ?: return
