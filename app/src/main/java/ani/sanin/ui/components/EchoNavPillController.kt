@@ -366,15 +366,19 @@ class EchoNavPillController(
 
     private fun repinContainerWidth() {
         if (collapsed) return
+
+        // Vertical (TV) rail: leave the layout's own width exactly as the XML sets it.
+        // layout-land pins these rails to 44dp, which is correct for a column of 44dp
+        // pills, so there is nothing to re-pin.
+        //
+        // Pinning it to WRAP_CONTENT here is what made the rail bleed edge to edge. The
+        // pill_list child is match_parent, so a wrap_content parent measures that child
+        // against the whole screen width and the background track stretches all the way
+        // across, while the height still wraps the pill column. That is the symptom: a
+        // bar running left to right with correct bounds at the top and bottom.
+        if (isVerticalRail()) return
+
         val lp = container.layoutParams ?: return
-        if (labelView == null) {
-            // Vertical rail or no labels: natural sizing, exactly as before.
-            if (lp.width != ViewGroup.LayoutParams.WRAP_CONTENT) {
-                lp.width = ViewGroup.LayoutParams.WRAP_CONTENT
-                container.layoutParams = lp
-            }
-            return
-        }
         if (lp.width != ViewGroup.LayoutParams.WRAP_CONTENT) {
             lp.width = ViewGroup.LayoutParams.WRAP_CONTENT
             container.layoutParams = lp
