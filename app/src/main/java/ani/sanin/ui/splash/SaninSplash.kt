@@ -2,7 +2,8 @@ package ani.sanin.ui.splash
 
 import ani.sanin.R
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -170,11 +171,13 @@ internal fun SaninSplash(
     val context = LocalContext.current
     val density = LocalDensity.current
 
+    // Rasterised rather than decodeResource'd: the emblem is a vector drawable, and
+    // BitmapFactory.decodeResource only understands raster resources, so it returned null
+    // for the vector and the splash crashed on emblemBitmap.width. Going through the
+    // Drawable handles both, so swapping the emblem back to a PNG keeps working.
     val emblemBitmap = remember {
-        BitmapFactory.decodeResource(
-            context.resources,
-            config.emblemRes
-        )
+        context.resources.getDrawable(config.emblemRes, context.theme)?.toBitmap()
+            ?: Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
     }
 
     val progress = remember { Animatable(0f) }
@@ -978,4 +981,25 @@ private fun lerp(
 ): Float {
     return start +
         (end - start) * fraction
+}
+
+/**
+ * Rasterises a drawable at its intrinsic size.
+ *
+ * VectorDrawable has no pixels of its own; the particle effect samples the emblem
+ * image per pixel to spawn particles at their exact marks, so it needs a real Bitmap.
+ * Drawn at the intrinsic size so emblemWidth/emblemHeight, which are derived from this
+ * bitmap's pixel dimensions, stay in step with what the Drawable reports.
+ */
+private fun Drawable.toBitmap(): Bitmap {
+    val w = intrinsicWidth.takeIf { it > 0 } ?: 1
+    val h = intrinsicHeight.takeIf { it > 0 } ?: 1
+    if (this is BitmapDrawable) {
+        bitmap?.let { return it }
+    }
+    val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(bmp)
+    setBounds(0, 0, w, h)
+    draw(canvas)
+    return bmp
 }
