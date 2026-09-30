@@ -272,6 +272,48 @@ class EchoNavPillController(
      * WRAP_CONTENT lets the bar size itself, and maxWidth is the layout system enforcing
      * the screen-margin ceiling natively, so a long label ellipsizes rather than escaping.
      */
+    /**
+     * Width the rail should settle at when fully expanded, measured rather than read off the
+     * container mid-morph.
+     *
+     * Reading `container.measuredWidth` here produced a bar that visibly overshot and then
+     * snapped back: it grew to roughly 120% of its final width for a moment before settling on
+     * the correct size. Two things were wrong with that measurement.
+     *
+     * First, it was taken a single `post` after `requestLayout()`, which does not guarantee the
+     * re-measure has happened. `requestLayout()` is asynchronous and a posted runnable only
+     * executes once the current queue drains, so the value could still be the pre-collapse width
+     * or, more often, one measured against the label before `positionLabelOverlay()` had applied
+     * the width cap. The label's width is only correct once that function has measured it, so an
+     * earlier read is simply too wide and the correction arrives a frame later as a visible snap.
+     *
+     * Second, the icons were still animating from scaleX 0.3 to 1.0, so the row's measured width
+     * reflected partially-scaled pills.
+     *
+     * So the target is measured explicitly here, with the icons pinned to full scale for the
+     * duration of the measurement only. That is the width the rail is actually going to end at,
+     * independent of when the layout pass happens to run.
+     */
+    private fun settledExpandedWidthPx(): Int {
+        val pl = pillList ?: return container.measuredWidth
+        // Measure the row at rest. scaleX is what made the mid-flight width wrong, and these are
+        // restored immediately afterwards so the animation is unaffected.
+        val scaled = pills.map { it.scaleX }
+        pills.forEach { it.scaleX = 1f }
+        try {
+            pl.measure(
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+            )
+            // lp.width is the view's own width: content plus its own padding. The margins are
+            // applied by the parent FrameLayout, so they must not be folded in here.
+            val padding = container.paddingLeft + container.paddingRight
+            return (pl.measuredWidth + padding).coerceAtLeast(1)
+        } finally {
+            pills.forEachIndexed { i, p -> p.scaleX = scaled.getOrElse(i) { 1f } }
+        }
+    }
+
     private fun repinContainerWidth() {
         if (collapsed) return
         val lp = container.layoutParams ?: return
@@ -836,7 +878,7 @@ class EchoNavPillController(
             repinContainerWidth()
             pl.post {
                 if (version != morphVersion || collapsed) return@post
-                val targetWidth = container.measuredWidth
+                val targetWidth = settledExpandedWidthPx()
                 animateContainerWidth(startWidth, targetWidth) {
                     if (version != morphVersion || collapsed) return@animateContainerWidth
                     positionLabelOverlay()
