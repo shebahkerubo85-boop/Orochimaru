@@ -74,6 +74,12 @@ class EchoNavPillController(
     private var geometryWatcher: View.OnLayoutChangeListener? = null
     private var repositioning = false
     private var lastAppliedKey: String? = null
+
+    /**
+     * True only while [animateContainerWidth] is running. Suppresses the geometry watcher for the
+     * duration, because the container width is an animation target rather than a settled value.
+     */
+    private var widthAnimating = false
     private val treeScrollListener = ViewTreeObserver.OnScrollChangedListener {
         dispatchScrollDeltas()
     }
@@ -578,6 +584,39 @@ class EchoNavPillController(
     }
 
     /**
+     * Last resort for the full-height glass, and the fix that the logcat actually pointed at.
+     *
+     * The symptoms arrived together: the glass painted the whole screen, and the pill sat dead
+     * centre of the screen instead of the bottom. Those are one defect, because
+     * `laidOut` showed the list vertically centred inside an over-tall container --
+     * `(1536 - 116) / 2 == 710`, exactly the reported `listTop`. Centring was working; it was
+     * just centring inside a box that was far too big.
+     *
+     * Re-pinning `lp.height` to WRAP_CONTENT does not help, and the log proved why: `lpH` was
+     * already `-2`. The declaration was correct and the measurement was wrong regardless, so the
+     * height has to be asserted as a concrete number instead of a declaration. When the measured
+     * box is taller than its own content by more than a rounding error, the content height wins.
+     */
+    private fun pinContainerHeightToContent() {
+        val list = pillList ?: return
+        val lp = container.layoutParams ?: return
+        val contentH = list.height
+        if (contentH <= 0) return
+        // Compare against the layout, not the last measured box: a stale measurement is exactly
+        // what this is correcting, so it must not be able to satisfy the check itself.
+        val declared = if (lp.height >= 0) lp.height else -1
+        val grown = container.height > contentH + (4f * density).roundToInt()
+        // Only ever override a healthy wrap_content rail, which is left alone on purpose: a fixed
+        // pixel height would survive a rotation and then be stale.
+        val stale = declared > 0 && declared != contentH
+        if (!grown && !stale) return
+        val was = "${lp.height} (measured ${container.height})"
+        lp.height = contentH
+        container.layoutParams = lp
+        Log.i(TAG, "box: pinned container height $was -> $contentH (pill_list height)")
+    }
+
+    /**
      * Watches the rail's own box and the pill list for any later layout change and reacts
      * to it, instead of trusting a one-shot post to have read the final geometry.
      *
@@ -611,8 +650,15 @@ class EchoNavPillController(
                 "bg=${bg?.javaClass?.simpleName} bgVis=${bg?.visibility} bgSize=${bg?.width}x${bg?.height} bgAlpha=${bg?.alpha} " +
                 "containerBg=${container.background?.javaClass?.simpleName} collapsed=$collapsed"
         )
-        if (stretched) normaliseContainerBox()
-        if (collapsed || !isScrollCapable) return
+        if (stretched) {
+            normaliseContainerBox()
+            pinContainerHeightToContent()
+        }
+        // While the width is animating, the container is a moving target and raw geometry is
+        // meaningless: the log showed the indicator being placed at negative offsets mid-flight
+        // and then snapping back when the animation landed. The animation drives the indicator
+        // itself, so the watcher has to stay out of the way until it finishes.
+        if (collapsed || !isScrollCapable || widthAnimating) return
         repositionIndicatorIfMoved()
     }
 
@@ -664,6 +710,7 @@ class EchoNavPillController(
         morphVersion++
         val version = morphVersion
         containerWidthAnimator?.cancel()
+        widthAnimating = false
         collapsed = true
         applyCollapseGravity(true)
 
@@ -729,6 +776,7 @@ class EchoNavPillController(
         morphVersion++
         val version = morphVersion
         containerWidthAnimator?.cancel()
+        widthAnimating = false
         collapsed = false
         applyCollapseGravity(false)
 
@@ -1011,6 +1059,7 @@ class EchoNavPillController(
 
     private fun animateContainerWidth(from: Int, to: Int, done: () -> Unit) {
         containerWidthAnimator?.cancel()
+        widthAnimating = true
         applyContainerWidth(from)
         containerWidthAnimator = ValueAnimator.ofInt(from.coerceAtLeast(1), to.coerceAtLeast(1)).apply {
             duration = 220
@@ -1018,6 +1067,7 @@ class EchoNavPillController(
             addUpdateListener { anim -> applyContainerWidth(anim.animatedValue as Int) }
             addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: android.animation.Animator) {
+                    widthAnimating = false
                     applyContainerWidth(to)
                     done()
                 }
