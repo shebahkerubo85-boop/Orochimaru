@@ -413,9 +413,36 @@ private class SourcePickerAdapter(
         private const val TYPE_HEADER = 2
     }
 
-    private val radioIndicator: android.graphics.drawable.Drawable? by lazy {
-        context.obtainStyledAttributes(intArrayOf(android.R.attr.listChoiceIndicatorSingle))
-            .getDrawable(0)
+    /**
+     * A fresh radio drawable for one row.
+     *
+     * This used to be a `by lazy` shared by every row, which is why the selection was invisible:
+     * a Drawable carries its own checked/unchecked state, so rows sharing one instance each
+     * overwrote it as they were drawn and the last one bound won. The ListView draws top to
+     * bottom, so the final row left it unchecked and no tick ever appeared -- including on a
+     * freshly opened dialog, where the checked row was correct in the adapter but had nothing
+     * to render with.
+     *
+     * Each row now gets its own instance, and [bindRadioState] sets the state on it directly
+     * rather than relying on the TextView's drawable-state propagation.
+     */
+    private fun newRadioIndicator(): android.graphics.drawable.Drawable? {
+        val a = context.obtainStyledAttributes(intArrayOf(android.R.attr.listChoiceIndicatorSingle))
+        return try {
+            a.getDrawable(0)?.mutate()
+        } finally {
+            a.recycle()
+        }
+    }
+
+    private fun bindRadioState(row: android.widget.CheckedTextView, checked: Boolean) {
+        row.isChecked = checked
+        val d = row.compoundDrawables?.getOrNull(0) ?: return
+        d.setState(
+            if (checked) intArrayOf(android.R.attr.state_checked)
+            else intArrayOf(-android.R.attr.state_checked)
+        )
+        d.setBounds(0, 0, d.intrinsicWidth.coerceAtLeast(1), d.intrinsicHeight.coerceAtLeast(1))
     }
 
     private val rowMaxWidth = (context.resources.displayMetrics.density * 280).toInt()
@@ -429,12 +456,16 @@ private class SourcePickerAdapter(
     private var checkedPosition = checkedPosition
 
     /**
-     * Moves the indicator. Kept for the case where the dialog is configured not to
-     * dismiss on select, so the tick follows the tap immediately.
+     * Moves the indicator, so the tick follows the tap immediately.
+     *
+     * This exists for the case where the dialog is configured not to dismiss on select. It has
+     * to notify, otherwise the change is invisible: mutating checkedPosition alone leaves the
+     * bound rows holding their previous drawable state with no reason to re-bind.
      */
     fun setChecked(position: Int) {
         if (position == checkedPosition) return
         checkedPosition = position
+        notifyDataSetChanged()
     }
 
     override fun getCount(): Int = names.size + 3
@@ -503,8 +534,9 @@ private class SourcePickerAdapter(
             else -> {
                 val row = convertView as? CheckedTextView
                     ?: CheckedTextView(context).apply {
-                        // radio indicator sits on the left, right against the name
-                        setCompoundDrawablesWithIntrinsicBounds(radioIndicator, null, null, null)
+                        // radio indicator sits on the left, right against the name.
+                        // Per-row instance: see newRadioIndicator() for why this cannot be shared.
+                        setCompoundDrawablesWithIntrinsicBounds(newRadioIndicator(), null, null, null)
                         compoundDrawablePadding = (context.resources.displayMetrics.density * 2).toInt()
                         gravity = Gravity.CENTER_VERTICAL
                     }
@@ -516,7 +548,7 @@ private class SourcePickerAdapter(
                 row.setPadding(0, 0, 0, 0)
                 // Checked state comes from the adapter, not from the ListView: this
                 // BaseAdapter builds its own rows, so the framework never ticks them.
-                row.isChecked = position == checkedPosition
+                bindRadioState(row, position == checkedPosition)
                 row
             }
         }
