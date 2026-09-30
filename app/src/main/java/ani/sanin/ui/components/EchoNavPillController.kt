@@ -622,7 +622,7 @@ class EchoNavPillController(
         val lbl = labelView
         val lp = lbl?.layoutParams as? LinearLayout.LayoutParams
         return "${pill?.left}x${pill?.width}|${lbl?.visibility}|$labelWidthPx|" +
-            "${lp?.leftMargin}|${container.width}|${list?.width}|${pill?.height}"
+            "${lp?.leftMargin}|${container.width}|${pillList?.width}|${pill?.height}"
     }
 
     private fun repositionIndicatorIfMoved() {
