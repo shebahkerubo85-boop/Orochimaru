@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_banner_background">#FFFFFF</color>
+    <!-- Black behind the white logo: the old value was white, which left the mark
+         invisible on any launcher that composited the banner onto a dark background. -->
+    <color name="ic_launcher_background">#000000</color>
 </resources>

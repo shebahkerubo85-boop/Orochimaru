@@ -72,7 +72,14 @@ internal data class SaninSplashGeometry(
 
 internal sealed interface SaninSplashConfig {
     val backgroundRes: Int
-    val wordmarkRes: Int
+
+    /**
+     * Optional. The splash now shows the logo alone: the wordmark art was removed along
+     * with the illustrated backgrounds, so there is no lettering to draw. Kept as a
+     * nullable property rather than deleted so a wordmark can be reintroduced without
+     * restructuring the four call sites that read it.
+     */
+    val wordmarkRes: Int?
     val emblemRes: Int
     val particleCount: Int
 }
@@ -83,7 +90,7 @@ internal sealed interface SaninSplashConfig {
  */
 internal data class FixedSaninSplashConfig(
     override val backgroundRes: Int,
-    override val wordmarkRes: Int,
+    override val wordmarkRes: Int?,
     override val emblemRes: Int,
     val geometry: SaninSplashGeometry,
     override val particleCount: Int = 220
@@ -97,7 +104,7 @@ internal data class FixedSaninSplashConfig(
  */
 internal data class CanvasSaninSplashConfig(
     override val backgroundRes: Int,
-    override val wordmarkRes: Int,
+    override val wordmarkRes: Int?,
     override val emblemRes: Int,
     val wordmarkCenterY: Float,
     val emblemCenterY: Float,
@@ -110,7 +117,7 @@ internal data class CanvasSaninSplashConfig(
  */
 private val LandscapeConfig = CanvasSaninSplashConfig(
     backgroundRes = R.drawable.sanin_splash_background,
-    wordmarkRes = R.drawable.sanin_wordmark,
+    wordmarkRes = null,
     emblemRes = R.drawable.sanin_emblem,
     // gap + size scale with screen height (was fixed -65dp/90dp/230x310dp)
     wordmarkCenterY = 0.36f,
@@ -122,7 +129,7 @@ private val LandscapeConfig = CanvasSaninSplashConfig(
  */
 private val PortraitConfig = CanvasSaninSplashConfig(
     backgroundRes = R.drawable.sanin_splash_background_portrait,
-    wordmarkRes = R.drawable.sanin_wordmark_portrait,
+    wordmarkRes = null,
     emblemRes = R.drawable.sanin_emblem_portrait,
     wordmarkCenterY = 0.42f,
     emblemCenterY = 0.58f
@@ -319,17 +326,19 @@ internal fun SaninSplash(
          * SANIN
          */
 
-        Image(
-            painter = painterResource(
-                config.wordmarkRes
-            ),
-            contentDescription = null,
-            modifier = Modifier
-                .align(Alignment.Center)
-                .offset(y = geometry.wordmarkOffsetY)
-                .alpha(wordmarkAlpha),
-            contentScale = ContentScale.None
-        )
+        // Null when the splash is logo-only, which is the default now: the wordmark art
+        // was removed with the illustrated backgrounds.
+        config.wordmarkRes?.let { wordmark ->
+            Image(
+                painter = painterResource(wordmark),
+                contentDescription = null,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .offset(y = geometry.wordmarkOffsetY)
+                    .alpha(wordmarkAlpha),
+                contentScale = ContentScale.None
+            )
+        }
 
         /*
          * EMBLEM
@@ -445,24 +454,13 @@ private fun LogoShine(
 
         /*
          * --------------------------------------------------
-         * SANIN SHINE
-         * --------------------------------------------------
-         */
-
-        ShineLayer(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .offset(y = geometry.wordmarkOffsetY),
-            logoRes = config.wordmarkRes,
-            shineX = shineX,
-            shineWidth = shineWidth,
-            intensity = intensity
-        )
-
-        /*
-         * --------------------------------------------------
          * EMBLEM SHINE
          * --------------------------------------------------
+         *
+         * The wordmark shine that used to sit here is gone with the wordmark itself.
+         * It was a light sweep across the lettering; there is no lettering left to sweep.
+         * This layer already runs the same effect over the emblem, which is now the logo,
+         * so the splash keeps its gloss without a duplicate pass.
          */
 
         ShineLayer(

@@ -25,7 +25,7 @@
             @color/bg_black
         </item>
         <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="s">
-            @mipmap/splash_icon
+            @drawable/ic_splash_logo
         </item>
         <item name="android:windowSplashScreenIconBackgroundColor" tools:targetApi="s">@android:color/transparent
         </item>
