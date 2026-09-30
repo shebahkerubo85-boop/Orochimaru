@@ -172,6 +172,10 @@ class EchoNavPillController(
 
     fun attach(initialIndex: Int) {
         selectedIndex = initialIndex
+        // Up front, not only on a collapse transition: restoring straight into the last
+        // tab never scrolls, so applyCollapseGravity() would not run until much later and
+        // a rail sized from its background would keep the pill stranded at the top.
+        normaliseContainerBox()
         if (indicator.parent == null) {
             container.addView(indicator, 1.coerceIn(0, container.childCount))
         }
@@ -529,16 +533,38 @@ class EchoNavPillController(
      * floats to the bottom-left. Layout margins are deliberately left untouched so the
      * pill keeps breathing room instead of touching the screen edges.
      */
-    private fun applyCollapseGravity(collapsedNow: Boolean) {
-        // Height first, and for every rail. Every nav container in every layout is declared
-        // wrap_content height, so pinning it back to that is safe -- and it stops the pill's
-        // background being stretched down the full height of the screen with the pills left
-        // stranded at the top of it and the page content sitting behind the leftover blur.
-        val base = container.layoutParams
-        if (base != null && base.height != ViewGroup.LayoutParams.WRAP_CONTENT) {
-            base.height = ViewGroup.LayoutParams.WRAP_CONTENT
-            container.layoutParams = base
+    /**
+     * Keeps the rail's own box honest: wrap_content height, and the pill list centred
+     * inside it.
+     *
+     * The pill list is a plain child of the FrameLayout and activity_media.xml /
+     * activity_tmdb_details.xml give it no `layout_gravity`, so FrameLayout places it at
+     * TOP|START. That is invisible while the container is exactly as tall as the pill, but
+     * the glass background is a `match_parent` child -- so any pass that sizes the rail
+     * from its background strands the pill at the top of it while the background keeps
+     * painting the full height and the page content sits behind the leftover blur.
+     * Centring the list means a container taller than its content can never push the pill
+     * to the top.
+     *
+     * The height is pinned for the same reason: every rail is declared wrap_content in
+     * every layout, so restoring it is a no-op in the normal case.
+     */
+    private fun normaliseContainerBox() {
+        val lp = container.layoutParams
+        if (lp != null && lp.height != ViewGroup.LayoutParams.WRAP_CONTENT) {
+            lp.height = ViewGroup.LayoutParams.WRAP_CONTENT
+            container.layoutParams = lp
         }
+        val list = pillList ?: return
+        val listLp = list.layoutParams ?: return
+        if (listLp is FrameLayout.LayoutParams && listLp.gravity != android.view.Gravity.CENTER) {
+            listLp.gravity = android.view.Gravity.CENTER
+            list.layoutParams = listLp
+        }
+    }
+
+    private fun applyCollapseGravity(collapsedNow: Boolean) {
+        normaliseContainerBox()
         if (!floatToStartOnCollapse) return
         val lp = container.layoutParams as? FrameLayout.LayoutParams ?: return
         val target = if (collapsedNow) {

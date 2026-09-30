@@ -1010,6 +1010,13 @@ class MainActivity : AppCompatActivity() {
             updateHomeNavIconTints()
         }
         setHomeNavPillsFocusable(true)
+        // The rail measures 0-wide while it is GONE, so the indicator kept the
+        // coordinates it had before hiding and landed on the icon alone, without the
+        // label. Nothing recomputed it on the way back in. Only MainActivity hides the
+        // rail on scroll, which is why only MainActivity showed this. syncGlass() is the
+        // documented re-shown hook: it re-measures the label and re-places the indicator
+        // once layout has settled.
+        homeNavPill?.syncGlass()
         val tab = navPillsViewModel.currentTab.value
         val id = when (tab) {
             0 -> R.id.homeNavHome
