@@ -1480,12 +1480,12 @@
 
                 <ImageView
                     android:id="@+id/homeSaninIcon"
-                    android:layout_width="match_parent"
-                    android:layout_height="480dp"
+                    android:layout_width="160dp"
+                    android:layout_height="160dp"
+                    android:layout_gravity="center_horizontal"
                     android:contentDescription="@string/app_name"
-                    android:padding="32dp"
-                    android:scaleType="centerCrop"
-                    android:src="@drawable/splash_logo" />
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_launcher_foreground" />
 
                 <TextView
                     android:layout_width="match_parent"
