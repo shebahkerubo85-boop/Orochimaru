@@ -68,6 +68,7 @@ class EchoNavPillController(
     private val trackedLists = mutableSetOf<RecyclerView>()
     private val lastScrollY = HashMap<View, Int>()
     private var observedRoot: View? = null
+    private var recollect: Runnable? = null
     private val treeScrollListener = ViewTreeObserver.OnScrollChangedListener {
         dispatchScrollDeltas()
     }
@@ -321,10 +322,28 @@ class EchoNavPillController(
         root.postDelayed({ collectScrollables(root, 0) }, 450)
         root.postDelayed({ collectScrollables(root, 0) }, 1000)
         root.postDelayed({ collectScrollables(root, 0) }, 2000)
+        // Keep re-walking for as long as tracking is live. A tab switch replaces the
+        // fragment and creates a new scroll view underneath this root, and nothing
+        // re-ran the walk afterwards -- so the newly shown tab's scrolling was ignored
+        // until the user tapped a pill, which is what re-ran it. That is precisely the
+        // "stop scrolling, tap the tab, scroll again" workaround, so the walk now keeps
+        // itself current instead of depending on a tap.
+        recollect?.let { root.removeCallbacks(it) }
+        val rewalk = object : Runnable {
+            override fun run() {
+                if (observedRoot !== root) return
+                collectScrollables(root, 0)
+                root.postDelayed(this, 400)
+            }
+        }
+        recollect = rewalk
+        root.postDelayed(rewalk, 400)
     }
 
     fun stopScrollTracking() {
         val root = observedRoot ?: return
+        recollect?.let { root.removeCallbacks(it) }
+        recollect = null
         val observer = root.viewTreeObserver
         if (observer.isAlive) observer.removeOnScrollChangedListener(treeScrollListener)
         observedRoot = null
@@ -334,7 +353,9 @@ class EchoNavPillController(
     }
 
     private fun collectScrollables(v: View, depth: Int) {
-        if (depth > 12) return
+        // Was 12, which a fragment inside a ViewPager can exceed on its own, so the tab's
+        // list was never found and could not collapse the rail at all.
+        if (depth > 30) return
         when {
             v is RecyclerView -> if (trackedLists.add(v)) {
                 v.addOnScrollListener(object : RecyclerView.OnScrollListener() {
@@ -509,6 +530,15 @@ class EchoNavPillController(
      * pill keeps breathing room instead of touching the screen edges.
      */
     private fun applyCollapseGravity(collapsedNow: Boolean) {
+        // Height first, and for every rail. Every nav container in every layout is declared
+        // wrap_content height, so pinning it back to that is safe -- and it stops the pill's
+        // background being stretched down the full height of the screen with the pills left
+        // stranded at the top of it and the page content sitting behind the leftover blur.
+        val base = container.layoutParams
+        if (base != null && base.height != ViewGroup.LayoutParams.WRAP_CONTENT) {
+            base.height = ViewGroup.LayoutParams.WRAP_CONTENT
+            container.layoutParams = base
+        }
         if (!floatToStartOnCollapse) return
         val lp = container.layoutParams as? FrameLayout.LayoutParams ?: return
         val target = if (collapsedNow) {
@@ -646,7 +676,17 @@ class EchoNavPillController(
                     // Hand the width back to the layout, otherwise the bar stays pinned to
                     // whatever the animation last set and the pills sit off-centre.
                     repinContainerWidth()
-                    positionIndicator(selectedIndex, animate = false)
+                    // Only now read the geometry, one frame later. repinContainerWidth()
+                    // hands the width back to WRAP_CONTENT, which queues a re-measure, and
+                    // positionLabelOverlay() only requests layout -- so reading
+                    // getLocationInWindow() straight afterwards returns the pill positions
+                    // from *before* the list reflowed. The indicator was then drawn against
+                    // stale coordinates: covering only the icon, or stopping short of half
+                    // the label. A frame later those positions are the settled ones.
+                    container.post {
+                        if (version != morphVersion || collapsed) return@post
+                        positionIndicator(selectedIndex, animate = false)
+                    }
                     searchButton?.let { sb ->
                         sb.animate()
                             ?.alpha(0f)?.scaleX(0.3f)?.scaleY(0.3f)
