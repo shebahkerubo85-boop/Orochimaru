@@ -32,6 +32,10 @@ class GlassEffectDrawable(
 
     private val targetRef = WeakReference(targetView)
     private var originalBackground: Drawable? = null
+
+    /** Re-entrancy guard so reading an intrinsic size for a log line cannot recurse. */
+    @Volatile
+    private var inDiagnostic = false
     private var captureRootRef: WeakReference<View>? = null
     private var backdropCache: Bitmap? = null
     private var blurCache: Bitmap? = null
