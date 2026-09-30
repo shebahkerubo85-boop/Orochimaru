@@ -307,7 +307,12 @@ class EchoNavPillController(
      */
     fun startScrollTracking(root: View) {
         if (!isScrollCapable) return
-        if (observedRoot === root) return
+        if (observedRoot === root) {
+            // Same root: still worth a re-walk, because a fragment switch creates new
+            // scroll views under the root that the original walk never saw.
+            collectScrollables(root, 0)
+            return
+        }
         stopScrollTracking()
         observedRoot = root
         root.viewTreeObserver.addOnScrollChangedListener(treeScrollListener)
@@ -338,9 +343,12 @@ class EchoNavPillController(
                     }
                 })
             }
-            // ScrollView keeps only one scroll listener, so sample it globally instead.
+            // Collect regardless of visibility. Filtering on isShown here meant a tab's
+            // scroll view was never tracked if it happened to be hidden when the walk
+            // ran, and nothing re-walked the tree afterwards -- so that tab could not
+            // collapse the rail at all.
             v is NestedScrollView || v is android.widget.ScrollView -> {
-                if (v.isShown) scrollViews.add(v)
+                scrollViews.add(v)
             }
         }
         if (v is ViewGroup) {
@@ -349,11 +357,15 @@ class EchoNavPillController(
     }
 
     private fun dispatchScrollDeltas() {
-        val iterator = scrollViews.iterator()
-        while (iterator.hasNext()) {
-            val view = iterator.next()
+        for (view in scrollViews) {
             if (!view.isShown) {
-                iterator.remove()
+                // Forget the baseline but KEEP the view. Removing it here was permanent:
+                // the tree is only re-walked from startScrollTracking() and select(), so a
+                // tab that was hidden once (tab switch, fragment swap) stayed deaf to
+                // scrolling until the user tapped it. Tapping re-collected and the pill
+                // started responding again, which is exactly the "tap the tab, then
+                // scroll again" workaround this replaces.
+                lastScrollY.remove(view)
                 continue
             }
             val y = view.scrollY
@@ -683,6 +695,13 @@ class EchoNavPillController(
         lbl.text = labels.getOrNull(selectedIndex) ?: ""
         // The label is built once, but the Icon Tint setting can change underneath us.
         lbl.setTextColor(NavPillCustomizer.getIconColor())
+        // The label is constructed GONE, and until now only expand() ever set it back to
+        // VISIBLE. So on a freshly attached rail the text never appeared at all, and
+        // positionIndicator() -- which only stretches over the label when it is VISIBLE
+        // -- drew a pill covering just the icon. That was both "the pill appears
+        // unlabelled, especially on app start" and "the indicator only indicates the
+        // icon". Own the visibility here: expanded means visible.
+        if (!collapsed) lbl.visibility = View.VISIBLE
 
         val wantAnchor = parent.indexOfChild(pill)
         if (wantAnchor >= 0 && parent.indexOfChild(lbl) != wantAnchor + 1) {
@@ -827,27 +846,33 @@ class EchoNavPillController(
 
     private fun animateContainerWidth(from: Int, to: Int, done: () -> Unit) {
         containerWidthAnimator?.cancel()
-        val lp = container.layoutParams
-        lp.width = from.coerceAtLeast(1)
-        container.layoutParams = lp
+        applyContainerWidth(from)
         containerWidthAnimator = ValueAnimator.ofInt(from.coerceAtLeast(1), to.coerceAtLeast(1)).apply {
             duration = 220
             interpolator = DecelerateInterpolator()
-            addUpdateListener { anim ->
-                lp.width = anim.animatedValue as Int
-                container.layoutParams = lp
-            }
+            addUpdateListener { anim -> applyContainerWidth(anim.animatedValue as Int) }
             addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: android.animation.Animator) {
-                    // Settle on the target width rather than WRAP_CONTENT: switching back
-                    // makes the bar re-measure mid-morph and visibly jump.
-                    lp.width = to.coerceAtLeast(1)
-                    container.layoutParams = lp
+                    applyContainerWidth(to)
                     done()
                 }
             })
             start()
         }
+    }
+
+    /**
+     * Writes the width onto the container's *current* LayoutParams on every frame.
+     *
+     * Holding one LayoutParams object captured before the animation started was unsafe:
+     * the activities' window-insets listener replaces `layoutParams` while this runs, so
+     * re-assigning the captured object at the end silently rolled the container back to
+     * its pre-inset margins and dropped the gravity the collapse had just applied.
+     */
+    private fun applyContainerWidth(width: Int) {
+        val lp = container.layoutParams ?: return
+        lp.width = width.coerceAtLeast(1)
+        container.layoutParams = lp
     }
 
     private fun fadeOut(view: View) {
