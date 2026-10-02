@@ -240,8 +240,10 @@ object Trakt {
      * exactly an empty row with nothing to explain it.
      */
     private suspend fun <T> getList(path: String): List<T>? {
-        val key = PrefManager.getVal(PrefName.TraktClientId)
-        Logger.log("Trakt GET $path (key ${if (key.isNullOrBlank()) "MISSING" else "present"})")
+        // Annotated because getVal's type parameter is on its return type alone: hoisting this
+        // into a local drops the expected type that addHeader used to supply.
+        val key: String = PrefManager.getVal(PrefName.TraktClientId)
+        Logger.log("Trakt GET $path (key ${if (key.isBlank()) "MISSING" else "present"})")
         val result = tryWithSuspend(snackbar = false) {
             val request = Request.Builder()
                 .url("$BASE$path")
