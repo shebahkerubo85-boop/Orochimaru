@@ -5,9 +5,9 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
+import android.text.SpannableStringBuilder
 import android.util.TypedValue
 import android.view.View
-import android.view.ViewGroup
 import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -103,7 +103,6 @@ class FranchiseActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         binding.franchiseName.text = card.name
-        binding.franchiseBg.loadImage(card.bannerUrl)
         binding.franchiseBack.setSafeOnClickListener { finish() }
         applyWindowInsets()
 
@@ -320,14 +319,12 @@ class FranchiseActivity : AppCompatActivity() {
         binding.franchiseEmpty.isVisible = shown.isEmpty()
         binding.franchiseProgress.isVisible = false
 
-        // The count follows the filter. A row that says "12 entries" above three cards is a
-        // claim the screen cannot back, and the unfiltered total is the thing a reader wants
-        // back from a filter chip anyway.
-        binding.franchiseEntryCount.text = if (selectedType == null) {
-            getString(R.string.franchise_entries_count, totalEntries)
-        } else {
-            getString(R.string.franchise_entries_count_filtered, shown.size, totalEntries)
-        }
+        // The count follows the filter, and then says what the entries it is counting are made
+        // of. "5 entries · 2 movies · 3 series" is one line of arithmetic rather than three
+        // unrelated facts, and every part of it is read off what is on screen, so a filter
+        // narrows the whole line instead of leaving the breakdown describing entries nobody
+        // can see any more.
+        binding.franchiseEntryCount.text = entryCountText(shown)
 
         // Alternation is by position among the *visible* entries, not by franchise index. Keeping
         // the original index would let two rows in a row land on the same side once a filter
@@ -349,18 +346,73 @@ class FranchiseActivity : AppCompatActivity() {
     private fun matches(entry: FranchiseEntry) =
         selectedType == null || entry.type == selectedType
 
-    /** Fills one row and flips it when the index is odd, which is the alternating rhythm. */
-    private fun bindRow(row: ItemFranchiseEntryBinding, entry: FranchiseEntry, index: Int) {
+    /**
+     * The line under the name: how many entries, and what they are.
+     *
+     * Both halves are counted from [shown] rather than from the franchise, so the line always
+     * describes the screen in front of the reader. Under a filter the unfiltered total is still
+     * given, as "3 of 5 entries", because a count that shrinks with no way back to the number
+     * it came from reads as data loss rather than as a filter.
+     */
+    private fun entryCountText(shown: List<FranchiseEntry>): String {
+        val total = shown.size
+        val head = if (selectedType == null) {
+            resources.getQuantityString(R.plurals.franchise_count_total, total, total)
+        } else {
+            resources.getQuantityString(
+                R.plurals.franchise_count_total_filtered,
+                total,
+                total,
+                totalEntries,
+            )
+        }
+
+        // Only the categories that are actually present. "0 movies" is arithmetic, not news,
+        // and a franchise of twelve series does not need to be told it has no films.
+        val parts = shown.mapNotNull { it.type }
+            .groupingBy { it }
+            .eachCount()
+            .map { (type, count) -> typeCountPart(type, count) }
+
+        // The separator lives in the string, as a leading space on each part, so the join has
+        // no glue of its own and a translator can change the mark without touching this.
+        return parts.joinToString(separator = "", prefix = head.toString())
+    }
+
+    /** "2 movies": one category's share of the count. */
+    private fun typeCountPart(type: FranchiseType, count: Int): String {
+        val res = when (type) {
+            FranchiseType.MOVIE -> R.plurals.franchise_count_movies
+            FranchiseType.SEQUENCE -> R.plurals.franchise_count_series
+            FranchiseType.OVA -> R.plurals.franchise_count_ova
+            FranchiseType.SIDE_STORY -> R.plurals.franchise_count_side_story
+            FranchiseType.SPIN_OFF -> R.plurals.franchise_count_spin_off
+        }
+        return getString(
+            R.string.franchise_count_part,
+            resources.getQuantityString(res, count, count),
+        )
+    }
+
+    /**
+     * Fills one row and flips it when the index is odd, which is the alternating rhythm.
+     *
+     * The flip is a swap of the two columns inside the row. Nothing about their sizes changes
+     * with it: the poster is a fixed width and the text column takes the rest, so whichever
+     * side a row lands on, the poster is the same poster and the prose gets the same prose.
+     */
+    private fun bindRow(row: ItemFranchiseEntryBinding, entry: FranchiseEntry, index: int) {
         val cardOnLeft = index % 2 == 0
 
-        // Swap the two halves by weight rather than by reordering views: the card and the
-        // synopsis are siblings with fixed weights, and moving them keeps both columns the
-        // same width in both directions.
-        row.franchiseRowCardHolder.updateLayoutParamsWeight(if (cardOnLeft) 58 else 42)
-        row.franchiseRowSynopsisHolder.updateLayoutParamsWeight(if (cardOnLeft) 42 else 58)
-
-        // Reorder so that when the card is on the right, the synopsis appears before the card.
-        val parent = row.franchiseRow.parent as? LinearLayout ?: return
+        // The row itself is the parent of the two columns, and it is the root of the inflated
+        // layout, so it exists here whether or not the row has been added to the screen yet.
+        //
+        // `row.franchiseRow.parent` looks like the same thing and is not: bindRow runs before
+        // container.addView, so that parent is still null at this point, and reading it made
+        // this function return before it bound anything at all. It would have been the
+        // container even once attached, which is the rows' container, not the row's — moving
+        // the columns into it would have torn every row apart.
+        val parent = row.franchiseRow
         if (cardOnLeft) {
             if (parent.getChildAt(0) !== row.franchiseRowCardHolder) {
                 parent.removeView(row.franchiseRowCardHolder)
@@ -381,71 +433,98 @@ class FranchiseActivity : AppCompatActivity() {
             }
         }
 
-        row.franchiseRowBackdrop.loadImage(entry.backdropUrl ?: entry.posterUrl)
+        // The poster, not the banner: the row is a portrait card now, and a wide frame cropped
+        // into one loses the sides of every shot that matters. Fall back to the wide artwork
+        // only for the sources that send a poster for some titles and not others.
+        row.franchiseRowBackdrop.loadImage(entry.posterUrl ?: entry.backdropUrl)
 
-        // Every field is optional and omitted rather than blanked, because a row that reads
-        // "•  •" looks broken where one that simply omits the rating does not.
-        row.franchiseRowAirDate.text = entry.airDate ?: entry.year
-        row.franchiseRowAirDate.isVisible = entry.airDate != null || entry.year.isNotBlank()
-
-        row.franchiseRowDuration.text = entry.durationMinutes?.let {
-            getString(R.string.franchise_minutes, it)
-        }
-        row.franchiseRowDuration.isVisible = entry.durationMinutes != null
-
+        // Rating at the top of the poster. Omitted rather than blanked when the source did not
+        // score the title, because a zero would be a claim and a gap is not.
         row.franchiseRowScore.text = entry.score?.let {
             getString(R.string.franchise_score, it)
         }
         row.franchiseRowScore.isVisible = entry.score != null
 
-        row.franchiseRowTitle.text = entry.title
-        row.franchiseRowType.text = entry.type?.let { getString(it.labelRes()).uppercase() }
-        row.franchiseRowType.isVisible = entry.type != null
+        // The year under the info button. The full air date is not shown: with the year already
+        // here in the poster's own column, the date would repeat it a few lines away in a
+        // different typeface for no gain.
+        row.franchiseRowYear.text = entry.year
+        row.franchiseRowYear.isVisible = entry.year.isNotBlank()
 
-        // A teaser, not the text: clamped and ellipsised, with the full synopsis behind the
-        // info affordance. One entry's length must not stretch its row and break the
-        // alternation for the rows around it, so the clamp is the constraint that matters.
+        // The title, with the runtime after it. Not the franchise's wordmark: that is already at
+        // the top of the screen, and a logo in every row says the same thing a dozen times
+        // without telling you which entry this is.
+        row.franchiseRowTitle.text = titleWithDuration(entry)
+
+        // A teaser, not the text: clamped to the poster's height below, with the full synopsis
+        // behind the info affordance. One entry's length must not stretch its row past the
+        // poster it is sitting beside.
         row.franchiseRowSynopsis.text = entry.synopsis
             ?: getString(R.string.franchise_empty_synopsis)
 
         // Clamped in code rather than by maxLines in the layout because the limit is "as much as
-        // the card is tall", which maxLines cannot express: a fixed count would leave a short
-        // card with a short teaser and a tall card with a clipped one, breaking the rhythm the
-        // whole screen depends on.
-        clampSynopsisToCard(row)
+        // the poster is tall", which maxLines cannot express: a fixed count would leave a short
+        // poster with a short teaser and a tall one with a clipped teaser, breaking the rhythm
+        // the whole screen depends on.
+        clampSynopsisToPoster(row)
 
         bindListStatus(row, entry)
         bindInfo(row, entry)
 
-        // The whole card is the tap target, as on the row it came from.
+        // The whole poster is the tap target, as on the row it came from.
         row.franchiseRowCard.setSafeOnClickListener { openEntry(entry) }
     }
 
     /**
-     * Caps the teaser at the card's height.
+     * The entry's title with its runtime after it.
+     *
+     * Appended to the same run rather than set beside it, so the runtime lands at the end of
+     * whatever line the title happens to finish on. As a second view it would sit at the top
+     * right of the column instead, level with the first line of a two-line title, which reads
+     * as belonging to nothing.
+     */
+    private fun titleWithDuration(entry: FranchiseEntry): CharSequence {
+        val duration = entry.durationMinutes?.let {
+            getString(R.string.franchise_minutes, it)
+        } ?: return entry.title
+
+        return SpannableStringBuilder(entry.title).append(' ').append(duration)
+    }
+
+    /**
+     * Caps the teaser at the poster's height.
      *
      * The text is measured unclamped to learn how many lines it would take, then re-clamped to
-     * the tallest run that fits beside the card, with a floor of one line so a teaser is always
-     * readable. Measured in a post because the card's height is only known after layout.
+     * the tallest run that fits beside the poster, with a floor of one line so a teaser is
+     * always readable. Measured in a post because the poster's height is only known after
+     * layout.
+     *
+     * The poster is the ceiling because it is the fixed thing in the row. The text column is
+     * centred against it, so a teaser taller than the poster would not merely crowd it, it
+     * would make the column taller than the row and break the alternation, since every row is
+     * as tall as its tallest column and the sides are what carry the zigzag.
+     *
+     * The title comes off the top of that budget first, along with the gap above the teaser,
+     * so the column finishes level with the poster's foot rather than overshooting it.
      *
      * Where a full run would be a near-exact fit, the last line is dropped rather than
      * ellipsised mid-word: `maxLines` would otherwise leave a line that is mostly whitespace.
      */
-    private fun clampSynopsisToCard(row: ItemFranchiseEntryBinding) {
-        val card = row.franchiseRowCard
+    private fun clampSynopsisToPoster(row: ItemFranchiseEntryBinding) {
+        val poster = row.franchiseRowCard
+        val title = row.franchiseRowTitle
         val text = row.franchiseRowSynopsis
-        val scrim = row.franchiseRowSynopsisScrim
+        val gap = row.franchiseRowSynopsisScrim.topMargin
 
         text.post firstPass@{
-            if (!text.isAttachedToWindow || card.height <= 0) return@firstPass
+            if (!text.isAttachedToWindow || poster.height <= 0) return@firstPass
 
             val lineHeight = text.lineHeight
             if (lineHeight <= 0) return@firstPass
 
             val previous = text.maxLines
-            // A line needs its height plus the holder's padding, since the scrim wraps the text.
-            val fits = ((card.height - scrim.paddingTop - scrim.paddingBottom) / lineHeight)
-                .coerceAtLeast(1)
+            val budget = poster.height - title.height - gap
+            val fits = (budget / lineHeight).coerceAtLeast(1)
 
             // lineCount only means anything after a measure pass, so the unclamped count has to
             // be taken across a layout: lift the limit, ask for one, and read the count on the
@@ -630,13 +709,6 @@ class FranchiseActivity : AppCompatActivity() {
             buildFilterPills()
             buildRows(updated)
         }
-    }
-
-    private fun ViewGroup.updateLayoutParamsWeight(weight: Int) {
-        val lp = layoutParams as? LinearLayout.LayoutParams ?: return
-        lp.width = 0
-        lp.weight = weight.toFloat()
-        layoutParams = lp
     }
 
     @Suppress("DEPRECATION")

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Bottom scrim on a franchise poster, under the info button and the year.
+
+  Deliberately never opaque. It exists to start the artwork giving way behind the two marks,
+  not to paint them onto black: a scrim that reached full opacity would be a black panel with a
+  poster above it, and the picture is the reason the row is a poster. So the darkest it gets is
+  about a third black, at the very bottom edge, fading to nothing well before the middle.
+
+  Four stops rather than three because a three-stop ramp spends half its length getting to a
+  value and then jumps, which reads as a band across the artwork. These ease out: most of the
+  height is barely tinted, and the darkening gathers only where the marks are.
+
+  The marks still need to survive a pale frame, and a lighter scrim cannot promise that on its
+  own, so the year also carries a text shadow. That keeps the ramp this light while leaving the
+  text readable over white artwork, which a heavier ramp would only have bought by hiding more
+  of the picture.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="90"
+        android:type="linear">
+        <item
+            android:color="#59000000"
+            android:offset="0.0" />
+        <item
+            android:color="#33000000"
+            android:offset="0.3" />
+        <item
+            android:color="#14000000"
+            android:offset="0.62" />
+        <item
+            android:color="#00000000"
+            android:offset="1.0" />
+    </gradient>
+</shape>

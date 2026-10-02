@@ -16,4 +16,11 @@
     <color name="grey_nav">#F9222222</color>
     <color name="incognito">#6347D4</color>
     <color name="tags">#8B2AFA</color>
+    <!-- Franchise screen page in dark: true black, so the panel can switch off. -->
+    <color name="franchise_page">#FF000000</color>
+    <color name="franchise_on_page">#FFEEEEEE</color>
+    <color name="franchise_on_page_muted">#99EEEEEE</color>
+    <!-- On art: unchanged, because a poster is a poster in either mode. -->
+    <color name="franchise_list_stroke">#99EEEEEE</color>
+    <color name="franchise_list_text">#FFEEEEEE</color>
 </resources>

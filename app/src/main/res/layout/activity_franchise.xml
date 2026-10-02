@@ -17,22 +17,7 @@
     android:id="@+id/franchiseRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorSurface">
-
-    <!-- Blurred-ish backdrop from the card's banner, darkened so the rows stay readable. -->
-    <ImageView
-        android:id="@+id/franchiseBg"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:importantForAccessibility="no"
-        android:scaleType="centerCrop"
-        tools:ignore="ContentDescription" />
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#B3000000"
-        android:importantForAccessibility="no" />
+    android:background="@color/franchise_page">
 
     <LinearLayout
         android:id="@+id/franchiseHeader"
@@ -60,7 +45,7 @@
                 android:padding="8dp"
                 android:rotation="90"
                 app:srcCompat="@drawable/ic_expand_more"
-                app:tint="@android:color/white" />
+                app:tint="@color/franchise_on_page" />
 
             <HorizontalScrollView
                 android:id="@+id/franchiseFilterScroll"
@@ -110,7 +95,7 @@
                 android:layout_marginTop="4dp"
                 android:fontFamily="@font/poppins_bold"
                 android:gravity="center_horizontal"
-                android:textColor="@android:color/white"
+                android:textColor="@color/franchise_on_page"
                 android:textSize="22sp"
                 tools:ignore="SpUsage"
                 tools:text="Naruto" />
@@ -122,7 +107,7 @@
                 android:alpha="0.7"
                 android:fontFamily="@font/poppins"
                 android:gravity="center_horizontal"
-                android:textColor="@android:color/white"
+                android:textColor="@color/franchise_on_page_muted"
                 android:textSize="11sp"
                 tools:text="8 entries" />
 
@@ -148,7 +133,7 @@
                 android:fontFamily="@font/poppins"
                 android:gravity="center"
                 android:text="@string/franchise_no_entries"
-                android:textColor="@android:color/white"
+                android:textColor="@color/franchise_on_page_muted"
                 android:textSize="14sp"
                 android:visibility="gone" />
 

@@ -67,4 +67,42 @@
     <dimen name="banner_modern_watch_min_width">150dp</dimen>
     <dimen name="banner_modern_watch_text">13sp</dimen>
     <dimen name="banner_modern_synopsis_spacing">2dp</dimen>
+    <!--
+      Franchise screen row: a portrait poster with the list-status button 1dp under it.
+
+      The poster is a fixed width rather than a share of the row, and the synopsis takes
+      whatever is left. That is the whole sizing decision: a weighted split would grow the
+      poster with the screen until on a tablet it was most of the width and the prose it is
+      supposed to sit beside had nothing to sit in. Fixed, it stays a poster at every size,
+      and the column that grows with the screen is the one carrying the text.
+
+      2:3, the usual poster proportion, so the picture is not stretched. The height comes
+      from that ratio in the layout rather than from a second number here, because two
+      numbers kept in step by hand is a number that will drift.
+    -->
+    <dimen name="franchise_poster_width">136dp</dimen>
+    <dimen name="franchise_row_margin">24dp</dimen>
+    <dimen name="franchise_row_gap">3dp</dimen>
+    <dimen name="franchise_row_bottom_margin">12dp</dimen>
+    <!-- 1dp under the poster, before the list-status button. -->
+    <dimen name="franchise_list_status_top">1dp</dimen>
+    <dimen name="franchise_list_status_height">30dp</dimen>
+    <dimen name="franchise_info_size">30dp</dimen>
+    <dimen name="franchise_rating_margin">8dp</dimen>
+    <dimen name="franchise_card_corner">20dp</dimen>
+    <dimen name="franchise_synopsis_gap">6dp</dimen>
+    <dimen name="franchise_title_size">14sp</dimen>
+    <dimen name="franchise_synopsis_size">12sp</dimen>
+    <dimen name="franchise_year_size">11sp</dimen>
+    <dimen name="franchise_meta_size">10sp</dimen>
+
+    <!--
+      How much of the poster's foot the gradient covers, measured up from the bottom edge.
+
+      Tall enough to sit behind the info button, the year and their padding, plus a little run
+      in above them so the ramp starts somewhere rather than arriving abruptly. Not a fraction
+      of the poster's height: the two marks are a fixed dp tall whatever the poster is, so a
+      percentage would make the ramp's reach depend on the screen size for no gain.
+    -->
+    <dimen name="franchise_poster_gradient_height">76dp</dimen>
 </resources>

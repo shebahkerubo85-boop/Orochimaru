@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Wash behind the rating on a franchise poster.
+
+  A wash and not the primary-coloured chip the filter pills use: this sits on artwork, and a
+  solid accent is a colour fight with whatever the poster is doing in that corner. A neutral
+  dark keeps the rating legible over any frame and lets the accent stay the screen's job.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/franchise_art_pill" />
+    <corners android:radius="10dp" />
+</shape>

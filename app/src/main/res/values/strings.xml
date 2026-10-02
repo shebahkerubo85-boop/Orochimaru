@@ -502,6 +502,51 @@
     <string name="franchise_filter_ova">OVA</string>
     <string name="franchise_filter_side_story">Side story</string>
     <string name="franchise_filter_spin_off">Spin-off</string>
+    <!--
+      The line under the franchise name: the total, then what the entries are made of.
+
+      The breakdown is read off the entries that are actually on screen, so it follows the
+      filter rather than describing the whole franchise while the screen shows a third of it.
+      "·" between the parts because they are one line of arithmetic, not three separate facts.
+    -->
+    <plurals name="franchise_count_total">
+        <item quantity="one">%1$d entry</item>
+        <item quantity="other">%1$d entries</item>
+    </plurals>
+    <plurals name="franchise_count_total_filtered">
+        <item quantity="one">%1$d of %2$d entry</item>
+        <item quantity="other">%1$d of %2$d entries</item>
+    </plurals>
+    <!--
+      One breakdown part, "3 movies". A plural rather than a string with a hard-coded "s",
+      because one movie reads "1 movie" and that is the line a reader notices first when it
+      is wrong.
+    -->
+    <plurals name="franchise_count_movies">
+        <item quantity="one">%1$d movie</item>
+        <item quantity="other">%1$d movies</item>
+    </plurals>
+    <plurals name="franchise_count_series">
+        <item quantity="one">%1$d series</item>
+        <item quantity="other">%1$d series</item>
+    </plurals>
+    <plurals name="franchise_count_ova">
+        <item quantity="one">%1$d OVA</item>
+        <item quantity="other">%1$d OVAs</item>
+    </plurals>
+    <plurals name="franchise_count_side_story">
+        <item quantity="one">%1$d side story</item>
+        <item quantity="other">%1$d side stories</item>
+    </plurals>
+    <plurals name="franchise_count_spin_off">
+        <item quantity="one">%1$d spin-off</item>
+        <item quantity="other">%1$d spin-offs</item>
+    </plurals>
+    <!--
+      "· %1$s" for each breakdown part, so the separator is translatable rather than a
+      middot baked into the string above it. Leading space included: this is joined.
+    -->
+    <string name="franchise_count_part">" · %1$s</string>
     <string name="franchise_entries_count">%1$d entries</string>
     <!-- Shown instead of the plain count while a filter is active, so a thinned list never
          reads as the whole franchise. -->

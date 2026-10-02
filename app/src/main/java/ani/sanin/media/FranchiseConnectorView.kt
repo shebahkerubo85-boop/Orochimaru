@@ -68,10 +68,12 @@ class FranchiseConnectorView @JvmOverloads constructor(
     /**
      * Thickness in dp.
      *
-     * Deliberately thin: at phone scale a 3dp line reads as a pipe competing with the cards, and
-     * the line is connective tissue, not content.
+     * Thicker than it was, because the line is the only thing that says these rows are one
+     * sequence rather than a list, and at 1.5dp over a poster it was easy to lose against a
+     * busy frame. Still not a pipe: it crosses artwork, and the thicker it gets the more it
+     * competes with the picture it is supposed to be tying together.
      */
-    private val strokeWidth = 1.5f.dp()
+    private val strokeWidth = 2.5f.dp()
 
     /**
      * How far the curve reaches horizontally beyond the card edges.

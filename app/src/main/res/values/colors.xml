@@ -581,4 +581,22 @@
     <color name="colorTestFail">#ea596e</color>
     <color name="colorTestWarning">#FF9800</color>
     <color name="playIconBackground">#B3000000</color>
+    <!--
+      Franchise screen page: white in light, true black in dark.
+
+      A solid colour, not the banner artwork, because the rows carry their own text and a
+      page that has to be darkened under every label is a page that decides the text colour
+      for you. Pure black rather than the near-black of an OLED-ish surface so that dark mode
+      is actually amoled: on a panel that is off, the page costs nothing.
+    -->
+    <color name="franchise_page">#FFFFFFFF</color>
+    <color name="franchise_on_page">#FF15171A</color>
+    <color name="franchise_on_page_muted">#9915171A</color>
+    <!-- Text that sits on top of poster art, so always light and always legible over it. -->
+    <color name="franchise_on_art">#FFFFFFFF</color>
+    <!-- The rating pill, and the wash behind the info button and year. -->
+    <color name="franchise_art_pill">#B3000000</color>
+    <color name="franchise_art_ring">#80FFFFFF</color>
+    <color name="franchise_list_stroke">#9915171A</color>
+    <color name="franchise_list_text">#FF15171A</color>
 </resources>

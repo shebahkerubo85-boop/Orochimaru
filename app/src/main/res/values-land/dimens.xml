@@ -34,4 +34,13 @@
     <dimen name="banner_modern_watch_min_width">196dp</dimen>
     <dimen name="banner_modern_watch_text">14sp</dimen>
     <dimen name="banner_modern_synopsis_spacing">3dp</dimen>
+    <!--
+      Franchise screen in landscape: a shorter poster.
+
+      Landscape is short and wide, so the poster's 2:3 height is the binding constraint on
+      how much of the screen a row may take. Narrowing the poster is what keeps a landscape
+      row from becoming a column of posters with a thin strip of text beside them, and it
+      hands the width it gives up to the synopsis, which is what has the most to say.
+    -->
+    <dimen name="franchise_poster_width">108dp</dimen>
 </resources>
