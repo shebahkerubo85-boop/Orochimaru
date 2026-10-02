@@ -513,6 +513,12 @@
     <string name="franchise_no_entries">Nothing matches this filter</string>
     <string name="franchise_load_failed">Couldn\'t load this franchise</string>
     <string name="franchise_empty_synopsis">No synopsis available</string>
+    <!-- The remainder of a franchise the poster row had no room for. A count rather than a
+         clipped poster, because the row does not scroll and a sliver promises somewhere to
+         go that does not exist. -->
+    <string name="franchise_more_entries">+%1$d</string>
+    <!-- Same number, for a screen reader: "+3" alone reads as arithmetic. -->
+    <string name="franchise_more_entries_desc">%1$d more entries, open the franchise screen</string>
     <string name="accounts">Accounts</string>
     <string name="addons">Add-ons</string>
     <string name="myanimelist">MyAnimeList</string>

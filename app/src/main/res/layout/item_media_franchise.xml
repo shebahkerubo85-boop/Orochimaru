@@ -45,17 +45,15 @@
 
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="152dp">
 
         <!--
-          The artwork band, pinned to the top so the card's height is the band's unless the
-          content below needs more. Both layers fill the band rather than restating its
-          height, so the dim cannot drift out of step with the image it is washing.
+          The artwork band. Both layers fill it rather than restating its height, so the dim
+          cannot drift out of step with the image it is washing.
         -->
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="152dp"
-            android:layout_gravity="top">
+            android:layout_height="match_parent">
 
             <ImageView
                 android:id="@+id/franchiseBanner"
@@ -76,22 +74,32 @@
         </FrameLayout>
 
         <!--
-          The content strip: poster row, then the year, then the franchise name. Bottom-gravity
-          is what places it on the band; every gap in it is declared once and is the only thing
-          producing the space it names.
+          The content strip, filling the band: poster row, then the year under each poster,
+          then the franchise name.
+
+          The poster row is weighted rather than sized, so it absorbs whatever height is left
+          once the gaps and the two text runs have taken theirs. That is what makes the 1dp at
+          the top real: the poster cannot be a fixed height and still leave 1dp above it,
+          because the band is a fixed height and only two things can share it out. The poster
+          is therefore around 110dp on a 152dp band, which is the poster filling its share
+          rather than sitting small under a wide gap.
+
+          Only the gaps are declared. Nothing here states the poster's height, so there is no
+          second number that can disagree with the band's.
         -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom"
+            android:layout_height="match_parent"
             android:orientation="vertical"
             android:paddingStart="16dp"
+            android:paddingTop="1dp"
             android:paddingEnd="16dp">
 
             <LinearLayout
                 android:id="@+id/posterRow"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="0dp"
+                android:layout_weight="1"
                 android:orientation="horizontal" />
 
             <TextView
@@ -103,7 +111,7 @@
                 android:fontFamily="@font/poppins_bold"
                 android:includeFontPadding="false"
                 android:maxLines="1"
-                android:paddingBottom="2dp"
+                android:paddingBottom="1dp"
                 android:singleLine="true"
                 android:textColor="@android:color/white"
                 android:textSize="16sp"

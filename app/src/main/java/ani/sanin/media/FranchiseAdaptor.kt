@@ -7,6 +7,7 @@ import android.widget.LinearLayout
 import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import ani.sanin.R
 import ani.sanin.databinding.ItemFranchisePosterBinding
 import ani.sanin.databinding.ItemMediaFranchiseBinding
 import ani.sanin.loadImage
@@ -15,9 +16,11 @@ import ani.sanin.setSafeOnClickListener
 /**
  * Adapter for the franchise cards that replace the Popular list on both Explore pages.
  *
- * A card is one [Franchise]. The banner is a fixed 152dp regardless of how many entries
- * the franchise has, and the poster row below it holds only as many entries as fit the
- * measured width, so a nine-entry franchise shows a clipped row and nothing more.
+ * A card is one [Franchise]. The banner is a fixed 152dp band regardless of how many entries
+ * the franchise has, and the poster row sits on it holding as many entries as the measured
+ * width suits. Entries beyond that are counted in a "+N" cell rather than clipped off the
+ * edge: the row does not scroll, so a poster running out of view would promise somewhere to
+ * go that does not exist.
  */
 class FranchiseAdaptor(
     private val onBannerClick: (Franchise, View) -> Unit = { _, _ -> },
@@ -182,14 +185,14 @@ class FranchiseAdaptor(
             if (current !== franchise) return
 
             val gap = GAP_DP.dpToPx(row)
-            val cellWidth = ((available - gap) / MAX_CELLS).toInt()
+            val cells = cellCount(available, row)
+            if (cells <= 0) return
+
+            val cellWidth = ((available - gap * (cells - 1)) / cells).toInt()
             if (cellWidth <= 0) return
 
-            val fits = (available / (cellWidth + gap)).toInt()
-            if (fits <= 0) return
-
             val inflater = LayoutInflater.from(row.context)
-            for (entry in franchise.entries.take(fits)) {
+            for (entry in franchise.entries.take(cells)) {
                 val cell: ItemFranchisePosterBinding = ItemFranchisePosterBinding.inflate(
                     inflater,
                     row,
@@ -197,18 +200,70 @@ class FranchiseAdaptor(
                 )
                 cell.posterYear.text = entry.year
                 cell.posterImage.loadImage(entry.posterUrl)
-                // Height follows width so the poster keeps a 2:3 shape at any count. Setting
-                // width alone would stretch every cell that is not exactly 76dp wide.
-                cell.posterImage.updateLayoutParams<ViewGroup.LayoutParams> {
-                    width = cellWidth
-                    height = cellWidth * 3 / 2
-                }
+                // Width only. The poster's height comes from the weighted fill in
+                // item_franchise_poster.xml, which gives it whatever the card's band has left
+                // once the declared gaps and the year have taken theirs — that is what holds
+                // the 1dp between the top of the banner and the top of the poster. Setting a
+                // height here would be a second claim on the same space, and the two would
+                // disagree on any screen whose width does not happen to line up.
                 cell.root.updateLayoutParams<LinearLayout.LayoutParams> {
                     width = cellWidth
+                    height = ViewGroup.LayoutParams.MATCH_PARENT
                     marginEnd = gap
                 }
                 row.addView(cell.root)
             }
+
+            // Whatever did not fit is named rather than clipped. A poster running off the
+            // row's edge reads as somewhere to keep scrolling, and this row does not scroll,
+            // so a count is the truth where a sliver would be a broken promise.
+            val hidden = franchise.entries.size - cells
+            if (hidden > 0) addOverflow(inflater, row, hidden, cellWidth, gap, franchise)
+        }
+
+        /**
+         * The "+N" cell, standing in the slot a poster would have taken.
+         *
+         * Opens the franchise screen like the banner does, and hands the callback the banner
+         * rather than itself: the shared element is the artwork the screen grows out of, so
+         * morphing out of a number would be a morph from nowhere.
+         */
+        private fun addOverflow(
+            inflater: LayoutInflater,
+            row: ViewGroup,
+            hidden: Int,
+            cellWidth: Int,
+            gap: Int,
+            franchise: Franchise,
+        ) {
+            val more = ItemFranchiseOverflowBinding.inflate(inflater, row, false)
+            val context = row.context
+            more.franchiseOverflow.text = context.getString(R.string.franchise_more_entries, hidden)
+            more.franchiseOverflow.contentDescription =
+                context.getString(R.string.franchise_more_entries_desc, hidden)
+            more.root.updateLayoutParams<LinearLayout.LayoutParams> {
+                width = cellWidth
+                height = ViewGroup.LayoutParams.MATCH_PARENT
+                marginEnd = gap
+            }
+            more.root.setSafeOnClickListener { onBannerClick(franchise, binding.franchiseBanner) }
+            row.addView(more.root)
+        }
+
+        /**
+         * How many cells the row can hold without distorting a poster.
+         *
+         * Derived from the measured width rather than fixed, because the poster's height is
+         * already spoken for by the card's band and width is the only thing left to give. A
+         * fixed count that suits a portrait phone produces squat, over-wide posters in
+         * landscape — and the poster cannot simply grow to match, because it is using the
+         * band's whole height already. Dividing by a target cell width instead keeps every
+         * cell near the shape the band's height implies, at any screen size.
+         */
+        private fun cellCount(available: Int, row: View): Int {
+            val target = TARGET_CELL_DP.dpToPx(row)
+            if (target <= 0) return 0
+            return (available / target).coerceIn(MIN_CELLS, MAX_CELLS)
         }
     }
 
@@ -223,11 +278,33 @@ class FranchiseAdaptor(
         const val GAP_DP = 1
 
         /**
-         * Most cells that will ever be built. Acts as the divisor that hands the row its
-         * remaining width evenly, so on a wide screen cells widen instead of leaving a gap
-         * at the end. The count actually shown is still limited by what fits, not by this.
+         * Most cells that will ever be built, whatever the width.
+         *
+         * A ceiling on density rather than a count: past this the posters are too small for
+         * their year to read, and a franchise with a dozen entries is better served by a "+9"
+         * than by twelve thumbnails.
          */
         const val MAX_CELLS = 6
+
+        /**
+         * Fewest cells that will ever be built.
+         *
+         * Below two there is no row left to speak of, and one poster alone is a poster, not
+         * a franchise — which is the same reason a single-entry card is hidden by default.
+         */
+        const val MIN_CELLS = 2
+
+        /**
+         * The cell width that suits the card's band, in dp, and so the divisor behind
+         * [cellCount].
+         *
+         * A band's height is fixed and its poster fills what is left, so the poster's shape
+         * is already decided by the band; this is simply the width that shape implies. It is
+         * the divisor rather than a hard cell count because a hard count cannot be right at
+         * more than one screen width, and it is derived rather than measured because the
+         * band's own height lives in the layout, not here.
+         */
+        const val TARGET_CELL_DP = 73
     }
 }
 

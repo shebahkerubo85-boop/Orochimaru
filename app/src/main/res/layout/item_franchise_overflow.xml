@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The "+N" that stands in for a franchise's entries that did not fit the poster row.
+
+  The row is not scrollable, so a poster clipped by the row's edge would read as "there is
+  more, keep going" and then go nowhere. Naming the remainder instead turns a false promise
+  into a statement of fact: the row shows what it shows, and this says how much is on the
+  franchise screen instead.
+
+  It shares the cells' width and height rather than being a chip in the corner, so the row
+  keeps its even rhythm and the last cell is the same shape as the rest. The count is
+  centred over the full height because the cell it stands in for would have been a poster,
+  and a number sitting where a poster's middle would be is what a reader scans for.
+
+  It is a target: it opens the franchise screen, the same as the banner behind it.
+-->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/franchiseOverflow"
+    android:layout_width="wrap_content"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_franchise_pill"
+    android:fontFamily="@font/poppins_bold"
+    android:gravity="center"
+    android:includeFontPadding="false"
+    android:textColor="?attr/colorOnPrimary"
+    android:textSize="16sp"
+    tools:text="+3" />

@@ -1,8 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   One entry in a franchise poster row: the poster, with its release year directly
-  beneath it. Width and height are set in code from the measured row width so the
-  count of cells that fit depends on the screen, not on a fixed column number.
+  beneath it. Only the width is set in code, from the measured row width, so the count
+  of cells that fit depends on the screen rather than on a fixed column number.
+
+  The height is not set anywhere. The cell fills the row and the poster is weighted inside
+  it, so the poster takes whatever the card's band has left after the declared gaps and the
+  year have taken theirs. Pinning a height here instead would put a second, unrelated number
+  in charge of the same space: the band would keep its 1dp top gap only by accident, and only
+  for one font scale.
 
   The year sits 1dp under the poster, per the spacing the card was laid out to.
 
@@ -14,12 +20,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
+    android:layout_height="match_parent"
     android:orientation="vertical">
 
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:clipToOutline="true"
         android:translationZ="4dp"
         app:cardCornerRadius="12dp"
@@ -28,7 +35,7 @@
         <ImageView
             android:id="@+id/posterImage"
             android:layout_width="match_parent"
-            android:layout_height="114dp"
+            android:layout_height="match_parent"
             android:scaleType="centerCrop"
             tools:ignore="ContentDescription,ImageContrastCheck"
             tools:srcCompat="@tools:sample/backgrounds/scenic" />
