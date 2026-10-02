@@ -1,24 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  A franchise card. The banner is the card's artwork band and stays a fixed 152dp however
-  many entries the row below it holds: the *card* grows, the artwork band does not. The
-  row is not scrollable, it holds however many entries fit the screen width; the rest
-  belong on the dedicated franchise screen.
+  A franchise card. The banner is the card's *background*: a fixed 152dp band, with the
+  poster row and the title sitting on top of it, near its bottom edge. The content is not
+  stacked below the artwork, so the card never grows past the band however many entries the
+  row holds. The row is not scrollable, it holds however many entries fit the screen width;
+  the rest belong on the dedicated franchise screen.
 
-  ## The band and the content are stacked, not overlapped
+  ## Why the content is bottom-aligned inside the band
 
-  The banner and the content used to be siblings inside one FrameLayout, which put them at
-  the same y: the posters and the title drew *over* the banner instead of under it, and the
-  declared gaps below measured nothing anyone could see. The card now stacks them in a
-  vertical LinearLayout, so each gap is a real gap between two things that are actually
-  adjacent.
+  The poster row and the title float over the artwork, which is why the band needs a dim
+  behind them: bg_franchise_banner_dim is the wash that keeps the year and the title legible
+  over whatever frame happens to be behind them. They are pinned to the band's bottom edge
+  so that edge is a fixed reference the title's bottom padding can be measured against, and
+  so the artwork left showing above the posters is always the same generous band of image
+  rather than a sliver that changes with the entry count.
 
-  ## Spacing, top to bottom, and why it is now trustworthy
+  The band is wrap_content with the artwork pinned to its top, not a fixed height. The
+  content is pinned to the bottom, so if a large font scale or a long title needs more room
+  than 152dp the band grows to fit instead of clipping the title off the end.
 
-  banner, 2dp, poster row, 1dp, year, 2dp, title, 2dp, bottom edge.
+  ## Spacing, top to bottom, and why it is trustworthy
+
+  poster, 1dp, year, 2dp, title, 2dp, bottom edge.
 
   The two text runs carry includeFontPadding="false". Without it Android reserves the font's
-  own ascent and descent on top of any declared padding, which was worth several dp at each
+  own ascent and descent on top of any declared padding, which is worth several dp at each
   end — enough to bury a 1dp or 2dp value entirely, and the reason tuning those numbers used
   to appear to do nothing. With it off, the padding written here is the gap on screen.
 
@@ -37,18 +43,19 @@
     app:cardBackgroundColor="@color/nav_bg"
     app:cardCornerRadius="28dp">
 
-    <LinearLayout
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:layout_height="wrap_content">
 
         <!--
-          The artwork band. Both layers fill the band rather than restating its height, so
-          the dim cannot drift out of step with the image it is washing.
+          The artwork band, pinned to the top so the card's height is the band's unless the
+          content below needs more. Both layers fill the band rather than restating its
+          height, so the dim cannot drift out of step with the image it is washing.
         -->
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="152dp">
+            android:layout_height="152dp"
+            android:layout_gravity="top">
 
             <ImageView
                 android:id="@+id/franchiseBanner"
@@ -69,15 +76,16 @@
         </FrameLayout>
 
         <!--
-          The content strip: poster row, then the year, then the franchise name. Every gap in
-          here is declared once and is the only thing producing the space it names.
+          The content strip: poster row, then the year, then the franchise name. Bottom-gravity
+          is what places it on the band; every gap in it is declared once and is the only thing
+          producing the space it names.
         -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
             android:orientation="vertical"
             android:paddingStart="16dp"
-            android:paddingTop="2dp"
             android:paddingEnd="16dp">
 
             <LinearLayout
@@ -105,6 +113,6 @@
 
         </LinearLayout>
 
-    </LinearLayout>
+    </FrameLayout>
 
 </androidx.cardview.widget.CardView>
