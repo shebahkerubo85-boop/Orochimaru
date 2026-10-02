@@ -16,7 +16,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
-import androidx.activity.activityViewModels
+import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import ani.sanin.R
 import ani.sanin.connections.anilist.AnilistFranchiseRanks
@@ -197,7 +197,10 @@ class FranchiseActivity : AppCompatActivity() {
      * so it wins, exactly as it does on the row itself.
      */
     private fun orderedEntries(card: Franchise): List<FranchiseEntry> {
-        val curated = PrefManager.getVal(PrefName.KitsuCuratedOrder)
+        // getVal's type parameter appears only in its return type, so a bare val gives the
+        // compiler nothing to infer it from. Every other call site in the app is either in an
+        // if or already annotated, which is why this one was the only one that failed.
+        val curated: Boolean = PrefManager.getVal(PrefName.KitsuCuratedOrder)
         return if (curated) card.entries else card.sortOrder
     }
 
@@ -481,7 +484,7 @@ class FranchiseActivity : AppCompatActivity() {
         // empty sheet. A stub is enough: the ViewModel fetches the rest itself and the stub's
         // blank title is never drawn, since the sheet is laid out before the fetch lands but the
         // dialog is only shown with the loaded media.
-        val model: MediaDetailsViewModel by activityViewModels()
+        val model: MediaDetailsViewModel by viewModels()
         model.loadMedia(
             Media(
                 id = anilistId,

@@ -87,11 +87,15 @@ object Trakt {
     private fun rankCards(cards: List<Franchise>): List<Franchise> =
         cards.mapIndexed { index, card -> card.copy(trendingRank = index + 1) }
 
-    private suspend fun lists(path: String): List<TraktList> =
-        getList<TraktListWrapper>("$path?limit=$LIST_LIMIT")?.mapNotNull { wrapper ->
-            val list = wrapper.list ?: return@mapNotNull null
-            if (list.user == null) list.copy(user = wrapper.user) else list
-        } ?: emptyList()
+    /**
+     * The wrappers as the index returns them, list object still nested.
+     *
+     * Kept wrapped rather than unwrapped because the index puts a second like count on the
+     * wrapper, alongside the one on the list, and the wrapper's is the one the ranking is
+     * built from. Unwrapping here would lose it and leave every card's like count null.
+     */
+    private suspend fun lists(path: String): List<TraktListWrapper> =
+        getList<TraktListWrapper>("$path?limit=$LIST_LIMIT") ?: emptyList()
 
     /**
      * One card per list.
@@ -100,8 +104,9 @@ object Trakt {
      * ranked items are the card's entries. A list holding a single item is kept, as the user
      * specified: a one-entry franchise is still a franchise.
      */
-    private suspend fun cardsFrom(lists: List<TraktList>): List<Franchise> =
-        lists.mapNotNull { list ->
+    private suspend fun cardsFrom(lists: List<TraktListWrapper>): List<Franchise> =
+        lists.mapNotNull { wrapper ->
+            val list = wrapper.list ?: return@mapNotNull null
             val slug = list.ids?.slug ?: return@mapNotNull null
             val name = list.name?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
             val username = list.user?.username ?: list.user?.ids?.slug ?: return@mapNotNull null
@@ -117,7 +122,7 @@ object Trakt {
                     ?: resolved.entries.last().posterUrl,
                 logoUrl = resolved.logoUrl,
                 entries = resolved.entries,
-                likeCount = list.likes,
+                likeCount = wrapper.likeCount ?: list.likes,
             )
         }
 
