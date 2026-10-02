@@ -8,6 +8,7 @@ import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
+import ani.sanin.databinding.ItemFranchiseOverflowBinding
 import ani.sanin.databinding.ItemFranchisePosterBinding
 import ani.sanin.databinding.ItemMediaFranchiseBinding
 import ani.sanin.loadImage
