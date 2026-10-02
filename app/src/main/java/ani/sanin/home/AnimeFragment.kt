@@ -30,6 +30,7 @@ import ani.sanin.connections.kitsu.Kitsu
 import androidx.core.app.ActivityOptionsCompat
 import ani.sanin.connections.anilist.AnilistFranchiseRanks
 import ani.sanin.media.Franchise
+import ani.sanin.util.Logger
 import ani.sanin.media.FranchiseActivity
 import ani.sanin.media.FranchiseAdaptor
 import ani.sanin.media.FranchiseListPrefs
@@ -91,24 +92,36 @@ class AnimeFragment : Fragment() {
         // Snapshot on the main thread: `results` keeps growing as later pages land, and
         // reading it from a background thread would race that mutation.
         val snapshot = model.aniMangaSearchResults.results.toList()
+        Logger.log("Franchise(anime) publish: from=$from of ${snapshot.size} results")
         if (snapshot.isEmpty()) {
             adaptor.submit(emptyList())
+            Logger.log("Franchise(anime) publish: no results at all, submitted empty row")
             return
         }
         val range = from.coerceAtLeast(0) until snapshot.size
-        if (range.isEmpty()) return
+        if (range.isEmpty()) {
+            Logger.log("Franchise(anime) publish: range $from..${snapshot.size} is empty, nothing to do")
+            return
+        }
 
         // A new page re-reports seeds that are already in flight or already on screen.
         // Re-walking Kitsu for those is the request cost this change exists to avoid.
         val seeds = range.mapNotNull { snapshot.getOrNull(it) }
             .filterNot { adaptor.hasCardFor(it.id) || adaptor.isPending(it.id) }
-        if (seeds.isEmpty()) return
+        if (seeds.isEmpty()) {
+            Logger.log("Franchise(anime) publish: ${range.count()} in range, all already done or pending")
+            return
+        }
 
         // markPending claims the seeds, so a concurrent page overlap cannot race in on the
         // same ones between the filter above and this call.
         val claimed = adaptor.markPending(seeds.map { it.id })
             .mapNotNull { id -> seeds.firstOrNull { it.id == id } }
-        if (claimed.isEmpty()) return
+        if (claimed.isEmpty()) {
+            Logger.log("Franchise(anime) publish: ${seeds.size} seeds, none could be claimed")
+            return
+        }
+        Logger.log("Franchise(anime) publish: resolving ${claimed.size} seeds ${claimed.map { it.id }}")
 
         lifecycleScope.launch {
             val cards = withContext(Dispatchers.IO) {
@@ -120,17 +133,22 @@ class AnimeFragment : Fragment() {
                     .distinctBy { it.name.lowercase() }
             }
             adaptor.markDone(claimed.map { it.id })
+            Logger.log("Franchise(anime) built ${cards.size} cards from ${claimed.size} seeds: ${cards.map { it.name }}")
             // notifyItemRangeInserted must run on the main thread, which lifecycleScope's
             // default dispatcher already is.
-            // Appended only while the row is unsorted: a sorted row cannot just have a card
-            // pushed onto the end, so it is re-submitted in full once the new card exists.
-            if (animeFranchisePrefs().sort == FranchiseSort.RANDOM) {
-                adaptor.append(cards)
-            } else {
-                // A sorted row cannot have a new card pushed onto the end; it has to be
-                // re-submitted in its order, with the new card in it.
-                sortAnimeFranchises()
-            }
+            // Appended in both cases. The re-sort below re-reads the adapter's own list, so a
+            // card that was never added cannot be sorted into place: the old code only appended
+            // for RANDOM and called the re-sort on its own otherwise, which left the row
+            // permanently empty for every other sort.
+            adaptor.append(cards)
+            val sort = animeFranchisePrefs().sort
+            // A sorted row cannot just have a card pushed onto the end, so it is re-submitted
+            // in full, in its order, with the new card in it.
+            if (sort != FranchiseSort.RANDOM) sortAnimeFranchises()
+            Logger.log(
+                "Franchise(anime) appended ${cards.size} as $sort, " +
+                    "row now ${adaptor.currentCards().size} cards"
+            )
         }
     }
 

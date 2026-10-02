@@ -1,6 +1,7 @@
 package ani.sanin.connections.kitsu
 
 import ani.sanin.media.Franchise
+import ani.sanin.util.Logger
 import ani.sanin.media.FranchiseEntry
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
@@ -165,13 +166,22 @@ object Kitsu {
     }
 
     private suspend fun buildCard(anilistId: Int): Franchise? {
-        val kitsuId = kitsuAnimeId(anilistId) ?: return null
+        val kitsuId = kitsuAnimeId(anilistId) ?: run {
+            Logger.log("Kitsu: anilist $anilistId has no kitsu mapping")
+            return null
+        }
 
         // Any entry of the franchise identifies the franchise, so the installment chain is
         // the same for all of them.
-        val franchiseId = franchiseIdOf(kitsuId) ?: return null
+        val franchiseId = franchiseIdOf(kitsuId) ?: run {
+            Logger.log("Kitsu: kitsu $kitsuId belongs to no franchise")
+            return null
+        }
         val allInstallments = installmentsOf(franchiseId)
-        if (allInstallments.isEmpty()) return null
+        if (allInstallments.isEmpty()) {
+            Logger.log("Kitsu: franchise $franchiseId returned no installments")
+            return null
+        }
 
         val installmentIds = allInstallments.take(MAX_ENTRIES)
         // Pair each installment with its anime before losing track of which is which:
@@ -179,10 +189,16 @@ object Kitsu {
         val pairs = installmentIds.mapNotNull { installment ->
             mediaIdOf(installment)?.let { installment to it }
         }
-        if (pairs.isEmpty()) return null
+        if (pairs.isEmpty()) {
+            Logger.log("Kitsu: franchise $franchiseId had ${installmentIds.size} installments, none resolved to a media id")
+            return null
+        }
 
         val positions = curatedPositions(installmentIds)
-        val animes = animeByIds(pairs.map { it.second }).ifEmpty { return null }
+        val animes = animeByIds(pairs.map { it.second }).ifEmpty {
+            Logger.log("Kitsu: ${pairs.size} media ids of franchise $franchiseId all failed to load")
+            return null
+        }
 
         val entries = animes
             .mapNotNull { anime ->
@@ -214,15 +230,21 @@ object Kitsu {
         // The requests spent reaching this point are the same either way, since this used to be
         // the check that ended the build.
 
-        return Franchise(
+        val name = franchiseName(franchiseId)
+            ?: animes.firstNotNullOfOrNull { it.animeAttributes()?.displayTitle() }
+            ?: run {
+                Logger.log("Kitsu: franchise $franchiseId had no name and no titled anime")
+                return null
+            }
+        val card = Franchise(
             // The franchise's own title, not the seed's: a Shippuden seed still yields "Naruto".
-            name = franchiseName(franchiseId)
-                ?: animes.firstNotNullOfOrNull { it.animeAttributes()?.displayTitle() }
-                ?: return null,
+            name = name,
             // Per spec the banner is the latest entry's artwork.
             bannerUrl = entries.last().posterUrl,
             entries = entries,
         )
+        Logger.log("Kitsu: built '$name' for anilist $anilistId with ${entries.size} entries")
+        return card
     }
 
     /**
@@ -367,9 +389,18 @@ object Kitsu {
             .build()
         okHttpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
+                Logger.log("Kitsu HTTP ${response.code} for $path: ${response.message}")
                 null
             } else {
-                response.body?.string()?.let { kitsuJson.decodeFromString<KitsuDocument>(it) }
+                val body = response.body?.string()
+                if (body == null) {
+                    Logger.log("Kitsu empty body for $path")
+                    null
+                } else {
+                    val decoded = kitsuJson.decodeFromString<KitsuDocument>(body)
+                    Logger.log("Kitsu ${response.code} $path -> ${decoded.dataList().size} resources, ${body.length} bytes")
+                    decoded
+                }
             }
         }
     }

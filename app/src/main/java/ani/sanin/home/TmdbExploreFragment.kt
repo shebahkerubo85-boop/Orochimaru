@@ -45,6 +45,7 @@ import ani.sanin.snackString
 import ani.sanin.connections.trakt.Trakt
 import androidx.core.app.ActivityOptionsCompat
 import ani.sanin.media.Franchise
+import ani.sanin.util.Logger
 import ani.sanin.media.FranchiseActivity
 import ani.sanin.media.FranchiseAdaptor
 import ani.sanin.media.FranchiseListPrefs
@@ -898,14 +899,21 @@ class TmdbExploreFragment : Fragment() {
      * Sorting is local, so it must not refetch: the ranking lives on the card and reordering is
      * just a permutation of the list in hand.
      */
-    private fun applyFranchiseSort() {
+    /** @return how many cards were actually submitted, after the single-entry filter. */
+    private fun applyFranchiseSort(): Int {
         val prefs = franchisePrefs()
         val shuffled = if (prefs.sort == FranchiseSort.RANDOM) {
             allFranchiseCards.shuffled()
         } else {
             allFranchiseCards
         }
-        franchiseAdapter.submit(FranchiseSorter.apply(allFranchiseCards, prefs, shuffled))
+        val sorted = FranchiseSorter.apply(allFranchiseCards, prefs, shuffled)
+        Logger.log(
+            "Franchise(movie) sort=${prefs.sort} dir=${prefs.direction} " +
+                "showSingle=${prefs.showSingleEntry}: ${allFranchiseCards.size} in, $sorted out"
+        )
+        franchiseAdapter.submit(sorted)
+        return sorted.size
     }
 
     /**
@@ -944,15 +952,31 @@ class TmdbExploreFragment : Fragment() {
      */
     private fun loadFranchises(type: ExploreType, generation: Int) {
         viewLifecycleOwner.lifecycleScope.launch {
+            val started = System.currentTimeMillis()
+            Logger.log("Franchise(movie) load start: chip=${type.name} generation=$generation")
             // Trakt's curated lists are movies, so all three chips share one source and filter
             // client-side. TMDB cannot do this at all: `belongs_to_collection` is absent from
             // every list endpoint, and `/collection/list` is gone from v3.
-            val cards = runCatching { Trakt.franchiseCards() }.getOrDefault(emptyList())
+            val cards = try {
+                Trakt.franchiseCards()
+            } catch (e: Exception) {
+                // Was runCatching{}.getOrDefault(emptyList()): a failure and a genuinely empty
+                // source looked identical from the row, which is an empty row and no way to
+                // tell which happened.
+                Logger.log(e)
+                Logger.log("Franchise(movie) load threw: ${e.message}")
+                emptyList()
+            }
+            Logger.log("Franchise(movie) got ${cards.size} cards in ${System.currentTimeMillis() - started}ms")
             // Everything already in flight belongs to the previous chip; drop it on arrival
             // rather than letting it land on top of this one.
-            if (generation != loadGeneration) return@launch
+            if (generation != loadGeneration) {
+                Logger.log("Franchise(movie) dropping ${cards.size} stale cards for generation $generation")
+                return@launch
+            }
             allFranchiseCards = cards
-            applyFranchiseSort()
+            val shown = applyFranchiseSort()
+            Logger.log("Franchise(movie) submitted $shown cards after sort (from ${cards.size})")
         }
     }
 

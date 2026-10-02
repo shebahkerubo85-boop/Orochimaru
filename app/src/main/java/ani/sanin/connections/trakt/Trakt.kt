@@ -1,6 +1,7 @@
 package ani.sanin.connections.trakt
 
 import ani.sanin.media.Franchise
+import ani.sanin.util.Logger
 import ani.sanin.media.FranchiseEntry
 import ani.sanin.media.FranchiseType
 import kotlin.math.roundToInt
@@ -71,8 +72,12 @@ object Trakt {
      * popular-only card keeps a null rank and so never competes on that field.
      */
     suspend fun franchiseCards(): List<Franchise> = withContext(Dispatchers.IO) {
+        val started = System.currentTimeMillis()
+        Logger.log("Trakt franchiseCards: starting, up to ${LIST_LIMIT * 2} lists to resolve")
         val trending = rankCards(cardsFrom(lists("/lists/trending")))
+        Logger.log("Trakt franchiseCards: trending pass done at ${System.currentTimeMillis() - started}ms")
         val popular = rankCards(cardsFrom(lists("/lists/popular")))
+        Logger.log("Trakt franchiseCards: popular pass done at ${System.currentTimeMillis() - started}ms")
 
         // Trending first so the row opens on what is moving; a card already present from the
         // trending pass keeps its rank rather than being restated by a popular position.
@@ -80,6 +85,10 @@ object Trakt {
         (trending + popular).forEach { card ->
             merged.putIfAbsent(card.name, card)
         }
+        Logger.log(
+            "Trakt franchiseCards: ${trending.size} trending + ${popular.size} popular " +
+                "-> ${merged.size} unique cards in ${System.currentTimeMillis() - started}ms"
+        )
         merged.values.toList()
     }
 
@@ -94,8 +103,12 @@ object Trakt {
      * wrapper, alongside the one on the list, and the wrapper's is the one the ranking is
      * built from. Unwrapping here would lose it and leave every card's like count null.
      */
-    private suspend fun lists(path: String): List<TraktListWrapper> =
-        getList<TraktListWrapper>("$path?limit=$LIST_LIMIT") ?: emptyList()
+    private suspend fun lists(path: String): List<TraktListWrapper> {
+        val wrappers = getList<TraktListWrapper>("$path?limit=$LIST_LIMIT") ?: emptyList()
+        val usable = wrappers.count { it.list != null }
+        Logger.log("Trakt index $path -> $usable/${wrappers.size} wrappers carried a list object")
+        return wrappers
+    }
 
     /**
      * One card per list.
@@ -104,15 +117,28 @@ object Trakt {
      * ranked items are the card's entries. A list holding a single item is kept, as the user
      * specified: a one-entry franchise is still a franchise.
      */
-    private suspend fun cardsFrom(lists: List<TraktListWrapper>): List<Franchise> =
-        lists.mapNotNull { wrapper ->
-            val list = wrapper.list ?: return@mapNotNull null
-            val slug = list.ids?.slug ?: return@mapNotNull null
-            val name = list.name?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-            val username = list.user?.username ?: list.user?.ids?.slug ?: return@mapNotNull null
+    private suspend fun cardsFrom(lists: List<TraktListWrapper>): List<Franchise> {
+        var droppedNoList = 0
+        var droppedNoSlug = 0
+        var droppedNoName = 0
+        var droppedNoUser = 0
+        var droppedNoEntries = 0
+        val cards = lists.mapNotNull { wrapper ->
+            val list = wrapper.list ?: run { droppedNoList++; return@mapNotNull null }
+            val slug = list.ids?.slug ?: run { droppedNoSlug++; return@mapNotNull null }
+            val name = list.name?.takeIf { it.isNotBlank() } ?: run {
+                droppedNoName++; return@mapNotNull null
+            }
+            val username = list.user?.username ?: list.user?.ids?.slug ?: run {
+                droppedNoUser++; return@mapNotNull null
+            }
 
             val resolved = entriesOf(username, slug)
-            if (resolved.entries.isEmpty()) return@mapNotNull null
+            if (resolved.entries.isEmpty()) {
+                droppedNoEntries++
+                Logger.log("Trakt list $username/$slug (\"$name\") resolved to 0 entries")
+                return@mapNotNull null
+            }
 
             Franchise(
                 name = name,
@@ -125,6 +151,13 @@ object Trakt {
                 likeCount = wrapper.likeCount ?: list.likes,
             )
         }
+        Logger.log(
+            "Trakt cardsFrom -> ${cards.size} cards from ${lists.size} lists " +
+                "(dropped: noList=$droppedNoList noSlug=$droppedNoSlug noName=$droppedNoName " +
+                "noUser=$droppedNoUser noEntries=$droppedNoEntries)"
+        )
+        return cards
+    }
 
     /**
      * A list's items, plus the franchise-level artwork that is not derivable from the entries.
@@ -140,10 +173,15 @@ object Trakt {
 
     private suspend fun entriesOf(username: String, slug: String): ResolvedList {
         val key = "$username/$slug"
+        val cached = itemsCache[key] != null
         val items = itemsCache[key] ?: getList<TraktListItem>(
             // `extended=full` is what adds `images`; without it every poster would be missing.
             "/users/$username/lists/$slug/items?limit=$MAX_ENTRIES&extended=full"
-        )?.also { itemsCache[key] = it } ?: return ResolvedList(emptyList(), null)
+        )?.also { itemsCache[key] = it } ?: run {
+            Logger.log("Trakt entriesOf $key: items request returned nothing")
+            return ResolvedList(emptyList(), null)
+        }
+        Logger.log("Trakt entriesOf $key: ${items.size} items${if (cached) " (cached)" else ""}")
 
         // Ranked lists carry an explicit `rank`, which is the all-time ordering. A list sorted
         // by release date leaves it null, so fall back to the response order in that case
@@ -194,23 +232,42 @@ object Trakt {
         )
     }
 
-    /** One JSON GET, decoded as a list of `T`. Returns null on any failure. */
-    private suspend fun <T> getList(path: String): List<T>? =
-        tryWithSuspend(snackbar = false) {
+    /**
+     * One JSON GET, decoded as a list of `T`. Returns null on any failure.
+     *
+     * Every outcome is logged, because this returns null rather than throwing: without a log
+     * a rejected key, a 429 and a decode error all look the same from the row, which is
+     * exactly an empty row with nothing to explain it.
+     */
+    private suspend fun <T> getList(path: String): List<T>? {
+        val key = PrefManager.getVal(PrefName.TraktClientId)
+        Logger.log("Trakt GET $path (key ${if (key.isNullOrBlank()) "MISSING" else "present"})")
+        val result = tryWithSuspend(snackbar = false) {
             val request = Request.Builder()
                 .url("$BASE$path")
                 .get()
                 .addHeader("Content-Type", "application/json")
                 .addHeader("trakt-api-version", "2")
-                .addHeader("trakt-api-key", PrefManager.getVal(PrefName.TraktClientId))
+                .addHeader("trakt-api-key", key)
                 .build()
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
+                    Logger.log("Trakt HTTP ${response.code} for $path: ${response.message}")
                     null
                 } else {
-                    response.body?.string()
-                        ?.let { traktJson.decodeFromString<List<T>>(it) }
+                    val body = response.body?.string()
+                    if (body == null) {
+                        Logger.log("Trakt empty body for $path")
+                        null
+                    } else {
+                        val decoded = traktJson.decodeFromString<List<T>>(body)
+                        Logger.log("Trakt ${response.code} $path -> ${decoded.size} items, ${body.length} bytes")
+                        decoded
+                    }
                 }
             }
         }
+        if (result == null) Logger.log("Trakt FAILED (null) $path")
+        return result
+    }
 }
