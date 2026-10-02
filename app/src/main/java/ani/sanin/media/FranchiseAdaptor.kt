@@ -83,15 +83,38 @@ class FranchiseAdaptor(
      */
     fun currentCards(): List<Franchise> = synchronized(lock) { franchises.toList() }
 
-    /** Appends cards and notifies only the new range, leaving existing holders alone. */
-    fun append(more: List<Franchise>) {
-        if (more.isEmpty()) return
-        // Seed bookkeeping is mutated from the background loader, so the list mutation and
-        // the RecyclerView notification stay under the same lock.
+    /**
+     * Swaps provisional cards for their finished ones and appends anything genuinely new.
+     *
+     * The loader publishes a provisional card for a seed the moment the page lands and then
+     * replaces it as the real franchise is resolved, so a card can legitimately be seen twice
+     * under one name. [replacements] therefore keys on the name the placeholder went out under,
+     * which is the seed's title and need not survive resolution: a Naruto seed is published as
+     * "Naruto: Shippuden" and resolved as "Naruto", so keying on the finished name would leave
+     * the placeholder on screen beside the card that was meant to replace it.
+     *
+     * A card whose finished name is already in the row is dropped rather than appended, because
+     * two seeds of one franchise resolve to the same name and the row wants one card for it.
+     */
+    fun upsert(replacements: Map<String, Franchise>) {
+        if (replacements.isEmpty()) return
         synchronized(lock) {
-            val start = franchises.size
-            franchises.addAll(more)
-            notifyItemRangeInserted(start, more.size)
+            val at = HashMap<String, Int>()
+            franchises.forEachIndexed { index, card -> at.putIfAbsent(card.name.lowercase(), index) }
+            val merged = ArrayList(franchises)
+            replacements.forEach { (provisionalName, card) ->
+                val position = at.remove(provisionalName.lowercase())
+                val key = card.name.lowercase()
+                if (position == null) {
+                    if (at.putIfAbsent(key, merged.size) == null) merged.add(card)
+                } else {
+                    at.putIfAbsent(key, position)
+                    merged[position] = card
+                }
+            }
+            franchises.clear()
+            franchises.addAll(merged)
+            notifyDataSetChanged()
         }
     }
 

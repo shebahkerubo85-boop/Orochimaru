@@ -235,11 +235,20 @@ object Trakt {
     /**
      * One JSON GET, decoded as a list of `T`. Returns null on any failure.
      *
+     * `T` has to be reified, and that is not a style preference. `decodeFromString` needs a
+     * serializer for `List<T>` at runtime, which it can only build if `T` is known at the call
+     * site. Left as a plain generic, the compiler accepts the call, and it then throws
+     * `IllegalArgumentException: Captured type parameter T ... from generic non-reified
+     * function` the first time it runs. That exception is swallowed by [tryWithSuspend], so the
+     * row renders as an empty row with a plausible-looking log line and no error anywhere.
+     *
+     * Private so that inlining may reach this object's own private members.
+     *
      * Every outcome is logged, because this returns null rather than throwing: without a log
      * a rejected key, a 429 and a decode error all look the same from the row, which is
      * exactly an empty row with nothing to explain it.
      */
-    private suspend fun <T> getList(path: String): List<T>? {
+    private suspend inline fun <reified T> getList(path: String): List<T>? {
         // Annotated because getVal's type parameter is on its return type alone: hoisting this
         // into a local drops the expected type that addHeader used to supply.
         val key: String = PrefManager.getVal(PrefName.TraktClientId)

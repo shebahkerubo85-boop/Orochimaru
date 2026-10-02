@@ -52,8 +52,11 @@ import ani.sanin.statusBarHeight
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlin.math.max
 import kotlin.math.min
@@ -123,32 +126,51 @@ class AnimeFragment : Fragment() {
         }
         Logger.log("Franchise(anime) publish: resolving ${claimed.size} seeds ${claimed.map { it.id }}")
 
+        // A placeholder for every seed that has relations, published before a single request
+        // goes out. This is pure work on data the AniList page already carries, so the row has
+        // something in it on the next frame. Waiting for Kitsu first is what made the row look
+        // empty: each seed costs Kitsu five sequential requests, so a 50-seed page took minutes
+        // before the first card could be built at all.
+        val stubs = claimed.mapNotNull { seed ->
+            FranchiseStub.fromMedia(seed)?.let { card -> seed.id to card }
+        }
+        val stubByName = stubs.associate { (_, card) -> card.name to card }
+        val stubNames = stubs.associate { (id, card) -> id to card.name }
+        if (stubNames.isNotEmpty()) {
+            adaptor.upsert(stubNames.mapValues { (_, name) -> stubByName.getValue(name) })
+            Logger.log("Franchise(anime) published ${stubNames.size} placeholder cards immediately")
+        }
+
+        // Kitsu then upgrades the placeholders it can answer for and supplies cards for the
+        // seeds that had no relations to stub from. Bounded rather than serial, because the whole
+        // cost of this row is the number of round trips and each one is independent.
         lifecycleScope.launch {
-            val cards = withContext(Dispatchers.IO) {
-                claimed.mapNotNull { seed ->
-                    Kitsu.franchiseCard(seed.id)
-                        ?: FranchiseStub.fromMedia(seed)
+            claimed.chunked(KITSU_CONCURRENCY * 2).forEach { chunk ->
+                val resolved = withContext(Dispatchers.IO) {
+                    val gate = Semaphore(KITSU_CONCURRENCY)
+                    chunk.map { seed -> async { gate.withPermit { Kitsu.franchiseCard(seed.id) } } }
+                        .awaitAll()
                 }
-                    // Several seeds can resolve to the same franchise; one card each.
-                    .distinctBy { it.name.lowercase() }
+                val upgrades = mutableMapOf<String, Franchise>()
+                chunk.forEachIndexed { index, seed ->
+                    val card = resolved[index] ?: return@forEachIndexed
+                    // Replace the placeholder by the name it was published under, so a
+                    // franchise whose resolved name differs from its seed's still lands in the
+                    // right slot rather than beside it.
+                    val provisional = stubNames[seed.id] ?: card.name
+                    upgrades[provisional] = card
+                }
+                if (upgrades.isNotEmpty()) adaptor.upsert(upgrades)
+                Logger.log(
+                    "Franchise(anime) resolved ${resolved.count { it != null }}/${chunk.size} " +
+                        "in chunk, row now ${adaptor.currentCards().size} cards"
+                )
             }
             adaptor.markDone(claimed.map { it.id })
-            Logger.log("Franchise(anime) built ${cards.size} cards from ${claimed.size} seeds: ${cards.map { it.name }}")
-            // notifyItemRangeInserted must run on the main thread, which lifecycleScope's
-            // default dispatcher already is.
-            // Appended in both cases. The re-sort below re-reads the adapter's own list, so a
-            // card that was never added cannot be sorted into place: the old code only appended
-            // for RANDOM and called the re-sort on its own otherwise, which left the row
-            // permanently empty for every other sort.
-            adaptor.append(cards)
-            val sort = animeFranchisePrefs().sort
-            // A sorted row cannot just have a card pushed onto the end, so it is re-submitted
-            // in full, in its order, with the new card in it.
-            if (sort != FranchiseSort.RANDOM) sortAnimeFranchises()
-            Logger.log(
-                "Franchise(anime) appended ${cards.size} as $sort, " +
-                    "row now ${adaptor.currentCards().size} cards"
-            )
+            Logger.log("Franchise(anime) built row of ${adaptor.currentCards().size} cards from ${claimed.size} seeds")
+            // Re-sort once everything has landed so the row ends in the user's chosen order.
+            // The incremental upserts above append in resolution order, which is arrival order.
+            sortAnimeFranchises()
         }
     }
 
@@ -268,6 +290,16 @@ class AnimeFragment : Fragment() {
     private companion object {
         /** Shared-element name for the card banner handing off to the franchise screen. */
         const val FRANCHISE_TRANSITION = "franchiseCard"
+
+        /**
+         * Kitsu requests in flight at once while a page's seeds are resolved.
+         *
+         * Each seed costs about five sequential Kitsu calls, so a 50-seed page is roughly 250
+         * round trips; serially that took minutes, which is what left the row spinning. Six at a
+         * time collapses the same work into a fraction of the wall clock while staying well
+         * inside what the Kitsu API will serve without rate-limiting.
+         */
+        const val KITSU_CONCURRENCY = 6
     }
 
     val model: AnilistAnimeViewModel by activityViewModels()

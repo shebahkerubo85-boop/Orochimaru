@@ -142,6 +142,22 @@
             android:textSize="16sp" />
 
         <!--
+          Shown while the Franchise source is in flight.
+
+          The row fetches up to forty Trakt lists, which takes long enough to be worth saying so.
+          Without it a slow source and a source that returned nothing were the same empty row.
+        -->
+        <ProgressBar
+            android:id="@+id/tmdbFranchiseProgress"
+            style="?android:attr/progressBarStyleSmall"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginEnd="8dp"
+            android:indeterminate="true"
+            android:visibility="gone"
+            tools:ignore="UnusedAttribute" />
+
+        <!--
           Sort pill and direction control sit at the right of the header, as specced.
 
           The pill shows the selected sort and opens the sort dialog on click; it deliberately has

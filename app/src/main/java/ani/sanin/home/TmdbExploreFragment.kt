@@ -954,6 +954,7 @@ class TmdbExploreFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             val started = System.currentTimeMillis()
             Logger.log("Franchise(movie) load start: chip=${type.name} generation=$generation")
+            setFranchiseProgress(true)
             // Trakt's curated lists are movies, so all three chips share one source and filter
             // client-side. TMDB cannot do this at all: `belongs_to_collection` is absent from
             // every list endpoint, and `/collection/list` is gone from v3.
@@ -972,14 +973,27 @@ class TmdbExploreFragment : Fragment() {
             // rather than letting it land on top of this one.
             if (generation != loadGeneration) {
                 Logger.log("Franchise(movie) dropping ${cards.size} stale cards for generation $generation")
+                setFranchiseProgress(false)
                 return@launch
             }
             allFranchiseCards = cards
             val shown = applyFranchiseSort()
             Logger.log("Franchise(movie) submitted $shown cards after sort (from ${cards.size})")
+            setFranchiseProgress(false)
         }
     }
 
+    /**
+     * Shows or hides the row's loading bar.
+     *
+     * The row had no loading state at all, so a slow source and a source that returned nothing
+     * looked identical from the tab. The bar lives in the row's own header rather than in a
+     * list item, so it costs no layout and no adapter swap. A null guard covers a chip change
+     * landing before the page has bound.
+     */
+    private fun setFranchiseProgress(loading: Boolean) {
+        pageBinding?.tmdbFranchiseProgress?.isVisible = loading
+    }
 
     /**
      * Opens the franchise screen for a pressed card.
