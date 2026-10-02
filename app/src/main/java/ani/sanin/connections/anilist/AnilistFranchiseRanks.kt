@@ -1,6 +1,6 @@
 package ani.sanin.connections.anilist
 
-import ani.sanin.Logger
+import ani.sanin.util.Logger
 import ani.sanin.connections.anilist.api.MediaTitle
 import ani.sanin.connections.anilist.api.Query
 import ani.sanin.media.Franchise

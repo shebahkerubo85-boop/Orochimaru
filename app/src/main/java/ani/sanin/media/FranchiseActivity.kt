@@ -113,7 +113,11 @@ class FranchiseActivity : AppCompatActivity() {
         binding.franchiseEntryCount.text =
             getString(R.string.franchise_entries_count, totalEntries)
 
-        ordered.forEach { it.type?.let(type -> availableTypes += type) }
+        // The categories actually present, in the order the entries first introduce them, which
+        // is the order the pill offers. `add` rather than `+=` because the set is a val: the
+        // pill is rebuilt from scratch whenever the filters change, so nothing is ever cleared
+        // back to a previous value here.
+        ordered.mapNotNull { it.type }.forEach { availableTypes.add(it) }
 
         buildFilterPills()
         buildRows(ordered)
@@ -406,28 +410,35 @@ class FranchiseActivity : AppCompatActivity() {
         val text = row.franchiseRowSynopsis
         val scrim = row.franchiseRowSynopsisScrim
 
-        text.post {
-            if (!text.isAttachedToWindow || card.height <= 0) return@post
+        text.post firstPass@{
+            if (!text.isAttachedToWindow || card.height <= 0) return@firstPass
 
             val lineHeight = text.lineHeight
-            if (lineHeight <= 0) return@post
+            if (lineHeight <= 0) return@firstPass
 
             val previous = text.maxLines
             // A line needs its height plus the holder's padding, since the scrim wraps the text.
             val fits = ((card.height - scrim.paddingTop - scrim.paddingBottom) / lineHeight)
                 .coerceAtLeast(1)
 
+            // lineCount only means anything after a measure pass, so the unclamped count has to
+            // be taken across a layout: lift the limit, ask for one, and read the count on the
+            // far side of it. Reading it in the same pass would return the old, clamped count.
             text.maxLines = Int.MAX_VALUE
-            val needed = text.lineCount
+            text.requestLayout()
+            text.post {
+                if (!text.isAttachedToWindow) return@post
 
-            val chosen = when {
-                needed <= fits -> fits
-                // One line short of fitting leaves room for the ellipsis on the same run.
-                fits > 1 -> fits - 1
-                else -> 1
+                val needed = text.lineCount
+                val chosen = when {
+                    needed <= fits -> fits
+                    // One line short of fitting leaves room for the ellipsis on the same run.
+                    fits > 1 -> fits - 1
+                    else -> 1
+                }
+                text.maxLines = chosen
+                if (text.maxLines != previous) text.requestLayout()
             }
-            text.maxLines = chosen
-            if (text.maxLines != previous) text.requestLayout()
         }
     }
 
@@ -578,15 +589,18 @@ class FranchiseActivity : AppCompatActivity() {
             val enriched = withContext(Dispatchers.IO) {
                 AnilistFranchiseRanks.enrich(listOf(card))
             }
-            franchise = enriched.firstOrNull() ?: card
+            // enrich() hands back what it was given even when the request failed, but first()
+            // would throw on an empty list rather than degrading, so the fallback is explicit.
+            val resolved = enriched.firstOrNull() ?: card
+            franchise = resolved
 
-            val updated = orderedEntries(enriched.first())
+            val updated = orderedEntries(resolved)
             binding.franchiseProgress.isVisible = false
 
             // Rebuilt rather than patched in place: enrichment can change an entry's type, which
             // can change which filters are available, which means the whole row set is stale.
             availableTypes.clear()
-            updated.forEach { it.type?.let(type -> availableTypes += type) }
+            updated.mapNotNull { it.type }.forEach { availableTypes.add(it) }
             buildFilterPills()
             buildRows(updated)
         }

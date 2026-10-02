@@ -155,7 +155,10 @@ fun Fragment.showFranchiseSortDialog(onChanged: () -> Unit) {
     val prefs = FranchiseListPrefs.read()
     val body = layoutInflater.inflate(R.layout.dialog_franchise_sort, null)
 
-    body.findViewById<RadioGroup>(R.id.franchiseSortGroup).check(prefs.sort.radioId())
+    // Held rather than re-found: checkedRadioButtonId is a RadioGroup property, and the inflated
+    // body is a plain View, so the group has to be kept around to read the answer back.
+    val group = body.findViewById<RadioGroup>(R.id.franchiseSortGroup)
+    group.check(prefs.sort.radioId())
     body.findViewById<MaterialSwitch>(R.id.franchiseShowSingleEntry).apply {
         isChecked = prefs.showSingleEntry
         // Saved on change rather than on OK, so the row updates while the dialog is still open.
@@ -172,8 +175,8 @@ fun Fragment.showFranchiseSortDialog(onChanged: () -> Unit) {
         .setView(body)
         // Read on OK, so Cancel leaves the sort alone even though the toggle was saved already.
         .setPositiveButton(android.R.string.ok) { _, _ ->
-            val chosen = FranchiseSort.entries.firstOrNull { it.radioId() == body.checkedRadioButtonId }
-                ?: prefs.sort
+            val chosen = FranchiseSort.entries
+                .firstOrNull { it.radioId() == group.checkedRadioButtonId } ?: prefs.sort
             PrefManager.setVal(PrefName.FranchiseSortOrder, chosen.name)
             onChanged()
         }
