@@ -268,7 +268,7 @@ mediaListEntry {
   score(format: POINT_100)
   status
 }
-${if (withRelations) relationsInformation else ""}
+${if (withRelations) relationsInformation() else ""}
 """.prepare()
 
 /**

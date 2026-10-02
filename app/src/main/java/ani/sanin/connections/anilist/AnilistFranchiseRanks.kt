@@ -1,11 +1,14 @@
 package ani.sanin.connections.anilist
 
 import ani.sanin.util.Logger
+import ani.sanin.connections.anilist.api.Media as AnilistMedia
 import ani.sanin.connections.anilist.api.MediaTitle
 import ani.sanin.connections.anilist.api.Query
 import ani.sanin.media.Franchise
 import ani.sanin.media.FranchiseEntry
 import ani.sanin.media.FranchiseType
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
@@ -79,13 +82,23 @@ object AnilistFranchiseRanks {
     private var popularity: Ranks? = null
     private var trending: Ranks? = null
 
+    /**
+     * One lock for both rankings.
+     *
+     * The point is to let only the first caller pay for a request while the rest wait for the
+     * answer, and a [Mutex] is the only lock that can be held across a suspension point.
+     * Sharing one between the two rankings costs nothing: each is fetched at most once, so
+     * there is no work to run concurrently, and two locks would only add a way to get it wrong.
+     */
+    private val lock = Mutex()
+
     /** All-time most popular, matching what the "Most Popular" option promises. */
-    suspend fun popular(): Ranks = synchronized(this) {
+    suspend fun popular(): Ranks = lock.withLock {
         popularity ?: query("POPULARITY_DESC").also { popularity = it }
     }
 
     /** This week's most watched, matching what "Trending" promises. */
-    suspend fun trending(): Ranks = synchronized(this) {
+    suspend fun trending(): Ranks = lock.withLock {
         trending ?: query("TRENDING_DESC").also { trending = it }
     }
 
@@ -190,7 +203,7 @@ object AnilistFranchiseRanks {
         if (details.isEmpty()) return cards
 
         val byId = details.associateBy { it.id }
-        val byTitle = buildMap<String, Query.Media?> {
+        val byTitle = buildMap<String, AnilistMedia?> {
             details.forEach { m ->
                 titlesOf(m.title).forEach { putIfAbsent(normalize(it), m) }
             }
@@ -206,7 +219,7 @@ object AnilistFranchiseRanks {
     }
 
     /** AniList caps `id_in` per query, so the request is chunked rather than truncated. */
-    private suspend fun fetchDetails(ids: List<Int>): List<Query.Media> =
+    private suspend fun fetchDetails(ids: List<Int>): List<AnilistMedia> =
         ids.chunked(MAX_IDS_PER_QUERY).flatMap { chunk ->
             Injekt.get<Anilist>()
                 .executeQuery<Query.Page>(
@@ -217,14 +230,17 @@ object AnilistFranchiseRanks {
         }
 
     /** Copies an AniList detail object onto an entry. */
-    private fun FranchiseEntry.withDetail(detail: Query.Media): FranchiseEntry {
+    private fun FranchiseEntry.withDetail(detail: AnilistMedia): FranchiseEntry {
         val date = detail.startDate
-        val dateKey = when {
-            date?.year == null -> null
-            // A year-only date is deliberately not promoted to yyyy0101: an entry that only
-            // knows its year must sort after anything with a real date, not before it.
-            date.month == null -> null
-            else -> date.year * 10000 + date.month * 100 + (date.day ?: 1)
+        // Read into locals rather than smart-cast off the null checks: the sort key needs a
+        // month, and a year-only date is deliberately not promoted to yyyy0101, because an
+        // entry that only knows its year must sort after anything with a real date, not before.
+        val year = date?.year
+        val month = date?.month
+        val dateKey = if (year == null || month == null) {
+            null
+        } else {
+            year * 10000 + month * 100 + (date.day ?: 1)
         }
         return copy(
             airDate = airDate ?: date?.let { it.toStringOrEmpty() }.orEmpty().ifBlank { null },

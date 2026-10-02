@@ -34,6 +34,19 @@ data class TraktListIds(
     val trakt: Long? = null,
 )
 
+/**
+ * One element of a Trakt list index, i.e. of `/lists/popular` or `/lists/trending`.
+ *
+ * The API does not return the list itself but a wrapper holding it alongside a copy of its
+ * owner. The owner appears at both levels and is not reliably populated on the inner list, so
+ * the wrapper's copy is the one worth reading.
+ */
+@Serializable
+data class TraktListWrapper(
+    val list: TraktList? = null,
+    val user: TraktUser? = null,
+)
+
 @Serializable
 data class TraktUser(
     val username: String? = null,

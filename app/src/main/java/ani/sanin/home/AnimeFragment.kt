@@ -35,6 +35,7 @@ import ani.sanin.media.FranchiseAdaptor
 import ani.sanin.media.FranchiseListPrefs
 import ani.sanin.media.FranchiseSort
 import ani.sanin.media.showFranchiseSortDialog
+import ani.sanin.media.read
 import ani.sanin.media.FranchiseSorter
 import ani.sanin.media.FranchiseStub
 import ani.sanin.setSafeOnClickListener
@@ -190,14 +191,15 @@ class AnimeFragment : Fragment() {
      * Same behaviour as the movie row. The difference is in the data: these cards arrive a page
      * at a time, and Trending and Most Popular need AniList to rank them.
      */
-    private fun setupAnimeFranchiseSort(adaptor: FranchiseAdaptor) {
+    private fun setupAnimeFranchiseSort() {
         if (animeFranchiseSortWired) return
+        // The pill and direction button live in the page item layout AnimePageAdapter inflates,
+        // so they are reached through *its* binding, not the fragment's and not the franchise
+        // adapter's. Only the row's own adapter is needed as a field, for re-sorting.
+        val adaptor = animeFranchiseAdapter ?: return
         animeFranchiseSortWired = true
-        animeFranchiseAdapter = adaptor
-        // The pill and direction button live in the page item layout the AnimePageAdapter
-        // inflates, so they are reached through its binding rather than the fragment's.
-        val pill = adaptor.binding.animeFranchiseSortPill
-        val direction = adaptor.binding.animeFranchiseSortDirection
+        val pill = animePageAdapter.binding.animeFranchiseSortPill
+        val direction = animePageAdapter.binding.animeFranchiseSortDirection
 
         fun updatePill() {
             pill.setText(animeFranchisePrefs().sort.labelRes())
@@ -418,7 +420,7 @@ class AnimeFragment : Fragment() {
             if (i) {
                 // Only now does AnimePageAdapter hold an inflated binding for the page item, so
                 // this is the first point the header's controls exist to be wired.
-                setupAnimeFranchiseSort(franchiseAdaptor)
+                setupAnimeFranchiseSort()
                 model.getUpdated().observe(viewLifecycleOwner) {
                     if (it != null) {
                         animePageAdapter.updateRecent(MediaAdaptor(0, it, requireActivity()), it)

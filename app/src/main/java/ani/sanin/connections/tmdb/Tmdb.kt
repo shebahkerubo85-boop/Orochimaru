@@ -27,11 +27,21 @@ data class TmdbMedia(
     @SerialName("first_air_date") val firstAirDate: String? = null,
     val overview: String? = null,
     @SerialName("genre_ids") val genreIds: List<Int> = emptyList(),
-    @SerialName("media_type") val mediaType: String? = null
+    @SerialName("media_type") val mediaType: String? = null,
+    @SerialName("belongs_to_collection") val collection: TmdbCollection? = null
 ) {
     val displayTitle: String get() = title ?: name ?: ""
     val year: String get() = (releaseDate ?: firstAirDate ?: "").take(4)
     val type: String get() = mediaType ?: if (title != null) "movie" else "tv"
+
+    /**
+     * When this title first came out, whichever field its media type populates.
+     *
+     * A movie carries `release_date` and a TV show carries `first_air_date`, and a collection's
+     * parts are whichever of the two the collection is made of, so sorting on one field alone
+     * leaves half of them null and quietly keeps the response order instead.
+     */
+    val sortDate: String? get() = releaseDate ?: firstAirDate
 }
 
 /**

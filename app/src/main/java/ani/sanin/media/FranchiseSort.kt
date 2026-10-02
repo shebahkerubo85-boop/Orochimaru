@@ -119,9 +119,10 @@ object FranchiseSorter {
         else franchises.filterNot { it.isSingleEntry }
 
         if (prefs.sort == FranchiseSort.RANDOM) {
-            // Random still prefers real franchises: a single-entry card is ranked behind every
-            // multi-entry one rather than left entirely to chance, so the page opens on actual
-            // franchises while the single entries stay reachable at the bottom.
+            // With the switch on, every card is visible, so random is just the shuffle. With it
+            // off there are no single-entry cards left to demote, but the branch is kept rather
+            // than folded away: it is what makes the random order independent of the preference
+            // for the multi-entry cards, should the filtering ever move upstream of here.
             val multiEntry = visible.filterNot { it.isSingleEntry }.mapTo(HashSet()) { it.name }
             return shuffledIn.sortedBy { if (it.name in multiEntry) 0 else 1 }
         }

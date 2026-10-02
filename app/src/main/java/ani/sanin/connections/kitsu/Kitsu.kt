@@ -72,10 +72,7 @@ object Kitsu {
      */
     private const val MAX_ENTRIES = 24
 
-    /** Below this a card is not a franchise but a lone entry, so it is not shown. */
-    private const val MIN_ENTRIES = 2
-
-    private val franchiseCache = ConcurrentHashMap<String, Franchise>()
+    private val franchiseCache = ConcurrentHashMap<Int, Franchise>()
 
     /**
      * AniList ids known to have no Kitsu franchise, or that Kitsu could not answer for.
@@ -159,11 +156,12 @@ object Kitsu {
      */
     suspend fun franchiseCard(anilistId: Int): Franchise? = withContext(Dispatchers.IO) {
         if (missingCache.containsKey(anilistId)) return@withContext null
-        franchiseCache[anilistId] ?: tryWithSuspend(snackbar = false) {
+        franchiseCache[anilistId]?.let { return@withContext it }
+        val card = tryWithSuspend(snackbar = false) {
             buildCard(anilistId)
-        }?.also {
-            if (it != null) franchiseCache[anilistId] = it else missingCache[anilistId] = true
         }
+        if (card == null) missingCache[anilistId] = true else franchiseCache[anilistId] = card
+        card
     }
 
     private suspend fun buildCard(anilistId: Int): Franchise? {
@@ -188,7 +186,7 @@ object Kitsu {
 
         val entries = animes
             .mapNotNull { anime ->
-                val entry = anime.toEntry() ?: return@mapNotNull null
+                val mapped = anime.toEntry() ?: return@mapNotNull null
                 // Media ids are unique per anime, so one position per entry is enough.
                 val position = pairs.firstOrNull { it.second == anime.id() }?.first
                     ?.let { positions[it] }
@@ -196,7 +194,7 @@ object Kitsu {
                 // exactly; the other entries are matched by title instead, since resolving each
                 // of those back to AniList would cost a request per entry.
                 val entry =
-                    if (anime.id() == kitsuId) entry.copy(anilistId = anilistId) else entry
+                    if (anime.id() == kitsuId) mapped.copy(anilistId = anilistId) else mapped
                 entry to position
             }
             .sortedWith(
@@ -209,10 +207,12 @@ object Kitsu {
             .map { it.first }
             .ifEmpty { return null }
 
-        // A single entry is not a franchise, it is a smaller version of the Popular row this
-        // replaced. Kitsu does file one-installment franchises for one-offs, so this filter
-        // earns its place.
-        if (entries.size < MIN_ENTRIES) return null
+        // A one-installment franchise is built here even though it is a lone entry, because
+        // whether the row shows it is the user's choice and not a fact about the data. The
+        // sort dialog's single-entry switch is what filters it, and it filters for the movie
+        // row the same way, so deciding it here would make the switch work on one row only.
+        // The requests spent reaching this point are the same either way, since this used to be
+        // the check that ended the build.
 
         return Franchise(
             // The franchise's own title, not the seed's: a Shippuden seed still yields "Naruto".

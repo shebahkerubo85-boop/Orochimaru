@@ -16,7 +16,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
-import androidx.fragment.app.activityViewModels
+import androidx.activity.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import ani.sanin.R
 import ani.sanin.connections.anilist.AnilistFranchiseRanks
@@ -28,6 +28,7 @@ import ani.sanin.loadImage
 import ani.sanin.px
 import ani.sanin.setSafeOnClickListener
 import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import ani.sanin.snackString
 import ani.sanin.themes.ThemeManager
 import ani.sanin.toPx

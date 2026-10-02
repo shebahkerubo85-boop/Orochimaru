@@ -88,7 +88,10 @@ object Trakt {
         cards.mapIndexed { index, card -> card.copy(trendingRank = index + 1) }
 
     private suspend fun lists(path: String): List<TraktList> =
-        getList("$path?limit=$LIST_LIMIT")?.mapNotNull { it.list } ?: emptyList()
+        getList<TraktListWrapper>("$path?limit=$LIST_LIMIT")?.mapNotNull { wrapper ->
+            val list = wrapper.list ?: return@mapNotNull null
+            if (list.user == null) list.copy(user = wrapper.user) else list
+        } ?: emptyList()
 
     /**
      * One card per list.
@@ -132,7 +135,7 @@ object Trakt {
 
     private suspend fun entriesOf(username: String, slug: String): ResolvedList {
         val key = "$username/$slug"
-        val items = itemsCache[key] ?: getList(
+        val items = itemsCache[key] ?: getList<TraktListItem>(
             // `extended=full` is what adds `images`; without it every poster would be missing.
             "/users/$username/lists/$slug/items?limit=$MAX_ENTRIES&extended=full"
         )?.also { itemsCache[key] = it } ?: return ResolvedList(emptyList(), null)

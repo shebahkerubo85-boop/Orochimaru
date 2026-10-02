@@ -50,6 +50,7 @@ import ani.sanin.media.FranchiseAdaptor
 import ani.sanin.media.FranchiseListPrefs
 import ani.sanin.media.FranchiseSort
 import ani.sanin.media.showFranchiseSortDialog
+import ani.sanin.media.read
 import ani.sanin.media.FranchiseSorter
 import ani.sanin.media.Media
 import ani.sanin.media.MediaAdaptor
