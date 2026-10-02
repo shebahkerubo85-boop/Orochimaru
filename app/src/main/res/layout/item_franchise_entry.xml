@@ -28,7 +28,7 @@
         android:id="@+id/franchiseRowCardHolder"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="10dp"
+        android:layout_marginEnd="3dp"
         android:layout_weight="58">
 
         <androidx.cardview.widget.CardView
@@ -220,7 +220,7 @@
         android:id="@+id/franchiseRowSynopsisHolder"
         android:layout_width="0dp"
         android:layout_height="match_parent"
-        android:layout_marginStart="10dp"
+        android:layout_marginStart="3dp"
         android:layout_weight="42"
         android:gravity="center_vertical"
         android:orientation="vertical">
