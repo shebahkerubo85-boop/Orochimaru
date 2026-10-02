@@ -220,10 +220,8 @@
       screen for the franchise, and repeating a logo inside every row says the same thing a
       dozen times while telling you nothing about which entry this is.
 
-      The synopsis carries no background of its own. It sits on the page, which is a flat
-      colour, and the frame around it is not decoration but the mask that lets the connector
-      pass behind the words instead of through them — its colour is the page's own, so what
-      reads on screen is bare text on a bare page.
+      The synopsis carries no background of its own: it sits on the page, which is a flat
+      colour, so what reads on screen is bare text on a bare page.
     -->
     <LinearLayout
         android:id="@+id/franchiseRowSynopsisHolder"
@@ -244,25 +242,26 @@
             tools:ignore="SpUsage"
             tools:text="Naruto · 23 min" />
 
-        <FrameLayout
-            android:id="@+id/franchiseRowSynopsisScrim"
+        <!--
+          The teaser.
+
+          The page colour behind it is not decoration and not a box: it is the mask that lets
+          the connector pass behind the words instead of through them. Its colour is the page's
+          own, so what is on screen is bare text on a bare page, and the line emerges again on
+          the far side as if it had gone under.
+        -->
+        <TextView
+            android:id="@+id/franchiseRowSynopsis"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/franchise_synopsis_gap">
-
-            <TextView
-                android:id="@+id/franchiseRowSynopsis"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@color/franchise_page"
-                android:ellipsize="end"
-                android:fontFamily="@font/poppins"
-                android:lineSpacingExtra="2dp"
-                android:textColor="@color/franchise_on_page"
-                android:textSize="@dimen/franchise_synopsis_size"
-                tools:text="Naruto tells the story of Naruto Uzumaki, a hyperactive ninja…" />
-
-        </FrameLayout>
+            android:layout_marginTop="@dimen/franchise_synopsis_gap"
+            android:background="@color/franchise_page"
+            android:ellipsize="end"
+            android:fontFamily="@font/poppins"
+            android:lineSpacingExtra="2dp"
+            android:textColor="@color/franchise_on_page"
+            android:textSize="@dimen/franchise_synopsis_size"
+            tools:text="Naruto tells the story of Naruto Uzumaki, a hyperactive ninja…" />
 
     </LinearLayout>
 

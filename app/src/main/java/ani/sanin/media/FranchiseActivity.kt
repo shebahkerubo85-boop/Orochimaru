@@ -401,7 +401,7 @@ class FranchiseActivity : AppCompatActivity() {
      * with it: the poster is a fixed width and the text column takes the rest, so whichever
      * side a row lands on, the poster is the same poster and the prose gets the same prose.
      */
-    private fun bindRow(row: ItemFranchiseEntryBinding, entry: FranchiseEntry, index: int) {
+    private fun bindRow(row: ItemFranchiseEntryBinding, entry: FranchiseEntry, index: Int) {
         val cardOnLeft = index % 2 == 0
 
         // The row itself is the parent of the two columns, and it is the root of the inflated
@@ -514,7 +514,7 @@ class FranchiseActivity : AppCompatActivity() {
         val poster = row.franchiseRowCard
         val title = row.franchiseRowTitle
         val text = row.franchiseRowSynopsis
-        val gap = row.franchiseRowSynopsisScrim.topMargin
+        val gap = resources.getDimensionPixelSize(R.dimen.franchise_synopsis_gap)
 
         text.post firstPass@{
             if (!text.isAttachedToWindow || poster.height <= 0) return@firstPass
