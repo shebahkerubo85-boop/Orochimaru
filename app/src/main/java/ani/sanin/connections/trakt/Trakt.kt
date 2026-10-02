@@ -59,42 +59,78 @@ object Trakt {
      */
     private const val MAX_ENTRIES = 24
 
+    /**
+     * Cards resolved per batch, and so per page of the row.
+     *
+     * Sized against the two indexes this source has: 20 trending lists plus 20 popular is 40
+     * cards, and the first page of the old Popular row was 30, so 29 leaves the row opening on
+     * about the same number of posters the list it replaced showed while cutting the time to
+     * first card by nearly a third. The rest arrives as the user scrolls.
+     */
+    const val BATCH_CARDS = 29
+
     private val client
         get() = Injekt.get<eu.kanade.tachiyomi.network.NetworkHelper>().client
 
     private val itemsCache = ConcurrentHashMap<String, List<TraktListItem>>()
 
     /**
-     * Cards from Trakt's curated ranked lists, trending first then popular.
+     * One window of the Franchise source, and whether anything is left behind it.
      *
-     * The two rankings are fetched as separate passes rather than merged, because
-     * [Franchise.trendingRank] is only meaningful for a card that came from the trending pass. A
-     * popular-only card keeps a null rank and so never competes on that field.
+     * @param cards the resolved cards, unsorted. The row sorts locally, so the window is just
+     *   however much of the source has been turned into cards so far.
+     * @param hasMore whether [franchiseCards] has lists left after this batch.
      */
-    suspend fun franchiseCards(): List<Franchise> = withContext(Dispatchers.IO) {
-        val started = System.currentTimeMillis()
-        Logger.log("Trakt franchiseCards: starting, up to ${LIST_LIMIT * 2} lists to resolve")
-        val trending = rankCards(cardsFrom(lists("/lists/trending")))
-        Logger.log("Trakt franchiseCards: trending pass done at ${System.currentTimeMillis() - started}ms")
-        val popular = rankCards(cardsFrom(lists("/lists/popular")))
-        Logger.log("Trakt franchiseCards: popular pass done at ${System.currentTimeMillis() - started}ms")
+    data class TraktBatch(val cards: List<Franchise>, val hasMore: Boolean)
 
-        // Trending first so the row opens on what is moving; a card already present from the
-        // trending pass keeps its rank rather than being restated by a popular position.
-        val merged = LinkedHashMap<String, Franchise>()
-        (trending + popular).forEach { card ->
-            merged.putIfAbsent(card.name, card)
+    /**
+     * One batch of cards from Trakt's curated ranked lists, trending first then popular.
+     *
+     * The row pages like every other row in the app, and a card costs one `/items` request
+     * because only that endpoint knows a list's membership. Resolving all forty lists up front
+     * was forty sequential requests before the row showed anything at all; this takes a window
+     * of [take] of them and leaves the rest for when the user scrolls.
+     *
+     * Both indexes are fetched whole and are cheap (two requests, twenty rows each), so the
+     * whole source is known before the first card is and a batch is genuinely a slice of one
+     * fixed sequence rather than a guess at a page boundary.
+     *
+     * @param skip how many lists of that sequence have already been resolved by earlier batches.
+     *   Skipping past a list whose card was dropped still counts it, so the batches together
+     *   cover the source exactly once.
+     * @param take how many lists to resolve in this call. See [BATCH_CARDS].
+     */
+    suspend fun franchiseCards(skip: Int = 0, take: Int = BATCH_CARDS): TraktBatch =
+        withContext(Dispatchers.IO) {
+            val started = System.currentTimeMillis()
+            // Trending first so the row opens on what is moving. A popular-only card carries a
+            // null rank so it never competes on the trending field with one that has a real
+            // position in the trending list.
+            val trending = lists("/lists/trending")
+            val popular = lists("/lists/popular")
+            val source = trending.mapIndexed { index, wrapper -> Ranked(wrapper, index + 1) } +
+                popular.map { Ranked(it, null) }
+            val window = source.drop(skip.coerceAtLeast(0)).take(take)
+            Logger.log(
+                "Trakt franchiseCards: resolving ${window.size} lists at offset $skip " +
+                    "of ${source.size} available, started at ${System.currentTimeMillis() - started}ms"
+            )
+            val cards = cardsFrom(window)
+            Logger.log(
+                "Trakt franchiseCards: ${cards.size} cards from ${window.size} lists in " +
+                    "${System.currentTimeMillis() - started}ms"
+            )
+            TraktBatch(cards, skip + window.size < source.size)
         }
-        Logger.log(
-            "Trakt franchiseCards: ${trending.size} trending + ${popular.size} popular " +
-                "-> ${merged.size} unique cards in ${System.currentTimeMillis() - started}ms"
-        )
-        merged.values.toList()
-    }
 
-    /** Attaches each card's 1-based position in the ranking it was fetched from. */
-    private fun rankCards(cards: List<Franchise>): List<Franchise> =
-        cards.mapIndexed { index, card -> card.copy(trendingRank = index + 1) }
+    /**
+     * A list and its 1-based position in the trending index, or null when it is popular-only.
+     *
+     * Carried through the batch rather than assigned by position afterwards, because a batch
+     * that starts partway down the sequence would otherwise restart the ranking at 1 and put
+     * the row's tenth card ahead of its first.
+     */
+    private data class Ranked(val wrapper: TraktListWrapper, val trendingRank: Int?)
 
     /**
      * The wrappers as the index returns them, list object still nested.
@@ -117,13 +153,14 @@ object Trakt {
      * ranked items are the card's entries. A list holding a single item is kept, as the user
      * specified: a one-entry franchise is still a franchise.
      */
-    private suspend fun cardsFrom(lists: List<TraktListWrapper>): List<Franchise> {
+    private suspend fun cardsFrom(lists: List<Ranked>): List<Franchise> {
         var droppedNoList = 0
         var droppedNoSlug = 0
         var droppedNoName = 0
         var droppedNoUser = 0
         var droppedNoEntries = 0
-        val cards = lists.mapNotNull { wrapper ->
+        val cards = lists.mapNotNull { ranked ->
+            val wrapper = ranked.wrapper
             val list = wrapper.list ?: run { droppedNoList++; return@mapNotNull null }
             val slug = list.ids?.slug ?: run { droppedNoSlug++; return@mapNotNull null }
             val name = list.name?.takeIf { it.isNotBlank() } ?: run {
@@ -149,14 +186,18 @@ object Trakt {
                 logoUrl = resolved.logoUrl,
                 entries = resolved.entries,
                 likeCount = wrapper.likeCount ?: list.likes,
+                trendingRank = ranked.trendingRank,
             )
         }
+        // Two seeds of one franchise resolve to the same card, and the second would undo the
+        // first's rank, so the first appearance wins and keeps its position.
+        val unique = cards.distinctBy { it.name.lowercase() }
         Logger.log(
-            "Trakt cardsFrom -> ${cards.size} cards from ${lists.size} lists " +
+            "Trakt cardsFrom -> ${unique.size} cards from ${lists.size} lists " +
                 "(dropped: noList=$droppedNoList noSlug=$droppedNoSlug noName=$droppedNoName " +
-                "noUser=$droppedNoUser noEntries=$droppedNoEntries)"
+                "noUser=$droppedNoUser noEntries=$droppedNoEntries dupes=${cards.size - unique.size})"
         )
-        return cards
+        return unique
     }
 
     /**

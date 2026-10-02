@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  A franchise card. The banner is the card's background and is a fixed 152dp, the same
-  as the banner it replaces: when a franchise has many entries the row below it grows
-  and the banner does not. The row is not scrollable, it holds however many entries fit
-  the screen width; the rest belong on the dedicated franchise screen.
+  A franchise card. The banner is the card's background and is a fixed 180dp: when a
+  franchise has many entries the row below it grows and the banner does not. Taller than
+  the banner it replaced (152dp) at the user's request, so more of the artwork shows and
+  the wash over it carries more of the load. The row is not scrollable, it holds however
+  many entries fit the screen width; the rest belong on the dedicated franchise screen.
 
   Order top to bottom: banner, 2dp, poster row with a year under each, then the
   franchise's own name. Only the banner is focusable, since it is what opens that screen.
@@ -27,7 +28,7 @@
         <ImageView
             android:id="@+id/franchiseBanner"
             android:layout_width="match_parent"
-            android:layout_height="152dp"
+            android:layout_height="180dp"
             android:scaleType="centerCrop"
             tools:ignore="ContentDescription"
             tools:srcCompat="@tools:sample/backgrounds/scenic" />
@@ -35,7 +36,7 @@
         <ImageView
             android:id="@+id/franchiseDim"
             android:layout_width="match_parent"
-            android:layout_height="152dp"
+            android:layout_height="180dp"
             android:importantForAccessibility="no"
             app:srcCompat="@drawable/bg_franchise_banner_dim"
             tools:ignore="ContentDescription" />

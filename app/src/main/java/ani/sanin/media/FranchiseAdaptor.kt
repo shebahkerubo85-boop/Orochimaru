@@ -5,6 +5,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import androidx.core.view.updateLayoutParams
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.databinding.ItemFranchisePosterBinding
 import ani.sanin.databinding.ItemMediaFranchiseBinding
@@ -14,7 +15,7 @@ import ani.sanin.setSafeOnClickListener
 /**
  * Adapter for the franchise cards that replace the Popular list on both Explore pages.
  *
- * A card is one [Franchise]. The banner is a fixed 152dp regardless of how many entries
+ * A card is one [Franchise]. The banner is a fixed 180dp regardless of how many entries
  * the franchise has, and the poster row below it holds only as many entries as fit the
  * measured width, so a nine-entry franchise shows a clipped row and nothing more.
  */
@@ -137,7 +138,7 @@ class FranchiseAdaptor(
 
         init {
             // Only the banner is a focus target. The card root is focusable in XML so the whole
-            // 152dp banner is hit by dpad, so that is turned off here and the banner takes it
+            // 180dp banner is hit by dpad, so that is turned off here and the banner takes it
             // instead; the poster row stays unreachable until the franchise screen exists.
             binding.root.isFocusable = false
             binding.root.isFocusableInTouchMode = false
@@ -228,4 +229,32 @@ class FranchiseAdaptor(
          */
         const val MAX_CELLS = 6
     }
+}
+
+/**
+ * Calls [onNearEnd] when this list is scrolled to within [threshold] items of its last one.
+ *
+ * The Franchise cards are the tail of a ConcatAdapter rather than a list of their own, so this
+ * is the only place the paging gesture exists: the user scrolling the last card into view is
+ * the request for the next batch. Watching the main list's scroll is what the rest of the
+ * screen already scrolls, so nothing new has to be attached to the cards themselves.
+ *
+ * Gated on a downward scroll so a fling that happens to pass the end on the way back up
+ * cannot ask for another batch, and left to the caller's own guards otherwise: whether more
+ * exists and whether a request is already in flight are row state this cannot see.
+ */
+fun RecyclerView.onNearEnd(threshold: Int = 2, onNearEnd: () -> Unit) {
+    addOnScrollListener(object : RecyclerView.OnScrollListener() {
+        override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+            if (dy <= 0) return
+            // Read inside the callback rather than captured: the layout manager is set by the
+            // caller, which for one of the two pages happens after this is wired up.
+            val manager = recyclerView.layoutManager as? LinearLayoutManager ?: return
+            val last = manager.findLastVisibleItemPosition()
+            val end = manager.itemCount - 1
+            if (last != RecyclerView.NO_POSITION && end > 0 && last >= end - threshold) {
+                onNearEnd()
+            }
+        }
+    })
 }
