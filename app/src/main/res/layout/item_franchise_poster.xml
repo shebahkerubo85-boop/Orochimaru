@@ -5,6 +5,10 @@
   count of cells that fit depends on the screen, not on a fixed column number.
 
   The year sits 1dp under the poster, per the spacing the card was laid out to.
+
+  includeFontPadding is off so that 1dp is the gap that renders. Left on, the font's own
+  ascent reserves several more dp above the glyphs, and the card's declared spacing stops
+  being the spacing on screen.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -38,6 +42,7 @@
         android:ellipsize="end"
         android:fontFamily="@font/poppins_semi_bold"
         android:gravity="center"
+        android:includeFontPadding="false"
         android:maxLines="1"
         android:paddingTop="1dp"
         android:singleLine="true"
