@@ -137,7 +137,8 @@ class AnimeFragment : Fragment() {
         val stubByName = stubs.associate { (_, card) -> card.name to card }
         val stubNames = stubs.associate { (id, card) -> id to card.name }
         if (stubNames.isNotEmpty()) {
-            adaptor.upsert(stubNames.mapValues { (_, name) -> stubByName.getValue(name) })
+            // Keyed by name, not by seed id: upsert replaces by the name a card went out under.
+            adaptor.upsert(stubByName)
             Logger.log("Franchise(anime) published ${stubNames.size} placeholder cards immediately")
         }
 
