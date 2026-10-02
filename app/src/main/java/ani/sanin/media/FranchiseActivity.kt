@@ -359,6 +359,28 @@ class FranchiseActivity : AppCompatActivity() {
         row.franchiseRowCardHolder.updateLayoutParamsWeight(if (cardOnLeft) 58 else 42)
         row.franchiseRowSynopsisHolder.updateLayoutParamsWeight(if (cardOnLeft) 42 else 58)
 
+        // Reorder so that when the card is on the right, the synopsis appears before the card.
+        val parent = row.franchiseRow.parent as? LinearLayout ?: return
+        if (cardOnLeft) {
+            if (parent.getChildAt(0) !== row.franchiseRowCardHolder) {
+                parent.removeView(row.franchiseRowCardHolder)
+                parent.addView(row.franchiseRowCardHolder, 0)
+            }
+            if (parent.getChildAt(1) !== row.franchiseRowSynopsisHolder) {
+                parent.removeView(row.franchiseRowSynopsisHolder)
+                parent.addView(row.franchiseRowSynopsisHolder, 1)
+            }
+        } else {
+            if (parent.getChildAt(0) !== row.franchiseRowSynopsisHolder) {
+                parent.removeView(row.franchiseRowSynopsisHolder)
+                parent.addView(row.franchiseRowSynopsisHolder, 0)
+            }
+            if (parent.getChildAt(1) !== row.franchiseRowCardHolder) {
+                parent.removeView(row.franchiseRowCardHolder)
+                parent.addView(row.franchiseRowCardHolder, 1)
+            }
+        }
+
         row.franchiseRowBackdrop.loadImage(entry.backdropUrl ?: entry.posterUrl)
 
         // Every field is optional and omitted rather than blanked, because a row that reads
