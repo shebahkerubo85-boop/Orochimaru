@@ -119,6 +119,8 @@ data class TraktIds(
  * nested `{ full, medium, thumb }` object. That is the shape a *list's* user images use, and
  * mistaking one for the other decodes to a set of nulls rather than an error, so it is spelled
  * out here rather than left to look obvious.
+ *
+ * Note the value already carries the host with no scheme, which [urlOf] has to account for.
  */
 @Serializable
 data class TraktImages(
@@ -146,12 +148,22 @@ data class TraktImages(
         val pick = prefer.firstNotNullOfOrNull { tag ->
             group.firstOrNull { it.contains("/$tag/") }
         } ?: group.first()
-        // Relative as served, absolute as needed: the paths come back without a scheme or host.
-        return if (pick.startsWith("http")) pick else "$IMAGE_BASE$pick"
+        // Trakt serves these three ways depending on the endpoint: fully absolute, scheme-less
+        // with the host already on the front ("media.trakt.tv/images/..."), or genuinely
+        // path-relative. Only the last one needs the host added, and assuming the middle one is
+        // the last produces a doubled host and a 404 for every image in the row.
+        return when {
+            pick.startsWith("http") -> pick
+            pick.startsWith(HOST) -> "https://$pick"
+            else -> "$IMAGE_BASE$pick"
+        }
     }
 }
 
 private const val IMAGE_BASE = "https://media.trakt.tv/"
+
+/** The host Trakt's own image paths are built on, without a scheme. */
+private const val HOST = "media.trakt.tv/"
 
 internal val traktJson = Json {
     ignoreUnknownKeys = true
