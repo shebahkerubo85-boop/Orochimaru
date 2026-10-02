@@ -3,6 +3,8 @@
   One entry in a franchise poster row: the poster, with its release year directly
   beneath it. Width and height are set in code from the measured row width so the
   count of cells that fit depends on the screen, not on a fixed column number.
+
+  The year sits 1dp under the poster, per the spacing the card was laid out to.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -37,7 +39,7 @@
         android:fontFamily="@font/poppins_semi_bold"
         android:gravity="center"
         android:maxLines="1"
-        android:paddingTop="3dp"
+        android:paddingTop="1dp"
         android:singleLine="true"
         android:textColor="#F3F3F3"
         android:textSize="11sp"

@@ -15,7 +15,7 @@ import ani.sanin.setSafeOnClickListener
 /**
  * Adapter for the franchise cards that replace the Popular list on both Explore pages.
  *
- * A card is one [Franchise]. The banner is a fixed 180dp regardless of how many entries
+ * A card is one [Franchise]. The banner is a fixed 152dp regardless of how many entries
  * the franchise has, and the poster row below it holds only as many entries as fit the
  * measured width, so a nine-entry franchise shows a clipped row and nothing more.
  */
@@ -138,7 +138,7 @@ class FranchiseAdaptor(
 
         init {
             // Only the banner is a focus target. The card root is focusable in XML so the whole
-            // 180dp banner is hit by dpad, so that is turned off here and the banner takes it
+            // 152dp banner is hit by dpad, so that is turned off here and the banner takes it
             // instead; the poster row stays unreachable until the franchise screen exists.
             binding.root.isFocusable = false
             binding.root.isFocusableInTouchMode = false
