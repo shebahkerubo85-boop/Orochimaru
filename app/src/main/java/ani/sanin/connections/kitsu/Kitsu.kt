@@ -377,6 +377,7 @@ object Kitsu {
             sortYear = year,
             posterUrl = posterImage?.medium ?: posterImage?.small ?: posterImage?.large,
             title = title,
+            synopsis = synopsis ?: description,
         )
     }
 

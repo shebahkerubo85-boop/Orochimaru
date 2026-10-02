@@ -94,6 +94,8 @@ data class KitsuAnimeAttributes(
     @SerialName("showType") val showType: String? = null,
     @SerialName("posterImage") val posterImage: KitsuPosterImage? = null,
     @SerialName("slug") val slug: String? = null,
+    @SerialName("synopsis") val synopsis: String? = null,
+    @SerialName("description") val description: String? = null,
 )
 
 @Serializable
