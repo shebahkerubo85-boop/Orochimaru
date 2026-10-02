@@ -212,13 +212,20 @@ fun aniMangaSearch(perPage: Int?) = """
       Page(page: ${"$"}page, perPage: ${perPage ?: 50}) {
         $standardPageInformation
         media(id: ${"$"}id, type: ${"$"}type, season: ${"$"}season, format_in: ${"$"}format, status: ${"$"}status, countryOfOrigin: ${"$"}countryOfOrigin, source: ${"$"}source, search: ${"$"}search, onList: ${"$"}onList, seasonYear: ${"$"}seasonYear, startDate_like: ${"$"}year, startDate_lesser: ${"$"}yearLesser, startDate_greater: ${"$"}yearGreater, episodes_lesser: ${"$"}episodeLesser, episodes_greater: ${"$"}episodeGreater, duration_lesser: ${"$"}durationLesser, duration_greater: ${"$"}durationGreater, chapters_lesser: ${"$"}chapterLesser, chapters_greater: ${"$"}chapterGreater, volumes_lesser: ${"$"}volumeLesser, volumes_greater: ${"$"}volumeGreater, licensedBy_in: ${"$"}licensedBy, isLicensed: ${"$"}isLicensed, genre_in: ${"$"}genres, genre_not_in: ${"$"}excludedGenres, tag_in: ${"$"}tags, tag_not_in: ${"$"}excludedTags, minimumTagRank: ${"$"}minimumTagRank, sort: ${"$"}sort, isAdult: ${"$"}isAdult) {
-          ${standardMediaInformation()}
+          ${standardMediaInformation(withRelations = true)}
         }
       }
     }
 """.prepare()
 
-fun standardMediaInformation() = """
+/**
+ * Media fields shared by every query.
+ *
+ * [withRelations] adds AniList's `relations`, which is only worth paying for on the paths
+ * that build Franchise cards. It is a large payload and the Franchise row's primary source
+ * is Kitsu, so the search, profile and detail queries leave it off.
+ */
+fun standardMediaInformation(withRelations: Boolean = false) = """
 id
 idMal
 description
@@ -251,6 +258,9 @@ title {
   romaji
   userPreferred
 }
+startDate {
+  year
+}
 mediaListEntry {
   progress
   progressVolumes
@@ -258,7 +268,47 @@ mediaListEntry {
   score(format: POINT_100)
   status
 }
+${if (withRelations) relationsInformation else ""}
 """.prepare()
+
+/**
+ * A media's AniList relations, used by [ani.sanin.media.FranchiseStub] as the fallback when
+ * Kitsu cannot answer.
+ *
+ * Flattened to the same field set as [standardMediaInformation] rather than a smaller one,
+ * because the query layer maps these nodes through the same code as any other media.
+ */
+private fun relationsInformation() = """
+relations {
+  edges {
+    relationType(version: 2)
+    node {
+      id
+      idMal
+      type
+      format
+      meanScore
+      popularity
+      favourites
+      isAdult
+      genres
+      bannerImage
+      coverImage {
+        large
+        extraLarge
+      }
+      title {
+        english
+        romaji
+        userPreferred
+      }
+      startDate {
+        year
+      }
+    }
+  }
+}
+""".trimIndent()
 
 fun fullMediaInformation(id: Int) = """
 {

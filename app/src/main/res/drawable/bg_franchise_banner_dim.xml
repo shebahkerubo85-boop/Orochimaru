@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Flat wash over the franchise banner. The banner is already a dimmed, low-contrast
+  backdrop behind the poster row and the title, so it only needs enough black to keep
+  the white year and title readable. No blur: the art stays sharp behind the wash.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="90"
+        android:centerColor="#8C000000"
+        android:centerY="0.35"
+        android:endColor="#99000000"
+        android:startColor="#99000000"
+        android:type="linear" />
+</shape>

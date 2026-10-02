@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The franchise screen, reached by pressing a franchise card on either Explore page.
+
+  Structure, top to bottom: the filter pill row, the franchise's own logo art and name, then the
+  alternating card/synopsis rows. The rows are children of a LinearLayout rather than a
+  RecyclerView, because the whole point is the flowing connector between them — a recycling
+  container would drop and rebuild the rows the line is drawn between, and the line would flicker
+  as they were reused.
+
+  Every franchise is a few dozen entries at most, so building them all is bounded and the
+  connector can be drawn once in a single pass over the laid-out row positions.
+-->
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/franchiseRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface">
+
+    <!-- Blurred-ish backdrop from the card's banner, darkened so the rows stay readable. -->
+    <ImageView
+        android:id="@+id/franchiseBg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop"
+        tools:ignore="ContentDescription" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#B3000000"
+        android:importantForAccessibility="no" />
+
+    <LinearLayout
+        android:id="@+id/franchiseHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingTop="8dp">
+
+        <!-- Back and the filter pills on one line. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingEnd="24dp">
+
+            <ImageView
+                android:id="@+id/franchiseBack"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@android:string/cancel"
+                android:focusable="true"
+                android:padding="8dp"
+                android:rotation="90"
+                app:srcCompat="@drawable/ic_expand_more"
+                app:tint="@android:color/white" />
+
+            <HorizontalScrollView
+                android:id="@+id/franchiseFilterScroll"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_franchise_filter_pill"
+                android:padding="3dp"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/franchiseFilterRow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+
+            </HorizontalScrollView>
+
+        </LinearLayout>
+
+        <!-- Logo art and the franchise name, centred, per spec. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp">
+
+            <ImageView
+                android:id="@+id/franchiseLogo"
+                android:layout_width="wrap_content"
+                android:layout_height="56dp"
+                android:adjustViewBounds="true"
+                android:importantForAccessibility="no"
+                android:maxHeight="56dp"
+                android:visibility="gone"
+                tools:srcCompat="@tools:sample/backgrounds/scenic"
+                tools:visibility="visible" />
+
+            <TextView
+                android:id="@+id/franchiseName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:fontFamily="@font/poppins_bold"
+                android:gravity="center_horizontal"
+                android:textColor="@android:color/white"
+                android:textSize="22sp"
+                tools:ignore="SpUsage"
+                tools:text="Naruto" />
+
+            <TextView
+                android:id="@+id/franchiseEntryCount"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:alpha="0.7"
+                android:fontFamily="@font/poppins"
+                android:gravity="center_horizontal"
+                android:textColor="@android:color/white"
+                android:textSize="11sp"
+                tools:text="8 entries" />
+
+        </LinearLayout>
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <ProgressBar
+                android:id="@+id/franchiseProgress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center" />
+
+            <TextView
+                android:id="@+id/franchiseEmpty"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:alpha="0.7"
+                android:fontFamily="@font/poppins"
+                android:gravity="center"
+                android:text="@string/franchise_no_entries"
+                android:textColor="@android:color/white"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <!--
+              The whole flow scrolls. The rows are added here by the activity, and the connector
+              is drawn into the canvas view that sits behind them, so the line passes under the
+              cards and under each synopsis scrim rather than over the text.
+
+              Both live inside the scroll content rather than outside it: a connector sized to the
+              viewport could not draw a segment for a row scrolled below the fold, so the line
+              would simply stop at the bottom of the screen. Sizing it to the content instead
+              means the whole sequence is one picture that happens to be taller than the screen.
+            -->
+            <androidx.core.widget.NestedScrollView
+                android:id="@+id/franchiseScroll"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:fillViewport="true"
+                android:scrollbars="none">
+
+                <FrameLayout
+                    android:id="@+id/franchiseConnectorHost"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <ani.sanin.media.FranchiseConnectorView
+                        android:id="@+id/franchiseConnector"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:importantForAccessibility="no" />
+
+                    <LinearLayout
+                        android:id="@+id/franchiseRows"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingTop="16dp"
+                        android:paddingBottom="24dp" />
+
+                </FrameLayout>
+
+            </androidx.core.widget.NestedScrollView>
+
+        </FrameLayout>
+
+    </LinearLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

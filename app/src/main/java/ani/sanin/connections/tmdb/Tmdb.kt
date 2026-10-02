@@ -1,5 +1,7 @@
 package ani.sanin.connections.tmdb
 
+import ani.sanin.media.Franchise
+import ani.sanin.media.FranchiseEntry
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import eu.kanade.tachiyomi.network.NetworkHelper
@@ -247,6 +249,15 @@ data class TmdbDetail(
 ) {
     val displayTitle: String get() = title ?: name ?: ""
     val year: String get() = (releaseDate ?: firstAirDate ?: "").take(4)
+
+    /**
+     * The date this title actually sorts by.
+     *
+     * `release_date` is null for every TV row, which is not a missing value but a different
+     * field, so ordering on it alone silently leaves TV parts unsorted. [year] already reads
+     * the year out of whichever date is present.
+     */
+    val sortDate: String? get() = releaseDate ?: firstAirDate
 }
 
 @Serializable
@@ -771,12 +782,78 @@ object Tmdb {
     }
 
     /** All movies in a collection, sorted by release date (earliest first). */
-    suspend fun collection(id: Int): List<TmdbMedia> {
-        val body = get("/collection/$id") ?: return emptyList()
-        return runCatching {
-            json.decodeFromString<TmdbCollection>(body).parts
-                .sortedBy { it.releaseDate }
-        }.getOrDefault(emptyList())
+    suspend fun collection(id: Int): List<TmdbMedia> = collectionDetail(id)?.parts
+        ?.sortedBy { it.releaseDate }
+        .orEmpty()
+
+    /** A whole collection response, so the caller can read its name as well as its parts. */
+    private suspend fun collectionDetail(id: Int): TmdbCollection? {
+        val body = get("/collection/$id") ?: return null
+        return runCatching { json.decodeFromString<TmdbCollection>(body) }.getOrNull()
+    }
+
+    /**
+     * Franchise cards for the Explore tab, built from TMDB collections.
+     *
+     * Seeds are the current type's popular titles, and a title's `belongs_to_collection`
+     * gives the franchise it belongs to. Collections are ordered by release date, which is
+     * TMDB's only ordering here; it matches story order for the straight-line cases and
+     * will be wrong for a prequel released after its sequel. Trakt's curated rank and the
+     * generated franchise map are what fix that, and both replace this.
+     *
+     * TMDB has no equivalent collection for TV, so `belongs_to_collection` is null there and
+     * the TV chip yields nothing from this source. Trakt's list structure is what covers TV.
+     */
+    suspend fun franchiseCards(mediaType: String): List<Franchise> {
+        // Animation is a genre on TMDB, not a media type, so the chip has to become genre 16
+        // on `movie`. Dropping this turns the Animation chip into plain popular movies, which
+        // is what the old Popular row never did either.
+        val animation = mediaType == TYPE_ANIMATION
+        val seeds = discover(
+            mediaType = if (animation) TYPE_MOVIE else mediaType,
+            genres = if (animation) ANIMATION_GENRE else null,
+            sort = "popularity.desc",
+            page = 1
+        )
+        if (seeds.isEmpty()) return emptyList()
+        val collectionIds = seeds.mapNotNull { it.collection?.id }.distinct()
+
+        // Fetched serially and deduplicated by id, since a dozen popular titles usually
+        // belong to far fewer than a dozen franchises. One request per collection is also
+        // all this needs: the parts come back in the same body as the name, so nothing is
+        // re-read here.
+        return collectionIds.mapNotNull { id ->
+            val collection = runCatching { collectionDetail(id) }.getOrNull() ?: return@mapNotNull null
+            val parts = collection.parts
+            if (parts.isEmpty()) return@mapNotNull null
+
+            // Ordered once, on the field the type actually populates. Sorting on
+            // `releaseDate` alone would leave every TV part null and keep the response order.
+            val ordered = parts.sortedBy { it.sortDate }.map { part ->
+                FranchiseEntry(
+                    year = part.year,
+                    sortYear = part.sortDate?.take(4)?.toIntOrNull(),
+                    posterUrl = imageUrl(part.posterPath, 342),
+                    title = part.displayTitle,
+                    backdropUrl = imageUrl(part.backdropPath, 780),
+                )
+            }
+            if (ordered.isEmpty()) return@mapNotNull null
+
+            // Re-read from the sorted entries rather than from `parts`, which is still in
+            // response order: taking its last element would not reliably be the latest entry.
+            val latest = ordered.last()
+
+            Franchise(
+                // The collection's own name, not a part's title, so the card reads as the
+                // franchise rather than as whichever film happens to sort first.
+                name = collection.name ?: latest.title,
+                // Per spec the banner is the latest entry's artwork, preferring the wide
+                // crop and falling back to the poster when a title has no backdrop.
+                bannerUrl = latest.backdropUrl ?: latest.posterUrl,
+                entries = ordered,
+            )
+        }
     }
 
     /** Best backdrop/poster for a genre, via a one-off discover call. */

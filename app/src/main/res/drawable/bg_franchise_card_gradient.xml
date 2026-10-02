@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Bottom scrim on a franchise screen card.
+
+  Fully transparent at the top so the backdrop's own artwork shows, opaque black at the bottom
+  so the air date, title and status chips stay readable over any frame. Alpha rather than a
+  solid colour: the artwork behind it is the point of the card.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="90"
+        android:centerColor="#99000000"
+        android:endColor="#F2000000"
+        android:startColor="#00000000"
+        android:type="linear" />
+</shape>

@@ -31,7 +31,6 @@ import ani.sanin.isModernBanner
 import com.google.android.material.chip.Chip
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.anizip.AniZip
-import ani.sanin.connections.mal.MAL
 import ani.sanin.databinding.ItemAnimePageBinding
 import ani.sanin.databinding.LayoutTrendingBinding
 import ani.sanin.getAppString
@@ -138,23 +137,17 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             FocusEffectUtil.applyFocusListener(chip)
         }
 
-        val rescueMode = PrefManager.getVal<Boolean>(PrefName.RescueMode)
-        binding.animeIncludeList.isVisible = if (rescueMode) MAL.token != null else Anilist.token != null
+        // The old "Include List" switch is gone with the Popular list it belonged to; the
+        // Franchise header shows unconditionally. Sort, filter, and content controls go
+        // back at the right of the title later.
+        binding.animeFranchiseHeader.isVisible = true
 
-        binding.animeIncludeList.isChecked = PrefManager.getVal(PrefName.PopularAnimeList)
-
-        binding.animeIncludeList.setOnCheckedChangeListener { _, isChecked ->
-            onIncludeListClick.invoke(isChecked)
-
-            PrefManager.setVal(PrefName.PopularAnimeList, isChecked)
-        }
         if (ready.value == false)
             ready.postValue(true)
     }
 
     lateinit var onSeasonClick: ((Int) -> Unit)
     lateinit var onSeasonLongClick: ((Int) -> Boolean)
-    lateinit var onIncludeListClick: ((Boolean) -> Unit)
 
     override fun getItemCount(): Int = 1
 
@@ -713,8 +706,8 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
                 getAppString(R.string.updated),
                 media
             )
-            animePopular.visibility = View.VISIBLE
-            animePopular.startAnimation(setSlideUp())
+            animeFranchiseHeader.visibility = View.VISIBLE
+            animeFranchiseHeader.startAnimation(setSlideUp())
             if (adaptor.itemCount == 0) {
                 animeRecentlyContainer.visibility = View.GONE
             }

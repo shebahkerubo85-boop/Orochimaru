@@ -3,8 +3,8 @@
   The TMDB (movie) mode's Explore page: the anime page plus the streaming-services rail.
 
   This is the content of the page adapter's single item, so it scrolls inside the
-  explore RecyclerView exactly as the anime page does — which is what lets the Popular
-  list live in the same ConcatAdapter as this page.
+  explore RecyclerView exactly as the anime page does — which is what lets the Franchise
+  cards live in the same ConcatAdapter as this page.
 
   The rows are five includes of one row layout, so every row has the same title/arrow/
   rail treatment and there is no fifth copy to forget to update.
@@ -116,17 +116,19 @@
         layout="@layout/item_explore_row" />
 
     <!--
-      Popular is a header only, exactly as in anime mode: the list itself is a separate
-      MediaAdaptor in the fragment's ConcatAdapter, and this switch says whether the
-      viewer's own list joins it.
+      Franchise is a header only, exactly as in anime mode: the cards themselves are a
+      separate FranchiseAdaptor in the fragment's ConcatAdapter. The old "Include List"
+      switch is gone for now; sort, filter, and content controls go back at the right of
+      this title later.
     -->
     <LinearLayout
-        android:id="@+id/tmdbPopularHeader"
+        android:id="@+id/tmdbFranchiseHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginStart="24dp"
         android:layout_marginEnd="24dp"
         android:layout_marginBottom="11dp"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
         android:visibility="invisible">
 
@@ -136,15 +138,41 @@
             android:layout_weight="1"
             android:fontFamily="@font/poppins_bold"
             android:padding="8dp"
-            android:text="@string/row_popular"
+            android:text="@string/row_franchise"
             android:textSize="16sp" />
 
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/tmdbIncludeList"
+        <!--
+          Sort pill and direction control sit at the right of the header, as specced.
+
+          The pill shows the selected sort and opens the sort dialog on click; it deliberately has
+          no "Sort" label of its own, since the selected value is what identifies it. The
+          direction control is a separate button rather than part of the pill, because inverting
+          is a distinct action from choosing a sort.
+        -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/tmdbFranchiseSortPill"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:fontFamily="@font/poppins_bold"
-            android:text="@string/include_media_in_list"
-            android:textSize="12sp" />
+            android:fontFamily="@font/poppins"
+            android:minWidth="0dp"
+            android:text="@string/franchise_sort_random"
+            android:textSize="13sp"
+            app:icon="@drawable/ic_expand_more"
+            app:iconGravity="textEnd"
+            app:iconPadding="4dp"
+            app:iconSize="18dp"
+            tools:ignore="SpUsage" />
+
+        <ImageView
+            android:id="@+id/tmdbFranchiseSortDirection"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/franchise_sort_direction"
+            android:focusable="true"
+            android:padding="8dp"
+            android:src="@drawable/ic_sort_direction" />
+
     </LinearLayout>
 </LinearLayout>

@@ -480,7 +480,39 @@
     <string name="in_cinema">In cinema</string>
     <string name="row_trending">Trending</string>
     <string name="latest_release">Latest release</string>
-    <string name="row_popular">Popular</string>
+    <string name="row_franchise">Franchise</string>
+
+    <!-- Franchise row sort pill, dropdown and direction control. -->
+    <string name="franchise_sort_random">Randomize</string>
+    <string name="franchise_sort_trending">Trending</string>
+    <string name="franchise_sort_popular">Most Popular</string>
+    <string name="franchise_sort_az">A-Z</string>
+    <string name="franchise_sort_direction">Sort direction</string>
+    <string name="franchise_sort_ascending">Ascending order</string>
+    <string name="franchise_sort_descending">Descending order</string>
+    <string name="franchise_randomized">Randomized</string>
+    <string name="franchise_sort_dialog_title">Sort franchises</string>
+    <string name="franchise_show_single_entry">Show single item entries</string>
+
+    <!-- Franchise screen. -->
+    <string name="franchise_screen_title">Franchise</string>
+    <string name="franchise_filter_all">All</string>
+    <string name="franchise_filter_series">Series</string>
+    <string name="franchise_filter_movie">Movie</string>
+    <string name="franchise_filter_ova">OVA</string>
+    <string name="franchise_filter_side_story">Side story</string>
+    <string name="franchise_filter_spin_off">Spin-off</string>
+    <string name="franchise_entries_count">%1$d entries</string>
+    <!-- Shown instead of the plain count while a filter is active, so a thinned list never
+         reads as the whole franchise. -->
+    <string name="franchise_entries_count_filtered">%1$d of %2$d entries</string>
+    <string name="franchise_minutes">%1$d min</string>
+    <!-- 0-100, as AniList reports it. The star is here rather than in the layout so the row's
+         metadata strip reads the same whether the number came from AniList or from Trakt. -->
+    <string name="franchise_score">★ %1$d</string>
+    <string name="franchise_no_entries">Nothing matches this filter</string>
+    <string name="franchise_load_failed">Couldn\'t load this franchise</string>
+    <string name="franchise_empty_synopsis">No synopsis available</string>
     <string name="accounts">Accounts</string>
     <string name="addons">Add-ons</string>
     <string name="myanimelist">MyAnimeList</string>
@@ -584,6 +616,8 @@
     <string name="hide_skip_button">Make the skip time stamp button disappear after 5 seconds</string>
     <string name="data_saver_video">Video Data Saver</string>
     <string name="data_saver_video_desc">Cap video at ~1.5 Mbps on slow connections. Prevents movies from demanding high bandwidth when the source offers lower-quality streams.</string>
+    <string name="kitsu_curated_order">Use Kitsu Curated Franchise Order</string>
+    <string name="kitsu_curated_order_desc">Let the anime Franchise row ask Kitsu for its curated story order instead of sorting by release date. Costs a few extra requests, and picks up automatically once Kitsu serves that data.</string>
     <string name="copied_to_clipboard">Copied to Clipboard</string>
     <string name="first_episode">This is the 1st Episode!</string>
     <string name="reset_auto_update">Long click \"List Editor\" button to reset Auto Update</string>

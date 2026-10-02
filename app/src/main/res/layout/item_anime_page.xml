@@ -476,8 +476,12 @@
 
     </FrameLayout>
 
+    <!--
+      Franchise cards replace the Popular list here as in movie mode. The cards are a separate
+      FranchiseAdaptor on the fragment's ConcatAdapter; this is only the section title.
+    -->
     <LinearLayout
-        android:id="@+id/animePopular"
+        android:id="@+id/animeFranchiseHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginStart="24dp"
@@ -492,17 +496,34 @@
             android:layout_weight="1"
             android:fontFamily="@font/poppins_bold"
             android:padding="8dp"
-            android:text="@string/popular_anime"
+            android:text="@string/row_franchise"
             android:textSize="16sp" />
 
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/animeIncludeList"
+        <!-- Same sort pill and direction control as the movie row; see the header there. -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/animeFranchiseSortPill"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:checked="true"
-            android:fontFamily="@font/poppins_bold"
-            android:text="@string/include_media_in_list"
-            android:textSize="12sp" />
+            android:fontFamily="@font/poppins"
+            android:minWidth="0dp"
+            android:text="@string/franchise_sort_random"
+            android:textSize="13sp"
+            app:icon="@drawable/ic_expand_more"
+            app:iconGravity="textEnd"
+            app:iconPadding="4dp"
+            app:iconSize="18dp"
+            tools:ignore="SpUsage" />
+
+        <ImageView
+            android:id="@+id/animeFranchiseSortDirection"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/franchise_sort_direction"
+            android:focusable="true"
+            android:padding="8dp"
+            android:src="@drawable/ic_sort_direction" />
 
     </LinearLayout>
 

@@ -30,9 +30,7 @@ import ani.sanin.cloudstream.TmdbServiceCatalogueActivity
 import ani.sanin.cloudstream.TmdbWatchActivity
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.tmdb.TmdbMedia
-import ani.sanin.connections.tmdb.TmdbPage
 import ani.sanin.connections.tmdb.TmdbProvider
-import ani.sanin.connections.simkl.Simkl
 import ani.sanin.databinding.FragmentTmdbExploreBinding
 import ani.sanin.databinding.ItemExploreRowBinding
 import ani.sanin.databinding.ItemTmdbExplorePageBinding
@@ -42,13 +40,23 @@ import ani.sanin.isClassicBanner
 import ani.sanin.isModernBanner
 import ani.sanin.isTvDevice
 import ani.sanin.limitedAsyncMap
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.snackString
+import ani.sanin.connections.trakt.Trakt
+import androidx.core.app.ActivityOptionsCompat
+import ani.sanin.media.Franchise
+import ani.sanin.media.FranchiseActivity
+import ani.sanin.media.FranchiseAdaptor
+import ani.sanin.media.FranchiseListPrefs
+import ani.sanin.media.FranchiseSort
+import ani.sanin.media.showFranchiseSortDialog
+import ani.sanin.media.FranchiseSorter
 import ani.sanin.media.Media
 import ani.sanin.media.MediaAdaptor
 import ani.sanin.media.MediaListViewActivity
 import ani.sanin.setSafeOnClickListener
 import ani.sanin.setSlideIn
 import ani.sanin.setSlideUp
-import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.sizeBannerCard
 import ani.sanin.util.FocusEffectUtil
@@ -108,24 +116,20 @@ class TmdbExploreFragment : Fragment() {
     private var pageBinding: ItemTmdbExplorePageBinding? = null
     private val page get() = requireNotNull(pageBinding) { "explore page not bound" }
     private lateinit var pageAdapter: TmdbExplorePageAdapter
-    private lateinit var popularAdapter: MediaAdaptor
-    private val popularMedia = ArrayList<Media>()
 
     /**
-     * Pagination for the Popular list, which is the one Explore row that is a catalogue
-     * rather than a shelf. 20,001 items over 1001 pages, so it has to keep fetching to
-     * feel like the anime list beside it — that one pages AniList on every bottom hit.
+     * The Franchise cards that replaced the Popular list. Each card is one franchise; the
+     * cards themselves follow the type chip like the rails do.
      */
-    private var popularPage = 0
-    private var popularTotalPages = 1
-    private var popularLoading = false
+    private lateinit var franchiseAdapter: FranchiseAdaptor
 
     /**
-     * The viewer's own titles, held apart so a fetched page can be spliced in *above*
-     * them. They belong at the end of the list, and appending a page after them would
-     * push them into the middle once the viewer had scrolled twice.
+     * Every card the source returned, unsorted and unfiltered.
+     *
+     * The sort dialog reorders and re-filters this list locally instead of refetching: the
+     * ranking lives on each card, so every ordering is a permutation of what is already here.
      */
-    private var popularViewerItems: List<Media> = emptyList()
+    private var allFranchiseCards: List<Franchise> = emptyList()
 
     /**
      * One adapter and one backing list per row, created on the row's first load and
@@ -198,22 +202,14 @@ class TmdbExploreFragment : Fragment() {
         loadGeneration++
         bannerTitleShown = false
 
-        // Same assembly as the anime explore: the page is one item, the Popular list hangs
-        // off the end of it.
+        // The page is one item and the Franchise cards hang off the end of it, the same
+        // shape the Popular list used to have.
         pageAdapter = TmdbExplorePageAdapter()
-        popularAdapter = MediaAdaptor(1, popularMedia, requireActivity())
+        // The card opens the franchise screen, which is where the entries that did not fit this
+        // row are reached. The view is passed for the shared-element transition into its hero.
+        franchiseAdapter = FranchiseAdaptor { card, view -> openFranchise(card, view) }
         binding.tmdbExploreRecyclerView.adapter =
-            ConcatAdapter(pageAdapter, popularAdapter)
-
-        // Same trigger the anime page uses for its Popular list: at the very bottom, ask
-        // for one more page. `canScrollVertically(1)` is false only when there is nothing
-        // left below, so this cannot fire mid-list.
-        binding.tmdbExploreRecyclerView.addOnScrollListener(object :
-            RecyclerView.OnScrollListener() {
-            override fun onScrolled(v: RecyclerView, dx: Int, dy: Int) {
-                if (dy > 0 && !v.canScrollVertically(1)) loadNextPopularPage()
-            }
-        })
+            ConcatAdapter(pageAdapter, franchiseAdapter)
 
         pageAdapter.onPageBound = { page ->
             pageBinding = page
@@ -222,16 +218,16 @@ class TmdbExploreFragment : Fragment() {
             // rail. A recycled holder has freshly inflated, adapter-less rails, and
             // without this they would sit there empty.
             reattachRowAdapters()
-            // ConcatAdapter rebinds the page whenever the Popular list below it changes, so
-            // this runs again on every Popular reload. Re-running the setup from here would
-            // reload Popular again, which rebinds the page again: a loop that reloads the
-            // whole tab forever. The wiring is per view, not per bind, so it runs once.
+            // ConcatAdapter rebinds the page whenever the Franchise cards below it change,
+            // so this runs again on every reload. Re-running the setup from here would
+            // reload again, which rebinds the page again: a loop that reloads the whole tab
+            // forever. The wiring is per view, not per bind, so it runs once.
             if (!pageBound) {
                 pageBound = true
                 setupChips()
                 setupStreamingRail()
                 setupFocusChain()
-                setupPopularHeader()
+                setupFranchiseHeader()
                 selectType(ExploreType.MOVIE)
                 loadStreamingServices()
             }
@@ -624,9 +620,9 @@ class TmdbExploreFragment : Fragment() {
         // rather than letting it land on top of this one.
         val generation = ++loadGeneration
         loadBannerFor(type, generation)
-        // The rows and the Popular list follow the chip, same as the banner.
+        // The rows and the Franchise cards follow the chip, same as the banner.
         loadRows(type, generation)
-        loadPopular(generation)
+        loadFranchises(type, generation)
     }
 
     /** Same translucent-primary selected fill the season selector uses. */
@@ -733,8 +729,8 @@ class TmdbExploreFragment : Fragment() {
             rowBinding.rowMore.nextFocusUpId = aboveId
             aboveId = rowId
         }
-        // The Popular switch sits under the last rail.
-        page.tmdbIncludeList.nextFocusUpId = aboveId
+        // The Franchise section's first card sits under the last rail.
+        page.tmdbFranchiseHeader.nextFocusUpId = aboveId
     }
 
     /**
@@ -783,7 +779,8 @@ class TmdbExploreFragment : Fragment() {
             Tmdb.ExploreRow.TOP_RATED -> R.string.top_rated
             Tmdb.ExploreRow.LATEST_RELEASE -> R.string.latest_release
             Tmdb.ExploreRow.UPCOMING -> R.string.upcoming
-            Tmdb.ExploreRow.POPULAR -> R.string.row_popular
+            // Popular is no longer a row: the Franchise cards replaced it.
+            Tmdb.ExploreRow.POPULAR -> R.string.row_franchise
         }
     }
 
@@ -869,123 +866,112 @@ class TmdbExploreFragment : Fragment() {
         }
     }
 
-    // ---- Popular: a list, not a rail, with the include-list switch ----
+    // ---- Franchise: cards, not a paginated catalogue ----
 
-    private fun setupPopularHeader() {
-        val header = page.tmdbPopularHeader
-        val toggle = page.tmdbIncludeList
-        toggle.isChecked = PrefManager.getVal<Boolean>(PrefName.PopularMovieList)
-        header.isVisible = true
-        toggle.setOnCheckedChangeListener { _, checked ->
-            PrefManager.setVal(PrefName.PopularMovieList, checked)
-            loadPopular()
-        }
-        // The first load comes from selectType(), which runs right after this.
+    private fun setupFranchiseHeader() {
+        page.tmdbFranchiseHeader.isVisible = true
+
+        // The pill shows the selected sort and opens the dropdown; the direction button is
+        // separate, because inverting is a different action from choosing a sort.
+        page.tmdbFranchiseSortPill.setSafeOnClickListener { openFranchiseSortDialog() }
+        page.tmdbFranchiseSortDirection.setSafeOnClickListener { invertFranchiseSort() }
+        updateFranchiseSortUi()
     }
 
     /**
-     * The Popular list. With the switch on, the viewer's own library joins TMDB's
-     * popularity list; the two are different things, so the row is not just a re-skin of
-     * Most Favourite.
-     */
-    private fun loadPopular(generation: Int = loadGeneration) {
-        val tmdbType = when (selectedType) {
-            ExploreType.MOVIE -> "movie"
-            ExploreType.TV -> "tv"
-            ExploreType.ANIMATION -> "animation"
-        }
-        val includeList = PrefManager.getVal<Boolean>(PrefName.PopularMovieList)
-        popularPage = 0
-        popularTotalPages = 1
-        viewLifecycleOwner.lifecycleScope.launch {
-            // Assemble everything before touching the list the adapter is bound to.
-            // Clearing first left the list empty across the requests below, and the
-            // prefetcher bound the stale count into an empty list.
-            val mine = if (includeList) viewerListMedia() else emptyList()
-            popularViewerItems = mine
-            val firstPage = runCatching { Tmdb.popularPage(tmdbType, 1) }
-                .getOrDefault(TmdbPage())
-            if (generation != loadGeneration) return@launch
-            popularPage = 1
-            popularTotalPages = firstPage.totalPages
-            popularLoading = false
-            swapAdapterList(
-                popularMedia,
-                popularAdapter,
-                firstPage.results.map { it.toExploreMedia() } + mine
-            )
-        }
-    }
-
-    /**
-     * Fetches the next Popular page and splices it in above the viewer's own titles.
+     * The row's current sort, direction and single-entry choice, read from preferences.
      *
-     * Called from the bottom-of-list scroll check, so it has to be safe to call twice in a
-     * row: the [popularLoading] flag is the only thing between a fling at the end of the
-     * list and five identical requests for the same page.
+     * Read on demand rather than held in a field: the sort dialog is the only writer, and a
+     * cached copy would go stale the moment it is dismissed without a change.
      */
-    private fun loadNextPopularPage() {
-        if (popularLoading) return
-        if (popularPage >= popularTotalPages) return
-        if (popularPage == 0) return
-        val next = popularPage + 1
-        val generation = loadGeneration
-        val tmdbType = when (selectedType) {
-            ExploreType.MOVIE -> "movie"
-            ExploreType.TV -> "tv"
-            ExploreType.ANIMATION -> "animation"
-        }
-        popularLoading = true
-        viewLifecycleOwner.lifecycleScope.launch {
-            val page = runCatching { Tmdb.popularPage(tmdbType, next) }
-                .getOrDefault(TmdbPage())
-            if (generation != loadGeneration) {
-                popularLoading = false
-                return@launch
-            }
-            popularTotalPages = page.totalPages
-            val items = page.results.map { it.toExploreMedia() }
-            if (items.isEmpty()) {
-                // An empty page at a page TMDB claims exists means the ceiling moved or the
-                // request failed. Mark it reached so a bad response cannot spin forever.
-                popularTotalPages = popularPage
-                popularLoading = false
-                return@launch
-            }
-            popularPage = next
-            popularLoading = false
-            // Splice above the viewer's titles rather than after, so those stay last.
-            val at = popularMedia.size - popularViewerItems.size
-            popularMedia.addAll(at.coerceAtLeast(0), items)
-            popularAdapter.notifyItemRangeInserted(at, items.size)
-        }
+    private fun franchisePrefs() = FranchiseListPrefs.read()
+
+    /** Writes the pill's label from the persisted sort. */
+    private fun updateFranchiseSortUi() {
+        page.tmdbFranchiseSortPill.setText(franchisePrefs().sort.labelRes())
     }
 
     /**
-     * The viewer's saved movie-mode titles, which carry TMDB ids. Movie mode's library is
-     * Simkl-backed, so that is where the viewer's own list comes from.
+     * Re-applies the current sort to the cards already loaded.
+     *
+     * Sorting is local, so it must not refetch: the ranking lives on the card and reordering is
+     * just a permutation of the list in hand.
      */
-    private suspend fun viewerListMedia(): List<Media> {
-        if (Simkl.token == null) return emptyList()
-        val items = runCatching {
-            Simkl.getMovieLibrary() + Simkl.getShowLibrary()
-        }.getOrDefault(emptyList())
-        return items.mapNotNull { item ->
-            val id = item.ids?.tmdb ?: return@mapNotNull null
-            val type = item.mediaType ?: return@mapNotNull null
-            if (type != "movie" && type != "tv") return@mapNotNull null
-            Media(
-                id = id,
-                name = item.title ?: "",
-                nameRomaji = item.title ?: "",
-                userPreferredName = item.title ?: "",
-                isAdult = false,
-                cover = item.poster,
-                tmdbType = type
-            )
+    private fun applyFranchiseSort() {
+        val prefs = franchisePrefs()
+        val shuffled = if (prefs.sort == FranchiseSort.RANDOM) {
+            allFranchiseCards.shuffled()
+        } else {
+            allFranchiseCards
+        }
+        franchiseAdapter.submit(FranchiseSorter.apply(allFranchiseCards, prefs, shuffled))
+    }
+
+    /**
+     * Inverts the sort direction and says so.
+     *
+     * On random this cannot change the order, because a shuffle has no ascending or descending
+     * form. It re-rolls and reports "Randomized" instead, so the user is never told the list
+     * became ascending when what actually happened is that it was shuffled again.
+     */
+    private fun invertFranchiseSort() {
+        val prefs = franchisePrefs()
+        if (prefs.sort == FranchiseSort.RANDOM) {
+            PrefManager.setVal(PrefName.FranchiseSortOrder, FranchiseSort.RANDOM.name)
+            snackString(R.string.franchise_randomized, requireActivity())
+        } else {
+            val next = prefs.direction.inverted()
+            PrefManager.setVal(PrefName.FranchiseSortDirectionPref, next.name)
+            snackString(next.labelRes(), requireActivity())
+        }
+        applyFranchiseSort()
+    }
+
+    /** The sort dropdown, plus the "show single item entries" toggle, as specced. */
+    private fun openFranchiseSortDialog() {
+        showFranchiseSortDialog {
+            updateFranchiseSortUi()
+            applyFranchiseSort()
+        }
+    }
+    /**
+     * Loads the Franchise cards for the selected type chip.
+     *
+     * Replaces the old Popular list, which paged TMDB forever to stay in sync with the
+     * anime list beside it. There is no pagination here: a card is a whole franchise, and
+     * the entries that do not fit its row live on the dedicated franchise screen.
+     */
+    private fun loadFranchises(type: ExploreType, generation: Int) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            // Trakt's curated lists are movies, so all three chips share one source and filter
+            // client-side. TMDB cannot do this at all: `belongs_to_collection` is absent from
+            // every list endpoint, and `/collection/list` is gone from v3.
+            val cards = runCatching { Trakt.franchiseCards() }.getOrDefault(emptyList())
+            // Everything already in flight belongs to the previous chip; drop it on arrival
+            // rather than letting it land on top of this one.
+            if (generation != loadGeneration) return@launch
+            allFranchiseCards = cards
+            applyFranchiseSort()
         }
     }
 
+
+    /**
+     * Opens the franchise screen for a pressed card.
+     *
+     * @param view the card's banner, so the screen can transition out of it rather than cutting.
+     */
+    private fun openFranchise(card: Franchise, view: View) {
+        view.transitionName = FRANCHISE_TRANSITION
+        startActivity(
+            FranchiseActivity.intent(requireContext(), card),
+            ActivityOptionsCompat.makeSceneTransitionAnimation(
+                requireActivity(),
+                view,
+                FRANCHISE_TRANSITION,
+            ).toBundle()
+        )
+    }
 
     // ---- Navigation: banner click + watch both open the TMDB screens ----
 
@@ -1008,5 +994,8 @@ class TmdbExploreFragment : Fragment() {
 
     private companion object {
         const val SELECTED_FILL_ALPHA = 0x4D
+
+        /** Shared-element name for the card banner handing off to the franchise screen. */
+        const val FRANCHISE_TRANSITION = "franchiseCard"
     }
 }

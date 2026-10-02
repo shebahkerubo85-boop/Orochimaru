@@ -80,6 +80,15 @@
 
         <activity android:name=".others.calc.CalcActivity"
             android:parentActivityName=".MainActivity" />
+        <!--
+          The franchise detail screen. Labelled from a string rather than the activity's own
+          name so it reads as "Naruto" rather than "FranchiseActivity" in the recents list.
+        -->
+        <activity
+            android:name=".media.FranchiseActivity"
+            android:label="@string/franchise_screen_title"
+            android:parentActivityName=".MainActivity" />
+
         <activity android:name=".settings.AnilistSettingsActivity"/>
         <activity android:name=".settings.PlayerSettingsActivity" />
         <activity android:name=".settings.FAQActivity" />

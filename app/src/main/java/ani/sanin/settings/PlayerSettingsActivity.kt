@@ -527,6 +527,13 @@ class PlayerSettingsActivity :
                     },
                 ),
                 SubscreenBuilder.Entry(
+                    title = getString(R.string.kitsu_curated_order),
+                    desc = getString(R.string.kitsu_curated_order_desc),
+                    switch = PrefManager.getVal<Boolean>(PrefName.KitsuCuratedOrder) to {
+                        PrefManager.setVal(PrefName.KitsuCuratedOrder, it)
+                    },
+                ),
+                SubscreenBuilder.Entry(
                     title = getString(R.string.show_skip_time_stamp_button),
                     desc = "Show the skip button over the timeline",
                     isEnabled = PrefManager.getVal<Boolean>(PrefName.TimeStampsEnabled),

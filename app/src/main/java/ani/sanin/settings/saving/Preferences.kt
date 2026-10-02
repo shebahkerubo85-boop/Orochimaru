@@ -48,6 +48,16 @@ enum class PrefName(val data: Pref) {
     AnimeLangSort(Pref(Location.General, String::class, "all")),
     ContentMode(Pref(Location.General, String::class, "anime")),
     TmdbApiKey(Pref(Location.General, String::class, "3075f2db53ed0690a350d3559ac9cd8c")),
+
+    /**
+     * Trakt client id for the movie Franchise row.
+     *
+     * Read-only and app-only, as the user accepted when this was added: an APK's contents are
+     * extractable, so this is public to anyone who unpacks the app. It is not a user token and
+     * grants access to nothing private. Trakt still requires *some* id on every request, and
+     * without it every call returns 403.
+     */
+    TraktClientId(Pref(Location.General, String::class, "7VKqwFd6wak-r_YMIhVQ-VqQTxkpbLZvRz5GfK9pMVE")),
     YouTubeApiKey(Pref(Location.General, String::class, "AIzaSyDdQwsx0lYEU8ZnAke0ghcqoS1G5VxM2BE")),
     YouTubeChannelId(Pref(Location.General, String::class, "UC7oi5vkTHCwl3sS9NPBFCZg")),
     TmdbSearchHistory(Pref(Location.General, List::class, listOf<String>())),
@@ -132,6 +142,21 @@ enum class PrefName(val data: Pref) {
     /** The movie mode's Popular row switch, which is the same idea on a different library. */
     PopularMovieList(Pref(Location.UI, Boolean::class, true)),
     AnimeListSortOrder(Pref(Location.UI, String::class, "score")),
+
+    /**
+     * Off by default. On, the anime Franchise cards spend requests asking Kitsu for its
+     * curated installment order; off, they never probe and stay on release-date order.
+     */
+    KitsuCuratedOrder(Pref(Location.UI, Boolean::class, false)),
+
+    /** The Franchise row's chosen sort. See [ani.sanin.media.FranchiseSort]. */
+    FranchiseSortOrder(Pref(Location.UI, String::class, "RANDOM")),
+
+    /** Which way that sort runs, persisted because which way the user left it is a preference. */
+    FranchiseSortDirectionPref(Pref(Location.UI, String::class, "DESCENDING")),
+
+    /** Whether a one-entry franchise is shown. Off, since that is what replaced Popular. */
+    FranchiseShowSingleEntry(Pref(Location.UI, Boolean::class, false)),
 
     CommentSortOrder(Pref(Location.UI, String::class, "newest")),
     FollowerLayout(Pref(Location.UI, Int::class, 0)),

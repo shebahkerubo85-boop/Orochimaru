@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The body of the Franchise sort dialog.
+
+  Sort order and the single-entry toggle are both in this one view rather than split between
+  setSingleChoiceItems and setView: the dialog only has a single content panel, so asking for
+  both leaves the option list with nowhere to draw and the dialog opens showing only the
+  switch. A RadioGroup is what setSingleChoiceItems would have produced, and it can live
+  beside the switch.
+
+  Options are in enum order, and FranchiseSortDialog reads the checked id back through
+  FranchiseSort, so adding a sort means adding an entry here and a label in strings.xml.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="24dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="24dp">
+
+    <RadioGroup
+        android:id="@+id/franchiseSortGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/franchiseSortRandom"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="@string/franchise_sort_random"
+            tools:ignore="SpUsage" />
+
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/franchiseSortTrending"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="@string/franchise_sort_trending"
+            tools:ignore="SpUsage" />
+
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/franchiseSortPopular"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="@string/franchise_sort_popular"
+            tools:ignore="SpUsage" />
+
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/franchiseSortAlphabetical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="@string/franchise_sort_az"
+            tools:ignore="SpUsage" />
+
+    </RadioGroup>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="4dp"
+        android:background="#1F000000"
+        android:importantForAccessibility="no" />
+
+    <!-- Off by default: a one-poster card is a smaller version of the row this replaced. -->
+    <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/franchiseShowSingleEntry"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:text="@string/franchise_show_single_entry"
+        tools:ignore="SpUsage" />
+
+</LinearLayout>
