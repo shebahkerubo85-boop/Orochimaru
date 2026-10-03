@@ -954,14 +954,6 @@ class MediaDetailsViewModel : ViewModel() {
                 // autoplay/next-episode handoff (launch=false) keeps continuity. Cross-source
                 // cache safety is still enforced by extractorsSource in SelectorDialogFragment.
                 if (launch) media.selected!!.server = null
-                val selector =
-                    //removed
-                        media.selected!!.server,
-                        launch,
-                        prevEp,
-                        isDownload,
-                        episodes
-                    )
                 try { selector.show(manager, "dialog") } catch (_: IllegalStateException) { selector.showNow(manager, "dialog") }
             }
         }
