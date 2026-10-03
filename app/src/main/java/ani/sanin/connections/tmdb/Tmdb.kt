@@ -121,15 +121,6 @@ private const val TYPE_TV = "tv"
 private const val TYPE_ANIMATION = "animation"
 
 /**
- * Popular shows turned into TV franchise cards per load.
- *
- * Each show costs one detail request to read its seasons, so this is deliberately a small
- * number: the row wants a screenful of shows, not TMDB's whole catalogue, and every extra
- * seed is a full detail payload the row never shows.
- */
-private const val TV_FRANCHISE_SEEDS = 12
-
-/**
  * Popular shows turned into TV franchise cards per batch.
  *
  * One `discover` page holds twenty shows and a show is always its own franchise, so a single page
