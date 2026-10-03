@@ -29,6 +29,10 @@ class AppModule(val app: Application) : InjektModule {
         addSingleton(app)
 
 
+        addSingletonFactory { ani.sanin.download.DownloadsManager(app) }
+
+        addSingletonFactory { ani.sanin.addons.download.DownloadAddonManager(app) }
+
         addSingletonFactory { NetworkHelper(app) }
         addSingletonFactory { NetworkHelper(app).client }
 

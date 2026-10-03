@@ -465,8 +465,17 @@
                 android:resource="@xml/provider_paths" />
         </provider>
 
+        <activity
+            android:name="ani.sanin.settings.DownloadQueueActivity"
+            android:parentActivityName="ani.sanin.settings.SettingsActivity" />
+
         <service
             android:name="eu.kanade.tachiyomi.extension.util.ExtensionInstallService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <service
+            android:name="ani.sanin.download.anime.AnimeDownloaderService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 

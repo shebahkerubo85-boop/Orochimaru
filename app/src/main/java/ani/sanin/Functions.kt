@@ -1780,3 +1780,30 @@ fun String.decodeBase64ToString(): String {
         ""
     }
 }
+
+private var _bottomBarRef: java.lang.ref.WeakReference<AnimatedBottomBar>? = null
+val bottomBarOrNull: AnimatedBottomBar?
+    get() = _bottomBarRef?.get()
+var bottomBar: AnimatedBottomBar
+    get() = _bottomBarRef?.get()
+        ?: throw IllegalStateException("bottomBar is not attached or has been destroyed")
+    set(value) {
+        _bottomBarRef = java.lang.ref.WeakReference(value)
+    }
+
+fun isWifiConnected(context: Context): Boolean {
+    val connectivityManager =
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
+    return tryWith {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val network = connectivityManager.activeNetwork ?: return@tryWith false
+            val cap = connectivityManager.getNetworkCapabilities(network) ?: return@tryWith false
+            cap.hasTransport(TRANSPORT_WIFI) || cap.hasTransport(TRANSPORT_ETHERNET) || cap.hasTransport(TRANSPORT_WIFI_AWARE)
+        } else {
+            @Suppress("DEPRECATION")
+            connectivityManager.activeNetworkInfo?.run {
+                isConnected && (type == ConnectivityManager.TYPE_WIFI || type == ConnectivityManager.TYPE_ETHERNET)
+            } ?: false
+        }
+    } ?: false
+}

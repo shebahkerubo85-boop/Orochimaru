@@ -31,6 +31,7 @@ class SheetSourceSelector : DialogFragment() {
     private val binding get() = _binding!!
     private var sources: List<String> = emptyList()
     private var onSelect: ((Int) -> Unit)? = null
+    private var onDownload: ((Int) -> Unit)? = null
     private var onDismiss: (() -> Unit)? = null
     private var adapter: RecyclerView.Adapter<RecyclerView.ViewHolder>? = null
     private var pendingSources: List<String>? = null
@@ -119,6 +120,16 @@ class SheetSourceSelector : DialogFragment() {
                         onSelect?.invoke(position)
                         dismissAllowingStateLoss()
                     }
+                    tv.setOnLongClickListener {
+                        val download = onDownload
+                        if (download == null) {
+                            false
+                        } else {
+                            download(position)
+                            dismissAllowingStateLoss()
+                            true
+                        }
+                    }
                 }
             }
 
@@ -159,6 +170,16 @@ class SheetSourceSelector : DialogFragment() {
 
     fun setOnSelect(cb: (Int) -> Unit) {
         onSelect = cb
+    }
+
+    /**
+     * Long-pressing a row downloads it instead of playing it.
+     *
+     * Only wired up by callers that offer a download action; without this the long
+     * press keeps its platform default.
+     */
+    fun setOnDownload(cb: (Int) -> Unit) {
+        onDownload = cb
     }
 
     override fun onDismiss(dialog: DialogInterface) {
@@ -268,6 +289,16 @@ class SheetSourceSelector : DialogFragment() {
                 itemView.setOnClickListener {
                     onSelect?.invoke(rowIndices[bindingAdapterPosition])
                     dismissAllowingStateLoss()
+                }
+                itemView.setOnLongClickListener {
+                    val download = onDownload
+                    if (download == null) {
+                        false
+                    } else {
+                        download(rowIndices[bindingAdapterPosition])
+                        dismissAllowingStateLoss()
+                        true
+                    }
                 }
             }
         }

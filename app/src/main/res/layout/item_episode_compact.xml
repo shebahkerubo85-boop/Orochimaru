@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:padding="8dp">
@@ -62,12 +63,27 @@
             android:fontFamily="@font/poppins_bold"
             android:textSize="16sp" />
 
-        <View
+<View
             android:id="@+id/itemEpisodeViewedCover"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:alpha="0.33"
-            android:background="?android:colorBackground"
+            android:background="@android:colorBackground"
             android:visibility="gone" />
+
+        <ImageView
+            android:id="@+id/itemEpisodeDownloadIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="top|end"
+            android:layout_margin="4dp"
+            android:background="@drawable/bg_episode_download_icon"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="3dp"
+            android:visibility="gone"
+            app:srcCompat="@drawable/ic_download_24"
+            app:tint="?attr/colorOnPrimary"
+            tools:ignore="ContentDescription" />
     </com.google.android.material.card.MaterialCardView>
 </androidx.constraintlayout.widget.ConstraintLayout>

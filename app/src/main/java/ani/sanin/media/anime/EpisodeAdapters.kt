@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.LinearInterpolator
+import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.annotation.OptIn
 import androidx.core.view.isVisible
@@ -266,6 +267,7 @@ class EpisodeAdapter(
                     media.id,
                     ep.number
                 )
+                binding.itemEpisodeDownloadIcon.bindDownloadState(downloadModeEnabled, ep)
             }
 
             is EpisodeCompactViewHolder -> {
@@ -307,6 +309,7 @@ class EpisodeAdapter(
                     media.id,
                     ep.number
                 )
+                binding.itemEpisodeDownloadIcon.bindDownloadState(downloadModeEnabled, ep)
             }
 
             is EpisodeStripViewHolder -> {
@@ -447,12 +450,35 @@ class EpisodeAdapter(
                     media.id,
                     ep.number
                 )
+                binding.itemEpisodeDownloadIcon.bindDownloadState(downloadModeEnabled, ep)
             }
         }
     }
 
     override fun getItemCount(): Int = arr.size
     private val downloadedEpisodes = mutableSetOf<String>()
+
+    var downloadModeEnabled: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            if (itemCount > 0) notifyItemRangeChanged(0, itemCount, "download-mode")
+        }
+
+    private fun ImageView.bindDownloadState(modeEnabled: Boolean, ep: Episode) {
+        if (!modeEnabled) {
+            isVisible = false
+            return
+        }
+        isVisible = true
+        val done = ep.downloadProgress?.startsWith("Downloaded") == true
+        setColorFilter(
+            fragment.requireContext().getThemeColor(
+                if (done) com.google.android.material.R.attr.colorPrimary
+                else com.google.android.material.R.attr.colorSurface
+            )
+        )
+    }
 
     fun startDownload(episodeNumber: String) {
         if (downloadedEpisodes.contains(episodeNumber))
@@ -544,6 +570,10 @@ class EpisodeAdapter(
                 if (bindingAdapterPosition < arr.size && bindingAdapterPosition >= 0)
                     fragment.onEpisodeClick(arr[bindingAdapterPosition].number)
             }
+            binding.itemEpisodeDownloadIcon.setOnClickListener {
+                if (bindingAdapterPosition < arr.size && bindingAdapterPosition >= 0)
+                    fragment.onEpisodeDownloadClick(arr[bindingAdapterPosition])
+            }
         }
     }
 
@@ -555,6 +585,10 @@ class EpisodeAdapter(
             itemView.setOnClickListener {
                 if (bindingAdapterPosition < arr.size && bindingAdapterPosition >= 0)
                     fragment.onEpisodeClick(arr[bindingAdapterPosition].number)
+            }
+            binding.itemEpisodeDownloadIcon.setOnClickListener {
+                if (bindingAdapterPosition < arr.size && bindingAdapterPosition >= 0)
+                    fragment.onEpisodeDownloadClick(arr[bindingAdapterPosition])
             }
         }
     }
@@ -568,6 +602,10 @@ class EpisodeAdapter(
             itemView.setOnClickListener {
                 if (bindingAdapterPosition < arr.size && bindingAdapterPosition >= 0)
                     fragment.onEpisodeClick(arr[bindingAdapterPosition].number)
+            }
+            binding.itemEpisodeDownloadIcon.setOnClickListener {
+                if (bindingAdapterPosition < arr.size && bindingAdapterPosition >= 0)
+                    fragment.onEpisodeDownloadClick(arr[bindingAdapterPosition])
             }
         }
     }

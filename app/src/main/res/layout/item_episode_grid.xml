@@ -191,4 +191,20 @@
         app:srcCompat="@drawable/ic_sparkle"
         tools:ignore="ContentDescription"
         tools:visibility="visible" />
+
+    <ImageView
+        android:id="@+id/itemEpisodeDownloadIcon"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_gravity="top|start"
+        android:layout_margin="6dp"
+        android:background="@drawable/bg_episode_download_icon"
+        android:clickable="true"
+        android:focusable="true"
+        android:padding="6dp"
+        android:visibility="gone"
+        app:srcCompat="@drawable/ic_download_24"
+        app:tint="?attr/colorOnPrimary"
+        tools:ignore="ContentDescription"
+        tools:visibility="visible" />
 </com.google.android.material.card.MaterialCardView>

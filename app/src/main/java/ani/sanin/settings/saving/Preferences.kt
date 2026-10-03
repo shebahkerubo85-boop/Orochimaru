@@ -412,4 +412,13 @@ enum class PrefName(val data: Pref) {
     LoginMethod(Pref(Location.Irrelevant, String::class, "UNKNOWN")),
     LoginAppVersion(Pref(Location.Irrelevant, String::class, "")),
     CalendarListOnly(Pref(Location.General, Boolean::class, false)),
+
+    //Downloads
+    OfflineView(Pref(Location.General, Int::class, 0)),
+    DownloadManager(Pref(Location.General, Int::class, 0)),
+    PreferredDownloadResolutions(Pref(Location.General, List::class, listOf("1080"))),
+    AutoSelectResolutionPriority(Pref(Location.General, Boolean::class, false)),
+    SmartDownloadAnime(Pref(Location.General, Boolean::class, true)),
+    MaxParallelDownloads(Pref(Location.General, Int::class, 0)),
+    DownloadWifiOnly(Pref(Location.General, Boolean::class, false)),
 }

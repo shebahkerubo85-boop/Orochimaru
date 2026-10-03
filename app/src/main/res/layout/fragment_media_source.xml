@@ -128,6 +128,35 @@
         tools:itemCount="1"
         tools:listitem="@layout/item_media_source" />
 
+    <LinearLayout
+        android:id="@+id/watchRightRail"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical|end"
+        android:layout_marginEnd="4dp"
+        android:orientation="vertical">
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/watchRailDownload"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:focusable="true"
+            app:cardBackgroundColor="#FF333333"
+            app:cardCornerRadius="24dp"
+            app:contentPadding="12dp">
+
+            <ImageView
+                android:id="@+id/watchRailDownloadIcon"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                app:srcCompat="@drawable/ic_download_24"
+                app:tint="?attr/colorOnBackground"
+                tools:ignore="ContentDescription" />
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
+
     <androidx.cardview.widget.CardView
         android:id="@+id/ScrollTop"
         android:layout_width="48dp"

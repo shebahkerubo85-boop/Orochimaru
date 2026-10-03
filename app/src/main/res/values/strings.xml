@@ -2694,4 +2694,15 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="unlink_anilist">Unlink</string>
     <string name="link_mal">Link MAL</string>
     <string name="unlink_mal">Unlink</string>
+    <string name="auto_delete_downloads">Auto Delete Watched/Read Stuff</string>
+    <string name="auto_delete_downloads_desc">Automatically clean up downloaded anime or manga once you’ve watched or read it</string>
+    <string name="clear_media_confirm">Are you sure you want to delete all downloaded content for %1$s?</string>
+    <string name="clear_queue">Clear Queue</string>
+    <string name="clear_queue_confirm">Are you sure you want to clear the download queue?</string>
+    <string name="download_insights_header">Downloaded Content</string>
+    <string name="download_queue_desc">Manage your downloaded content and queue</string>
+    <string name="download_queue_header">Queue</string>
+    <string name="download_wifi_only_warning">Wi-Fi only is enabled. Connect to Wi-Fi to download.</string>
+    <string name="tmdb_watch_download_queued">Download queued</string>
+    <string name="tmdb_watch_download_failed">Can\'t download this stream</string>
 </resources>

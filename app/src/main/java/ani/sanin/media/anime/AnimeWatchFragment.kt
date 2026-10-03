@@ -58,6 +58,7 @@ import ani.sanin.toPx
 import ani.sanin.settings.extensionprefs.AnimeSourcePreferencesFragment
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
+import ani.sanin.getThemeColor
 import ani.sanin.snackString
 import ani.sanin.toast
 import ani.sanin.util.FocusEffectUtil
@@ -117,14 +118,73 @@ class AnimeWatchFragment : Fragment() {
         return _binding?.root
     }
 
+    private var isReceiverRegistered = false
+    private var downloadMode = false
+
+    private val downloadStatusReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent == null) return
+            if (!this@AnimeWatchFragment::episodeAdapter.isInitialized) return
+            when (intent.action) {
+                ACTION_DOWNLOAD_STARTED -> {
+                    val chapterNumber = intent.getStringExtra(EXTRA_EPISODE_NUMBER)
+                    val mediaId = intent.getIntExtra("mediaId", -1)
+                    if (mediaId != media.id) return
+                    chapterNumber?.let { episodeAdapter.startDownload(it) }
+                }
+
+                ACTION_DOWNLOAD_FINISHED -> {
+                    val chapterNumber = intent.getStringExtra(EXTRA_EPISODE_NUMBER)
+                    val mediaId = intent.getIntExtra("mediaId", -1)
+                    val size = intent.getDoubleExtra("size", 0.0)
+                    if (mediaId != media.id) return
+                    chapterNumber?.let { episodeAdapter.addToDownloadedEpisodes(it, size) }
+                }
+
+                ACTION_DOWNLOAD_FAILED -> {
+                    val chapterNumber = intent.getStringExtra(EXTRA_EPISODE_NUMBER)
+                    val mediaId = intent.getIntExtra("mediaId", -1)
+                    if (mediaId != media.id) return
+                    chapterNumber?.let { episodeAdapter.purgeDownload(it) }
+                }
+
+                ACTION_DOWNLOAD_PROGRESS -> {
+                    val chapterNumber = intent.getStringExtra(EXTRA_EPISODE_NUMBER)
+                    val progress = intent.getIntExtra("progress", 0)
+                    val mediaId = intent.getIntExtra("mediaId", -1)
+                    val downloadedBytes = intent.getLongExtra(EXTRA_DOWNLOADED_BYTES, -1L)
+                    val estimatedTotalBytes = intent.getLongExtra(EXTRA_ESTIMATED_TOTAL_BYTES, -1L)
+                    if (mediaId != media.id) return
+                    chapterNumber?.let {
+                        episodeAdapter.updateDownloadProgress(it, progress, downloadedBytes, estimatedTotalBytes)
+                    }
+                }
+            }
+        }
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        val downloadFilter = IntentFilter().apply {
+            addAction(ACTION_DOWNLOAD_STARTED)
+            addAction(ACTION_DOWNLOAD_FINISHED)
+            addAction(ACTION_DOWNLOAD_FAILED)
+            addAction(ACTION_DOWNLOAD_PROGRESS)
+        }
+        if (!isReceiverRegistered) {
+            ContextCompat.registerReceiver(
+                requireContext(),
+                downloadStatusReceiver,
+                downloadFilter,
+                ContextCompat.RECEIVER_EXPORTED
+            )
+            isReceiverRegistered = true
+        }
         view.post {
             if (isAdded) {
                 GlassEffectManager.applyGlass(view, GlassComponent.EpisodeDrawer, 0f)
             }
         }
-        // download receiver removed
 
 
         binding.mediaSourceRecycler.updatePadding(bottom = binding.mediaSourceRecycler.paddingBottom + navBarHeight)
@@ -157,6 +217,14 @@ class AnimeWatchFragment : Fragment() {
             binding.mediaSourceRecycler.smoothScrollToPosition(0)
         }
         FocusEffectUtil.applyFocusListener(binding.ScrollTop, binding.ScrollTop)
+
+        binding.watchRailDownload.setOnClickListener { setDownloadMode(!downloadMode) }
+        binding.watchRailDownload.setOnLongClickListener {
+            runCatching {
+                startActivity(Intent(requireContext(), ani.sanin.settings.DownloadQueueActivity::class.java))
+            }.onFailure { snackString("Downloads unavailable") }
+            true
+        }
         binding.mediaSourceRecycler.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
@@ -681,6 +749,34 @@ class AnimeWatchFragment : Fragment() {
 
     private var pendingEpisodeClick: String? = null
 
+    /** Toggles the per-episode download icons shown on the watch tab. */
+    private fun setDownloadMode(enabled: Boolean) {
+        downloadMode = enabled
+        if (::episodeAdapter.isInitialized) {
+            episodeAdapter.downloadModeEnabled = enabled
+        }
+        val tint = com.google.android.material.R.attr.colorPrimary
+        binding.watchRailDownload.setCardBackgroundColor(
+            requireContext().getThemeColor(if (enabled) tint else com.google.android.material.R.attr.colorSurfaceVariant)
+        )
+    }
+
+    /**
+     * Opened from the per-episode download icon (visible while the right-rail download
+     * toggle is active). Jumps straight into the server/subtitle picker.
+     */
+    fun onEpisodeDownloadClick(episode: Episode) {
+        val key = media.anime?.episodes?.getEpisodeKey(episode.number) ?: episode.number
+        media.anime?.selectedEpisode = key
+        SelectorDialogFragment.newInstance(
+            server = episode.selectedExtractor,
+            la = false,
+            prev = null,
+            isDownload = true,
+            episodes = arrayListOf(key)
+        ).show(parentFragmentManager, "download-selector")
+    }
+
     fun onEpisodeClick(i: String) {
         model.continueMedia = false
         model.saveSelected(media.id, media.selected!!)
@@ -789,6 +885,14 @@ class AnimeWatchFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        if (isReceiverRegistered) {
+            try {
+                context?.unregisterReceiver(downloadStatusReceiver)
+            } catch (e: IllegalArgumentException) {
+                Logger.log(Log.WARN, "Watch: download receiver was not registered")
+            }
+            isReceiverRegistered = false
+        }
         super.onDestroyView()
         Logger.log("Watch: onDestroyView")
     }

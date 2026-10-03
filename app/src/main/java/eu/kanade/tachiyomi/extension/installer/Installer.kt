@@ -161,6 +161,8 @@ abstract class Installer(private val service: Service) {
             if (toCancel.type is MediaType) {
                 val manager = when (toCancel.type) {
                     MediaType.ANIME -> animeExtensionManager
+                    // Sanin has no manga/novel/movie extension sources to update.
+                    else -> null
                 }
                 manager?.updateInstallStep(downloadId, InstallStep.Idle)
             } else {

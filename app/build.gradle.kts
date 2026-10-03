@@ -113,6 +113,21 @@ android {
         buildConfig = true
     }
 
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+            // FFmpeg and media3 both ship these, at different versions. Without pickFirsts the
+            // merge fails outright rather than picking one.
+            pickFirsts.add("**/libavcodec.so")
+            pickFirsts.add("**/libavdevice.so")
+            pickFirsts.add("**/libavfilter.so")
+            pickFirsts.add("**/libavformat.so")
+            pickFirsts.add("**/libavutil.so")
+            pickFirsts.add("**/libswresample.so")
+            pickFirsts.add("**/libswscale.so")
+        }
+    }
+
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
@@ -156,6 +171,10 @@ dependencies {
     implementation(libs.bundles.media3)
     implementation(libs.previewseekbar.media3)
     implementation(libs.bundles.subtitles)
+
+    // FFmpeg: HLS/DASH remuxing for the offline downloader. Adds ~10MB (arm64-v8a)
+    // and ~20MB (armeabi-v7a) to the respective release APKs.
+    implementation(libs.ffmpeg.kit)
 
     // UI
     implementation(libs.material)
