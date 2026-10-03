@@ -341,7 +341,7 @@ class SelectorDialogFragment : DialogFragment() {
                                 download(act, currentEp, media!!.userPreferredName)
                             }
                         } else {
-                            if (!downloadAddonManager.isAvailable()) {
+                            if (!//dam.isAvailable()) {
                                 val ctx = context ?: currContext()
                                 ctx?.customAlertDialog()?.apply {
                                     setTitle(R.string.download_addon_not_installed)
@@ -380,7 +380,7 @@ class SelectorDialogFragment : DialogFragment() {
 
                             val act = activity ?: currActivity()
                             if (selectedVideo != null && act != null) {
-                                Helper.startAnimeDownloadService(
+                                //
                                     act,
                                     media!!.mainName(),
                                     currentEp.number,
@@ -789,7 +789,7 @@ class SelectorDialogFragment : DialogFragment() {
                                 if (subtitleToDownload != null) {
                                         ctx,
                                         subtitleToDownload!!.file.url,
-                                        DownloadedType(
+                                        //
                                             media!!.mainName(),
                                             epNumber,
                                             MediaType.ANIME,
@@ -829,7 +829,7 @@ class SelectorDialogFragment : DialogFragment() {
                     } else {
                         extractor.videos.getOrNull(0)
                     }
-                    if (!downloadAddonManager.isAvailable()) {
+                    if (!//dam.isAvailable()) {
                         val ctx = context ?: currContext()
                         ctx?.customAlertDialog()?.apply {
                             setTitle(R.string.download_addon_not_installed)
