@@ -398,8 +398,14 @@ object Kitsu {
      */
     private fun anilistIdOf(kitsuId: String): Int? = anilistIdCache[kitsuId]
 
-    /** This resource's id, for pairing an anime back to its installment. */
-    private fun KitsuResource.id() = id
+    /**
+     * This resource's id, for pairing an anime back to its installment.
+     *
+     * Empty rather than null when the server omits it: every use either looks the id up in a
+     * cache or compares it for equality, and a blank id misses both, which is the same
+     * outcome as having no id at all.
+     */
+    private fun KitsuResource.id() = id.orEmpty()
 
     private fun KitsuResource.toEntry(anilistId: Int?) = animeAttributes()?.toEntry(anilistId)
 

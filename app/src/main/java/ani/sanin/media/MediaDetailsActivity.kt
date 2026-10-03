@@ -20,7 +20,6 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.appcompat.widget.AppCompatImageButton
-import androidx.appcompat.widget.AppBarLayout
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.core.view.doOnLayout
@@ -36,6 +35,7 @@ import ani.sanin.isDarkTheme
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.anizip.AniZip
 import ani.sanin.connections.mal.MAL
+import com.google.android.material.appbar.AppBarLayout
 import ani.sanin.databinding.ActivityMediaBinding
 import ani.sanin.getThemeColor
 import ani.sanin.initActivity

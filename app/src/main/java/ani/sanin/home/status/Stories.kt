@@ -467,31 +467,38 @@ class Stories @JvmOverloads constructor(
                 pause()
                 val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
                 scope.launch {
-                    val feed = Anilist.query.getFeed(userId = null, page = 1, activityId = story.id)
-                    val fetchedLikes = feed?.data?.page?.activities?.firstOrNull()?.likes
-                    withContext(Dispatchers.Main) {
-                        if (!hostActivity.isFinishing && !hostActivity.isDestroyed) {
-                            val fetchedUserList = arrayListOf<User>()
-                            fetchedLikes?.forEach { i ->
-                                fetchedUserList.add(
-                                    User(
-                                        i.id,
-                                        i.name.toString(),
-                                        i.avatar?.medium,
-                                        i.bannerImage,
-                                        isFollowing = i.isFollowing,
-                                        isFollower = i.isFollower,
-                                    ),
-                                )
-                            }
-                            if (fetchedUserList.isNotEmpty()) {
+                    val fetchedUserList = arrayListOf<User>()
+                    try {
+                        val feed = Anilist.query.getFeed(userId = null, page = 1, activityId = story.id)
+                        feed?.data?.page?.activities?.firstOrNull()?.likes?.forEach { i ->
+                            fetchedUserList.add(
+                                User(
+                                    i.id,
+                                    i.name.toString(),
+                                    i.avatar?.medium,
+                                    i.bannerImage,
+                                    isFollowing = i.isFollowing,
+                                    isFollower = i.isFollower,
+                                ),
+                            )
+                        }
+                        withContext(Dispatchers.Main) {
+                            if (fetchedUserList.isNotEmpty() &&
+                                !hostActivity.isFinishing &&
+                                !hostActivity.isDestroyed
+                            ) {
                                 UsersDialogFragment().apply {
                                     userList(fetchedUserList)
                                     show(hostActivity.supportFragmentManager, "dialog")
                                 }
                             }
                         }
-                        resume()
+                    } finally {
+                        // Resume even if the fetch throws: leaving the timer stopped would freeze
+                        // the story until the user swiped away manually.
+                        withContext(Dispatchers.Main) {
+                            if (!hostActivity.isFinishing && !hostActivity.isDestroyed) resume()
+                        }
                     }
                 }
             }
