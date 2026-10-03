@@ -13,7 +13,7 @@ import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.mal.MAL
 import ani.sanin.currContext
 import ani.sanin.media.anime.Episode
-import ani.sanin.media.anime.SelectorDialogFragment
+
 import ani.sanin.others.AniSkip
 import ani.sanin.others.Anify
 import ani.sanin.others.IntroDB
