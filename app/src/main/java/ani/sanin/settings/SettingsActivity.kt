@@ -304,7 +304,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     companion object {
-        fun "unknown": String = """
+        fun getDeviceInfo(): String = """
             sanin Version: ${BuildConfig.VERSION_NAME}
             Device: $BRAND $DEVICE
             Architecture: ${getArch()}
