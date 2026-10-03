@@ -36,11 +36,8 @@ import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
 import ani.sanin.connections.crashlytics.CrashlyticsInterface
 import ani.sanin.copyToClipboard
-import ani.sanin.addons.download.DownloadAddonManager
 import ani.sanin.currActivity
 import ani.sanin.currContext
-import ani.sanin.download.DownloadedType
-import ani.sanin.download.video.Helper
 import ani.sanin.databinding.BottomSheetSelectorBinding
 import ani.sanin.databinding.ItemQualityOptionBinding
 import ani.sanin.databinding.ItemStreamBinding
@@ -51,7 +48,6 @@ import ani.sanin.media.Media
 import ani.sanin.media.MediaDetailsViewModel
 import ani.sanin.media.MediaKind
 import ani.sanin.media.MediaType
-import ani.sanin.media.SubtitleDownloader
 import ani.sanin.navBarHeight
 import ani.sanin.parsers.Subtitle
 import ani.sanin.parsers.Video
@@ -324,7 +320,6 @@ class SelectorDialogFragment : DialogFragment() {
 
                         currentEp.selectedExtractor = extractor.server.name
                         val bestVideo = if (autoPriority && extractor.videos.isNotEmpty()) {
-                            ani.sanin.download.findBestVideoForDownload(extractor.videos, preferredResolutions)
                         } else null
 
                         val chosenVideoIndex = if (bestVideo != null) {
@@ -346,7 +341,6 @@ class SelectorDialogFragment : DialogFragment() {
                                 download(act, currentEp, media!!.userPreferredName)
                             }
                         } else {
-                            val downloadAddonManager: DownloadAddonManager = Injekt.get()
                             if (!downloadAddonManager.isAvailable()) {
                                 val ctx = context ?: currContext()
                                 ctx?.customAlertDialog()?.apply {
@@ -793,7 +787,6 @@ class SelectorDialogFragment : DialogFragment() {
                             scope.launch(Dispatchers.IO) {
                                 val ctx = context ?: currContext() ?: return@launch
                                 if (subtitleToDownload != null) {
-                                    SubtitleDownloader.downloadSubtitle(
                                         ctx,
                                         subtitleToDownload!!.file.url,
                                         DownloadedType(
@@ -836,7 +829,6 @@ class SelectorDialogFragment : DialogFragment() {
                     } else {
                         extractor.videos.getOrNull(0)
                     }
-                    val downloadAddonManager: DownloadAddonManager = Injekt.get()
                     if (!downloadAddonManager.isAvailable()) {
                         val ctx = context ?: currContext()
                         ctx?.customAlertDialog()?.apply {
