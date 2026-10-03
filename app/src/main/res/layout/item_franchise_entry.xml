@@ -13,8 +13,10 @@
   the one that grows. In landscape the poster is narrower still (values-land), because there
   the height is what limits the screen and the width is free.
 
-  The list-status button hangs 1dp below the poster rather than inside it. The poster is a
-  picture and a button drawn on a picture covers something; below it, it is its own control.
+  The list-status button hangs 1dp below the poster rather than inside it, and is as wide as
+  the poster. The poster is a picture and a button drawn on a picture covers something; below
+  it, it is its own control, and matching the poster's width makes the pair read as one card
+  rather than as a picture with a chip stuck to it.
 
   The row carries android:gravity="center_vertical" rather than the text column carrying it,
   because the row is what is as tall as the poster. Gravity on the column would centre its
@@ -42,8 +44,8 @@
 
     <!--
       Poster column. A ConstraintLayout rather than a LinearLayout so the poster can be 2:3
-      from its own width without a second dimension to keep in step, and so the button under
-      it can be centred on the poster's middle rather than on the column's.
+      from its own width without a second dimension to keep in step, and so the button under it
+      can be pinned to the poster's own two edges rather than guessed at.
     -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/franchiseRowCardHolder"
@@ -182,15 +184,23 @@
         </androidx.cardview.widget.CardView>
 
         <!--
-          The list status, 1dp under the poster and centred with it.
+          The list status, 1dp under the poster and as wide as it.
 
-          Outlined rather than filled because it is a command, not a label, and because the
-          filled version of this control is already on the entry's own screen.
+          Stretched to the card's own width rather than wrapped round its text. Wrapped, it was
+          a chip floating under the picture, narrower than the thing it belonged to and centred
+          on nothing in particular; full width it reads as the foot of the card, which is what it
+          is, and the row's silhouette becomes one rectangle instead of a poster with a stray
+          label hanging off it.
+
+          Width is 0dp with both edges pinned to the holder, so the two share one measurement:
+          there is no number here to disagree with the poster's. Outlined rather than filled
+          because it is a command, not a label, and because the filled version of this control is
+          already on the entry's own screen.
         -->
         <Button
             android:id="@+id/franchiseRowListStatus"
             style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="@dimen/franchise_list_status_height"
             android:layout_marginTop="@dimen/franchise_list_status_top"
             android:ellipsize="end"

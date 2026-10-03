@@ -80,17 +80,29 @@
       from that ratio in the layout rather than from a second number here, because two
       numbers kept in step by hand is a number that will drift.
     -->
-    <dimen name="franchise_poster_width">136dp</dimen>
+    <!--
+      The poster's width, from which its 2:3 height follows.
+
+      Cut at the user's request: at 136dp the card was 204dp tall and the row read as two
+      pictures with a column of text beside them rather than as a list entry with a picture on
+      it. 112dp gives a 168dp poster, which is still large enough to recognise a key visual
+      from but leaves the text column 197dp instead of 173dp, and the words are what say which
+      entry a row is.
+
+      The height is not stated separately. It comes from the ratio on the card in the layout,
+      so narrowing the width narrows both and there is no second number to drift out of step.
+    -->
+    <dimen name="franchise_poster_width">112dp</dimen>
     <dimen name="franchise_row_margin">24dp</dimen>
     <dimen name="franchise_row_gap">3dp</dimen>
     <!--
-      The clear band between one card column and the next, and the run the connector lives in.
+      The gap between one row and the next.
 
-      This is not spacing for its own sake: the line leaves card N's foot and arrives at card
-      N+1's head across exactly this band, and the chevron that points into the next card is
-      about 12dp tall. At 12dp the band was the same height as the arrow, so the arrow filled it
-      edge to edge and there was no air anywhere in it. 20dp leaves the arrow room to sit inside
-      the gap rather than touching the cards on either side of it.
+      Kept at 20dp rather than the 12dp it was before the connector, at the user's request. It
+      was raised for the line, which needed a clear band to run in, but the wider gap is wanted
+      on its own now that the line is gone: with the poster cut to 112dp the rows are shorter
+      than they were, and 12dp between two of them made the list read as a stack rather than as
+      a set of entries. The extra 8dp is breathing room, not a diagram's ruins.
     -->
     <dimen name="franchise_row_bottom_margin">20dp</dimen>
     <!-- 1dp under the poster, before the list-status button. -->
@@ -105,14 +117,18 @@
     <!--
       The year, over the artwork at the poster's foot.
 
-      Bigger than the other poster marks on purpose. It is the one piece of metadata the row
-      does not say anywhere else: the title beside the poster names the entry, and the entry's
-      own screen carries the format and the runtime, but the year appears nowhere except here,
-      and at 11sp it sat under the info button as a caption rather than as a date you could read
-      from across a room. 13sp is enough to hold its own against the 10sp rating without starting
-      to compete with the poster it is printed on.
+      Taken up again at the user's request, twice over now: 11sp read as a caption somebody had
+      left under the info button, and 13sp was still smaller than the title beside the poster,
+      which is not how the row is ranked. The year is the one piece of metadata this row states
+      nowhere else, so it is set to be read rather than to be consistent: the entry's own screen
+      carries the format and the runtime, and nothing here repeats the year.
+
+      96dp of the poster's 112dp width is available to the run and the widest case is four
+      digits, so even 2011 at this size is well inside the column. It still sits under a 30dp
+      circle rather than beside it, so the number reads as the button's caption at a size you
+      can read across a room, which is what it is for.
     -->
-    <dimen name="franchise_year_size">13sp</dimen>
+    <dimen name="franchise_year_size">16sp</dimen>
     <dimen name="franchise_meta_size">10sp</dimen>
 
     <!--

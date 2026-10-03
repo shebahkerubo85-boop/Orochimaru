@@ -1,6 +1,8 @@
 package ani.sanin.media
 
+import android.view.View
 import android.widget.RadioGroup
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import ani.sanin.R
 import ani.sanin.settings.saving.PrefManager
@@ -19,6 +21,15 @@ enum class FranchiseSort {
     TRENDING,
     POPULAR,
     ALPHABETICAL,
+
+    /**
+     * The curated list cards, exactly as the row used to show them before real franchises.
+     *
+     * Kept as a sort rather than removed so the old content stays reachable: picking it swaps
+     * the row back to Trakt's lists (IMDb Popular, Top Horror, ...), and any other sort shows
+     * the real franchises instead.
+     */
+    COLLECTIONS,
     ;
 
     /** What the sort pill and the dropdown option show for this sort. */
@@ -27,6 +38,7 @@ enum class FranchiseSort {
         TRENDING -> R.string.franchise_sort_trending
         POPULAR -> R.string.franchise_sort_popular
         ALPHABETICAL -> R.string.franchise_sort_az
+        COLLECTIONS -> R.string.franchise_sort_collections
     }
 
     companion object {
@@ -137,6 +149,10 @@ object FranchiseSorter {
             // Most liked first, and an unknown count sorts last rather than leading.
             FranchiseSort.POPULAR -> visible.sortedByDescending { it.likeCount ?: -1 }
             FranchiseSort.ALPHABETICAL -> visible.sortedBy { it.name.lowercase() }
+            // Collections keep the source's own order: the sort *is* the source, so there is no
+            // key to reorder by, and any reshuffle would only fight the curated order it exists
+            // to preserve.
+            FranchiseSort.COLLECTIONS -> visible
         }
         return if (prefs.direction == FranchiseSortDirection.DESCENDING) natural
         else natural.reversed()
@@ -151,14 +167,21 @@ object FranchiseSorter {
  * never displayed it at all.
  *
  * @param onChanged run after anything is saved, so the caller can re-sort its row.
+ * @param showCollections whether the Collections option is offered. The anime row has no
+ *   curated-list source, so showing the option there would let the user pick a sort that
+ *   only empties the row; the movie row is the only caller that passes true.
  */
-fun Fragment.showFranchiseSortDialog(onChanged: () -> Unit) {
+fun Fragment.showFranchiseSortDialog(
+    showCollections: Boolean = false,
+    onChanged: () -> Unit,
+) {
     val prefs = FranchiseListPrefs.read()
     val body = layoutInflater.inflate(R.layout.dialog_franchise_sort, null)
 
     // Held rather than re-found: checkedRadioButtonId is a RadioGroup property, and the inflated
     // body is a plain View, so the group has to be kept around to read the answer back.
     val group = body.findViewById<RadioGroup>(R.id.franchiseSortGroup)
+    body.findViewById<View>(R.id.franchiseSortCollections).isVisible = showCollections
     group.check(prefs.sort.radioId())
     body.findViewById<MaterialSwitch>(R.id.franchiseShowSingleEntry).apply {
         isChecked = prefs.showSingleEntry
@@ -202,4 +225,5 @@ private fun FranchiseSort.radioId() = when (this) {
     FranchiseSort.TRENDING -> R.id.franchiseSortTrending
     FranchiseSort.POPULAR -> R.id.franchiseSortPopular
     FranchiseSort.ALPHABETICAL -> R.id.franchiseSortAlphabetical
+    FranchiseSort.COLLECTIONS -> R.id.franchiseSortCollections
 }

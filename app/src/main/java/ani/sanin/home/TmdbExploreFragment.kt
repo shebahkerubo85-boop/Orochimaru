@@ -149,6 +149,15 @@ class TmdbExploreFragment : Fragment() {
     private var franchiseLoading = false
 
     /**
+     * Which source the cards currently in the row came from.
+     *
+     * The sort dialog's callback fires for the single-entry toggle as well as for a sort pick,
+     * and only a pick can change the source. Comparing the pending sort against this tells a
+     * cheap local re-filter apart from a reload, so toggling the switch does not refetch.
+     */
+    private var loadedCollections = false
+
+    /**
      * One adapter and one backing list per row, created on the row's first load and
      * updated in place after that.
      *
@@ -962,21 +971,52 @@ class TmdbExploreFragment : Fragment() {
 
     /** The sort dropdown, plus the "show single item entries" toggle, as specced. */
     private fun openFranchiseSortDialog() {
-        showFranchiseSortDialog {
+        // Collections is offered here and nowhere else: it is the movie row's curated-list
+        // source, and picking it swaps the whole row's source, so this reloads rather than
+        // re-sorting the cards already in hand.
+        showFranchiseSortDialog(showCollections = true) {
             updateFranchiseSortUi()
-            applyFranchiseSort()
+            // The single-entry toggle fires this too, and it only re-filters. Reload only when
+            // the pick actually changed the source; otherwise re-sort the cards already in hand.
+            if (collectionsMode() == loadedCollections) applyFranchiseSort() else reloadFranchises()
         }
     }
     /**
-     * Loads the Franchise cards for the selected type chip, and the next batch on scroll.
+     * True when the row is showing Trakt's curated lists rather than real franchises.
      *
-     * Replaces the old Popular list, which paged TMDB forever to stay in sync with the
-     * anime list beside it. A card is a whole franchise, and the entries that do not fit its
-     * row live on the dedicated franchise screen, so what pages here is cards rather than
-     * entries: a card costs one request, which is why all forty are not resolved up front.
+     * The sort *is* the source: Collections is the curated-list mode, every other sort is the
+     * franchise mode. Read in one place so the loader, the paging and the dialog cannot each
+     * decide independently what the row is showing.
+     */
+    private fun collectionsMode() = franchisePrefs().sort == FranchiseSort.COLLECTIONS
+
+    /** The TMDB media type the current chip maps to. */
+    private fun tmdbTypeFor(type: ExploreType) = when (type) {
+        ExploreType.MOVIE -> "movie"
+        ExploreType.TV -> "tv"
+        ExploreType.ANIMATION -> "animation"
+    }
+
+    /**
+     * Reloads the row for the current chip and sort.
+     *
+     * Needed because picking a sort can now swap the *source*, not just the order: Collections
+     * comes from Trakt and every other sort from TMDB. Bumps the generation so an in-flight load
+     * for the previous source cannot land on top of the new one.
+     */
+    private fun reloadFranchises() = loadFranchises(selectedType, ++loadGeneration, reset = true)
+
+    /**
+     * Loads the Franchise row for the selected chip, from whichever source the sort selects.
+     *
+     * Two sources share the row. The real-franchise source (TMDB collections for film, a show
+     * per card with its seasons for TV) is a fixed pool, so it loads once and never pages. The
+     * Collections source (Trakt's curated lists) is a long tail, so it pages a batch at a time as
+     * the last card scrolls into view. A card is a whole franchise either way; the entries that
+     * do not fit its row live on the dedicated franchise screen.
      *
      * @param reset whether this is a fresh load, which starts the row over from the first
-     *   batch. A chip change resets; a scroll does not and appends to what is already shown.
+     *   batch. A chip or sort change resets; a scroll does not and appends to what is shown.
      */
     private fun loadFranchises(
         type: ExploreType,
@@ -986,6 +1026,8 @@ class TmdbExploreFragment : Fragment() {
         // A scroll asks for more only when there is more and nothing is already on its way;
         // both are row state, and a fling past the end would otherwise stack requests.
         if (!reset && (franchiseHasMore.not() || franchiseLoading)) return
+        val collections = collectionsMode()
+        loadedCollections = collections
         if (reset) {
             franchiseSkip = 0
             franchiseHasMore = true
@@ -995,51 +1037,79 @@ class TmdbExploreFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             val started = System.currentTimeMillis()
             Logger.log(
-                "Franchise(movie) load: chip=${type.name} generation=$generation " +
-                    "reset=$reset skip=$skip pool=${allFranchiseCards.size}"
+                "Franchise(movie) load: chip=${type.name} " +
+                    "source=${if (collections) "collections" else "franchises"} " +
+                    "generation=$generation reset=$reset skip=$skip pool=${allFranchiseCards.size}"
             )
             if (reset) setFranchiseProgress(true)
             franchiseLoading = true
             try {
-                // Trakt's curated lists are movies, so all three chips share one source and
-                // filter client-side. TMDB cannot do this at all: `belongs_to_collection` is
-                // absent from every list endpoint, and `/collection/list` is gone from v3.
-                val batch = try {
-                    Trakt.franchiseCards(skip = skip)
-                } catch (e: Exception) {
-                    // Was runCatching{}.getOrDefault(emptyList()): a failure and a genuinely
-                    // empty source looked identical from the row, which is an empty row and no
-                    // way to tell which happened.
-                    Logger.log(e)
-                    Logger.log("Franchise(movie) load threw: ${e.message}")
-                    Trakt.TraktBatch(emptyList(), hasMore = false)
-                }
-                // Everything already in flight belongs to the previous chip; drop it on arrival
-                // rather than letting it land on top of this one.
-                if (generation != loadGeneration) {
+                if (collections) {
+                    // Trakt's curated lists are movies, so all three chips share one source and
+                    // filter client-side. This is the only source that still pages: there is a
+                    // long tail of lists.
+                    val batch = try {
+                        Trakt.franchiseCards(skip = skip)
+                    } catch (e: Exception) {
+                        // Was runCatching{}.getOrDefault(emptyList()): a failure and a genuinely
+                        // empty source looked identical from the row, which is an empty row and no
+                        // way to tell which happened.
+                        Logger.log(e)
+                        Logger.log("Franchise(movie) load threw: ${e.message}")
+                        Trakt.TraktBatch(emptyList(), hasMore = false)
+                    }
+                    // Everything already in flight belongs to the previous chip; drop it on arrival
+                    // rather than letting it land on top of this one.
+                    if (generation != loadGeneration) {
+                        Logger.log(
+                            "Franchise(movie) dropping ${batch.cards.size} stale cards " +
+                                "for generation $generation"
+                        )
+                        return@launch
+                    }
+                    // A card already in the pool keeps its place and its rank rather than being
+                    // restated by a second batch, so a list that drops out of the index cannot make
+                    // the row jump when the next batch lands.
+                    val known = allFranchiseCards.mapTo(HashSet()) { it.name.lowercase() }
+                    val fresh = batch.cards.filterNot { it.name.lowercase() in known }
+                    allFranchiseCards = allFranchiseCards + fresh
+                    // The cursor advances by what was asked for, not by what came back, so a batch
+                    // whose cards were all dropped still moves the row forward instead of
+                    // re-requesting the same lists forever.
+                    franchiseSkip = skip + Trakt.BATCH_CARDS
+                    franchiseHasMore = batch.hasMore
+                    val shown = applyFranchiseSort()
                     Logger.log(
-                        "Franchise(movie) dropping ${batch.cards.size} stale cards " +
-                            "for generation $generation"
+                        "Franchise(movie) got ${batch.cards.size} cards (${fresh.size} new) in " +
+                            "${System.currentTimeMillis() - started}ms, submitted $shown after " +
+                            "sort from ${allFranchiseCards.size}, more=$franchiseHasMore"
                     )
-                    return@launch
+                } else {
+                    // Real franchises: movies from TMDB collections, or one card per show with its
+                    // seasons for TV. A fixed pool, not a paged source, so one request fills the
+                    // row and a scroll past the end asks for nothing more.
+                    val cards = try {
+                        Tmdb.franchiseCards(tmdbTypeFor(type))
+                    } catch (e: Exception) {
+                        Logger.log(e)
+                        Logger.log("Franchise(movie) load threw: ${e.message}")
+                        emptyList()
+                    }
+                    if (generation != loadGeneration) {
+                        Logger.log(
+                            "Franchise(movie) dropping ${cards.size} stale franchises " +
+                                "for generation $generation"
+                        )
+                        return@launch
+                    }
+                    allFranchiseCards = cards
+                    franchiseHasMore = false
+                    val shown = applyFranchiseSort()
+                    Logger.log(
+                        "Franchise(movie) got ${cards.size} franchises in " +
+                            "${System.currentTimeMillis() - started}ms, submitted $shown after sort"
+                    )
                 }
-                // A card already in the pool keeps its place and its rank rather than being
-                // restated by a second batch, so a list that drops out of the index cannot make
-                // the row jump when the next batch lands.
-                val known = allFranchiseCards.mapTo(HashSet()) { it.name.lowercase() }
-                val fresh = batch.cards.filterNot { it.name.lowercase() in known }
-                allFranchiseCards = allFranchiseCards + fresh
-                // The cursor advances by what was asked for, not by what came back, so a batch
-                // whose cards were all dropped still moves the row forward instead of
-                // re-requesting the same lists forever.
-                franchiseSkip = skip + Trakt.BATCH_CARDS
-                franchiseHasMore = batch.hasMore
-                val shown = applyFranchiseSort()
-                Logger.log(
-                    "Franchise(movie) got ${batch.cards.size} cards (${fresh.size} new) in " +
-                        "${System.currentTimeMillis() - started}ms, submitted $shown after sort " +
-                        "from ${allFranchiseCards.size}, more=$franchiseHasMore"
-                )
             } finally {
                 // Cleared here rather than at each exit so a cancelled load cannot leave the
                 // flag set and wedge the row against ever asking for another batch.

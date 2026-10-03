@@ -138,17 +138,12 @@
                 android:visibility="gone" />
 
             <!--
-              The whole flow scrolls. The rows are added here by the activity, and the connector
-              is drawn into the canvas view that sits behind them, so the cards paint over the line's
-              ends rather than the line being painted over them.
+              The whole flow scrolls. The rows are added here by the activity.
 
-              The line's run is only the band between one card and the next, so nothing is drawn
-              behind the prose and the synopsis carries no mask of its own.
-
-              Both live inside the scroll content rather than outside it: a connector sized to the
-              viewport could not draw a segment for a row scrolled below the fold, so the line
-              would simply stop at the bottom of the screen. Sizing it to the content instead
-              means the whole sequence is one picture that happens to be taller than the screen.
+              This used to be a FrameLayout wrapping a connector view that drew a line from each
+              card to the next. The line is gone: it was the one primary-coloured thing on a screen
+              whose whole surface is otherwise flat page colour, and it read as a chart rather than
+              as a list. Alternation now carries the order on its own.
             -->
             <androidx.core.widget.NestedScrollView
                 android:id="@+id/franchiseScroll"
@@ -158,26 +153,13 @@
                 android:fillViewport="true"
                 android:scrollbars="none">
 
-                <FrameLayout
-                    android:id="@+id/franchiseConnectorHost"
+                <LinearLayout
+                    android:id="@+id/franchiseRows"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
-
-                    <ani.sanin.media.FranchiseConnectorView
-                        android:id="@+id/franchiseConnector"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:importantForAccessibility="no" />
-
-                    <LinearLayout
-                        android:id="@+id/franchiseRows"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:paddingTop="16dp"
-                        android:paddingBottom="24dp" />
-
-                </FrameLayout>
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingTop="16dp"
+                    android:paddingBottom="24dp" />
 
             </androidx.core.widget.NestedScrollView>
 

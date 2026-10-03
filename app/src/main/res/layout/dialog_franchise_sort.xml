@@ -58,6 +58,14 @@
             android:text="@string/franchise_sort_az"
             tools:ignore="SpUsage" />
 
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/franchiseSortCollections"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="@string/franchise_sort_collections"
+            tools:ignore="SpUsage" />
+
     </RadioGroup>
 
     <View

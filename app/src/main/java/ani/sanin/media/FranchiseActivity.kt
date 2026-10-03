@@ -6,14 +6,12 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
 import android.util.TypedValue
-import android.view.View
 import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
-import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
@@ -39,21 +37,22 @@ import kotlinx.coroutines.withContext
 import java.io.Serializable
 
 /**
- * The franchise screen: everything in one franchise, in order, as a flowing sequence.
+ * The franchise screen: everything in one franchise, in order.
  *
  * ## Shape of the layout
  *
- * Filter pills, then the franchise's own name, then one row per entry where a landscape card
- * alternates sides with a teaser synopsis. Between them runs [FranchiseConnectorView], which is
- * what makes the order legible at a glance rather than something you have to read.
+ * Filter pills, then the franchise's own name, then one row per entry where a portrait poster
+ * alternates sides with a teaser synopsis. The alternation is what makes the order legible at a
+ * glance: a line used to run between the cards to say so, and it was removed, because a
+ * primary-coloured curve over a screen that is otherwise flat page colour read as a diagram of
+ * the sequence rather than as the sequence itself.
  *
  * ## Rows are not recycled
  *
- * The rows go into a LinearLayout, not a RecyclerView. That looks wasteful and is not: the
- * connector is drawn from the measured positions of the rows above it, and a recycling container
- * would detach and rebind those rows as the user scrolls, making the line flicker and re-route
- * under unrelated cards. A franchise is at most a few dozen entries, so holding them all is
- * bounded, and the line can be drawn in one pass.
+ * The rows go into a LinearLayout, not a RecyclerView. With the connector gone nothing measures
+ * the rows against each other, so a recycling container would be the obvious choice here, and is
+ * left for later: a franchise is at most a few dozen entries, the count is in the header, and
+ * holding them all costs nothing anyone can see.
  *
  * ## Two sources, one screen
  *
@@ -107,7 +106,7 @@ class FranchiseActivity : AppCompatActivity() {
         applyWindowInsets()
 
         // Entries in air-date order, with the curated position winning where the user has asked
-        // for it. The pill and the connector both read this same list, so they cannot disagree.
+        // for it. The pill and the rows both read this same list, so they cannot disagree.
         val ordered = orderedEntries(card)
         totalEntries = ordered.size
         binding.franchiseEntryCount.text =
@@ -289,15 +288,9 @@ class FranchiseActivity : AppCompatActivity() {
         row.addView(pill)
     }
 
-    /**
-     * Rebuilds the rows for the current filter.
-     *
-     * The connector is redrawn from scratch because filtering changes which cards are present
-     * and where they sit.
-     */
+    /** Rebuilds the rows for the current filter. */
     private fun refilter() {
         val all = franchise?.let { orderedEntries(it) } ?: return
-        binding.franchiseConnector.resetNodes()
         buildRows(all)
     }
 
@@ -305,9 +298,9 @@ class FranchiseActivity : AppCompatActivity() {
      * Adds one row per entry that passes the current filter, alternating card sides.
      *
      * Filtered-out entries are left out of the layout entirely rather than dimmed in place, so
-     * the line connects the entries that are actually on screen. What was hidden stays legible
-     * from the count under the title, which reads "3 of 12" while a filter is on, so nothing
-     * disappears without leaving a trace.
+     * what is on screen is the sequence and nothing else. What was hidden stays legible from the
+     * count under the title, which reads "3 of 12" while a filter is on, so nothing disappears
+     * without leaving a trace.
      *
      * @param ordered every entry, in franchise order.
      */
@@ -335,11 +328,6 @@ class FranchiseActivity : AppCompatActivity() {
             bindRow(row, entry, index)
             container.addView(row.root)
         }
-
-        // Positions are only known after the rows have been measured, so the connector waits for
-        // the next layout pass. One post, not a listener: the rows are not animated or rebound
-        // afterwards, so there is exactly one layout to wait for.
-        container.post { drawConnector(shown) }
     }
 
     /** Whether this entry passes the active filter. */
@@ -625,8 +613,13 @@ class FranchiseActivity : AppCompatActivity() {
             return
         }
 
-        val url = entry.tmdbId?.let {
-            "https://www.themoviedb.org/movie/$it"
+        val url = entry.tmdbId?.let { id ->
+            val type = entry.tmdbType ?: "movie"
+            val base = "https://www.themoviedb.org/$type/$id"
+            // A season entry points at its own season page rather than the show's front page,
+            // since the season is what the card actually showed.
+            if (type == "tv" && entry.seasonNumber != null) "$base/season/${entry.seasonNumber}"
+            else base
         } ?: entry.traktId?.let { "https://trakt.tv/movies/$it" }
 
         if (url == null) {
@@ -634,59 +627,6 @@ class FranchiseActivity : AppCompatActivity() {
         } else {
             startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))
         }
-    }
-
-    /**
-     * Draws the connector from the rows' measured positions.
-     *
-     * @param shown the entries the rows were built from, in the same order.
-     */
-    private fun drawConnector(shown: List<FranchiseEntry>) {
-        val connector = binding.franchiseConnector
-        val container = binding.franchiseRows
-        connector.resetNodes()
-
-        // The connector is a sibling of the rows inside the scrolling content, so it has to be
-        // as tall as the rows. Left as wrap_content it would measure to zero height against a
-        // FrameLayout that has not been sized yet, and the line would never be drawn.
-        if (container.height <= 0) return
-        connector.updateLayoutParams { height = container.height }
-        connector.requestLayout()
-
-        // One more hop: the height above has only been requested, not applied, so the nodes are
-        // added on the pass after the connector has been laid out to the full flow. Drawing them
-        // now would place them correctly but against a stale height, and the line would be
-        // clipped to whatever the last layout left behind.
-        connector.post { addConnectorNodes(shown) }
-    }
-
-    /**
-     * Gives the connector one node per row, in the rows' own coordinate space.
-     *
-     * @param shown the entries the rows were built from, in the same order, so row *i* here is
-     *   row *i* in the container.
-     */
-    private fun addConnectorNodes(shown: List<FranchiseEntry>) {
-        val connector = binding.franchiseConnector
-        val container = binding.franchiseRows
-        for (i in 0 until minOf(shown.size, container.childCount)) {
-            val child = container.getChildAt(i)
-            // The whole card column, poster and list button both, rather than the poster alone or
-            // the row. The poster's own foot is exactly where the list button hangs 1dp below it,
-            // so a line starting there would spend its first stretch behind the button and appear
-            // to come out of nowhere; the row is wider than either column and its centre sits in
-            // the whitespace between them. The column is the thing that is a card, so the column is
-            // what the line leaves from and arrives at.
-            val card = child.findViewById<View>(R.id.franchiseRowCardHolder) ?: continue
-            connector.addNode(
-                centerX = (child.left + card.left + card.width / 2f),
-                // card.top is relative to the row, so the row's own top is added to bring it
-                // into the connector's space, which is the FrameLayout the rows sit in.
-                top = (child.top + card.top).toFloat(),
-                bottom = (child.top + card.bottom).toFloat(),
-            )
-        }
-        connector.invalidate()
     }
 
     /**

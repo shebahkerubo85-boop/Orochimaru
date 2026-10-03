@@ -2,6 +2,7 @@ package ani.sanin.connections.tmdb
 
 import ani.sanin.media.Franchise
 import ani.sanin.media.FranchiseEntry
+import ani.sanin.media.FranchiseType
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import eu.kanade.tachiyomi.network.NetworkHelper
@@ -112,6 +113,24 @@ private const val MAX_PAGE = 500
 private const val TYPE_MOVIE = "movie"
 private const val TYPE_TV = "tv"
 private const val TYPE_ANIMATION = "animation"
+
+/**
+ * Popular shows turned into TV franchise cards per load.
+ *
+ * Each show costs one detail request to read its seasons, so this is deliberately a small
+ * number: the row wants a screenful of shows, not TMDB's whole catalogue, and every extra
+ * seed is a full detail payload the row never shows.
+ */
+private const val TV_FRANCHISE_SEEDS = 12
+
+/**
+ * Pages of popular titles walked for film franchise seeds.
+ *
+ * Most popular films do not belong to a collection, so one page of twenty seeds usually yields
+ * only a handful of franchises — a thin row. A second page roughly triples the pool for one
+ * extra list request, and the collection lookups are deduplicated by id either way.
+ */
+private const val FRANCHISE_SEED_PAGES = 2
 
 /**
  * TMDB's genre vocabulary, so a list response's bare `genre_ids` can be turned into the
@@ -403,7 +422,8 @@ data class TmdbSeason(
     val name: String? = null,
     @SerialName("season_number") val seasonNumber: Int = 0,
     @SerialName("episode_count") val episodeCount: Int = 0,
-    @SerialName("air_date") val airDate: String? = null
+    @SerialName("air_date") val airDate: String? = null,
+    @SerialName("poster_path") val posterPath: String? = null
 )
 
 @Serializable
@@ -811,20 +831,27 @@ object Tmdb {
      * will be wrong for a prequel released after its sequel. Trakt's curated rank and the
      * generated franchise map are what fix that, and both replace this.
      *
-     * TMDB has no equivalent collection for TV, so `belongs_to_collection` is null there and
-     * the TV chip yields nothing from this source. Trakt's list structure is what covers TV.
+     * TMDB has no collection for TV, so the TV chip is served by [tvFranchiseCards] instead: a
+     * show is its own franchise there, with its seasons as the entries.
      */
     suspend fun franchiseCards(mediaType: String): List<Franchise> {
+        // TV has no TMDB collection to group by, but it has the property the row actually
+        // wants: a show is its own franchise, and its seasons are the entries. So the TV chip
+        // is served by a different builder rather than the collection walk below.
+        if (mediaType == TYPE_TV) return tvFranchiseCards()
+
         // Animation is a genre on TMDB, not a media type, so the chip has to become genre 16
         // on `movie`. Dropping this turns the Animation chip into plain popular movies, which
         // is what the old Popular row never did either.
         val animation = mediaType == TYPE_ANIMATION
-        val seeds = discover(
-            mediaType = if (animation) TYPE_MOVIE else mediaType,
-            genres = if (animation) ANIMATION_GENRE else null,
-            sort = "popularity.desc",
-            page = 1
-        )
+        val seeds = (1..FRANCHISE_SEED_PAGES).flatMap { page ->
+            discover(
+                mediaType = if (animation) TYPE_MOVIE else mediaType,
+                genres = if (animation) ANIMATION_GENRE else null,
+                sort = "popularity.desc",
+                page = page
+            )
+        }
         if (seeds.isEmpty()) return emptyList()
         val collectionIds = seeds.mapNotNull { it.collection?.id }.distinct()
 
@@ -846,6 +873,11 @@ object Tmdb {
                     posterUrl = imageUrl(part.posterPath, 342),
                     title = part.displayTitle,
                     backdropUrl = imageUrl(part.backdropPath, 780),
+                    // Carried so the franchise screen can open the title it was given rather
+                    // than only naming it: without an id the screen has nowhere to send a tap.
+                    tmdbId = part.id,
+                    tmdbType = TYPE_MOVIE,
+                    type = FranchiseType.MOVIE,
                 )
             }
             if (ordered.isEmpty()) return@mapNotNull null
@@ -862,6 +894,52 @@ object Tmdb {
                 // crop and falling back to the poster when a title has no backdrop.
                 bannerUrl = latest.backdropUrl ?: latest.posterUrl,
                 entries = ordered,
+            )
+        }
+    }
+
+    /**
+     * TV franchise cards: one card per popular show, its seasons as the entries.
+     *
+     * This is the TV half of the same idea the collection walk serves for film. A show is the
+     * franchise, each season is an entry with its own poster, and the card's banner is the
+     * show's own artwork. Season 0 (specials) is dropped for the same reason
+     * [Tmdb.seasons] drops it: it is not a season a viewer counts.
+     */
+    private suspend fun tvFranchiseCards(): List<Franchise> {
+        val seeds = discover(TYPE_TV, sort = "popularity.desc", page = 1)
+        if (seeds.isEmpty()) return emptyList()
+
+        return seeds.take(TV_FRANCHISE_SEEDS).mapNotNull { show ->
+            val detail = runCatching { detail(TYPE_TV, show.id) }.getOrNull() ?: return@mapNotNull null
+            val seasons = detail.seasons
+                .filter { it.seasonNumber > 0 }
+                .sortedBy { it.seasonNumber }
+            if (seasons.isEmpty()) return@mapNotNull null
+
+            val banner = imageUrl(detail.backdropPath, 780) ?: imageUrl(detail.posterPath, 500)
+            val entries = seasons.map { season ->
+                FranchiseEntry(
+                    // A season is dated by its air date; a year-only first season is common, so
+                    // the poster fallback below is what keeps the cell from going blank.
+                    year = season.airDate?.take(4).orEmpty(),
+                    sortYear = season.airDate?.take(4)?.toIntOrNull(),
+                    posterUrl = imageUrl(season.posterPath, 342)
+                        ?: imageUrl(detail.posterPath, 342),
+                    title = season.name ?: "Season ${season.seasonNumber}",
+                    backdropUrl = banner,
+                    airDate = season.airDate,
+                    tmdbId = detail.id,
+                    tmdbType = TYPE_TV,
+                    seasonNumber = season.seasonNumber,
+                    type = FranchiseType.SEQUENCE,
+                )
+            }
+
+            Franchise(
+                name = detail.displayTitle.ifBlank { show.displayTitle },
+                bannerUrl = banner ?: entries.last().posterUrl,
+                entries = entries,
             )
         }
     }

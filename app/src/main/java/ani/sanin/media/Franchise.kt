@@ -157,6 +157,20 @@ data class FranchiseEntry(
      * here rather than fetched per row so the status costs nothing to display.
      */
     val listStatus: String? = null,
+    /**
+     * Which TMDB endpoint [tmdbId] belongs to, "movie" or "tv".
+     *
+     * The id alone does not say which page it addresses, so without this a TV entry would open
+     * a movie URL. Null for entries that did not come from TMDB.
+     */
+    val tmdbType: String? = null,
+    /**
+     * Season number, when this entry is one season of a show.
+     *
+     * Lets the screen send the user to the tapped season rather than the show's front page. Null
+     * for movie entries.
+     */
+    val seasonNumber: Int? = null,
 ) : java.io.Serializable
 
 /**

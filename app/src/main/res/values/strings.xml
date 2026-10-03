@@ -487,6 +487,7 @@
     <string name="franchise_sort_trending">Trending</string>
     <string name="franchise_sort_popular">Most Popular</string>
     <string name="franchise_sort_az">A-Z</string>
+    <string name="franchise_sort_collections">Collections</string>
     <string name="franchise_sort_direction">Sort direction</string>
     <string name="franchise_sort_ascending">Ascending order</string>
     <string name="franchise_sort_descending">Descending order</string>
