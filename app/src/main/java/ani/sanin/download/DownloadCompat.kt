@@ -229,11 +229,11 @@ class DownloadCompat {
                     }
                 }
                 images.sortBy { image ->
-                    val matchResult = imageNumberRegex.find(image.url.url)
+                    val matchResult = imageNumberRegex.find(image.url)
                     matchResult?.groups?.get(1)?.value?.toIntOrNull() ?: Int.MAX_VALUE
                 }
                 for (image in images) {
-                    Logger.log("imageNumber: ${image.url.url}")
+                    Logger.log("imageNumber: ${image.url}")
                 }
                 return images
             }
