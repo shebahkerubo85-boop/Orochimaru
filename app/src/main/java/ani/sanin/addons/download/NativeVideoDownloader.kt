@@ -240,13 +240,13 @@ class NativeVideoDownloader(private val context: Context) {
         }
     }
 
-    override fun setDownloadPath(context: Context, uri: Uri): String {
+    fun setDownloadPath(context: Context, uri: Uri): String {
         val path = FFmpegKitConfig.getSafParameterForWrite(context, uri)
         uriMap[path] = uri
         return path
     }
 
-    override fun getReadPath(context: Context, uri: Uri): String {
+    fun getReadPath(context: Context, uri: Uri): String {
         return FFmpegKitConfig.getSafParameter(context, uri, "r")
     }
 
