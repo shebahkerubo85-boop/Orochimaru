@@ -955,7 +955,7 @@ class MediaDetailsViewModel : ViewModel() {
                 // cache safety is still enforced by extractorsSource in SelectorDialogFragment.
                 if (launch) media.selected!!.server = null
                 val selector =
-                    SelectorDialogFragment.newInstance(
+                    //removed
                         media.selected!!.server,
                         launch,
                         prevEp,
