@@ -38,7 +38,7 @@ android {
 
     defaultConfig {
         applicationId = "ani.sanin"
-        minSdk = 23
+        minSdk = 24
         targetSdk = 36
 
         versionName = "3.2.2"
