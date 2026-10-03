@@ -200,6 +200,7 @@ object FocusEffectUtil {
                 id == R.id.listAvatar ||
                 id == R.id.tmdbLibAvatar ||
                 id == R.id.sheetMoviePluginArrow ||
+                id == R.id.franchiseRowInfo ||
                 id == R.id.exo_tracks
     }
 

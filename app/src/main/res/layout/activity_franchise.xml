@@ -139,8 +139,11 @@
 
             <!--
               The whole flow scrolls. The rows are added here by the activity, and the connector
-              is drawn into the canvas view that sits behind them, so the line passes under the
-              cards and under each synopsis scrim rather than over the text.
+              is drawn into the canvas view that sits behind them, so the cards paint over the line's
+              ends rather than the line being painted over them.
+
+              The line's run is only the band between one card and the next, so nothing is drawn
+              behind the prose and the synopsis carries no mask of its own.
 
               Both live inside the scroll content rather than outside it: a connector sized to the
               viewport could not draw a segment for a row scrolled below the fold, so the line

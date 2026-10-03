@@ -5,7 +5,6 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
-import android.text.SpannableStringBuilder
 import android.util.TypedValue
 import android.view.View
 import android.widget.LinearLayout
@@ -32,6 +31,7 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.snackString
 import ani.sanin.themes.ThemeManager
 import ani.sanin.toPx
+import ani.sanin.util.FocusEffectUtil
 import com.google.android.material.chip.Chip
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -451,10 +451,12 @@ class FranchiseActivity : AppCompatActivity() {
         row.franchiseRowYear.text = entry.year
         row.franchiseRowYear.isVisible = entry.year.isNotBlank()
 
-        // The title, with the runtime after it. Not the franchise's wordmark: that is already at
+        // The title, and only the title. Not the franchise's wordmark: that is already at
         // the top of the screen, and a logo in every row says the same thing a dozen times
-        // without telling you which entry this is.
-        row.franchiseRowTitle.text = titleWithDuration(entry)
+        // without telling you which entry this is. Nor the runtime, which used to ride along at the
+        // end of the run: the entry's own screen opens on its own length, so here it was a number
+        // with nothing to be compared against, sitting at the end of a line about something else.
+        row.franchiseRowTitle.text = entry.title
 
         // A teaser, not the text: clamped to the poster's height below, with the full synopsis
         // behind the info affordance. One entry's length must not stretch its row past the
@@ -473,22 +475,6 @@ class FranchiseActivity : AppCompatActivity() {
 
         // The whole poster is the tap target, as on the row it came from.
         row.franchiseRowCard.setSafeOnClickListener { openEntry(entry) }
-    }
-
-    /**
-     * The entry's title with its runtime after it.
-     *
-     * Appended to the same run rather than set beside it, so the runtime lands at the end of
-     * whatever line the title happens to finish on. As a second view it would sit at the top
-     * right of the column instead, level with the first line of a two-line title, which reads
-     * as belonging to nothing.
-     */
-    private fun titleWithDuration(entry: FranchiseEntry): CharSequence {
-        val duration = entry.durationMinutes?.let {
-            getString(R.string.franchise_minutes, it)
-        } ?: return entry.title
-
-        return SpannableStringBuilder(entry.title).append(' ').append(duration)
     }
 
     /**
@@ -565,9 +551,25 @@ class FranchiseActivity : AppCompatActivity() {
         }
     }
 
-    /** The styled circular "i", which opens the full detail for this entry. */
+    /**
+     * The styled circular "i": the entry's own Info tab.
+     *
+     * Carries the calendar's focus treatment, circular border and all, because that is what the
+     * user reaches for on a dpad and a square ring round a round button reads as a mistake. It is
+     * also the one control here that is *only* a dpad target in practice: the card and the list
+     * button are both perfectly good touch targets without being focused, and the "i" is a
+     * 30dp circle inside a poster, which is exactly the sort of thing a directional pad needs to
+     * be told about.
+     */
     private fun bindInfo(row: ItemFranchiseEntryBinding, entry: FranchiseEntry) {
-        row.franchiseRowInfo.setSafeOnClickListener { openEntry(entry) }
+        row.franchiseRowInfo.setSafeOnClickListener {
+            openEntry(entry, MediaDetailsActivity.INFO_TAB)
+        }
+        FocusEffectUtil.applyFocusListener(
+            row.franchiseRowInfo,
+            row.franchiseRowInfo,
+            isCircular = true,
+        )
     }
 
     /**
@@ -604,13 +606,20 @@ class FranchiseActivity : AppCompatActivity() {
      * Anime goes to the app's media screen by AniList id. A movie has no AniList equivalent worth
      * sending the user to, so it goes to TMDB or Trakt in the browser when the source gave us an
      * id, and does nothing rather than opening an unrelated page when it did not.
+     *
+     * @param tab which of the entry's tabs to land on, or null to let it restore the one it was
+     *   last open on. Ignored for a movie: the browser has no tabs of ours to choose between, so
+     *   the source's own page is the closest thing to the Info tab that exists for it.
      */
-    private fun openEntry(entry: FranchiseEntry) {
+    private fun openEntry(entry: FranchiseEntry, tab: Int? = null) {
         val id = entry.anilistId
         if (id != null) {
             startActivity(
                 Intent(this, MediaDetailsActivity::class.java).apply {
                     putExtra("mediaId", id)
+                    if (tab != null) {
+                        putExtra(MediaDetailsActivity.TAB_TO_OPEN, tab)
+                    }
                 }
             )
             return
@@ -662,10 +671,13 @@ class FranchiseActivity : AppCompatActivity() {
         val container = binding.franchiseRows
         for (i in 0 until minOf(shown.size, container.childCount)) {
             val child = container.getChildAt(i)
-            // The card, not the row: the line is meant to run card to card, and the row's centre
-            // sits in the gap between the card and its synopsis, so using it would draw the line
-            // from the middle of the whitespace.
-            val card = child.findViewById<View>(R.id.franchiseRowCard) ?: continue
+            // The whole card column, poster and list button both, rather than the poster alone or
+            // the row. The poster's own foot is exactly where the list button hangs 1dp below it,
+            // so a line starting there would spend its first stretch behind the button and appear
+            // to come out of nowhere; the row is wider than either column and its centre sits in
+            // the whitespace between them. The column is the thing that is a card, so the column is
+            // what the line leaves from and arrives at.
+            val card = child.findViewById<View>(R.id.franchiseRowCardHolder) ?: continue
             connector.addNode(
                 centerX = (child.left + card.left + card.width / 2f),
                 // card.top is relative to the row, so the row's own top is added to bring it

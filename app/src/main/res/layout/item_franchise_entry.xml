@@ -214,11 +214,13 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!--
-      Text column: the entry's title with its runtime, then the synopsis.
+      Text column: the entry's title, then the synopsis.
 
       The title is the plain title, not the wordmark: the wordmark is already at the top of the
       screen for the franchise, and repeating a logo inside every row says the same thing a
-      dozen times while telling you nothing about which entry this is.
+      dozen times while telling you nothing about which entry this is. It is also the title on
+      its own, with no runtime after it: the entry's own screen opens on its length, so a number
+      at the end of this line had nothing beside it to be a length of.
 
       The synopsis carries no background of its own: it sits on the page, which is a flat
       colour, so what reads on screen is bare text on a bare page.
@@ -240,22 +242,22 @@
             android:textColor="@color/franchise_on_page"
             android:textSize="@dimen/franchise_title_size"
             tools:ignore="SpUsage"
-            tools:text="Naruto · 23 min" />
+            tools:text="Naruto Shippuden" />
 
         <!--
           The teaser.
 
-          The page colour behind it is not decoration and not a box: it is the mask that lets
-          the connector pass behind the words instead of through them. Its colour is the page's
-          own, so what is on screen is bare text on a bare page, and the line emerges again on
-          the far side as if it had gone under.
+          No background, deliberately. An earlier version painted the page colour behind it so the
+          connector could pass behind the words, which put a block of flat colour behind every
+          paragraph and read on screen as the line terminating at the synopsis. The connector now
+          runs only through the clear band between one card and the next, so there is nothing to
+          hide and nothing to mask.
         -->
         <TextView
             android:id="@+id/franchiseRowSynopsis"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/franchise_synopsis_gap"
-            android:background="@color/franchise_page"
             android:ellipsize="end"
             android:fontFamily="@font/poppins"
             android:lineSpacingExtra="2dp"

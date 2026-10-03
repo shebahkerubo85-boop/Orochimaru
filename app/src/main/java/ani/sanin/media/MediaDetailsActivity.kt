@@ -380,6 +380,12 @@ class MediaDetailsActivity : AppCompatActivity() {
             defaultTab = 1
         }
         if (intent.getStringExtra("FRAGMENT_TO_LOAD") != null && hasComments) defaultTab = 2
+        // A caller that means a specific tab on arrival says which with this. Read last, so it
+        // wins over the tab the title happened to be left on and over FRAGMENT_TO_LOAD: the
+        // franchise row's "i" asks for Info precisely because that is where its poster, score and
+        // synopsis are, and it must not land on whichever tab this entry was last open on.
+        val forcedTab = intent.getIntExtra(TAB_TO_OPEN, NO_TAB)
+        if (forcedTab in INFO_TAB..COMMENTS_TAB) defaultTab = forcedTab
         selectTab(defaultTab, animate = false)
 
         // Gesture for double-tap on banner bg
@@ -572,6 +578,23 @@ class MediaDetailsActivity : AppCompatActivity() {
 
     companion object {
         var mediaSingleton: Media? = null
+
+        /**
+         * Intent extra naming the tab to open on arrival.
+         *
+         * Deliberately separate from `FRAGMENT_TO_LOAD`, which means the comments tab and is only
+         * honoured when this entry has comments at all. That is the wrong shape for a caller that
+         * wants Info, because Info always exists and FRAGMENT_TO_LOAD would silently ignore it.
+         */
+        const val TAB_TO_OPEN = "TAB_TO_OPEN"
+
+        /** Sent as [TAB_TO_OPEN] when the caller has no opinion and the saved tab should stand. */
+        const val NO_TAB = -1
+
+        /** The three tabs, in rail order. Index 0 is the one the poster, score and synopsis live on. */
+        const val INFO_TAB = 0
+        const val WATCH_TAB = 1
+        const val COMMENTS_TAB = 2
     }
 
     class PopImageButton(

@@ -551,7 +551,6 @@
     <!-- Shown instead of the plain count while a filter is active, so a thinned list never
          reads as the whole franchise. -->
     <string name="franchise_entries_count_filtered">%1$d of %2$d entries</string>
-    <string name="franchise_minutes">%1$d min</string>
     <!-- 0-100, as AniList reports it. The star is here rather than in the layout so the row's
          metadata strip reads the same whether the number came from AniList or from Trakt. -->
     <string name="franchise_score">★ %1$d</string>

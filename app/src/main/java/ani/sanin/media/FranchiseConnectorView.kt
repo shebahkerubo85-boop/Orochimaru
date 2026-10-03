@@ -17,10 +17,19 @@ import com.google.android.material.R as MaterialR
  * ## Why it is drawn rather than composed
  *
  * The line curves between two rows that are only known once they have been measured and laid
- * out, so it cannot be a drawable on either of them. Drawing it here, behind the rows, is also
- * what lets it pass *under* a synopsis: the row's own scrim hides the line where prose sits, so
- * the line appears to slide behind the paragraph and re-emerge on the far side, without ever
- * having to know where the words are.
+ * out, so it cannot be a drawable on either of them. Drawing it here, behind the rows, is what
+ * lets the cards paint over its ends, so the line appears to grow out of one card and arrive at
+ * the next rather than stopping short of them or starting on top of them.
+ *
+ * ## Why it crosses the gap and not the text
+ *
+ * Each segment spans only the clear band between one card column's foot and the next one's head,
+ * and that band is the whole of its run. It never crosses a synopsis, which is what means the
+ * synopsis needs no background to hide a line passing behind it. The earlier arrangement drew the
+ * line down the whole height of the row and masked it against the page colour where the words
+ * were; that put a block of page colour behind every paragraph and read, on screen, as the line
+ * ending at the synopsis rather than at the next card. Routing through the gap removes both the
+ * block and the ambiguity.
  *
  * Routing between actual glyphs was the alternative and was rejected: TextView exposes no glyph
  * positions, so it would mean measuring every run via `Layout.getLineForOffset`, and that
@@ -31,7 +40,8 @@ import com.google.android.material.R as MaterialR
  * Each segment is a cubic that leaves the previous card's edge horizontally, arcs through the
  * gap, and arrives at the next card's edge horizontally. Because the two cards alternate sides,
  * the arc leans one way going down and the other coming back, which is what produces the
- * zigzag rather than a single sweep.
+ * zigzag rather than a single sweep. The lean is a share of the horizontal distance travelled,
+ * so the zigzag survives a full-width crossing and a narrow one alike.
  */
 class FranchiseConnectorView @JvmOverloads constructor(
     context: Context,
@@ -80,7 +90,8 @@ class FranchiseConnectorView @JvmOverloads constructor(
      *
      * This is what gives the line its lean. Too small and the zigzag flattens into a straight
      * vertical run; too large and it leaves the row's own padding and collides with the card
-     * beside it.
+     * beside it. [drawSegment] caps it at half the horizontal distance travelled, so this is
+     * the ceiling rather than the value whenever the cards are closer together than 56dp apart.
      */
     private val sway = 28f.dp()
 
@@ -153,11 +164,18 @@ class FranchiseConnectorView @JvmOverloads constructor(
         // before layout settles. Drawing nothing is better than a loop.
         if (span <= 1f) return
 
-        // Alternate the lean by row index so the curve sweeps left, then right.
-        val lean = if (to.centerX >= from.centerX) sway else -sway
-
         val startX = from.centerX
         val endX = to.centerX
+
+        // The lean is capped at a share of the distance the line actually has to travel. A fixed
+        // 28dp was tuned when the line ran the whole height of the row, where it was a small bow
+        // on a long curve; now that the line crosses only the gap between two cards, the same fixed
+        // lean is a big sideways throw relative to the run, and it drags the curve out past the
+        // card edge it is supposed to be pointing at. Half the travel keeps the arc inside the
+        // space it has.
+        val reach = kotlin.math.abs(endX - startX)
+        val limit = reach / 2f
+        val lean = (if (endX >= startX) sway else -sway).coerceIn(-limit, limit)
 
         path.reset()
         path.moveTo(startX, startY)
@@ -182,7 +200,9 @@ class FranchiseConnectorView @JvmOverloads constructor(
     /**
      * A small chevron at the head of a segment.
      *
-     * Rotated to the tangent of the curve at its end rather than drawn upright, so it reads as
+     * The tip sits on the next card's head and both barbs trail back up into the gap behind it,
+     * so the whole head is in the clear band and none of it is swallowed by the card it points
+     * at. It is rotated to the tangent of the curve rather than drawn upright, so it reads as
      * continuing the flow instead of as a separate marker sitting on top of the card.
      */
     private fun drawArrowHead(canvas: Canvas, x: Float, y: Float, color: Int, lean: Float) {

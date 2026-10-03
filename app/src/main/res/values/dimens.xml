@@ -83,7 +83,16 @@
     <dimen name="franchise_poster_width">136dp</dimen>
     <dimen name="franchise_row_margin">24dp</dimen>
     <dimen name="franchise_row_gap">3dp</dimen>
-    <dimen name="franchise_row_bottom_margin">12dp</dimen>
+    <!--
+      The clear band between one card column and the next, and the run the connector lives in.
+
+      This is not spacing for its own sake: the line leaves card N's foot and arrives at card
+      N+1's head across exactly this band, and the chevron that points into the next card is
+      about 12dp tall. At 12dp the band was the same height as the arrow, so the arrow filled it
+      edge to edge and there was no air anywhere in it. 20dp leaves the arrow room to sit inside
+      the gap rather than touching the cards on either side of it.
+    -->
+    <dimen name="franchise_row_bottom_margin">20dp</dimen>
     <!-- 1dp under the poster, before the list-status button. -->
     <dimen name="franchise_list_status_top">1dp</dimen>
     <dimen name="franchise_list_status_height">30dp</dimen>
@@ -93,7 +102,17 @@
     <dimen name="franchise_synopsis_gap">6dp</dimen>
     <dimen name="franchise_title_size">14sp</dimen>
     <dimen name="franchise_synopsis_size">12sp</dimen>
-    <dimen name="franchise_year_size">11sp</dimen>
+    <!--
+      The year, over the artwork at the poster's foot.
+
+      Bigger than the other poster marks on purpose. It is the one piece of metadata the row
+      does not say anywhere else: the title beside the poster names the entry, and the entry's
+      own screen carries the format and the runtime, but the year appears nowhere except here,
+      and at 11sp it sat under the info button as a caption rather than as a date you could read
+      from across a room. 13sp is enough to hold its own against the 10sp rating without starting
+      to compete with the poster it is printed on.
+    -->
+    <dimen name="franchise_year_size">13sp</dimen>
     <dimen name="franchise_meta_size">10sp</dimen>
 
     <!--
