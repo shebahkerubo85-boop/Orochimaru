@@ -29,7 +29,7 @@ object TmdbDownload {
      */
     fun start(
         context: Context,
-        link: TmdbStreamResolver.PlayableLink,
+        link: TmdbStreamResolver.StreamResult.PlayableLink,
         title: String,
         episode: String,
         posterUrl: String? = null,
