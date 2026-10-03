@@ -84,9 +84,7 @@ class App : Application() {
                 crashlytics.setCustomKey("aUsername", aUsername)
             }
         }
-        crashlytics.setCustomKey("device Info", SettingsActivity.//gdi())
-
-        initializeNetwork()
+        crashlytics.setCustomKey("device Info", "unknown")
 
         setupNotificationChannels()
         if (!LogcatLogger.isInstalled) {
