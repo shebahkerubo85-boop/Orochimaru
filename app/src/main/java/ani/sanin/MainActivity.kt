@@ -1060,7 +1060,7 @@ class MainActivity : AppCompatActivity() {
             },
             R.id.rightRailSync to {
                 runCatching {
-                    startActivity(//DQ)
+                    snackString("Downloads unavailable")
                 }.onFailure { snackString("Downloads unavailable") }
             },
             R.id.rightRailClearCache to {
