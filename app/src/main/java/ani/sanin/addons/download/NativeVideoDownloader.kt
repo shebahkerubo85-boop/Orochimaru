@@ -37,7 +37,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import androidx.core.net.toUri
 import okhttp3.RequestBody.Companion.toRequestBody
 
-class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
+class NativeVideoDownloader(private val context: Context) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val nextSessionId = AtomicLong(1000)
