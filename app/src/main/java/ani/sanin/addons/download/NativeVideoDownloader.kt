@@ -1408,7 +1408,7 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
                     // instead of leaving a hole of zeroes inside the pre-sized file.
                     var chunkError: Exception? = null
                     while (attempt < RANGE_MAX_ATTEMPTS) {
-                        if (!isActive || isSessionCancelled(sessionId)) throw IOException("Cancelled")
+                        if (isSessionCancelled(sessionId)) throw IOException("Cancelled")
 
                         // Bytes this attempt contributed, so a retry can roll the
                         // shared counter back before restarting the chunk.
