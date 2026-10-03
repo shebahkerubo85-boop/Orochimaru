@@ -1582,7 +1582,7 @@ class NativeVideoDownloader(private val context: Context) : DownloadAddonApiV2 {
             outFile.outputStream().use { fos ->
                 val channel = fos.channel
                 while (true) {
-                    if (!isActive || isSessionCancelled(sessionId)) throw IOException("Cancelled")
+                    if (isSessionCancelled(sessionId)) throw IOException("Cancelled")
                     val read = input.read(buffer)
                     if (read == -1) break
                     if (read == 0) continue
