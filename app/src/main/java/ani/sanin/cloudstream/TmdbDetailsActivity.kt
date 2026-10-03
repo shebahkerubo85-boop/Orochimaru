@@ -71,6 +71,18 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         const val ARG_PLUGIN_URL = "pluginUrl"
         const val ARG_OPEN_TAB = "openTab"
         private const val TAG_WATCH = "tmdbWatch"
+
+        /**
+         * The three tabs, in rail order. Index 0 is the one the poster, score and synopsis live
+         * on, and it is what [ARG_OPEN_TAB] defaults to.
+         *
+         * Named rather than left as bare numbers because callers outside this activity now pass
+         * one — the franchise screen sends a poster here — and a `0` at the call site says
+         * nothing about which tab it means.
+         */
+        const val TAB_INFO = 0
+        const val TAB_WATCH = 1
+        const val TAB_COMMENTS = 2
     }
 
     private lateinit var shell: ActivityTmdbDetailsBinding
@@ -81,8 +93,7 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
     private var pluginUrl: String? = null
     private val pluginMode get() = pluginUrl != null
     private var detail: TmdbDetail? = null
-    // 0 = Info, 1 = Watch, 2 = Comments
-    private var selectedPill = 0
+    private var selectedPill = TAB_INFO
     private var infoTimer: CountDownTimer? = null
     private var isFavourite = false
     private var favBusy = false
@@ -160,11 +171,12 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         FocusEffectUtil.applyFocusListener(binding.mediaInfoAddToList)
 
         if (savedInstanceState != null) {
-            selectedPill = savedInstanceState.getInt("selectedPill", 0).coerceIn(0, 2)
+            selectedPill = savedInstanceState.getInt("selectedPill", TAB_INFO)
+                .coerceIn(TAB_INFO, TAB_COMMENTS)
         }
 
         val openTab = intent.getIntExtra(ARG_OPEN_TAB, -1)
-        if (openTab in 0..2) selectedPill = openTab
+        if (openTab in TAB_INFO..TAB_COMMENTS) selectedPill = openTab
 
         setupNavPills()
         selectTab(selectedPill)

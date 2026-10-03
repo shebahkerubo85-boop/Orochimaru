@@ -53,7 +53,6 @@ import ani.sanin.statusBarHeight
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -177,25 +176,35 @@ class AnimeFragment : Fragment() {
         // seeds that had no relations to stub from. Bounded rather than serial, because the whole
         // cost of this row is the number of round trips and each one is independent.
         lifecycleScope.launch {
+            var resolvedCount = 0
             claimed.chunked(KITSU_CONCURRENCY * 2).forEach { chunk ->
-                val resolved = withContext(Dispatchers.IO) {
-                    val gate = Semaphore(KITSU_CONCURRENCY)
-                    chunk.map { seed -> async { gate.withPermit { Kitsu.franchiseCard(seed.id) } } }
-                        .awaitAll()
+                // The gate still bounds how many Kitsu requests are actually open at once, which
+                // chunking alone would not: the chunk sizes how many are in flight, the gate
+                // how many are on the wire.
+                val gate = Semaphore(KITSU_CONCURRENCY)
+                val pending = chunk.map { seed ->
+                    // Launched on IO rather than gathered inside a withContext: withContext waits
+                    // for its own children, so wrapping the awaits in one would finish every
+                    // request before publishing any of them — exactly the wait being removed.
+                    async(Dispatchers.IO) { gate.withPermit { Kitsu.franchiseCard(seed.id) } }
                 }
-                val upgrades = mutableMapOf<String, Franchise>()
-                chunk.forEachIndexed { index, seed ->
-                    val card = resolved[index] ?: return@forEachIndexed
+                // Awaited one at a time and published as each lands, rather than gathered per
+                // chunk and published in a block. The chunking still bounds how many Kitsu
+                // requests are open; it just no longer also dictates when the user sees
+                // anything, which is what made the row visibly lurch each time a chunk of
+                // placeholders was swapped out from under the user's thumb.
+                pending.forEachIndexed { index, job ->
+                    val card = job.await() ?: return@forEachIndexed
+                    resolvedCount++
                     // Replace the placeholder by the name it was published under, so a
                     // franchise whose resolved name differs from its seed's still lands in the
                     // right slot rather than beside it.
-                    val provisional = stubNames[seed.id] ?: card.name
-                    upgrades[provisional] = card
+                    val provisional = stubNames[chunk[index].id] ?: card.name
+                    adaptor.upsert(mapOf(provisional to card))
                 }
-                if (upgrades.isNotEmpty()) adaptor.upsert(upgrades)
                 Logger.log(
-                    "Franchise(anime) resolved ${resolved.count { it != null }}/${chunk.size} " +
-                        "in chunk, row now ${adaptor.currentCards().size} cards"
+                    "Franchise(anime) resolved $resolvedCount/${claimed.size}, " +
+                        "row now ${adaptor.currentCards().size} cards"
                 )
             }
             adaptor.markDone(claimed.map { it.id })

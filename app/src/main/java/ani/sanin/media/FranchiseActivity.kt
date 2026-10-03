@@ -16,6 +16,7 @@ import androidx.core.view.updatePadding
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import ani.sanin.R
+import ani.sanin.cloudstream.TmdbDetailsActivity
 import ani.sanin.connections.anilist.AnilistFranchiseRanks
 import ani.sanin.connections.anizip.AniZip
 import ani.sanin.databinding.ActivityFranchiseBinding
@@ -462,7 +463,9 @@ class FranchiseActivity : AppCompatActivity() {
         bindInfo(row, entry)
 
         // The whole poster is the tap target, as on the row it came from.
-        row.franchiseRowCard.setSafeOnClickListener { openEntry(entry) }
+        row.franchiseRowCard.setSafeOnClickListener {
+            openEntry(entry, MediaDetailsActivity.INFO_TAB)
+        }
     }
 
     /**
@@ -589,39 +592,53 @@ class FranchiseActivity : AppCompatActivity() {
     }
 
     /**
-     * Opens this entry's own detail screen.
+     * Opens this entry's own detail screen — the same screen its own card opens on the home grid.
      *
-     * Anime goes to the app's media screen by AniList id. A movie has no AniList equivalent worth
-     * sending the user to, so it goes to TMDB or Trakt in the browser when the source gave us an
-     * id, and does nothing rather than opening an unrelated page when it did not.
+     * Every source that has an in-app detail screen goes to it: a film or a show to
+     * [TmdbDetailsActivity] by TMDB id, anime to [MediaDetailsActivity] by AniList id. Bouncing
+     * out to a browser to read what the app already fetched is a downgrade. Trakt is the
+     * exception — the app has no detail screen of its own for a Trakt entry, so that one opens
+     * the source's own page rather than an unrelated title.
      *
-     * @param tab which of the entry's tabs to land on, or null to let it restore the one it was
-     *   last open on. Ignored for a movie: the browser has no tabs of ours to choose between, so
-     *   the source's own page is the closest thing to the Info tab that exists for it.
+     * The one thing that cannot match the home grid is the anime path, and it is a property of
+     * the data rather than of this call. Home already holds the [Media] and passes it whole, so
+     * its screen draws at once; a [FranchiseEntry] carries only an AniList id, so the detail
+     * screen has to fetch the media itself before it draws. That is the same by-id path a dozen
+     * other entry points use — notifications, the calendar, the activity feed — so it is the
+     * app's normal cost for arriving without the object, not something this screen adds.
+     *
+     * A season entry carries its show's id, not the season's, so it lands on the show's page:
+     * [TmdbDetailsActivity] has no season argument, and the show is the honest thing to open.
+     *
+     * @param tab which tab an *anime* entry lands on. Ignored for TMDB, whose screen is opened
+     *   exactly as the home grid opens it and takes no tab argument.
      */
-    private fun openEntry(entry: FranchiseEntry, tab: Int? = null) {
-        val id = entry.anilistId
-        if (id != null) {
+    private fun openEntry(entry: FranchiseEntry, tab: Int = MediaDetailsActivity.INFO_TAB) {
+        entry.anilistId?.let { id ->
             startActivity(
                 Intent(this, MediaDetailsActivity::class.java).apply {
                     putExtra("mediaId", id)
-                    if (tab != null) {
-                        putExtra(MediaDetailsActivity.TAB_TO_OPEN, tab)
-                    }
+                    putExtra(MediaDetailsActivity.TAB_TO_OPEN, tab)
                 }
             )
             return
         }
 
-        val url = entry.tmdbId?.let { id ->
-            val type = entry.tmdbType ?: "movie"
-            val base = "https://www.themoviedb.org/$type/$id"
-            // A season entry points at its own season page rather than the show's front page,
-            // since the season is what the card actually showed.
-            if (type == "tv" && entry.seasonNumber != null) "$base/season/${entry.seasonNumber}"
-            else base
-        } ?: entry.traktId?.let { "https://trakt.tv/movies/$it" }
+        entry.tmdbId?.let { id ->
+            // Deliberately the same intent the home grid builds in MediaAdaptor.clicked — same
+            // two extras, no tab argument — so tapping a poster here and tapping its card at home
+            // are the same action rather than two that look alike. Naming a tab here would pin it
+            // to Info, which is where it lands anyway, and would quietly diverge from every other
+            // caller the next time the default changed.
+            startActivity(
+                Intent(this, TmdbDetailsActivity::class.java)
+                    .putExtra(TmdbDetailsActivity.ARG_MEDIA_TYPE, entry.tmdbType ?: "movie")
+                    .putExtra(TmdbDetailsActivity.ARG_MEDIA_ID, id)
+            )
+            return
+        }
 
+        val url = entry.traktId?.let { "https://trakt.tv/movies/$it" }
         if (url == null) {
             snackString(getString(R.string.franchise_load_failed))
         } else {

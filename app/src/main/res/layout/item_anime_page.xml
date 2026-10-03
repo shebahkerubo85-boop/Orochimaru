@@ -508,22 +508,28 @@
             android:fontFamily="@font/poppins"
             android:minWidth="0dp"
             android:text="@string/franchise_sort_random"
-            android:textSize="13sp"
+            android:textAllCaps="false"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="11sp"
             app:icon="@drawable/ic_expand_more"
             app:iconGravity="textEnd"
             app:iconPadding="4dp"
             app:iconSize="18dp"
             tools:ignore="SpUsage" />
 
+        <!-- See the movie row's direction button for why this matches the watch tab's sort control. -->
         <ImageView
             android:id="@+id/animeFranchiseSortDirection"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/franchise_sort_direction"
             android:focusable="true"
-            android:padding="8dp"
-            android:src="@drawable/ic_sort_direction" />
+            android:focusableInTouchMode="false"
+            android:padding="3dp"
+            app:srcCompat="@drawable/ic_round_unfold_more_24"
+            app:tint="?attr/colorOnSurface"
+            tools:ignore="ImageContrastCheck" />
 
     </LinearLayout>
 

@@ -491,7 +491,7 @@
     <string name="franchise_sort_direction">Sort direction</string>
     <string name="franchise_sort_ascending">Ascending order</string>
     <string name="franchise_sort_descending">Descending order</string>
-    <string name="franchise_randomized">Randomized</string>
+    <string name="franchise_randomized">Shuffled</string>
     <string name="franchise_sort_dialog_title">Sort franchises</string>
     <string name="franchise_show_single_entry">Show single item entries</string>
 

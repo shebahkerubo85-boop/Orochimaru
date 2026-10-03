@@ -67,6 +67,7 @@ import com.google.android.material.chip.Chip
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.min
 
 /** Folds a TMDB title into the shared domain Media the banner carousel binds. */
@@ -135,12 +136,16 @@ class TmdbExploreFragment : Fragment() {
     private var allFranchiseCards: List<Franchise> = emptyList()
 
     /**
-     * How much of the Trakt source the row has already resolved, and what is left.
+     * How much of the current source the row has already resolved, and what is left.
      *
-     * A card costs one request, so the row resolves [Trakt.BATCH_CARDS] of them and asks for
-     * more as the user scrolls rather than paying for the whole source before the first poster.
-     * [franchiseSkip] counts lists asked for rather than cards received, so a batch whose cards
-     * were all dropped still moves forward instead of requesting the same lists again.
+     * A card costs one request, so the row resolves a batch and asks for more as the user scrolls
+     * rather than paying for the whole source before the first poster.
+     *
+     * The unit is per source, and only one source is ever live at a time because a sort change
+     * resets it: [Trakt.BATCH_CARDS] for Collections, which counts lists asked for, and consumed
+     * `discover` pages for the TMDB sources, which counts seeds walked. Either way it counts what
+     * was *asked for* rather than what came back, so a batch whose cards were all dropped still
+     * moves the row forward instead of requesting the same thing again.
      */
     private var franchiseSkip = 0
     private var franchiseHasMore = false
@@ -950,6 +955,36 @@ class TmdbExploreFragment : Fragment() {
     }
 
     /**
+     * Adds cards to the pool and shows them in arrival order, without re-sorting.
+     *
+     * Used while a batch is still resolving. Deduped by name because the sources hand back the
+     * same franchise more than once: on film, every instalment of a popular collection is itself
+     * separately popular and separately seeded, so consecutive batches overlap.
+     *
+     * Deliberately does not sort. Sorting per arriving card would re-shuffle a RANDOM row on
+ * every card and reorder the whole row under the user's thumb; the batch's own sort lands once
+     * when it completes.
+ *
+     * @return how many were new, after the name dedup.
+ */
+    private fun appendFranchiseCards(cards: List<Franchise>): Int {
+        if (cards.isEmpty()) return 0
+        val known = allFranchiseCards.mapTo(HashSet()) { it.name.lowercase() }
+        val fresh = cards.filterNot { it.name.lowercase() in known }
+        if (fresh.isEmpty()) return 0
+        allFranchiseCards = allFranchiseCards + fresh
+        // Run through the sorter purely for the single-entry filter, handing it the pool as its
+        // own permutation so arrival order survives. Filtering has to happen here too and not
+        // only in the final sort, or a one-poster card would appear while the batch resolved and
+        // then vanish when the sort landed — the row would flicker cards in and straight back
+        // out under a toggle that is supposed to be off.
+        franchiseAdapter.submit(
+            FranchiseSorter.apply(allFranchiseCards, franchisePrefs(), allFranchiseCards)
+        )
+        return fresh.size
+    }
+
+    /**
      * Inverts the sort direction and says so.
      *
      * On random this cannot change the order, because a shuffle has no ascending or descending
@@ -1009,10 +1044,10 @@ class TmdbExploreFragment : Fragment() {
     /**
      * Loads the Franchise row for the selected chip, from whichever source the sort selects.
      *
-     * Two sources share the row. The real-franchise source (TMDB collections for film, a show
-     * per card with its seasons for TV) is a fixed pool, so it loads once and never pages. The
-     * Collections source (Trakt's curated lists) is a long tail, so it pages a batch at a time as
-     * the last card scrolls into view. A card is a whole franchise either way; the entries that
+     * Two sources share the row and both page a batch at a time as the last card scrolls into
+     * view. The real-franchise source (TMDB collections for film, a show per card with its
+     * seasons for TV) walks TMDB's popularity ranking; the Collections source (Trakt's curated
+     * lists) walks a long tail of lists. A card is a whole franchise either way; the entries that
      * do not fit its row live on the dedicated franchise screen.
      *
      * @param reset whether this is a fresh load, which starts the row over from the first
@@ -1046,8 +1081,7 @@ class TmdbExploreFragment : Fragment() {
             try {
                 if (collections) {
                     // Trakt's curated lists are movies, so all three chips share one source and
-                    // filter client-side. This is the only source that still pages: there is a
-                    // long tail of lists.
+                    // filter client-side. There is a long tail of lists, so this pages too.
                     val batch = try {
                         Trakt.franchiseCards(skip = skip)
                     } catch (e: Exception) {
@@ -1086,28 +1120,55 @@ class TmdbExploreFragment : Fragment() {
                     )
                 } else {
                     // Real franchises: movies from TMDB collections, or one card per show with its
-                    // seasons for TV. A fixed pool, not a paged source, so one request fills the
-                    // row and a scroll past the end asks for nothing more.
-                    val cards = try {
-                        Tmdb.franchiseCards(tmdbTypeFor(type))
+                    // seasons for TV. Paged like the Collections source, so a scroll past the end
+                    // of what is loaded asks the source for the next batch.
+                    val batch = try {
+                        Tmdb.franchiseCards(tmdbTypeFor(type), page = skip + 1) { card ->
+                            // Published the moment it resolves, so the row fills in while the
+                            // batch is still being fetched instead of sitting empty until the
+                            // slowest collection lands.
+                            //
+                            // Marshalled to the main thread explicitly rather than trusting where
+                            // the callback lands: it submits to the adapter and diffs, neither of
+                            // which may be touched off the main thread. It happens to arrive there
+                            // already, because the requests are the only thing that leaves Main,
+                            // but that is an accident of the current plumbing rather than a
+                            // guarantee worth depending on.
+                            withContext(Dispatchers.Main) {
+                                if (generation == loadGeneration) appendFranchiseCards(listOf(card))
+                            }
+                        }
                     } catch (e: Exception) {
                         Logger.log(e)
                         Logger.log("Franchise(movie) load threw: ${e.message}")
-                        emptyList()
+                        Tmdb.FranchiseBatch(emptyList(), hasMore = false, nextPage = skip + 1)
                     }
                     if (generation != loadGeneration) {
                         Logger.log(
-                            "Franchise(movie) dropping ${cards.size} stale franchises " +
+                            "Franchise(movie) dropping ${batch.cards.size} stale franchises " +
                                 "for generation $generation"
                         )
                         return@launch
                     }
-                    allFranchiseCards = cards
-                    franchiseHasMore = false
+                    // The cards are already on screen: the callback above appended each one as it
+                    // resolved, deduped by name, so a later seed page cannot restate a collection
+                    // an earlier one already returned. Every film in a popular franchise is
+                    // separately popular and separately seeded, so that repeat is common.
+                    //
+                    // The cursor advances by what was asked for, not by what came back, so a batch
+                    // whose cards were all dropped or filtered still moves the row forward instead
+                    // of re-requesting the same pages forever. The source reports its own stride,
+                    // since a film batch walks several seed pages and a TV batch is one.
+                    franchiseSkip = batch.nextPage - 1
+                    franchiseHasMore = batch.hasMore
+                    // One sort for the whole batch rather than one per arriving card: a RANDOM
+                    // row would otherwise re-shuffle on every arrival and reorder itself under
+                    // the user's thumb.
                     val shown = applyFranchiseSort()
                     Logger.log(
-                        "Franchise(movie) got ${cards.size} franchises in " +
-                            "${System.currentTimeMillis() - started}ms, submitted $shown after sort"
+                        "Franchise(movie) got ${batch.cards.size} franchises in " +
+                            "${System.currentTimeMillis() - started}ms, submitted $shown after " +
+                            "sort from ${allFranchiseCards.size}, more=$franchiseHasMore"
                     )
                 }
             } finally {

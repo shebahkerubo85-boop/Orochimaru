@@ -5,8 +5,14 @@ import ani.sanin.media.FranchiseEntry
 import ani.sanin.media.FranchiseType
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
+import ani.sanin.util.Logger
 import eu.kanade.tachiyomi.network.NetworkHelper
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -124,13 +130,36 @@ private const val TYPE_ANIMATION = "animation"
 private const val TV_FRANCHISE_SEEDS = 12
 
 /**
- * Pages of popular titles walked for film franchise seeds.
+ * Popular shows turned into TV franchise cards per batch.
  *
- * Most popular films do not belong to a collection, so one page of twenty seeds usually yields
- * only a handful of franchises — a thin row. A second page roughly triples the pool for one
- * extra list request, and the collection lookups are deduplicated by id either way.
+ * One `discover` page holds twenty shows and a show is always its own franchise, so a single page
+ * is the batch: every seed becomes a card unless it has no numbered season, which is rare.
  */
-private const val FRANCHISE_SEED_PAGES = 2
+private const val TV_FRANCHISE_SEEDS = 20
+
+/**
+ * Pages of popular films walked per batch, for film franchise seeds.
+ *
+ * A batch is sized in *cards*, not seeds, but seeds are what a film batch actually spends:
+ * membership costs one detail request per film and most popular films are standalone, so only
+ * roughly a third of a seed page survives into a collection. Twenty cards therefore needs
+ * several pages of seeds — four pages is eighty films, which lands near a screenful of
+ * franchises without overrunning the request budget on one scroll.
+ *
+ * This replaces a fixed pool walked once: the row now pages, so the budget is per batch rather
+ * than for the whole source.
+ */
+private const val MOVIE_SEED_PAGES_PER_BATCH = 4
+
+/**
+ * Franchise requests in flight at once.
+ *
+ * The film seeds are independent of each other, as are the collections they resolve to, so both
+ * are resolved concurrently rather than in series and this bounds the fan-out. Unbounded would
+ * open every outstanding request at once, which is both rude to TMDB and slower under contention
+ * than a small queue draining steadily.
+ */
+private const val FRANCHISE_CONCURRENCY = 6
 
 /**
  * TMDB's genre vocabulary, so a list response's bare `genre_ids` can be turned into the
@@ -823,79 +852,219 @@ object Tmdb {
     }
 
     /**
+     * One batch of franchise cards, and whether the source has anything after it.
+     *
+     * Both sources page rather than returning everything at once, so the row needs to be told
+     * where the source ends instead of inferring it from a short batch — a batch can legitimately
+     * come back short because most popular films are standalone, and treating that as the end of
+     * the source would strand the row after one scroll.
+     */
+    data class FranchiseBatch(
+        val cards: List<Franchise>,
+        val hasMore: Boolean,
+        /**
+         * The `discover` page the next batch starts at.
+         *
+         * Reported by the source rather than derived by the caller because the stride differs:
+         * a TV batch is one page, while a film batch walks several seed pages to get a
+         * screenful of cards. A caller advancing the cursor itself would skip shows on TV and
+         * stall on film.
+         */
+        val nextPage: Int,
+    )
+
+    /**
      * Franchise cards for the Explore tab, built from TMDB collections.
      *
-     * Seeds are the current type's popular titles, and a title's `belongs_to_collection`
-     * gives the franchise it belongs to. Collections are ordered by release date, which is
-     * TMDB's only ordering here; it matches story order for the straight-line cases and
-     * will be wrong for a prequel released after its sequel. Trakt's curated rank and the
-     * generated franchise map are what fix that, and both replace this.
+     * A TMDB collection is a film's franchise box set — the Spider-Man films, the MCU, a
+     * trilogy — so one collection is one card and its parts are the entries, which is the same
+     * shape [tvFranchiseCards] builds from a show's seasons.
+     *
+     * Seeds are the current type's popular titles, and each is resolved to its collection by
+     * [resolveCollectionIds], because membership is only readable off a detail response.
+     * Collections are ordered by release date, which is TMDB's only ordering here; it matches
+     * story order for the straight-line cases and will be wrong for a prequel released after
+     * its sequel. Trakt's curated rank and the generated franchise map are what fix that, and
+     * both replace this.
+     *
+     * Paged by [page], the one-based `discover` page the batch starts at, so the row can ask for
+     * another screenful as the user scrolls instead of resolving the whole popularity ranking up
+     * front. Cards are not stable across batches: a later seed page can resolve to a collection
+     * an earlier one already returned, so the caller deduplicates what it has already shown.
+     *
+     * [onCard] is called as each card is finished rather than the batch being handed over at
+     * once, so the row can fill in as it resolves instead of sitting empty for the whole batch.
+     * It is called on the fetching coroutine's thread and must not assume the main thread; it is
+     * called sequentially, never concurrently, so a caller can append to its own list without
+     * locking. The batch's own return value is the same cards, for callers that would rather
+     * wait.
      *
      * TMDB has no collection for TV, so the TV chip is served by [tvFranchiseCards] instead: a
      * show is its own franchise there, with its seasons as the entries.
      */
-    suspend fun franchiseCards(mediaType: String): List<Franchise> {
+    suspend fun franchiseCards(
+        mediaType: String,
+        page: Int = 1,
+        onCard: suspend (Franchise) -> Unit = {},
+    ): FranchiseBatch {
         // TV has no TMDB collection to group by, but it has the property the row actually
         // wants: a show is its own franchise, and its seasons are the entries. So the TV chip
         // is served by a different builder rather than the collection walk below.
-        if (mediaType == TYPE_TV) return tvFranchiseCards()
+        if (mediaType == TYPE_TV) return tvFranchiseCards(page, onCard)
 
         // Animation is a genre on TMDB, not a media type, so the chip has to become genre 16
         // on `movie`. Dropping this turns the Animation chip into plain popular movies, which
         // is what the old Popular row never did either.
         val animation = mediaType == TYPE_ANIMATION
-        val seeds = (1..FRANCHISE_SEED_PAGES).flatMap { page ->
-            discover(
-                mediaType = if (animation) TYPE_MOVIE else mediaType,
-                genres = if (animation) ANIMATION_GENRE else null,
-                sort = "popularity.desc",
-                page = page
+        val media = if (animation) TYPE_MOVIE else mediaType
+        val genres = if (animation) ANIMATION_GENRE else null
+
+        // Seed pages are walked until the batch's page budget runs out rather than fetched in one
+        // go, so an exhausted ranking stops the walk instead of paging past the end forever.
+        var totalPages = 0
+        val seeds = mutableListOf<TmdbMedia>()
+        for (p in page until page + MOVIE_SEED_PAGES_PER_BATCH) {
+            if (p > MAX_PAGE) break
+            val res = discoverPage(media, genres = genres, sort = "popularity.desc", page = p)
+            totalPages = res.totalPages
+            if (res.results.isEmpty()) break
+            seeds += res.results
+        }
+        if (seeds.isEmpty()) {
+            return FranchiseBatch(
+                emptyList(),
+                hasMore = false,
+                nextPage = page + MOVIE_SEED_PAGES_PER_BATCH
             )
         }
-        if (seeds.isEmpty()) return emptyList()
-        val collectionIds = seeds.mapNotNull { it.collection?.id }.distinct()
 
-        // Fetched serially and deduplicated by id, since a dozen popular titles usually
-        // belong to far fewer than a dozen franchises. One request per collection is also
+        // Membership has to be read off the detail response. `belongs_to_collection` is absent
+        // from every TMDB list response and present only on a movie's detail, so reading it from
+        // the discover results yields nothing at all — verified across four sort orders, all zero
+        // — which is what left this row empty for every sort except Collections.
+        val collectionIds = resolveCollectionIds(seeds)
+        if (collectionIds.isEmpty()) {
+            // Has to answer from the page count rather than the empty card list: every seed in the
+            // batch can be standalone and produce no cards while the ranking has pages left.
+            return FranchiseBatch(
+                emptyList(),
+                hasMore = page + MOVIE_SEED_PAGES_PER_BATCH <= totalPages,
+                nextPage = page + MOVIE_SEED_PAGES_PER_BATCH
+            )
+        }
+
+        // Fetched concurrently and deduplicated by id, since a couple of dozen popular titles
+        // usually belong to far fewer franchises than that. One request per collection is also
         // all this needs: the parts come back in the same body as the name, so nothing is
         // re-read here.
-        return collectionIds.mapNotNull { id ->
-            val collection = runCatching { collectionDetail(id) }.getOrNull() ?: return@mapNotNull null
-            val parts = collection.parts
-            if (parts.isEmpty()) return@mapNotNull null
-
-            // Ordered once, on the field the type actually populates. Sorting on
-            // `releaseDate` alone would leave every TV part null and keep the response order.
-            val ordered = parts.sortedBy { it.sortDate }.map { part ->
-                FranchiseEntry(
-                    year = part.year,
-                    sortYear = part.sortDate?.take(4)?.toIntOrNull(),
-                    posterUrl = imageUrl(part.posterPath, 342),
-                    title = part.displayTitle,
-                    backdropUrl = imageUrl(part.backdropPath, 780),
-                    // Carried so the franchise screen can open the title it was given rather
-                    // than only naming it: without an id the screen has nowhere to send a tap.
-                    tmdbId = part.id,
-                    tmdbType = TYPE_MOVIE,
-                    type = FranchiseType.MOVIE,
-                )
+        val gate = Semaphore(FRANCHISE_CONCURRENCY)
+        val cards = mutableListOf<Franchise>()
+        coroutineScope {
+            // Every fetch is launched before any is awaited, so they still overlap; awaiting
+            // them one at a time afterwards only fixes the order they are *published* in. That is
+            // lets onCard run on a single coroutine — no lock, no interleaved appends — while
+            // the row still fills in as results land rather than after the slowest one.
+            val pending = collectionIds.map { id ->
+                async { gate.withPermit { runCatching { collectionDetail(id) }.getOrNull() } }
             }
-            if (ordered.isEmpty()) return@mapNotNull null
+            for (job in pending) {
+                val card = job.await()?.toFranchiseCard() ?: continue
+                cards += card
+                onCard(card)
+            }
+        }
+        return FranchiseBatch(
+            cards,
+            hasMore = page + MOVIE_SEED_PAGES_PER_BATCH <= totalPages,
+            nextPage = page + MOVIE_SEED_PAGES_PER_BATCH
+        )
+    }
 
-            // Re-read from the sorted entries rather than from `parts`, which is still in
-            // response order: taking its last element would not reliably be the latest entry.
-            val latest = ordered.last()
+    /**
+     * A TMDB collection as one Franchise card, or null when it holds nothing to show.
+     *
+     * The collection is the box set, so its parts are the entries and its own name is the card's
+     * name — so a card reads as "Spider-Man Collection" rather than as whichever film happens to
+     * sort first. Parts are ordered by release date, TMDB's only ordering here: it matches story
+     * order for straight-line series and is wrong for a prequel released after its sequel, which
+     * is what Trakt's curated rank exists to fix on the Collections path.
+     */
+    private fun TmdbCollection.toFranchiseCard(): Franchise? {
+        if (parts.isEmpty()) return null
 
-            Franchise(
-                // The collection's own name, not a part's title, so the card reads as the
-                // franchise rather than as whichever film happens to sort first.
-                name = collection.name ?: latest.title,
-                // Per spec the banner is the latest entry's artwork, preferring the wide
-                // crop and falling back to the poster when a title has no backdrop.
-                bannerUrl = latest.backdropUrl ?: latest.posterUrl,
-                entries = ordered,
+        // Ordered once, on the field the type actually populates. Sorting on `releaseDate`
+        // alone would leave every TV part null and keep the response order.
+        val ordered = parts.sortedBy { it.sortDate }.map { part ->
+            FranchiseEntry(
+                year = part.year,
+                sortYear = part.sortDate?.take(4)?.toIntOrNull(),
+                posterUrl = imageUrl(part.posterPath, 342),
+                title = part.displayTitle,
+                backdropUrl = imageUrl(part.backdropPath, 780),
+                // Each part is a film with its own blurb, so this is per entry rather than a
+                // franchise-wide one. Carried because the AniList fallback cannot fill it in:
+                // that path keys on anilistId, which a TMDB entry does not have.
+                synopsis = part.overview.nonBlank(),
+                // Carried so the franchise screen can open the title it was given rather
+                // than only naming it: without an id the screen has nowhere to send a tap.
+                tmdbId = part.id,
+                tmdbType = TYPE_MOVIE,
+                type = FranchiseType.MOVIE,
             )
         }
+        if (ordered.isEmpty()) return null
+
+        // Re-read from the sorted entries rather than from `parts`, which is still in response
+        // order: taking its last element would not reliably be the latest entry.
+        val latest = ordered.last()
+
+        return Franchise(
+            name = name ?: latest.title,
+            // Per spec the banner is the latest entry's artwork, preferring the wide crop and
+            // falling back to the poster when a title has no backdrop.
+            bannerUrl = latest.backdropUrl ?: latest.posterUrl,
+            entries = ordered,
+        )
+    }
+
+    /**
+     * Which TMDB collections the seed films belong to, deduplicated.
+     *
+     * TMDB publishes `belongs_to_collection` on a movie's *detail* response only. Its list
+     * endpoints — `discover`, `trending`, `popular`, and every collection's own `parts` — omit
+     * the field entirely, so a seed list cannot be asked for membership directly and every film
+     * has to be resolved individually. That is the whole reason this function exists rather than a
+     * `mapNotNull` over the seeds.
+     *
+     * Bounded by the caller rather than capped here — the caller decides a batch's size in pages,
+     * which is the only knob that means anything, since the cost is one request per seed and
+     * seeds arrive twenty to a page. Run concurrently because the seeds do not depend on each
+     * other. A film that fails to resolve, or that turns out to be standalone, simply
+     * contributes nothing: most popular films are standalone, so a low hit rate here is expected
+     * and not an error.
+     */
+    private suspend fun resolveCollectionIds(seeds: List<TmdbMedia>): List<Int> {
+        if (seeds.isEmpty()) return emptyList()
+
+        val gate = Semaphore(FRANCHISE_CONCURRENCY)
+        val ids = coroutineScope {
+            seeds.map { seed ->
+                async {
+                    gate.withPermit {
+                        runCatching { detail(TYPE_MOVIE, seed.id) }.getOrNull()?.collection?.id
+                    }
+                }
+            }.awaitAll()
+        }.filterNotNull()
+
+        // Logged because the ratio, not the absolute count, is what says whether the seed budget
+        // is right: too low and the row is thin, and the fix is a bigger
+        // MOVIE_SEED_PAGES_PER_BATCH.
+        Logger.log(
+            "Franchise(movie) seeds ${seeds.size} resolved to ${ids.size} collections " +
+                "(${ids.distinct().size} distinct)"
+        )
+        return ids.distinct()
     }
 
     /**
@@ -905,43 +1074,91 @@ object Tmdb {
      * franchise, each season is an entry with its own poster, and the card's banner is the
      * show's own artwork. Season 0 (specials) is dropped for the same reason
      * [Tmdb.seasons] drops it: it is not a season a viewer counts.
+     *
+     * One `discover` page is the batch and the cursor at the same time, so unlike film there is no
+     * gap between the two: every show on the page becomes a card unless it has no numbered
+     * season, and the page count is what ends the row.
      */
-    private suspend fun tvFranchiseCards(): List<Franchise> {
-        val seeds = discover(TYPE_TV, sort = "popularity.desc", page = 1)
-        if (seeds.isEmpty()) return emptyList()
+    private suspend fun tvFranchiseCards(
+        page: Int,
+        onCard: suspend (Franchise) -> Unit,
+    ): FranchiseBatch {
+        if (page > MAX_PAGE) return FranchiseBatch(emptyList(), hasMore = false, nextPage = page)
+        val res = discoverPage(TYPE_TV, sort = "popularity.desc", page = page)
+        if (res.results.isEmpty()) {
+            return FranchiseBatch(emptyList(), hasMore = false, nextPage = page + 1)
+        }
 
-        return seeds.take(TV_FRANCHISE_SEEDS).mapNotNull { show ->
-            val detail = runCatching { detail(TYPE_TV, show.id) }.getOrNull() ?: return@mapNotNull null
-            val seasons = detail.seasons
-                .filter { it.seasonNumber > 0 }
-                .sortedBy { it.seasonNumber }
-            if (seasons.isEmpty()) return@mapNotNull null
-
-            val banner = imageUrl(detail.backdropPath, 780) ?: imageUrl(detail.posterPath, 500)
-            val entries = seasons.map { season ->
-                FranchiseEntry(
-                    // A season is dated by its air date; a year-only first season is common, so
-                    // the poster fallback below is what keeps the cell from going blank.
-                    year = season.airDate?.take(4).orEmpty(),
-                    sortYear = season.airDate?.take(4)?.toIntOrNull(),
-                    posterUrl = imageUrl(season.posterPath, 342)
-                        ?: imageUrl(detail.posterPath, 342),
-                    title = season.name ?: "Season ${season.seasonNumber}",
-                    backdropUrl = banner,
-                    airDate = season.airDate,
-                    tmdbId = detail.id,
-                    tmdbType = TYPE_TV,
-                    seasonNumber = season.seasonNumber,
-                    type = FranchiseType.SEQUENCE,
-                )
+        val gate = Semaphore(FRANCHISE_CONCURRENCY)
+        val cards = mutableListOf<Franchise>()
+        coroutineScope {
+            // Launched all at once and awaited one at a time, for the same reason as the film
+            // path: the requests overlap, and each card is published the moment it is ready.
+            val pending = res.results.take(TV_FRANCHISE_SEEDS).map { show ->
+                async { gate.withPermit { runCatching { detail(TYPE_TV, show.id) }.getOrNull() } }
             }
+            for (job in pending) {
+                val card = job.await()?.toFranchiseCard() ?: continue
+                cards += card
+                onCard(card)
+            }
+        }
+        return FranchiseBatch(cards, hasMore = page < res.totalPages, nextPage = page + 1)
+    }
 
-            Franchise(
-                name = detail.displayTitle.ifBlank { show.displayTitle },
-                bannerUrl = banner ?: entries.last().posterUrl,
-                entries = entries,
+    /**
+     * A string that is null when it carries no text, and trimmed when it does.
+ *
+     * TMDB sends `"overview": ""` for plenty of catalogued titles, and an empty string is not the
+     * same as an absent one to the franchise screen: it checks `isNullOrBlank()` to decide whether
+ * * to show its "no synopsis" text, so an empty string would render as a blank line where the
+ * fallback was meant to appear.
+ */
+private fun String?.nonBlank() = this?.trim()?.takeIf { it.isNotEmpty() }
+
+/**
+     * A show as one Franchise card, its seasons as the entries, or null when it has none.
+     *
+     * Season 0 (specials) is left out for the same reason [Tmdb.seasons] leaves it out: it is
+     * not a season a viewer counts, and a card leading with "Specials" reads as a bug.
+     */
+    private fun TmdbDetail.toFranchiseCard(): Franchise? {
+        val seasons = seasons.filter { it.seasonNumber > 0 }.sortedBy { it.seasonNumber }
+        if (seasons.isEmpty()) return null
+
+        val banner = imageUrl(backdropPath, 780) ?: imageUrl(posterPath, 500)
+        // The show's blurb, and only on the first season.
+        //
+        // TMDB has no per-season overview — a season carries a poster, a date and an episode
+        // count, and its text lives one request deeper on the episodes. So there is exactly one
+        // blurb available at this granularity, and repeating it down every season would put a
+        // show-level description under a row claiming to describe season four. Carrying it on the
+        // first entry says it once, where it is true, and lets the rest fall back to the screen's
+        // empty-synopsis text rather than to a copy-paste.
+        val showSynopsis = overview.nonBlank()
+        val entries = seasons.mapIndexed { index, season ->
+            FranchiseEntry(
+                // A season is dated by its air date; a year-only first season is common, so
+                // the poster fallback below is what keeps the cell from going blank.
+                year = season.airDate?.take(4).orEmpty(),
+                sortYear = season.airDate?.take(4)?.toIntOrNull(),
+                posterUrl = imageUrl(season.posterPath, 342) ?: imageUrl(posterPath, 342),
+                title = season.name ?: "Season ${season.seasonNumber}",
+                backdropUrl = banner,
+                synopsis = if (index == 0) showSynopsis else null,
+                airDate = season.airDate,
+                tmdbId = id,
+                tmdbType = TYPE_TV,
+                seasonNumber = season.seasonNumber,
+                type = FranchiseType.SEQUENCE,
             )
         }
+
+        return Franchise(
+            name = displayTitle,
+            bannerUrl = banner ?: entries.last().posterUrl,
+            entries = entries,
+        )
     }
 
     /** Best backdrop/poster for a genre, via a one-off discover call. */

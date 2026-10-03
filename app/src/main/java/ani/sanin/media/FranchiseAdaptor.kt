@@ -5,6 +5,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import androidx.core.view.updateLayoutParams
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
@@ -75,9 +76,32 @@ class FranchiseAdaptor(
     }
 
     fun submit(newFranchises: List<Franchise>) {
-        franchises.clear()
-        franchises.addAll(newFranchises)
-        notifyDataSetChanged()
+        // Diffed rather than notifyDataSetChanged. A blanket invalidation rebinds every visible
+        // card, and each rebind re-runs loadImage on the banner and every poster, so the row
+        // visibly re-flashes on each batch and on each sort. The diff only touches the cards that
+        // actually moved or changed, which is what lets a batch append progressively without the
+        // row strobing as it fills.
+        //
+        // Name is the identity because the row has no id to use: `upsert` already keys on it, and
+        // it is unique per row by construction there.
+        val previous = synchronized(lock) { franchises.toList() }
+        if (previous == newFranchises) return
+        val diff = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
+            override fun getOldListSize() = previous.size
+            override fun getNewListSize() = newFranchises.size
+            override fun areItemsTheSame(oldPos: Int, newPos: Int) = previous[oldPos].name
+                .equals(newFranchises[newPos].name, ignoreCase = true)
+
+            override fun areContentsTheSame(oldPos: Int, newPos: Int) =
+                previous[oldPos] == newFranchises[newPos]
+        })
+        synchronized(lock) {
+            franchises.clear()
+            franchises.addAll(newFranchises)
+        }
+        // Dispatched after the backing list is swapped, never inside the lock: the dispatch
+        // synchronously calls back into getItemCount and getItemViewType.
+        diff.dispatchUpdatesTo(this)
     }
 
     /**
@@ -103,6 +127,8 @@ class FranchiseAdaptor(
      */
     fun upsert(replacements: Map<String, Franchise>) {
         if (replacements.isEmpty()) return
+        val changed = mutableListOf<Int>()
+        val inserted = mutableListOf<Int>()
         synchronized(lock) {
             val at = HashMap<String, Int>()
             franchises.forEachIndexed { index, card -> at.putIfAbsent(card.name.lowercase(), index) }
@@ -111,16 +137,32 @@ class FranchiseAdaptor(
                 val position = at.remove(provisionalName.lowercase())
                 val key = card.name.lowercase()
                 if (position == null) {
-                    if (at.putIfAbsent(key, merged.size) == null) merged.add(card)
+                    if (at.putIfAbsent(key, merged.size) == null) {
+                        merged.add(card)
+                        inserted += merged.size - 1
+                    }
                 } else {
                     at.putIfAbsent(key, position)
-                    merged[position] = card
+                    // Only a card that actually changed is reported. A stub re-published under
+                    // its own name is common while a batch resolves, and reporting it as changed
+                    // would rebind — and re-flash — a card that is already showing correctly.
+                    if (merged[position] != card) {
+                        merged[position] = card
+                        changed += position
+                    }
                 }
             }
             franchises.clear()
             franchises.addAll(merged)
-            notifyDataSetChanged()
         }
+        // Reported per item rather than as one blanket invalidation, which is what turned a
+        // resolving batch into a strobe: the row holds several cards that are already correct
+        // while the rest are still being upgraded.
+        //
+        // Inserts go out first and in ascending order, because RecyclerView replays the
+        // positions it is told about and out-of-order inserts land in the wrong place.
+        inserted.sorted().forEach { notifyItemInserted(it) }
+        changed.forEach { notifyItemChanged(it) }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = FranchiseViewHolder(
