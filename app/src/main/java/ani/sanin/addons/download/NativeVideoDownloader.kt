@@ -198,7 +198,7 @@ class NativeVideoDownloader(private val context: Context) {
         }
     }
 
-    override fun cancelDownload(sessionId: Long) {
+    fun cancelDownload(sessionId: Long) {
         cancelledSessions.add(sessionId)
         val session = activeSessions[sessionId]
         session?.cancel()
@@ -220,7 +220,7 @@ class NativeVideoDownloader(private val context: Context) {
         statCallback(value)
     }
 
-    override fun getDownloadedBytes(sessionId: Long): Long {
+    fun getDownloadedBytes(sessionId: Long): Long {
         val session = activeSessions[sessionId] ?: return -1L
         return when (session) {
             is DownloadSession.Aria2Session -> session.downloadedBytes
@@ -230,7 +230,7 @@ class NativeVideoDownloader(private val context: Context) {
         }
     }
 
-    override fun getEstimatedTotalBytes(sessionId: Long): Long {
+    fun getEstimatedTotalBytes(sessionId: Long): Long {
         val session = activeSessions[sessionId] ?: return -1L
         return when (session) {
             is DownloadSession.Aria2Session -> session.totalBytes
