@@ -883,32 +883,7 @@ class TmdbWatchFragment : Fragment() {
                 "$row  •  $sourceName"
             })
             // Long-press a server row to download it instead of playing it.
-            picker.setOnDownload { idx ->
-                if (!isAdded) return@setOnDownload
-                val link = result.links.getOrNull(idx)
-                if (link == null) {
-                    snackString(getString(R.string.tmdb_watch_no_sources))
-                    return@setOnDownload
-                }
-                val episodeLabel = if (mediaType == "tv" && season != null && ep != null) {
-                    "S${season}E${ep}"
-                } else {
-                    d.displayTitle
-                }
-                val isTv = mediaType == "tv"
-                val queued = TmdbDownload.start(
-                    context = requireContext(),
-                    link = link,
-                    title = d.displayTitle,
-                    episode = episodeLabel,
-                    posterUrl = Tmdb.imageUrl(d.posterPath, 780),
-                    kind = if (isTv) MediaKind.TV else MediaKind.MOVIE
-                )
-                snackString(
-                    if (queued) getString(R.string.tmdb_watch_download_queued)
-                    else getString(R.string.tmdb_watch_download_failed)
-                )
-            }
+
             picker.setOnSelect { idx ->
                 if (isAdded) {
                     val link = result.links[idx]
