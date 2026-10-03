@@ -7,6 +7,8 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * A JSON:API document.
@@ -71,7 +73,31 @@ data class KitsuResource(
 @Serializable
 data class KitsuRelationship(
     @SerialName("links") val links: KitsuLinks? = null,
+    /**
+     * The related resources, as id objects rather than whole ones.
+     *
+     * Kitsu does not always send these: a mapping's own `item` relationship carries links
+     * only, with nothing to join on, which is why [Kitsu.animeIdsForAnilist] falls back to
+     * positional pairing there. A top-level resource's relationship does include them.
+     */
+    @SerialName("data") val data: JsonElement? = null,
 )
+
+/**
+ * The resource ids in one of this resource's relationships, in response order.
+ *
+ * A to-many relationship's `data` is an array of id objects and a to-one's is a single
+ * such object, so both arities are read here rather than at each call site. An absent
+ * relationship and one Kitsu sent as links only both come back empty.
+ */
+fun KitsuResource.relationshipIds(name: String): List<String> =
+    when (val related = relationships?.get(name)?.data) {
+        is JsonArray -> related.mapNotNull { id ->
+            (id as? JsonObject)?.get("id")?.jsonPrimitive?.contentOrNull
+        }
+        is JsonObject -> listOfNotNull(related["id"]?.jsonPrimitive?.contentOrNull)
+        else -> emptyList()
+    }
 
 @Serializable
 data class KitsuLinks(

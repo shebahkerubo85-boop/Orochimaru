@@ -105,6 +105,15 @@ object Kitsu {
     private val animeCache = ConcurrentHashMap<String, KitsuResource>()
 
     /**
+     * AniList id per Kitsu anime id, read off the `mappings` include.
+     *
+     * Every entry of a card needs one so its poster can open that entry's own page: a card's
+     * seed arrives with an AniList id already known, but its siblings only exist on Kitsu, and
+     * without this they were built with no id at all and could not be opened.
+     */
+    private val anilistIdCache = ConcurrentHashMap<String, Int>()
+
+    /**
      * Whether Kitsu currently serves curated installment positions, probed at most once per
      * process. Null until probed. See [curatedOrder].
      */
@@ -202,16 +211,16 @@ object Kitsu {
 
         val entries = animes
             .mapNotNull { anime ->
-                val mapped = anime.toEntry() ?: return@mapNotNull null
+                // The mapping carries the AniList id for every sibling, so the seed is only
+                // a fallback: it is the one entry whose id was already known, and trusting it
+                // costs nothing if the mapping agrees.
+                val resolvedId = anilistIdOf(anime.id())
+                    ?: if (anime.id() == kitsuId) anilistId else null
+                val mapped = anime.toEntry(resolvedId) ?: return@mapNotNull null
                 // Media ids are unique per anime, so one position per entry is enough.
                 val position = pairs.firstOrNull { it.second == anime.id() }?.first
                     ?.let { positions[it] }
-                // The seed's own AniList id is already known and is the one the sorter can match
-                // exactly; the other entries are matched by title instead, since resolving each
-                // of those back to AniList would cost a request per entry.
-                val entry =
-                    if (anime.id() == kitsuId) mapped.copy(anilistId = anilistId) else mapped
-                entry to position
+                mapped to position
             }
             .sortedWith(
                 // Curated position first where available, release date as the tiebreak so a
@@ -340,19 +349,39 @@ object Kitsu {
     }
 
     /**
- * Anime resources for a batch of Kitsu ids.
- *
- * Returns whole resources rather than bare attributes because callers still need each
- * anime's id, to pair it back to its installment.
- */
+     * Anime resources for a batch of Kitsu ids.
+     *
+     * Returns whole resources rather than bare attributes because callers still need each
+     * anime's id, to pair it back to its installment.
+     *
+     * `include=mappings` rides along on this request rather than costing one mapping lookup per
+     * entry: Kitsu already sends the relationship, and the included mapping rows carry the
+     * AniList id that each entry needs to be openable. See [anilistIdOf].
+     */
     private suspend fun animeByIds(ids: List<String>): List<KitsuResource> {
         val missing = ids.distinct().filter { !animeCache.containsKey(it) }
         for (batch in missing.chunked(PAGE_LIMIT)) {
-            val doc = get("/anime?filter[id]=${batch.joinToString(",")}&page[limit]=$PAGE_LIMIT")
-                ?: continue
+            val doc = get(
+                "/anime?filter[id]=${batch.joinToString(",")}&page[limit]=$PAGE_LIMIT" +
+                    "&include=mappings"
+            ) ?: continue
+            val mappingsById = (doc.included.orEmpty())
+                .associateBy { it.id }
+                .mapNotNull { (id, resource) ->
+                    val anilistId = resource.mappingAttributes()
+                        ?.takeIf { it.externalSite == ANILIST_SITE }
+                        ?.externalId?.toIntOrNull()
+                    anilistId?.let { id to it }
+                }
+                .toMap()
             for (anime in doc.dataList()) {
                 val id = anime.id ?: continue
                 animeCache[id] = anime
+                // Only ids this anime's own relationship points at are taken, because a batch
+                // inlines the mappings of every anime in it and they are otherwise unlabelled.
+                anime.relationshipIds("mappings").forEach { mappingId ->
+                    mappingsById[mappingId]?.let { anilistIdCache[id] = it }
+                }
             }
         }
         // Read back through the cache so a partially failed batch still contributes the
@@ -360,16 +389,31 @@ object Kitsu {
         return ids.distinct().mapNotNull { animeCache[it] }
     }
 
+    /**
+     * The AniList id of a Kitsu anime, or null when Kitsu carries no mapping for it.
+     *
+     * Null is a real outcome, not a gap to retry: a few Kitsu titles carry no AniList
+     * mapping at all, and those entries have nothing to open. Popular titles all map, so this
+     * is rare, but it is not zero.
+     */
+    private fun anilistIdOf(kitsuId: String): Int? = anilistIdCache[kitsuId]
+
     /** This resource's id, for pairing an anime back to its installment. */
     private fun KitsuResource.id() = id
 
-    private fun KitsuResource.toEntry() = animeAttributes()?.toEntry()
+    private fun KitsuResource.toEntry(anilistId: Int?) = animeAttributes()?.toEntry(anilistId)
 
     private fun KitsuAnimeAttributes.displayTitle() =
         titles?.en?.takeIf { title -> title.isNotBlank() }
             ?: canonicalTitle?.takeIf { title -> title.isNotBlank() }
 
-    private fun KitsuAnimeAttributes.toEntry(): FranchiseEntry? {
+    /**
+     * This anime as an entry.
+     *
+     * [anilistId] is passed in rather than read from the attributes because Kitsu carries it on
+     * the anime's mapping relationship, not on the anime; see [anilistIdOf].
+     */
+    private fun KitsuAnimeAttributes.toEntry(anilistId: Int?): FranchiseEntry? {
         val title = displayTitle() ?: return null
         val year = startDate?.take(4)?.toIntOrNull() ?: seasonYear
         return FranchiseEntry(
@@ -378,6 +422,7 @@ object Kitsu {
             posterUrl = posterImage?.medium ?: posterImage?.small ?: posterImage?.large,
             title = title,
             synopsis = synopsis ?: description,
+            anilistId = anilistId,
         )
     }
 
