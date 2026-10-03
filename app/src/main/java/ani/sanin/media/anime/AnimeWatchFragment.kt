@@ -221,7 +221,7 @@ class AnimeWatchFragment : Fragment() {
         binding.watchRailDownload.setOnClickListener { setDownloadMode(!downloadMode) }
         binding.watchRailDownload.setOnLongClickListener {
             runCatching {
-                startActivity(Intent(requireContext(), ani.sanin.settings.//DQ::class.java))
+                
             }.onFailure { snackString("Downloads unavailable") }
             true
         }
