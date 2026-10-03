@@ -768,13 +768,7 @@ class AnimeWatchFragment : Fragment() {
     fun onEpisodeDownloadClick(episode: Episode) {
         val key = media.anime?.episodes?.getEpisodeKey(episode.number) ?: episode.number
         media.anime?.selectedEpisode = key
-        //
-            server = episode.selectedExtractor,
-            la = false,
-            prev = null,
-            isDownload = true,
-            episodes = arrayListOf(key)
-        ).show(parentFragmentManager, "download-selector")
+
     }
 
     fun onEpisodeClick(i: String) {
