@@ -768,7 +768,7 @@ class AnimeWatchFragment : Fragment() {
     fun onEpisodeDownloadClick(episode: Episode) {
         val key = media.anime?.episodes?.getEpisodeKey(episode.number) ?: episode.number
         media.anime?.selectedEpisode = key
-        SelectorDialogFragment.newInstance(
+        //
             server = episode.selectedExtractor,
             la = false,
             prev = null,
