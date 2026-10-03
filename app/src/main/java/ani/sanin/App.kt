@@ -84,7 +84,7 @@ class App : Application() {
                 crashlytics.setCustomKey("aUsername", aUsername)
             }
         }
-        crashlytics.setCustomKey("device Info", SettingsActivity.getDeviceInfo())
+        crashlytics.setCustomKey("device Info", SettingsActivity.//gdi())
 
         initializeNetwork()
 
