@@ -83,7 +83,7 @@ class NativeVideoDownloader(private val context: Context) {
                 return "UNKNOWN"
             }
 
-            override fun getStackTrace(): String? {
+            fun getStackTrace(): String? {
                 FFmpegKitConfig.getFFmpegSessions().forEach {
                     if (it.sessionId == sessionId) {
                         return it.failStackTrace
@@ -92,7 +92,7 @@ class NativeVideoDownloader(private val context: Context) {
                 return null
             }
 
-            override fun hadError(): Boolean {
+            fun hadError(): Boolean {
                 FFmpegKitConfig.getFFmpegSessions().forEach {
                     if (it.sessionId == sessionId) {
                         return it.returnCode.isValueError
@@ -129,8 +129,8 @@ class NativeVideoDownloader(private val context: Context) {
             }
 
             override fun getStatus(): String = currentStatus
-            override fun getStackTrace(): String? = failReason
-            override fun hadError(): Boolean = hasError
+            fun getStackTrace(): String? = failReason
+            fun hadError(): Boolean = hasError
         }
 
         class HlsSession(
@@ -161,8 +161,8 @@ class NativeVideoDownloader(private val context: Context) {
             }
 
             override fun getStatus(): String = currentStatus
-            override fun getStackTrace(): String? = failReason
-            override fun hadError(): Boolean = hasError
+            fun getStackTrace(): String? = failReason
+            fun hadError(): Boolean = hasError
         }
 
         class ComplexHlsSession(
@@ -193,8 +193,8 @@ class NativeVideoDownloader(private val context: Context) {
             }
 
             override fun getStatus(): String = currentStatus
-            override fun getStackTrace(): String? = failReason
-            override fun hadError(): Boolean = hasError
+            fun getStackTrace(): String? = failReason
+            fun hadError(): Boolean = hasError
         }
     }
 
@@ -663,15 +663,15 @@ class NativeVideoDownloader(private val context: Context) {
             })
     }
 
-    override fun getState(sessionId: Long): String {
+    fun getState(sessionId: Long): String {
         return activeSessions[sessionId]?.getStatus() ?: "UNKNOWN"
     }
 
-    override fun getStackTrace(sessionId: Long): String? {
+    fun getStackTrace(sessionId: Long): String? {
         return activeSessions[sessionId]?.getStackTrace()
     }
 
-    override fun hadError(sessionId: Long): Boolean {
+    fun hadError(sessionId: Long): Boolean {
         return activeSessions[sessionId]?.hadError() ?: false
     }
 
