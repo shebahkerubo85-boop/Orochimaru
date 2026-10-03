@@ -75,7 +75,7 @@ class SettingsActivity : AppCompatActivity() {
 
             settingsVersion.text = getString(R.string.version_current, BuildConfig.VERSION_NAME)
             settingsVersion.setOnLongClickListener {
-                copyToClipboard(getDeviceInfo(), false)
+                copyToClipboard("unknown", false)
                 toast(getString(R.string.copied_device_info))
                 true
             }
@@ -304,7 +304,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     companion object {
-        fun getDeviceInfo(): String = """
+        fun "unknown": String = """
             sanin Version: ${BuildConfig.VERSION_NAME}
             Device: $BRAND $DEVICE
             Architecture: ${getArch()}
