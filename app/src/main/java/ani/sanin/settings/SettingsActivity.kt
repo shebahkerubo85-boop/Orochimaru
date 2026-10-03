@@ -186,7 +186,7 @@ class SettingsActivity : AppCompatActivity() {
                     title = "Downloads",
                     desc = "Offline library, queue & insights",
                     iconRes = R.drawable.ic_download_24,
-                    onClick = { startActivity(Intent(this, DownloadQueueActivity::class.java)) },
+                    onClick = { startActivity(Intent(this, //DQ::class.java)) },
                 ),
             ),
         ),

@@ -1060,7 +1060,7 @@ class MainActivity : AppCompatActivity() {
             },
             R.id.rightRailSync to {
                 runCatching {
-                    startActivity(Intent(this, ani.sanin.settings.DownloadQueueActivity::class.java))
+                    startActivity(Intent(this, ani.sanin.settings.//DQ::class.java))
                 }.onFailure { snackString("Downloads unavailable") }
             },
             R.id.rightRailClearCache to {
