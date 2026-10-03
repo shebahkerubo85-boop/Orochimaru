@@ -32,25 +32,26 @@ object SubDLSubtitles {
                     .addHeader("Accept", "application/json")
                     .build()
 
-                val response = okHttpClient.newCall(request).execute()
-                if (!response.isSuccessful) {
-                    Logger.log("SubDL: HTTP ${response.code}")
-                    return@withContext emptyList()
+                val subs = okHttpClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        Logger.log("SubDL: HTTP ${response.code}")
+                        return@withContext emptyList()
+                    }
+
+                    val body = response.body?.string() ?: return@withContext emptyList()
+                    val result = Mapper.json.decodeFromString<SubDLResponse>(body)
+
+                    result.subtitles?.map { sub ->
+                        StremioSub(
+                            id = sub.url ?: "",
+                            url = if (sub.url?.startsWith("http") == true) sub.url!!
+                                  else "https://dl.subdl.com${sub.url ?: ""}",
+                            lang = sub.lang ?: "English",
+                            label = sub.releaseName ?: sub.name ?: "SubDL",
+                            source = "subdl"
+                        )
+                    } ?: emptyList()
                 }
-
-                val body = response.body?.string() ?: return@withContext emptyList()
-                val result = Mapper.json.decodeFromString<SubDLResponse>(body)
-
-                val subs = result.subtitles?.map { sub ->
-                    StremioSub(
-                        id = sub.url ?: "",
-                        url = if (sub.url?.startsWith("http") == true) sub.url!!
-                              else "https://dl.subdl.com${sub.url ?: ""}",
-                        lang = sub.lang ?: "English",
-                        label = sub.releaseName ?: sub.name ?: "SubDL",
-                        source = "subdl"
-                    )
-                } ?: emptyList()
 
                 Logger.log("SubDL: Found ${subs.size} subs")
                 subs

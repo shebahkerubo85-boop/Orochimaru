@@ -94,12 +94,13 @@ object StremioSubtitles {
                     for (url in urlsToTry) {
                         try {
                             val request = Request.Builder().url(url).build()
-                            val response = okHttpClient.newCall(request).execute()
-                            if (response.isSuccessful && response.body != null) {
-                                val text = response.body!!.string()
-                                val data = Mapper.json.decodeFromString<StremioResponse>(text)
-                                result.addAll(data.subtitles.map { it.copy(source = "stremio") })
-                                if (data.subtitles.isNotEmpty()) break
+                            okHttpClient.newCall(request).execute().use { response ->
+                                if (response.isSuccessful && response.body != null) {
+                                    val text = response.body!!.string()
+                                    val data = Mapper.json.decodeFromString<StremioResponse>(text)
+                                    result.addAll(data.subtitles.map { it.copy(source = "stremio") })
+                                    if (data.subtitles.isNotEmpty()) break
+                                }
                             }
                         } catch (e: Exception) {
                             Logger.log("StremioSubtitles(Stremio): url failed $url -> ${e.message}")

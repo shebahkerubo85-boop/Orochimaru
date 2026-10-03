@@ -20,10 +20,12 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.appcompat.widget.AppCompatImageButton
+import androidx.appcompat.widget.AppBarLayout
+import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.core.view.doOnLayout
+import androidx.core.view.isGone
 import androidx.core.view.isVisible
-import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.lifecycleScope
 import ani.sanin.GesturesListener
@@ -113,6 +115,9 @@ class MediaDetailsActivity : AppCompatActivity() {
 
         binding = ActivityMediaBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Backing out of an extension's source prefs must restore the media UI.
+        supportFragmentManager.addOnBackStackChangedListener { syncExtensionPrefsUi() }
 
         val isDownload = intent.getBooleanExtra("download", false)
         media.selected = model.loadSelected(media, isDownload)
@@ -432,18 +437,34 @@ class MediaDetailsActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Keeps the media UI in sync with whether an extension source-preferences fragment is showing.
+     *
+     * The extension prefs live in [R.id.fragmentExtensionsContainer] over the media content, so the
+     * two are shown/hidden together. Presence of the fragment is the source of truth rather than a
+     * back-stack pop, so leaving the app and returning no longer discards the user's place.
+     */
+    private fun syncExtensionPrefsUi() {
+        if (!::binding.isInitialized) return
+        val hasExtFragment =
+            supportFragmentManager.findFragmentById(R.id.fragmentExtensionsContainer) != null
+
+        findViewById<FrameLayout>(R.id.fragmentExtensionsContainer)?.isVisible = hasExtFragment
+        findViewById<AppBarLayout>(R.id.mediaAppBar)?.isGone = hasExtFragment
+        binding.mediaTabContent?.isVisible = !hasExtFragment
+        findViewById<CardView>(R.id.mediaCover)?.isGone = hasExtFragment
+        findViewById<CardView>(R.id.mediaClose)?.isVisible = !hasExtFragment
+        findViewById<View>(R.id.mediaNavPills)?.isVisible = !hasExtFragment
+        if (!hasExtFragment) binding.root.requestLayout()
+    }
+
     override fun onResume() {
         super.onResume()
         if (!::binding.isInitialized) return
 
-        val extContainer = findViewById<android.widget.FrameLayout>(R.id.fragmentExtensionsContainer)
-        if (extContainer != null) {
-            val hasExtFragment = supportFragmentManager.findFragmentById(R.id.fragmentExtensionsContainer) != null
-            if (hasExtFragment) {
-                supportFragmentManager.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE)
-                extContainer.visibility = View.GONE
-            }
-        }
+        // Don't pop the extension prefs fragment here: returning from another app used to
+        // throw away the user's place in an extension's source settings. Just resync visibility.
+        syncExtensionPrefsUi()
         binding.navPillBg?.live = PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.LiveSideRail)
         if (PrefManager.getVal<Boolean>(PrefName.SideRailPersist)) {
             showNavPills()

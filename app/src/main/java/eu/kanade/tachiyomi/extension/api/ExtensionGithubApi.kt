@@ -155,7 +155,11 @@ internal class ExtensionGithubApi {
                     }
                     json.decodeFromString<NetworkExtensionStore>(bodyString)
                 } else { // Protobuf
-                    ProtoBuf.decodeFromByteArray<NetworkExtensionStore>(responseBytes)
+                    // A repo index may omit fields this model doesn't care about, so a strict
+                    // decode failure shouldn't discard the whole repo.
+                    runCatching {
+                        ProtoBuf.decodeFromByteArray<NetworkExtensionStore>(responseBytes)
+                    }.getOrNull() ?: return emptyList()
                 }
 
                 val resolvedList: NetworkExtensionStore.ExtensionList? = if (store.extensionListUrl != null) {
@@ -164,12 +168,18 @@ internal class ExtensionGithubApi {
                     } else {
                         "${cleanRepoUrl(targetUrl)}/${store.extensionListUrl.removePrefix("/")}"
                     }
-                    val listResponse = networkService.client.newCall(GET(listUrl)).awaitSuccess()
-                    val listBytes = listResponse.body.bytes().decompressIfGzipped()
-                    if (listBytes.isNotEmpty() && listBytes[0] == 0x7B.toByte()) { // '{'
-                        json.decodeFromString<NetworkExtensionStore.ExtensionList>(listBytes.toString(Charsets.UTF_8))
-                    } else if (listBytes.isNotEmpty()) {
-                        ProtoBuf.decodeFromByteArray<NetworkExtensionStore.ExtensionList>(listBytes)
+                    val listResponse = runCatching {
+                        networkService.client.newCall(GET(listUrl)).awaitSuccess()
+                    }.getOrNull()
+                    val listBytes = listResponse?.body?.bytes()?.decompressIfGzipped()
+                    if (listBytes != null && listBytes.isNotEmpty() && listBytes[0] == 0x7B.toByte()) { // '{'
+                        runCatching {
+                            json.decodeFromString<NetworkExtensionStore.ExtensionList>(listBytes.toString(Charsets.UTF_8))
+                        }.getOrNull()
+                    } else if (listBytes != null && listBytes.isNotEmpty()) {
+                        runCatching {
+                            ProtoBuf.decodeFromByteArray<NetworkExtensionStore.ExtensionList>(listBytes)
+                        }.getOrNull()
                     } else {
                         null
                     }

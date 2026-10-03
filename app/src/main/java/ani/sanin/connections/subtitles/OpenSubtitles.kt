@@ -48,35 +48,38 @@ object OpenSubtitles {
                             .addHeader("Accept", "application/json")
                             .build()
 
-                        val response = okHttpClient.newCall(request).execute()
-                        if (!response.isSuccessful) {
-                            Logger.log("OpenSubtitles: Search failed HTTP ${response.code}")
-                            continue
-                        }
+                        okHttpClient.newCall(request).execute().use { response ->
+                            if (!response.isSuccessful) {
+                                Logger.log("OpenSubtitles: Search failed HTTP ${response.code}")
+                                return@use
+                            }
 
-                        val body = response.body?.string() ?: continue
-                        val searchResult = Mapper.json.decodeFromString<OpenSubtitlesSearchResponse>(body)
+                            val body = response.body?.string() ?: return@use
+                            val searchResult =
+                                Mapper.json.decodeFromString<OpenSubtitlesSearchResponse>(body)
 
-                        for (item in searchResult.data.take(MAX_RESULTS)) {
-                            try {
-                                val file = item.attributes.files.firstOrNull() ?: continue
-                                val fileId = file.fileId
-                                val fileName = file.fileName ?: item.attributes.release ?: "OpenSubtitles"
-                                val lang = item.attributes.language
-                                val isHi = item.attributes.hearingImpaired == true
+                            for (item in searchResult.data.take(MAX_RESULTS)) {
+                                try {
+                                    val file = item.attributes.files.firstOrNull() ?: continue
+                                    val fileId = file.fileId
+                                    val fileName =
+                                        file.fileName ?: item.attributes.release ?: "OpenSubtitles"
+                                    val lang = item.attributes.language
+                                    val isHi = item.attributes.hearingImpaired == true
 
-                                Logger.log("OpenSubtitles: Found file $fileId ($fileName)")
+                                    Logger.log("OpenSubtitles: Found file $fileId ($fileName)")
 
-                                results.add(
-                                    StremioSub(
-                                        id = "${URL_PREFIX}${fileId}",
-                                        url = "${URL_PREFIX}${fileId}",
-                                        lang = lang,
-                                        label = if (isHi) "$fileName (HI)" else fileName,
-                                        source = "opensubtitles"
+                                    results.add(
+                                        StremioSub(
+                                            id = "${URL_PREFIX}${fileId}",
+                                            url = "${URL_PREFIX}${fileId}",
+                                            lang = lang,
+                                            label = if (isHi) "$fileName (HI)" else fileName,
+                                            source = "opensubtitles"
+                                        )
                                     )
-                                )
-                            } catch (_: Exception) {}
+                                } catch (_: Exception) {}
+                            }
                         }
                         if (results.isNotEmpty()) break
                     } catch (e: Exception) {
@@ -103,12 +106,12 @@ object OpenSubtitles {
                     .addHeader("Accept", "application/json")
                     .post(bodyStr.toRequestBody("application/json; charset=utf-8".toMediaType()))
                     .build()
-                val resp = okHttpClient.newCall(req).execute()
-                if (resp.isSuccessful && resp.body != null) {
-                    val json = resp.body!!.string()
-                    val parsed = Mapper.json.decodeFromString<DownloadResponse>(json)
-                    parsed.link
-                } else null
+                okHttpClient.newCall(req).execute().use { resp ->
+                    if (resp.isSuccessful && resp.body != null) {
+                        val parsed = Mapper.json.decodeFromString<DownloadResponse>(resp.body!!.string())
+                        parsed.link
+                    } else null
+                }
             } catch (e: Exception) {
                 Logger.log("OpenSubtitles: Download error - ${e.message}")
                 null

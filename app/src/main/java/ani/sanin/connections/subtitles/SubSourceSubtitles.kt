@@ -26,12 +26,12 @@ object SubSourceSubtitles {
                     .addHeader("Authorization", "Bearer $API_KEY")
                     .post(searchBody)
                     .build()
-                val searchResp = okHttpClient.newCall(searchReq).execute()
-                if (!searchResp.isSuccessful || searchResp.body == null) return@withContext emptyList()
-
-                val searchJson = searchResp.body!!.string()
-                val searchResult = Mapper.json.decodeFromString<SubSourceSearchResponse>(searchJson)
-                val movieName = searchResult.found.firstOrNull()?.linkName ?: return@withContext emptyList()
+                val movieName = okHttpClient.newCall(searchReq).execute().use { searchResp ->
+                    if (!searchResp.isSuccessful || searchResp.body == null) return@withContext emptyList()
+                    val searchResult =
+                        Mapper.json.decodeFromString<SubSourceSearchResponse>(searchResp.body!!.string())
+                    searchResult.found.firstOrNull()?.linkName ?: return@withContext emptyList()
+                }
 
                 val movieBodyStr = if (season != null && season > 1) {
                     """{"langs":"[]","movieName":"$movieName","season":"season-$season"}"""
@@ -43,11 +43,10 @@ object SubSourceSubtitles {
                     .addHeader("Authorization", "Bearer $API_KEY")
                     .post(movieBodyStr.toRequestBody(JSON_MEDIA_TYPE))
                     .build()
-                val movieResp = okHttpClient.newCall(movieReq).execute()
-                if (!movieResp.isSuccessful || movieResp.body == null) return@withContext emptyList()
-
-                val movieJson = movieResp.body!!.string()
-                val movieData = Mapper.json.decodeFromString<SubSourceMovieResponse>(movieJson)
+                val movieData = okHttpClient.newCall(movieReq).execute().use { movieResp ->
+                    if (!movieResp.isSuccessful || movieResp.body == null) return@withContext emptyList()
+                    Mapper.json.decodeFromString<SubSourceMovieResponse>(movieResp.body!!.string())
+                }
 
                 val epStr = episode.toString()
                 val epPad = episode.toString().padStart(2, '0')
@@ -95,11 +94,12 @@ object SubSourceSubtitles {
                     .addHeader("Authorization", "Bearer $API_KEY")
                     .post(bodyStr.toRequestBody(JSON_MEDIA_TYPE))
                     .build()
-                val resp = okHttpClient.newCall(req).execute()
-                if (!resp.isSuccessful || resp.body == null) return@withContext null
-                val json = resp.body!!.string()
-                val linkData = Mapper.json.decodeFromString<SubSourceLinkResponse>(json)
-                "$DOWNLOAD_ENDPOINT/${linkData.sub.downloadToken}"
+                okHttpClient.newCall(req).execute().use { resp ->
+                    if (!resp.isSuccessful || resp.body == null) return@withContext null
+                    val linkData =
+                        Mapper.json.decodeFromString<SubSourceLinkResponse>(resp.body!!.string())
+                    "$DOWNLOAD_ENDPOINT/${linkData.sub.downloadToken}"
+                }
             } catch (e: Exception) {
                 Logger.log("SubSource getDownloadUrl error: ${e.message}")
                 null

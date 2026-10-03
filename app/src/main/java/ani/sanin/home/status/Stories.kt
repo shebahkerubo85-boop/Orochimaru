@@ -455,9 +455,45 @@ class Stories @JvmOverloads constructor(
             like()
         }
         binding.activityLikeContainer.setOnLongClickListener {
-            UsersDialogFragment().apply {
-                userList(userList)
-                show((it.context as FragmentActivity).supportFragmentManager, "dialog")
+            val hostActivity = it.context as? FragmentActivity ?: return@setOnLongClickListener true
+            if (userList.isNotEmpty()) {
+                UsersDialogFragment().apply {
+                    userList(userList)
+                    show(hostActivity.supportFragmentManager, "dialog")
+                }
+            } else if ((story.likeCount ?: 0) > 0) {
+                // The feed query doesn't always carry `likes` for an activity, so a long press
+                // with a non-zero count can show an empty sheet. Fetch the activity on demand.
+                pause()
+                val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+                scope.launch {
+                    val feed = Anilist.query.getFeed(userId = null, page = 1, activityId = story.id)
+                    val fetchedLikes = feed?.data?.page?.activities?.firstOrNull()?.likes
+                    withContext(Dispatchers.Main) {
+                        if (!hostActivity.isFinishing && !hostActivity.isDestroyed) {
+                            val fetchedUserList = arrayListOf<User>()
+                            fetchedLikes?.forEach { i ->
+                                fetchedUserList.add(
+                                    User(
+                                        i.id,
+                                        i.name.toString(),
+                                        i.avatar?.medium,
+                                        i.bannerImage,
+                                        isFollowing = i.isFollowing,
+                                        isFollower = i.isFollower,
+                                    ),
+                                )
+                            }
+                            if (fetchedUserList.isNotEmpty()) {
+                                UsersDialogFragment().apply {
+                                    userList(fetchedUserList)
+                                    show(hostActivity.supportFragmentManager, "dialog")
+                                }
+                            }
+                        }
+                        resume()
+                    }
+                }
             }
             true
         }

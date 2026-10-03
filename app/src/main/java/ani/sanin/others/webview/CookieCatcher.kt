@@ -47,10 +47,24 @@ class CookieCatcher : AppCompatActivity() {
         }
         WebView.setWebContentsDebuggingEnabled(true)
         webView.webViewClient = object : WebViewClient() {
-
+            override fun onPageFinished(view: WebView?, finishedUrl: String?) {
+                super.onPageFinished(view, finishedUrl)
+                // Write any challenge cookies to disk as soon as the page settles, so the
+                // solved challenge is not lost if the activity is killed right afterwards.
+                cookies?.flush()
+            }
         }
 
         webView.loadUrl(url, headers)
     }
 
+    override fun onPause() {
+        super.onPause()
+        Injekt.get<NetworkHelper>().cookieJar.flush()
+    }
+
+    override fun onDestroy() {
+        Injekt.get<NetworkHelper>().cookieJar.flush()
+        super.onDestroy()
+    }
 }

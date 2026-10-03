@@ -100,7 +100,7 @@ import androidx.media3.exoplayer.drm.DrmSessionManager
 import androidx.media3.exoplayer.drm.LocalMediaDrmCallback
 import androidx.media3.exoplayer.drm.HttpMediaDrmCallback
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
-import androidx.media3.exoplayer.util.EventLogger
+
 import androidx.media3.session.MediaSession
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -2711,7 +2711,6 @@ class ExoplayerView :
             toast(e.toString())
         }
 
-        exoPlayer.addAnalyticsListener(EventLogger())
         isInitialized = true
 
         if (!hasExtSubtitles && !PrefManager.getVal<Boolean>(PrefName.Subtitles)) {

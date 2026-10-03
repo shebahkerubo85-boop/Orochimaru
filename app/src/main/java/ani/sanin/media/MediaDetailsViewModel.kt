@@ -644,9 +644,14 @@ class MediaDetailsViewModel : ViewModel() {
     fun getEpisodes(): LiveData<MutableMap<Int, MutableMap<String, Episode>>> = episodes
     suspend fun loadEpisodes(media: Media, i: Int, invalidate: Boolean = false) {
         epsLoaded.keys.removeAll { it != i }
-        if (!epsLoaded.containsKey(i) || invalidate) {
+        if (epsLoaded[i].isNullOrEmpty() || invalidate) {
             Logger.log("Watch: ViewModel loadEpisodes source idx=$i invalidate=$invalidate media='${media.name}'")
-            epsLoaded[i] = watchSources?.loadEpisodesFromMedia(i, media) ?: return
+            val loaded = watchSources?.loadEpisodesFromMedia(i, media) ?: return
+            // Don't cache an empty result: a failed scrape (Cloudflare challenge, timeout)
+            // must stay retryable instead of being treated as "already loaded" forever.
+            if (loaded.isNotEmpty() || invalidate) {
+                epsLoaded[i] = loaded
+            }
         }
         episodes.postValue(epsLoaded)
     }
