@@ -94,29 +94,31 @@ class RepoCardAdapter(
             holder.binding.repoContentTypes.addView(chip)
         }
 
-        // Language chips
+        // Language count: one centred chip rather than a chip per language. A busy repo listed
+        // every language it had, which ran the row wide and buried the count. Extensions with no
+        // usable lang are dropped when the list is built, so an unreadable or absent lang counts
+        // as none rather than as a bogus entry.
         holder.binding.repoLanguages.removeAllViews()
-        item.languages.forEach { lang ->
-            val chip = com.google.android.material.chip.Chip(ctx).apply {
-                text = lang
-                isClickable = false
-                isFocusable = false
-                textSize = 11f
-                setTextColor(chipTextColor)
-                chipBackgroundColor = android.content.res.ColorStateList.valueOf(
-                    if (isDark) Color.parseColor("#30FFFFFF") else Color.parseColor("#1A000000")
-                )
-                chipCornerRadius = 10f * ctx.resources.displayMetrics.density
-                chipMinHeight = 24f * ctx.resources.displayMetrics.density
-                setPadding(
-                    (8 * ctx.resources.displayMetrics.density).toInt(),
-                    0,
-                    (8 * ctx.resources.displayMetrics.density).toInt(),
-                    0
-                )
-            }
-            holder.binding.repoLanguages.addView(chip)
-        }
+        val languageCount = item.languages.size
+        holder.binding.repoLanguages.addView(com.google.android.material.chip.Chip(ctx).apply {
+            text = languageCount.toString()
+            contentDescription = "$languageCount languages"
+            isClickable = false
+            isFocusable = false
+            textSize = 11f
+            setTextColor(chipTextColor)
+            chipBackgroundColor = android.content.res.ColorStateList.valueOf(
+                if (isDark) Color.parseColor("#30FFFFFF") else Color.parseColor("#1A000000")
+            )
+            chipCornerRadius = 10f * ctx.resources.displayMetrics.density
+            chipMinHeight = 24f * ctx.resources.displayMetrics.density
+            setPadding(
+                (8 * ctx.resources.displayMetrics.density).toInt(),
+                0,
+                (8 * ctx.resources.displayMetrics.density).toInt(),
+                0
+            )
+        })
 
         // Fallback gradient: theme primary
         val primaryColor = ctx.getThemeColor(com.google.android.material.R.attr.colorPrimary)
