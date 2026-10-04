@@ -552,32 +552,34 @@
 
                         <ImageView
                             android:id="@+id/mediaInfoFav"
-                            android:layout_width="30dp"
-                            android:layout_height="30dp"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_marginTop="1dp"
                             android:focusable="true"
-                            android:padding="3dp"
+                            android:padding="2dp"
                             app:srcCompat="@drawable/ic_round_favorite_border_24"
                             app:tint="?attr/colorOnSurface"
                             tools:ignore="ContentDescription" />
 
                         <ImageView
                             android:id="@+id/mediaInfoShare"
-                            android:layout_width="30dp"
-                            android:layout_height="30dp"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
                             android:layout_marginTop="4dp"
                             android:focusable="true"
-                            android:padding="3dp"
+                            android:padding="2dp"
                             app:srcCompat="@drawable/ic_round_share_24"
                             app:tint="?attr/colorOnSurface"
                             tools:ignore="ContentDescription" />
 
                         <ImageView
                             android:id="@+id/mediaInfoComment"
-                            android:layout_width="30dp"
-                            android:layout_height="30dp"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
                             android:layout_marginTop="4dp"
+                            android:layout_marginBottom="1dp"
                             android:focusable="true"
-                            android:padding="3dp"
+                            android:padding="2dp"
                             app:srcCompat="@drawable/ic_round_comment_24"
                             app:tint="?attr/colorOnSurface"
                             tools:ignore="ContentDescription" />
