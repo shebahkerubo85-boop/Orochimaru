@@ -469,7 +469,6 @@ class MediaDetailsActivity : AppCompatActivity() {
         findViewById<FrameLayout>(R.id.fragmentExtensionsContainer)?.isVisible = hasExtFragment
         findViewById<AppBarLayout>(R.id.mediaAppBar)?.isGone = hasExtFragment
         binding.mediaTabContent?.isVisible = !hasExtFragment
-        findViewById<CardView>(R.id.mediaCover)?.isGone = hasExtFragment
         findViewById<CardView>(R.id.mediaClose)?.isVisible = !hasExtFragment
         findViewById<View>(R.id.mediaNavPills)?.isVisible = !hasExtFragment
         if (!hasExtFragment) binding.root.requestLayout()
