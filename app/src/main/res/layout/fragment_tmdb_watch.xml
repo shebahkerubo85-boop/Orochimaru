@@ -71,10 +71,10 @@
         android:focusable="false"
         android:descendantFocusability="afterDescendants"
         android:clipToPadding="false"
-        android:paddingTop="300dp"
+        android:paddingTop="@dimen/watch_list_top_padding"
         android:paddingStart="8dp"
         android:paddingEnd="8dp"
-        android:paddingBottom="128dp"
+        android:paddingBottom="@dimen/watch_list_bottom_padding"
         tools:listitem="@layout/item_episode_grid" />
 
     <!-- Close button (same position/style as anime mode mediaClose; back to Info) -->

@@ -47,4 +47,11 @@
       is a couple of rows rather than half the viewport.
     -->
     <dimen name="franchise_poster_width">88dp</dimen>
+    <!--
+      Landscape watch tab. The portrait pair reserves more height than a landscape phone has to
+      give, so it is cut down here: 140dp still clears the floating header, and 96dp still clears
+      the navigation bar, leaving a usable band for the grid instead of a negative one.
+    -->
+    <dimen name="watch_list_top_padding">140dp</dimen>
+    <dimen name="watch_list_bottom_padding">96dp</dimen>
 </resources>
