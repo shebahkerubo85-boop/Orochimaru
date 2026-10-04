@@ -117,6 +117,7 @@ class LibrarySettingsBottomSheet : BottomSheetDialogFragment() {
         if (!showNsfw || onNsfwChanged == null) {
             binding.nsfwRow.visibility = View.GONE
         } else {
+            binding.nsfwToggle.isSaveEnabled = false
             binding.nsfwToggle.isChecked = PrefManager.getVal<Boolean>(PrefName.LibraryNsfw)
             FocusEffectUtil.applyFocusListener(binding.nsfwToggle)
             binding.nsfwRow.setOnClickListener {

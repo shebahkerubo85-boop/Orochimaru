@@ -63,6 +63,10 @@ class CalendarActivity : AppCompatActivity() {
         FocusEffectUtil.applyFocusListener(binding.calendarBack)
 
         // List-only toggle
+        // Bound from the pref every time, so it must not restore its own checked state on top
+        // of that: a restored setChecked fires the listener below and writes the stale value
+        // back, undoing the user's choice.
+        binding.calendarListToggle.isSaveEnabled = false
         binding.calendarListToggle.isChecked = PrefManager.getVal<Boolean>(PrefName.CalendarListOnly)
         binding.calendarListToggle.setOnCheckedChangeListener { _, isChecked ->
             PrefManager.setVal(PrefName.CalendarListOnly, isChecked)

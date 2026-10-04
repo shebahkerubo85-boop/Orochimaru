@@ -184,6 +184,7 @@ fun Fragment.showFranchiseSortDialog(
     body.findViewById<View>(R.id.franchiseSortCollections).isVisible = showCollections
     group.check(prefs.sort.radioId())
     body.findViewById<MaterialSwitch>(R.id.franchiseShowSingleEntry).apply {
+        isSaveEnabled = false
         isChecked = prefs.showSingleEntry
         // Saved on change rather than on OK, so the row updates while the dialog is still open.
         // Worth the extra re-sort: the toggle can empty the row, and a dialog left showing a
