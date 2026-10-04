@@ -617,7 +617,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
                     } catch (_: Exception) { null }
                 }
             }
-            val logos = allImages.mapValues { it.value.logoUrl }
+            val logos = ani.sanin.connections.LogoApi.getLogosBatch(media.map { it.id })
             withContext(Dispatchers.Main) {
                 trendingLogos = logos
                 bannerAdapter?.updateUrls(backdrops, logos)

@@ -6,10 +6,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.contentOrNull
 import android.util.Log
 import ani.sanin.util.Logger
 import kotlinx.coroutines.CompletableDeferred
@@ -22,11 +18,6 @@ data class AniZipImage(
 
 @Serializable
 data class AniZipEpisode(
-    /**
-     * Either a localized map (`{"en": "...", "ja": "..."}`) or a plain string
-     * depending on whether the entry came from TVDB or AniDB.
-     */
-    val title: JsonElement? = null,
     val airDate: String? = null,
     val airDateUtc: String? = null,
     val airdate: String? = null,
@@ -55,33 +46,36 @@ data class AniZipMappings(
     val kitsuId: Int? get() = mappings?.kitsuId
     val tmdbId: String? get() = mappings?.tmdbId
     val tvdbId: Int? get() = mappings?.tvdbId
-    /** Episode entry for a (usually numeric) episode number. */
+
+    /**
+     * Episode entry for a (usually numeric) episode number.
+     *
+     * Carries artwork and scheduling only — air date, runtime, thumbnail. Titles are
+     * deliberately not decoded from this payload; see [AniZipImages] for why.
+     */
     fun episode(number: Int?): AniZipEpisode? {
         if (number == null) return null
         return episodes?.get(number.toString())
     }
-
-    /** First non-blank localized title for an episode. */
-    fun episodeTitle(number: Int?): String? = titleOf(episode(number)?.title)
-
-    companion object {
-        fun titleOf(title: JsonElement?): String? = when (title) {
-            is JsonObject -> title["en"]?.jsonContent()
-                ?: title["x-jat"]?.jsonContent()
-                ?: title["ja"]?.jsonContent()
-                ?: title.values.firstNotNullOfOrNull { it.jsonContent() }
-            is JsonPrimitive -> title.contentOrNull?.takeIf { it.isNotBlank() }
-            else -> null
-        }
-
-        private fun JsonElement.jsonContent(): String? =
-            (this as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
-    }
 }
 
+/**
+ * The artwork AniZip is allowed to supply: a backdrop and a poster.
+ *
+ * No logo, deliberately. AniZip's `Clearlogo` is proxied from TheTVDB, whose artwork buckets are
+ * crowd-uploaded and regularly hold character or key art instead of a wordmark, so a card would
+ * show a picture of a person where a title belonged. Wordmarks come from Fanart via `LogoApi`,
+ * which both keeps them in a real logo group and tags each one with a language.
+ *
+ * AniZip is also no longer used for titles, for the same reason it was never a good source of
+ * them: the endpoint takes no locale parameter, so there was no way to ask for English and the
+ * localized map had to be guessed at. Titles now come from TMDB, then plain text.
+ *
+ * What AniZip is still used for is mapping an AniList id to the ids other services key on —
+ * [tvdbId] in particular, which is how Fanart is reached at all.
+ */
 data class AniZipImages(
     val backdropUrl: String? = null,
-    val logoUrl: String? = null,
     val posterUrl: String? = null,
 )
 
@@ -141,7 +135,6 @@ object AniZip {
         return AniZipImages(
             backdropUrl = images.firstOrNull { it.coverType == "Fanart" }?.url
                 ?: images.firstOrNull { it.coverType == "Banner" }?.url,
-            logoUrl = images.firstOrNull { it.coverType == "Clearlogo" }?.url,
             posterUrl = images.firstOrNull { it.coverType == "Poster" }?.url,
         )
     }

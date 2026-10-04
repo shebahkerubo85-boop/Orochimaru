@@ -32,6 +32,7 @@ import ani.sanin.R
 import ani.sanin.Refresh
 import ani.sanin.bannerFallbackColor
 import ani.sanin.isDarkTheme
+import ani.sanin.connections.LogoApi
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.anizip.AniZip
 import ani.sanin.connections.mal.MAL
@@ -124,9 +125,14 @@ class MediaDetailsActivity : AppCompatActivity() {
         val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
         hasComments = PrefManager.getVal<Int>(PrefName.CommentsEnabled) == 1 && !rescueMode
 
-        // Load full-screen banner background.
-        // Portrait: use the AniList poster (media.cover) — leave landscape on the
-        // wide backdrop (media.banner + AniZip backdrop override).
+// Load full-screen banner background.
+        // This is the one surface where the source changes with orientation, because it is the only
+        // one showing a single full-bleed image that has to work either way round:
+        //   portrait  - Fanart's poster, falling back to the AniList cover.
+        //   landscape - Fanart's 4k background (then its standard background), then the AniZip
+        //               backdrop, then TMDB, and only then the AniList banner loaded just below.
+        // The feeds keep their own sources: a home or library card is still AniList artwork, and
+        // only what a title shows about itself comes from Fanart.
         val bannerTransparency = PrefManager.getVal<Float>(PrefName.BannerTransparency)
         val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
         if (bannerTransparency > 0f) {
@@ -141,14 +147,25 @@ class MediaDetailsActivity : AppCompatActivity() {
             binding.mediaBanner?.alpha = bannerTransparency
             binding.mediaBannerNoKen?.loadImage(fallbackUrl)
             binding.mediaBannerNoKen?.alpha = bannerTransparency
-            if (!isPortrait) {
-                lifecycleScope.launch {
-                    val tmdbUrl = AniZip.getBackdropUrlWithTmdbFallback(media.id, media.nameRomaji)
-                    if (tmdbUrl != null) {
-                        binding.mediaBg?.loadImage(tmdbUrl)
-                        binding.mediaBanner?.loadImage(tmdbUrl)
-                        binding.mediaBannerNoKen?.loadImage(tmdbUrl)
-                    }
+            // Only replace what is already up once there is something to replace it with, so a
+            // title Fanart does not cover keeps the AniList art given to it here.
+            lifecycleScope.launch {
+                val fanartUrl = withContext(Dispatchers.IO) {
+                    if (isPortrait) LogoApi.getPosterUrl(media.id)
+                    else LogoApi.getBackgroundUrl(media.id)
+                }
+                // Landscape still falls back past Fanart: its 4k background covers only about two
+                // thirds of anime and AniZip/TMDB answer for the rest. Portrait has no such step,
+                // because the AniList cover is already showing underneath as its fallback.
+                val url = fanartUrl ?: if (isPortrait) {
+                    null
+                } else {
+                    AniZip.getBackdropUrlWithTmdbFallback(media.id, media.nameRomaji)
+                }
+                if (url != null) {
+                    binding.mediaBg?.loadImage(url)
+                    binding.mediaBanner?.loadImage(url)
+                    binding.mediaBannerNoKen?.loadImage(url)
                 }
             }
         } else {

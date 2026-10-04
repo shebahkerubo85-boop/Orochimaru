@@ -58,6 +58,21 @@ enum class PrefName(val data: Pref) {
      * without it every call returns 403.
      */
     TraktClientId(Pref(Location.General, String::class, "7VKqwFd6wak-r_YMIhVQ-VqQTxkpbLZvRz5GfK9pMVE")),
+
+    /**
+     * Fanart.tv API key, used for anime artwork only.
+     *
+     * Supplies the wordmark, the clear art and the 4k banner, which AniZip cannot: its clear
+     * logos are proxied from TheTVDB and are often character art, and it has no way to be asked
+     * for a language. Fanart tags every asset with one, so filtering on `lang == "en"` is what
+     * fixes the wrong-language titles.
+     *
+     * Read-only and app-only, for the same reason as [TraktClientId]: an APK's contents are
+     * extractable, so this is public to anyone who unpacks the app. It belongs to a
+     * credentials-only account and grants access to nothing private. Fanart serves the image
+     * files from its own CDN, so this key only ever reaches the metadata endpoint.
+     */
+    FanartApiKey(Pref(Location.General, String::class, "101614385118c8e692166ad862413832")),
     YouTubeApiKey(Pref(Location.General, String::class, "AIzaSyDdQwsx0lYEU8ZnAke0ghcqoS1G5VxM2BE")),
     YouTubeChannelId(Pref(Location.General, String::class, "UC7oi5vkTHCwl3sS9NPBFCZg")),
     TmdbSearchHistory(Pref(Location.General, List::class, listOf<String>())),

@@ -75,8 +75,12 @@ object EpisodeNotificationResolver {
         val backdrop = mappings.images?.firstOrNull { it.coverType == "Fanart" }?.url
             ?: mappings.images?.firstOrNull { it.coverType == "Banner" }?.url
 
-        var thumbnail = entry?.image
-        var title = mappings.episodeTitle(episode) ?: fallbackTitle
+var thumbnail = entry?.image
+// AniZip is not asked for the episode title. Its endpoint takes no locale parameter, so there
+// was never a way to request English and the localized map had to be guessed at — which is how
+// a notification turned up with a fansub or Japanese title. The caller's fallback leads here
+// and TMDB's episode name is tried just below, so this loses nothing but the wrong language.
+var title = fallbackTitle
         var duration = entry?.runtime ?: entry?.length
         var airDate = entry?.airDateUtc?.take(10)
             ?: entry?.airDate

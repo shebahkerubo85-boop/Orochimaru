@@ -18,7 +18,7 @@ import androidx.lifecycle.lifecycleScope
 import ani.sanin.R
 import ani.sanin.cloudstream.TmdbDetailsActivity
 import ani.sanin.connections.anilist.AnilistFranchiseRanks
-import ani.sanin.connections.anizip.AniZip
+import ani.sanin.connections.LogoApi
 import ani.sanin.databinding.ActivityFranchiseBinding
 import ani.sanin.databinding.ItemFranchiseEntryBinding
 import ani.sanin.initActivity
@@ -132,9 +132,14 @@ class FranchiseActivity : AppCompatActivity() {
      * Puts the franchise's wordmark above the name.
      *
      * Trakt serves a logo on the card, and it is used as-is. AniList has no logo field at all,
-     * so an anime franchise's wordmark comes from AniZip's clearart for the representative entry.
+     * so an anime franchise's wordmark comes from Fanart for the representative entry.
      * The representative is the last entry, matching where the banner is taken from: for a
      * series it is the most recent title, which is the one whose branding a reader expects to see.
+     *
+     * Clear art is asked for ahead of the logo because it is the asset that reads as a franchise
+     * banner, but Fanart carries none of it for anime, so the logo is what this actually gets in
+     * practice. Both are tried so a title that does gain clear art is picked up without a further
+     * change.
      *
      * A franchise with no logo anywhere simply shows its name. Nothing is substituted, since a
      * cropped poster standing in for a wordmark reads as a rendering fault rather than a design.
@@ -148,8 +153,8 @@ class FranchiseActivity : AppCompatActivity() {
 
         val id = card.sortOrder.lastOrNull { it.anilistId != null }?.anilistId ?: return
         lifecycleScope.launch {
-            val images = withContext(Dispatchers.IO) { AniZip.getImages(id) }
-            showLogo(images.logoUrl)
+            val art = withContext(Dispatchers.IO) { LogoApi.getClearartUrl(id) }
+            showLogo(art)
         }
     }
 

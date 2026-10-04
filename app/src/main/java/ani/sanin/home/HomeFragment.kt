@@ -777,7 +777,7 @@ class HomeFragment : Fragment() {
                             } catch (_: Exception) { null }
                         }
                     }
-                    val logos = allImages.mapValues { it.value.logoUrl }
+                    val logos = ani.sanin.connections.LogoApi.getLogosBatch(items.map { it.id })
                     withContext(Dispatchers.Main) {
                         val modern = isModernBanner()
                         bannerCarouselAdapter = BannerCarouselAdapter(
