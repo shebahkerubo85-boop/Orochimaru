@@ -449,6 +449,10 @@ class AnimeFragment : Fragment() {
         }
 
         var visible = false
+        // The button is laid out visible, so a preference that hides it has to hide it up
+        // front instead of only declining to show it once the list has been scrolled.
+        val hideScrollTop = PrefManager.getVal<Boolean>(PrefName.HideScrollTopButtons)
+        if (hideScrollTop) binding.animePageScrollTop.visibility = View.GONE
         fun animate() {
             val start = if (visible) 0f else 1f
             val end = if (!visible) 0f else 1f
@@ -503,7 +507,7 @@ class AnimeFragment : Fragment() {
                         }
                     }
                 }
-                if (layout.findFirstVisibleItemPosition() > 1 && !visible) {
+                if (!hideScrollTop && layout.findFirstVisibleItemPosition() > 1 && !visible) {
                     binding.animePageScrollTop.visibility = View.VISIBLE
                     visible = true
                     animate()

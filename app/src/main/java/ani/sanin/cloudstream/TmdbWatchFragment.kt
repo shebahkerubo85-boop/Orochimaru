@@ -168,6 +168,7 @@ class TmdbWatchFragment : Fragment() {
             ?: false
         Logger.log("TMDB_WATCH: opened mediaType=$mediaType mediaId=$mediaId style=$episodeStyle reversed=$reversed")
 
+        val hideScrollTop = PrefManager.getVal<Boolean>(PrefName.HideScrollTopButtons)
         binding.tmdbWatchBack.setOnClickListener { goBack() }
         FocusEffectUtil.applyFocusListener(binding.tmdbWatchBack)
         binding.tmdbWatchScrollTop.setOnClickListener {
@@ -199,7 +200,8 @@ class TmdbWatchFragment : Fragment() {
                 logo.alpha = 1f - (translation / -maxTranslate)
                 title.translationY = translation
                 title.alpha = 1f - (translation / -maxTranslate)
-                binding.tmdbWatchScrollTop.isVisible = recyclerView.computeVerticalScrollOffset() > 0
+                binding.tmdbWatchScrollTop.isVisible =
+                    !hideScrollTop && recyclerView.computeVerticalScrollOffset() > 0
             }
         })
 

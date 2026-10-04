@@ -86,6 +86,13 @@ class SettingsExtrasActivity : AppCompatActivity() {
                         PrefManager.setVal(PrefName.SmallView, it); restartApp()
                     },
                 ),
+                SubscreenBuilder.Entry(
+                    title = "Hide Scroll To Top Button",
+                    desc = "Hide the arrow that jumps back to the top of a list",
+                    switch = PrefManager.getVal<Boolean>(PrefName.HideScrollTopButtons) to {
+                        PrefManager.setVal(PrefName.HideScrollTopButtons, it)
+                    },
+                ),
 
             )),
         ))

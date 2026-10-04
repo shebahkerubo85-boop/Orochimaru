@@ -152,6 +152,11 @@ class AnimeWatchFragment : Fragment() {
 
         binding.mediaSourceRecycler.layoutManager = gridLayoutManager
 
+        // Laid out visible, so a preference that hides it has to hide it up front rather
+        // than only decline to show it later.
+        val hideScrollTop = PrefManager.getVal<Boolean>(PrefName.HideScrollTopButtons)
+        if (hideScrollTop) binding.ScrollTop.visibility = View.GONE
+
         binding.ScrollTop.setOnClickListener {
             binding.mediaSourceRecycler.scrollToPosition(10)
             binding.mediaSourceRecycler.smoothScrollToPosition(0)
@@ -176,7 +181,7 @@ class AnimeWatchFragment : Fragment() {
                 addToList.alpha = alpha
 
                 val position = gridLayoutManager.findFirstVisibleItemPosition()
-                if (position > 2) {
+                if (!hideScrollTop && position > 2) {
                     binding.ScrollTop.translationY = -(navBarHeight + 12.toPx).toFloat()
                     binding.ScrollTop.visibility = View.VISIBLE
                 } else {
