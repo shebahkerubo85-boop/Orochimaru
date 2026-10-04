@@ -383,7 +383,9 @@ object PrefManager {
     fun importAllPrefs(prefs: Map<String, *>, prefLocation: Location): Boolean {
         val pref = getPrefLocation(prefLocation)
         var hadError = false
-        pref.edit().clear().apply()
+        // Merge rather than clear the file first. A backup written by an older build has no
+        // keys for settings that have since been added, so clearing first would delete
+        // exactly those on import and hand the user a silently shorter settings list.
         with(pref.edit()) {
             prefs.forEach { (key, value) ->
                 when (value) {

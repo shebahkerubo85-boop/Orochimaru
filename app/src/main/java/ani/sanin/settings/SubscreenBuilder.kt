@@ -102,6 +102,12 @@ object SubscreenBuilder {
                         sDesc.text = entry.desc
                         sDesc.visibility = View.VISIBLE
                     }
+                    // The pref is the source of truth and is bound on every inflation, so the switch
+                    // must not restore its own checked state on top of that. Android restores a
+                    // view's state after onStart, and that setChecked call fires the listener
+                    // below, which would write the restored value straight back to the pref and
+                    // silently undo whatever the user last chose.
+                    sToggle.isSaveEnabled = false
                     sToggle.isChecked = entry.switch!!.first
                     sToggle.setOnCheckedChangeListener { _, isChecked -> entry.switch.second(isChecked) }
                     if (!entry.isEnabled) {
