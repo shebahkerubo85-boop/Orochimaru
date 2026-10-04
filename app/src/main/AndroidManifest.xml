@@ -464,12 +464,7 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/provider_paths" />
         </provider>
-
-        <activity
-            android:name="ani.sanin.settings.DownloadQueueActivity"
-            android:parentActivityName="ani.sanin.settings.SettingsActivity" />
-
-        <service
+<service
             android:name="eu.kanade.tachiyomi.extension.util.ExtensionInstallService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
