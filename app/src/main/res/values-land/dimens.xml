@@ -47,4 +47,10 @@
       is a couple of rows rather than half the viewport.
     -->
     <dimen name="franchise_poster_width">88dp</dimen>
+    <!--
+      Landscape override for the watch tab's card-to-edge gap. The movie watch tab uses 24dp in
+      landscape, and the anime tab shares this value so both keep the same card width when the
+      device is turned.
+    -->
+    <dimen name="watch_list_h_padding">24dp</dimen>
 </resources>

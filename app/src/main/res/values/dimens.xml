@@ -140,4 +140,15 @@
       percentage would make the ramp's reach depend on the screen size for no gain.
     -->
     <dimen name="franchise_poster_gradient_height">76dp</dimen>
+    <!--
+      Gap between the episode cards and the screen edge in the anime watch tab.
+
+      The movie watch tab has always used 8dp here, and the two tabs read the same value so
+      their cards come out the same width. GridLayoutManager turns this padding into card size
+      rather than into a gap - it divides the list into cells using width minus padding - so a
+      wider padding means narrower cards. 24dp here made the anime cards 32dp narrower than the
+      movie ones in portrait. Landscape is overridden in values-land to match the movie tab's
+      landscape value.
+    -->
+    <dimen name="watch_list_h_padding">8dp</dimen>
 </resources>

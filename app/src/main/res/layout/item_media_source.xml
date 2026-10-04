@@ -244,12 +244,7 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- The "Wrong title?" search clay. It used to be preceded by a sourceTitle TextView
-         that no code ever referenced: nothing in the adapter assigns it, so it was not a
-         title, just a stale view. It carried a weight of 1 and a default text of "Episodes",
-         so it took a full third of the row's width away from the title that is actually
-         set, and painted a leftover "Episodes" label above it. On a phone-width row that
-         is what squeezed the source name out to the screen edge and clipped it. -->
+    <!-- Fallen out of the box: EPISODES title with wrapped "Wrong title?" clay on the right -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -258,6 +253,15 @@
         android:orientation="horizontal"
         android:paddingStart="28dp"
         android:paddingEnd="3dp">
+
+        <TextView
+            android:id="@+id/sourceTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="@font/poppins_bold"
+            android:text="@string/eps"
+            android:textSize="16sp" />
 
         <!-- Wrapped wrong-title clay -->
         <LinearLayout
