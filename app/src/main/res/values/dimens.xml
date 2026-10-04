@@ -140,21 +140,4 @@
       percentage would make the ramp's reach depend on the screen size for no gain.
     -->
     <dimen name="franchise_poster_gradient_height">76dp</dimen>
-    <!--
-      Watch-tab episode grid: space reserved above the first row for the floating header, and
-      space below it to clear the navigation bar and the jump-to-top arrow.
-
-      These are portrait values. The pair is subtracted from the list viewport, so landscape
-      needs its own - see values-land. 300dp + 128dp is 428dp, which is more than a landscape
-      phone is tall, and a list whose content box has negative height squashes its rows, clips
-      cards at the edges and clamps a fling almost the moment it starts.
-    -->
-    <dimen name="watch_list_top_padding">300dp</dimen>
-    <dimen name="watch_list_bottom_padding">128dp</dimen>
-    <!--
-      The gap between the first/last episode card and the screen edge. The two watch tabs
-      share this so their cards line up with each other in the same orientation; landscape
-      needs a wider gap than portrait, so values-land overrides it. See values-land.
-    -->
-    <dimen name="watch_list_h_padding">8dp</dimen>
 </resources>

@@ -244,10 +244,12 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- The "Wrong title?" search clay, which used to be preceded by a sourceTitle
-         TextView that no code ever referenced. It carried a weight of 1, so on a
-         narrow row it took a full share of the width away from the title that is
-         actually set, while painting a leftover "Episodes" label above it. -->
+    <!-- The "Wrong title?" search clay. It used to be preceded by a sourceTitle TextView
+         that no code ever referenced: nothing in the adapter assigns it, so it was not a
+         title, just a stale view. It carried a weight of 1 and a default text of "Episodes",
+         so it took a full third of the row's width away from the title that is actually
+         set, and painted a leftover "Episodes" label above it. On a phone-width row that
+         is what squeezed the source name out to the screen edge and clipped it. -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

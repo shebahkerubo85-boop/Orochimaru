@@ -65,10 +65,10 @@
         android:focusable="false"
         android:descendantFocusability="afterDescendants"
         android:clipToPadding="false"
-        android:paddingTop="@dimen/watch_list_top_padding"
-        android:paddingStart="@dimen/watch_list_h_padding"
-        android:paddingEnd="@dimen/watch_list_h_padding"
-        android:paddingBottom="@dimen/watch_list_bottom_padding"
+        android:paddingTop="300dp"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="128dp"
         tools:listitem="@layout/item_episode_grid" />
 
     <androidx.cardview.widget.CardView
