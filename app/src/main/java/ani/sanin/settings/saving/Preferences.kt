@@ -33,7 +33,8 @@ enum class PrefName(val data: Pref) {
     VerboseLogging(Pref(Location.General, Boolean::class, false)),
     DohProvider(Pref(Location.General, Int::class, 0)),
     HidePrivate(Pref(Location.General, Boolean::class, false)),
-    HideScrollTopButtons(Pref(Location.General, Boolean::class, false)),
+    /** Removes the floating "jump to top" arrow that sits over long lists. */
+    HideScrollTopButtons(Pref(Location.General, Boolean::class, true)),
     DefaultUserAgent(
         Pref(
             Location.General,

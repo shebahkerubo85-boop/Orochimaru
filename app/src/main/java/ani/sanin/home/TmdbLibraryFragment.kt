@@ -1,6 +1,8 @@
 package ani.sanin.home
 
+import android.graphics.Color
 import android.os.Bundle
+import ani.sanin.isDarkTheme
 import ani.sanin.statusBarHeight
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
@@ -12,20 +14,17 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
-import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import ani.sanin.R
 import ani.sanin.Refresh
-import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.databinding.FragmentTmdbLibraryBinding
 import ani.sanin.loadImage
 import ani.sanin.util.FocusEffectUtil
-import ani.sanin.util.TvKeyboardUtil
 import ani.sanin.getThemeColor
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -127,39 +126,47 @@ class TmdbLibraryFragment : Fragment() {
             ).show(childFragmentManager, LibrarySettingsBottomSheet.TAG)
         }
 
-        // Search → inline bar
-        TvKeyboardUtil.setupTvInput(binding.tmdbLibSearchText)
-        binding.tmdbLibSearchBar.setOnClickListener { binding.tmdbLibSearchText.requestFocus() }
+        // Profile pill, sitting where the search field was so both library headers read the same.
+        // Only Simkl data backs this one - the anime pill is the AniList profile.
+        styleProfilePill()
+        // Border only while focused, so it appears for D-pad and stays off under a finger.
+        FocusEffectUtil.applyFocusListener(binding.tmdbLibProfileButton)
+        binding.tmdbLibProfileButton.setOnClickListener { openSimklProfile() }
 
-        FocusEffectUtil.applyFocusListener(binding.tmdbLibSearchBar)
-        binding.tmdbLibSearchText.addTextChangedListener { editable ->
-            val query = editable?.toString() ?: ""
-            sectionFragments.forEach { it.filter(query) }
-        }
-
-        // Avatar → open side rail
+        // Avatar → profile too
         FocusEffectUtil.applyFocusListener(binding.tmdbLibAvatar)
-        val libAvatarUrl = Anilist.avatar ?: Simkl.avatar
+        val libAvatarUrl = Simkl.avatar
         if (!libAvatarUrl.isNullOrBlank()) {
             binding.tmdbLibAvatar.loadImage(libAvatarUrl)
         }
         binding.tmdbLibAvatar.setOnClickListener {
-            FocusEffectUtil.spinOnTouch(binding.tmdbLibAvatar)
-            val act = requireActivity()
-            if (act is ani.sanin.MainActivity) {
-                val drawer = act.findViewById<androidx.drawerlayout.widget.DrawerLayout>(
-                    act.resources.getIdentifier("mainDrawer", "id", act.packageName))
-                if (drawer != null && !drawer.isDrawerOpen(android.view.Gravity.END)) {
-                    val popMethod = ani.sanin.MainActivity::class.java.getDeclaredMethod("populateRightRail")
-                    popMethod.isAccessible = true
-                    popMethod.invoke(act)
-                    drawer.openDrawer(android.view.Gravity.END)
-                }
-            }
+            openSimklProfile()
         }
-
-
     }
+
+    /** Solid pill behind the label, with the label colour inverted against it. */
+    private fun styleProfilePill() {
+        val dark = isDarkTheme()
+        val fill = if (dark) Color.WHITE else Color.BLACK
+        binding.tmdbLibProfileButton.background = android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+            cornerRadius = 20f * resources.displayMetrics.density
+            setColor(fill)
+        }
+        binding.tmdbLibProfileButton.setTextColor(if (dark) Color.BLACK else Color.WHITE)
+        binding.tmdbLibProfileButton.text =
+            Simkl.username?.takeIf { it.isNotBlank() } ?: "My Profile"
+    }
+
+    private fun openSimklProfile() {
+        startActivity(
+            android.content.Intent(
+                requireContext(),
+                ani.sanin.profile.SimklProfileActivity::class.java
+            )
+        )
+    }
+
     private fun loadLibrary() {
         viewLifecycleOwner.lifecycleScope.launch {
             val movies = withContext(Dispatchers.IO) { Simkl.getMovieLibrary() }

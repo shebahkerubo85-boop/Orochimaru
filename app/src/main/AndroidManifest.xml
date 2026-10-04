@@ -163,6 +163,10 @@
             android:parentActivityName=".MainActivity"
             android:windowSoftInputMode="adjustResize|stateHidden" />
         <activity
+            android:name=".profile.SimklProfileActivity"
+            android:parentActivityName=".MainActivity"
+            android:windowSoftInputMode="adjustResize|stateHidden" />
+        <activity
             android:name=".profile.FollowActivity"
             android:parentActivityName=".MainActivity"
             android:windowSoftInputMode="adjustResize|stateHidden" />

@@ -79,48 +79,33 @@
                     android:background="?android:attr/selectableItemBackground"
                     android:contentDescription="Settings"
                     android:focusable="true"
-                    android:nextFocusRight="@id/tmdbLibSearchBar"
+                    android:nextFocusRight="@id/tmdbLibProfileButton"
                     android:nextFocusDown="@id/tmdbLibTabLayout"
                     app:srcCompat="@drawable/ic_baseline_tune_24"
                     app:tint="?attr/colorOnBackground" />
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/tmdbLibSearchBar"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                <!-- Pill entry point to the profile, in the same slot the search field used to
+                     hold so the two library headers read the same. The fill and the label colour
+                     are set in TmdbLibraryFragment so they invert in dark mode. -->
+                <TextView
+                    android:id="@+id/tmdbLibProfileButton"
                     android:layout_width="0dp"
-                    android:layout_height="48dp"
+                    android:layout_height="40dp"
                     android:layout_weight="1"
                     android:layout_marginStart="8dp"
                     android:layout_marginEnd="8dp"
+                    android:clickable="true"
+                    android:ellipsize="end"
                     android:focusable="true"
-                    android:descendantFocusability="afterDescendants"
+                    android:fontFamily="@font/poppins_semi_bold"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:nextFocusDown="@id/tmdbLibTabLayout"
                     android:nextFocusLeft="@id/tmdbLibSettings"
                     android:nextFocusRight="@id/tmdbLibAvatar"
-                    android:nextFocusDown="@id/tmdbLibTabLayout"
-                    app:boxBackgroundColor="@android:color/transparent"
-                    app:boxBackgroundMode="outline"
-                    app:boxCornerRadiusBottomEnd="24dp"
-                    app:boxCornerRadiusBottomStart="24dp"
-                    app:boxCornerRadiusTopEnd="24dp"
-                    app:boxCornerRadiusTopStart="24dp"
-                    app:endIconDrawable="@drawable/ic_round_search_24"
-                    app:endIconTint="?attr/colorPrimary"
-                    app:hintAnimationEnabled="true">
-
-                    <AutoCompleteTextView
-                        android:id="@+id/tmdbLibSearchText"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="@font/poppins_semi_bold"
-                        android:hint="@string/search"
-                        android:imeOptions="actionSearch"
-                        android:inputType="textPersonName"
-                        android:selectAllOnFocus="true"
-                        android:padding="8dp"
-                        android:textSize="14sp"
-                        app:boxStrokeColor="?attr/colorPrimary"
-                        tools:ignore="LabelFor,TextContrastCheck" />
-                </com.google.android.material.textfield.TextInputLayout>
+                    android:text="My Profile"
+                    android:textSize="14sp"
+                    tools:ignore="SpeakableTextPresentCheck" />
 
                 <com.google.android.material.imageview.ShapeableImageView
                     android:id="@+id/tmdbLibAvatar"
@@ -129,7 +114,7 @@
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="Profile"
                     android:focusable="true"
-                    android:nextFocusLeft="@id/tmdbLibSearchBar"
+                    android:nextFocusLeft="@id/tmdbLibProfileButton"
                     android:nextFocusDown="@id/tmdbLibTabLayout"
                     android:padding="2dp"
                     android:scaleType="centerCrop"
@@ -149,7 +134,7 @@
             android:layout_height="48dp"
             android:focusable="true"
             android:focusableInTouchMode="true"
-            android:nextFocusUp="@id/tmdbLibSearchBar"
+            android:nextFocusUp="@id/tmdbLibProfileButton"
             android:nextFocusDown="@id/tmdbLibViewPager"
             app:tabContentStart="32dp"
             app:tabMode="scrollable"

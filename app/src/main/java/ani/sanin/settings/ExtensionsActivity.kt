@@ -14,6 +14,7 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.AutoCompleteTextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.updateLayoutParams
+import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
@@ -189,10 +190,12 @@ class ExtensionsActivity : AppCompatActivity() {
         binding.searchIconButton.setOnClickListener { toggleSearchBar() }
         updateSearchUiForTab(0)
 
-        binding.settingsContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-            topMargin = statusBarHeight
-            bottomMargin = navBarHeight
-        }
+        // Inset by padding, not by margin. A margin on a match_parent root leaves the layout itself
+        // taller than the window, so the list's scrollable range ends below the visible area and
+        // the last card can only ever be scrolled into the part nobody can see - which reads as
+        // the list refusing to move. Padding shrinks the content box instead, so the range and
+        // the cards stay on screen together.
+        binding.settingsContainer.updatePadding(top = statusBarHeight, bottom = navBarHeight)
 
         setupModeButtons()
     }

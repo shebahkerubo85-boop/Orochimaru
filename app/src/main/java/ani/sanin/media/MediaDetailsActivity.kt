@@ -109,7 +109,12 @@ class MediaDetailsActivity : AppCompatActivity() {
         val contract = ActivityResultContracts.OpenDocumentTree()
         launcher = LauncherWrapper(this, contract)
 
-        mediaSingleton = null
+        // Hand the media to the static so a rebuilt activity can find it again. Rotating hands
+        // this activity the very same Intent instance, and the extra was pulled off that at
+        // :88, so without this the rebuild resolves to emptyMedia() and immediately backs out
+        // to the home screen. Cleared again in onDestroy, but only when the activity is going
+        // away for good.
+        mediaSingleton = media
         ThemeManager(this).applyTheme()
         initActivity(this)
         MediaSingleton.bitmap = null
@@ -484,6 +489,13 @@ class MediaDetailsActivity : AppCompatActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putInt(STATE_SELECTED_TAB, selected)
+    }
+
+    override fun onDestroy() {
+        // A rotation destroys this activity too, but the one replacing it still needs the
+        // media, so only let go of it on a real teardown.
+        if (!isChangingConfigurations) mediaSingleton = null
+        super.onDestroy()
     }
 
     override fun onResume() {

@@ -124,9 +124,10 @@ class LibraryFragment : Fragment() {
         // Profile pill: solid fill with the label inverted against it, so it stays the
         // highest-contrast thing in the bar in either theme.
         styleProfilePill()
+        // applyFocusListener draws the border only while the pill holds focus, so it shows up
+        // for D-pad navigation and stays off under a finger.
         FocusEffectUtil.applyFocusListener(binding.profileButton)
         binding.profileButton.setOnClickListener {
-            FocusEffectUtil.spinOnTouch(binding.profileButton)
             openProfile()
         }
 
@@ -187,17 +188,26 @@ class LibraryFragment : Fragment() {
         binding.profileButton.setTextColor(if (dark) Color.BLACK else Color.WHITE)
     }
 
-    /** Opens the right-side rail, which is where the profile lives. */
+    /** Opens the AniList profile for the signed-in user. */
     private fun openProfile() {
-        val act = requireActivity()
-        if (act is ani.sanin.MainActivity) {
-            val drawer = act.findViewById<androidx.drawerlayout.widget.DrawerLayout>(
-                act.resources.getIdentifier("mainDrawer", "id", act.packageName))
-            if (drawer != null && !drawer.isDrawerOpen(android.view.Gravity.END)) {
-                val popMethod = ani.sanin.MainActivity::class.java.getDeclaredMethod("populateRightRail")
-                popMethod.isAccessible = true
-                popMethod.invoke(act)
-                drawer.openDrawer(android.view.Gravity.END)
+        val uid = Anilist.userid
+        if (uid != null) {
+            startActivity(
+                android.content.Intent(requireContext(), ani.sanin.profile.ProfileActivity::class.java)
+                    .putExtra("userId", uid)
+            )
+        } else {
+            // No id yet (still logging in, or logged out): the rail at least has the sign-in.
+            val act = requireActivity()
+            if (act is ani.sanin.MainActivity) {
+                val drawer = act.findViewById<androidx.drawerlayout.widget.DrawerLayout>(
+                    act.resources.getIdentifier("mainDrawer", "id", act.packageName))
+                if (drawer != null && !drawer.isDrawerOpen(android.view.Gravity.END)) {
+                    val popMethod = ani.sanin.MainActivity::class.java.getDeclaredMethod("populateRightRail")
+                    popMethod.isAccessible = true
+                    popMethod.invoke(act)
+                    drawer.openDrawer(android.view.Gravity.END)
+                }
             }
         }
     }
