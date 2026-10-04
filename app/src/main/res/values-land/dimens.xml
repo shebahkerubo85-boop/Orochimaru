@@ -54,4 +54,10 @@
     -->
     <dimen name="watch_list_top_padding">140dp</dimen>
     <dimen name="watch_list_bottom_padding">96dp</dimen>
+    <!--
+      Landscape edge gap between the episode cards and the screen edge. Portrait uses 8dp, but
+      landscape leaves the cards sitting much closer to the bezel, so it is widened to the 24dp
+      the landscape movie watch tab has always used. Both tabs read this, so they stay aligned.
+    -->
+    <dimen name="watch_list_h_padding">24dp</dimen>
 </resources>

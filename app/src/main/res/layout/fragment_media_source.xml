@@ -122,8 +122,8 @@
         android:descendantFocusability="afterDescendants"
         android:clipToPadding="false"
         android:paddingTop="@dimen/watch_list_top_padding"
-        android:paddingStart="8dp"
-        android:paddingEnd="8dp"
+        android:paddingStart="@dimen/watch_list_h_padding"
+        android:paddingEnd="@dimen/watch_list_h_padding"
         android:paddingBottom="@dimen/watch_list_bottom_padding"
         tools:itemCount="1"
         tools:listitem="@layout/item_media_source" />

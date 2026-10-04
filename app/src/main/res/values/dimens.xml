@@ -151,4 +151,10 @@
     -->
     <dimen name="watch_list_top_padding">300dp</dimen>
     <dimen name="watch_list_bottom_padding">128dp</dimen>
+    <!--
+      The gap between the first/last episode card and the screen edge. The two watch tabs
+      share this so their cards line up with each other in the same orientation; landscape
+      needs a wider gap than portrait, so values-land overrides it. See values-land.
+    -->
+    <dimen name="watch_list_h_padding">8dp</dimen>
 </resources>
