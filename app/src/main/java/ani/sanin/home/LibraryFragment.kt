@@ -1,5 +1,6 @@
 package ani.sanin.home
 
+import android.graphics.Color
 import android.os.Bundle
 import ani.sanin.statusBarHeight
 import android.view.LayoutInflater
@@ -7,7 +8,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
-import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.MutableLiveData
@@ -20,13 +20,13 @@ import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.databinding.FragmentLibraryBinding
 import ani.sanin.getThemeColor
+import ani.sanin.isDarkTheme
 import ani.sanin.loadImage
 import ani.sanin.media.user.ListViewPagerAdapter
 import ani.sanin.media.user.ListViewModel
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.util.FocusEffectUtil
-import ani.sanin.util.TvKeyboardUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -112,18 +112,23 @@ class LibraryFragment : Fragment() {
             }
         }
 
-        TvKeyboardUtil.setupTvInput(binding.searchViewText)
-        // Fix dpad chain: settings/search/avatar → tabs → pager grid.
+        // Fix dpad chain: settings/profile pill/avatar → tabs → pager grid.
         // XML already sets nextFocusDown to tabLayout, but ensure avatar bar is reachable.
         binding.listSettings.nextFocusDownId = R.id.listTabLayout
-        binding.searchBar.nextFocusDownId = R.id.listTabLayout
+        binding.profileButton.nextFocusDownId = R.id.listTabLayout
         binding.listAvatar.nextFocusDownId = R.id.listTabLayout
-        binding.listTabLayout.nextFocusUpId = R.id.searchBar
+        binding.listTabLayout.nextFocusUpId = R.id.profileButton
         binding.listTabLayout.nextFocusDownId = R.id.listViewPager
         binding.listViewPager.nextFocusUpId = R.id.listTabLayout
-        // Tapping the pill's padding (outside the field) still routes focus to
-        // the input so the keyboard comes up on both touch and dpad.
-        binding.searchBar.setOnClickListener { binding.searchViewText.requestFocus() }
+
+        // Profile pill: solid fill with the label inverted against it, so it stays the
+        // highest-contrast thing in the bar in either theme.
+        styleProfilePill()
+        FocusEffectUtil.applyFocusListener(binding.profileButton)
+        binding.profileButton.setOnClickListener {
+            FocusEffectUtil.spinOnTouch(binding.profileButton)
+            openProfile()
+        }
 
         // Settings: bottom sheet with sort / genre / 18+ toggles
         FocusEffectUtil.applyFocusListener(binding.listSettings)
@@ -158,11 +163,6 @@ class LibraryFragment : Fragment() {
             ).show(childFragmentManager, LibrarySettingsBottomSheet.TAG)
         }
 
-        // Search: always-expanded, filters visible lists
-        binding.searchViewText.addTextChangedListener {
-            model.searchLists(binding.searchViewText.text.toString())
-        }
-
         // Avatar: opens the right-side rail drawer
         FocusEffectUtil.applyFocusListener(binding.listAvatar)
         val avatarUrl = Anilist.avatar ?: Simkl.avatar
@@ -171,16 +171,33 @@ class LibraryFragment : Fragment() {
         }
         binding.listAvatar.setOnClickListener {
             FocusEffectUtil.spinOnTouch(binding.listAvatar)
-            val act = requireActivity()
-            if (act is ani.sanin.MainActivity) {
-                val drawer = act.findViewById<androidx.drawerlayout.widget.DrawerLayout>(
-                    act.resources.getIdentifier("mainDrawer", "id", act.packageName))
-                if (drawer != null && !drawer.isDrawerOpen(android.view.Gravity.END)) {
-                    val popMethod = ani.sanin.MainActivity::class.java.getDeclaredMethod("populateRightRail")
-                    popMethod.isAccessible = true
-                    popMethod.invoke(act)
-                    drawer.openDrawer(android.view.Gravity.END)
-                }
+            openProfile()
+        }
+    }
+
+    /** Solid pill behind the label, with the label colour inverted against it. */
+    private fun styleProfilePill() {
+        val dark = isDarkTheme()
+        val fill = if (dark) Color.WHITE else Color.BLACK
+        binding.profileButton.background = android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+            cornerRadius = 20f * resources.displayMetrics.density
+            setColor(fill)
+        }
+        binding.profileButton.setTextColor(if (dark) Color.BLACK else Color.WHITE)
+    }
+
+    /** Opens the right-side rail, which is where the profile lives. */
+    private fun openProfile() {
+        val act = requireActivity()
+        if (act is ani.sanin.MainActivity) {
+            val drawer = act.findViewById<androidx.drawerlayout.widget.DrawerLayout>(
+                act.resources.getIdentifier("mainDrawer", "id", act.packageName))
+            if (drawer != null && !drawer.isDrawerOpen(android.view.Gravity.END)) {
+                val popMethod = ani.sanin.MainActivity::class.java.getDeclaredMethod("populateRightRail")
+                popMethod.isAccessible = true
+                popMethod.invoke(act)
+                drawer.openDrawer(android.view.Gravity.END)
             }
         }
     }
