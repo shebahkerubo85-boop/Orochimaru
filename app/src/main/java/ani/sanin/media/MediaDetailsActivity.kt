@@ -408,6 +408,13 @@ class MediaDetailsActivity : AppCompatActivity() {
         // synopsis are, and it must not land on whichever tab this entry was last open on.
         val forcedTab = intent.getIntExtra(TAB_TO_OPEN, NO_TAB)
         if (forcedTab in INFO_TAB..COMMENTS_TAB) defaultTab = forcedTab
+        // A rotation rebuilds this activity from the same Intent, extras and all, so every
+        // branch above still asks for the tab the screen was originally opened on and would
+        // walk the user back off whatever they switched to. Those extras mean "where do I
+        // start"; a screen that is already up has passed that point, so the tab showing now
+        // outranks all of them.
+        val restoredTab = savedInstanceState?.getInt(STATE_SELECTED_TAB, NO_TAB) ?: NO_TAB
+        if (restoredTab in INFO_TAB..COMMENTS_TAB) defaultTab = restoredTab
         selectTab(defaultTab, animate = false)
 
         // Gesture for double-tap on banner bg
@@ -472,6 +479,11 @@ class MediaDetailsActivity : AppCompatActivity() {
         findViewById<CardView>(R.id.mediaClose)?.isVisible = !hasExtFragment
         findViewById<View>(R.id.mediaNavPills)?.isVisible = !hasExtFragment
         if (!hasExtFragment) binding.root.requestLayout()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt(STATE_SELECTED_TAB, selected)
     }
 
     override fun onResume() {
@@ -632,6 +644,9 @@ class MediaDetailsActivity : AppCompatActivity() {
         const val INFO_TAB = 0
         const val WATCH_TAB = 1
         const val COMMENTS_TAB = 2
+
+        /** Where the showing tab is parked across a configuration change. */
+        private const val STATE_SELECTED_TAB = "selectedTab"
     }
 
     class PopImageButton(

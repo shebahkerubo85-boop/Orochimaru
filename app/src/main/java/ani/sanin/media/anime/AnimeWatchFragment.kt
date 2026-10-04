@@ -158,7 +158,6 @@ class AnimeWatchFragment : Fragment() {
         if (hideScrollTop) binding.ScrollTop.visibility = View.GONE
 
         binding.ScrollTop.setOnClickListener {
-            binding.mediaSourceRecycler.scrollToPosition(10)
             binding.mediaSourceRecycler.smoothScrollToPosition(0)
         }
         FocusEffectUtil.applyFocusListener(binding.ScrollTop, binding.ScrollTop)
@@ -189,10 +188,6 @@ class AnimeWatchFragment : Fragment() {
                 }
             }
         })
-        model.scrolledToTop.observe(viewLifecycleOwner) {
-            if (it) binding.mediaSourceRecycler.scrollToPosition(0)
-        }
-
         continueEp = model.continueMedia ?: false
         model.getMedia().observe(viewLifecycleOwner) {
             if (it != null) {

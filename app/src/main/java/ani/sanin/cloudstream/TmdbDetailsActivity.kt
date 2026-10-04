@@ -176,7 +176,11 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         }
 
         val openTab = intent.getIntExtra(ARG_OPEN_TAB, -1)
-        if (openTab in TAB_INFO..TAB_COMMENTS) selectedPill = openTab
+        // A configuration change rebuilds this activity from the same Intent, extras
+        // included, so honouring this on every build lets the arrival hint overrule the
+        // tab that is already up and undo the restore above. It only means anything on
+        // a genuinely new arrival.
+        if (savedInstanceState == null && openTab in TAB_INFO..TAB_COMMENTS) selectedPill = openTab
 
         setupNavPills()
         selectTab(selectedPill)
