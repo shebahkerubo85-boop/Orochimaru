@@ -68,12 +68,13 @@ class AniPmProvider : NativeAnimeParser() {
                     val cover = (o["poster"] as? JsonPrimitive)?.contentOrNull
                     val eps = (o["episodeCount"] as? JsonPrimitive)?.intOrNull
                         ?: (o["subCount"] as? JsonPrimitive)?.intOrNull
+                    val anilistId = (o["anilistId"] as? JsonPrimitive)?.contentOrNull
                     ShowResponse(
                         name = title,
                         link = "$baseUrl/anime/$slug",
                         coverUrl = FileUrl(
                             cover?.let { if (it.startsWith("/")) "$baseUrl$it" else it }
-                                ?: "$baseUrl/api/anime/cover?anilistId=${o["anilistId"]?.contentOrNull ?: id}"
+                                ?: "$baseUrl/api/anime/cover?anilistId=${anilistId ?: id}"
                         ),
                         otherNames = listOfNotNull(native?.takeIf { it.isNotBlank() }),
                         total = eps,
