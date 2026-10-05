@@ -438,12 +438,12 @@ class MkissaProvider : NativeAnimeParser() {
         // The live envelope is `episode.tobeparsed`: one AES-GCM blob (0x01 || iv || ct+tag)
         // that decrypts to a JSON object whose sourceUrls is a single scalar, not an array of
         // objects like the decompiled reference extension assumed.
-        val sourceUrls = payload["tobeparsed"]?.toString()?.takeIf { it.isNotBlank() }
-        if (sourceUrls.isNullOrBlank()) {
+        val blob = (payload["tobeparsed"] as? JsonPrimitive)?.contentOrNull
+        if (blob.isNullOrBlank()) {
             Logger.log("MKissa: episode present but tobeparsed absent; keys=${payload.keys()}")
             throw IOException("MKissa: encrypted source blob missing")
         }
-        val plain = MkissaCrypto.decrypt(sourceUrls, mat.key)?.let(::parseJsonObject)
+        val plain = MkissaCrypto.decrypt(blob, mat.key)?.let(::parseJsonObject)
             ?: throw IOException("MKissa: could not decrypt source blob")
         val raw = plain.str("sourceUrls").orEmpty()
         Logger.log("MKissa: decrypted sourceUrls len=${raw.length} head=${raw.take(48)}")
