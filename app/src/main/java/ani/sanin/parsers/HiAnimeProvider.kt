@@ -87,10 +87,10 @@ class HiAnimeProvider : NativeAnimeParser() {
             val body = hiGet("$api/episode/list/$id", referer = "$baseUrl/")
             val episodes = mutableListOf<Episode>()
             EPISODE_ITEM.findAll(body).forEach { match ->
-                val epId = match.groupValues["id"].trim()
-                val number = match.groupValues["number"].trim().toIntOrNull()
+                val epId = match.groups["id"]?.value.orEmpty().trim()
+                val number = match.groups["number"]?.value.orEmpty().trim().toIntOrNull()
                 if (epId.isBlank() || number == null) return@forEach
-                val title = decodeEntities(match.groupValues["title"]).trim()
+                val title = decodeEntities(match.groups["title"]?.value.orEmpty()).trim()
                 episodes.add(
                     Episode(
                         number = number.toString(),
@@ -122,9 +122,9 @@ class HiAnimeProvider : NativeAnimeParser() {
             val body = hiGet("$api/episode/servers?episodeId=$episodeId", referer = episodeLink)
             val seen = mutableSetOf<String>()
             SERVER_ITEM.findAll(body).mapNotNull { match ->
-                val channel = match.groupValues["channel"].trim().lowercase()
-                val name = decodeEntities(match.groupValues["name"]).trim()
-                val hash = match.groupValues["hash"].trim()
+                val channel = match.groups["channel"]?.value.orEmpty().trim().lowercase()
+                val name = decodeEntities(match.groups["name"]?.value.orEmpty()).trim()
+                val hash = match.groups["hash"]?.value.orEmpty().trim()
                 if (hash.isBlank() || name.isBlank()) return@mapNotNull null
                 val embed = hiDecodeHash(hash) ?: return@mapNotNull null
                 // "ZokoAnime SUB" and "ZokoAnime DUB" are the same upstream channel
@@ -147,7 +147,6 @@ class HiAnimeProvider : NativeAnimeParser() {
     override suspend fun getVideoExtractor(server: VideoServer): VideoExtractor =
         HiAnimeZokoExtractor(server)
 
-    private fun encode(value: String): String = java.net.URLEncoder.encode(value, "UTF-8")
 
     companion object {
         private val SHOW_LINK = Regex(
@@ -257,22 +256,20 @@ class HiAnimeZokoExtractor(override val server: VideoServer) : VideoExtractor() 
             }.orEmpty()
 
             hiLog("got ${master.take(110)} with ${subtitles.size} subtitles")
-            val videos = hiResolveVariants(master, headers)
-            if (videos.isEmpty()) {
-                VideoContainer(
-                    listOf(Video(null, VideoType.M3U8, FileUrl(master, headers))),
-                    subtitles
-                )
+            val hls = hiResolveVariants(master, headers)
+            val videos = if (hls.videos.isEmpty()) {
+                listOf(Video(null, VideoType.M3U8, FileUrl(master, headers)))
             } else {
-                VideoContainer(videos, subtitles)
+                hls.videos
             }
+            VideoContainer(videos, subtitles, audioTracks = hls.audioTracks)
         } catch (e: Exception) {
             hiLog("extract error: ${e.message}")
             VideoContainer(emptyList())
         }
     }
 
-    private fun hiResolveVariants(master: String, headers: Map<String, String>): List<Video> = try {
+    private fun hiResolveVariants(master: String, headers: Map<String, String>): HiHlsResult = try {
         val body = hiGet(master, referer = headers["Referer"])
         val base = URI(master)
         val audioTracks = mutableListOf<Track>()
@@ -317,11 +314,17 @@ class HiAnimeZokoExtractor(override val server: VideoServer) : VideoExtractor() 
                 i = j
             } else i++
         }
-        videos
+        HiHlsResult(videos, audioTracks)
     } catch (e: Exception) {
-        emptyList()
+        hiLog("variant parse failed: ${e.message}")
+        HiHlsResult(emptyList(), emptyList())
     }
 }
+
+private data class HiHlsResult(
+    val videos: List<Video>,
+    val audioTracks: List<Track>
+)
 
 private val HI_PAYLOAD = Regex("""window\.__P\s*=\s*"([^"]+)"""")
 
