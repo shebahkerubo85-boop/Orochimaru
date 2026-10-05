@@ -25,6 +25,7 @@ object AnimeSources : WatchSources() {
             ReanimeProvider(),
             AniWavesProvider(),
             HiAnimeProvider(),
+            AniPmProvider(),
         )
     }
 
