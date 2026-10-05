@@ -661,7 +661,7 @@ class MkissaProvider : NativeAnimeParser() {
                 // serial loop spends N x timeout on a handful of dead edges, which is what turned a
                 // few seconds of work into an hour of silence.
                 val futures = next.map { url ->
-                    pool.submit(Callable { fetchCrawlChunk(url) }) }
+                    pool.submit(Callable { fetchCrawlChunk(url) })
                 }
                 val fetched = ArrayList<Pair<String, String>>(next.size)
                 for (future in futures) {
