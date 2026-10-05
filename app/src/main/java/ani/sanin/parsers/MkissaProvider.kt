@@ -440,7 +440,7 @@ class MkissaProvider : NativeAnimeParser() {
         // objects like the decompiled reference extension assumed.
         val blob = (payload["tobeparsed"] as? JsonPrimitive)?.contentOrNull
         if (blob.isNullOrBlank()) {
-            Logger.log("MKissa: episode present but tobeparsed absent; keys=${payload.keys()}")
+            Logger.log("MKissa: episode present but tobeparsed absent; keys=${payload.keys}")
             throw IOException("MKissa: encrypted source blob missing")
         }
         val plain = MkissaCrypto.decrypt(blob, mat.key)?.let(::parseJsonObject)
