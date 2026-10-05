@@ -185,9 +185,15 @@ class MkissaProvider : NativeAnimeParser() {
 
         // A rejected signature just means the site rotated its key material; rebuild once and retry
         // before giving up, so a normal key rotation is invisible to the user.
+        //
+        // Only retry a genuine crypto rejection. Retrying NEED_CAPTCHA with fresh material cannot
+        // succeed, and doubling the request rate on every episode click makes the captcha gate
+        // stricter, so that failure is returned immediately.
         val episode = runCatching { signedEpisode(showId, translation, episodeLink) }
             .recoverCatching { first ->
-                Logger.log("MKissa: retrying ep $episodeLink with fresh material: ${first.message}")
+                val msg = first.message.orEmpty()
+                if (!msg.contains(CRYPTO_STALE_ERROR)) throw first
+                Logger.log("MKissa: retrying ep $episodeLink with fresh material: $msg")
                 signedEpisode(showId, translation, episodeLink, forceRefresh = true)
             }
             .getOrElse {
@@ -423,13 +429,16 @@ class MkissaProvider : NativeAnimeParser() {
                 throw IOException("MKissa is rate limiting this device (NEED_CAPTCHA); streams return on their own later")
             }
             // AA_CRYPTO_STALE means the signed envelope was rejected: the key/epoch/signature did
-            // not verify. Refreshing the bootstrap material is the documented remedy on-site
-            // ("decrypt failed - refresh bootstrap", "key cache stale - epoch or lane changed").
+            // not verify. Refresh the cached material so the caller's retry rebuilds it, matching
+            // the on-site remedy ("decrypt failed - refresh bootstrap", "key cache stale - epoch
+            // or lane changed"). signCryptoStale lets the retry distinguish this from a captcha.
             if (firstMessage.contains(CRYPTO_STALE_ERROR)) {
-                Logger.log("MKissa: $CRYPTO_STALE_ERROR, refreshing bootstrap material")
-                refreshMaterial()
+                Logger.log("MKissa: $CRYPTO_STALE_ERROR, dropping cached material")
+                clearMaterial()
+                throw IOException("$CRYPTO_STALE_ERROR: signed envelope rejected, material rebuilt")
             }
             Logger.log("MKissa: GraphQL error: $firstMessage")
+            throw IOException("MKissa: GraphQL error: $firstMessage")
         }
 
         val payload = (obj["data"] as? JsonObject)?.get("episode") as? JsonObject
@@ -585,6 +594,15 @@ class MkissaProvider : NativeAnimeParser() {
     private fun refreshMaterial(): Material {
         material = null
         return material()
+    }
+
+    /**
+     * Drops the cached key material without immediately re-fetching it. Called when the signed
+     * envelope is rejected, so the follow-up attempt rebuilds it once instead of paying for a
+     * bootstrap round-trip that the retry would immediately throw away.
+     */
+    private fun clearMaterial() {
+        material = null
     }
 
     private fun bootstrap(mask: ByteArray, info: MkissaBundle.BuildInfo, group: String): Material {
