@@ -807,7 +807,7 @@ class MkissaProvider : NativeAnimeParser() {
             }
         """.trimIndent()
 
-        private const val SEARCH_QUERY = """
+        private val SEARCH_QUERY = """
             query(${'$'}search: SearchInput!, ${'$'}limit: Int, ${'$'}page: Int) {
               shows(search: ${'$'}search, limit: ${'$'}limit, page: ${'$'}page) {
                 pageInfo {
@@ -825,7 +825,7 @@ class MkissaProvider : NativeAnimeParser() {
             }
         """.trimIndent()
 
-        private const val EPISODES_QUERY = """
+        private val EPISODES_QUERY = """
             query(${'$'}_id: String!) {
               show(_id: ${'$'}_id) {
                 _id
