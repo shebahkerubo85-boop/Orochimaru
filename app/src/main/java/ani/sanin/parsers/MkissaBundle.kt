@@ -18,6 +18,22 @@ internal object MkissaBundle {
         val config: MkissaCrypto.Config,
     )
 
+    /**
+     * The build this parser was written against, used when the crypto chunk cannot be reached.
+     *
+     * Scraping the bundle is only a way to survive the site rotating its build: the seeds and
+     * config are per-build, but nothing else about the request changes. The bundle lives on a
+     * separate CDN that is not always reachable from a phone's network, and a stalled fetch there
+     * would otherwise block playback outright even though the API host is fine. Verified against
+     * the live chunk: rotation 194, `md=Tt(65)`, and a config that matches [MkissaCrypto.Config]
+     * exactly, so prefer the scrape and keep this only as a floor.
+     */
+    val KNOWN_GOOD = BuildInfo(
+        buildId = "178",
+        seeds = listOf("BEhxxUiiZHI=", "j7jB8srL7lk=", "OOK1Z/briyE=", "0yegxzQpyVA="),
+        config = MkissaCrypto.Config(),
+    )
+
     private class Base(val table: String, val offset: Int)
     private class Alias(val base: String, val argIndex: Int, val delta: Int)
 

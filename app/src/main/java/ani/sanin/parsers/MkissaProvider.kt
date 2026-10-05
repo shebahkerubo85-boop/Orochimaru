@@ -23,6 +23,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 import javax.crypto.spec.SecretKeySpec
 
 /**
@@ -505,7 +506,7 @@ class MkissaProvider : NativeAnimeParser() {
         material?.let { return it }
         synchronized(this) {
             material?.let { return it }
-            val info = buildInfo ?: discoverBuild().also { buildInfo = it }
+            val info = resolveBuild()
             val mask = MkissaCrypto.deriveMask(info.buildId, info.seeds, info.config)
                 ?: throw IOException("MKissa: could not derive mask from build ${info.buildId}")
             val group = keyGroup(siteBase)
@@ -515,10 +516,15 @@ class MkissaProvider : NativeAnimeParser() {
         }
     }
 
-    /** Drops cached material and rebuilds it, used when the server rejects our signature. */
+    /**
+     * Drops cached material and rebuilds it, used when the server rejects our signature.
+     *
+     * A rejected signature means the epoch moved, not that the site redeployed, so the scraped
+     * build is deliberately kept: re-crawling here would pay the bundle crawl again on the retry
+     * path for no benefit.
+     */
     private fun refreshMaterial(): Material {
         material = null
-        buildInfo = null
         return material()
     }
 
@@ -583,23 +589,46 @@ class MkissaProvider : NativeAnimeParser() {
         }
     }
 
+    /**
+     * Resolves the per-build crypto material, preferring a live scrape of the site's crypto chunk.
+     *
+     * The scrape only exists to survive the site rotating its build, so every failure path lands on
+     * [MkissaBundle.KNOWN_GOOD] instead of propagating: the API host is frequently reachable even
+     * when the CDN serving the bundle is not, and a missing server sheet is a worse outcome than a
+     * slightly stale build.
+     */
+    private fun resolveBuild(): MkissaBundle.BuildInfo {
+        buildInfo?.let { return it }
+        synchronized(this) {
+            buildInfo?.let { return it }
+            val scraped = runCatching { crawlBundle() }.getOrElse {
+                Logger.log("MKissa: bundle scrape failed (${it.message}), using build ${MkissaBundle.KNOWN_GOOD.buildId}")
+                null
+            }
+            val info = scraped ?: MkissaBundle.KNOWN_GOOD
+            Logger.log("MKissa: crypto material from build ${info.buildId} (${if (scraped != null) "scrape" else "fallback"})")
+            buildInfo = info
+            return info
+        }
+    }
+
     /** Walks the SvelteKit entry bundle to the chunk that carries the crypto implementation. */
-    private fun discoverBuild(): MkissaBundle.BuildInfo {
-        val html = rawGet("$siteBase/", mapOf("User-Agent" to USER_AGENT, "Accept" to "text/html,*/*"))
+    private fun crawlBundle(): MkissaBundle.BuildInfo {
+        val html = rawGet("$siteBase/", mapOf("User-Agent" to USER_AGENT, "Accept" to "text/html,*/*"), crawl = true)
         val entryPath = MkissaBundle.APP_ENTRY_REGEX.find(html)?.groupValues?.get(1)
-            ?: throw IOException("MKissa: could not find the app entry in the site HTML")
+            ?: throw IOException("could not find the app entry in the site HTML")
         // The site references its entry chunk by absolute CDN url, but keep the relative case working
         // in case that ever changes.
         val entryUrl = when {
             entryPath.startsWith("http://") || entryPath.startsWith("https://") -> entryPath
             else -> siteBase.toHttpUrl().resolve(entryPath.removePrefix("/"))?.toString()
-        } ?: throw IOException("MKissa: bad entry path $entryPath")
+        } ?: throw IOException("bad entry path $entryPath")
         Logger.log("MKissa: entry bundle $entryUrl")
-        val entryJs = runCatching {
-            rawGet(entryUrl, mapOf("User-Agent" to USER_AGENT, "Referer" to "$siteBase/"))
-        }.getOrElse {
-            throw IOException("MKissa: could not fetch entry bundle $entryUrl: ${it.message}")
-        }
+        val entryJs = rawGet(
+            entryUrl,
+            mapOf("User-Agent" to USER_AGENT, "Referer" to "$siteBase/"),
+            crawl = true,
+        )
 
         // The entry only lists its SvelteKit nodes, and each of those imports the shared chunks, so
         // this has to be a shallow graph walk rather than a single pass. Bounded so a restructured
@@ -616,6 +645,7 @@ class MkissaProvider : NativeAnimeParser() {
                         Logger.log("MKissa: build ${info.buildId} from $url (hop $hop)")
                         return info
                     }
+                    Logger.log("MKissa: crypto chunk $url had no usable build info")
                 }
                 val base = runCatching { url.toHttpUrl() }.getOrNull() ?: continue
                 resolveChunkCandidates(base, js).forEach { candidate ->
@@ -623,18 +653,23 @@ class MkissaProvider : NativeAnimeParser() {
                 }
             }
             if (next.isEmpty()) break
+            Logger.log("MKissa: bundle hop ${hop + 1}, fetching ${next.size} chunk(s)")
             val fetched = ArrayList<Pair<String, String>>(next.size)
             for (url in next) {
-                val js = runCatching {
-                    rawGet(url, mapOf("User-Agent" to USER_AGENT, "Referer" to "$siteBase/"))
-                }.getOrNull() ?: continue
-                fetched += url to js
+                // Log the miss instead of skipping silently: a whole crawl that quietly returns
+                // nothing looks identical to a hang from the episode list.
+                val js = try {
+                    rawGet(url, mapOf("User-Agent" to USER_AGENT, "Referer" to "$siteBase/"), crawl = true)
+                } catch (e: Exception) {
+                    Logger.log("MKissa: chunk ${url.substringAfterLast('/')} failed (${e.message})")
+                    null
+                }
+                if (js != null) fetched += url to js
             }
             frontier = fetched
             hop++
         }
-        Logger.log("MKissa: walked ${visited.size} bundle file(s) without finding the crypto chunk")
-        throw IOException("MKissa: no crypto chunk with usable build info found")
+        throw IOException("walked ${visited.size} bundle file(s) without finding the crypto chunk")
     }
 
     /**
@@ -688,11 +723,12 @@ class MkissaProvider : NativeAnimeParser() {
 
     // ============================== http helpers ==============================
 
-    private fun rawGet(url: String, headers: Map<String, String>): String {
+    private fun rawGet(url: String, headers: Map<String, String>, crawl: Boolean = false): String {
         val request = Request.Builder().url(url).apply {
             headers.forEach { (k, v) -> if (v.isNotBlank()) header(k, v) }
         }.get().build()
-        okHttpClient.newCall(request).execute().use {
+        val client = if (crawl) crawlClient else okHttpClient
+        client.newCall(request).execute().use {
             val body = it.body?.string().orEmpty()
             if (!it.isSuccessful) throw IOException("HTTP ${it.code} for $url")
             return body
@@ -770,6 +806,19 @@ class MkissaProvider : NativeAnimeParser() {
         /** entry -> nodes -> chunks is all that is needed in practice; the cap is a safety net. */
         private const val MAX_BUNDLE_HOPS = 3
         private val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
+
+        /**
+         * The shared client retries a stalled connect twice at 30s each and is capped at two
+         * minutes per call, so a CDN that accepts the socket and then goes quiet costs ~90s before
+         * anything is logged. Bundle scraping is a nicety, not a prerequisite, so it gets its own
+         * short leash and falls back to [MkissaBundle.KNOWN_GOOD].
+         */
+        private val crawlClient = okHttpClient.newBuilder()
+            .connectTimeout(6, TimeUnit.SECONDS)
+            .readTimeout(6, TimeUnit.SECONDS)
+            .callTimeout(12, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(false)
+            .build()
 
         private val XOR_MASKS = listOf(
             "allanimenews",
