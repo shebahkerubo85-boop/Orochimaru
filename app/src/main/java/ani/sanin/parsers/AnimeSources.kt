@@ -24,7 +24,6 @@ object AnimeSources : WatchSources() {
             AnimeJLProvider(),
             ReanimeProvider(),
             AniWavesProvider(),
-            MkissaProvider(),
         )
     }
 
