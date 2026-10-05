@@ -8,6 +8,7 @@ import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -371,8 +372,9 @@ class MkissaProvider : NativeAnimeParser() {
         val variables = buildJsonObject {
             put("showId", showId)
             put("translationType", translation)
-            // The site's query types this as Float!, so it has to go over the wire as a number.
-            put("episodeNum", number.toFloatOrNull() ?: 0f)
+            // Live schema: $episodeString: String! (not episodeNum: Float!), and
+            // $translationType is the VaildTranslationTypeEnumType! enum, not String!.
+            put("episodeString", number)
         }
         val hash = MkissaCrypto.sha256Hex(STREAM_QUERY)
         val aaReq = MkissaCrypto.buildAaReq(mat.key, mat.epoch, mat.buildId, hash, LANE_EPISODE)
@@ -386,7 +388,8 @@ class MkissaProvider : NativeAnimeParser() {
         }
 
         // Try the registered persisted query first, then register it once if the server has never
-        // seen the hash.
+        // seen the hash. Every step is logged, because a registration that quietly fails looks
+        // exactly like a hash the server refuses to keep.
         var json = runCatching {
             apqGet(variables, extensions, mat)
         }.getOrElse { error ->
@@ -394,10 +397,22 @@ class MkissaProvider : NativeAnimeParser() {
             null
         }
 
-        if (json != null && json.isPersistedQueryMissing()) {
-            Logger.log("MKissa: registering persisted query")
-            runCatching { apqPost(STREAM_QUERY, variables, extensions, mat) }
-            json = runCatching { apqGet(variables, extensions, mat) }.getOrNull()
+        if (json == null) {
+            // A GET that never produced a wrapper is the signature the site uses for an unknown
+            // persisted query, so register and retry rather than giving up on the first miss.
+            Logger.log("MKissa: apq get returned nothing, registering persisted query")
+            registerPersistedQuery(variables, extensions, mat)
+            json = runCatching { apqGet(variables, extensions, mat) }.getOrElse { error ->
+                Logger.log("MKissa: apq get after register failed: ${error.message}")
+                null
+            }
+        } else if (json.isPersistedQueryMissing()) {
+            Logger.log("MKissa: persisted query missing, registering")
+            registerPersistedQuery(variables, extensions, mat)
+            json = runCatching { apqGet(variables, extensions, mat) }.getOrElse { error ->
+                Logger.log("MKissa: apq get after register failed: ${error.message}")
+                null
+            }
         }
 
         val obj = json ?: throw IOException("MKissa: no response for episode query")
@@ -407,27 +422,51 @@ class MkissaProvider : NativeAnimeParser() {
             if (firstMessage.contains(CAPTCHA_ERROR) || firstMessage.contains("captcha", ignoreCase = true)) {
                 throw IOException("MKissa is rate limiting this device (NEED_CAPTCHA); streams return on their own later")
             }
+            // AA_CRYPTO_STALE means the signed envelope was rejected: the key/epoch/signature did
+            // not verify. Refreshing the bootstrap material is the documented remedy on-site
+            // ("decrypt failed - refresh bootstrap", "key cache stale - epoch or lane changed").
+            if (firstMessage.contains(CRYPTO_STALE_ERROR)) {
+                Logger.log("MKissa: $CRYPTO_STALE_ERROR, refreshing bootstrap material")
+                refreshMaterial()
+            }
             Logger.log("MKissa: GraphQL error: $firstMessage")
         }
 
         val payload = (obj["data"] as? JsonObject)?.get("episode") as? JsonObject
             ?: throw IOException("MKissa: episode missing from response")
+
+        // The live envelope is `episode.tobeparsed`: one AES-GCM blob (0x01 || iv || ct+tag)
+        // that decrypts to a JSON object whose sourceUrls is a single scalar, not an array of
+        // objects like the decompiled reference extension assumed.
+        val sourceUrls = payload["tobeparsed"]?.toString()?.takeIf { it.isNotBlank() }
+        if (sourceUrls.isNullOrBlank()) {
+            Logger.log("MKissa: episode present but tobeparsed absent; keys=${payload.keys()}")
+            throw IOException("MKissa: encrypted source blob missing")
+        }
+        val plain = MkissaCrypto.decrypt(sourceUrls, mat.key)?.let(::parseJsonObject)
+            ?: throw IOException("MKissa: could not decrypt source blob")
+        val raw = plain.str("sourceUrls").orEmpty()
+        Logger.log("MKissa: decrypted sourceUrls len=${raw.length} head=${raw.take(48)}")
+        val url = decodeSource(raw)
+        if (url.isBlank()) throw IOException("MKissa: decrypted sourceUrl was blank")
         return EpisodePayload(
-            sources = (payload["sourceUrls"] as? JsonArray).orEmpty().mapNotNull { el ->
-                val o = el as? JsonObject ?: return@mapNotNull null
-                Source(
-                    url = decodeSource(o.str("sourceUrl").orEmpty()),
-                    type = o.str("type").orEmpty(),
-                    name = o.str("sourceName").orEmpty(),
-                )
-            }.filter { it.url.isNotBlank() }
+            sources = listOf(Source(url = url, type = plain.str("type").orEmpty(), name = plain.str("name").orEmpty()))
         )
+    }
+
+    /** Sends the full query once so the server can register the hash, then forgets about it. */
+    private fun registerPersistedQuery(variables: JsonObject, extensions: JsonObject, mat: Material) {
+        runCatching { apqPost(STREAM_QUERY, variables, extensions, mat) }
+            .onFailure { Logger.log("MKissa: apq register failed: ${it.message}") }
     }
 
     private fun apqGet(variables: JsonObject, extensions: JsonObject, mat: Material): JsonObject {
         val url = "$apiBase/api?variables=${encode(Mapper.json.encodeToString(JsonElement.serializer(), variables))}" +
             "&extensions=${encode(Mapper.json.encodeToString(JsonElement.serializer(), extensions))}"
-        return postJson(url, "", streamHeaders(mat), mat)
+        // This has to be a real GET. Reusing the POST helper here sent an empty-bodied POST to a
+        // url that expects the persisted query in the query string, and the server answered with
+        // something that was not a JSON wrapper at all.
+        return getJson(url, streamHeaders(mat))
     }
 
     private fun apqPost(
@@ -479,6 +518,25 @@ class MkissaProvider : NativeAnimeParser() {
             ?: throw IOException("MKissa: bad GraphQL response")
     }
 
+    /** GET counterpart to [postJson], used by the persisted-query GET form. */
+    private fun getJson(url: String, headers: Map<String, String>): JsonObject {
+        val request = Request.Builder().url(url).apply {
+            headers.forEach { (k, v) -> if (v.isNotBlank()) header(k, v) }
+        }.get().build()
+        val text = okHttpClient.newCall(request).execute().use { it.body?.string().orEmpty() }
+        return parseWrapper(text, url)
+    }
+
+    /**
+     * Parses the response envelope, quoting what actually came back.
+     *
+     * A bare "bad response body" cost a whole debugging round trip once already: the real cause was
+     * a wrong HTTP verb, which is invisible unless the body is in the message.
+     */
+    private fun parseWrapper(text: String, url: String): JsonObject =
+        runCatching { Mapper.json.parseToJsonElement(text) as? JsonObject }.getOrNull()
+            ?: throw IOException("MKissa: bad response body from $url: '${text.take(200).replace('\n', ' ')}'")
+
     /**
      * Both the GraphQL `data` block and the streamed `incremental` blobs arrive encrypted; the
      * wrapper's `err` field is the only plaintext.
@@ -488,8 +546,7 @@ class MkissaProvider : NativeAnimeParser() {
             headers.forEach { (k, v) -> header(k, v) }
         }.post(body.toRequestBody(JSON_MEDIA)).build()
         val text = okHttpClient.newCall(request).execute().use { it.body?.string().orEmpty() }
-        val wrapper = runCatching { Mapper.json.parseToJsonElement(text) as? JsonObject }.getOrNull()
-            ?: throw IOException("MKissa: bad response body")
+        val wrapper = parseWrapper(text, url)
         val errText = (wrapper["err"] as? JsonPrimitive)?.contentOrNull
         val encrypted = wrapper.str("data")
         if (encrypted.isNullOrBlank()) {
@@ -802,6 +859,10 @@ class MkissaProvider : NativeAnimeParser() {
     private fun JsonObject.str(key: String): String? =
         (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull
 
+    /** Parses a decrypted blob into a JSON object, or null if it isn't one. */
+    private fun parseJsonObject(text: String): JsonObject? =
+        runCatching { Json.parseToJsonElement(text) as? JsonObject }.getOrNull()
+
     private fun JsonObject.bool(key: String): Boolean =
         (this[key] as? JsonPrimitive)?.booleanOrNull == true
 
@@ -835,6 +896,7 @@ class MkissaProvider : NativeAnimeParser() {
         private const val LANE_EPISODE = "k7"
         private const val INTERNAL_PREFIX = "/apivtwo/"
         private const val CAPTCHA_ERROR = "NEED_CAPTCHA"
+        private const val CRYPTO_STALE_ERROR = "AA_CRYPTO_STALE"
 
         /** entry -> nodes -> chunks is all that is needed in practice; the cap is a safety net. */
         private const val MAX_BUNDLE_HOPS = 3
@@ -880,22 +942,9 @@ class MkissaProvider : NativeAnimeParser() {
          * covers SHA-256 of the query text, so reformatting it changes the hash.
          */
         private val STREAM_QUERY = """
-            query(${'$'}showId: String!, ${'$'}translationType: String!, ${'$'}episodeNum: Float!) {
-              episode(showId: ${'$'}showId, translationType: ${'$'}translationType, episodeNum: ${'$'}episodeNum) {
-                id
-                episodeInfo {
-                  vidPath
-                  vidPathAlt
-                  vidSize
-                  vidDuration
-                }
-                uploadDate
-                sourceUrls {
-                  sourceUrl
-                  type
-                  sourceName
-                  priority
-                }
+            query(${'$'}showId: String!, ${'$'}translationType: VaildTranslationTypeEnumType!, ${'$'}episodeString: String!) {
+              episode(showId: ${'$'}showId, translationType: ${'$'}translationType, episodeString: ${'$'}episodeString) {
+                sourceUrls
                 show {
                   _id
                 }
