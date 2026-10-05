@@ -666,7 +666,7 @@ class MkissaProvider : NativeAnimeParser() {
                 val fetched = ArrayList<Pair<String, String>>(next.size)
                 for (future in futures) {
                     val got = try {
-                        future.get(max(left, 1L), TimeUnit.MILLISECONDS)
+                        future.get(left.coerceAtLeast(1L), TimeUnit.MILLISECONDS)
                     } catch (e: Exception) {
                         Logger.log("MKissa: chunk fetch gave up (${e.javaClass.simpleName})")
                         continue
