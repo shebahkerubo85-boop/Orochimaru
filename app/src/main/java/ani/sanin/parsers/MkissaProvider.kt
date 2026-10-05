@@ -23,6 +23,8 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import javax.crypto.spec.SecretKeySpec
 
@@ -630,60 +632,91 @@ class MkissaProvider : NativeAnimeParser() {
             crawl = true,
         )
 
-        // The entry only lists its SvelteKit nodes, and each of those imports the shared chunks, so
-        // this has to be a shallow graph walk rather than a single pass. Bounded so a restructured
-        // bundle can never turn into an unbounded crawl.
-        val visited = mutableSetOf(entryUrl)
-        var frontier = listOf(entryUrl to entryJs)
-        var hop = 0
-        while (hop < MAX_BUNDLE_HOPS) {
-            val next = linkedSetOf<String>()
-            for ((url, js) in frontier) {
-                if (js.contains(MkissaBundle.CRYPTO_CHUNK_MARKER)) {
+        val pool = Executors.newFixedThreadPool(CRAWL_THREADS)
+        try {
+            val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(CRAWL_BUDGET_MS)
+            val visited = mutableSetOf(entryUrl)
+            var frontier = listOf(entryUrl to entryJs)
+            var hop = 0
+            while (hop < MAX_BUNDLE_HOPS) {
+                // Anything already in hand that carries the marker wins immediately.
+                for ((url, js) in frontier) {
+                    if (!js.contains(MkissaBundle.CRYPTO_CHUNK_MARKER)) continue
                     val info = MkissaBundle.parse(js)
                     if (info != null) {
-                        Logger.log("MKissa: build ${info.buildId} from $url (hop $hop)")
+                        Logger.log("MKissa: build ${info.buildId} from ${url.substringAfterLast('/')} (hop $hop)")
                         return info
                     }
-                    Logger.log("MKissa: crypto chunk $url had no usable build info")
+                    Logger.log("MKissa: crypto chunk ${url.substringAfterLast('/')} had no usable build info")
                 }
-                val base = runCatching { url.toHttpUrl() }.getOrNull() ?: continue
-                resolveChunkCandidates(base, js).forEach { candidate ->
-                    if (visited.add(candidate)) next += candidate
+
+                val next = collectChunkUrls(frontier, visited)
+                if (next.isEmpty()) break
+                Logger.log("MKissa: bundle hop ${hop + 1}, fetching ${next.size} chunk(s)")
+
+                val left = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime())
+                if (left <= 0) throw IOException("crawl budget exhausted before hop ${hop + 1}")
+
+                // Concurrent, because the CDN answers most requests fast and stalls the rest: a
+                // serial loop spends N x timeout on a handful of dead edges, which is what turned a
+                // few seconds of work into an hour of silence.
+                val futures = next.map { url ->
+                    pool.submit(Callable { fetchCrawlChunk(url) }) }
                 }
+                val fetched = ArrayList<Pair<String, String>>(next.size)
+                for (future in futures) {
+                    val got = try {
+                        future.get(max(left, 1L), TimeUnit.MILLISECONDS)
+                    } catch (e: Exception) {
+                        Logger.log("MKissa: chunk fetch gave up (${e.javaClass.simpleName})")
+                        continue
+                    }
+                    if (got?.second != null) fetched += got.first to got.second!!
+                }
+                frontier = fetched
+                hop++
             }
-            if (next.isEmpty()) break
-            Logger.log("MKissa: bundle hop ${hop + 1}, fetching ${next.size} chunk(s)")
-            val fetched = ArrayList<Pair<String, String>>(next.size)
-            for (url in next) {
-                // Log the miss instead of skipping silently: a whole crawl that quietly returns
-                // nothing looks identical to a hang from the episode list.
-                val js = try {
-                    rawGet(url, mapOf("User-Agent" to USER_AGENT, "Referer" to "$siteBase/"), crawl = true)
-                } catch (e: Exception) {
-                    Logger.log("MKissa: chunk ${url.substringAfterLast('/')} failed (${e.message})")
-                    null
-                }
-                if (js != null) fetched += url to js
-            }
-            frontier = fetched
-            hop++
+            throw IOException("walked ${visited.size} bundle file(s) without finding the crypto chunk")
+        } finally {
+            pool.shutdownNow()
         }
-        throw IOException("walked ${visited.size} bundle file(s) without finding the crypto chunk")
     }
 
+    /** Best-effort body fetch for a crawl target; a miss is normal, not exceptional. */
+    private fun fetchCrawlChunk(url: String): Pair<String, String?>? =
+        try {
+            url to rawGet(url, mapOf("User-Agent" to USER_AGENT, "Referer" to "$siteBase/"), crawl = true)
+        } catch (e: Exception) {
+            Logger.log("MKissa: chunk ${url.substringAfterLast('/')} failed (${e.message})")
+            null
+        }
+
     /**
-     * Chunks are listed as `./chunks/x.js` or `./nodes/0.js` but the shared chunks actually sit one
-     * level up, next to `entry/`. Both readings are offered and the caller keeps whichever answers.
+     * Next round of chunk urls, shared chunks first.
+     *
+     * The crypto code lives in `immutable/chunks/`, while `immutable/nodes/` holds the per-route
+     * bundles. The entry references 145 files, and the crypto chunk was the 38th of 38 shared ones,
+     * so ordering by directory is the difference between finding it in the first round and digging
+     * through hundreds of irrelevant files. Refs are already relative to the file that imports them
+     * and must be resolved as written — inventing a second `../` reading produced 290 candidates
+     * instead of 145, half of them guaranteed 404s.
      */
-    private fun resolveChunkCandidates(parent: okhttp3.HttpUrl, js: String): List<String> =
-        MkissaBundle.chunkRefs(js).flatMap { ref ->
-            val clean = ref.removePrefix("./")
-            listOfNotNull(
-                parent.resolve(clean)?.toString(),
-                parent.resolve("../$clean")?.toString(),
-            )
-        }.distinct()
+    private fun collectChunkUrls(
+        frontier: List<Pair<String, String>>,
+        visited: MutableSet<String>,
+    ): List<String> {
+        val shared = LinkedHashSet<String>()
+        val other = LinkedHashSet<String>()
+        for ((url, js) in frontier) {
+            val base = runCatching { url.toHttpUrl() }.getOrNull() ?: continue
+            for (ref in MkissaBundle.chunkRefs(js)) {
+                val resolved = base.resolve(ref)?.toString() ?: continue
+                if (!visited.add(resolved)) continue
+                if (resolved.contains("/chunks/")) shared += resolved else other += resolved
+            }
+        }
+        return (shared + other).take(MAX_CRAWL_FETCHES)
+    }
 
     // ============================== sourceUrl obfuscation ==============================
 
@@ -812,13 +845,27 @@ class MkissaProvider : NativeAnimeParser() {
          * minutes per call, so a CDN that accepts the socket and then goes quiet costs ~90s before
          * anything is logged. Bundle scraping is a nicety, not a prerequisite, so it gets its own
          * short leash and falls back to [MkissaBundle.KNOWN_GOOD].
+         *
+         * `newBuilder()` inherits application interceptors, and the shared [RetryInterceptor] alone
+         * stretched one chunk to 17s here, so they come off. A dead edge must fail in the time this
+         * client promises, or the crawl budget below means nothing.
          */
         private val crawlClient = okHttpClient.newBuilder()
             .connectTimeout(6, TimeUnit.SECONDS)
             .readTimeout(6, TimeUnit.SECONDS)
-            .callTimeout(12, TimeUnit.SECONDS)
+            .callTimeout(10, TimeUnit.SECONDS)
             .retryOnConnectionFailure(false)
+            .apply { interceptors().clear() }
             .build()
+
+        /** Chunk fetches run concurrently; the CDN is fast on most edges and dead on a few. */
+        private const val CRAWL_THREADS = 8
+
+        /** One round, one timeout. Chunks are prioritised so the crypto chunk is in round one. */
+        private const val MAX_CRAWL_FETCHES = 48
+
+        /** Wall-clock ceiling for the whole scrape before it gives up and falls back. */
+        private const val CRAWL_BUDGET_MS = 25_000L
 
         private val XOR_MASKS = listOf(
             "allanimenews",
