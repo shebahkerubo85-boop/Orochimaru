@@ -9,6 +9,7 @@ import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Track
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -85,8 +86,14 @@ class HiAnimeProvider : NativeAnimeParser() {
         try {
             val id = extra?.get("id") ?: animeLink.substringAfterLast('-', "")
             val body = hiGet("$api/episode/list/$id", referer = "$baseUrl/")
+            // The endpoint answers with a JSON envelope ({"status":..,"html":".."}),
+            // so the markup has to be unescaped before the row regex can see it.
+            val markup = hiEpisodeHtml(body)
+            if (markup.isBlank()) {
+                hiLog("episode list empty for id=$id (body starts: ${body.take(80)})")
+            }
             val episodes = mutableListOf<Episode>()
-            EPISODE_ITEM.findAll(body).forEach { match ->
+            EPISODE_ITEM.findAll(markup).forEach { match ->
                 val epId = match.groups["id"]?.value.orEmpty().trim()
                 val number = match.groups["number"]?.value.orEmpty().trim().toIntOrNull()
                 if (epId.isBlank() || number == null) return@forEach
@@ -331,6 +338,19 @@ private val HI_PAYLOAD = Regex("""window\.__P\s*=\s*"([^"]+)"""")
 private fun hiOrigin(url: String): String = runCatching {
     URI(url).let { "${it.scheme}://${it.authority}" }
 }.getOrDefault(url.substringBefore('/', ""))
+
+/**
+ * `/api/theme/episode/list/{id}` answers `{"status":..,"totalItems":..,"html":"<a ..>"}`.
+ * The episode markup lives inside that JSON string, so it must be unescaped before
+ * [HiAnimeProvider] parses it. Falls back to the raw body when it is already HTML.
+ */
+private fun hiEpisodeHtml(body: String): String {
+    val trimmed = body.trimStart()
+    if (trimmed.startsWith('<')) return body
+    return runCatching {
+        Json.parseToJsonElement(body).jsonObject["html"]?.jsonPrimitive?.contentOrNull.orEmpty()
+    }.getOrDefault(body)
+}
 
 private fun hiGet(url: String, referer: String? = null): String {
     val request = Request.Builder().url(url)

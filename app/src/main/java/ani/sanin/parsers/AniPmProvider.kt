@@ -1,9 +1,11 @@
 package ani.sanin.parsers
 
+import android.net.Uri
 import ani.sanin.FileUrl
 import ani.sanin.Mapper
 import ani.sanin.okHttpClient
 import ani.sanin.util.Logger
+import com.lagradost.cloudstream3.network.WebViewResolver
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Track
@@ -30,16 +32,22 @@ import java.util.Base64
  *   - `/api/anime/search?q=` and `/api/anime/series/{id}?routes=e4` give the
  *     catalogue and the full episode list, including per-episode `sub`/`dub`
  *     flags and `subExact`/`dubExact`.
- *   - `/api/anime/playback-bootstrap/settlar/{id}?ep={n}&lang={sub|dub}`
- *     returns metadata plus, with `&backup=1`, a `backupEmbed` block holding
- *     an `embed.settlar.io` stream token.
+ *   - `/api/anime/playback-bootstrap/settlar/{id}?ep={n}&lang={sub|dub}&core=0`
+ *     returns a short-lived `settlarSelection` token plus the resolved
+ *     `effectiveLanguage`. (`core=0` is the lean variant the web player uses;
+ *     without it the response embeds all 500 episodes and is ~100 KB.)
+ *   - `/api/anime/settlar/session?selection=..&provider=anipm&ep=..&channel=..`
+ *     exchanges that token for an `embed.settlar.io` URL. The `provider` value
+ *     must be the literal `anipm`; `settlar` is rejected with HTTP 400.
  *
- * Two non-obvious header requirements, both discovered by probing:
+ * Two non-obvious requirements, both discovered by probing:
  *
- *  1. The `embed.settlar.io` token endpoint only answers when `Origin` is
- *     `https://ani.pm`. `Referer` alone gets a 403.
- *  2. The returned `master`/`tracks` URLs are same-origin proxies whose last
- *     path segment is base64 of the *real* CDN URL. Those proxies 403 from
+ *  1. Every JSON route is under `/api`. The bare `/anime/...` paths are HTML
+ *     routes and 404.
+ *  2. The `embed.settlar.io` page is Cloudflare-gated, so it has to be cleared
+ *     through the WebView resolver rather than fetched directly.
+ *  3. The master/subtitle URLs found in that page are same-origin proxies whose
+ *     last path segment is base64 of the *real* CDN URL. Those proxies 403 from
  *     anywhere, so the payload is decoded and the real CDN is requested
  *     directly with `Referer: https://megaplay.buzz/`, which is the only
  *     referer the CDN accepts.
@@ -157,7 +165,7 @@ class AniPmProvider : NativeAnimeParser() {
                     VideoServer(
                         name = channel.replaceFirstChar { it.uppercase() },
                         embed = FileUrl(
-                            "$baseUrl/anime/playback-bootstrap/settlar/$id?ep=$ep&lang=$channel&backup=1"
+                            "$api/anime/playback-bootstrap/settlar/$id?ep=$ep&lang=$channel&core=0"
                         ),
                         extraData = mapOf("channel" to channel, "id" to id, "ep" to ep)
                     )
@@ -174,6 +182,20 @@ class AniPmProvider : NativeAnimeParser() {
         AniPmExtractor(server)
 
     companion object {
+        /** All JSON endpoints live under `/api`; the bare `/anime/...` paths are HTML routes. */
+        val anipmApi: String get() = "$baseUrl/api"
+
+        val ANIPM_API_HEADERS = mapOf(
+            "Referer" to "https://ani.pm/",
+            "Origin" to "https://ani.pm",
+            "Accept" to "application/json"
+        )
+
+        /** Matches an m3u8 URL written with single quotes inside a player config. */
+        val ANIPM_MASTER = Regex("""(?:src|source|file|url|master)["'\s:=]+\s*["'](https?://[^"']+\.m3u8[^"']*)["']""", RegexOption.IGNORE_CASE)
+        val ANIPM_MASTER_QUOTED = Regex("""https?://[^"'\\\s]+\.m3u8[^"'\\\s]*""", RegexOption.IGNORE_CASE)
+        val ANIPM_SUB = Regex("""["'](https?://[^"']+\.(?:vtt|srt|ass)[^"']*)["']""", RegexOption.IGNORE_CASE)
+
         /**
          * The proxy paths are `/backup/v1/h/<base64>.<sig>.m3u8`; the first dot
          * segment is base64 of the real CDN URL. Decoding it lets the player hit
@@ -195,57 +217,64 @@ class AniPmProvider : NativeAnimeParser() {
 class AniPmExtractor(override val server: VideoServer) : VideoExtractor() {
     override suspend fun extract(): VideoContainer = withContext(Dispatchers.IO) {
         try {
-            // 1. bootstrap -> backupEmbed.direct.stream token
+            // 1. playback-bootstrap -> settlarSelection (+ effectiveLanguage).
+            //    `core=0` is the lean variant the web player uses; the full payload
+            //    embeds every episode and is orders of magnitude larger.
             val boot = anipmGet(server.embed.url)
             val root = anipmJson(boot)
-            val direct = (root["backupEmbed"] as? JsonObject)
-                ?.get("direct") as? JsonObject
-            val token = (direct?.get("stream") as? JsonPrimitive)?.contentOrNull
-            if (token.isNullOrBlank()) {
-                val reason = ((root["backupEmbed"] as? JsonObject)
-                    ?.get("reason") as? JsonPrimitive)?.contentOrNull
-                anipmLog("no stream token${reason?.let { " ($it)" } ?: ""} for ${server.embed.url}")
+            val selection = (root["settlarSelection"] as? JsonPrimitive)?.contentOrNull
+            if (selection.isNullOrBlank()) {
+                anipmLog("no settlarSelection (keys=${root.keys.take(6)}) for ${server.embed.url}")
+                return@withContext VideoContainer(emptyList())
+            }
+            val effective = (root["effectiveLanguage"] as? JsonPrimitive)?.contentOrNull
+                ?: server.extraData["channel"] ?: "sub"
+            val episode = (root["episode"] as? JsonPrimitive)?.contentOrNull
+                ?: server.extraData["ep"] ?: "1"
+
+            // 2. exchange the selection for a short-lived embed session. The
+            //    provider must be the literal "anipm" - "settlar" is rejected 400.
+            val sessionUrl = AniPmProvider.anipmApi +
+                "/anime/settlar/session?selection=" + Uri.encode(selection) +
+                "&provider=anipm&ep=" + Uri.encode(episode) +
+                "&channel=" + Uri.encode(effective) + "&telemetry=0"
+            val session = anipmJson(anipmGet(sessionUrl, ANIPM_API_HEADERS))
+            val embedUrl = (session["embedUrl"] as? JsonPrimitive)?.contentOrNull
+            if (embedUrl.isNullOrBlank()) {
+                anipmLog("no embedUrl (keys=${session.keys.take(6)})")
+                return@withContext VideoContainer(emptyList())
+            }
+            anipmLog("session ok channel=$effective ep=$episode embed=${embedUrl.take(72)}")
+
+            // 3. the embed page is Cloudflare-gated; clear it through the app's
+            //    WebView-backed killer and lift the master playlist out of the DOM.
+            val page = anipmCloudflareGet(embedUrl)
+            if (page.isNullOrBlank()) {
+                anipmLog("embed page blocked (Cloudflare not cleared)")
+                return@withContext VideoContainer(emptyList())
+            }
+            val master = ANIPM_MASTER.find(page)?.groupValues?.get(1)
+                ?: ANIPM_MASTER_QUOTED.find(page)?.groupValues?.get(1)
+            if (master.isNullOrBlank()) {
+                anipmLog("no master playlist in embed page (${page.length} bytes)")
                 return@withContext VideoContainer(emptyList())
             }
 
-            // 2. token -> {master, tracks, skip}. Needs Origin: https://ani.pm
-            //    or the endpoint 403s regardless of Referer.
-            val payload = anipmGet(
-                token,
-                headers = mapOf(
-                    "Referer" to "https://ani.pm/",
-                    "Origin" to "https://ani.pm",
-                    "Accept" to "application/json"
-                )
-            )
-            val resolved = anipmJson(payload)
-            val proxyMaster = (resolved["master"] as? JsonPrimitive)?.contentOrNull
-            if (proxyMaster.isNullOrBlank()) {
-                anipmLog("no master in token payload")
-                return@withContext VideoContainer(emptyList())
-            }
-
-            // 3. decode the proxy path to the real CDN and use megaplay's origin
-            //    as Referer, which is the only one the CDN serves.
             val mediaHeaders = mapOf(
                 "Referer" to "https://megaplay.buzz/",
                 "Origin" to "https://megaplay.buzz"
             )
-            val realMaster = AniPmProvider.anipmUnproxy(proxyMaster, "h") ?: proxyMaster
+            val realMaster = AniPmProvider.anipmUnproxy(master, "h") ?: master
 
-            val subtitles = (resolved["tracks"] as? JsonArray)?.mapNotNull { el ->
-                val o = el as? JsonObject ?: return@mapNotNull null
-                val raw = (o["url"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null
-                val lang = (o["lang"] as? JsonPrimitive)?.contentOrNull ?: "en"
-                val label = (o["label"] as? JsonPrimitive)?.contentOrNull ?: "Subtitles"
-                val isDefault = (o["default"] as? JsonPrimitive)?.booleanOrNull == true
-                val real = AniPmProvider.anipmUnproxy(raw, "v") ?: raw
+            val subtitles = ANIPM_SUB.findAll(page).mapNotNull { m ->
+                val url = m.groupValues[1]
+                if (!url.startsWith("http")) return@mapNotNull null
                 Subtitle(
-                    language = if (isDefault) lang else "$lang (${label.take(20)})",
-                    file = FileUrl(real, mediaHeaders),
+                    language = "en",
+                    file = FileUrl(AniPmProvider.anipmUnproxy(url, "v") ?: url, mediaHeaders),
                     type = SubtitleType.VTT
                 )
-            }.orEmpty()
+            }.distinctBy { it.file.url }.toList()
 
             anipmLog("master ${realMaster.take(100)} + ${subtitles.size} subs")
             val hls = anipmResolveVariants(realMaster, mediaHeaders)
@@ -324,6 +353,32 @@ private fun anipmResolveVariants(master: String, headers: Map<String, String>): 
         anipmLog("variant parse failed: ${e.message}")
         AniPmHlsResult(emptyList(), emptyList())
     }
+
+/**
+ * The settlar embed page sits behind Cloudflare and answers a bare client with a
+ * 403 challenge, so it has to be cleared through the app's WebView-backed
+ * resolver. Returns the page HTML, or null when the challenge never clears.
+ */
+private suspend fun anipmCloudflareGet(url: String): String? {
+    val resolver = WebViewResolver(
+        interceptUrl = Regex("anipm-embed-ok"),
+        additionalUrls = listOf(Regex(Regex.escape(url))),
+        useOkhttp = false
+    )
+    return try {
+        val body = withContext(Dispatchers.IO) {
+            resolver.resolveUsingWebView(url, "https://ani.pm/", "GET") { true }
+        }.first?.let { request ->
+            okHttpClient.newCall(request).execute().use { response ->
+                if (response.isSuccessful) response.body?.string() else null
+            }
+        }
+        if (body.isNullOrBlank()) null else body
+    } catch (e: Exception) {
+        anipmLog("embed fetch failed: ${e.message}")
+        null
+    }
+}
 
 private fun anipmJson(body: String): JsonObject =
     runCatching { Mapper.json.parseToJsonElement(body).jsonObject }.getOrElse {
