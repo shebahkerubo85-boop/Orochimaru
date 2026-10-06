@@ -1,5 +1,8 @@
 package ani.sanin.ui.components
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.view.View
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.animateFloatAsState
@@ -29,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -37,6 +41,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -146,11 +151,23 @@ fun LibraryStatusPill(
     compact: Boolean = true,
 ) {
     val context = LocalContext.current
+    // The pill can sit under an AppBar theme overlay (fragment_library.xml applies
+    // Theme.Sanin.AppBarOverlay to the toolbar). That overlay does not carry the accent
+    // applied to the Activity at runtime, so resolving colour attrs from the view context
+    // fell back to the Material default (purple). Resolve from the owning Activity's theme.
+    val colorContext = remember(context) {
+        var ctx: Context = context
+        while (ctx is ContextWrapper) {
+            if (ctx is Activity) break
+            ctx = ctx.baseContext
+        }
+        ctx
+    }
     val dark = isDarkTheme()
-    val accent = Color(context.getThemeColor(R.attr.colorPrimary))
-    val textPrimary = Color(context.getThemeColor(R.attr.colorOnSurface))
-    val textSecondary = Color(context.getThemeColor(R.attr.colorOnSurfaceVariant))
-    val textOnAccent = Color(context.getThemeColor(R.attr.colorOnPrimary))
+    val accent = Color(colorContext.getThemeColor(R.attr.colorPrimary))
+    val textPrimary = Color(colorContext.getThemeColor(R.attr.colorOnSurface))
+    val textSecondary = Color(colorContext.getThemeColor(R.attr.colorOnSurfaceVariant))
+    val textOnAccent = Color(colorContext.getThemeColor(R.attr.colorOnPrimary))
     val isLightTheme = !dark
 
     val scrollState = rememberScrollState()
@@ -242,6 +259,7 @@ fun LibraryStatusPill(
 
     val view = LocalView.current
     val focusRequester = remember { FocusRequester() }
+    var pillFocused by remember { mutableStateOf(false) }
     // Forward focus from the host ComposeView (XML nextFocus) into the Compose focusable.
     LaunchedEffect(view) {
         view?.setOnFocusChangeListener { _, hasFocus ->
@@ -349,9 +367,22 @@ fun LibraryStatusPill(
                             cornerRadius = CornerRadius(radiusPx, radiusPx),
                             style = Stroke(width = 1.dp.toPx()),
                         )
+                        if (pillFocused) {
+                            // Focus ring matches the indicator's live size, radius and shape,
+                            // so it tracks whichever pill variant (library / catalogue /
+                            // extensions) is hosting it.
+                            drawRoundRect(
+                                color = accent,
+                                topLeft = Offset(drawX, animatedY),
+                                size = Size(drawWidth, animatedHeight),
+                                cornerRadius = CornerRadius(radiusPx, radiusPx),
+                                style = Stroke(width = 2.dp.toPx()),
+                            )
+                        }
                     }
                 }
                 .focusRequester(focusRequester)
+                .onFocusChanged { pillFocused = it.isFocused }
                 .focusable()
                 .onKeyEvent { event ->
                     if (event.type != KeyEventType.KeyUp) return@onKeyEvent false
