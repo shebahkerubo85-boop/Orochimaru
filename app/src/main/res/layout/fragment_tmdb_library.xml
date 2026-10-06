@@ -80,7 +80,7 @@
                     android:contentDescription="Settings"
                     android:focusable="true"
                     android:nextFocusRight="@id/tmdbLibProfileButton"
-                    android:nextFocusDown="@id/tmdbLibTabLayout"
+                    android:nextFocusDown="@id/tmdbLibPill"
                     app:srcCompat="@drawable/ic_baseline_tune_24"
                     app:tint="?attr/colorOnBackground" />
 
@@ -100,7 +100,7 @@
                     android:fontFamily="@font/poppins_semi_bold"
                     android:gravity="center"
                     android:maxLines="1"
-                    android:nextFocusDown="@id/tmdbLibTabLayout"
+                    android:nextFocusDown="@id/tmdbLibPill"
                     android:nextFocusLeft="@id/tmdbLibSettings"
                     android:nextFocusRight="@id/tmdbLibAvatar"
                     android:text="My Profile"
@@ -115,7 +115,7 @@
                     android:contentDescription="Profile"
                     android:focusable="true"
                     android:nextFocusLeft="@id/tmdbLibProfileButton"
-                    android:nextFocusDown="@id/tmdbLibTabLayout"
+                    android:nextFocusDown="@id/tmdbLibPill"
                     android:padding="2dp"
                     android:scaleType="centerCrop"
                     app:srcCompat="@drawable/ic_round_person_24"
@@ -128,20 +128,13 @@
 
         </LinearLayout>
 
-        <com.google.android.material.tabs.TabLayout
-            android:id="@+id/tmdbLibTabLayout"
+        <androidx.compose.ui.platform.ComposeView
+            android:id="@+id/tmdbLibPill"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
+            android:layout_height="wrap_content"
             android:focusable="true"
-            android:focusableInTouchMode="true"
             android:nextFocusUp="@id/tmdbLibProfileButton"
-            android:nextFocusDown="@id/tmdbLibViewPager"
-            app:tabContentStart="32dp"
-            app:tabMode="scrollable"
-            app:tabPaddingEnd="16dp"
-            app:tabPaddingStart="16dp"
-            app:tabTextAppearance="@style/NavBarText"
-            tools:ignore="SpeakableTextPresentCheck" />
+            android:nextFocusDown="@id/tmdbLibViewPager" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.viewpager2.widget.ViewPager2
@@ -150,7 +143,7 @@
         android:layout_height="match_parent"
         android:focusable="true"
         android:focusableInTouchMode="true"
-        android:nextFocusUp="@id/tmdbLibTabLayout"
+        android:nextFocusUp="@id/tmdbLibPill"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

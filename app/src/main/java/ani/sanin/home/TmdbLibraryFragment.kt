@@ -14,16 +14,20 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.tabs.TabLayout
-import com.google.android.material.tabs.TabLayoutMediator
 import ani.sanin.R
 import ani.sanin.Refresh
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.databinding.FragmentTmdbLibraryBinding
 import ani.sanin.loadImage
+import ani.sanin.ui.components.LibraryStatusPill
+import ani.sanin.ui.components.LibraryStatusTab
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.getThemeColor
 import kotlinx.coroutines.async
@@ -38,6 +42,8 @@ class TmdbLibraryFragment : Fragment() {
     private val binding get() = _binding!!
     private var selectedTabIdx = 0
     private var viewPagerAttached = false
+    private var tabsState by mutableStateOf<List<LibraryStatusTab>>(emptyList())
+    private var selectedPillState by mutableIntStateOf(0)
     private var allItems: List<Simkl.SimklWatchedItem> = emptyList()
     private var sectionFragments = mutableListOf<SimklSectionFragment>()
     private val libraryGenres = sortedSetOf<String>()
@@ -55,8 +61,6 @@ class TmdbLibraryFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         val primaryColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorSurface)
-        val primaryTextColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorPrimary)
-        val secondaryTextColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorOutline)
 
         // Follow CalendarActivity pattern
         if (PrefManager.getVal<Boolean>(PrefName.ImmersiveMode)) {
@@ -70,16 +74,34 @@ class TmdbLibraryFragment : Fragment() {
         }
 
         binding.tmdbLibAppBar.setBackgroundColor(primaryColor)
-        binding.tmdbLibTabLayout.setBackgroundColor(primaryColor)
-        binding.tmdbLibTabLayout.setTabTextColors(secondaryTextColor, primaryTextColor)
-        binding.tmdbLibTabLayout.setSelectedTabIndicatorColor(primaryTextColor)
 
-        binding.tmdbLibTabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab?) {
-                selectedTabIdx = tab?.position ?: 0
+        // Dpad chain: settings/profile pill/avatar → status pill → pager grid.
+        binding.tmdbLibSettings.nextFocusDownId = R.id.tmdbLibPill
+        binding.tmdbLibProfileButton.nextFocusDownId = R.id.tmdbLibPill
+        binding.tmdbLibAvatar.nextFocusDownId = R.id.tmdbLibPill
+        binding.tmdbLibPill.nextFocusUpId = R.id.tmdbLibProfileButton
+        binding.tmdbLibPill.nextFocusDownId = R.id.tmdbLibViewPager
+        binding.tmdbLibViewPager.nextFocusUpId = R.id.tmdbLibPill
+
+        binding.tmdbLibPill.setContent {
+            LibraryStatusPill(
+                tabs = tabsState,
+                selectedIndex = selectedPillState,
+                onTabSelected = { idx ->
+                    selectedPillState = idx
+                    selectedTabIdx = idx
+                    if (binding.tmdbLibViewPager.currentItem != idx) {
+                        binding.tmdbLibViewPager.setCurrentItem(idx, false)
+                    }
+                },
+            )
+        }
+
+        binding.tmdbLibViewPager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                selectedPillState = position
+                selectedTabIdx = position
             }
-            override fun onTabUnselected(tab: TabLayout.Tab?) {}
-            override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
 
         if (Simkl.token == null) {
@@ -214,7 +236,6 @@ class TmdbLibraryFragment : Fragment() {
 
     private fun showSections(items: List<Simkl.SimklWatchedItem>) {
         viewPagerAttached = false
-        binding.tmdbLibTabLayout.removeAllTabs()
         sectionFragments.clear()
 
         val sections = linkedMapOf<String, List<Simkl.SimklWatchedItem>>()
@@ -239,14 +260,14 @@ class TmdbLibraryFragment : Fragment() {
         // a favourite; lowering the score below 8.5 removes it again.
         val favourites = items.filter { (it.userRating ?: 0) >= 9 }
 
-        if (completedMovies.isNotEmpty()) sections["Completed Movies (${completedMovies.size})"] = completedMovies
-        if (completedShows.isNotEmpty()) sections["Completed TV (${completedShows.size})"] = completedShows
-        if (watching.isNotEmpty()) sections["Watching (${watching.size})"] = watching
-        if (planning.isNotEmpty()) sections["Planning (${planning.size})"] = planning
-        if (paused.isNotEmpty()) sections["Paused (${paused.size})"] = paused
-        if (dropped.isNotEmpty()) sections["Dropped (${dropped.size})"] = dropped
-        if (favourites.isNotEmpty()) sections["Favourites (${favourites.size})"] = favourites
-        sections["All (${items.size})"] = items
+        if (completedMovies.isNotEmpty()) sections["Completed Movies"] = completedMovies
+        if (completedShows.isNotEmpty()) sections["Completed TV"] = completedShows
+        if (watching.isNotEmpty()) sections["Watching"] = watching
+        if (planning.isNotEmpty()) sections["Planning"] = planning
+        if (paused.isNotEmpty()) sections["Paused"] = paused
+        if (dropped.isNotEmpty()) sections["Dropped"] = dropped
+        if (favourites.isNotEmpty()) sections["Favourites"] = favourites
+        sections["All"] = items
 
         if (sections.isEmpty()) {
             showEmpty()
@@ -259,44 +280,43 @@ class TmdbLibraryFragment : Fragment() {
         sectionFragments.addAll(fragments)
 
         val titles = sections.keys.toList()
+        val values = sections.values.toList()
+        tabsState = titles.mapIndexed { index, label ->
+            LibraryStatusTab(label = label, count = values[index].size)
+        }
 
         binding.tmdbLibViewPager.adapter = SimklPagerAdapter(sectionFragments, requireActivity())
-        binding.tmdbLibTabLayout.isVisible = true
+        binding.tmdbLibPill.isVisible = true
         binding.tmdbLibViewPager.isVisible = true
-
-        TabLayoutMediator(binding.tmdbLibTabLayout, binding.tmdbLibViewPager) { tab, position ->
-            tab.text = titles[position]
-        }.attach()
 
         viewPagerAttached = true
         binding.tmdbLibViewPager.setCurrentItem(
             selectedTabIdx.coerceIn(0, titles.size - 1), false
         )
+        selectedPillState = selectedTabIdx.coerceIn(0, titles.size - 1)
     }
 
     private fun showFilteredSections(items: List<Simkl.SimklWatchedItem>, title: String) {
         viewPagerAttached = false
-        binding.tmdbLibTabLayout.removeAllTabs()
         sectionFragments.clear()
 
         val fragment = SimklSectionFragment.newInstance(items)
         sectionFragments.add(fragment)
 
-        binding.tmdbLibViewPager.adapter = SimklPagerAdapter(sectionFragments, requireActivity())
-        binding.tmdbLibTabLayout.isVisible = true
-        binding.tmdbLibViewPager.isVisible = true
+        tabsState = listOf(LibraryStatusTab(label = title, count = items.size))
 
-        val tab = binding.tmdbLibTabLayout.newTab()
-        tab.text = "$title (${items.size})"
-        binding.tmdbLibTabLayout.addTab(tab)
+        binding.tmdbLibViewPager.adapter = SimklPagerAdapter(sectionFragments, requireActivity())
+        binding.tmdbLibPill.isVisible = true
+        binding.tmdbLibViewPager.isVisible = true
 
         viewPagerAttached = true
         binding.tmdbLibViewPager.setCurrentItem(0, false)
+        selectedPillState = 0
     }
 
     private fun showNotLoggedIn() {
         binding.tmdbLibProgressBar.visibility = View.GONE
-        binding.tmdbLibTabLayout.isVisible = false
+        binding.tmdbLibPill.isVisible = false
         binding.tmdbLibViewPager.isVisible = false
         val ctx = requireContext()
         val msg = TextView(ctx).apply {
@@ -314,7 +334,7 @@ class TmdbLibraryFragment : Fragment() {
 
     private fun showEmpty() {
         binding.tmdbLibProgressBar.visibility = View.GONE
-        binding.tmdbLibTabLayout.isVisible = false
+        binding.tmdbLibPill.isVisible = false
         binding.tmdbLibViewPager.isVisible = false
         val ctx = requireContext()
         val msg = TextView(ctx).apply {
