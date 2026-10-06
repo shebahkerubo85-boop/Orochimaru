@@ -65,6 +65,7 @@ class HiAnimeProvider : NativeAnimeParser() {
                     if (title.isBlank() || !seen.add(href)) return@mapNotNull null
                     val id = href.substringAfterLast('-', "").takeIf { it.isNotBlank() }
                         ?: return@mapNotNull null
+                    hiLog("search '$query' -> '$title' @ $href")
                     ShowResponse(
                         name = title,
                         link = href,
@@ -87,6 +88,7 @@ class HiAnimeProvider : NativeAnimeParser() {
         try {
             val id = extra?.get("id") ?: animeLink.substringAfterLast('-', "")
             val body = hiGet("$api/episode/list/$id", referer = "$baseUrl/")
+            hiLog("loadEpisodes id=$id from link=$animeLink")
             // The endpoint answers with a JSON envelope ({"status":..,"html":".."}),
             // so the markup has to be unescaped before the row regex can see it.
             val markup = hiEpisodeHtml(body)
@@ -126,7 +128,7 @@ class HiAnimeProvider : NativeAnimeParser() {
     ): List<VideoServer> = withContext(Dispatchers.IO) {
         try {
             val episodeId = extra?.get("episodeId")
-                ?: return@withContext emptyList()
+                ?: return@withContext emptyList().also { hiLog("loadVideoServers: no episodeId in extra ($extra)") }
             val body = hiGet("$api/episode/servers?episodeId=$episodeId", referer = episodeLink)
             val seen = mutableSetOf<String>()
             SERVER_ITEM.findAll(body).mapNotNull { match ->
@@ -140,6 +142,7 @@ class HiAnimeProvider : NativeAnimeParser() {
                 // instead of showing each as a separate server.
                 if (!seen.add(embed)) return@mapNotNull null
                 val family = hiHostFamily(embed) ?: "Upstream"
+                hiLog("server episodeId=$episodeId -> $channel / $name / $family ($embed)")
                 VideoServer(
                     name = if (channel == "dub") "$family DUB" else family,
                     embed = FileUrl(embed, mapOf("Referer" to "$baseUrl/")),
@@ -158,7 +161,7 @@ class HiAnimeProvider : NativeAnimeParser() {
 
     companion object {
         private val SHOW_LINK = Regex(
-            """href="(https://hianime\.at/watch/[a-z0-9-]+)"[^>]*title="([^"]*)"""",
+            """<a\b(?=[^>]*\bhref="(https://hianime\.at/watch/[a-z0-9-]+)")(?=[^>]*\btitle="([^"]*)")[^>]*>""",
             RegexOption.IGNORE_CASE
         )
 

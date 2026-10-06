@@ -293,9 +293,12 @@ abstract class NativeAnimeParser : AnimeParser() {
      */
     override suspend fun autoSearch(mediaObj: Media): ShowResponse? {
         val saved = loadSavedShowResponse(mediaObj.id)
-        if (saved != null) {
+        if (saved != null && savedMatches(saved, mediaObj.mainName())) {
             saveShowResponse(mediaObj.id, saved, true)
             return saved
+        }
+        if (saved != null) {
+            Logger.log("$name ignoring saved '${saved.name}' for '${mediaObj.mainName()}' - title mismatch")
         }
         setUserText("Searching : ${mediaObj.mainName()}")
         Logger.log("Searching : ${mediaObj.mainName()}")
@@ -335,6 +338,22 @@ abstract class NativeAnimeParser : AnimeParser() {
         )
         if (best != null) saveShowResponse(mediaObj.id, best)
         return best
+    }
+
+    /**
+     * A saved mapping only belongs to [mediaName] when the two titles are at
+     * least roughly similar. Entries poisoned by earlier search bugs (e.g. a
+     * Death Note link saved under Gachiakuta) have near-zero similarity and must
+     * not shadow a live search. Kept contagious enough that season/dub variants
+     * and manual re-maps to a differently-titled entry still win.
+     */
+    private fun savedMatches(saved: ShowResponse, mediaName: String): Boolean {
+        val a = saved.name.lowercase()
+        val b = mediaName.lowercase()
+        if (a.isEmpty() || b.isEmpty()) return false
+        if (a == b) return true
+        if (a.contains(b) || b.contains(a)) return true
+        return FuzzySearch.ratio(a, b) >= 40.0
     }
 
     /**

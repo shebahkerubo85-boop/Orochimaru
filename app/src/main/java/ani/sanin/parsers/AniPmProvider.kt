@@ -359,27 +359,27 @@ private fun anipmResolveVariants(master: String, headers: Map<String, String>): 
  */
 private suspend fun anipmCloudflareMaster(url: String, referer: String?): String? {
     val resolver = WebViewResolver(
-        interceptUrl = Regex("""(m3u8|master)""", RegexOption.IGNORE_CASE),
-        additionalUrls = listOf(Regex("""(m3u8|master)""", RegexOption.IGNORE_CASE)),
+        interceptUrl = Regex("""(m3u8|master\.)""", RegexOption.IGNORE_CASE),
         useOkhttp = false,
         timeout = 15_000L
     )
     return try {
-        val captured = okHttpClient.newBuilder()
-            .addInterceptor(resolver)
-            .build()
-            .newCall(
-                Request.Builder()
-                    .url(url)
-                    .header("User-Agent", NativeAnimeParser.USER_AGENT)
-                    .apply { referer?.let { header("Referer", it) } }
-                    .get().build()
-            ).execute().use { response -> response.body?.string().orEmpty() }
-
-        // Either the resolver handed back the playlist directly, or the page HTML
-        // came through and the master still has to be lifted out of it.
-        if (captured.contains("#EXTM3U")) captured
-        else ANIPM_MASTER_QUOTED.find(captured)?.groupValues?.get(1)
+        // Load the embed in a real WebView so Cloudflare clears itself and the
+        // player's HLS request is handed back to us (headers and all). The bare
+        // HTTP fallback stays as a safety net for embeds that expose the stream
+        // in plain HTML.
+        val (intercepted, _) = resolver.resolveUsingWebView(
+            url, referer, emptyMap(), "GET"
+        ) { request ->
+            request.url.toString().contains(".m3u8", ignoreCase = true)
+        }
+        val master = intercepted?.url?.toString()
+        if (!master.isNullOrBlank()) {
+            anipmLog("webview captured master ${master.take(110)}")
+            return master
+        }
+        val page = anipmGet(url, mapOf("Referer" to (referer ?: "https://ani.pm/")))
+        ANIPM_MASTER_QUOTED.find(page)?.groupValues?.get(1)
     } catch (e: Exception) {
         anipmLog("embed fetch failed: ${e.message}")
         null
