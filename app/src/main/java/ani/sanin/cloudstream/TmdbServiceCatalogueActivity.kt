@@ -4,6 +4,11 @@ import android.os.Bundle
 import android.view.ViewGroup
 import android.view.Window
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.setContent
 import androidx.core.content.ContextCompat
 import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.GridLayoutManager
@@ -21,6 +26,8 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
+import ani.sanin.ui.components.LibraryStatusPill
+import ani.sanin.ui.components.LibraryStatusTab
 import ani.sanin.util.FocusEffectUtil
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.CoroutineScope
@@ -52,6 +59,9 @@ class TmdbServiceCatalogueActivity : AppCompatActivity() {
     private var mediaType = TYPE_MOVIE
     private var page = 0
     private var loading = false
+
+    private var pillTabs by mutableStateOf<List<LibraryStatusTab>>(emptyList())
+    private var selectedPillIndex by mutableIntStateOf(0)
 
     /** Stop paging once a page comes back empty, the way a real catalogue ends. */
     private var hasMore = true
@@ -99,36 +109,50 @@ class TmdbServiceCatalogueActivity : AppCompatActivity() {
     }
 
     /**
-     * The Movie / TV pill: one control, two entries, the chosen one marked by its text.
+     * The Movie / TV pill: one control, two entries, the chosen one marked by the
+     * travelling selection strip.
      *
-     * The group owns the single selection, so there is no index to keep in step with a
-     * pair of chips: it reports which entry is checked and the shelf is reloaded from
-     * there. The initial check is set before the listener is attached, so restoring a
-     * type from the intent does not kick off a second load.
+     * The pill owns the single selection, so there is no index to keep in step with a
+     * pair of chips: it reports which entry was tapped and the shelf is reloaded from
+     * there. The initial index is set before [setContent], so restoring a type from the
+     * intent does not kick off a second load.
+     *
+     * This is the same capsule the library status tabs use, just wrap-content so it
+     * reads as a segmented switch rather than a full-width bar.
      */
     private fun setUpTypeToggle() {
-        val toggle = binding.catalogueTypeToggle
-        val movie = binding.catalogueToggleMovie
-        val tv = binding.catalogueToggleTv
-        FocusEffectUtil.applyFocusListener(movie)
-        FocusEffectUtil.applyFocusListener(tv)
-        toggle.check(if (mediaType == TYPE_TV) R.id.catalogueToggleTv else R.id.catalogueToggleMovie)
-        toggle.addOnButtonCheckedListener { _, checkedId, isChecked ->
-            if (!isChecked) return@addOnButtonCheckedListener
-            val type = if (checkedId == R.id.catalogueToggleTv) TYPE_TV else TYPE_MOVIE
-            if (type == mediaType) return@addOnButtonCheckedListener
-            mediaType = type
-            // A new type is a different shelf, so drop what the old one loaded and start over.
-            page = 0
-            hasMore = true
-            if (media.isNotEmpty()) {
-                val old = media.size
-                media.clear()
-                mediaAdaptor.notifyItemRangeRemoved(0, old)
-            }
-            updateTitle()
-            load()
+        selectedPillIndex = if (mediaType == TYPE_TV) 1 else 0
+        pillTabs = listOf(
+            LibraryStatusTab(label = "Movie", count = 0),
+            LibraryStatusTab(label = "TV show", count = 0),
+        )
+        FocusEffectUtil.applyFocusListener(binding.mediaList)
+        FocusEffectUtil.applyFocusListener(binding.mediaGrid)
+        binding.catalogueTypePill.setContent {
+            LibraryStatusPill(
+                tabs = pillTabs,
+                selectedIndex = selectedPillIndex,
+                onTabSelected = { index -> selectType(index) },
+                fillWidth = false,
+                compact = false,
+            )
         }
+    }
+
+    private fun selectType(index: Int) {
+        if (index == selectedPillIndex) return
+        selectedPillIndex = index
+        mediaType = if (index == 1) TYPE_TV else TYPE_MOVIE
+        // A new type is a different shelf, so drop what the old one loaded and start over.
+        page = 0
+        hasMore = true
+        if (media.isNotEmpty()) {
+            val old = media.size
+            media.clear()
+            mediaAdaptor.notifyItemRangeRemoved(0, old)
+        }
+        updateTitle()
+        load()
     }
 
     private fun setUpGrid() {

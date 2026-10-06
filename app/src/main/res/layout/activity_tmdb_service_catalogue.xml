@@ -40,6 +40,7 @@
                 android:layout_gravity="center_vertical"
                 android:alpha="0.33"
                 android:padding="8dp"
+                android:nextFocusDown="@+id/catalogueTypePill"
                 app:srcCompat="@drawable/ic_round_view_list_24"
                 app:tint="?attr/colorOnBackground"
                 tools:ignore="ContentDescription,ImageContrastCheck" />
@@ -52,6 +53,7 @@
                 android:alpha="0.33"
                 android:layout_marginEnd="24dp"
                 android:padding="8dp"
+                android:nextFocusDown="@+id/catalogueTypePill"
                 app:srcCompat="@drawable/ic_round_grid_view_24"
                 app:tint="?attr/colorOnBackground"
                 tools:ignore="ContentDescription,ImageContrastCheck" />
@@ -62,37 +64,20 @@
           the grid defaults to Movie and the filter narrows it, matching the app's
           Movie / TV switch elsewhere.
 
-          One pill with both entries rather than two chips: the pair is a single
-          choice, not two independent filters, and two loose chips left the Material
-          default chip fill showing as the theme's secondary container — a purple
-          that belonged to no part of this app's palette.
+          The same Tadami-style capsule pill the library status tabs use: a single
+          rounded container whose selection strip travels between the two entries.
         -->
-        <com.google.android.material.button.MaterialButtonToggleGroup
-            android:id="@+id/catalogueTypeToggle"
+        <androidx.compose.ui.platform.ComposeView
+            android:id="@+id/catalogueTypePill"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
             android:layout_marginStart="24dp"
             android:layout_marginEnd="24dp"
             android:layout_marginBottom="8dp"
-            app:selectionRequired="true"
-            app:singleSelection="true"
-            app:checkedButton="@id/catalogueToggleMovie">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/catalogueToggleMovie"
-                style="@style/CatalogueToggleSegment"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Movie" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/catalogueToggleTv"
-                style="@style/CatalogueToggleSegment"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="TV show" />
-        </com.google.android.material.button.MaterialButtonToggleGroup>
+            android:focusable="true"
+            android:nextFocusUp="@id/mediaGrid"
+            android:nextFocusDown="@id/mediaRecyclerView" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <ani.sanin.FadingEdgeRecyclerView
@@ -102,6 +87,7 @@
         android:nestedScrollingEnabled="false"
         android:paddingStart="20dp"
         android:paddingEnd="20dp"
+        android:nextFocusUp="@id/catalogueTypePill"
         android:requiresFadingEdge="horizontal"
         tools:itemCount="4"
         tools:listitem="@layout/item_media_compact"

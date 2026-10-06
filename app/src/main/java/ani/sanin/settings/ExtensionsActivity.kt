@@ -13,6 +13,11 @@ import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
 import android.widget.AutoCompleteTextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.setContent
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
@@ -32,16 +37,18 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
+import ani.sanin.ui.components.LibraryStatusPill
+import ani.sanin.ui.components.LibraryStatusTab
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.TvKeyboardUtil
-import com.google.android.material.tabs.TabLayout
-import com.google.android.material.tabs.TabLayoutMediator
 
 class ExtensionsActivity : AppCompatActivity() {
     lateinit var binding: ActivityExtensionsBinding
 
     private var cloudStreamMode = false
-    private var tabMediator: TabLayoutMediator? = null
+
+    private var pillTabs by mutableStateOf<List<LibraryStatusTab>>(emptyList())
+    private var selectedPillIndex by mutableIntStateOf(0)
 
     /**
      * Intercept DPAD DOWN when the ViewPager2 is focused so it reaches the
@@ -56,14 +63,14 @@ class ExtensionsActivity : AppCompatActivity() {
         }
         if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
             val vp = binding.viewPager
-            // Intercept DPAD DOWN from either the ViewPager or the TabLayout
+            // Intercept DPAD DOWN from either the ViewPager or the pill
             // so focus always lands on the first Browse button instead of
-            // being swallowed by ViewPager2 scroll or TabLayout navigation.
+            // being swallowed by ViewPager2 scroll or pill navigation.
             val focused = currentFocus
             var tabFocused = false
             var p: android.view.ViewParent? = focused?.parent
             while (p != null) {
-                if (p === binding.tabLayout) { tabFocused = true; break }
+                if (p === binding.extensionsPill) { tabFocused = true; break }
                 p = p.parent as? android.view.ViewParent
             }
             if (vp.isFocused || tabFocused) {
@@ -119,15 +126,33 @@ class ExtensionsActivity : AppCompatActivity() {
 
         setupModeToggle()
 
-        val tabLayout = findViewById<TabLayout>(R.id.tabLayout)
         val viewPager = findViewById<ViewPager2>(R.id.viewPager)
         viewPager.offscreenPageLimit = 1
 
-        // When the ViewPager2 gains focus (e.g. from search bar UP or tab DOWN),
+        // When the ViewPager2 gains focus (e.g. from search bar UP or pill DOWN),
         // forward it into the Browse button of the first repo row
         viewPager.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) focusFirstBrowseButton(viewPager)
         }
+
+        binding.extensionsPill.setContent {
+            LibraryStatusPill(
+                tabs = pillTabs,
+                selectedIndex = selectedPillIndex,
+                onTabSelected = { position -> selectTab(position) },
+                fillWidth = false,
+                compact = false,
+            )
+        }
+        viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                selectedPillIndex = position
+                updateSearchUiForTab(position)
+                viewPager.updateLayoutParams<ViewGroup.LayoutParams> {
+                    height = ViewGroup.LayoutParams.MATCH_PARENT
+                }
+            }
+        })
 
         setupTabs()
 
@@ -139,32 +164,6 @@ class ExtensionsActivity : AppCompatActivity() {
                 internal.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
             }
         }
-
-        tabLayout.addOnTabSelectedListener(
-            object : TabLayout.OnTabSelectedListener {
-                override fun onTabSelected(tab: TabLayout.Tab) {
-                    // Repo-card tabs (Available) have no search — icon + bar
-                    // only exist on the Installed extension lists.
-                    updateSearchUiForTab(tab.position)
-                    binding.searchViewText.setText("")
-                    binding.searchViewText.clearFocus()
-                    focusFirstBrowseButton(viewPager)
-                }
-
-                override fun onTabUnselected(tab: TabLayout.Tab) {
-                    viewPager.updateLayoutParams<ViewGroup.LayoutParams> {
-                        height = ViewGroup.LayoutParams.MATCH_PARENT
-                    }
-                    tabLayout.clearFocus()
-                }
-
-                override fun onTabReselected(tab: TabLayout.Tab) {
-                    viewPager.updateLayoutParams<ViewGroup.LayoutParams> {
-                        height = ViewGroup.LayoutParams.MATCH_PARENT
-                    }
-                }
-            }
-        )
 
         val searchView: AutoCompleteTextView = findViewById(R.id.searchViewText)
 
@@ -205,6 +204,16 @@ class ExtensionsActivity : AppCompatActivity() {
         val installed = tabPosition == 0
         binding.searchIconButton.visibility = if (installed) View.VISIBLE else View.GONE
         if (!installed) collapseSearchBar()
+    }
+
+    /** Pill tap: move the pager; the page callback keeps the pill and search UI in sync. */
+    private fun selectTab(position: Int) {
+        if (position == selectedPillIndex) return
+        binding.viewPager.setCurrentItem(position, true)
+        // Repo-card tabs (Available) have no search — icon + bar only exist on Installed.
+        binding.searchViewText.setText("")
+        binding.searchViewText.clearFocus()
+        focusFirstBrowseButton(binding.viewPager)
     }
 
     private var searchExpanded = false
@@ -376,10 +385,7 @@ class ExtensionsActivity : AppCompatActivity() {
     }
 
     private fun setupTabs() {
-        tabMediator?.detach()
-        tabMediator = null
-        val tabLayout = findViewById<TabLayout>(R.id.tabLayout)
-        val viewPager = findViewById<ViewPager2>(R.id.viewPager)
+        val viewPager = binding.viewPager
         viewPager.adapter = object : FragmentStateAdapter(this) {
             override fun getItemCount(): Int = 2
 
@@ -397,20 +403,19 @@ class ExtensionsActivity : AppCompatActivity() {
                 }
             }
         }
-        tabMediator = TabLayoutMediator(tabLayout, viewPager) { tab, position ->
-            tab.text = if (cloudStreamMode) {
-                when (position) {
-                    0 -> "Installed Plugins"
-                    else -> "Available Plugins"
-                }
-            } else {
-                when (position) {
-                    0 -> "Installed Extensions"
-                    else -> "Available Extensions"
-                }
-            }
+        pillTabs = if (cloudStreamMode) {
+            listOf(
+                LibraryStatusTab(label = "Installed Plugins", count = 0),
+                LibraryStatusTab(label = "Available Plugins", count = 0),
+            )
+        } else {
+            listOf(
+                LibraryStatusTab(label = "Installed Extensions", count = 0),
+                LibraryStatusTab(label = "Available Extensions", count = 0),
+            )
         }
-        tabMediator?.attach()
+        selectedPillIndex = 0
+        viewPager.setCurrentItem(0, false)
         // Re-apply focus override after adapter re-attach (mode switch recreates internals)
         viewPager.post {
             (viewPager.getChildAt(0) as? ViewGroup)?.let { internal ->

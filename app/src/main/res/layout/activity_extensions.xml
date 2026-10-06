@@ -24,7 +24,7 @@
             android:background="?android:attr/selectableItemBackground"
             android:contentDescription="@string/sort_by"
             android:focusable="true"
-            android:nextFocusDown="@id/tabLayout"
+            android:nextFocusDown="@+id/extensionsPill"
             android:nextFocusRight="@id/modeToggle"
             app:srcCompat="@drawable/ic_round_menu_book_24"
             app:tint="?attr/colorOnBackground" />
@@ -42,7 +42,7 @@
                 android:background="@drawable/bg_mode_toggle_track"
                 android:clickable="true"
                 android:focusable="true"
-                android:nextFocusDown="@id/tabLayout"
+                android:nextFocusDown="@+id/extensionsPill"
                 android:nextFocusLeft="@id/openSettingsButton"
                 android:nextFocusRight="@id/searchIconButton">
 
@@ -86,29 +86,22 @@
             android:background="?android:attr/selectableItemBackground"
             android:contentDescription="@string/search"
             android:focusable="true"
-            android:nextFocusDown="@id/tabLayout"
+            android:nextFocusDown="@+id/extensionsPill"
             android:nextFocusLeft="@id/modeToggle"
             app:srcCompat="@drawable/ic_round_search_24"
             app:tint="?attr/colorOnBackground" />
     </LinearLayout>
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:orientation="horizontal">
-
-        <com.google.android.material.tabs.TabLayout
-            android:id="@+id/tabLayout"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:nextFocusUp="@id/modeToggle"
-            app:tabContentStart="16dp"
-            app:tabGravity="fill"
-            app:tabMode="scrollable"
-            app:tabPaddingEnd="16dp"
-            app:tabPaddingStart="16dp"
-            app:tabTextAppearance="@style/NavBarText" />
-    </LinearLayout>
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/extensionsPill"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="6dp"
+        android:focusable="true"
+        android:nextFocusUp="@id/searchIconButton"
+        android:nextFocusDown="@id/viewPager" />
 
     <!-- Inline search bar: expands under the tabs when the search icon is tapped -->
     <com.google.android.material.textfield.TextInputLayout
@@ -153,6 +146,7 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:focusable="true"
+        android:nextFocusUp="@id/extensionsPill"
         android:descendantFocusability="afterDescendants" />
 
     <FrameLayout

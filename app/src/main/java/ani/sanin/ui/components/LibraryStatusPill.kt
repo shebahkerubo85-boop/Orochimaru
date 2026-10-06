@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -125,12 +126,24 @@ private fun rememberAsymmetricTabEdgeSprings(selectedIndex: Int): Pair<SpringSpe
     }
 }
 
+/**
+ * Hand focus to the next focusable outside the pill in [direction], so DPAD can leave the
+ * capsule for the chrome around it. Returns whether a target was found, so the key is only
+ * swallowed when focus actually moved (otherwise focus would be trapped on the pill).
+ */
+private fun leaveFocus(host: View?, direction: Int): Boolean {
+    val target = (host?.parent as? View)?.focusSearch(direction) ?: return false
+    return target.requestFocus()
+}
+
 @Composable
 fun LibraryStatusPill(
     tabs: List<LibraryStatusTab>,
     selectedIndex: Int,
     onTabSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    fillWidth: Boolean = true,
+    compact: Boolean = true,
 ) {
     val context = LocalContext.current
     val dark = isDarkTheme()
@@ -236,23 +249,14 @@ fun LibraryStatusPill(
         }
     }
 
-    val leaveLeft = {
-        val v = view
-        (v?.parent as? View)?.focusSearch(View.FOCUS_LEFT)?.requestFocus()
-    }
-    val leaveRight = {
-        val v = view
-        (v?.parent as? View)?.focusSearch(View.FOCUS_RIGHT)?.requestFocus()
-    }
-
     Box(
         modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+            .then(if (fillWidth) Modifier.fillMaxWidth() else Modifier.wrapContentWidth())
+            .padding(horizontal = if (fillWidth) 16.dp else 0.dp),
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
+                .then(if (fillWidth) Modifier.fillMaxWidth() else Modifier.wrapContentWidth())
                 .onSizeChanged { containerWidthPx = it.width }
                 .then(
                     if (isLightTheme) {
@@ -350,31 +354,32 @@ fun LibraryStatusPill(
                 .focusRequester(focusRequester)
                 .focusable()
                 .onKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyUp) {
-                        when (event.key) {
-                            Key.DirectionLeft -> {
-                                if (selectedIndex > 0) {
-                                    onTabSelected(selectedIndex - 1)
-                                } else {
-                                    leaveLeft()
-                                }
+                    if (event.type != KeyEventType.KeyUp) return@onKeyEvent false
+                    when (event.key) {
+                        Key.DirectionLeft -> {
+                            if (selectedIndex > 0) {
+                                onTabSelected(selectedIndex - 1)
                                 true
+                            } else {
+                                leaveFocus(view, View.FOCUS_LEFT)
                             }
-                            Key.DirectionRight -> {
-                                if (selectedIndex < tabs.lastIndex) {
-                                    onTabSelected(selectedIndex + 1)
-                                } else {
-                                    leaveRight()
-                                }
-                                true
-                            }
-                            Key.Enter, Key.DirectionCenter -> {
-                                onTabSelected(selectedIndex)
-                                true
-                            }
-                            else -> false
                         }
-                    } else false
+                        Key.DirectionRight -> {
+                            if (selectedIndex < tabs.lastIndex) {
+                                onTabSelected(selectedIndex + 1)
+                                true
+                            } else {
+                                leaveFocus(view, View.FOCUS_RIGHT)
+                            }
+                        }
+                        Key.DirectionUp -> leaveFocus(view, View.FOCUS_UP)
+                        Key.DirectionDown -> leaveFocus(view, View.FOCUS_DOWN)
+                        Key.Enter, Key.DirectionCenter -> {
+                            onTabSelected(selectedIndex)
+                            true
+                        }
+                        else -> false
+                    }
                 },
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -384,6 +389,7 @@ fun LibraryStatusPill(
                     tab = tab,
                     isSelected = index == selectedIndex,
                     isLightTheme = isLightTheme,
+                    compact = compact,
                     accent = accent,
                     textOnAccent = textOnAccent,
                     textPrimary = textPrimary,
@@ -408,6 +414,7 @@ private fun LibraryStatusTabView(
     tab: LibraryStatusTab,
     isSelected: Boolean,
     isLightTheme: Boolean,
+    compact: Boolean,
     accent: Color,
     textOnAccent: Color,
     textPrimary: Color,
@@ -424,7 +431,10 @@ private fun LibraryStatusTabView(
             ) {
                 onClick()
             }
-            .padding(horizontal = 14.dp, vertical = 7.dp),
+            .padding(
+                horizontal = if (compact) 14.dp else 16.dp,
+                vertical = if (compact) 7.dp else 10.dp,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Row(
@@ -442,7 +452,7 @@ private fun LibraryStatusTabView(
                 },
                 style = MaterialTheme.typography.bodyLarge.copy(
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                    fontSize = 13.sp,
+                    fontSize = if (compact) 13.sp else 14.sp,
                 ),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
