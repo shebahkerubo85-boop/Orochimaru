@@ -15,8 +15,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -137,6 +137,7 @@ fun LibraryStatusPill(
     val accent = Color(context.getThemeColor(R.attr.colorPrimary))
     val textPrimary = Color(context.getThemeColor(R.attr.colorOnSurface))
     val textSecondary = Color(context.getThemeColor(R.attr.colorOnSurfaceVariant))
+    val textOnAccent = Color(context.getThemeColor(R.attr.colorOnPrimary))
     val isLightTheme = !dark
 
     val scrollState = rememberScrollState()
@@ -253,8 +254,6 @@ fun LibraryStatusPill(
             modifier = Modifier
                 .fillMaxWidth()
                 .onSizeChanged { containerWidthPx = it.width }
-                .padding(5.dp)
-                .horizontalScroll(scrollState)
                 .then(
                     if (isLightTheme) {
                         Modifier
@@ -319,6 +318,8 @@ fun LibraryStatusPill(
                             )
                     },
                 )
+                .padding(6.dp)
+                .horizontalScroll(scrollState)
                 .drawBehind {
                     if (animatedRight > animatedLeft && animatedHeight > 0f) {
                         val minWidth = minOf(activeWidth, animatedHeight)
@@ -384,6 +385,7 @@ fun LibraryStatusPill(
                     isSelected = index == selectedIndex,
                     isLightTheme = isLightTheme,
                     accent = accent,
+                    textOnAccent = textOnAccent,
                     textPrimary = textPrimary,
                     textSecondary = textSecondary,
                     onClick = { onTabSelected(index) },
@@ -407,6 +409,7 @@ private fun LibraryStatusTabView(
     isSelected: Boolean,
     isLightTheme: Boolean,
     accent: Color,
+    textOnAccent: Color,
     textPrimary: Color,
     textSecondary: Color,
     onClick: () -> Unit,
@@ -451,14 +454,14 @@ private fun LibraryStatusTabView(
                 Spacer(modifier = Modifier.width(6.dp))
                 Box(
                     modifier = Modifier
-                        .height(18.dp)
+                        .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
                         .background(accent, CircleShape)
-                        .padding(horizontal = 6.dp),
+                        .padding(horizontal = 5.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = if (tab.count > 99) "99+" else tab.count.toString(),
-                        color = Color.White,
+                        color = textOnAccent,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                     )
