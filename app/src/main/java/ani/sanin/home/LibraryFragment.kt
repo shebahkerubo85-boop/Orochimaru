@@ -6,14 +6,16 @@ import ani.sanin.statusBarHeight
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.tabs.TabLayout
-import com.google.android.material.tabs.TabLayoutMediator
 import ani.sanin.R
 import ani.sanin.Refresh
 import ani.sanin.connections.anilist.Anilist
@@ -26,6 +28,8 @@ import ani.sanin.media.user.ListViewPagerAdapter
 import ani.sanin.media.user.ListViewModel
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
+import ani.sanin.ui.components.LibraryStatusPill
+import ani.sanin.ui.components.LibraryStatusTab
 import ani.sanin.util.FocusEffectUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -36,6 +40,9 @@ class LibraryFragment : Fragment() {
     private val binding get() = _binding!!
     private var selectedTabIdx = 0
     private var viewPagerAttached = false
+
+    private var tabsState by mutableStateOf<List<LibraryStatusTab>>(emptyList())
+    private var selectedPillState by mutableIntStateOf(0)
 
     private val model: ListViewModel by activityViewModels()
 
@@ -50,8 +57,6 @@ class LibraryFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         val primaryColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorSurface)
-        val primaryTextColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorPrimary)
-        val secondaryTextColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorOutline)
 
         // Follow CalendarActivity pattern
         if (PrefManager.getVal<Boolean>(PrefName.ImmersiveMode)) {
@@ -64,17 +69,27 @@ class LibraryFragment : Fragment() {
             binding.root.fitsSystemWindows = true
         }
 
-        binding.listTabLayout.setBackgroundColor(primaryColor)
         binding.listAppBar.setBackgroundColor(primaryColor)
-        binding.listTabLayout.setTabTextColors(secondaryTextColor, primaryTextColor)
-        binding.listTabLayout.setSelectedTabIndicatorColor(primaryTextColor)
 
-        binding.listTabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab?) {
-                selectedTabIdx = tab?.position ?: 0
+        binding.listTabPill.setContent {
+            LibraryStatusPill(
+                tabs = tabsState,
+                selectedIndex = selectedPillState,
+                onTabSelected = { idx ->
+                    selectedPillState = idx
+                    selectedTabIdx = idx
+                    if (binding.listViewPager.currentItem != idx) {
+                        binding.listViewPager.setCurrentItem(idx, false)
+                    }
+                },
+            )
+        }
+
+        binding.listViewPager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                selectedPillState = position
+                selectedTabIdx = position
             }
-            override fun onTabUnselected(tab: TabLayout.Tab?) {}
-            override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
 
         val defaultKeys = listOf(
@@ -91,11 +106,12 @@ class LibraryFragment : Fragment() {
                     val keys = it.keys.toList()
                         .map { key -> userKeys.getOrNull(defaultKeys.indexOf(key)) ?: key }
                     val values = it.values.toList()
-                    TabLayoutMediator(binding.listTabLayout, binding.listViewPager) { tab, position ->
-                        tab.text = "${keys[position]} (${values[position].size})"
-                    }.attach()
+                    tabsState = keys.mapIndexed { position, key ->
+                        LibraryStatusTab(label = key, count = values[position].size)
+                    }
                     viewPagerAttached = true
                     binding.listViewPager.setCurrentItem(selectedTabIdx, false)
+                    selectedPillState = selectedTabIdx
                 }
             }
         }
@@ -112,14 +128,13 @@ class LibraryFragment : Fragment() {
             }
         }
 
-        // Fix dpad chain: settings/profile pill/avatar → tabs → pager grid.
-        // XML already sets nextFocusDown to tabLayout, but ensure avatar bar is reachable.
-        binding.listSettings.nextFocusDownId = R.id.listTabLayout
-        binding.profileButton.nextFocusDownId = R.id.listTabLayout
-        binding.listAvatar.nextFocusDownId = R.id.listTabLayout
-        binding.listTabLayout.nextFocusUpId = R.id.profileButton
-        binding.listTabLayout.nextFocusDownId = R.id.listViewPager
-        binding.listViewPager.nextFocusUpId = R.id.listTabLayout
+        // Fix dpad chain: settings/profile pill/avatar → status pill → pager grid.
+        binding.listSettings.nextFocusDownId = R.id.listTabPill
+        binding.profileButton.nextFocusDownId = R.id.listTabPill
+        binding.listAvatar.nextFocusDownId = R.id.listTabPill
+        binding.listTabPill.nextFocusUpId = R.id.profileButton
+        binding.listTabPill.nextFocusDownId = R.id.listViewPager
+        binding.listViewPager.nextFocusUpId = R.id.listTabPill
 
         // Profile pill: solid fill with the label inverted against it, so it stays the
         // highest-contrast thing in the bar in either theme.
