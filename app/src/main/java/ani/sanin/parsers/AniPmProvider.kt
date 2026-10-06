@@ -230,20 +230,23 @@ class AniPmExtractor(override val server: VideoServer) : VideoExtractor() {
                 anipmLog("no settlarSelection (keys=${root.keys.take(6)}) for ${server.embed.url}")
                 return@withContext VideoContainer(emptyList())
             }
+            val data = server.extraData.orEmpty()
             val effective = (root["effectiveLanguage"] as? JsonPrimitive)?.contentOrNull
-                ?: server.extraData["channel"] ?: "sub"
+                ?: data["channel"] ?: "sub"
             val episode = (root["episode"] as? JsonPrimitive)?.contentOrNull
-                ?: server.extraData["ep"] ?: "1"
+                ?: data["ep"] ?: "1"
 
             // 2. exchange the selection for a short-lived embed session. The
             //    provider must be the literal "anipm" - "settlar" is rejected 400.
-            val apiBase = server.extraData["api"]
+            val apiBase = data["api"]
                 ?: "${server.embed.url.substringBefore("/anime/playback-bootstrap")}/api"
             val sessionUrl = apiBase +
                 "/anime/settlar/session?selection=" + Uri.encode(selection) +
                 "&provider=anipm&ep=" + Uri.encode(episode) +
                 "&channel=" + Uri.encode(effective) + "&telemetry=0"
-            val session = anipmJson(anipmGet(sessionUrl, AniPmProvider.apiHeaders(server.extraData["origin"] ?: "https://ani.pm")))
+            val session = anipmJson(
+                anipmGet(sessionUrl, AniPmProvider.apiHeaders(data["origin"] ?: "https://ani.pm"))
+            )
             val embedUrl = (session["embedUrl"] as? JsonPrimitive)?.contentOrNull
             if (embedUrl.isNullOrBlank()) {
                 anipmLog("no embedUrl (keys=${session.keys.take(6)})")
