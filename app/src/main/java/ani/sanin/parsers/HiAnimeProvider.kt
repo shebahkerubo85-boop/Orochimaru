@@ -128,7 +128,10 @@ class HiAnimeProvider : NativeAnimeParser() {
     ): List<VideoServer> = withContext(Dispatchers.IO) {
         try {
             val episodeId = extra?.get("episodeId")
-                ?: return@withContext emptyList().also { hiLog("loadVideoServers: no episodeId in extra ($extra)") }
+                ?: run {
+                    hiLog("loadVideoServers: no episodeId in extra ($extra)")
+                    return@withContext emptyList()
+                }
             val body = hiGet("$api/episode/servers?episodeId=$episodeId", referer = episodeLink)
             val seen = mutableSetOf<String>()
             SERVER_ITEM.findAll(body).mapNotNull { match ->
