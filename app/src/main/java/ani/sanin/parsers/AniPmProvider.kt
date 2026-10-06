@@ -167,7 +167,13 @@ class AniPmProvider : NativeAnimeParser() {
                         embed = FileUrl(
                             "$api/anime/playback-bootstrap/settlar/$id?ep=$ep&lang=$channel&core=0"
                         ),
-                        extraData = mapOf("channel" to channel, "id" to id, "ep" to ep)
+                        extraData = mapOf(
+                            "channel" to channel,
+                            "id" to id,
+                            "ep" to ep,
+                            "api" to api,
+                            "origin" to baseUrl
+                        )
                     )
                 )
             }
@@ -182,19 +188,11 @@ class AniPmProvider : NativeAnimeParser() {
         AniPmExtractor(server)
 
     companion object {
-        /** All JSON endpoints live under `/api`; the bare `/anime/...` paths are HTML routes. */
-        val anipmApi: String get() = "$baseUrl/api"
-
-        val ANIPM_API_HEADERS = mapOf(
-            "Referer" to "https://ani.pm/",
-            "Origin" to "https://ani.pm",
+        fun apiHeaders(origin: String) = mapOf(
+            "Referer" to "$origin/",
+            "Origin" to origin,
             "Accept" to "application/json"
         )
-
-        /** Matches an m3u8 URL written with single quotes inside a player config. */
-        val ANIPM_MASTER = Regex("""(?:src|source|file|url|master)["'\s:=]+\s*["'](https?://[^"']+\.m3u8[^"']*)["']""", RegexOption.IGNORE_CASE)
-        val ANIPM_MASTER_QUOTED = Regex("""https?://[^"'\\\s]+\.m3u8[^"'\\\s]*""", RegexOption.IGNORE_CASE)
-        val ANIPM_SUB = Regex("""["'](https?://[^"']+\.(?:vtt|srt|ass)[^"']*)["']""", RegexOption.IGNORE_CASE)
 
         /**
          * The proxy paths are `/backup/v1/h/<base64>.<sig>.m3u8`; the first dot
@@ -214,6 +212,11 @@ class AniPmProvider : NativeAnimeParser() {
     }
 }
 
+/** Matches an m3u8 URL written inside a player config, quoted or bare. */
+private val ANIPM_MASTER =
+    Regex("""(?:src|source|file|url|master)\s*[:=]\s*["'](https?://[^"']+\.m3u8[^"']*)["']""", RegexOption.IGNORE_CASE)
+private val ANIPM_MASTER_QUOTED =
+    Regex("""https?://[^"'\\\s]+\.m3u8[^"'\\\s]*""", RegexOption.IGNORE_CASE)
 class AniPmExtractor(override val server: VideoServer) : VideoExtractor() {
     override suspend fun extract(): VideoContainer = withContext(Dispatchers.IO) {
         try {
@@ -234,11 +237,13 @@ class AniPmExtractor(override val server: VideoServer) : VideoExtractor() {
 
             // 2. exchange the selection for a short-lived embed session. The
             //    provider must be the literal "anipm" - "settlar" is rejected 400.
-            val sessionUrl = AniPmProvider.anipmApi +
+            val apiBase = server.extraData["api"]
+                ?: "${server.embed.url.substringBefore("/anime/playback-bootstrap")}/api"
+            val sessionUrl = apiBase +
                 "/anime/settlar/session?selection=" + Uri.encode(selection) +
                 "&provider=anipm&ep=" + Uri.encode(episode) +
                 "&channel=" + Uri.encode(effective) + "&telemetry=0"
-            val session = anipmJson(anipmGet(sessionUrl, ANIPM_API_HEADERS))
+            val session = anipmJson(anipmGet(sessionUrl, AniPmProvider.apiHeaders(server.extraData["origin"] ?: "https://ani.pm")))
             val embedUrl = (session["embedUrl"] as? JsonPrimitive)?.contentOrNull
             if (embedUrl.isNullOrBlank()) {
                 anipmLog("no embedUrl (keys=${session.keys.take(6)})")
@@ -248,15 +253,9 @@ class AniPmExtractor(override val server: VideoServer) : VideoExtractor() {
 
             // 3. the embed page is Cloudflare-gated; clear it through the app's
             //    WebView-backed killer and lift the master playlist out of the DOM.
-            val page = anipmCloudflareGet(embedUrl)
-            if (page.isNullOrBlank()) {
-                anipmLog("embed page blocked (Cloudflare not cleared)")
-                return@withContext VideoContainer(emptyList())
-            }
-            val master = ANIPM_MASTER.find(page)?.groupValues?.get(1)
-                ?: ANIPM_MASTER_QUOTED.find(page)?.groupValues?.get(1)
+            val master = anipmCloudflareMaster(embedUrl, "https://ani.pm/")
             if (master.isNullOrBlank()) {
-                anipmLog("no master playlist in embed page (${page.length} bytes)")
+                anipmLog("no master playlist after Cloudflare (embed ${embedUrl.take(60)})")
                 return@withContext VideoContainer(emptyList())
             }
 
@@ -266,24 +265,14 @@ class AniPmExtractor(override val server: VideoServer) : VideoExtractor() {
             )
             val realMaster = AniPmProvider.anipmUnproxy(master, "h") ?: master
 
-            val subtitles = ANIPM_SUB.findAll(page).mapNotNull { m ->
-                val url = m.groupValues[1]
-                if (!url.startsWith("http")) return@mapNotNull null
-                Subtitle(
-                    language = "en",
-                    file = FileUrl(AniPmProvider.anipmUnproxy(url, "v") ?: url, mediaHeaders),
-                    type = SubtitleType.VTT
-                )
-            }.distinctBy { it.file.url }.toList()
-
-            anipmLog("master ${realMaster.take(100)} + ${subtitles.size} subs")
+            anipmLog("master ${realMaster.take(100)}")
             val hls = anipmResolveVariants(realMaster, mediaHeaders)
             val videos = if (hls.videos.isEmpty()) {
                 listOf(Video(null, VideoType.M3U8, FileUrl(realMaster, mediaHeaders)))
             } else {
                 hls.videos
             }
-            VideoContainer(videos, subtitles, audioTracks = hls.audioTracks)
+            VideoContainer(videos, emptyList(), audioTracks = hls.audioTracks)
         } catch (e: Exception) {
             anipmLog("extract error: ${e.message}")
             VideoContainer(emptyList())
@@ -359,21 +348,35 @@ private fun anipmResolveVariants(master: String, headers: Map<String, String>): 
  * 403 challenge, so it has to be cleared through the app's WebView-backed
  * resolver. Returns the page HTML, or null when the challenge never clears.
  */
-private suspend fun anipmCloudflareGet(url: String): String? {
+/**
+ * The settlar embed page sits behind Cloudflare, so a bare request gets a 403
+ * challenge. Clear it through the app's WebView resolver and capture the master
+ * playlist as it is requested, which is how the other CF-gated extractors work.
+ * Returns the master URL, or null when the challenge never clears.
+ */
+private suspend fun anipmCloudflareMaster(url: String, referer: String?): String? {
     val resolver = WebViewResolver(
-        interceptUrl = Regex("anipm-embed-ok"),
-        additionalUrls = listOf(Regex(Regex.escape(url))),
-        useOkhttp = false
+        interceptUrl = Regex("""(m3u8|master)""", RegexOption.IGNORE_CASE),
+        additionalUrls = listOf(Regex("""(m3u8|master)""", RegexOption.IGNORE_CASE)),
+        useOkhttp = false,
+        timeout = 15_000L
     )
     return try {
-        val body = withContext(Dispatchers.IO) {
-            resolver.resolveUsingWebView(url, "https://ani.pm/", "GET") { true }
-        }.first?.let { request ->
-            okHttpClient.newCall(request).execute().use { response ->
-                if (response.isSuccessful) response.body?.string() else null
-            }
-        }
-        if (body.isNullOrBlank()) null else body
+        val captured = okHttpClient.newBuilder()
+            .addInterceptor(resolver)
+            .build()
+            .newCall(
+                Request.Builder()
+                    .url(url)
+                    .header("User-Agent", NativeAnimeParser.USER_AGENT)
+                    .apply { referer?.let { header("Referer", it) } }
+                    .get().build()
+            ).execute().use { response -> response.body?.string().orEmpty() }
+
+        // Either the resolver handed back the playlist directly, or the page HTML
+        // came through and the master still has to be lifted out of it.
+        if (captured.contains("#EXTM3U")) captured
+        else ANIPM_MASTER_QUOTED.find(captured)?.groupValues?.get(1)
     } catch (e: Exception) {
         anipmLog("embed fetch failed: ${e.message}")
         null
