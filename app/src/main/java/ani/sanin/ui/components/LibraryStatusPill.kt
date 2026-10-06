@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -270,7 +271,14 @@ fun LibraryStatusPill(
     Box(
         modifier = modifier
             .then(if (fillWidth) Modifier.fillMaxWidth() else Modifier.wrapContentWidth())
-            .padding(horizontal = if (fillWidth) 16.dp else 0.dp),
+            // Light mode draws a drop shadow, so keep enough room around the capsule that
+            // the host ComposeView does not clip it.
+            .padding(
+                start = if (fillWidth) 16.dp else 6.dp,
+                top = if (isLightTheme) 6.dp else 0.dp,
+                end = if (fillWidth) 16.dp else 6.dp,
+                bottom = if (isLightTheme) 6.dp else 0.dp,
+            ),
     ) {
         Row(
             modifier = Modifier
@@ -279,35 +287,17 @@ fun LibraryStatusPill(
                 .then(
                     if (isLightTheme) {
                         Modifier
-                            .drawBehind {
-                                val radius = size.height / 2f
-                                val cornerRadius = CornerRadius(radius, radius)
-
-                                val neutralOffsetY = 3.dp.toPx()
-                                val warmOffsetY = 5.dp.toPx()
-
-                                val neutralInset = 1.dp.toPx()
-                                val warmInset = 3.dp.toPx()
-
-                                drawRoundRect(
-                                    color = Color.Black.copy(alpha = 0.035f),
-                                    topLeft = Offset(x = neutralInset, y = neutralOffsetY),
-                                    size = Size(width = size.width - neutralInset * 2, height = size.height),
-                                    cornerRadius = cornerRadius,
-                                )
-                                drawRoundRect(
-                                    color = accent.copy(alpha = 0.025f),
-                                    topLeft = Offset(x = warmInset, y = warmOffsetY),
-                                    size = Size(width = size.width - warmInset * 2, height = size.height),
-                                    cornerRadius = cornerRadius,
-                                )
-                            }
+                            .shadow(
+                                elevation = 6.dp,
+                                shape = tabShape,
+                                clip = false,
+                            )
                             .background(
                                 brush = Brush.verticalGradient(
                                     listOf(
-                                        Color.White.copy(alpha = 0.78f),
-                                        Color.White.copy(alpha = 0.68f),
-                                        Color.White.copy(alpha = 0.60f),
+                                        lerp(Color.White, accent, 0.06f),
+                                        lerp(Color.White, accent, 0.035f),
+                                        lerp(Color.White, accent, 0.018f),
                                     ),
                                 ),
                                 shape = tabShape,
@@ -316,9 +306,9 @@ fun LibraryStatusPill(
                                 width = 1.dp,
                                 brush = Brush.verticalGradient(
                                     listOf(
-                                        Color.White.copy(alpha = 0.75f),
-                                        Color.White.copy(alpha = 0.28f),
-                                        Color.White.copy(alpha = 0.12f),
+                                        accent.copy(alpha = 0.32f),
+                                        accent.copy(alpha = 0.18f),
+                                        accent.copy(alpha = 0.09f),
                                     ),
                                 ),
                                 shape = tabShape,
