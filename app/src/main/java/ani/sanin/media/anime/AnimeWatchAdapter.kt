@@ -194,12 +194,19 @@ class AnimeWatchAdapter(
             )
             fragment.onIconPressed(style, reversed)
         }
+        binding.mediaSourceDownload.alpha = if (fragment.downloadMode) 1f else 0.5f
         binding.mediaSourceDownload.setOnClickListener {
+            val on = fragment.toggleDownloadMode()
+            binding.mediaSourceDownload.alpha = if (on) 1f else 0.5f
+            snackString(if (on) R.string.download_mode_on else R.string.download_mode_off)
+        }
+        binding.mediaSourceDownload.setOnLongClickListener {
             startActivity(
                 fragment.requireContext(),
                 Intent(fragment.requireContext(), DownloadsActivity::class.java),
                 null
             )
+            true
         }
         binding.mediaSourceFaq.setOnClickListener {
             startActivity(

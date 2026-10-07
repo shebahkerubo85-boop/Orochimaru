@@ -266,6 +266,7 @@ class EpisodeAdapter(
                     media.id,
                     ep.number
                 )
+                bindDownloadButton(binding.itemEpisodeDownload, ep)
             }
 
             is EpisodeCompactViewHolder -> {
@@ -447,7 +448,18 @@ class EpisodeAdapter(
                     media.id,
                     ep.number
                 )
+                bindDownloadButton(binding.itemEpisodeDownload, ep)
             }
+        }
+    }
+
+    private fun bindDownloadButton(button: android.widget.ImageView, ep: Episode) {
+        if (fragment.downloadMode) {
+            button.visibility = View.VISIBLE
+            button.setOnClickListener { fragment.onEpisodeDownload(ep.number) }
+        } else {
+            button.visibility = View.GONE
+            button.setOnClickListener(null)
         }
     }
 

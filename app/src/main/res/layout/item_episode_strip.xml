@@ -194,6 +194,21 @@
                 app:tint="?attr/colorOnBackground"
                 tools:ignore="ContentDescription" />
 
+            <ImageView
+                android:id="@+id/itemEpisodeDownload"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_gravity="top|end"
+                android:layout_margin="8dp"
+                android:background="@drawable/bg_trans_black"
+                android:clickable="true"
+                android:focusable="true"
+                android:padding="5dp"
+                android:visibility="gone"
+                app:srcCompat="@drawable/ic_download_24"
+                app:tint="?attr/colorPrimary"
+                tools:ignore="ContentDescription" />
+
         </FrameLayout>
 
     </com.google.android.material.card.MaterialCardView>

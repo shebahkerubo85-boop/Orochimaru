@@ -694,6 +694,14 @@ class AnimeWatchFragment : Fragment() {
         model.onEpisodeClick(media, i, requireActivity().supportFragmentManager)
     }
 
+    var downloadMode = false
+
+    fun toggleDownloadMode(): Boolean {
+        downloadMode = !downloadMode
+        if (::episodeAdapter.isInitialized) episodeAdapter.notifyDataSetChanged()
+        return downloadMode
+    }
+
     fun onEpisodeDownload(i: String) {
         if (media.anime?.episodes == null) {
             snackString(getString(R.string.episode_not_found, i))

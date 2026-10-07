@@ -396,7 +396,7 @@ enum class PrefName(val data: Pref) {
     // Downloads (Settings -> Downloads)
     DownloadStorage(Pref(Location.AnimeDownloads, Int::class, 0)),        // 0 = app, 1 = shared
     DownloadOnlyOverWifi(Pref(Location.AnimeDownloads, Boolean::class, false)),
-    DownloadConcurrency(Pref(Location.AnimeDownloads, Int::class, 1)),
+    DownloadConcurrency(Pref(Location.AnimeDownloads, Int::class, 3)),
     DownloadNotifications(Pref(Location.AnimeDownloads, Boolean::class, true)),
     DownloadCompletedNotification(Pref(Location.AnimeDownloads, Boolean::class, true)),
     DownloadAutoDeleteWatched(Pref(Location.AnimeDownloads, Boolean::class, false)),
