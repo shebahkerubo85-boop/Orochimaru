@@ -42,6 +42,9 @@ import ani.sanin.databinding.BottomSheetSelectorBinding
 import ani.sanin.databinding.ItemQualityOptionBinding
 import ani.sanin.databinding.ItemStreamBinding
 import ani.sanin.databinding.ItemUrlBinding
+import ani.sanin.download.DownloadManager
+import ani.sanin.download.bestVideoOf
+import ani.sanin.download.enqueue
 import ani.sanin.getThemeColor
 import ani.sanin.hideSystemBars
 import ani.sanin.media.Media
@@ -311,6 +314,12 @@ class SelectorDialogFragment : DialogFragment() {
                 fun startEpisodeDownload(episodeName: String, selectedServerName: String,
                                          selectedSubtitles: MutableList<String>,
                                          selectedAudioTracks: MutableList<String>){
+                    val m = media ?: return
+                    val ep = m.anime?.episodes?.getEpisode(episodeName) ?: return
+                    val extractor = ep.extractors?.firstOrNull { it.server.name == selectedServerName }
+                        ?: return
+                    val video = bestVideoOf(extractor) ?: return
+                    DownloadManager.enqueue(m, ep, extractor, video)
                 }
 
                 Log.d("AnimeDownloader", "Selected Server for watching: $selected")
@@ -680,7 +689,18 @@ class SelectorDialogFragment : DialogFragment() {
                 }
             }
             binding.urlDownload.setSafeOnClickListener {
-                snackString("Download unavailable")
+                val m = media
+                val ep = episode
+                if (m == null || ep == null) {
+                    snackString(R.string.download_failed)
+                    return@setSafeOnClickListener
+                }
+                val queued = DownloadManager.enqueue(m, ep, extractor, video)
+                if (queued != null) {
+                    snackString(R.string.downloading)
+                } else {
+                    snackString(R.string.download_not_found)
+                }
             }
             if (video.format == VideoType.CONTAINER) {
                 binding.urlSize.isVisible = video.size != null

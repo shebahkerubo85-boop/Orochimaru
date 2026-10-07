@@ -6,6 +6,7 @@ serialization = "1.9.0"
 firebase-bom = "33.13.0"
 glide = "5.0.5"
 exo = "1.11.0"
+ffmpeg-kit = "1.18"
 previewseekbarVer = "1.1.1.0"
 markwon = "4.6.2"
 groupie = "2.10.1"
@@ -162,6 +163,9 @@ okhttp-brotli = "com.squareup.okhttp3:okhttp-brotli:5.4.0"
 okhttp-doh = "com.squareup.okhttp3:okhttp-dnsoverhttps:5.4.0"
 okhttp-zstd = "com.squareup.okhttp3:okhttp-zstd:5.4.0"
 okio = "com.squareup.okio:okio:3.9.1"
+
+# ffmpeg (HLS remux for downloads) — jmir1 fork of ffmpeg-kit, published on JitPack
+ffmpeg-kit = { module = "com.github.jmir1:ffmpeg-kit", version.ref = "ffmpeg-kit" }
 
 
 # === Upstream CS3 libraries ===

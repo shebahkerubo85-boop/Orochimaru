@@ -185,6 +185,7 @@ dependencies {
     implementation(libs.paging)
     implementation(libs.bundles.okhttp)
     implementation(libs.okio)
+    implementation(libs.ffmpeg.kit)
 
 
     // CloudStream .cs3 plugin runtime (vendored com.lagradost.cloudstream3 library)

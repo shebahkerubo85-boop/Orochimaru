@@ -55,6 +55,7 @@ class App : Application() {
         // before anything is listening, and the process just dies with no trace.
         Thread.setDefaultUncaughtExceptionHandler(FinalExceptionHandler())
         PrefManager.init(this)
+        ani.sanin.download.DownloadManager.init(this)
 
         val crashlytics =
             ani.sanin.connections.crashlytics.CrashlyticsFactory.createCrashlytics()

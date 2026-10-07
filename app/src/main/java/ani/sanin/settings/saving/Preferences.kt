@@ -392,6 +392,15 @@ enum class PrefName(val data: Pref) {
     ),
     UnreadCommentNotifications(Pref(Location.Irrelevant, Int::class, 0)),
     DownloadsDir(Pref(Location.Irrelevant, String::class, "")),
+
+    // Downloads (Settings -> Downloads)
+    DownloadStorage(Pref(Location.AnimeDownloads, Int::class, 0)),        // 0 = app, 1 = shared
+    DownloadOnlyOverWifi(Pref(Location.AnimeDownloads, Boolean::class, false)),
+    DownloadConcurrency(Pref(Location.AnimeDownloads, Int::class, 1)),
+    DownloadNotifications(Pref(Location.AnimeDownloads, Boolean::class, true)),
+    DownloadCompletedNotification(Pref(Location.AnimeDownloads, Boolean::class, true)),
+    DownloadAutoDeleteWatched(Pref(Location.AnimeDownloads, Boolean::class, false)),
+
     LocalDir(Pref(Location.Irrelevant, String::class, "")),
     OC(Pref(Location.Irrelevant, Boolean::class, false)),
 
