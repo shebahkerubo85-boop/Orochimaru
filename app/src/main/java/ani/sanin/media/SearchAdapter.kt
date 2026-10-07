@@ -114,6 +114,8 @@ class SearchAdapter(
         LensButtonBackground.apply(binding.searchFilter)
         LensButtonBackground.apply(binding.clearHistory)
         LensButtonBackground.apply(binding.searchAdultCheck)
+        LensButtonBackground.apply(binding.searchResultGrid)
+        LensButtonBackground.apply(binding.searchResultList)
 
         FocusEffectUtil.applyFocusListener(
             binding.searchAdultCheck,
@@ -278,13 +280,17 @@ class SearchAdapter(
         binding.searchAdultCheck.apply {
             if (Anilist.adult) {
                 visibility = View.VISIBLE
+                binding.searchAdultLabel.visibility = View.VISIBLE
                 updateAdultTint(adult)
                 setOnClickListener {
                     adult = !adult
                     updateAdultTint(adult)
                     searchTitle()
                 }
-            } else visibility = View.GONE
+            } else {
+                visibility = View.GONE
+                binding.searchAdultLabel.visibility = View.GONE
+            }
         }
 
         binding.searchBarText.post {

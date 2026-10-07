@@ -28,6 +28,7 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
+import ani.sanin.ui.GlassPill
 import ani.sanin.util.FocusEffectUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -248,67 +249,102 @@ class CalendarActivity : AppCompatActivity() {
             val isToday = iso == todayIso
             val isSel = iso == selectedIso
 
-            val col = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(dayW, LinearLayout.LayoutParams.WRAP_CONTENT)
-                setPadding(0, dpToPx(4), 0, dpToPx(4))
-            }
-
             val onSurface = getThemeColor(com.google.android.material.R.attr.colorOnSurface)
             val onPrimary = getThemeColor(com.google.android.material.R.attr.colorOnPrimary)
+            val accent = getThemeColor(com.google.android.material.R.attr.colorPrimary)
+
+            // The day name and number live inside one capsule, matching the library status pill.
+            val pill = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                layoutParams = LinearLayout.LayoutParams(dayW - dpToPx(6), LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    marginEnd = dpToPx(6)
+                }
+                setPadding(dpToPx(2), dpToPx(6), dpToPx(2), dpToPx(6))
+                isClickable = true
+                isFocusable = true
+                isFocusableInTouchMode = false
+                id = View.generateViewId()
+                isSelected = isSel
+            }
+
             val nameTv = TextView(this).apply {
                 text = dayNames[i]
                 textSize = 11f
                 gravity = Gravity.CENTER
-                setTextColor(onSurface)
-                alpha = if (isSel || isToday) 1f else 0.4f
+                typeface = Typeface.create(resources.getFont(R.font.poppins_semi_bold), Typeface.NORMAL)
             }
 
             val numTv = TextView(this).apply {
                 text = dayNum
-                textSize = 14f
+                textSize = 15f
                 gravity = Gravity.CENTER
                 typeface = Typeface.create(resources.getFont(R.font.poppins_bold), Typeface.BOLD)
-                layoutParams = LinearLayout.LayoutParams(dpToPx(36), dpToPx(36)).apply { topMargin = dpToPx(2) }
-                isFocusable = true
-                isFocusableInTouchMode = true
-                id = View.generateViewId()
-                setBackgroundResource(R.drawable.bg_calendar_day)
-                isSelected = isSel
-                isActivated = isToday
-                setTextColor(if (isSel || isToday) onPrimary else onSurface)
-                alpha = if (isSel || isToday) 1f else 0.5f
             }
-            // Round focus ring for dpad navigation (was invisible while moving 24→25)
-            // Use circular border so oval bg gets a proper ring while traversing
-            FocusEffectUtil.applyFocusListener(numTv, numTv, isCircular = true)
 
-            col.addView(nameTv)
-            col.addView(numTv)
-            col.setOnClickListener { selectDay(iso) }
-            strip.addView(col)
+            paintDayPill(pill, nameTv, numTv, isSel, false, isToday, onSurface, onPrimary, accent)
+
+            pill.setOnFocusChangeListener { _, hasFocus ->
+                paintDayPill(pill, nameTv, numTv, isSel, hasFocus, isToday, onSurface, onPrimary, accent)
+            }
+            pill.setOnClickListener { selectDay(iso) }
+
+            pill.addView(nameTv)
+            pill.addView(numTv)
+            strip.addView(pill)
         }
         // Wire dpad: left/right between dates, up→week nav, down→episodes
         for (i in 0 until strip.childCount) {
-            val colView = strip.getChildAt(i) as? LinearLayout ?: continue
-            val tv = colView.getChildAt(1) as? TextView ?: continue
-            val prevId = (strip.getChildAt((i - 1 + 7) % 7) as? LinearLayout)?.getChildAt(1)?.id ?: View.NO_ID
-            val nextId = (strip.getChildAt((i + 1) % 7) as? LinearLayout)?.getChildAt(1)?.id ?: View.NO_ID
-            tv.nextFocusLeftId = prevId
-            tv.nextFocusRightId = nextId
-            tv.nextFocusUpId = R.id.calendarPrevWeek
-            tv.nextFocusDownId = R.id.calendarDayEpisodes
+            val pillView = strip.getChildAt(i) ?: continue
+            val prevId = strip.getChildAt((i - 1 + 7) % 7)?.id ?: View.NO_ID
+            val nextId = strip.getChildAt((i + 1) % 7)?.id ?: View.NO_ID
+            pillView.nextFocusLeftId = prevId
+            pillView.nextFocusRightId = nextId
+            pillView.nextFocusUpId = R.id.calendarPrevWeek
+            pillView.nextFocusDownId = R.id.calendarDayEpisodes
         }
         // Focus first selected or today for TV entry
         strip.post {
             for (i in 0 until strip.childCount) {
-                val tv = (strip.getChildAt(i) as? LinearLayout)?.getChildAt(1) as? TextView
-                if (tv?.isSelected == true) { tv.requestFocus(); return@post }
+                val pv = strip.getChildAt(i)
+                if (pv?.isSelected == true) { pv.requestFocus(); return@post }
             }
-            // fallback to today
-            (strip.getChildAt(0) as? LinearLayout)?.getChildAt(1)?.requestFocus()
+            strip.getChildAt(0)?.requestFocus()
         }
+    }
+
+    /**
+     * Paints one day capsule: accent fill when selected, accent rim only while focused, and a
+     * faint container otherwise. Today keeps an accent label so it is marked without being selected.
+     */
+    private fun paintDayPill(
+        pill: View,
+        nameTv: TextView,
+        numTv: TextView,
+        selected: Boolean,
+        focused: Boolean,
+        today: Boolean,
+        onSurface: Int,
+        onPrimary: Int,
+        accent: Int,
+    ) {
+        GlassPill.apply(pill, selected, focused)
+        nameTv.setTextColor(
+            when {
+                selected -> onPrimary
+                today -> accent
+                else -> onSurface
+            }
+        )
+        numTv.setTextColor(
+            when {
+                selected -> onPrimary
+                today -> accent
+                else -> onSurface
+            }
+        )
+        nameTv.alpha = if (selected || focused || today) 1f else 0.55f
+        numTv.alpha = if (selected || focused || today) 1f else 0.85f
     }
 
     private fun selectDay(iso: String) {

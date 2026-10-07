@@ -50,6 +50,7 @@ abstract class HeaderInterface(
             binding.searchHistoryList.visibility = View.GONE
             binding.searchHistoryLabel.visibility = View.GONE
             binding.clearHistory.visibility = View.GONE
+            binding.clearHistoryLabel.visibility = View.GONE
         }
         updateActionRowFocusTargets()
     }
@@ -77,8 +78,9 @@ abstract class HeaderInterface(
     }
 
     protected fun updateClearHistoryVisibility() {
-        binding.clearHistory.visibility =
-            if (::searchHistoryAdapter.isInitialized && searchHistoryAdapter.itemCount > 0) View.VISIBLE else View.GONE
+        val visible = ::searchHistoryAdapter.isInitialized && searchHistoryAdapter.itemCount > 0
+        binding.clearHistory.visibility = if (visible) View.VISIBLE else View.GONE
+        binding.clearHistoryLabel.visibility = if (visible) View.VISIBLE else View.GONE
         updateActionRowFocusTargets()
     }
 

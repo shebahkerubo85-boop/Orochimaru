@@ -2,11 +2,11 @@ package ani.sanin.media
 
 import android.content.Context
 import android.content.Intent
-import android.content.res.ColorStateList
-import android.graphics.Color
 import android.os.Bundle
 import android.util.TypedValue
+import android.view.Gravity
 import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
@@ -30,8 +30,9 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.snackString
 import ani.sanin.themes.ThemeManager
 import ani.sanin.toPx
+import ani.sanin.ui.GlassPill
+import ani.sanin.ui.LensButtonBackground
 import ani.sanin.util.FocusEffectUtil
-import com.google.android.material.chip.Chip
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -208,33 +209,6 @@ class FranchiseActivity : AppCompatActivity() {
         return if (curated) card.entries else card.sortOrder
     }
 
-    /**
-     * Repaints one chip for the dark backdrop this screen sits on.
-     *
-     * The theme's own chip colours are chosen for a light or dark *surface*, and this screen's
-     * content floats over a dimmed banner, so a chip in its stock state can come out a pale slab
-     * against a dark image. Colours are resolved from the theme here rather than hard-coded, so
-     * the selected chip still follows the user's accent, and are applied as a state list so
-     * selection is a property of the chip rather than something the rebuild has to reproduce.
-     */
-    private fun Chip.applyPillColors() {
-        val primary = themeColor(com.google.android.material.R.attr.colorPrimary)
-        val onPrimary = themeColor(com.google.android.material.R.attr.colorOnPrimary)
-
-        chipBackgroundColor = ColorStateList(
-            arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-            intArrayOf(primary, Color.TRANSPARENT),
-        )
-        setTextColor(
-            ColorStateList(
-                arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
-                intArrayOf(onPrimary, Color.WHITE),
-            )
-        )
-        chipStrokeColor = ColorStateList.valueOf(Color.WHITE)
-        chipStrokeWidth = 1f.px.toFloat()
-    }
-
     /** One colour out of the current theme. */
     private fun themeColor(attr: Int): Int {
         val value = TypedValue()
@@ -267,31 +241,47 @@ class FranchiseActivity : AppCompatActivity() {
     }
 
     /**
-     * Adds one filter chip.
+     * Adds one filter pill, drawn with the same Aurora capsule as the library status tabs.
      *
-     * A [Chip] rather than a button: it already draws a checkable pill whose background and
-     * text colour come from a state list, so selection is a property of the chip instead of a
-     * drawable that has to be swapped and a text colour baked in at build time.
+     * A [TextView] rather than a [com.google.android.material.chip.Chip]: the capsule is a
+     * shared [GlassPill] drawable now, so selection is the pill's own selected state instead of a
+     * chip swapping its background and text colour from a state list.
      *
-     * @param label the chip's text, already localised.
+     * @param label the pill's text, already localised.
      * @param selected whether this is the active filter.
      * @param onPick run on click, after the selection has been recorded.
      */
     private fun addPill(row: LinearLayout, label: String, selected: Boolean, onPick: () -> Unit) {
-        val pill = Chip(this).apply {
+        val pill = TextView(this).apply {
             text = label
-            isCheckable = true
-            // No tick on the selected chip: the filled background is the whole signal, and a
-            // tick on top of it would be a second one.
-            isCheckedIconVisible = false
-            isChecked = selected
-            applyPillColors()
-            setOnClickListener {
-                onPick()
-                buildFilterPills()
-            }
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            setPadding(20f.px, 9f.px, 20f.px, 9f.px)
+            gravity = Gravity.CENTER
+            includeFontPadding = false
+            isClickable = true
+            isFocusable = true
+            isFocusableInTouchMode = false
         }
-        row.addView(pill)
+        val paint: (Boolean) -> Unit = { focused ->
+            GlassPill.apply(pill, selected, focused)
+            pill.setTextColor(
+                if (selected) themeColor(com.google.android.material.R.attr.colorOnPrimary)
+                else themeColor(com.google.android.material.R.attr.colorOnSurface)
+            )
+        }
+        paint(false)
+        pill.setOnFocusChangeListener { _, hasFocus -> paint(hasFocus) }
+        pill.setOnClickListener {
+            onPick()
+            buildFilterPills()
+        }
+        row.addView(
+            pill,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { marginEnd = 8f.px }
+        )
     }
 
     /** Rebuilds the rows for the current filter. */
@@ -561,6 +551,7 @@ class FranchiseActivity : AppCompatActivity() {
         row.franchiseRowInfo.setSafeOnClickListener {
             openEntry(entry, MediaDetailsActivity.INFO_TAB)
         }
+        LensButtonBackground.apply(row.franchiseRowInfo)
         FocusEffectUtil.applyFocusListener(
             row.franchiseRowInfo,
             row.franchiseRowInfo,

@@ -96,6 +96,13 @@ class TmdbSearchActivity : AppCompatActivity() {
         FocusEffectUtil.applyFocusListener(binding.tmdbSearchFilter)
         LensButtonBackground.apply(binding.tmdbSearchFilter)
 
+        LensButtonBackground.apply(binding.tmdbSearchResultGrid)
+        LensButtonBackground.apply(binding.tmdbSearchResultList)
+        FocusEffectUtil.applyFocusListener(
+            binding.tmdbSearchResultGrid,
+            binding.tmdbSearchResultList
+        )
+
         buildPluginChips()
         showHistory()
     }

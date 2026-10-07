@@ -215,14 +215,21 @@ object FocusEffectUtil {
             id == R.id.listSettings || id == R.id.sectionMoreButton ||
             id == R.id.searchFilter || id == R.id.clearHistory ||
             id == R.id.searchAdultCheck || id == R.id.mainCalendarContainer ||
-            id == R.id.tmdbSearchFilter || id == R.id.tmdbSearchClearHistory
+            id == R.id.searchResultGrid || id == R.id.searchResultList ||
+            id == R.id.franchiseRowInfo ||
+            id == R.id.tmdbSearchFilter || id == R.id.tmdbSearchClearHistory ||
+            id == R.id.tmdbSearchResultGrid || id == R.id.tmdbSearchResultList
     }
 
     private val lensButtonIds = setOf(
-        R.id.openSettingsButton, R.id.searchIconButton, R.id.listSettings,
-        R.id.sectionMoreButton, R.id.mainCalendarContainer, R.id.searchFilter,
-        R.id.clearHistory, R.id.searchAdultCheck, R.id.tmdbSearchFilter,
-        R.id.tmdbSearchClearHistory
+        R.id.openSettingsButton, R.id.searchIconButton,
+        R.id.listSettings, R.id.sectionMoreButton,
+        R.id.searchFilter, R.id.clearHistory, R.id.searchAdultCheck,
+        R.id.searchResultGrid, R.id.searchResultList,
+        R.id.mainCalendarContainer, R.id.streamingServiceSeeAll,
+        R.id.franchiseRowInfo,
+        R.id.tmdbSearchFilter, R.id.tmdbSearchClearHistory,
+        R.id.tmdbSearchResultGrid, R.id.tmdbSearchResultList
     )
 
     private fun isLensButton(v: View): Boolean = v.id in lensButtonIds

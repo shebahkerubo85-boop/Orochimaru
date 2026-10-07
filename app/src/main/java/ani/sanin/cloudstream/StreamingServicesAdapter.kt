@@ -16,6 +16,8 @@ import ani.sanin.connections.tmdb.TmdbProvider
 import ani.sanin.databinding.ItemStreamingServiceBinding
 import ani.sanin.getThemeColor
 import ani.sanin.setSafeOnClickListener
+import ani.sanin.ui.LensButtonBackground
+import ani.sanin.util.FocusEffectUtil
 
 /**
  * The streaming-services rail: a horizontal strip of service cards for the app's region.
@@ -156,9 +158,12 @@ class StreamingServicesAdapter(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
-            lp.width = ViewGroup.LayoutParams.WRAP_CONTENT
-            lp.height = ViewGroup.LayoutParams.WRAP_CONTENT
-            lp.marginEnd = (4 * density).toInt()
+            // A round lens button, matching the row-header More buttons.
+            val size = ((if (isTv) 56 else 44) * density).toInt()
+            lp.width = size
+            lp.height = size
+            lp.marginEnd = (GAP_DP * density).toInt()
+            lp.bottomMargin = (RAIL_MARGIN_BOTTOM_DP * density).toInt()
             binding.root.layoutParams = lp
         }
 
@@ -215,13 +220,16 @@ class StreamingServicesAdapter(
         fun bindSeeAll() {
             val card = binding.streamingServiceCard
             val logo = binding.streamingServiceLogo
+            val arrow = binding.streamingServiceSeeAll
             sizeArrow()
             card.contentDescription = "See all streaming services"
-            binding.streamingServiceSeeAll.isVisible = true
+            arrow.isVisible = true
             logo.isVisible = false
             card.setSafeOnClickListener { onSeeAll() }
-            // Bare arrow, like the row-header More buttons — no brand tile behind it.
+            // Round lens button, like the row-header More chevrons — no brand tile behind it.
             card.background = null
+            LensButtonBackground.apply(arrow)
+            FocusEffectUtil.applyFocusListener(arrow)
         }
 
         fun clear() {
