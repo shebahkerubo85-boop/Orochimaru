@@ -28,6 +28,7 @@ import ani.sanin.media.user.ListViewPagerAdapter
 import ani.sanin.media.user.ListViewModel
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
+import ani.sanin.ui.LensButtonBackground
 import ani.sanin.ui.components.LibraryStatusPill
 import ani.sanin.ui.components.LibraryStatusTab
 import ani.sanin.util.FocusEffectUtil
@@ -148,6 +149,7 @@ class LibraryFragment : Fragment() {
 
         // Settings: bottom sheet with sort / genre / 18+ toggles
         FocusEffectUtil.applyFocusListener(binding.listSettings)
+        LensButtonBackground.apply(binding.listSettings)
         binding.listSettings.setOnClickListener {
             FocusEffectUtil.spinOnTouch(binding.listSettings)
             val genres = PrefManager.getVal<Set<String>>(PrefName.GenresList).toMutableSet().sorted()

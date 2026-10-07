@@ -106,7 +106,10 @@ object FocusEffectUtil {
     private fun resetView(v: View?) {
         if (v == null) return
         removeBorder(v)
-        v.elevation = 0f
+        // Keep the light-mode lens shadow: LensButtonBackground puts a small elevation on
+        // those round buttons and zeroing it here would make it vanish after the first
+        // time focus moves away.
+        if (!isLensButton(v)) v.elevation = 0f
         v.scaleX = 1f
         v.scaleY = 1f
         v.translationX = 0f
@@ -208,10 +211,33 @@ object FocusEffectUtil {
         val id = v.id
         return id == R.id.discoverAvatar || id == R.id.tmdbDiscoveryAvatar ||
             id == R.id.listAvatar || id == R.id.tmdbLibAvatar ||
-            id == R.id.openSettingsButton || id == R.id.searchIconButton
+            id == R.id.openSettingsButton || id == R.id.searchIconButton ||
+            id == R.id.listSettings || id == R.id.sectionMoreButton ||
+            id == R.id.searchFilter || id == R.id.clearHistory ||
+            id == R.id.searchAdultCheck || id == R.id.mainCalendarContainer ||
+            id == R.id.tmdbSearchFilter || id == R.id.tmdbSearchClearHistory
+    }
+
+    private val lensButtonIds = setOf(
+        R.id.openSettingsButton, R.id.searchIconButton, R.id.listSettings,
+        R.id.sectionMoreButton, R.id.mainCalendarContainer, R.id.searchFilter,
+        R.id.clearHistory, R.id.searchAdultCheck, R.id.tmdbSearchFilter,
+        R.id.tmdbSearchClearHistory
+    )
+
+    private fun isLensButton(v: View): Boolean = v.id in lensButtonIds
+
+    /** Re-applies the light-mode lens shadow; no-op in dark mode. */
+    private fun applyLensElevation(v: View) {
+        if (!isLensButton(v)) return
+        val dark = (v.resources.configuration.uiMode and
+            android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        v.elevation = if (dark) 0f else 3f * v.resources.displayMetrics.density
     }
 
     private fun applyFocusGain(v: View) {
+        applyLensElevation(v)
         if (shouldSpin(v)) {
             if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.FocusAnimations)) {
                 v.animate().rotationYBy(360f).setDuration(400).start()

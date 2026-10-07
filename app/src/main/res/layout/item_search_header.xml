@@ -50,24 +50,17 @@
                 tools:ignore="LabelFor,TextContrastCheck" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <com.google.android.material.chip.Chip
+        <ImageButton
             android:id="@+id/searchFilter"
-            android:layout_width="wrap_content"
-            android:layout_height="40dp"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
             android:layout_marginStart="8dp"
-            android:elegantTextHeight="true"
+            android:background="@null"
+            android:contentDescription="@string/filter"
             android:focusable="true"
-            android:minWidth="40dp"
-            android:fontFamily="@font/poppins_bold"
-            android:text=""
-            android:textColor="?attr/colorOnSurface"
-            android:textSize="13sp"
-            app:chipBackgroundColor="@color/nav_bg"
-            app:chipCornerRadius="20dp"
-            app:chipIcon="@drawable/ic_round_filter_alt_24"
-            app:chipIconSize="20dp"
-            app:chipIconTint="?attr/colorPrimary"
-            app:chipStrokeWidth="0dp" />
+            android:padding="11dp"
+            app:srcCompat="@drawable/ic_round_filter_alt_24"
+            app:tint="?attr/colorOnSurface" />
 
         <ImageButton
             android:id="@+id/searchKeyboardToggle"
@@ -84,15 +77,12 @@
             tools:ignore="ContentDescription" />
     </LinearLayout>
 
-    <!-- Row 2: clear history + adult (icon buttons with labels) and list only -->
+    <!-- Row 2: clear history and adult, centred -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="6dp"
-        android:layout_marginEnd="16dp"
-        android:clipToPadding="false"
-        android:gravity="center_vertical"
+        android:layout_marginTop="8dp"
+        android:gravity="center_horizontal"
         android:orientation="horizontal">
 
         <LinearLayout
@@ -101,23 +91,16 @@
             android:gravity="center_horizontal"
             android:orientation="vertical">
 
-            <com.google.android.material.chip.Chip
+            <ImageButton
                 android:id="@+id/clearHistory"
-                android:layout_width="wrap_content"
-                android:layout_height="40dp"
-                android:elegantTextHeight="true"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@null"
+                android:contentDescription="@string/clear_history"
                 android:focusable="true"
-                android:minWidth="40dp"
-                android:fontFamily="@font/poppins_bold"
-                android:text=""
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="13sp"
-                app:chipBackgroundColor="@color/nav_bg"
-                app:chipCornerRadius="20dp"
-                app:chipIcon="@drawable/ic_round_history_24"
-                app:chipIconSize="20dp"
-                app:chipIconTint="?attr/colorPrimary"
-                app:chipStrokeWidth="0dp" />
+                android:padding="11dp"
+                app:srcCompat="@drawable/ic_round_history_24"
+                app:tint="?attr/colorOnSurface" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -133,29 +116,20 @@
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="20dp"
-            android:gravity="center"
+            android:layout_marginStart="32dp"
+            android:gravity="center_horizontal"
             android:orientation="vertical">
 
-            <com.google.android.material.chip.Chip
+            <ImageButton
                 android:id="@+id/searchAdultCheck"
-                android:layout_width="wrap_content"
-                android:layout_height="40dp"
-                android:elegantTextHeight="true"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@null"
+                android:contentDescription="@string/adult"
                 android:focusable="true"
-                android:minWidth="40dp"
-                android:fontFamily="@font/poppins_bold"
-                android:text=""
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="13sp"
-                android:checkable="true"
-                app:checkedIconVisible="true"
-                app:chipBackgroundColor="@color/nav_bg"
-                app:chipCornerRadius="20dp"
-                app:chipIcon="@drawable/ic_round_nsfw_24"
-                app:chipIconSize="20dp"
-                app:chipIconTint="?attr/colorPrimary"
-                app:chipStrokeWidth="0dp" />
+                android:padding="11dp"
+                app:srcCompat="@drawable/ic_round_nsfw_24"
+                app:tint="?attr/colorOnSurface" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -167,24 +141,6 @@
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="10sp" />
         </LinearLayout>
-
-        <com.google.android.material.chip.Chip
-            android:id="@+id/searchList"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:layout_marginStart="20dp"
-            android:elegantTextHeight="true"
-            android:focusable="true"
-            android:fontFamily="@font/poppins_bold"
-            android:text="@string/list_only"
-            android:textColor="?attr/colorOnSurface"
-            android:textSize="13sp"
-            android:checkable="true"
-            app:checkedIconVisible="true"
-            app:chipBackgroundColor="@color/nav_bg"
-            app:chipCornerRadius="18dp"
-            app:chipIconTint="?attr/colorPrimary"
-            app:chipStrokeWidth="0dp" />
     </LinearLayout>
 
     <LinearLayout

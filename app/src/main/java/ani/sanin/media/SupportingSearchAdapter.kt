@@ -52,7 +52,6 @@ class SupportingSearchAdapter(
         binding.searchResultList.visibility = View.GONE
         binding.searchFilter.visibility = View.GONE
         binding.searchAdultCheck.visibility = View.GONE
-        binding.searchList.visibility = View.GONE
 
         binding.searchBar.hint = activity.searchType.toAnilistString()
         if (PrefManager.getVal(PrefName.Incognito)) {

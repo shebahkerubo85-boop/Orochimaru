@@ -10,17 +10,17 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.PopupMenu
 import androidx.appcompat.content.res.AppCompatResources
-import androidx.core.content.ContextCompat
-import androidx.core.graphics.ColorUtils
 import androidx.recyclerview.widget.LinearLayoutManager
 import ani.sanin.App.Companion.context
 import ani.sanin.R
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.anilist.AnilistSearch.SearchType
 import ani.sanin.databinding.ItemSearchHeaderBinding
+import ani.sanin.getThemeColor
 import ani.sanin.openLinkInBrowser
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
+import ani.sanin.ui.LensButtonBackground
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.Logger
 import ani.sanin.util.TvKeyboardUtil
@@ -46,7 +46,9 @@ class SearchAdapter(
             Anilist.sortBy[6] -> R.drawable.ic_round_assist_walker_24
             else -> R.drawable.ic_round_filter_alt_24
         }
-        binding.searchFilter.setChipIconResource(filterDrawable)
+        binding.searchFilter.setImageResource(filterDrawable)
+        binding.searchFilter.imageTintList =
+            ColorStateList.valueOf(FocusEffectUtil.getPrimaryColor(activity))
     }
 
     private fun hasActiveFilters(): Boolean = activity.aniMangaResult.let {
@@ -58,12 +60,13 @@ class SearchAdapter(
     }
 
     private fun updateFilterState() {
-        val color = if (hasActiveFilters()) {
-            ColorUtils.setAlphaComponent(FocusEffectUtil.getPrimaryColor(activity), 0x38)
+        // The filter is a lens button now: tint the icon instead of filling a chip.
+        val tint = if (hasActiveFilters()) {
+            FocusEffectUtil.getPrimaryColor(activity)
         } else {
-            ContextCompat.getColor(activity, R.color.nav_bg)
+            activity.getThemeColor(com.google.android.material.R.attr.colorOnSurface)
         }
-        binding.searchFilter.chipBackgroundColor = ColorStateList.valueOf(color)
+        binding.searchFilter.imageTintList = ColorStateList.valueOf(tint)
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -104,16 +107,15 @@ class SearchAdapter(
         }
 
         var adult = activity.aniMangaResult.isAdult
-        var listOnly = activity.aniMangaResult.onList
 
         binding.searchBarText.removeTextChangedListener(textWatcher)
         binding.searchBarText.setText(activity.aniMangaResult.search)
 
-        binding.searchList.isChecked = listOnly == true
-        binding.searchAdultCheck.isChecked = adult
+        LensButtonBackground.apply(binding.searchFilter)
+        LensButtonBackground.apply(binding.clearHistory)
+        LensButtonBackground.apply(binding.searchAdultCheck)
 
         FocusEffectUtil.applyFocusListener(
-            binding.searchList,
             binding.searchAdultCheck,
             binding.clearHistory,
             binding.searchFilter,
@@ -127,8 +129,6 @@ class SearchAdapter(
         binding.searchKeyboardToggle.nextFocusLeftId = R.id.searchFilter
         binding.clearHistory.nextFocusRightId = R.id.searchAdultCheck
         binding.searchAdultCheck.nextFocusLeftId = R.id.clearHistory
-        binding.searchAdultCheck.nextFocusRightId = R.id.searchList
-        binding.searchList.nextFocusLeftId = R.id.searchAdultCheck
 
         binding.searchFilter.setOnClickListener {
             SearchFilterBottomDialog.newInstance().show(activity.supportFragmentManager, "dialog")
@@ -211,7 +211,6 @@ class SearchAdapter(
             activity.aniMangaResult.apply {
                 search =
                     if (binding.searchBarText.text.toString() != "") binding.searchBarText.text.toString() else null
-                onList = listOnly
                 isAdult = adult
             }
             if (binding.searchBarText.text.toString().equals("hentai", true)) {
@@ -270,23 +269,19 @@ class SearchAdapter(
             activity.recycler()
         }
 
+        fun updateAdultTint(on: Boolean) {
+            binding.searchAdultCheck.imageTintList = ColorStateList.valueOf(
+                if (on) FocusEffectUtil.getPrimaryColor(activity)
+                else activity.getThemeColor(com.google.android.material.R.attr.colorOnSurface)
+            )
+        }
         binding.searchAdultCheck.apply {
             if (Anilist.adult) {
                 visibility = View.VISIBLE
-                isChecked = adult
-                setOnCheckedChangeListener { _, b ->
-                    adult = b
-                    searchTitle()
-                }
-            } else visibility = View.GONE
-        }
-
-        binding.searchList.apply {
-            if (Anilist.userid != null) {
-                visibility = View.VISIBLE
-                isChecked = listOnly == true
-                setOnCheckedChangeListener { _, b ->
-                    listOnly = if (b) true else null
+                updateAdultTint(adult)
+                setOnClickListener {
+                    adult = !adult
+                    updateAdultTint(adult)
                     searchTitle()
                 }
             } else visibility = View.GONE

@@ -55,6 +55,12 @@ object LensButtonBackground {
 
     fun apply(view: View, fillAlpha: Float? = null) {
         view.background = make(view.context, fillAlpha)
+        // The glass fill reads as flat on the app's pure-white light surface, so add the
+        // same small elevation shadow the library pill uses. Skip it in dark mode, where
+        // the rim already separates the button from the background.
+        if (!isNight(view.context)) {
+            view.elevation = 3f * view.resources.displayMetrics.density
+        }
     }
 
     /** Translucent fill color (no rim) used for the reduced-background calendar button. */

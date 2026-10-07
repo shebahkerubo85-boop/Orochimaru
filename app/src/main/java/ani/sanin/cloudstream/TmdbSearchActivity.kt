@@ -23,6 +23,7 @@ import ani.sanin.databinding.ActivityTmdbSearchBinding
 import ani.sanin.databinding.ItemTmdbCardBinding
 import ani.sanin.databinding.ItemTmdbHistoryBinding
 import ani.sanin.snackString
+import ani.sanin.ui.LensButtonBackground
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.TvKeyboardUtil
 import kotlinx.coroutines.Dispatchers
@@ -86,12 +87,14 @@ class TmdbSearchActivity : AppCompatActivity() {
             snackString("Search history cleared")
         }
         FocusEffectUtil.applyFocusListener(binding.tmdbSearchClearHistory)
+        LensButtonBackground.apply(binding.tmdbSearchClearHistory)
 
         binding.tmdbSearchFilter.setOnClickListener {
             val dialog = TmdbSearchFilterDialog.newInstance { result -> runFiltered(result) }
             dialog.show(supportFragmentManager, "tmdbFilter")
         }
         FocusEffectUtil.applyFocusListener(binding.tmdbSearchFilter)
+        LensButtonBackground.apply(binding.tmdbSearchFilter)
 
         buildPluginChips()
         showHistory()

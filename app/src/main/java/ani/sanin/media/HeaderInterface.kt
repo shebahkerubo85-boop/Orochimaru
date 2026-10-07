@@ -61,7 +61,6 @@ abstract class HeaderInterface(
             if (historyFocusable) R.id.searchHistoryTextView else R.id.searchRecyclerView
         binding.searchFilter.nextFocusDownId = target
         binding.clearHistory.nextFocusDownId = target
-        binding.searchList.nextFocusDownId = target
         binding.searchAdultCheck.nextFocusDownId = target
     }
 

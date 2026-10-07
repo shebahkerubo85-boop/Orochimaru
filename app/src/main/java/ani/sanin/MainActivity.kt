@@ -371,14 +371,8 @@ class MainActivity : AppCompatActivity() {
             // Focus: each icon gets its own border
             FocusEffectUtil.applyFocusListener(binding.mainCalendarContainer)
             FocusEffectUtil.applyFocusListener(binding.mainUserAvatarContainer)
-            // Calendar: lens look but with only a whisper of fill so the banner
-            // behind it stays visible (transparency preserved).
-            binding.mainCalendarContainer.setCardBackgroundColor(
-                LensButtonBackground.fillColor(this, 0.16f)
-            )
-            binding.mainCalendarContainer.strokeColor = LensButtonBackground.rimColor(this)
-            binding.mainCalendarContainer.strokeWidth =
-                (resources.displayMetrics.density * 1f).toInt().coerceAtLeast(1)
+            // Calendar: same lens button as the Extensions icons.
+            LensButtonBackground.apply(binding.mainCalendarContainer)
             // Focus chain: calendar ↔ avatar
             binding.mainCalendarContainer.nextFocusLeftId = R.id.mainUserAvatarContainer
             binding.mainCalendarContainer.nextFocusRightId = R.id.mainUserAvatarContainer

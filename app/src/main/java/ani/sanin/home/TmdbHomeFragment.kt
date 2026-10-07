@@ -41,6 +41,7 @@ import ani.sanin.connections.tmdb.TmdbGenre
 import ani.sanin.connections.tmdb.TmdbMedia
 import ani.sanin.databinding.FragmentTmdbHomeBinding
 import ani.sanin.databinding.ItemTmdbCardBinding
+import ani.sanin.media.Media
 import ani.sanin.media.MediaListViewActivity
 import ani.sanin.getThemeColor
 import ani.sanin.loadImage
@@ -680,6 +681,38 @@ class TmdbHomeFragment : Fragment() {
         return added
     }
 
+    /** Folds a Simkl library entry into the shared Media the "more" list binds. */
+    private fun Simkl.SimklWatchedItem.toExploreMedia(): Media? {
+        val tmdbId = ids?.tmdb ?: return null
+        val name = title ?: return null
+        val type = mediaType ?: "tv"
+        return Media(
+            id = tmdbId,
+            name = name,
+            nameRomaji = name,
+            userPreferredName = name,
+            isAdult = false,
+            cover = poster,
+            banner = poster,
+            format = type.uppercase(),
+            tmdbType = type
+        )
+    }
+
+    /** A trailing lens chevron that opens the full list for a Simkl rail. */
+    private fun simklMoreAdapter(items: List<Simkl.SimklWatchedItem>, title: String): SectionMoreAdapter {
+        val exploreList = ArrayList(items.mapNotNull { it.toExploreMedia() })
+        return SectionMoreAdapter {
+            if (exploreList.isNotEmpty()) {
+                MediaListViewActivity.passedMedia = exploreList
+                startActivity(
+                    Intent(requireContext(), MediaListViewActivity::class.java)
+                        .putExtra("title", title)
+                )
+            }
+        }
+    }
+
     /** Loads Simkl "continue watching" items (TV/movie only, not anime). */
     private suspend fun loadSimklContinueWatching() {
         if (Simkl.token == null) return
@@ -695,16 +728,19 @@ class TmdbHomeFragment : Fragment() {
         }
         val list = RecyclerView(ctx).apply {
             layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
-            adapter = SimklContinueWatchingLandscapeAdapter(items) { item ->
-                val tmdbId = item.ids?.tmdb ?: return@SimklContinueWatchingLandscapeAdapter
-                val mediaType = item.mediaType ?: "tv"
-                startActivity(
-                    Intent(requireContext(), TmdbDetailsActivity::class.java)
-                        .putExtra(TmdbDetailsActivity.ARG_MEDIA_TYPE, mediaType)
-                        .putExtra(TmdbDetailsActivity.ARG_MEDIA_ID, tmdbId)
-                        .putExtra(TmdbDetailsActivity.ARG_OPEN_TAB, 1)
-                )
-            }
+            adapter = ConcatAdapter(
+                SimklContinueWatchingLandscapeAdapter(items) { item ->
+                    val tmdbId = item.ids?.tmdb ?: return@SimklContinueWatchingLandscapeAdapter
+                    val mediaType = item.mediaType ?: "tv"
+                    startActivity(
+                        Intent(requireContext(), TmdbDetailsActivity::class.java)
+                            .putExtra(TmdbDetailsActivity.ARG_MEDIA_TYPE, mediaType)
+                            .putExtra(TmdbDetailsActivity.ARG_MEDIA_ID, tmdbId)
+                            .putExtra(TmdbDetailsActivity.ARG_OPEN_TAB, 1)
+                    )
+                },
+                simklMoreAdapter(items, "Continue Watching")
+            )
             isNestedScrollingEnabled = false
             overScrollMode = View.OVER_SCROLL_NEVER
             setPadding(24, 0, 24, 0)
@@ -798,10 +834,13 @@ class TmdbHomeFragment : Fragment() {
         }
         val list = RecyclerView(ctx).apply {
             layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
-            adapter = SimklRowAdapter(items) { item ->
-                val tmdbId = item.ids?.tmdb ?: return@SimklRowAdapter
-                openDetails(item.mediaType ?: "tv", tmdbId)
-            }
+            adapter = ConcatAdapter(
+                SimklRowAdapter(items) { item ->
+                    val tmdbId = item.ids?.tmdb ?: return@SimklRowAdapter
+                    openDetails(item.mediaType ?: "tv", tmdbId)
+                },
+                simklMoreAdapter(items, title)
+            )
             isNestedScrollingEnabled = false
             overScrollMode = View.OVER_SCROLL_NEVER
             setPadding(24, 0, 24, 0)

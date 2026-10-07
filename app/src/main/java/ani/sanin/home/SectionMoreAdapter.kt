@@ -5,6 +5,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
+import ani.sanin.ui.LensButtonBackground
 import ani.sanin.util.FocusEffectUtil
 
 /**
@@ -21,12 +22,15 @@ class SectionMoreAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_section_more, parent, false)
-        FocusEffectUtil.applyFocusListener(view)
+        val button = view.findViewById<View>(R.id.sectionMoreButton)
+        FocusEffectUtil.applyFocusListener(button)
+        LensButtonBackground.apply(button)
         return ViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.itemView.setOnClickListener { onClick(it) }
+        holder.itemView.findViewById<View>(R.id.sectionMoreButton)
+            .setOnClickListener { onClick(it) }
     }
 
     override fun getItemCount(): Int = 1
