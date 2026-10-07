@@ -244,7 +244,6 @@
     <string name="downloads">Downloads</string>
     <string name="downloading_episode">Downloading episode %1$s</string>
     <string name="download_complete">Download complete</string>
-    <string name="download_failed">Download failed</string>
     <string name="download_settings_desc">Storage, Wi-Fi &amp; queue</string>
     <string name="download_settings_storage">Download location</string>
     <string name="download_settings_storage_desc">App keeps files private; phone uses a folder you pick</string>

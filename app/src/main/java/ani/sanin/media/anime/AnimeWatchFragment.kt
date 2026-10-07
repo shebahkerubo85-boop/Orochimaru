@@ -694,6 +694,21 @@ class AnimeWatchFragment : Fragment() {
         model.onEpisodeClick(media, i, requireActivity().supportFragmentManager)
     }
 
+    fun onEpisodeDownload(i: String) {
+        if (media.anime?.episodes == null) {
+            snackString(getString(R.string.episode_not_found, i))
+            return
+        }
+        model.saveSelected(media.id, media.selected!!)
+        model.onEpisodeClick(
+            media,
+            i,
+            requireActivity().supportFragmentManager,
+            isDownload = true,
+            episodes = arrayListOf(i)
+        )
+    }
+
 
 
     @OptIn(UnstableApi::class)

@@ -16,6 +16,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.FileUrl
 import ani.sanin.R
+import ani.sanin.download.DownloadsActivity
 import ani.sanin.currActivity
 import ani.sanin.currContext
 import ani.sanin.databinding.ItemChipBinding
@@ -194,7 +195,11 @@ class AnimeWatchAdapter(
             fragment.onIconPressed(style, reversed)
         }
         binding.mediaSourceDownload.setOnClickListener {
-            snackString("Download is coming soon")
+            startActivity(
+                fragment.requireContext(),
+                Intent(fragment.requireContext(), DownloadsActivity::class.java),
+                null
+            )
         }
         binding.mediaSourceFaq.setOnClickListener {
             startActivity(

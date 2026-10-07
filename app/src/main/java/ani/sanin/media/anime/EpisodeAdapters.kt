@@ -541,8 +541,14 @@ class EpisodeAdapter(
             FocusEffectUtil.applyFocusListener(itemView, borderDp = 5f)
             itemView.nextFocusRightId = R.id.itemEpisodeCont
             itemView.setOnClickListener {
-                if (bindingAdapterPosition < arr.size && bindingAdapterPosition >= 0)
+                if (bindingAdapterPosition in arr.indices)
                     fragment.onEpisodeClick(arr[bindingAdapterPosition].number)
+            }
+            itemView.setOnLongClickListener {
+                if (bindingAdapterPosition in arr.indices) {
+                    fragment.onEpisodeDownload(arr[bindingAdapterPosition].number)
+                    true
+                } else false
             }
         }
     }
@@ -553,8 +559,14 @@ class EpisodeAdapter(
             itemView.isFocusable = true
             FocusEffectUtil.applyFocusListener(itemView, borderDp = 5f)
             itemView.setOnClickListener {
-                if (bindingAdapterPosition < arr.size && bindingAdapterPosition >= 0)
+                if (bindingAdapterPosition in arr.indices)
                     fragment.onEpisodeClick(arr[bindingAdapterPosition].number)
+            }
+            itemView.setOnLongClickListener {
+                if (bindingAdapterPosition in arr.indices) {
+                    fragment.onEpisodeDownload(arr[bindingAdapterPosition].number)
+                    true
+                } else false
             }
         }
     }
@@ -566,8 +578,14 @@ class EpisodeAdapter(
             FocusEffectUtil.applyFocusListener(itemView, borderDp = 5f)
             itemView.nextFocusRightId = R.id.itemEpisodeCont
             itemView.setOnClickListener {
-                if (bindingAdapterPosition < arr.size && bindingAdapterPosition >= 0)
+                if (bindingAdapterPosition in arr.indices)
                     fragment.onEpisodeClick(arr[bindingAdapterPosition].number)
+            }
+            itemView.setOnLongClickListener {
+                if (bindingAdapterPosition in arr.indices) {
+                    fragment.onEpisodeDownload(arr[bindingAdapterPosition].number)
+                    true
+                } else false
             }
         }
     }
