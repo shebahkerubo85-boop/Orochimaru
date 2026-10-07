@@ -1,7 +1,6 @@
 package ani.sanin.media
 
 import android.annotation.SuppressLint
-import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.drawable.Drawable
 import android.text.Editable
@@ -20,7 +19,6 @@ import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.anilist.AnilistSearch.SearchType
 import ani.sanin.databinding.ItemSearchHeaderBinding
 import ani.sanin.openLinkInBrowser
-import ani.sanin.others.imagesearch.ImageSearchActivity
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.util.FocusEffectUtil
@@ -117,7 +115,6 @@ class SearchAdapter(
         FocusEffectUtil.applyFocusListener(
             binding.searchList,
             binding.searchAdultCheck,
-            binding.searchByImage,
             binding.clearHistory,
             binding.searchFilter,
             binding.searchResultGrid,
@@ -125,16 +122,13 @@ class SearchAdapter(
         )
 
         binding.searchBarText.nextFocusDownId = R.id.searchFilter
-        binding.searchFilter.nextFocusLeftId = R.id.searchByImage
-        binding.searchFilter.nextFocusRightId = R.id.clearHistory
-        binding.clearHistory.nextFocusLeftId = R.id.searchFilter
-        binding.clearHistory.nextFocusRightId = R.id.searchList
-        binding.searchList.nextFocusLeftId = R.id.clearHistory
-        binding.searchList.nextFocusRightId = R.id.searchAdultCheck
-        binding.searchAdultCheck.nextFocusLeftId = R.id.searchList
-        binding.searchAdultCheck.nextFocusRightId = R.id.searchByImage
-        binding.searchByImage.nextFocusLeftId = R.id.searchAdultCheck
-        binding.searchByImage.nextFocusRightId = R.id.searchFilter
+        binding.searchFilter.nextFocusLeftId = R.id.searchBarText
+        binding.searchFilter.nextFocusRightId = R.id.searchKeyboardToggle
+        binding.searchKeyboardToggle.nextFocusLeftId = R.id.searchFilter
+        binding.clearHistory.nextFocusRightId = R.id.searchAdultCheck
+        binding.searchAdultCheck.nextFocusLeftId = R.id.clearHistory
+        binding.searchAdultCheck.nextFocusRightId = R.id.searchList
+        binding.searchList.nextFocusLeftId = R.id.searchAdultCheck
 
         binding.searchFilter.setOnClickListener {
             SearchFilterBottomDialog.newInstance().show(activity.supportFragmentManager, "dialog")
@@ -201,12 +195,6 @@ class SearchAdapter(
         updateFilterState()
         activity.updateChips = { updateFilterState() }
 
-        if (activity.aniMangaResult.type != "ANIME") {
-            binding.searchByImage.visibility = View.GONE
-        }
-        binding.searchByImage.setOnClickListener {
-            activity.startActivity(Intent(activity, ImageSearchActivity::class.java))
-        }
         binding.clearHistory.setOnClickListener {
             if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.SearchHeaderAnimations)) {
                 it.startAnimation(fadeOutAnimation())

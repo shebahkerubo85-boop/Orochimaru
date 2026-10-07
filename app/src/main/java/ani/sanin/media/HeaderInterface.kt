@@ -34,7 +34,6 @@ abstract class HeaderInterface(
             binding.searchResultLayout.visibility = View.GONE
             binding.searchHistoryList.visibility = View.VISIBLE
             binding.searchHistoryLabel.visibility = View.VISIBLE
-            binding.searchByImage.visibility = if (imageSearchVisible()) View.VISIBLE else View.GONE
             updateClearHistoryVisibility()
         } else {
             if (binding.searchResultLayout.visibility != View.VISIBLE) {
@@ -51,7 +50,6 @@ abstract class HeaderInterface(
             binding.searchHistoryList.visibility = View.GONE
             binding.searchHistoryLabel.visibility = View.GONE
             binding.clearHistory.visibility = View.GONE
-            binding.searchByImage.visibility = View.GONE
         }
         updateActionRowFocusTargets()
     }
@@ -65,7 +63,6 @@ abstract class HeaderInterface(
         binding.clearHistory.nextFocusDownId = target
         binding.searchList.nextFocusDownId = target
         binding.searchAdultCheck.nextFocusDownId = target
-        binding.searchByImage.nextFocusDownId = target
     }
 
     private fun fadeInAnimation(): Animation {

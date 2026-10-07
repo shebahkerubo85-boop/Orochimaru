@@ -48,7 +48,6 @@ class SupportingSearchAdapter(
             throw IllegalArgumentException("Invalid search type (wrong adapter)")
         }
 
-        binding.searchByImage.visibility = View.GONE
         binding.searchResultGrid.visibility = View.GONE
         binding.searchResultList.visibility = View.GONE
         binding.searchFilter.visibility = View.GONE
