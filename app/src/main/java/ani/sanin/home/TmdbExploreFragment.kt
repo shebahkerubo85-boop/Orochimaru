@@ -282,7 +282,8 @@ class TmdbExploreFragment : Fragment() {
             val rail = rowFor(row)?.first ?: continue
             rail.rowRecyclerView.layoutManager =
                 LinearLayoutManager(rail.root.context, LinearLayoutManager.HORIZONTAL, false)
-            rail.rowRecyclerView.adapter = adapter
+            rail.rowRecyclerView.adapter =
+                ConcatAdapter(adapter, SectionMoreAdapter { openRowMore(row) })
         }
     }
 
@@ -874,7 +875,8 @@ class TmdbExploreFragment : Fragment() {
             rowBinding.rowRecyclerView.layoutManager = LinearLayoutManager(
                 rowBinding.root.context, LinearLayoutManager.HORIZONTAL, false
             )
-            rowBinding.rowRecyclerView.adapter = created
+            rowBinding.rowRecyclerView.adapter =
+                ConcatAdapter(created, SectionMoreAdapter { openRowMore(row) })
             created
         }
         // The list is filled and swapped without a suspension point, so the adapter's
@@ -882,17 +884,7 @@ class TmdbExploreFragment : Fragment() {
         swapAdapterList(list, adapter, media)
         // The row's arrow opens the same screen every other row's arrow opens.
         rowBinding.rowMore.setSafeOnClickListener {
-            MediaListViewActivity.passedMedia = ArrayList(list)
-            MediaListViewActivity.passedExploreRow = row
-            MediaListViewActivity.passedExploreType = when (selectedType) {
-                ExploreType.MOVIE -> "movie"
-                ExploreType.TV -> "tv"
-                ExploreType.ANIMATION -> "animation"
-            }
-            startActivity(
-                Intent(requireContext(), MediaListViewActivity::class.java)
-                    .putExtra("title", getString(titleRes))
-            )
+            openRowMore(row)
         }
         rowBinding.rowTitle.isVisible = true
         rowBinding.rowMore.isVisible = true
@@ -901,6 +893,23 @@ class TmdbExploreFragment : Fragment() {
             rowBinding.rowTitle.startAnimation(setSlideUp())
             rowBinding.rowMore.startAnimation(setSlideUp())
         }
+    }
+
+    /** Opens the see-all screen for a rail, with the same args as the header arrow. */
+    private fun openRowMore(row: Tmdb.ExploreRow) {
+        val target = rowFor(row) ?: return
+        val list = rowMedia[row] ?: ArrayList()
+        MediaListViewActivity.passedMedia = ArrayList(list)
+        MediaListViewActivity.passedExploreRow = row
+        MediaListViewActivity.passedExploreType = when (selectedType) {
+            ExploreType.MOVIE -> "movie"
+            ExploreType.TV -> "tv"
+            ExploreType.ANIMATION -> "animation"
+        }
+        startActivity(
+            Intent(requireContext(), MediaListViewActivity::class.java)
+                .putExtra("title", getString(target.second))
+        )
     }
 
     // ---- Franchise: cards, not a paginated catalogue ----

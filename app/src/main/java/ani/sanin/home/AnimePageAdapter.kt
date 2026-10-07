@@ -22,6 +22,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSnapHelper
 import androidx.recyclerview.widget.PagerSnapHelper
+import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.home.BannerCarouselAdapter
 import ani.sanin.R
@@ -767,7 +768,14 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         media: MutableList<Media>
     ) {
         progress.visibility = View.GONE
-        recyclerView.adapter = adaptor
+        recyclerView.adapter = ConcatAdapter(adaptor, SectionMoreAdapter { v ->
+            MediaListViewActivity.passedMedia = media.toCollection(ArrayList())
+            ContextCompat.startActivity(
+                v.context, Intent(v.context, MediaListViewActivity::class.java)
+                    .putExtra("title", string),
+                null
+            )
+        })
         recyclerView.layoutManager =
             LinearLayoutManager(
                 recyclerView.context,

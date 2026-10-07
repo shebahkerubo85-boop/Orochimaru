@@ -21,6 +21,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.PagerSnapHelper
+import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
 import ani.sanin.isClassicBanner
@@ -40,6 +41,7 @@ import ani.sanin.connections.tmdb.TmdbGenre
 import ani.sanin.connections.tmdb.TmdbMedia
 import ani.sanin.databinding.FragmentTmdbHomeBinding
 import ani.sanin.databinding.ItemTmdbCardBinding
+import ani.sanin.media.MediaListViewActivity
 import ani.sanin.getThemeColor
 import ani.sanin.loadImage
 import ani.sanin.settings.saving.PrefManager
@@ -874,7 +876,17 @@ class TmdbHomeFragment : Fragment() {
         }
         val list = RecyclerView(ctx).apply {
             layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
-            adapter = TmdbRowAdapter(items) { media -> openDetails(media.type, media.id) }
+            val exploreList = ArrayList(items.map { it.toExploreMedia() })
+            adapter = ConcatAdapter(
+                TmdbRowAdapter(items) { media -> openDetails(media.type, media.id) },
+                SectionMoreAdapter {
+                    MediaListViewActivity.passedMedia = exploreList
+                    startActivity(
+                        Intent(requireContext(), MediaListViewActivity::class.java)
+                            .putExtra("title", title)
+                    )
+                }
+            )
             isNestedScrollingEnabled = false
             overScrollMode = View.OVER_SCROLL_NEVER
             setPadding(24, 0, 24, 0)

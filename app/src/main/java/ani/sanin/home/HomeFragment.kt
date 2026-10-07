@@ -35,6 +35,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.PagerSnapHelper
+import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
@@ -286,15 +287,25 @@ class HomeFragment : Fragment() {
                 if (it != null) {
                     if (it.isNotEmpty()) {
                         rvDataMap[recyclerView] = it
-                        recyclerView.adapter = ContinueWatchingLandscapeAdapter(it) { media ->
-                            ContextCompat.startActivity(
-                                requireContext(),
-                                Intent(requireContext(), ani.sanin.media.MediaDetailsActivity::class.java)
-                                    .putExtra("media", media)
-                                    .putExtra("anime", true),
-                                null
-                            )
-                        }
+                        recyclerView.adapter = ConcatAdapter(
+                            ContinueWatchingLandscapeAdapter(it) { media ->
+                                ContextCompat.startActivity(
+                                    requireContext(),
+                                    Intent(requireContext(), ani.sanin.media.MediaDetailsActivity::class.java)
+                                        .putExtra("media", media)
+                                        .putExtra("anime", true),
+                                    null
+                                )
+                            },
+                            SectionMoreAdapter { v ->
+                                MediaListViewActivity.passedMedia = it
+                                ContextCompat.startActivity(
+                                    v.context, Intent(v.context, MediaListViewActivity::class.java)
+                                        .putExtra("title", string),
+                                    null
+                                )
+                            }
+                        )
                         recyclerView.layoutManager = LinearLayoutManager(
                             requireContext(),
                             LinearLayoutManager.HORIZONTAL,
@@ -350,20 +361,24 @@ class HomeFragment : Fragment() {
                 if (it != null) {
                     if (it.isNotEmpty()) {
                         rvDataMap[recyclerView] = it
-                        recyclerView.adapter = MediaAdaptor(0, it, requireActivity())
+                        val openMore: (View) -> Unit = { v ->
+                            MediaListViewActivity.passedMedia = it
+                            ContextCompat.startActivity(
+                                v.context, Intent(v.context, MediaListViewActivity::class.java)
+                                    .putExtra("title", string),
+                                null
+                            )
+                        }
+                        recyclerView.adapter = ConcatAdapter(
+                            MediaAdaptor(0, it, requireActivity()),
+                            SectionMoreAdapter(openMore)
+                        )
                         recyclerView.layoutManager = LinearLayoutManager(
                             requireContext(),
                             LinearLayoutManager.HORIZONTAL,
                             false
                         )
-                        more.setOnClickListener { i ->
-                            MediaListViewActivity.passedMedia = it
-                            ContextCompat.startActivity(
-                                i.context, Intent(i.context, MediaListViewActivity::class.java)
-                                    .putExtra("title", string),
-                                null
-                            )
-                        }
+                        more.setOnClickListener { i -> openMore(i) }
                         recyclerView.visibility = View.VISIBLE
                         recyclerView.layoutAnimation =
                             LayoutAnimationController(setSlideIn(), 0.25f)
@@ -457,7 +472,18 @@ class HomeFragment : Fragment() {
             if (it != null) {
                 if (it.isNotEmpty()) {
                     binding.homeHiddenItemsRecyclerView.adapter =
-                        MediaAdaptor(0, it, requireActivity())
+                        ConcatAdapter(
+                            MediaAdaptor(0, it, requireActivity()),
+                            SectionMoreAdapter { _ ->
+                                MediaListViewActivity.passedMedia = it
+                                ContextCompat.startActivity(
+                                    requireActivity(),
+                                    Intent(requireActivity(), MediaListViewActivity::class.java)
+                                        .putExtra("title", getString(R.string.hidden)),
+                                    null
+                                )
+                            }
+                        )
                     binding.homeHiddenItemsRecyclerView.layoutManager = LinearLayoutManager(
                         requireContext(),
                         LinearLayoutManager.HORIZONTAL,
