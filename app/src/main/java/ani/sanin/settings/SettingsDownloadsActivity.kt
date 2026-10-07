@@ -1,6 +1,7 @@
 package ani.sanin.settings
 
 import android.content.Intent
+import android.view.ViewGroup
 import android.os.Bundle
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
