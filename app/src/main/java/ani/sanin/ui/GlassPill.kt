@@ -11,16 +11,14 @@ import androidx.core.graphics.ColorUtils
 import ani.sanin.getThemeColor
 
 /**
- * The Aurora capsule from the library status tabs, rebuilt as a plain drawable so the
- * calendar week strip and the franchise filter row can share the same look as the
- * Compose pill.
+ * The Aurora capsule from the library status pill, rebuilt as plain drawables so the calendar
+ * week strip shares the same look as the Compose pill without being a Compose host.
  *
- * States:
- *  - selected: accent-tinted fill with an accent rim.
- *  - focused (unselected): no fill, just the accent rim - the dpad ring.
- *  - idle: a faint container (white wash in dark, a hairline rim in light).
- *
- * Light mode adds the same small elevation shadow the lens buttons and pills use.
+ * Two pieces:
+ *  - [applyContainer]: the capsule itself - the light-mode drop shadow, the white-to-accent
+ *    wash and border in light, the faint white wash and top-lit border in dark.
+ *  - [applyCell]: one day. Selected paints the accent-brush oval (the indicator); a focused but
+ *    unselected day paints only the oval rim; an idle day paints nothing at all.
  */
 object GlassPill {
 
@@ -31,93 +29,107 @@ object GlassPill {
     private fun dp(context: Context, value: Float): Int =
         (context.resources.displayMetrics.density * value).toInt().coerceAtLeast(1)
 
+    /** Capsule radius: large enough that Android clamps it to a rounded end. */
+    fun radiusPx(context: Context): Float =
+        context.resources.displayMetrics.density * 100f
+
     /**
-     * A capsule in one of the three states.
-     *
-     * @param cornerRadiusPx half the pill's height for a true capsule; callers that know
-     *   their height can pass it, otherwise a large value is used.
+     * The library-pill capsule container: fill + 1dp border, and the same light-mode shadow the
+     * lens buttons use. Callers set the inner padding so the oval indicator has its margin.
      */
-    fun make(
-        context: Context,
-        selected: Boolean,
-        focused: Boolean,
-        cornerRadiusPx: Float? = null,
-    ): Drawable {
+    fun applyContainer(view: View) {
+        val context = view.context
         val dark = isNight(context)
         val accent = context.getThemeColor(com.google.android.material.R.attr.colorPrimary)
-        val radius = cornerRadiusPx ?: radiusPx(context)
+        val radius = radiusPx(context)
 
-        val rimColor = when {
-            focused -> accent
-            selected -> ColorUtils.setAlphaComponent(accent, if (isNight(context)) 140 else 230)
-            isNight(context) -> 0x38FFFFFF
-            else -> ColorUtils.setAlphaComponent(accent, 0x47)
+        val bg = GradientDrawable().apply {
+            cornerRadius = radius
+            if (dark) {
+                setColor(0x0DFFFFFF)
+                setStroke(dp(context, 1f), 0x61FFFFFF)
+            } else {
+                orientation = GradientDrawable.Orientation.TOP_BOTTOM
+                setColors(
+                    intArrayOf(
+                        ColorUtils.blendARGB(Color.WHITE, accent, 0.06f),
+                        ColorUtils.blendARGB(Color.WHITE, accent, 0.035f),
+                        ColorUtils.blendARGB(Color.WHITE, accent, 0.018f),
+                    )
+                )
+                setStroke(dp(context, 1f), ColorUtils.setAlphaComponent(accent, 0x52))
+            }
         }
+        view.background = bg
+        view.clipToOutline = true
+        view.elevation = if (dark) 0f else 6f * view.resources.displayMetrics.density
+    }
 
-        val fill: GradientDrawable = when {
-            selected -> GradientDrawable(
-                GradientDrawable.Orientation.TOP_BOTTOM,
-                intArrayOf(
-                    if (isNight(context)) {
-                        ColorUtils.setAlphaComponent(
-                            ColorUtils.blendARGB(accent, Color.WHITE, 0.18f), 0x52
+    /**
+     * One day cell.
+     *
+     * @param selected draws the accent-brush oval indicator, inset from the cell edge so the
+     *   oval keeps a margin inside the capsule.
+     * @param focused draws the same oval as a rim only, so the dpad ring matches the indicator.
+     */
+    fun applyCell(view: View, selected: Boolean, focused: Boolean) {
+        val context = view.context
+        val dark = isNight(context)
+        val accent = context.getThemeColor(com.google.android.material.R.attr.colorPrimary)
+        val radius = radiusPx(context)
+        val gap = dp(context, 2f)
+
+        view.background = when {
+            selected -> {
+                val fill = GradientDrawable(
+                    GradientDrawable.Orientation.TOP_BOTTOM,
+                    if (dark) {
+                        intArrayOf(
+                            ColorUtils.setAlphaComponent(
+                                ColorUtils.blendARGB(accent, Color.WHITE, 0.18f), 0x52
+                            ),
+                            ColorUtils.setAlphaComponent(accent, 0x2E),
                         )
                     } else {
-                        ColorUtils.setAlphaComponent(accent, 0x33)
+                        intArrayOf(
+                            ColorUtils.setAlphaComponent(accent, 0x33),
+                            ColorUtils.setAlphaComponent(Color.WHITE, 0x66),
+                        )
                     },
-                    if (isNight(context)) {
-                        ColorUtils.setAlphaComponent(accent, 0x2E)
-                    } else {
-                        ColorUtils.setAlphaComponent(Color.WHITE, 0x66)
-                    },
-                ),
-            ).also { it.cornerRadius = radius }
-
-            focused -> GradientDrawable().apply {
-                setColor(Color.TRANSPARENT)
-                cornerRadius = radius
-            }
-
-            isNight(context) -> GradientDrawable().apply {
-                setColor(0x0DFFFFFF)
-                cornerRadius = radius
-            }
-
-            else -> GradientDrawable().apply {
-                setColor(Color.TRANSPARENT)
-                cornerRadius = radius
-            }
-        }
-
-        val border = GradientDrawable().apply {
-            setColor(
-                when {
-                    focused -> accent
-                    selected -> ColorUtils.setAlphaComponent(accent, if (isNight(context)) 0x8C else 0xE6)
-                    isNight(context) -> 0x38FFFFFF
-                    else -> ColorUtils.setAlphaComponent(accent, 0x47)
+                ).apply { cornerRadius = radius }
+                val border = GradientDrawable().apply {
+                    setColor(Color.TRANSPARENT)
+                    cornerRadius = radius
+                    setStroke(
+                        dp(context, 1f),
+                        if (dark) {
+                            ColorUtils.setAlphaComponent(accent, 0x40)
+                        } else {
+                            ColorUtils.setAlphaComponent(accent, 0x47)
+                        },
+                    )
                 }
-            )
-            cornerRadius = radius
-        }
+                inset(arrayOf(fill, border), gap)
+            }
 
-        val inset = (context.resources.displayMetrics.density * 1f).toInt().coerceAtLeast(1)
-        val layer = LayerDrawable(arrayOf(border, fill))
-        layer.setLayerInset(1, inset, inset, inset, inset)
+            focused -> {
+                val rim = GradientDrawable().apply {
+                    setColor(Color.TRANSPARENT)
+                    cornerRadius = radius
+                    setStroke(dp(context, 2f), accent)
+                }
+                inset(arrayOf(rim), gap)
+            }
+
+            else -> null
+        }
+        view.elevation = 0f
+    }
+
+    /** Every layer inset equally, so the oval floats inside its day slot instead of touching it. */
+    private fun inset(layers: Array<GradientDrawable>, inset: Int): Drawable {
+        val layer = LayerDrawable(layers as Array<Drawable>)
+        for (i in layers.indices) layer.setLayerInset(i, inset, inset, inset, inset)
         return layer
     }
-
-    /** Applies the pill background for the given state, with the light-mode shadow. */
-    fun apply(view: View, selected: Boolean, focused: Boolean, cornerRadiusPx: Float = radiusPx(view.context)) {
-        view.background = make(view.context, selected, focused, cornerRadiusPx)
-        if (!isNight(view.context)) {
-            view.elevation = 3f * view.resources.displayMetrics.density
-        } else {
-            view.elevation = 0f
-        }
-    }
-
-    /** Default capsule radius: large enough that Android clamps it to a rounded end. */
-    fun radiusPx(context: Context): Float =
-        (context.resources.displayMetrics.density * 100f)
 }

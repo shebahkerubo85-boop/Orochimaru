@@ -77,7 +77,7 @@
                     android:fontFamily="@font/poppins"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="11sp"
-                    android:text="Episodes this week" />
+                    android:text="@string/calendar_episodes_this_week" />
             </LinearLayout>
 
             <!-- List only toggle -->
@@ -91,59 +91,35 @@
                 android:contentDescription="Toggle list only" />
         </LinearLayout>
 
-        <!-- Week Navigation -->
+        <!--
+            Week pill: the library capsule. A 7-day window scrolled one day at a time over a
+            fixed 3-week range (last week Monday .. next week Sunday). The selected day carries
+            the oval indicator; a dpad-focused but unselected day shows only the oval border.
+        -->
         <LinearLayout
+            android:id="@+id/calendarPill"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:layout_marginHorizontal="16dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <!-- Prev: use same chevron as next, just rotated -->
-            <ImageButton
-                android:id="@+id/calendarPrevWeek"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:focusable="true"
-                android:padding="6dp"
-                android:rotation="180"
-                app:srcCompat="@drawable/ic_arrow_right"
-                app:tint="?attr/colorOnSurface"
-                android:contentDescription="Previous week" />
-
-            <TextView
-                android:id="@+id/calendarWeekLabel"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:fontFamily="@font/poppins_semi_bold"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="14sp"
-                tools:text="Sep 1 - Sep 7" />
-
-            <ImageButton
-                android:id="@+id/calendarNextWeek"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:focusable="true"
-                android:padding="6dp"
-                app:srcCompat="@drawable/ic_arrow_right"
-                app:tint="?attr/colorOnSurface"
-                android:contentDescription="Next week" />
-        </LinearLayout>
-
-        <!-- Week Day Strip -->
-        <LinearLayout
-            android:id="@+id/calendarWeekStrip"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
             android:layout_marginHorizontal="12dp"
-            android:orientation="horizontal" />
+            android:clipToOutline="true"
+            android:orientation="horizontal"
+            android:padding="6dp">
+
+            <HorizontalScrollView
+                android:id="@+id/calendarWeekScroll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:overScrollMode="never"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/calendarWeekStrip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+        </LinearLayout>
 
         <!-- Day Label -->
         <TextView

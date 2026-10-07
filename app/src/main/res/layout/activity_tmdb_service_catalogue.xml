@@ -33,30 +33,30 @@
                 android:textSize="16sp"
                 tools:text="Netflix" />
 
-            <ImageView
+            <ImageButton
                 android:id="@+id/mediaList"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
                 android:layout_gravity="center_vertical"
-                android:alpha="0.33"
-                android:padding="8dp"
+                android:background="@null"
+                android:contentDescription="@string/list"
                 android:nextFocusDown="@+id/catalogueTypePill"
+                android:padding="11dp"
                 app:srcCompat="@drawable/ic_round_view_list_24"
-                app:tint="?attr/colorOnBackground"
-                tools:ignore="ContentDescription,ImageContrastCheck" />
+                app:tint="?attr/colorOnBackground" />
 
-            <ImageView
+            <ImageButton
                 android:id="@+id/mediaGrid"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:layout_gravity="end"
-                android:alpha="0.33"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_gravity="center_vertical"
                 android:layout_marginEnd="24dp"
-                android:padding="8dp"
+                android:background="@null"
+                android:contentDescription="@string/grid"
                 android:nextFocusDown="@+id/catalogueTypePill"
+                android:padding="11dp"
                 app:srcCompat="@drawable/ic_round_grid_view_24"
-                app:tint="?attr/colorOnBackground"
-                tools:ignore="ContentDescription,ImageContrastCheck" />
+                app:tint="?attr/colorOnBackground" />
         </LinearLayout>
 
         <!--

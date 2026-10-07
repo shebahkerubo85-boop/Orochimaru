@@ -3,17 +3,14 @@ package ani.sanin.media
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.util.TypedValue
-import android.view.Gravity
-import android.widget.LinearLayout
-import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
 import androidx.activity.viewModels
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.lifecycleScope
 import ani.sanin.R
 import ani.sanin.cloudstream.TmdbDetailsActivity
@@ -23,15 +20,15 @@ import ani.sanin.databinding.ActivityFranchiseBinding
 import ani.sanin.databinding.ItemFranchiseEntryBinding
 import ani.sanin.initActivity
 import ani.sanin.loadImage
-import ani.sanin.px
 import ani.sanin.setSafeOnClickListener
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.snackString
 import ani.sanin.themes.ThemeManager
 import ani.sanin.toPx
-import ani.sanin.ui.GlassPill
 import ani.sanin.ui.LensButtonBackground
+import ani.sanin.ui.components.LibraryStatusPill
+import ani.sanin.ui.components.LibraryStatusTab
 import ani.sanin.util.FocusEffectUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -85,6 +82,10 @@ class FranchiseActivity : AppCompatActivity() {
     /** How many entries the franchise has before any filter, for the "3 of 12" count. */
     private var totalEntries = 0
 
+    /** The library status pill is Compose, so its inputs live as Compose state. */
+    private var pillTabs = mutableStateOf<List<LibraryStatusTab>>(emptyList())
+    private var pillSelected = mutableIntStateOf(0)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ThemeManager(this).applyTheme()
@@ -120,7 +121,16 @@ class FranchiseActivity : AppCompatActivity() {
         // back to a previous value here.
         ordered.mapNotNull { it.type }.forEach { availableTypes.add(it) }
 
-        buildFilterPills()
+        // The filter row is the same capsule the library status tabs use, so the travelling
+        // selection indicator is identical rather than a per-chip background approximation.
+        binding.franchiseFilterPill.setContent {
+            LibraryStatusPill(
+                tabs = pillTabs.value,
+                selectedIndex = pillSelected.value,
+                onTabSelected = { selectFilter(it) },
+            )
+        }
+        rebuildPillTabs()
         buildRows(ordered)
 
         if (ordered.any { it.synopsis.isNullOrBlank() } && ordered.any { it.anilistId != null }) {
@@ -209,79 +219,31 @@ class FranchiseActivity : AppCompatActivity() {
         return if (curated) card.entries else card.sortOrder
     }
 
-    /** One colour out of the current theme. */
-    private fun themeColor(attr: Int): Int {
-        val value = TypedValue()
-        theme.resolveAttribute(attr, value, true)
-        return if (value.resourceId != 0) ContextCompat.getColor(this, value.resourceId)
-        else value.data
-    }
-
     /**
-     * One chip per category actually present, plus All.
+     * Rebuilds the library pill's tabs: All plus one per category actually present.
      *
-     * Built from the entries so an OVA chip never appears on a franchise that has none. A filter
+     * Built from the entries so an OVA tab never appears on a franchise that has none. A filter
      * that cannot change anything is worse than no filter, because it reads as broken rather
-     * than as absent.
+     * than as absent. Counts are the entry counts per category, matching the library pill's own.
      */
-    private fun buildFilterPills() {
-        val row = binding.franchiseFilterRow
-        row.removeAllViews()
-
-        addPill(row, getString(R.string.franchise_filter_all), selectedType == null) {
-            selectedType = null
-            refilter()
-        }
+    private fun rebuildPillTabs() {
+        val card = franchise ?: return
+        val all = orderedEntries(card)
+        val tabs = ArrayList<LibraryStatusTab>()
+        tabs.add(LibraryStatusTab(getString(R.string.franchise_filter_all), all.size))
         availableTypes.forEach { type ->
-            addPill(row, getString(type.labelRes()), selectedType == type) {
-                selectedType = type
-                refilter()
-            }
+            tabs.add(LibraryStatusTab(getString(type.labelRes()), all.count { it.type == type }))
         }
+        pillTabs.value = tabs
+        if (pillSelected.value > tabs.lastIndex) pillSelected.value = 0
+        selectedType = availableTypes.toList().getOrNull(pillSelected.value - 1)
     }
 
-    /**
-     * Adds one filter pill, drawn with the same Aurora capsule as the library status tabs.
-     *
-     * A [TextView] rather than a [com.google.android.material.chip.Chip]: the capsule is a
-     * shared [GlassPill] drawable now, so selection is the pill's own selected state instead of a
-     * chip swapping its background and text colour from a state list.
-     *
-     * @param label the pill's text, already localised.
-     * @param selected whether this is the active filter.
-     * @param onPick run on click, after the selection has been recorded.
-     */
-    private fun addPill(row: LinearLayout, label: String, selected: Boolean, onPick: () -> Unit) {
-        val pill = TextView(this).apply {
-            text = label
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-            setPadding(20f.px, 9f.px, 20f.px, 9f.px)
-            gravity = Gravity.CENTER
-            includeFontPadding = false
-            isClickable = true
-            isFocusable = true
-            isFocusableInTouchMode = false
-        }
-        val paint: (Boolean) -> Unit = { focused ->
-            GlassPill.apply(pill, selected, focused)
-            pill.setTextColor(
-                if (selected) themeColor(com.google.android.material.R.attr.colorOnPrimary)
-                else themeColor(com.google.android.material.R.attr.colorOnSurface)
-            )
-        }
-        paint(false)
-        pill.setOnFocusChangeListener { _, hasFocus -> paint(hasFocus) }
-        pill.setOnClickListener {
-            onPick()
-            buildFilterPills()
-        }
-        row.addView(
-            pill,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { marginEnd = 8f.px }
-        )
+    /** Applies the pill's selection; index 0 is All, the rest are [availableTypes] in order. */
+    private fun selectFilter(index: Int) {
+        selectedType = availableTypes.toList().getOrNull(index - 1)
+        pillSelected.value = index
+        refilter()
     }
 
     /** Rebuilds the rows for the current filter. */
@@ -671,7 +633,7 @@ class FranchiseActivity : AppCompatActivity() {
             // can change which filters are available, which means the whole row set is stale.
             availableTypes.clear()
             updated.mapNotNull { it.type }.forEach { availableTypes.add(it) }
-            buildFilterPills()
+            rebuildPillTabs()
             buildRows(updated)
         }
     }

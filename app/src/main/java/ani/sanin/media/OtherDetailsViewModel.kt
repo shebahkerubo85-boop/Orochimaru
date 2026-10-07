@@ -383,7 +383,10 @@ class OtherDetailsViewModel : ViewModel() {
             val day = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, offset) }
             return dayFmt.format(day.time) to df.format(day.time)
         }
-        val allWeekDays = (-7..6).map { dayKey(it) }
+        // Fixed 3-week range: last week Monday → next week Sunday. Nothing beyond it is fetched.
+        val daysSinceMonday = (today.get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY + 7) % 7
+        val startOffset = -daysSinceMonday - 7
+        val allWeekDays = (startOffset until startOffset + 21).map { dayKey(it) }
 
         // Helper to fetch a batch of days (parallel TVmaze + TMDB)
         suspend fun fetchDays(days: List<Pair<String, String>>): Map<String, MutableList<Media>> {
@@ -501,8 +504,21 @@ class OtherDetailsViewModel : ViewModel() {
 
     private suspend fun loadCalendarFromAnilist(showOnlyLibrary: Boolean) {
         if (cachedAllCalendarData == null || cachedLibraryCalendarData == null) {
-            val curr = System.currentTimeMillis() / 1000
-            val res = Anilist.query.recentlyUpdated(curr - (86400 * 7), curr + (86400 * 7))
+            // Fetch the fixed 3-week window only: last week Monday → next week Sunday.
+            val base = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            }
+            val daysSinceMonday = (base.get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY + 7) % 7
+            val startCal = (base.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -daysSinceMonday - 7) }
+            val endCal = (base.clone() as Calendar).apply {
+                add(Calendar.DAY_OF_YEAR, -daysSinceMonday + 13)
+                set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59)
+            }
+            val res = Anilist.query.recentlyUpdated(
+                startCal.timeInMillis / 1000,
+                endCal.timeInMillis / 1000,
+            )
             val df = DateFormat.getDateInstance(DateFormat.FULL)
             val tf = DateFormat.getTimeInstance(DateFormat.SHORT)
             val allMap = mutableMapOf<String, MutableList<Media>>()
@@ -577,7 +593,11 @@ class OtherDetailsViewModel : ViewModel() {
                 }
             }
 
-            for (offsetDay in -7..6) {
+            // Fixed 3-week range: last week Monday → next week Sunday.
+            val baseCal = Calendar.getInstance()
+            val daysSinceMonday = (baseCal.get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY + 7) % 7
+            val startOffset = -daysSinceMonday - 7
+            for (offsetDay in startOffset until startOffset + 21) {
                 val cal = Calendar.getInstance()
                 cal.add(Calendar.DAY_OF_YEAR, offsetDay)
                 val dayName = dayNames[cal.get(Calendar.DAY_OF_WEEK) - 1]

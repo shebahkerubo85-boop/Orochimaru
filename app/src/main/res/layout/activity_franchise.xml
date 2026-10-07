@@ -47,23 +47,13 @@
                 app:srcCompat="@drawable/ic_expand_more"
                 app:tint="@color/franchise_on_page" />
 
-            <HorizontalScrollView
-                android:id="@+id/franchiseFilterScroll"
+            <androidx.compose.ui.platform.ComposeView
+                android:id="@+id/franchiseFilterPill"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:layout_weight="1"
-                android:background="@drawable/bg_franchise_filter_pill"
-                android:padding="3dp"
-                android:scrollbars="none">
-
-                <LinearLayout
-                    android:id="@+id/franchiseFilterRow"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal" />
-
-            </HorizontalScrollView>
+                android:focusable="true" />
 
         </LinearLayout>
 

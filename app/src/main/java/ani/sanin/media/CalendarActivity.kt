@@ -42,12 +42,23 @@ class CalendarActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityCalendarBinding
     private val model: OtherDetailsViewModel by viewModels()
-    private var currentWeekStart = Calendar.getInstance()
+    /** First day of the fixed 3-week range: the Monday of last week. */
+    private var rangeStart = Calendar.getInstance()
     private var selectedDate = Calendar.getInstance()
     private val dateFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
     private val fullDayFmt = SimpleDateFormat("EEEE, MMMM d", Locale.US)
-    private val monthDayFmt = SimpleDateFormat("MMM d", Locale.US)
     private var allCalendarData: Map<String, MutableList<Media>> = emptyMap()
+    private val dayShortNames = arrayOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+
+    /** Snaps the pill to a whole day after a drag settles, so exactly 7 days stay visible. */
+    private val pillSnap = Runnable { snapPill() }
+
+    private companion object {
+        /** Last week + this week + next week. Nothing exists outside it. */
+        const val TOTAL_DAYS = 21
+        /** The number of days the pill shows at once; it steps one day at a time. */
+        const val VISIBLE_DAYS = 7
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,35 +91,31 @@ class CalendarActivity : AppCompatActivity() {
         FocusEffectUtil.applyFocusListener(binding.calendarTodayBtn)
 
         // --- Focus chain ---
-        // Up from toggle → back arrow
+        // Up from toggle → back arrow; down → the date pill
         binding.calendarListToggle.nextFocusUpId = R.id.calendarBack
-        // Down from toggle → prev week button
-        binding.calendarListToggle.nextFocusDownId = R.id.calendarPrevWeek
-        // Prev week: up → toggle, right → next week
-        binding.calendarPrevWeek.nextFocusUpId = R.id.calendarListToggle
-        binding.calendarPrevWeek.nextFocusRightId = R.id.calendarNextWeek
-        // Next week: up → toggle, left → prev week
-        binding.calendarNextWeek.nextFocusUpId = R.id.calendarListToggle
-        binding.calendarNextWeek.nextFocusLeftId = R.id.calendarPrevWeek
-        // Down from prev/next → first date in strip
-        binding.calendarPrevWeek.nextFocusDownId = R.id.calendarWeekStrip
-        binding.calendarNextWeek.nextFocusDownId = R.id.calendarWeekStrip
+        binding.calendarListToggle.nextFocusDownId = R.id.calendarWeekStrip
 
         // Start with toggle focused on open
         binding.calendarListToggle.post { binding.calendarListToggle.requestFocus() }
 
-        // Start on today, not Monday
-        currentWeekStart = (Calendar.getInstance().clone() as Calendar).apply {
-            set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        // The range is fixed to the three weeks around today: last Monday → next Sunday.
+        rangeStart = mondayOfWeek(Calendar.getInstance()).apply {
+            add(Calendar.DAY_OF_YEAR, -7)
         }
         selectedDate = Calendar.getInstance() // today
 
-        setupWeekNav()
+        // The pill is the library capsule; the day cells carry the indicator.
+        GlassPill.applyContainer(binding.calendarPill)
+
+        // Snap the pill back to whole days after the user drags it.
+        binding.calendarWeekScroll.setOnScrollChangeListener { _, _, _, _, _ ->
+            binding.calendarWeekScroll.removeCallbacks(pillSnap)
+            binding.calendarWeekScroll.postDelayed(pillSnap, 150)
+        }
+
         buildWeekStrip()
-        updateWeekLabel()
         updateDayLabel()
+        updateSubtitle()
 
         val live = Refresh.activity.getOrPut(this.hashCode()) { MutableLiveData(true) }
         live.observe(this) {
@@ -170,19 +177,8 @@ class CalendarActivity : AppCompatActivity() {
                     val dx = event.x - downX
                     val threshold = 80 * resources.displayMetrics.density
                     if (isDragging && (Math.abs(dx) > threshold || Math.abs(vx) > 500f)) {
-                        if (dx < 0 || vx < -500f) {
-                            // Swipe left / fling left → next day
-                            selectedDate.add(Calendar.DAY_OF_YEAR, 1)
-                            buildWeekStrip()
-                            updateDayLabel()
-                            refreshDisplay(allCalendarData)
-                        } else {
-                            // Swipe right / fling right → previous day
-                            selectedDate.add(Calendar.DAY_OF_YEAR, -1)
-                            buildWeekStrip()
-                            updateDayLabel()
-                            refreshDisplay(allCalendarData)
-                        }
+                        // One day per swipe, like the library pager switching one tab.
+                        moveSelection(if (dx < 0 || vx < -500f) 1 else -1)
                         velocityTracker?.recycle()
                         velocityTracker = null
                         true
@@ -198,167 +194,177 @@ class CalendarActivity : AppCompatActivity() {
     }
 
     private fun goToToday() {
-        val today = Calendar.getInstance()
-        currentWeekStart = (today.clone() as Calendar).apply {
-            set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+        selectedDate = Calendar.getInstance()
+        afterSelectionChanged()
+    }
+
+    /** Monday 00:00 of the week containing [cal]. */
+    private fun mondayOfWeek(cal: Calendar): Calendar {
+        val c = cal.clone() as Calendar
+        c.set(Calendar.HOUR_OF_DAY, 0); c.set(Calendar.MINUTE, 0)
+        c.set(Calendar.SECOND, 0); c.set(Calendar.MILLISECOND, 0)
+        val daysSinceMonday = (c.get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY + 7) % 7
+        c.add(Calendar.DAY_OF_YEAR, -daysSinceMonday)
+        return c
+    }
+
+    /** Index of [selectedDate] within the fixed range, clamped to the range. */
+    private fun selectedIndex(): Int {
+        val start = rangeStart.timeInMillis
+        val sel = (selectedDate.clone() as Calendar).apply {
             set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-        }
-        selectedDate = today.clone() as Calendar
-        buildWeekStrip()
-        updateWeekLabel()
+        }.timeInMillis
+        return ((sel - start) / 86_400_000L).toInt().coerceIn(0, TOTAL_DAYS - 1)
+    }
+
+    /** Steps the selection one day, stopping at the ends of the 3-week range. */
+    private fun moveSelection(delta: Int) {
+        val current = selectedIndex()
+        val target = (current + delta).coerceIn(0, TOTAL_DAYS - 1)
+        if (target == current) return
+        selectedDate = (rangeStart.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, target) }
+        afterSelectionChanged()
+    }
+
+    private fun selectDayIndex(index: Int) {
+        val clamped = index.coerceIn(0, TOTAL_DAYS - 1)
+        selectedDate = (rangeStart.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, clamped) }
+        afterSelectionChanged()
+    }
+
+    private fun afterSelectionChanged() {
+        repaintCells()
         updateDayLabel()
+        updateSubtitle()
+        scrollPillTo(selectedIndex())
         refreshDisplay(allCalendarData)
     }
 
-    private fun setupWeekNav() {
-        binding.calendarPrevWeek.setOnClickListener {
-            currentWeekStart.add(Calendar.DAY_OF_YEAR, -7)
-            selectedDate = currentWeekStart.clone() as Calendar
-            buildWeekStrip()
-            updateWeekLabel()
-            updateDayLabel()
-            refreshDisplay(allCalendarData)
-        }
-        FocusEffectUtil.applyFocusListener(binding.calendarPrevWeek)
-
-        binding.calendarNextWeek.setOnClickListener {
-            currentWeekStart.add(Calendar.DAY_OF_YEAR, 7)
-            selectedDate = currentWeekStart.clone() as Calendar
-            buildWeekStrip()
-            updateWeekLabel()
-            updateDayLabel()
-            refreshDisplay(allCalendarData)
-        }
-        FocusEffectUtil.applyFocusListener(binding.calendarNextWeek)
-    }
-
+    /** One-time build of all 21 day cells; selection repaints, it never rebuilds. */
     private fun buildWeekStrip() {
         val strip = binding.calendarWeekStrip
         strip.removeAllViews()
-        val todayIso = dateFmt.format(Date())
-        val selectedIso = dateFmt.format(selectedDate.time)
-        val dayNames = arrayOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-        val screenW = resources.displayMetrics.widthPixels
-        val dayW = (screenW - dpToPx(24)) / 7
+        val pillWidth = resources.displayMetrics.widthPixels - dpToPx(24) - dpToPx(12)
+        val dayW = (pillWidth / VISIBLE_DAYS).coerceAtLeast(dpToPx(34))
 
-        for (i in 0 until 7) {
-            val day = (currentWeekStart.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, i) }
-            val iso = dateFmt.format(day.time)
-            val dayNum = day.get(Calendar.DAY_OF_MONTH).toString()
-            val isToday = iso == todayIso
-            val isSel = iso == selectedIso
-
-            val onSurface = getThemeColor(com.google.android.material.R.attr.colorOnSurface)
-            val onPrimary = getThemeColor(com.google.android.material.R.attr.colorOnPrimary)
-            val accent = getThemeColor(com.google.android.material.R.attr.colorPrimary)
-
-            // The day name and number live inside one capsule, matching the library status pill.
-            val pill = LinearLayout(this).apply {
+        for (i in 0 until TOTAL_DAYS) {
+            val day = (rangeStart.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, i) }
+            val cell = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(dayW - dpToPx(6), LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-                    marginEnd = dpToPx(6)
-                }
+                layoutParams = LinearLayout.LayoutParams(dayW, ViewGroup.LayoutParams.WRAP_CONTENT)
                 setPadding(dpToPx(2), dpToPx(6), dpToPx(2), dpToPx(6))
                 isClickable = true
                 isFocusable = true
                 isFocusableInTouchMode = false
                 id = View.generateViewId()
-                isSelected = isSel
             }
-
             val nameTv = TextView(this).apply {
-                text = dayNames[i]
+                text = dayShortNames[(day.get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY + 7) % 7]
                 textSize = 11f
                 gravity = Gravity.CENTER
-                typeface = Typeface.create(resources.getFont(R.font.poppins_semi_bold), Typeface.NORMAL)
             }
-
             val numTv = TextView(this).apply {
-                text = dayNum
+                text = day.get(Calendar.DAY_OF_MONTH).toString()
                 textSize = 15f
                 gravity = Gravity.CENTER
-                typeface = Typeface.create(resources.getFont(R.font.poppins_bold), Typeface.BOLD)
             }
-
-            paintDayPill(pill, nameTv, numTv, isSel, false, isToday, onSurface, onPrimary, accent)
-
-            pill.setOnFocusChangeListener { _, hasFocus ->
-                paintDayPill(pill, nameTv, numTv, isSel, hasFocus, isToday, onSurface, onPrimary, accent)
+            cell.addView(nameTv)
+            cell.addView(numTv)
+            cell.setOnClickListener { selectDayIndex(i) }
+            cell.setOnFocusChangeListener { _, focused ->
+                paintDayCell(cell, nameTv, numTv, i)
+                if (focused) scrollPillTo(i)
             }
-            pill.setOnClickListener { selectDay(iso) }
-
-            pill.addView(nameTv)
-            pill.addView(numTv)
-            strip.addView(pill)
+            strip.addView(cell)
         }
-        // Wire dpad: left/right between dates, up→week nav, down→episodes
+
+        // Dpad: left/right step one day (the pill follows), up to the toggle, down to episodes.
         for (i in 0 until strip.childCount) {
-            val pillView = strip.getChildAt(i) ?: continue
-            val prevId = strip.getChildAt((i - 1 + 7) % 7)?.id ?: View.NO_ID
-            val nextId = strip.getChildAt((i + 1) % 7)?.id ?: View.NO_ID
-            pillView.nextFocusLeftId = prevId
-            pillView.nextFocusRightId = nextId
-            pillView.nextFocusUpId = R.id.calendarPrevWeek
-            pillView.nextFocusDownId = R.id.calendarDayEpisodes
+            val cell = strip.getChildAt(i)
+            cell.nextFocusLeftId = if (i > 0) strip.getChildAt(i - 1).id else View.NO_ID
+            cell.nextFocusRightId = if (i < strip.childCount - 1) strip.getChildAt(i + 1).id else View.NO_ID
+            cell.nextFocusUpId = R.id.calendarListToggle
+            cell.nextFocusDownId = R.id.calendarDayEpisodes
         }
-        // Focus first selected or today for TV entry
-        strip.post {
-            for (i in 0 until strip.childCount) {
-                val pv = strip.getChildAt(i)
-                if (pv?.isSelected == true) { pv.requestFocus(); return@post }
-            }
-            strip.getChildAt(0)?.requestFocus()
+
+        repaintCells()
+        strip.post { scrollPillTo(selectedIndex(), smooth = false) }
+    }
+
+    /** Repaints every cell for the current selection without touching focus or scroll. */
+    private fun repaintCells() {
+        val strip = binding.calendarWeekStrip
+        for (i in 0 until strip.childCount) {
+            val cell = strip.getChildAt(i) as? LinearLayout ?: continue
+            val nameTv = cell.getChildAt(0) as? TextView ?: continue
+            val numTv = cell.getChildAt(1) as? TextView ?: continue
+            paintDayCell(cell, nameTv, numTv, i)
         }
     }
 
     /**
-     * Paints one day capsule: accent fill when selected, accent rim only while focused, and a
-     * faint container otherwise. Today keeps an accent label so it is marked without being selected.
+     * Paints one day: the oval indicator when selected, the oval rim when focused-but-unselected,
+     * and nothing otherwise. Today keeps an accent number so it is marked without being selected.
      */
-    private fun paintDayPill(
-        pill: View,
-        nameTv: TextView,
-        numTv: TextView,
-        selected: Boolean,
-        focused: Boolean,
-        today: Boolean,
-        onSurface: Int,
-        onPrimary: Int,
-        accent: Int,
-    ) {
-        GlassPill.apply(pill, selected, focused)
-        nameTv.setTextColor(
-            when {
-                selected -> onPrimary
-                today -> accent
-                else -> onSurface
-            }
-        )
+    private fun paintDayCell(cell: LinearLayout, nameTv: TextView, numTv: TextView, index: Int) {
+        val day = (rangeStart.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, index) }
+        val iso = dateFmt.format(day.time)
+        val selected = iso == dateFmt.format(selectedDate.time)
+        val today = iso == dateFmt.format(Date())
+        val onSurface = getThemeColor(com.google.android.material.R.attr.colorOnSurface)
+        val onSurfaceVariant = getThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
+        val accent = getThemeColor(com.google.android.material.R.attr.colorPrimary)
+
+        GlassPill.applyCell(cell, selected, cell.isFocused)
+        nameTv.setTextColor(if (selected) onSurface else onSurfaceVariant)
         numTv.setTextColor(
             when {
-                selected -> onPrimary
+                selected -> onSurface
                 today -> accent
                 else -> onSurface
             }
         )
-        nameTv.alpha = if (selected || focused || today) 1f else 0.55f
-        numTv.alpha = if (selected || focused || today) 1f else 0.85f
+        nameTv.setTypeface(null, if (selected) Typeface.BOLD else Typeface.NORMAL)
+        numTv.setTypeface(null, if (selected) Typeface.BOLD else Typeface.NORMAL)
     }
 
-    private fun selectDay(iso: String) {
-        val cal = Calendar.getInstance()
-        try { cal.time = dateFmt.parse(iso) ?: Date() } catch (_: Exception) { return }
-        selectedDate = cal
-        buildWeekStrip()
-        updateDayLabel()
-        refreshDisplay(allCalendarData)
+    /** Scrolls the pill so [index] sits inside the 7-day window, always on a whole-day boundary. */
+    private fun scrollPillTo(index: Int, smooth: Boolean = true) {
+        val scroll = binding.calendarWeekScroll
+        val strip = binding.calendarWeekStrip
+        if (strip.childCount == 0) return
+        val cellW = strip.getChildAt(0).width
+        if (cellW <= 0) return
+        val maxFirst = (TOTAL_DAYS - VISIBLE_DAYS).coerceAtLeast(0)
+        val first = (index - VISIBLE_DAYS / 2).coerceIn(0, maxFirst)
+        val target = first * cellW
+        if (smooth) scroll.smoothScrollTo(target, 0) else scroll.scrollTo(target, 0)
     }
 
-    private fun updateWeekLabel() {
-        val end = (currentWeekStart.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, 6) }
-        binding.calendarWeekLabel.text = "${monthDayFmt.format(currentWeekStart.time)} - ${monthDayFmt.format(end.time)}"
+    /** Snaps a manual drag back to a whole-day boundary so exactly 7 days stay visible. */
+    private fun snapPill() {
+        val scroll = binding.calendarWeekScroll
+        val strip = binding.calendarWeekStrip
+        if (strip.childCount == 0) return
+        val cellW = strip.getChildAt(0).width
+        if (cellW <= 0) return
+        val maxFirst = (TOTAL_DAYS - VISIBLE_DAYS).coerceAtLeast(0)
+        val first = Math.round(scroll.scrollX.toFloat() / cellW).coerceIn(0, maxFirst)
+        val target = first * cellW
+        if (target != scroll.scrollX) scroll.smoothScrollTo(target, 0)
+    }
+
+    /** "Episodes past / this / next week" for the week the selected day falls in. */
+    private fun updateSubtitle() {
+        val todayMonday = mondayOfWeek(Calendar.getInstance())
+        val selectedMonday = mondayOfWeek(selectedDate)
+        binding.calendarSubtitle.text = when {
+            selectedMonday.before(todayMonday) -> getString(R.string.calendar_episodes_past_week)
+            selectedMonday.after(todayMonday) -> getString(R.string.calendar_episodes_next_week)
+            else -> getString(R.string.calendar_episodes_this_week)
+        }
     }
 
     private fun updateDayLabel() {

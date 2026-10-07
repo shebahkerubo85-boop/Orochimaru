@@ -21,6 +21,7 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
+import ani.sanin.ui.LensButtonBackground
 import ani.sanin.util.FocusEffectUtil
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.CoroutineScope
@@ -88,6 +89,11 @@ class TmdbAllServicesActivity : AppCompatActivity() {
         binding.allServicesTitle.setTextColor(
             getThemeColor(com.google.android.material.R.attr.colorPrimary)
         )
+
+        // The grid/list pair is a lens button on every screen that carries it.
+        LensButtonBackground.apply(binding.mediaList)
+        LensButtonBackground.apply(binding.mediaGrid)
+        FocusEffectUtil.applyFocusListener(binding.mediaList, binding.mediaGrid)
 
         // The title doubles as the back button, the way the other detail screens do it.
         binding.allServicesTitle.setSafeOnClickListener { finish() }

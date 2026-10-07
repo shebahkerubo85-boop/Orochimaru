@@ -158,10 +158,12 @@ class StreamingServicesAdapter(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
-            // A round lens button, matching the row-header More buttons.
-            val size = ((if (isTv) 56 else 44) * density).toInt()
-            lp.width = size
-            lp.height = size
+            // A round lens button, matching the row-header More buttons. The column is as tall
+            // as a service tile so the button centres against the tiles beside it.
+            val w = if (isTv) 44 else 36
+            val h = if (isTv) 92 else 70
+            lp.width = (w * density).toInt()
+            lp.height = (h * density).toInt()
             lp.marginEnd = (GAP_DP * density).toInt()
             lp.bottomMargin = (RAIL_MARGIN_BOTTOM_DP * density).toInt()
             binding.root.layoutParams = lp
@@ -226,6 +228,9 @@ class StreamingServicesAdapter(
             arrow.isVisible = true
             logo.isVisible = false
             card.setSafeOnClickListener { onSeeAll() }
+            // The arrow is an ImageButton, so it would swallow the tap before the card sees it;
+            // it needs its own listener or the See All stops opening the full list.
+            arrow.setOnClickListener { onSeeAll() }
             // Round lens button, like the row-header More chevrons — no brand tile behind it.
             card.background = null
             LensButtonBackground.apply(arrow)

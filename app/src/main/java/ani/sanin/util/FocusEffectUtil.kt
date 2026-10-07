@@ -216,6 +216,8 @@ object FocusEffectUtil {
             id == R.id.searchFilter || id == R.id.clearHistory ||
             id == R.id.searchAdultCheck || id == R.id.mainCalendarContainer ||
             id == R.id.searchResultGrid || id == R.id.searchResultList ||
+            id == R.id.mediaList || id == R.id.mediaGrid ||
+            id == R.id.followerList || id == R.id.followerGrid ||
             id == R.id.franchiseRowInfo ||
             id == R.id.tmdbSearchFilter || id == R.id.tmdbSearchClearHistory ||
             id == R.id.tmdbSearchResultGrid || id == R.id.tmdbSearchResultList
@@ -226,6 +228,8 @@ object FocusEffectUtil {
         R.id.listSettings, R.id.sectionMoreButton,
         R.id.searchFilter, R.id.clearHistory, R.id.searchAdultCheck,
         R.id.searchResultGrid, R.id.searchResultList,
+        R.id.mediaList, R.id.mediaGrid,
+        R.id.followerList, R.id.followerGrid,
         R.id.mainCalendarContainer, R.id.streamingServiceSeeAll,
         R.id.franchiseRowInfo,
         R.id.tmdbSearchFilter, R.id.tmdbSearchClearHistory,

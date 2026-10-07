@@ -27,6 +27,7 @@ import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
 import ani.sanin.ui.components.LibraryStatusPill
 import ani.sanin.ui.components.LibraryStatusTab
+import ani.sanin.ui.LensButtonBackground
 import ani.sanin.util.FocusEffectUtil
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.CoroutineScope
@@ -127,6 +128,8 @@ class TmdbServiceCatalogueActivity : AppCompatActivity() {
         )
         FocusEffectUtil.applyFocusListener(binding.mediaList)
         FocusEffectUtil.applyFocusListener(binding.mediaGrid)
+        LensButtonBackground.apply(binding.mediaList)
+        LensButtonBackground.apply(binding.mediaGrid)
         binding.catalogueTypePill.setContent {
             LibraryStatusPill(
                 tabs = pillTabs,

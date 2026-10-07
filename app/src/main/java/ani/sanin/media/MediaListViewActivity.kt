@@ -21,6 +21,7 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
+import ani.sanin.ui.LensButtonBackground
 import ani.sanin.util.FocusEffectUtil
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
@@ -85,6 +86,9 @@ class MediaListViewActivity : AppCompatActivity() {
         binding.mediaGrid.setOnClickListener {
             changeView(0, binding.mediaGrid)
         }
+        LensButtonBackground.apply(binding.mediaList)
+        LensButtonBackground.apply(binding.mediaGrid)
+        FocusEffectUtil.applyFocusListener(binding.mediaList, binding.mediaGrid)
         val text = "${intent.getStringExtra("title")} (${mediaList.count()})"
         binding.listTitle.text = text
         binding.mediaRecyclerView.adapter = MediaAdaptor(view, mediaList, this)

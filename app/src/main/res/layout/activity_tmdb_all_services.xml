@@ -41,28 +41,28 @@
               The grid/list pair every row's arrow-mark screen carries, so this screen
               behaves like the Continue Watching one rather than inventing a layout.
             -->
-            <ImageView
-                android:id="@+id/mediaList"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical"
-                android:alpha="0.33"
-                android:padding="8dp"
-                app:srcCompat="@drawable/ic_round_view_list_24"
-                app:tint="?attr/colorOnBackground"
-                tools:ignore="ContentDescription,ImageContrastCheck" />
+<ImageButton
+            android:id="@+id/mediaList"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_gravity="center_vertical"
+            android:background="@null"
+            android:contentDescription="@string/list"
+            android:padding="11dp"
+            app:srcCompat="@drawable/ic_round_view_list_24"
+            app:tint="?attr/colorOnSurface" />
 
-            <ImageView
-                android:id="@+id/mediaGrid"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:layout_gravity="end"
-                android:layout_marginEnd="24dp"
-                android:alpha="0.33"
-                android:padding="8dp"
-                app:srcCompat="@drawable/ic_round_grid_view_24"
-                app:tint="?attr/colorOnBackground"
-                tools:ignore="ContentDescription,ImageContrastCheck" />
+        <ImageButton
+            android:id="@+id/mediaGrid"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginEnd="24dp"
+            android:background="@null"
+            android:contentDescription="@string/grid"
+            android:padding="11dp"
+            app:srcCompat="@drawable/ic_round_grid_view_24"
+            app:tint="?attr/colorOnSurface" />
         </LinearLayout>
     </com.google.android.material.appbar.AppBarLayout>
 
