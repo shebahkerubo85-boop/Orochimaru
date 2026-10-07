@@ -7,6 +7,7 @@ firebase-bom = "33.13.0"
 glide = "5.0.5"
 exo = "1.11.0"
 ffmpeg-kit = "1.9"
+smart-exception-java = "0.2.1"
 previewseekbarVer = "1.1.1.0"
 markwon = "4.6.2"
 groupie = "2.10.1"
@@ -166,6 +167,8 @@ okio = "com.squareup.okio:okio:3.9.1"
 
 # ffmpeg (HLS remux for downloads) — jmir1 fork of ffmpeg-kit, published on JitPack
 ffmpeg-kit = { module = "com.github.jmir1:ffmpeg-kit", version.ref = "ffmpeg-kit" }
+# ffmpeg-kit logs failures through smart-exception; without it R8 fails on the missing class
+smart-exception-java = { module = "com.arthenica:smart-exception-java", version.ref = "smart-exception-java" }
 
 
 # === Upstream CS3 libraries ===

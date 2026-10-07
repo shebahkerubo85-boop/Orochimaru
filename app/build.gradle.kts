@@ -201,6 +201,7 @@ dependencies {
     implementation(libs.bundles.okhttp)
     implementation(libs.okio)
     implementation(libs.ffmpeg.kit)
+    implementation(libs.smart.exception.java)
 
 
     // CloudStream .cs3 plugin runtime (vendored com.lagradost.cloudstream3 library)
