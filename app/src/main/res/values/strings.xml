@@ -260,6 +260,8 @@
     <string name="download_queue_empty">No downloads yet</string>
     <string name="download_queue_empty_desc">Download an episode from any server</string>
     <string name="download_clear_all">Delete all downloads</string>
+    <string name="download_clear_all_msg">Every downloaded episode will be removed from storage.</string>
+    <string name="downloads_cleared">All downloads deleted</string>
     <string name="download_pause">Pause</string>
     <string name="download_resume">Resume</string>
     <string name="download_retry">Retry</string>

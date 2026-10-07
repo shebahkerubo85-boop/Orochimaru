@@ -178,6 +178,19 @@ class SettingsActivity : AppCompatActivity() {
             ),
         ),
         SettingsSection(
+            title = "Downloads",
+            desc = "Storage, queue & notifications",
+            iconRes = R.drawable.ic_download_24,
+            entries = listOf(
+                SectionEntry(
+                    title = "Downloads",
+                    desc = "Storage, queue & notifications",
+                    iconRes = R.drawable.ic_download_24,
+                    onClick = { startActivity(Intent(this, SettingsDownloadsActivity::class.java)) },
+                ),
+            ),
+        ),
+        SettingsSection(
             title = "Utilities",
             desc = "Add-ons, cache & diagnostics",
             iconRes = R.drawable.ic_settings_tools,

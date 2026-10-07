@@ -113,6 +113,21 @@ android {
         buildConfig = true
     }
 
+    packaging {
+        jniLibs {
+            // nextlib-media3ext and ffmpeg-kit both bundle FFmpeg 6.0, so these libraries are
+            // provided twice. Both consumers only need FFmpeg 6.0's stable ABI, so either copy
+            // satisfies them; pick the first found instead of failing the merge.
+            pickFirsts += listOf(
+                "lib/**/libavcodec.so",
+                "lib/**/libavutil.so",
+                "lib/**/libswresample.so",
+                "lib/**/libswscale.so",
+                "lib/**/libc++_shared.so",
+            )
+        }
+    }
+
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17

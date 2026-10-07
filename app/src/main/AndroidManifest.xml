@@ -108,6 +108,12 @@
             android:name=".settings.SettingsAnimeActivity"
             android:parentActivityName=".MainActivity" />
         <activity
+            android:name=".settings.SettingsDownloadsActivity"
+            android:parentActivityName=".settings.SettingsActivity" />
+        <activity
+            android:name=".download.DownloadsActivity"
+            android:parentActivityName=".settings.SettingsActivity" />
+        <activity
             android:name=".settings.SettingsHomeActivity"
             android:parentActivityName=".MainActivity" />
         <activity
