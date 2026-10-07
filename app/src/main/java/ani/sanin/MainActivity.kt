@@ -81,6 +81,7 @@ import ani.sanin.themes.ThemeManager
 import ani.sanin.util.TvKeyboardUtil
 import ani.sanin.ui.components.NavigationPillsViewModel
 import ani.sanin.ui.components.EchoNavPillController
+import ani.sanin.ui.LensButtonBackground
 import ani.sanin.media.SearchActivity
 import ani.sanin.cloudstream.TmdbSearchActivity
 import ani.sanin.ui.splash.SaninLandscapeSplash
@@ -370,6 +371,14 @@ class MainActivity : AppCompatActivity() {
             // Focus: each icon gets its own border
             FocusEffectUtil.applyFocusListener(binding.mainCalendarContainer)
             FocusEffectUtil.applyFocusListener(binding.mainUserAvatarContainer)
+            // Calendar: lens look but with only a whisper of fill so the banner
+            // behind it stays visible (transparency preserved).
+            binding.mainCalendarContainer.setCardBackgroundColor(
+                LensButtonBackground.fillColor(this, 0.16f)
+            )
+            binding.mainCalendarContainer.strokeColor = LensButtonBackground.rimColor(this)
+            binding.mainCalendarContainer.strokeWidth =
+                (resources.displayMetrics.density * 1f).toInt().coerceAtLeast(1)
             // Focus chain: calendar ↔ avatar
             binding.mainCalendarContainer.nextFocusLeftId = R.id.mainUserAvatarContainer
             binding.mainCalendarContainer.nextFocusRightId = R.id.mainUserAvatarContainer

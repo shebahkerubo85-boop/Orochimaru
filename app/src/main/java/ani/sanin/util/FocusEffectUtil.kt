@@ -207,7 +207,8 @@ object FocusEffectUtil {
     private fun isCircularAvatar(v: View): Boolean {
         val id = v.id
         return id == R.id.discoverAvatar || id == R.id.tmdbDiscoveryAvatar ||
-            id == R.id.listAvatar || id == R.id.tmdbLibAvatar
+            id == R.id.listAvatar || id == R.id.tmdbLibAvatar ||
+            id == R.id.openSettingsButton || id == R.id.searchIconButton
     }
 
     private fun applyFocusGain(v: View) {

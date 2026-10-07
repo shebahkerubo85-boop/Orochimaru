@@ -36,6 +36,7 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
+import ani.sanin.ui.LensButtonBackground
 import ani.sanin.ui.components.LibraryStatusPill
 import ani.sanin.ui.components.LibraryStatusTab
 import ani.sanin.util.FocusEffectUtil
@@ -185,6 +186,7 @@ class ExtensionsActivity : AppCompatActivity() {
         TvKeyboardUtil.setupTvInput(binding.searchViewText)
 
         FocusEffectUtil.applyFocusListener(binding.searchIconButton)
+        LensButtonBackground.apply(binding.searchIconButton)
         binding.searchIconButton.setOnClickListener { toggleSearchBar() }
         updateSearchUiForTab(0)
 
@@ -439,6 +441,7 @@ class ExtensionsActivity : AppCompatActivity() {
             ).show(supportFragmentManager, "add_repo")
         }
         FocusEffectUtil.applyFocusListener(binding.openSettingsButton)
+        LensButtonBackground.apply(binding.openSettingsButton)
     }
 }
 
