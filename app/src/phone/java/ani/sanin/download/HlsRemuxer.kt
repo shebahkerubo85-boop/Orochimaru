@@ -51,7 +51,7 @@ internal object HlsRemuxer {
         args += temp.absolutePath
         Log.d(TAG, "ffmpeg args: ${args.joinToString(" ")}")
 
-        val logCallback = LogCallback { line -> Log.v(TAG, line?.trim() ?: "") }
+        val logCallback = LogCallback { ffLog -> Log.v(TAG, ffLog.message) }
         val statCallback = StatisticsCallback { s ->
             if (s.size > 0L) onProgress(s.size.toLong(), 0L)
         }
