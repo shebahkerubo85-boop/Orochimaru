@@ -196,11 +196,16 @@ object DownloadManager {
             var lastPublish = 0L
             temp = downloader.download(
                 item,
-                onProgress = { done, total ->
+                onProgress = { done, total, fraction ->
                     item.downloadedBytes = done
-                    if (total > 0) {
-                        item.totalBytes = total
-                        item.progress = (done.toFloat() / total).coerceIn(0f, 1f)
+                    when {
+                        total > 0 -> {
+                            item.totalBytes = total
+                            item.progress = (done.toFloat() / total).coerceIn(0f, 1f)
+                        }
+                        fraction >= 0f -> {
+                            item.progress = fraction.coerceIn(0f, 1f)
+                        }
                     }
                     val now = System.currentTimeMillis()
                     if (now - lastPublish > 300L) {

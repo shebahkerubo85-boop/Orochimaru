@@ -45,6 +45,7 @@ import ani.sanin.databinding.ItemUrlBinding
 import ani.sanin.download.DownloadManager
 import ani.sanin.download.bestVideoOf
 import ani.sanin.download.enqueue
+import ani.sanin.download.toOfflineExtractor
 import ani.sanin.getThemeColor
 import ani.sanin.hideSystemBars
 import ani.sanin.media.Media
@@ -332,6 +333,24 @@ class SelectorDialogFragment : DialogFragment() {
                     val actualKey = media?.anime?.episodes?.getEpisodeKey(rawKey) ?: rawKey
                     media?.anime?.selectedEpisode = actualKey
                     episode = ep
+                    // Prefer a finished download over the network: play the local file directly.
+                    // Works offline and skips server extraction entirely.
+                    val downloaded = ep?.let { DownloadManager.findCompleted(media!!.id, it.number) }
+                    if (ep != null && downloaded != null) {
+                        val key = media?.anime?.episodes?.getEpisodeKey(ep.number) ?: actualKey
+                        val offlineExtractor = downloaded.toOfflineExtractor()
+                        ep.extractors = mutableListOf(offlineExtractor)
+                        ep.extractorsSource = media!!.selected!!.sourceIndex
+                        ep.selectedExtractor = offlineExtractor.server.name
+                        ep.selectedVideo = 0
+                        if (key != null) {
+                            media?.anime?.selectedEpisode = key
+                            media?.anime?.episodes?.set(key, ep)
+                        }
+                        Logger.log("Watch: playing download for ep=${ep.number} path=${downloaded.path}")
+                        binding.root.post { startExoplayer(media!!) }
+                        return@observe
+                    }
                     if (ep != null) {
                         if (selected != null && media?.format != "LOCAL") {
                             binding.selectorListContainer.visibility = View.GONE
@@ -698,6 +717,7 @@ class SelectorDialogFragment : DialogFragment() {
                 val queued = DownloadManager.enqueue(m, ep, extractor, video)
                 if (queued != null) {
                     snackString(R.string.downloading)
+                    dismissAllowingStateLoss()
                 } else {
                     snackString(R.string.download_not_found)
                 }

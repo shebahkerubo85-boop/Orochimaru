@@ -28,7 +28,7 @@ class Downloader(
 
     suspend fun download(
         item: DownloadItem,
-        onProgress: (downloaded: Long, total: Long) -> Unit,
+        onProgress: (downloaded: Long, total: Long, fraction: Float) -> Unit,
         isActive: () -> Boolean,
     ): File {
         val temp = DownloadStorageHelper.tempFile(context, item)
@@ -44,7 +44,7 @@ class Downloader(
     private suspend fun downloadDirect(
         item: DownloadItem,
         temp: File,
-        onProgress: (Long, Long) -> Unit,
+        onProgress: (Long, Long, Float) -> Unit,
         isActive: () -> Boolean,
     ) = withContext(Dispatchers.IO) {
         val request = Request.Builder()
@@ -69,7 +69,7 @@ class Downloader(
                         }
                         output.write(buffer, 0, read)
                         done += read
-                        onProgress(done, total)
+                        onProgress(done, total, -1f)
                     }
                 }
             }
@@ -79,7 +79,7 @@ class Downloader(
     private suspend fun downloadHls(
         item: DownloadItem,
         temp: File,
-        onProgress: (Long, Long) -> Unit,
+        onProgress: (Long, Long, Float) -> Unit,
         isActive: () -> Boolean,
     ) = HlsRemuxer.remux(item, temp, onProgress, isActive)
 

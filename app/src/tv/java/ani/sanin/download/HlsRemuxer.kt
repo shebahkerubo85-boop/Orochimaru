@@ -11,7 +11,7 @@ internal object HlsRemuxer {
     suspend fun remux(
         item: DownloadItem,
         temp: File,
-        onProgress: (Long, Long) -> Unit,
+        onProgress: (downloaded: Long, total: Long, fraction: Float) -> Unit,
         isActive: () -> Boolean,
     ) {
         throw DownloadException("HLS downloads are not supported in this build")

@@ -119,7 +119,7 @@ class DownloadsActivity : AppCompatActivity() {
                 when (item.status) {
                     DownloadStatus.DOWNLOADING -> {
                         b.downloadProgress.visibility = View.VISIBLE
-                        if (item.totalBytes > 0L) {
+                        if (item.progress > 0f) {
                             b.downloadProgress.isIndeterminate = false
                             b.downloadProgress.progress = (item.progress * 100).toInt()
                         } else {
@@ -170,12 +170,15 @@ class DownloadsActivity : AppCompatActivity() {
 
             private fun statusText(item: DownloadItem): String = when (item.status) {
                 DownloadStatus.QUEUED -> getString(R.string.downloading)
-                DownloadStatus.DOWNLOADING ->
-                    if (item.totalBytes > 0L) {
-                        "${getString(R.string.downloading)} ${(item.progress * 100).toInt()}%"
-                    } else {
-                        getString(R.string.downloading)
-                    }
+                DownloadStatus.DOWNLOADING -> when {
+                    item.progress > 0f -> "${getString(R.string.downloading)} ${(item.progress * 100).toInt()}%" +
+                        if (item.downloadedBytes > 0L) " · ${formatSize(item.downloadedBytes)}" else ""
+
+                    item.downloadedBytes > 0L ->
+                        "${getString(R.string.downloading)} · ${formatSize(item.downloadedBytes)}"
+
+                    else -> getString(R.string.downloading)
+                }
 
                 DownloadStatus.PAUSED -> item.error ?: getString(R.string.download_resume)
                 DownloadStatus.FINISHED -> getString(R.string.download_complete)

@@ -2344,9 +2344,9 @@ class ExoplayerView :
                 VideoType.M3U8 -> MimeTypes.APPLICATION_M3U8
                 VideoType.DASH -> MimeTypes.APPLICATION_MPD
                 VideoType.CONTAINER -> {
-                    // For (local SAF files)
+                    // For local files (SAF `content://` downloads and `file://` app-storage downloads)
                     val url = video?.file?.url ?: ""
-                    if (url.startsWith("content://")) {
+                    if (url.startsWith("content://") || url.startsWith("file://")) {
                         val decoded = java.net.URLDecoder.decode(url, "UTF-8").lowercase()
                         when {
                             decoded.endsWith(".mkv") -> MimeTypes.APPLICATION_MATROSKA
@@ -2419,7 +2419,9 @@ class ExoplayerView :
                     }
                 }.toTypedArray()
 
-        val isContentUri = video?.file?.url?.startsWith("content://") == true
+        val isContentUri = video?.file?.url?.let {
+            it.startsWith("content://") || it.startsWith("file://")
+        } == true
         val videoMediaSource = if (isContentUri) {
             val localDataSourceFactory = DefaultDataSource.Factory(this)
             val localExtractorsFactory = DefaultExtractorsFactory()
@@ -2907,7 +2909,7 @@ class ExoplayerView :
                 VideoType.DASH -> MimeTypes.APPLICATION_MPD
                 VideoType.CONTAINER -> {
                     val url = freshVideo.file.url
-                    if (url.startsWith("content://")) {
+                    if (url.startsWith("content://") || url.startsWith("file://")) {
                         val decoded = java.net.URLDecoder.decode(url, "UTF-8").lowercase()
                         when {
                             decoded.endsWith(".mkv") -> MimeTypes.APPLICATION_MATROSKA
