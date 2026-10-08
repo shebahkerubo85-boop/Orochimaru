@@ -65,7 +65,8 @@ jobs:
 
       - name: Build
         run: |
-          ./gradlew assemble${{ steps.config.outputs.variant }} assemble${{ steps.config.outputs.variant_tv }} --build-cache --parallel
+          ./gradlew assemble${{ steps.config.outputs.variant }} --build-cache --parallel
+          ./gradlew assemble${{ steps.config.outputs.variant_tv }} --build-cache --parallel
 
       - name: Collect APKs
         run: |
