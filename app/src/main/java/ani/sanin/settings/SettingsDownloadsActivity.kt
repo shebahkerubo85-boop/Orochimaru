@@ -1,6 +1,5 @@
 package ani.sanin.settings
 
-import android.content.Intent
 import android.view.ViewGroup
 import android.os.Bundle
 import androidx.activity.result.contract.ActivityResultContracts
@@ -9,7 +8,6 @@ import androidx.core.view.updateLayoutParams
 import ani.sanin.R
 import ani.sanin.databinding.ActivitySettingsSubscreenBinding
 import ani.sanin.download.DownloadManager
-import ani.sanin.download.DownloadsActivity
 import ani.sanin.initActivity
 import ani.sanin.navBarHeight
 import ani.sanin.settings.saving.PrefManager
@@ -118,14 +116,6 @@ class SettingsDownloadsActivity : AppCompatActivity() {
                                         .coerceIn(0, 3),
                             ) { idx ->
                                 PrefManager.setVal(PrefName.DownloadConcurrency, idx + 1)
-                            },
-                        ),
-                        SubscreenBuilder.Entry(
-                            title = getString(R.string.downloads),
-                            desc = "Open the download queue",
-                            iconRes = R.drawable.ic_download_24,
-                            onClick = {
-                                startActivity(Intent(this, DownloadsActivity::class.java))
                             },
                         ),
                     ),

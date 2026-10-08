@@ -321,6 +321,10 @@ class ExoplayerView :
         var initialized = false
         lateinit var media: Media
 
+        // Set when launching straight from the downloads list: the media already carries a single
+        // local episode, so the player must start it without waiting for a source to set it.
+        var offlinePlayback = false
+
         private const val DEFAULT_MIN_BUFFER_MS = 30000
         private const val DEFAULT_MAX_BUFFER_MS = 60000
         private const val BUFFER_FOR_PLAYBACK_MS = 8000   // 8s: safer start on TV Wi-Fi
@@ -1703,33 +1707,14 @@ class ExoplayerView :
         }
 
         model.getEpisode().observe(this) { ep ->
-            hideSystemBars()
-            if (ep != null && !epChanging) {
-                episode = ep
-                media.selected = model.loadSelected(media)
-                model.setMedia(media)
-                val epKey = episodes.getEpisodeKey(ep.number)
-                    ?: episodeArr.find { episodes[it] == ep || episodes[it]?.number == ep.number }
-                    ?: episodeArr.firstOrNull()
-                currentEpisodeIndex = if (epKey != null) max(0, episodeArr.indexOf(epKey)) else 0
-                if (currentEpisodeIndex in 0 until episodeTitleArr.size) {
-                    episodeTitle.setSelection(currentEpisodeIndex)
-                }
-                episodeTitleText.text = episodeTitleArr.getOrElse(currentEpisodeIndex) { "" }
-                if (isInitialized) releasePlayer()
-                playbackPosition = if (changingServer) {
-                    PrefManager.getCustomVal("${media.id}_${ep.number}", 0L)
-                } else {
-                    val cleanEp = ep.number.let { MediaNameAdapter.findEpisodeNumber(it) }?.let {
-                        if (it % 1 == 0f) it.toInt().toString() else it.toString()
-                    }
-                    val savedEpPos = PrefManager.getCustomVal("${media.id}_${ep.number}", 0L)
-                    if (savedEpPos > 0L) savedEpPos else cleanEp?.let { PrefManager.getCustomVal("${media.id}_${it}", 0L) } ?: 0L
-                }
-                initPlayer()
-                preloading = false
-                updateProgress()
-            }
+            if (ep != null && !epChanging) onEpisodeReady(ep)
+        }
+
+        // Launched straight from the Downloads screen: the media already carries the finished
+        // local file as its only episode, so start it without waiting for a source to publish one.
+        if (offlinePlayback) {
+            offlinePlayback = false
+            media.anime?.episodes?.getEpisode(media.anime?.selectedEpisode)?.let { onEpisodeReady(it) }
         }
 
         // FullScreen
@@ -1925,6 +1910,34 @@ class ExoplayerView :
         }
 
         // OLED is now window background — no overlay to hide
+    }
+
+    private fun onEpisodeReady(ep: Episode) {
+        hideSystemBars()
+        episode = ep
+        media.selected = model.loadSelected(media)
+        model.setMedia(media)
+        val epKey = episodes.getEpisodeKey(ep.number)
+            ?: episodeArr.find { episodes[it] == ep || episodes[it]?.number == ep.number }
+            ?: episodeArr.firstOrNull()
+        currentEpisodeIndex = if (epKey != null) max(0, episodeArr.indexOf(epKey)) else 0
+        if (currentEpisodeIndex in 0 until episodeTitleArr.size) {
+            episodeTitle.setSelection(currentEpisodeIndex)
+        }
+        episodeTitleText.text = episodeTitleArr.getOrElse(currentEpisodeIndex) { "" }
+        if (isInitialized) releasePlayer()
+        playbackPosition = if (changingServer) {
+            PrefManager.getCustomVal("${media.id}_${ep.number}", 0L)
+        } else {
+            val cleanEp = ep.number.let { MediaNameAdapter.findEpisodeNumber(it) }?.let {
+                if (it % 1 == 0f) it.toInt().toString() else it.toString()
+            }
+            val savedEpPos = PrefManager.getCustomVal("${media.id}_${ep.number}", 0L)
+            if (savedEpPos > 0L) savedEpPos else cleanEp?.let { PrefManager.getCustomVal("${media.id}_${it}", 0L) } ?: 0L
+        }
+        initPlayer()
+        preloading = false
+        updateProgress()
     }
 
     private fun initPlayer() {

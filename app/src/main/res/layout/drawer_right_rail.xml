@@ -214,7 +214,7 @@
                 android:fontFamily="@font/poppins_bold"
                 android:focusable="true"
                 android:gravity="center_vertical"
-                android:nextFocusDown="@+id/rightRailSync"
+                android:nextFocusDown="@+id/rightRailDownloads"
                 android:nextFocusUp="@+id/rightRailExtensions"
                 android:paddingStart="24dp"
                 android:paddingEnd="24dp"
@@ -225,7 +225,7 @@
                 app:drawableTint="@android:color/white" />
 
             <TextView
-                android:id="@+id/rightRailSync"
+                android:id="@+id/rightRailDownloads"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
                 android:background="?attr/selectableItemBackground"
@@ -237,10 +237,10 @@
                 android:nextFocusUp="@+id/rightRailSettings"
                 android:paddingStart="24dp"
                 android:paddingEnd="24dp"
-                android:text="Sync Progress"
+                android:text="Downloads"
                 android:textColor="@android:color/white"
                 android:textSize="15sp"
-                app:drawableStartCompat="@drawable/ic_round_sync_24"
+                app:drawableStartCompat="@drawable/ic_download_24"
                 app:drawableTint="@android:color/white" />
 
             <TextView
@@ -253,7 +253,7 @@
                 android:focusable="true"
                 android:gravity="center_vertical"
                 android:nextFocusDown="@+id/rightRailClearCache"
-                android:nextFocusUp="@+id/rightRailSync"
+                android:nextFocusUp="@+id/rightRailDownloads"
                 android:paddingStart="24dp"
                 android:paddingEnd="24dp"
                 android:text="Providers"

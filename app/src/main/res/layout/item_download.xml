@@ -72,6 +72,31 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
+            <ImageButton
+                android:id="@+id/downloadPlay"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:focusable="true"
+                android:padding="8dp"
+                android:visibility="gone"
+                app:srcCompat="@drawable/ic_round_play_arrow_24"
+                app:tint="?attr/colorPrimary"
+                tools:ignore="ContentDescription" />
+
+            <ImageButton
+                android:id="@+id/downloadDelete"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="6dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:focusable="true"
+                android:padding="8dp"
+                android:visibility="gone"
+                app:srcCompat="@drawable/ic_round_delete_24"
+                app:tint="?attr/colorError"
+                tools:ignore="ContentDescription" />
+
             <TextView
                 android:id="@+id/downloadPrimary"
                 android:layout_width="wrap_content"
@@ -100,14 +125,36 @@
         </LinearLayout>
     </LinearLayout>
 
-    <ProgressBar
-        android:id="@+id/downloadProgress"
-        style="?android:attr/progressBarStyleHorizontal"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
-        android:max="100"
-        android:progressTint="?attr/colorPrimary"
-        android:progressBackgroundTint="?attr/colorOutline"
-        tools:progress="42" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ProgressBar
+            android:id="@+id/downloadProgress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:max="100"
+            android:progressTint="?attr/colorPrimary"
+            android:progressBackgroundTint="?attr/colorOutline"
+            tools:progress="42" />
+
+        <TextView
+            android:id="@+id/downloadPercent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:fontFamily="@font/poppins_semi_bold"
+            android:minWidth="40dp"
+            android:gravity="end"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="12sp"
+            android:visibility="gone"
+            tools:text="50%"
+            tools:visibility="visible" />
+    </LinearLayout>
 </LinearLayout>

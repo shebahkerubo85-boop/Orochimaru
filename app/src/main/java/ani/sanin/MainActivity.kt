@@ -1061,12 +1061,8 @@ class MainActivity : AppCompatActivity() {
             R.id.rightRailProviders to {
                 startActivity(Intent(this, ani.sanin.settings.ProvidersActivity::class.java))
             },
-            R.id.rightRailSync to {
-                lifecycleScope.launch(Dispatchers.IO) {
-                    ani.sanin.connections.syncPendingProgressUpdates()
-                    ani.sanin.connections.syncPendingDeletions()
-                }
-                snackString("Sync triggered")
+            R.id.rightRailDownloads to {
+                startActivity(Intent(this, ani.sanin.download.DownloadsActivity::class.java))
             },
             R.id.rightRailClearCache to {
                 lifecycleScope.launch(Dispatchers.Main) {

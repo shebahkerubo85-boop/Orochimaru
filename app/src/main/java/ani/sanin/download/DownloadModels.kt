@@ -28,6 +28,7 @@ data class DownloadItem(
     var progress: Float = 0f,
     var downloadedBytes: Long = 0L,
     var totalBytes: Long = 0L,
+    var speed: Long = 0L,
     var error: String? = null,
 ) : Serializable {
 

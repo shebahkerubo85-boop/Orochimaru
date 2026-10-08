@@ -1,5 +1,6 @@
 package ani.sanin.download
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
@@ -9,26 +10,35 @@ import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.tabs.TabLayout
 import ani.sanin.R
 import ani.sanin.databinding.ActivityDownloadsBinding
 import ani.sanin.databinding.ItemDownloadBinding
 import ani.sanin.initActivity
 import ani.sanin.loadImage
+import ani.sanin.media.anime.ExoplayerView
 import ani.sanin.navBarHeight
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
+import ani.sanin.util.customAlertDialog
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 /**
- * Minimal queue screen: what is downloading, what is waiting and what is already on disk.
- * Everything is driven straight from [DownloadManager]'s state flows.
+ * Queue screen: the "Queue" tab shows what is downloading/waiting, the "Downloaded" tab shows what
+ * is already on disk and can be played or deleted. Everything is driven straight from
+ * [DownloadManager]'s state flows.
  */
 class DownloadsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityDownloadsBinding
     private val adapter = DownloadRowAdapter()
+
+    private var selectedTab = 0
+    private var lastQueue: List<DownloadItem> = emptyList()
+    private var lastDone: List<DownloadedItem> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,8 +54,26 @@ class DownloadsActivity : AppCompatActivity() {
         binding.downloadsBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
         FocusEffectUtil.applyFocusListener(binding.downloadsBack)
 
+        binding.downloadsPauseAll.setOnClickListener {
+            val anyActive = lastQueue.any {
+                it.status == DownloadStatus.QUEUED || it.status == DownloadStatus.DOWNLOADING
+            }
+            if (anyActive) DownloadManager.pauseAll() else DownloadManager.resumeAll()
+        }
+        FocusEffectUtil.applyFocusListener(binding.downloadsPauseAll)
+
         binding.downloadsRecycler.layoutManager = LinearLayoutManager(this)
         binding.downloadsRecycler.adapter = adapter
+
+        binding.downloadsTabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) {
+                selectedTab = tab.position
+                render(lastQueue, lastDone)
+            }
+
+            override fun onTabUnselected(tab: TabLayout.Tab) {}
+            override fun onTabReselected(tab: TabLayout.Tab) {}
+        })
 
         lifecycleScope.launch {
             combine(DownloadManager.queue, DownloadManager.completed) { q, c -> q to c }
@@ -55,12 +83,38 @@ class DownloadsActivity : AppCompatActivity() {
     }
 
     private fun render(queue: List<DownloadItem>, done: List<DownloadedItem>) {
+        lastQueue = queue
+        lastDone = done
         val rows = ArrayList<Row>(queue.size + done.size)
-        queue.forEach { rows.add(Row.Active(it)) }
-        done.forEach { rows.add(Row.Done(it)) }
+        if (selectedTab == 0) {
+            queue.forEach { rows.add(Row.Active(it)) }
+        } else {
+            done.forEach { rows.add(Row.Done(it)) }
+        }
         adapter.submit(rows)
         binding.downloadsEmpty.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
         binding.downloadsRecycler.visibility = if (rows.isEmpty()) View.GONE else View.VISIBLE
+        updatePauseAll(queue)
+    }
+
+    private fun updatePauseAll(queue: List<DownloadItem>) {
+        val anyActive = queue.any {
+            it.status == DownloadStatus.QUEUED || it.status == DownloadStatus.DOWNLOADING
+        }
+        val anyPaused = queue.any { it.status == DownloadStatus.PAUSED }
+        when {
+            anyActive -> {
+                binding.downloadsPauseAll.visibility = View.VISIBLE
+                binding.downloadsPauseAll.setText(R.string.download_pause_all)
+            }
+
+            anyPaused -> {
+                binding.downloadsPauseAll.visibility = View.VISIBLE
+                binding.downloadsPauseAll.setText(R.string.download_resume_all)
+            }
+
+            else -> binding.downloadsPauseAll.visibility = View.GONE
+        }
     }
 
     private sealed class Row {
@@ -112,27 +166,26 @@ class DownloadsActivity : AppCompatActivity() {
                 b.downloadSubtitle.text = if (server.isNullOrBlank()) {
                     getString(R.string.downloading_episode, item.episodeNumber)
                 } else {
-                    "Episode ${item.episodeNumber} · $server"
+                    "Episode ${item.episodeNumber} \u00b7 $server"
                 }
                 b.downloadStatus.text = statusText(item)
+                b.downloadPlay.visibility = View.GONE
+                b.downloadDelete.visibility = View.GONE
 
+                val started = item.progress >= 0.01f
                 when (item.status) {
-                    DownloadStatus.DOWNLOADING -> {
+                    DownloadStatus.DOWNLOADING, DownloadStatus.QUEUED -> {
                         b.downloadProgress.visibility = View.VISIBLE
-                        if (item.progress > 0f) {
+                        if (started) {
+                            val pct = (item.progress * 100).toInt().coerceIn(1, 100)
                             b.downloadProgress.isIndeterminate = false
-                            b.downloadProgress.progress = (item.progress * 100).toInt()
+                            b.downloadProgress.progress = pct
+                            b.downloadPercent.visibility = View.VISIBLE
+                            b.downloadPercent.text = "$pct%"
                         } else {
                             b.downloadProgress.isIndeterminate = true
+                            b.downloadPercent.visibility = View.GONE
                         }
-                        b.downloadPrimary.visibility = View.VISIBLE
-                        b.downloadPrimary.setText(R.string.download_pause)
-                        b.downloadPrimary.setOnClickListener { DownloadManager.pause(item.id) }
-                    }
-
-                    DownloadStatus.QUEUED -> {
-                        b.downloadProgress.visibility = View.VISIBLE
-                        b.downloadProgress.isIndeterminate = true
                         b.downloadPrimary.visibility = View.VISIBLE
                         b.downloadPrimary.setText(R.string.download_pause)
                         b.downloadPrimary.setOnClickListener { DownloadManager.pause(item.id) }
@@ -140,6 +193,7 @@ class DownloadsActivity : AppCompatActivity() {
 
                     DownloadStatus.PAUSED, DownloadStatus.ERROR -> {
                         b.downloadProgress.visibility = View.GONE
+                        b.downloadPercent.visibility = View.GONE
                         b.downloadPrimary.visibility = View.VISIBLE
                         b.downloadPrimary.setText(
                             if (item.status == DownloadStatus.ERROR) R.string.download_retry
@@ -150,9 +204,11 @@ class DownloadsActivity : AppCompatActivity() {
 
                     else -> {
                         b.downloadProgress.visibility = View.GONE
+                        b.downloadPercent.visibility = View.GONE
                         b.downloadPrimary.visibility = View.GONE
                     }
                 }
+                b.downloadRemove.visibility = View.VISIBLE
                 b.downloadRemove.setOnClickListener { DownloadManager.cancel(item.id) }
             }
 
@@ -160,24 +216,33 @@ class DownloadsActivity : AppCompatActivity() {
                 b.downloadCover.loadImage(item.cover)
                 b.downloadTitle.text = item.mediaName
                 b.downloadSubtitle.text = "Episode ${item.episodeNumber}"
-                b.downloadStatus.text = "Downloaded · ${formatSize(item.sizeBytes)}"
+                b.downloadStatus.text = "Downloaded \u00b7 ${formatSize(item.sizeBytes)}"
                 b.downloadProgress.visibility = View.GONE
+                b.downloadPercent.visibility = View.GONE
                 b.downloadPrimary.visibility = View.GONE
-                b.downloadRemove.setOnClickListener {
-                    DownloadManager.removeCompleted(item.id, true)
-                }
+                b.downloadRemove.visibility = View.GONE
+
+                b.downloadPlay.visibility = View.VISIBLE
+                b.downloadPlay.setOnClickListener { playDownload(item) }
+                b.downloadDelete.visibility = View.VISIBLE
+                b.downloadDelete.setOnClickListener { confirmDelete(item) }
             }
 
             private fun statusText(item: DownloadItem): String = when (item.status) {
                 DownloadStatus.QUEUED -> getString(R.string.downloading)
-                DownloadStatus.DOWNLOADING -> when {
-                    item.progress > 0f -> "${getString(R.string.downloading)} ${(item.progress * 100).toInt()}%" +
-                        if (item.downloadedBytes > 0L) " · ${formatSize(item.downloadedBytes)}" else ""
+                DownloadStatus.DOWNLOADING -> {
+                    val parts = ArrayList<String>(3)
+                    parts.add(getString(R.string.downloading))
+                    val size = when {
+                        item.totalBytes > 0L ->
+                            "${formatSize(item.downloadedBytes)} / ${formatSize(item.totalBytes)}"
 
-                    item.downloadedBytes > 0L ->
-                        "${getString(R.string.downloading)} · ${formatSize(item.downloadedBytes)}"
-
-                    else -> getString(R.string.downloading)
+                        item.downloadedBytes > 0L -> formatSize(item.downloadedBytes)
+                        else -> ""
+                    }
+                    if (size.isNotEmpty()) parts.add(size)
+                    if (item.speed > 0L) parts.add(formatSpeed(item.speed))
+                    parts.joinToString(" \u00b7 ")
                 }
 
                 DownloadStatus.PAUSED -> item.error ?: getString(R.string.download_resume)
@@ -187,11 +252,44 @@ class DownloadsActivity : AppCompatActivity() {
         }
     }
 
+    private fun playDownload(item: DownloadedItem) {
+        ExoplayerView.media = item.toOfflineMedia()
+        ExoplayerView.initialized = true
+        ExoplayerView.offlinePlayback = true
+        startActivity(Intent(this, ExoplayerView::class.java))
+    }
+
+    private fun confirmDelete(item: DownloadedItem) {
+        customAlertDialog().apply {
+            setTitle(getString(R.string.download_delete_title))
+            setMessage(getString(R.string.download_delete_msg))
+            setPosButton(getString(R.string.download_delete)) {
+                DownloadManager.removeCompleted(item.id, true)
+            }
+            setNegButton(getString(R.string.cancel)) {}
+        }.show()
+    }
+
     private fun formatSize(bytes: Long): String {
-        if (bytes <= 0L) return ""
-        val mb = bytes / (1024.0 * 1024.0)
-        return if (mb >= 1024) String.format("%.2f GB", mb / 1024.0)
-        else String.format("%.1f MB", mb)
+        if (bytes <= 0L) return "0 MB"
+        val kb = bytes / 1024.0
+        val mb = kb / 1024.0
+        return when {
+            mb >= 1024.0 -> "${trim(mb / 1024.0, 2)} GB"
+            mb >= 1.0 -> "${trim(mb, 1)} MB"
+            else -> "${kb.toLong()} KB"
+        }
+    }
+
+    private fun formatSpeed(bytesPerSec: Long): String {
+        if (bytesPerSec <= 0L) return ""
+        val mb = bytesPerSec / (1024.0 * 1024.0)
+        return if (mb >= 1.0) "${trim(mb, 1)} MB/s" else "${bytesPerSec / 1024} KB/s"
+    }
+
+    private fun trim(value: Double, decimals: Int): String {
+        val s = String.format(Locale.US, "%.${decimals}f", value)
+        return s.trimEnd('0').trimEnd('.')
     }
 
     companion object {

@@ -29,6 +29,25 @@
             app:tint="?attr/colorOnSurface"
             tools:ignore="ContentDescription" />
 
+        <TextView
+            android:id="@+id/downloadsPauseAll"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/bg_download_action"
+            android:clickable="true"
+            android:focusable="true"
+            android:fontFamily="@font/poppins_semi_bold"
+            android:paddingStart="14dp"
+            android:paddingTop="7dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="7dp"
+            android:text="@string/download_pause_all"
+            android:textColor="?attr/colorOnPrimary"
+            android:textSize="12sp"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -68,6 +87,28 @@
             app:tint="?attr/colorOnSurface"
             tools:ignore="ContentDescription" />
     </LinearLayout>
+
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/downloadsTabs"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorSurface"
+        app:tabGravity="fill"
+        app:tabIndicatorColor="?attr/colorPrimary"
+        app:tabMode="fixed"
+        app:tabSelectedTextColor="?attr/colorPrimary"
+        app:tabTextColor="?attr/colorOnSurface">
+
+        <com.google.android.material.tabs.TabItem
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/download_tab_queue" />
+
+        <com.google.android.material.tabs.TabItem
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/download_tab_downloaded" />
+    </com.google.android.material.tabs.TabLayout>
 
     <FrameLayout
         android:layout_width="match_parent"

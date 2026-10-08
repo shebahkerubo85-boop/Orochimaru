@@ -56,6 +56,9 @@ object DownloadManager {
             if (it.status == DownloadStatus.DOWNLOADING) it.status = DownloadStatus.QUEUED
         }
         publish()
+        // Pick the queue back up automatically (also after the process is recreated in the
+        // background) so a download keeps going without the user reopening the app.
+        pump()
     }
 
     // ---------------------------------------------------------------- queries
@@ -112,6 +115,40 @@ object DownloadManager {
         persist()
         publish()
         pump()
+    }
+
+    fun pauseAll() {
+        var changed = false
+        items.forEach { item ->
+            if (item.status == DownloadStatus.DOWNLOADING) {
+                item.status = DownloadStatus.PAUSED
+                activeJobs.remove(item.id)?.cancel()
+                changed = true
+            } else if (item.status == DownloadStatus.QUEUED) {
+                item.status = DownloadStatus.PAUSED
+                changed = true
+            }
+        }
+        if (changed) {
+            persist()
+            publish()
+        }
+    }
+
+    fun resumeAll() {
+        var changed = false
+        items.forEach { item ->
+            if (item.status == DownloadStatus.PAUSED) {
+                item.status = DownloadStatus.QUEUED
+                item.error = null
+                changed = true
+            }
+        }
+        if (changed) {
+            persist()
+            publish()
+            pump()
+        }
     }
 
     fun removeCompleted(id: String, deleteFile: Boolean = true) {
@@ -194,6 +231,8 @@ object DownloadManager {
         var temp: File? = null
         try {
             var lastPublish = 0L
+            var speedTime = System.currentTimeMillis()
+            var speedBytes = 0L
             temp = downloader.download(
                 item,
                 onProgress = { done, total, fraction ->
@@ -208,6 +247,12 @@ object DownloadManager {
                         }
                     }
                     val now = System.currentTimeMillis()
+                    val dt = now - speedTime
+                    if (dt >= 500L) {
+                        item.speed = ((done - speedBytes) * 1000L / dt).coerceAtLeast(0L)
+                        speedTime = now
+                        speedBytes = done
+                    }
                     if (now - lastPublish > 300L) {
                         lastPublish = now
                         publish()
