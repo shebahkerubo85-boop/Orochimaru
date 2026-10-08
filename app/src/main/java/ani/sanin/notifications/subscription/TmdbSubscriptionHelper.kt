@@ -88,10 +88,9 @@ class TmdbSubscriptionHelper {
                     name = name,
                     type = type,
                     image = image,
-banner = banner,
-                        lastSeason = existing?.lastSeason ?: 0,
-                        lastEpisode = existing?.lastEpisode ?: 0
-                    )
+                    banner = banner,
+                    lastSeason = existing?.lastSeason ?: 0,
+                    lastEpisode = existing?.lastEpisode ?: 0
                 )
             )
             ani.sanin.notifications.push.PushSync.sync()
