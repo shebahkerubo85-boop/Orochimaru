@@ -70,6 +70,13 @@ object Notifications {
 
 
     /**
+     * Notification channel used for instant pushes from the relay worker.
+     */
+    const val CHANNEL_ANIME_PUSH = "anime_push"
+    const val ID_ANIME_PUSH = -1101
+
+
+    /**
      * Notification channel and ids used for app and extension updates.
      */
     private const val GROUP_APK_UPDATES = "group_apk_updates"
@@ -170,6 +177,10 @@ object Notifications {
                 buildNotificationChannel(CHANNEL_SUBSCRIPTION_CHECK_PROGRESS, IMPORTANCE_DEFAULT) {
                     setName("Subscription Checks Progress")
                     setGroup(GROUP_SUBSCRIPTION_CHECK)
+                },
+                buildNotificationChannel(CHANNEL_ANIME_PUSH, IMPORTANCE_HIGH) {
+                    setName("New Episodes")
+                    setGroup(GROUP_ANILIST)
                 },
                 buildNotificationChannel(CHANNEL_APP_GLOBAL, IMPORTANCE_HIGH) {
                     setName("Global Updates")

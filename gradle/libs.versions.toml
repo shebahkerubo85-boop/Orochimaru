@@ -43,6 +43,7 @@ overlappingpanels = "0.1.5"
 # Firebase
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
 firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics-ktx" }
+firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 
 # AndroidX Core
 androidx-core = "androidx.core:core-ktx:1.16.0"
@@ -220,7 +221,7 @@ compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 
 [bundles]
 
-firebase = ["firebase-crashlytics"]
+firebase = ["firebase-crashlytics", "firebase-messaging"]
 
 androidx = [
     "androidx-core",

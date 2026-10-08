@@ -157,6 +157,7 @@ class SubscriptionHelper {
             data.remove(id)
             PrefManager.setCustomVal(SUBSCRIPTIONS, data)
             if (showSnack) toast(R.string.subscription_deleted)
+            ani.sanin.notifications.push.PushSync.sync(currContext())
         }
 
         @Suppress("UNCHECKED_CAST")
@@ -195,6 +196,7 @@ class SubscriptionHelper {
                 data.remove(media.id)
             }
             PrefManager.setCustomVal(SUBSCRIPTIONS, data)
+            ani.sanin.notifications.push.PushSync.sync(currContext())
         }
     }
 }

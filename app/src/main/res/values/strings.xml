@@ -2473,6 +2473,10 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     
 <string name="subscription_episode_released">Episode %d released!</string>
     
+<string name="push_new_episode_title">New episode available</string>
+    
+<string name="push_new_episode_body">A new episode is available</string>
+    
 <string name="action_subscribe">Subscribe</string>
     
 <string name="action_unsubscribe">Unsubscribe</string>

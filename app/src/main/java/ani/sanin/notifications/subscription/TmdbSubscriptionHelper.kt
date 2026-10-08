@@ -65,6 +65,7 @@ class TmdbSubscriptionHelper {
                 ?: mutableMapOf()
             data.remove(id)
             PrefManager.setCustomVal(SUBSCRIPTIONS, data)
+            ani.sanin.notifications.push.PushSync.sync()
         }
 
         fun isSubscribed(id: Int): Boolean = getSubscriptions().containsKey(id)
@@ -87,11 +88,13 @@ class TmdbSubscriptionHelper {
                     name = name,
                     type = type,
                     image = image,
-                    banner = banner,
-                    lastSeason = existing?.lastSeason ?: 0,
-                    lastEpisode = existing?.lastEpisode ?: 0
+banner = banner,
+                        lastSeason = existing?.lastSeason ?: 0,
+                        lastEpisode = existing?.lastEpisode ?: 0
+                    )
                 )
             )
+            ani.sanin.notifications.push.PushSync.sync()
         }
 
         /** Add the item to Simkl's watchlist as "watching" (best-effort, fire). */

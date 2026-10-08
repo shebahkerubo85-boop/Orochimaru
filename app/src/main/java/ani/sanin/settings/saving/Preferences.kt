@@ -99,6 +99,9 @@ enum class PrefName(val data: Pref) {
     LastAnilistNotificationId(Pref(Location.General, Int::class, 0)),
     AnilistFilteredTypes(Pref(Location.General, Set::class, setOf<String>())),
     UseAlarmManager(Pref(Location.General, Boolean::class, false)),
+    // Set once the system battery-exemption prompt has been shown for downloads, so we only
+    // interrupt the user a single time.
+    BatteryOptimizationPrompted(Pref(Location.General, Boolean::class, false)),
     IncludeAnimeList(Pref(Location.General, Boolean::class, true)),
 
     AdultOnly(Pref(Location.General, Boolean::class, false)),

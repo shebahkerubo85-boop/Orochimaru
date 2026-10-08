@@ -10,7 +10,11 @@ import ani.sanin.notifications.subscription.SubscriptionNotificationWorker
 
 class WorkManagerScheduler(private val context: Context) : TaskScheduler {
     override fun scheduleRepeatingTask(taskType: TaskType, interval: Long) {
-        if (interval * 1000 < PeriodicWorkRequest.MIN_PERIODIC_INTERVAL_MILLIS) {
+        // interval is in MINUTES (see each worker's checkIntervals). Comparing minutes as if they
+        // were seconds made every interval under 900 minutes fail this check, so the default 2h
+        // AniList and 1h subscription checks were silently cancelled — no periodic work ever ran
+        // and notifications only appeared when the app was opened.
+        if (java.util.concurrent.TimeUnit.MINUTES.toMillis(interval) < PeriodicWorkRequest.MIN_PERIODIC_INTERVAL_MILLIS) {
             cancelTask(taskType)
             return
         }

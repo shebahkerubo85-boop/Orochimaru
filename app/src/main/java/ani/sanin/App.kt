@@ -131,6 +131,7 @@ class App : Application() {
                 Logger.log("Failed to schedule tasks")
                 Logger.log(e)
             }
+            ani.sanin.notifications.push.PushSync.sync(this@App)
         }
     }
 
