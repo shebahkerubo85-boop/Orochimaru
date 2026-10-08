@@ -42,13 +42,15 @@ jobs:
         id: config
         run: |
           if [ "${{ github.event_name }}" = "push" ]; then
-            echo "variant=GoogleRelease" >> $GITHUB_OUTPUT
+            echo "variant=GooglePhoneRelease" >> $GITHUB_OUTPUT
+            echo "variant_tv=GoogleTvRelease" >> $GITHUB_OUTPUT
             echo "build_type=release" >> $GITHUB_OUTPUT
             echo "is_release=true" >> $GITHUB_OUTPUT
           else
             BT="${{ github.event.inputs.build_type }}"
             CAP="${BT^}"
-            echo "variant=Google$CAP" >> $GITHUB_OUTPUT
+            echo "variant=GooglePhone$CAP" >> $GITHUB_OUTPUT
+            echo "variant_tv=GoogleTv$CAP" >> $GITHUB_OUTPUT
             echo "build_type=$BT" >> $GITHUB_OUTPUT
             if [ "$BT" = "release" ]; then
               echo "is_release=true" >> $GITHUB_OUTPUT
@@ -63,7 +65,7 @@ jobs:
 
       - name: Build
         run: |
-          ./gradlew assemble${{ steps.config.outputs.variant }} --build-cache --parallel
+          ./gradlew assemble${{ steps.config.outputs.variant }} assemble${{ steps.config.outputs.variant_tv }} --build-cache --parallel
 
       - name: Collect APKs
         run: |

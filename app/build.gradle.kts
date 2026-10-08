@@ -56,7 +56,7 @@ android {
         buildConfigField("String", "MAL_KEY", "\"\"")
     }
 
-    flavorDimensions += "store"
+    flavorDimensions += listOf("store", "device")
 
     productFlavors {
         create("fdroid") {
@@ -66,6 +66,18 @@ android {
         create("google") {
             dimension = "store"
             isDefault = true
+        }
+
+        // Phone builds bundle ffmpeg (via ffmpeg-kit) for HLS downloads, which requires API 24.
+        create("phone") {
+            dimension = "device"
+            isDefault = true
+            minSdk = 24
+        }
+        // TV builds skip ffmpeg entirely, so they keep the original API 23 floor.
+        create("tv") {
+            dimension = "device"
+            minSdk = 23
         }
     }
 
@@ -200,8 +212,9 @@ dependencies {
     implementation(libs.paging)
     implementation(libs.bundles.okhttp)
     implementation(libs.okio)
-    implementation(libs.ffmpeg.kit)
-    implementation(libs.smart.exception.java)
+    // ffmpeg-kit is only bundled in phone builds; the tv build has no ffmpeg at all.
+    add("phoneImplementation", libs.ffmpeg.kit.get())
+    add("phoneImplementation", libs.smart.exception.java.get())
 
 
     // CloudStream .cs3 plugin runtime (vendored com.lagradost.cloudstream3 library)

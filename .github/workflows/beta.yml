@@ -100,13 +100,13 @@ jobs:
       if: ${{ env.SKIP_BUILD != 'true' }}
       run: |
         if [ "${{ github.repository }}" == "rebelonion/Sanin" ]; then
-          ./gradlew assembleGoogleAlpha \
+          ./gradlew assembleGooglePhoneAlpha \
             -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/key.keystore \
             -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
             -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
             -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }};
         else
-          ./gradlew assembleGoogleAlpha;
+          ./gradlew assembleGooglePhoneAlpha;
         fi
           
     - name: Upload a Build Artifact
@@ -116,7 +116,7 @@ jobs:
           name: Sanin
           retention-days: 5
           compression-level: 9
-          path: "app/build/outputs/apk/google/alpha/app-google-alpha.apk"
+          path: "app/build/outputs/apk/google/phone/alpha/app-google-phone-alpha.apk"
 
     - name: Upload APK to Discord and Telegram
       if: ${{ github.repository == 'rebelonion/Sanin' }}
@@ -304,7 +304,7 @@ jobs:
         # Upload APK to Discord
         if [ "$SKIP_BUILD" != "true" ]; then
           curl -F "payload_json=${contentbody}" \
-               -F "sanin_debug=@app/build/outputs/apk/google/alpha/app-google-alpha.apk" \
+               -F "sanin_debug=@app/build/outputs/apk/google/phone/alpha/app-google-phone-alpha.apk" \
                ${{ secrets.DISCORD_WEBHOOK }}
         else
           echo "Skipping APK upload to Discord due to SKIP_BUILD being set to true"
@@ -331,7 +331,7 @@ jobs:
 
         # Upload APK to Telegram
         if [ "$SKIP_BUILD" != "true" ]; then
-          APK_PATH="app/build/outputs/apk/google/alpha/app-google-alpha.apk"
+          APK_PATH="app/build/outputs/apk/google/phone/alpha/app-google-phone-alpha.apk"
           response=$(curl -sS -f -X POST \
             "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
             -F "chat_id=-1002117798698" \

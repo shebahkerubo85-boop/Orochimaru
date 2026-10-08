@@ -6,7 +6,7 @@ serialization = "1.9.0"
 firebase-bom = "33.13.0"
 glide = "5.0.5"
 exo = "1.11.0"
-ffmpeg-kit = "1.9"
+ffmpeg-kit = "6.0-2"
 smart-exception-java = "0.2.1"
 previewseekbarVer = "1.1.1.0"
 markwon = "4.6.2"
@@ -165,8 +165,11 @@ okhttp-doh = "com.squareup.okhttp3:okhttp-dnsoverhttps:5.4.0"
 okhttp-zstd = "com.squareup.okhttp3:okhttp-zstd:5.4.0"
 okio = "com.squareup.okio:okio:3.9.1"
 
-# ffmpeg (HLS remux for downloads) — jmir1 fork of ffmpeg-kit, published on JitPack
-ffmpeg-kit = { module = "com.github.jmir1:ffmpeg-kit", version.ref = "ffmpeg-kit" }
+# ffmpeg (HLS remux for downloads) — last official ffmpeg-kit (project retired).
+# The jmir1 JitPack fork ships broken natives (libavfilter needs libpostproc.so,
+# libavformat needs libxml2.so, neither packaged), so use the self-contained official
+# full bundle hosted on Appodeal's public Artifactory.
+ffmpeg-kit = { module = "com.arthenica:ffmpeg-kit-full", version.ref = "ffmpeg-kit" }
 # ffmpeg-kit logs failures through smart-exception; without it R8 fails on the missing class
 smart-exception-java = { module = "com.arthenica:smart-exception-java", version.ref = "smart-exception-java" }
 
