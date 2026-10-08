@@ -2,12 +2,14 @@ package ani.sanin.download
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.tabs.TabLayout
@@ -91,6 +93,10 @@ class DownloadsActivity : AppCompatActivity() {
         } else {
             done.forEach { rows.add(Row.Done(it)) }
         }
+        Log.i(
+            "DownloadsUI",
+            "render tab=$selectedTab queue=${queue.size} done=${done.size} rows=${rows.size}",
+        )
         adapter.submit(rows)
         binding.downloadsEmpty.visibility = if (rows.isEmpty()) View.VISIBLE else View.GONE
         binding.downloadsRecycler.visibility = if (rows.isEmpty()) View.GONE else View.VISIBLE
@@ -128,9 +134,27 @@ class DownloadsActivity : AppCompatActivity() {
         private val rows = mutableListOf<Row>()
 
         fun submit(next: List<Row>) {
+            val diff = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
+                override fun getOldListSize(): Int = rows.size
+                override fun getNewListSize(): Int = next.size
+                override fun areItemsTheSame(oldPos: Int, newPos: Int): Boolean =
+                    sameId(rows[oldPos], next[newPos])
+
+                override fun areContentsTheSame(oldPos: Int, newPos: Int): Boolean =
+                    rows[oldPos] == next[newPos]
+
+                override fun getChangePayload(oldPos: Int, newItem: Int): Any? {
+                    val a = rows[oldPos]
+                    val b = next[newItem]
+                    if (a is Row.Active && b is Row.Active && a.item.isRunning() && b.item.isRunning()) {
+                        return PAYLOAD_PROGRESS
+                    }
+                    return null
+                }
+            })
             rows.clear()
             rows.addAll(next)
-            notifyDataSetChanged()
+            diff.dispatchUpdatesTo(this)
         }
 
         override fun getItemCount(): Int = rows.size
@@ -145,6 +169,14 @@ class DownloadsActivity : AppCompatActivity() {
                 false,
             )
             return VH(binding)
+        }
+
+        override fun onBindViewHolder(holder: VH, position: Int, payloads: MutableList<Any>) {
+            if (payloads.contains(PAYLOAD_PROGRESS)) {
+                (rows[position] as? Row.Active)?.let { holder.updateActiveProgress(it.item) }
+                return
+            }
+            super.onBindViewHolder(holder, position, payloads)
         }
 
         override fun onBindViewHolder(holder: VH, position: Int) {
@@ -210,6 +242,22 @@ class DownloadsActivity : AppCompatActivity() {
                 }
                 b.downloadRemove.visibility = View.VISIBLE
                 b.downloadRemove.setOnClickListener { DownloadManager.cancel(item.id) }
+            }
+
+            /** Cheap rebind used while a download is running: touches only text/bar, never the image. */
+            fun updateActiveProgress(item: DownloadItem) {
+                b.downloadStatus.text = statusText(item)
+                val started = item.progress >= 0.01f
+                if (started) {
+                    val pct = (item.progress * 100).toInt().coerceIn(1, 100)
+                    b.downloadProgress.isIndeterminate = false
+                    b.downloadProgress.progress = pct
+                    b.downloadPercent.visibility = View.VISIBLE
+                    b.downloadPercent.text = "$pct%"
+                } else {
+                    b.downloadProgress.isIndeterminate = true
+                    b.downloadPercent.visibility = View.GONE
+                }
             }
 
             fun bindDone(item: DownloadedItem) {
@@ -292,8 +340,18 @@ class DownloadsActivity : AppCompatActivity() {
         return s.trimEnd('0').trimEnd('.')
     }
 
+    private fun DownloadItem.isRunning(): Boolean =
+        status == DownloadStatus.DOWNLOADING || status == DownloadStatus.QUEUED
+
+    private fun sameId(a: Row, b: Row): Boolean = when {
+        a is Row.Active && b is Row.Active -> a.item.id == b.item.id
+        a is Row.Done && b is Row.Done -> a.item.id == b.item.id
+        else -> false
+    }
+
     companion object {
         private const val TYPE_ACTIVE = 0
         private const val TYPE_DONE = 1
+        private const val PAYLOAD_PROGRESS = "progress"
     }
 }

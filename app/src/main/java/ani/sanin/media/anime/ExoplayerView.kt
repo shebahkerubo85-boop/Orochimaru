@@ -1712,9 +1712,16 @@ class ExoplayerView :
 
         // Launched straight from the Downloads screen: the media already carries the finished
         // local file as its only episode, so start it without waiting for a source to publish one.
+        // Deferred to the next loop so the rest of onCreate (speed/playbackParameters setup) has
+        // finished before we build the player.
         if (offlinePlayback) {
             offlinePlayback = false
-            media.anime?.episodes?.getEpisode(media.anime?.selectedEpisode)?.let { onEpisodeReady(it) }
+            window.decorView.post {
+                if (!isFinishing && !isDestroyed) {
+                    media.anime?.episodes?.getEpisode(media.anime?.selectedEpisode)
+                        ?.let { onEpisodeReady(it) }
+                }
+            }
         }
 
         // FullScreen

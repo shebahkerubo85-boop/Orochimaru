@@ -56,6 +56,14 @@ object DownloadManager {
             if (it.status == DownloadStatus.DOWNLOADING) it.status = DownloadStatus.QUEUED
         }
         publish()
+        // The loaded files must reach the UI too, otherwise the "Downloaded" tab stays empty
+        // until the next download finishes and happens to trigger publishCompleted().
+        publishCompleted()
+        Log.i(
+            "AnimeDownload",
+            "init: queue=${items.size} completed=${completedItems.size} " +
+                "statuses=${items.joinToString { it.status.toString() }}",
+        )
         // Pick the queue back up automatically (also after the process is recreated in the
         // background) so a download keeps going without the user reopening the app.
         pump()
@@ -233,6 +241,7 @@ object DownloadManager {
             var lastPublish = 0L
             var speedTime = System.currentTimeMillis()
             var speedBytes = 0L
+            var progressLogged = false
             temp = downloader.download(
                 item,
                 onProgress = { done, total, fraction ->
@@ -242,8 +251,28 @@ object DownloadManager {
                             item.totalBytes = total
                             item.progress = (done.toFloat() / total).coerceIn(0f, 1f)
                         }
+                        item.totalBytes > 0 -> {
+                            item.progress = (done.toFloat() / item.totalBytes).coerceIn(0f, 1f)
+                        }
                         fraction >= 0f -> {
                             item.progress = fraction.coerceIn(0f, 1f)
+                        }
+                    }
+                    if (!progressLogged) {
+                        if (item.progress > 0f) {
+                            progressLogged = true
+                            Log.i(
+                                "AnimeDownload",
+                                "progress ${item.id}: ${(item.progress * 100).toInt()}% " +
+                                    "source(total=$total fraction=$fraction done=$done)",
+                            )
+                        } else if (done > 1_000_000L) {
+                            progressLogged = true
+                            Log.i(
+                                "AnimeDownload",
+                                "progress ${item.id}: STUCK at 0% — no total, no fraction. " +
+                                    "total=$total fraction=$fraction estimate=${item.totalBytes} done=$done",
+                            )
                         }
                     }
                     val now = System.currentTimeMillis()
@@ -343,7 +372,9 @@ object DownloadManager {
     }
 
     private fun publishCompleted() {
-        _completed.value = completedItems.toList()
+        val list = completedItems.toList()
+        Log.i("AnimeDownload", "publishCompleted: size=${list.size}")
+        _completed.value = list
     }
 
     private fun persist() = DownloadStore.saveQueue(items)

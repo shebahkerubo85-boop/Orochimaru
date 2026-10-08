@@ -56,7 +56,10 @@ class Downloader(
         response.use { res ->
             if (!res.isSuccessful) throw DownloadException("HTTP ${res.code} for ${item.url}")
             val body = res.body ?: throw DownloadException("Empty response body")
-            val total = body.contentLength()
+            // Chunked/streaming responses return -1 here, which used to leave the progress bar
+            // stuck on the indeterminate loop. Ask the server for the length before streaming.
+            var total = body.contentLength()
+            if (total <= 0L) total = resolveLength(item)
             body.byteStream().use { input ->
                 temp.outputStream().use { output ->
                     val buffer = ByteArray(64 * 1024)
@@ -74,6 +77,38 @@ class Downloader(
                 }
             }
         }
+    }
+
+    /**
+     * Best-effort size probe (HEAD, then a 1-byte range GET) used only when the actual download
+     * response has no Content-Length. Returns -1 when the size genuinely cannot be determined.
+     */
+    private fun resolveLength(item: DownloadItem): Long {
+        val head = probeLength(item, head = true)
+        if (head > 0L) return head
+        return probeLength(item, head = false)
+    }
+
+    private fun probeLength(item: DownloadItem, head: Boolean): Long = try {
+        val builder = Request.Builder().url(item.url)
+        item.headers.forEach { (k, v) -> builder.addHeader(k, v) }
+        if (head) {
+            builder.head()
+        } else {
+            builder.get().addHeader("Range", "bytes=0-0")
+        }
+        client.newCall(builder.build()).execute().use { res ->
+            // Content-Range: bytes 0-0/12345 gives the full size on a range response.
+            val fromRange = res.header("Content-Range")
+                ?.substringAfter('/', "")
+                ?.takeIf { it.isNotBlank() && it != "*" }
+                ?.toLongOrNull()
+            val fromHeader = res.header("Content-Length")?.toLongOrNull()
+            val fromBody = res.body?.contentLength() ?: -1L
+            maxOf(fromRange ?: -1L, fromHeader ?: -1L, fromBody)
+        }
+    } catch (_: Exception) {
+        -1L
     }
 
     private suspend fun downloadHls(

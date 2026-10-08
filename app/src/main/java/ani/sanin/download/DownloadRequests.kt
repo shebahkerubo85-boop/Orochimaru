@@ -1,9 +1,11 @@
 package ani.sanin.download
 
+import ani.sanin.App
 import ani.sanin.media.Media
 import ani.sanin.media.anime.Episode
 import ani.sanin.parsers.Video
 import ani.sanin.parsers.VideoExtractor
+import ani.sanin.util.BatteryOptimizations
 
 /** Preferred quality when an episode is downloaded in bulk without an explicit quality pick. */
 fun bestVideoOf(extractor: VideoExtractor): Video? =
@@ -27,6 +29,10 @@ fun DownloadManager.enqueue(
     val url = video.file.url
     if (url.isBlank()) return null
 
+    // video.size is reported in MB; keep it as an estimate so the queue can show a total
+    // even when the server does not send a Content-Length.
+    val estimatedSize = video.size?.takeIf { it > 0.0 }?.let { (it * 1024.0 * 1024.0).toLong() } ?: 0L
+
     val item = DownloadItem(
         id = "${media.id}:${episode.number}",
         mediaId = media.id,
@@ -41,7 +47,11 @@ fun DownloadManager.enqueue(
         videoType = video.format,
         quality = video.quality,
         fileName = "Episode ${episode.number}",
+        totalBytes = estimatedSize,
     )
     enqueue(item)
+    // One-time battery exemption prompt, so the OS does not kill the queue (or its foreground
+    // service) under OEM power management. Only ever fires on the first item ever queued.
+    App.currentActivity()?.let { BatteryOptimizations.promptIfNeeded(it) }
     return item
 }
