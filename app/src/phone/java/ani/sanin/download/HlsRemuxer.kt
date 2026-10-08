@@ -1,5 +1,6 @@
 package ani.sanin.download
 
+import android.util.Log
 import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.FFmpegKitConfig
 import com.arthenica.ffmpegkit.LogCallback
@@ -19,13 +20,22 @@ import kotlin.coroutines.resumeWithException
  */
 internal object HlsRemuxer {
 
+    private const val TAG = "HlsRemuxer"
+
     suspend fun remux(
         item: DownloadItem,
         temp: File,
         onProgress: (Long, Long) -> Unit,
         isActive: () -> Boolean,
     ) {
-        FFmpegKitConfig.setLogRedirectionStrategy(LogRedirectionStrategy.NEVER_PRINT_LOGS)
+        Log.i(TAG, "remux start url=${item.url} headers=${item.headers.size} out=${temp.absolutePath}")
+        try {
+            FFmpegKitConfig.setLogRedirectionStrategy(LogRedirectionStrategy.NEVER_PRINT_LOGS)
+        } catch (t: Throwable) {
+            // Almost always a native load failure (e.g. a missing symbol in libffmpegkit.so).
+            Log.e(TAG, "ffmpeg-kit failed to initialize", t)
+            throw DownloadException("ffmpeg-kit failed to load: ${t.message}")
+        }
 
         val headerString = item.headers.entries.joinToString("") { "${it.key}: ${it.value}\r\n" }
         val args = mutableListOf<String>()
@@ -39,23 +49,31 @@ internal object HlsRemuxer {
         args += "-c"
         args += "copy"
         args += temp.absolutePath
+        Log.d(TAG, "ffmpeg args: ${args.joinToString(" ")}")
 
-        val logCallback = LogCallback { /* intentionally quiet */ }
+        val logCallback = LogCallback { line -> Log.v(TAG, line?.trim() ?: "") }
         val statCallback = StatisticsCallback { s ->
             if (s.size > 0L) onProgress(s.size.toLong(), 0L)
         }
 
         suspendCancellableCoroutine<Unit> { continuation ->
+            val startedAt = System.currentTimeMillis()
             val session = FFmpegKit.executeWithArgumentsAsync(
                 args.toTypedArray(),
                 { ffmpegSession ->
                     if (!continuation.isActive) return@executeWithArgumentsAsync
                     if (ffmpegSession.returnCode?.isValueSuccess == true) {
+                        Log.i(
+                            TAG,
+                            "ffmpeg done in ${System.currentTimeMillis() - startedAt}ms, " +
+                                "output=${temp.length()} bytes",
+                        )
                         continuation.resume(Unit)
                     } else {
                         val reason = ffmpegSession.failStackTrace?.takeIf { it.isNotBlank() }
                             ?: ffmpegSession.allLogsAsString?.trim()?.takeLast(500)
                             ?: "unknown error"
+                        Log.e(TAG, "ffmpeg failed (${ffmpegSession.returnCode}): $reason")
                         continuation.resumeWithException(
                             DownloadException("ffmpeg failed (${ffmpegSession.returnCode}): $reason"),
                         )

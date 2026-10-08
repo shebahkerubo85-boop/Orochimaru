@@ -1,6 +1,7 @@
 package ani.sanin.download
 
 import android.content.Context
+import android.util.Log
 import ani.sanin.parsers.VideoType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -31,10 +32,12 @@ class Downloader(
         isActive: () -> Boolean,
     ): File {
         val temp = DownloadStorageHelper.tempFile(context, item)
+        Log.i(TAG, "download ${item.videoType} url=${item.url} -> ${temp.absolutePath}")
         when (item.videoType) {
             VideoType.M3U8 -> downloadHls(item, temp, onProgress, isActive)
             else -> downloadDirect(item, temp, onProgress, isActive)
         }
+        Log.i(TAG, "download finished url=${item.url} size=${temp.length()}")
         return temp
     }
 
@@ -81,6 +84,8 @@ class Downloader(
     ) = HlsRemuxer.remux(item, temp, onProgress, isActive)
 
     companion object {
+        private const val TAG = "AnimeDownload"
+
         fun defaultClient(): OkHttpClient = OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)

@@ -3,6 +3,7 @@ package ani.sanin.download
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.util.Log
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import kotlinx.coroutines.CoroutineScope
@@ -224,6 +225,7 @@ object DownloadManager {
             persist()
             publish()
             notifier.completed(item)
+            Log.i("AnimeDownload", "saved ${item.mediaName} ep${item.episodeNumber} ($size bytes) -> $locator")
         } catch (e: DownloadCancelledException) {
             temp?.takeIf { it.exists() }?.delete()
             item.status = DownloadStatus.PAUSED
@@ -239,6 +241,7 @@ object DownloadManager {
             persist()
             publish()
             notifier.error(item, item.error)
+            Log.e("AnimeDownload", "failed ${item.mediaName} ep${item.episodeNumber}: ${item.error}", e)
         } finally {
             activeJobs.remove(item.id)
             publish()
