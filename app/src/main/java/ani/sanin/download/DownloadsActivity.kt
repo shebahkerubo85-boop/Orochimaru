@@ -309,7 +309,7 @@ class DownloadsActivity : AppCompatActivity() {
         }
 
         fun bind(row: Row.Group) {
-            b.groupCover.loadImage(row.thumbPath ?: row.cover)
+            b.groupCover.loadImage(row.cover ?: row.thumbPath)
             b.groupTitle.text = row.title
             b.groupCount.text = row.subtitle
 

@@ -4,7 +4,6 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="14dp"
     android:background="@drawable/bg_download_card"
     android:orientation="vertical">
 
@@ -69,6 +68,7 @@
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
@@ -99,7 +99,7 @@
         style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="match_parent"
         android:layout_height="2dp"
-        android:layout_marginBottom="1dp"
+        android:layout_marginTop="10dp"
         android:indeterminate="true"
         android:indeterminateTint="?attr/colorPrimary"
         android:max="100"
