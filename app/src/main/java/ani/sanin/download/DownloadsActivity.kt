@@ -26,6 +26,7 @@ import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.customAlertDialog
+import ani.sanin.ui.LensButtonBackground
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -68,6 +69,7 @@ class DownloadsActivity : AppCompatActivity() {
             val anyActive = lastQueue.any { it.isActive }
             if (anyActive) DownloadManager.pauseAll() else DownloadManager.resumeAll()
         }
+        LensButtonBackground.apply(binding.downloadsPauseAll)
         FocusEffectUtil.applyFocusListener(binding.downloadsPauseAll)
 
         binding.downloadsRecycler.layoutManager = LinearLayoutManager(this)
@@ -179,16 +181,18 @@ class DownloadsActivity : AppCompatActivity() {
         val anyPaused = queue.any { it.status == DownloadStatus.PAUSED }
         when {
             anyActive -> {
-                binding.downloadsPauseAll.visibility = View.VISIBLE
-                binding.downloadsPauseAll.setText(R.string.download_pause_all)
+                binding.downloadsPauseAllContainer.visibility = View.VISIBLE
+                binding.downloadsPauseAllLabel.setText(R.string.download_pause_all)
+                binding.downloadsPauseAll.setImageResource(R.drawable.ic_baseline_pause_24)
             }
 
             anyPaused -> {
-                binding.downloadsPauseAll.visibility = View.VISIBLE
-                binding.downloadsPauseAll.setText(R.string.download_resume_all)
+                binding.downloadsPauseAllContainer.visibility = View.VISIBLE
+                binding.downloadsPauseAllLabel.setText(R.string.download_resume_all)
+                binding.downloadsPauseAll.setImageResource(R.drawable.ic_baseline_play_arrow_24)
             }
 
-            else -> binding.downloadsPauseAll.visibility = View.GONE
+            else -> binding.downloadsPauseAllContainer.visibility = View.GONE
         }
     }
 
@@ -296,6 +300,11 @@ class DownloadsActivity : AppCompatActivity() {
     private inner class GroupVH(private val b: ItemDownloadGroupBinding) :
         RecyclerView.ViewHolder(b.root) {
 
+        init {
+            LensButtonBackground.apply(b.groupAction)
+            LensButtonBackground.apply(b.groupDelete)
+        }
+
         fun bind(row: Row.Group) {
             b.groupCover.loadImage(row.cover)
             b.groupTitle.text = row.title
@@ -357,6 +366,8 @@ class DownloadsActivity : AppCompatActivity() {
 
         init {
             FocusEffectUtil.applyFocusListener(b.root)
+            LensButtonBackground.apply(b.episodeAction)
+            LensButtonBackground.apply(b.episodeDelete)
         }
 
         fun bindActive(item: DownloadItem) {

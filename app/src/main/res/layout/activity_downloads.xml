@@ -29,24 +29,37 @@
             app:tint="?attr/colorOnSurface"
             tools:ignore="ContentDescription" />
 
-        <TextView
-            android:id="@+id/downloadsPauseAll"
+        <LinearLayout
+            android:id="@+id/downloadsPauseAllContainer"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:background="@drawable/bg_download_action"
-            android:clickable="true"
-            android:focusable="true"
-            android:fontFamily="@font/poppins_semi_bold"
-            android:paddingStart="14dp"
-            android:paddingTop="7dp"
-            android:paddingEnd="14dp"
-            android:paddingBottom="7dp"
-            android:text="@string/download_pause_all"
-            android:textColor="?attr/colorOnPrimary"
-            android:textSize="12sp"
+            android:layout_marginStart="8dp"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
             android:visibility="gone"
-            tools:visibility="visible" />
+            tools:visibility="visible">
+
+            <ImageButton
+                android:id="@+id/downloadsPauseAll"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:focusable="true"
+                android:padding="9dp"
+                app:srcCompat="@drawable/ic_baseline_pause_24"
+                app:tint="?attr/colorOnSurface"
+                tools:ignore="ContentDescription" />
+
+            <TextView
+                android:id="@+id/downloadsPauseAllLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:alpha="0.45"
+                android:fontFamily="@font/poppins"
+                android:text="@string/download_pause_all"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="8.5sp" />
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="0dp"

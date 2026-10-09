@@ -130,7 +130,6 @@
             android:id="@+id/episodeAction"
             android:layout_width="26dp"
             android:layout_height="26dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
             android:padding="3dp"
             android:tint="?attr/colorOnSurface"
             app:srcCompat="@drawable/ic_baseline_pause_24"
@@ -141,9 +140,8 @@
             android:layout_width="26dp"
             android:layout_height="26dp"
             android:layout_marginStart="2dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
             android:padding="3dp"
-            android:tint="?attr/colorError"
+            android:tint="@color/colorPrimaryRed"
             app:srcCompat="@drawable/ic_baseline_close_24"
             tools:ignore="ContentDescription" />
     </LinearLayout>
