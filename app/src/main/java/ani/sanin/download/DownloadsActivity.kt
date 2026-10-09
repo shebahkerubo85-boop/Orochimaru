@@ -3,6 +3,7 @@ package ani.sanin.download
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
@@ -15,7 +16,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.tabs.TabLayout
 import ani.sanin.R
 import ani.sanin.databinding.ActivityDownloadsBinding
-import ani.sanin.databinding.ItemDownloadBinding
+import ani.sanin.databinding.ItemDownloadEpisodeBinding
+import ani.sanin.databinding.ItemDownloadGroupBinding
 import ani.sanin.initActivity
 import ani.sanin.loadImage
 import ani.sanin.media.anime.ExoplayerView
@@ -29,14 +31,20 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 
 /**
- * Queue screen: the "Queue" tab shows what is downloading/waiting, the "Downloaded" tab shows what
- * is already on disk and can be played or deleted. Everything is driven straight from
- * [DownloadManager]'s state flows.
+ * Queue screen. Both tabs group downloads by series into a main card that expands (tap anywhere
+ * except the buttons) into the individual episode cards, ordered by episode number.
+ *
+ * Queue tab:      main card -> looping bar + "done / queued" count + pause/retry lens + red X.
+ *                 episode cards -> landscape thumb, title, server·quality, size + progress ring,
+ *                 speed, small lens pause/retry + red X.
+ * Downloaded tab: main card -> episode count + red X; expanded cards play on tap.
  */
 class DownloadsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityDownloadsBinding
     private val adapter = DownloadRowAdapter()
+
+    private val expandedGroups = mutableSetOf<Int>()
 
     private var selectedTab = 0
     private var lastQueue: List<DownloadItem> = emptyList()
@@ -57,9 +65,7 @@ class DownloadsActivity : AppCompatActivity() {
         FocusEffectUtil.applyFocusListener(binding.downloadsBack)
 
         binding.downloadsPauseAll.setOnClickListener {
-            val anyActive = lastQueue.any {
-                it.status == DownloadStatus.QUEUED || it.status == DownloadStatus.DOWNLOADING
-            }
+            val anyActive = lastQueue.any { it.isActive }
             if (anyActive) DownloadManager.pauseAll() else DownloadManager.resumeAll()
         }
         FocusEffectUtil.applyFocusListener(binding.downloadsPauseAll)
@@ -87,12 +93,7 @@ class DownloadsActivity : AppCompatActivity() {
     private fun render(queue: List<DownloadItem>, done: List<DownloadedItem>) {
         lastQueue = queue
         lastDone = done
-        val rows = ArrayList<Row>(queue.size + done.size)
-        if (selectedTab == 0) {
-            queue.forEach { rows.add(Row.Active(it)) }
-        } else {
-            done.forEach { rows.add(Row.Done(it)) }
-        }
+        val rows = if (selectedTab == 0) buildQueueRows(queue, done) else buildDoneRows(done)
         Log.i(
             "DownloadsUI",
             "render tab=$selectedTab queue=${queue.size} done=${done.size} rows=${rows.size}",
@@ -103,10 +104,78 @@ class DownloadsActivity : AppCompatActivity() {
         updatePauseAll(queue)
     }
 
-    private fun updatePauseAll(queue: List<DownloadItem>) {
-        val anyActive = queue.any {
-            it.status == DownloadStatus.QUEUED || it.status == DownloadStatus.DOWNLOADING
+    // ------------------------------------------------------------- grouping
+
+    private fun buildQueueRows(
+        queue: List<DownloadItem>,
+        done: List<DownloadedItem>,
+    ): List<Row> {
+        if (queue.isEmpty()) return emptyList()
+        val grouped = LinkedHashMap<Int, MutableList<DownloadItem>>()
+        for (item in queue) grouped.getOrPut(item.mediaId) { mutableListOf() }.add(item)
+
+        val rows = ArrayList<Row>()
+        for ((mediaId, items) in grouped) {
+            items.sortWith(QUEUE_EPISODE_ORDER)
+            val head = items.first()
+            val doneForSeries = done.count { it.mediaId == mediaId }
+            rows.add(
+                Row.Group(
+                    mediaId = mediaId,
+                    title = head.mediaName,
+                    cover = head.cover ?: head.thumbnail,
+                    subtitle = "$doneForSeries / ${items.size}",
+                    pause = groupPauseState(items),
+                    isDownloadedTab = false,
+                ),
+            )
+            if (expandedGroups.contains(mediaId)) {
+                items.forEach { rows.add(Row.Active(it, mediaId)) }
+            }
         }
+        return rows
+    }
+
+    private fun buildDoneRows(done: List<DownloadedItem>): List<Row> {
+        if (done.isEmpty()) return emptyList()
+        val grouped = LinkedHashMap<Int, MutableList<DownloadedItem>>()
+        for (item in done) grouped.getOrPut(item.mediaId) { mutableListOf() }.add(item)
+
+        val rows = ArrayList<Row>()
+        for ((mediaId, items) in grouped) {
+            items.sortWith(DONE_EPISODE_ORDER)
+            val head = items.first()
+            rows.add(
+                Row.Group(
+                    mediaId = mediaId,
+                    title = head.mediaName,
+                    cover = head.cover ?: head.thumbnail,
+                    subtitle = "${items.size} episodes",
+                    pause = GroupPauseState.NONE,
+                    isDownloadedTab = true,
+                ),
+            )
+            if (expandedGroups.contains(mediaId)) {
+                items.forEach { rows.add(Row.Done(it, mediaId)) }
+            }
+        }
+        return rows
+    }
+
+    private fun groupPauseState(items: List<DownloadItem>): GroupPauseState = when {
+        items.any { it.isActive } -> GroupPauseState.PAUSE
+        items.any { it.status == DownloadStatus.ERROR } -> GroupPauseState.RETRY
+        items.any { it.status == DownloadStatus.PAUSED } -> GroupPauseState.RESUME
+        else -> GroupPauseState.NONE
+    }
+
+    private fun toggleGroup(mediaId: Int) {
+        if (!expandedGroups.remove(mediaId)) expandedGroups.add(mediaId)
+        render(lastQueue, lastDone)
+    }
+
+    private fun updatePauseAll(queue: List<DownloadItem>) {
+        val anyActive = queue.any { it.isActive }
         val anyPaused = queue.any { it.status == DownloadStatus.PAUSED }
         when {
             anyActive -> {
@@ -123,13 +192,28 @@ class DownloadsActivity : AppCompatActivity() {
         }
     }
 
+    // ------------------------------------------------------------- row model
+
     private sealed class Row {
-        data class Active(val item: DownloadItem) : Row()
-        data class Done(val item: DownloadedItem) : Row()
+        data class Group(
+            val mediaId: Int,
+            val title: String,
+            val cover: String?,
+            val subtitle: String,
+            val pause: GroupPauseState,
+            val isDownloadedTab: Boolean,
+        ) : Row()
+
+        data class Active(val item: DownloadItem, val mediaId: Int) : Row()
+        data class Done(val item: DownloadedItem, val mediaId: Int) : Row()
     }
 
+    private enum class GroupPauseState { NONE, PAUSE, RESUME, RETRY }
+
+    // ------------------------------------------------------------- adapter
+
     private inner class DownloadRowAdapter :
-        RecyclerView.Adapter<DownloadRowAdapter.VH>() {
+        RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
         private val rows = mutableListOf<Row>()
 
@@ -146,12 +230,14 @@ class DownloadsActivity : AppCompatActivity() {
                 override fun getChangePayload(oldPos: Int, newItem: Int): Any? {
                     val a = rows[oldPos]
                     val b = next[newItem]
-                    if (a is Row.Active && b is Row.Active && a.item.isRunning() && b.item.isRunning()) {
+                    if (a is Row.Active && b is Row.Active && a.item.id == b.item.id &&
+                        a.item.isActive && b.item.isActive
+                    ) {
                         return PAYLOAD_PROGRESS
                     }
                     return null
                 }
-            })
+            }, false)
             rows.clear()
             rows.addAll(next)
             diff.dispatchUpdatesTo(this)
@@ -159,146 +245,209 @@ class DownloadsActivity : AppCompatActivity() {
 
         override fun getItemCount(): Int = rows.size
 
-        override fun getItemViewType(position: Int): Int =
-            if (rows[position] is Row.Active) TYPE_ACTIVE else TYPE_DONE
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-            val binding = ItemDownloadBinding.inflate(
-                android.view.LayoutInflater.from(parent.context),
-                parent,
-                false,
-            )
-            return VH(binding)
+        override fun getItemViewType(position: Int): Int = when (rows[position]) {
+            is Row.Group -> TYPE_GROUP
+            is Row.Active, is Row.Done -> TYPE_EPISODE
         }
 
-        override fun onBindViewHolder(holder: VH, position: Int, payloads: MutableList<Any>) {
+        override fun onCreateViewHolder(
+            parent: ViewGroup,
+            viewType: Int,
+        ): RecyclerView.ViewHolder {
+            val inflater = LayoutInflater.from(parent.context)
+            return if (viewType == TYPE_GROUP) {
+                GroupVH(ItemDownloadGroupBinding.inflate(inflater, parent, false))
+            } else {
+                EpisodeVH(ItemDownloadEpisodeBinding.inflate(inflater, parent, false))
+            }
+        }
+
+        override fun onBindViewHolder(
+            holder: RecyclerView.ViewHolder,
+            position: Int,
+            payloads: MutableList<Any>,
+        ) {
             if (payloads.contains(PAYLOAD_PROGRESS)) {
-                (rows[position] as? Row.Active)?.let { holder.updateActiveProgress(it.item) }
+                val item = (rows[position] as? Row.Active)?.item ?: return
+                (holder as EpisodeVH).bindProgress(item)
                 return
             }
             super.onBindViewHolder(holder, position, payloads)
         }
 
-        override fun onBindViewHolder(holder: VH, position: Int) {
+        override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
             when (val row = rows[position]) {
-                is Row.Active -> holder.bindActive(row.item)
-                is Row.Done -> holder.bindDone(row.item)
+                is Row.Group -> (holder as GroupVH).bind(row)
+                is Row.Active -> (holder as EpisodeVH).bindActive(row.item)
+                is Row.Done -> (holder as EpisodeVH).bindDone(row.item)
             }
         }
 
-        inner class VH(private val b: ItemDownloadBinding) : RecyclerView.ViewHolder(b.root) {
-            init {
-                FocusEffectUtil.applyFocusListener(b.root)
+        private fun sameId(a: Row, b: Row): Boolean = when {
+            a is Row.Group && b is Row.Group -> a.mediaId == b.mediaId
+            a is Row.Active && b is Row.Active -> a.item.id == b.item.id
+            a is Row.Done && b is Row.Done -> a.item.id == b.item.id
+            else -> false
+        }
+    }
+
+    // ------------------------------------------------------------- holders
+
+    inner class GroupVH(private val b: ItemDownloadGroupBinding) :
+        RecyclerView.ViewHolder(b.root) {
+
+        fun bind(row: Row.Group) {
+            b.groupCover.loadImage(row.cover)
+            b.groupTitle.text = row.title
+            b.groupCount.text = row.subtitle
+
+            // Red X is always present; on the Queue tab it cancels the whole group, on the
+            // Downloaded tab it deletes every finished episode of the series (with confirm).
+            if (row.isDownloadedTab) {
+                b.groupProgress.visibility = View.GONE
+                b.groupAction.visibility = View.GONE
+                b.groupDelete.visibility = View.VISIBLE
+                b.groupDelete.setOnClickListener { confirmDeleteGroup(row.mediaId) }
+            } else {
+                b.groupProgress.visibility = View.VISIBLE
+                b.groupProgress.isIndeterminate = true
+                b.groupDelete.visibility = View.VISIBLE
+                b.groupDelete.setOnClickListener { cancelGroup(row.mediaId) }
+                bindAction(row)
             }
+            b.root.setOnClickListener { toggleGroup(row.mediaId) }
+            FocusEffectUtil.applyFocusListener(b.root)
+        }
 
-            fun bindActive(item: DownloadItem) {
-                b.downloadCover.loadImage(item.cover)
-                b.downloadTitle.text = item.mediaName
-                val server = item.serverName
-                b.downloadSubtitle.text = if (server.isNullOrBlank()) {
-                    getString(R.string.downloading_episode, item.episodeNumber)
-                } else {
-                    "Episode ${item.episodeNumber} \u00b7 $server"
-                }
-                b.downloadStatus.text = statusText(item)
-                b.downloadPlay.visibility = View.GONE
-                b.downloadDelete.visibility = View.GONE
-
-                val started = item.progress >= 0.01f
-                when (item.status) {
-                    DownloadStatus.DOWNLOADING, DownloadStatus.QUEUED -> {
-                        b.downloadProgress.visibility = View.VISIBLE
-                        if (started) {
-                            val pct = (item.progress * 100).toInt().coerceIn(1, 100)
-                            b.downloadProgress.isIndeterminate = false
-                            b.downloadProgress.progress = pct
-                            b.downloadPercent.visibility = View.VISIBLE
-                            b.downloadPercent.text = "$pct%"
-                        } else {
-                            b.downloadProgress.isIndeterminate = true
-                            b.downloadPercent.visibility = View.GONE
-                        }
-                        b.downloadPrimary.visibility = View.VISIBLE
-                        b.downloadPrimary.setText(R.string.download_pause)
-                        b.downloadPrimary.setOnClickListener { DownloadManager.pause(item.id) }
-                    }
-
-                    DownloadStatus.PAUSED, DownloadStatus.ERROR -> {
-                        b.downloadProgress.visibility = View.GONE
-                        b.downloadPercent.visibility = View.GONE
-                        b.downloadPrimary.visibility = View.VISIBLE
-                        b.downloadPrimary.setText(
-                            if (item.status == DownloadStatus.ERROR) R.string.download_retry
-                            else R.string.download_resume,
-                        )
-                        b.downloadPrimary.setOnClickListener { DownloadManager.resume(item.id) }
-                    }
-
-                    else -> {
-                        b.downloadProgress.visibility = View.GONE
-                        b.downloadPercent.visibility = View.GONE
-                        b.downloadPrimary.visibility = View.GONE
+        private fun bindAction(row: Row.Group) {
+            when (row.pause) {
+                GroupPauseState.NONE -> b.groupAction.visibility = View.GONE
+                GroupPauseState.PAUSE -> {
+                    b.groupAction.visibility = View.VISIBLE
+                    b.groupAction.setImageResource(R.drawable.ic_baseline_pause_24)
+                    b.groupAction.setOnClickListener {
+                        lastQueue.filter { it.mediaId == row.mediaId && it.isActive }
+                            .forEach { DownloadManager.pause(it.id) }
                     }
                 }
-                b.downloadRemove.visibility = View.VISIBLE
-                b.downloadRemove.setOnClickListener { DownloadManager.cancel(item.id) }
-            }
 
-            /** Cheap rebind used while a download is running: touches only text/bar, never the image. */
-            fun updateActiveProgress(item: DownloadItem) {
-                b.downloadStatus.text = statusText(item)
-                val started = item.progress >= 0.01f
-                if (started) {
-                    val pct = (item.progress * 100).toInt().coerceIn(1, 100)
-                    b.downloadProgress.isIndeterminate = false
-                    b.downloadProgress.progress = pct
-                    b.downloadPercent.visibility = View.VISIBLE
-                    b.downloadPercent.text = "$pct%"
-                } else {
-                    b.downloadProgress.isIndeterminate = true
-                    b.downloadPercent.visibility = View.GONE
-                }
-            }
-
-            fun bindDone(item: DownloadedItem) {
-                b.downloadCover.loadImage(item.cover)
-                b.downloadTitle.text = item.mediaName
-                b.downloadSubtitle.text = "Episode ${item.episodeNumber}"
-                b.downloadStatus.text = "Downloaded \u00b7 ${formatSize(item.sizeBytes)}"
-                b.downloadProgress.visibility = View.GONE
-                b.downloadPercent.visibility = View.GONE
-                b.downloadPrimary.visibility = View.GONE
-                b.downloadRemove.visibility = View.GONE
-
-                b.downloadPlay.visibility = View.VISIBLE
-                b.downloadPlay.setOnClickListener { playDownload(item) }
-                b.downloadDelete.visibility = View.VISIBLE
-                b.downloadDelete.setOnClickListener { confirmDelete(item) }
-            }
-
-            private fun statusText(item: DownloadItem): String = when (item.status) {
-                DownloadStatus.QUEUED -> getString(R.string.downloading)
-                DownloadStatus.DOWNLOADING -> {
-                    val parts = ArrayList<String>(3)
-                    parts.add(getString(R.string.downloading))
-                    val size = when {
-                        item.totalBytes > 0L ->
-                            "${formatSize(item.downloadedBytes)} / ${formatSize(item.totalBytes)}"
-
-                        item.downloadedBytes > 0L -> formatSize(item.downloadedBytes)
-                        else -> ""
+                GroupPauseState.RESUME -> {
+                    b.groupAction.visibility = View.VISIBLE
+                    b.groupAction.setImageResource(R.drawable.ic_baseline_play_arrow_24)
+                    b.groupAction.setOnClickListener {
+                        lastQueue.filter { it.mediaId == row.mediaId && it.status == DownloadStatus.PAUSED }
+                            .forEach { DownloadManager.resume(it.id) }
                     }
-                    if (size.isNotEmpty()) parts.add(size)
-                    if (item.speed > 0L) parts.add(formatSpeed(item.speed))
-                    parts.joinToString(" \u00b7 ")
                 }
 
-                DownloadStatus.PAUSED -> item.error ?: getString(R.string.download_resume)
-                DownloadStatus.FINISHED -> getString(R.string.download_complete)
-                DownloadStatus.ERROR -> item.error ?: getString(R.string.download_failed)
+                GroupPauseState.RETRY -> {
+                    b.groupAction.visibility = View.VISIBLE
+                    b.groupAction.setImageResource(R.drawable.ic_baseline_replay_24)
+                    b.groupAction.setOnClickListener {
+                        lastQueue.filter { it.mediaId == row.mediaId && it.status == DownloadStatus.ERROR }
+                            .forEach { DownloadManager.resume(it.id) }
+                    }
+                }
             }
         }
     }
+
+    inner class EpisodeVH(private val b: ItemDownloadEpisodeBinding) :
+        RecyclerView.ViewHolder(b.root) {
+
+        init {
+            FocusEffectUtil.applyFocusListener(b.root)
+        }
+
+        fun bindActive(item: DownloadItem) {
+            b.root.setOnClickListener { toggleGroup(item.mediaId) }
+            b.episodeThumb.loadImage(item.thumbnail ?: item.cover)
+            b.episodeTitle.text = episodeLabel(item.episodeNumber, item.episodeTitle)
+            b.episodeMeta.text = metaLabel(item.serverName, item.quality)
+            b.episodeMeta.visibility = if (b.episodeMeta.text.isBlank()) View.GONE else View.VISIBLE
+
+            bindProgress(item)
+
+            when (item.status) {
+                DownloadStatus.DOWNLOADING, DownloadStatus.QUEUED -> {
+                    b.episodeAction.visibility = View.VISIBLE
+                    b.episodeAction.setImageResource(R.drawable.ic_baseline_pause_24)
+                    b.episodeAction.setOnClickListener { DownloadManager.pause(item.id) }
+                }
+
+                DownloadStatus.PAUSED, DownloadStatus.ERROR -> {
+                    b.episodeAction.visibility = View.VISIBLE
+                    b.episodeAction.setImageResource(
+                        if (item.status == DownloadStatus.ERROR) R.drawable.ic_baseline_replay_24
+                        else R.drawable.ic_baseline_play_arrow_24,
+                    )
+                    b.episodeAction.setOnClickListener { DownloadManager.resume(item.id) }
+                }
+
+                else -> b.episodeAction.visibility = View.GONE
+            }
+            b.episodeDelete.visibility = View.VISIBLE
+            b.episodeDelete.setOnClickListener { DownloadManager.cancel(item.id) }
+        }
+
+        fun bindDone(item: DownloadedItem) {
+            b.root.setOnClickListener { playDownload(item) }
+            b.episodeThumb.loadImage(item.thumbnail ?: item.cover)
+            b.episodeTitle.text = episodeLabel(item.episodeNumber, item.episodeTitle)
+            b.episodeMeta.visibility = View.GONE
+            b.episodeSize.text = formatSize(item.sizeBytes)
+            b.episodeRing.visibility = View.GONE
+            b.episodePercent.visibility = View.GONE
+            b.episodeSpeed.text = ""
+            b.episodeSpeed.visibility = View.GONE
+            b.episodeAction.visibility = View.GONE
+            b.episodeDelete.visibility = View.VISIBLE
+            b.episodeDelete.setOnClickListener { confirmDelete(item) }
+        }
+
+        /** Cheap rebind while downloading: only the live fields, never the image. */
+        fun bindProgress(item: DownloadItem) {
+            b.episodeSize.text = sizeLabel(item)
+            b.episodeSpeed.text = formatSpeed(item.speed)
+            b.episodeSpeed.visibility = if (item.speed > 0L) View.VISIBLE else View.GONE
+
+            val total = item.totalBytes
+            val pct = if (total > 0L) {
+                ((item.downloadedBytes * 100) / total).toInt().coerceIn(0, 100)
+            } else {
+                -1
+            }
+            val indeterminate = pct < 0
+            b.episodeRing.apply {
+                visibility = View.VISIBLE
+                isIndeterminate = indeterminate
+                if (!indeterminate) progress = pct
+            }
+            b.episodePercent.visibility = if (indeterminate) View.GONE else View.VISIBLE
+            b.episodePercent.text = if (indeterminate) "" else "$pct%"
+        }
+    }
+
+    // ------------------------------------------------------------- helpers
+
+    private fun episodeLabel(number: String, title: String?): String {
+        val label = title?.takeIf { it.isNotBlank() }
+        return if (label == null) "Episode $number" else "$number · $label"
+    }
+
+    private fun metaLabel(server: String?, quality: Int?): String {
+        val parts = ArrayList<String>(2)
+        server?.takeIf { it.isNotBlank() }?.let { parts.add(it) }
+        quality?.takeIf { it > 0 }?.let { parts.add("${it}p") }
+        return parts.joinToString(" · ")
+    }
+
+    private fun sizeLabel(item: DownloadItem): String =
+        if (item.totalBytes > 0L) {
+            "${formatSize(item.downloadedBytes)} / ${formatSize(item.totalBytes)}"
+        } else {
+            formatSize(item.downloadedBytes)
+        }
 
     private fun playDownload(item: DownloadedItem) {
         ExoplayerView.media = item.toOfflineMedia()
@@ -307,12 +456,30 @@ class DownloadsActivity : AppCompatActivity() {
         startActivity(Intent(this, ExoplayerView::class.java))
     }
 
+    private fun cancelGroup(mediaId: Int) {
+        lastQueue.filter { it.mediaId == mediaId }.forEach { DownloadManager.cancel(it.id) }
+    }
+
     private fun confirmDelete(item: DownloadedItem) {
         customAlertDialog().apply {
             setTitle(getString(R.string.download_delete_title))
             setMessage(getString(R.string.download_delete_msg))
             setPosButton(getString(R.string.download_delete)) {
                 DownloadManager.removeCompleted(item.id, true)
+            }
+            setNegButton(getString(R.string.cancel)) {}
+        }.show()
+    }
+
+    private fun confirmDeleteGroup(mediaId: Int) {
+        val count = lastDone.count { it.mediaId == mediaId }
+        if (count == 0) return
+        customAlertDialog().apply {
+            setTitle(getString(R.string.download_delete_title))
+            setMessage(getString(R.string.download_delete_group_msg, count))
+            setPosButton(getString(R.string.download_delete)) {
+                lastDone.filter { it.mediaId == mediaId }
+                    .forEach { DownloadManager.removeCompleted(it.id, true) }
             }
             setNegButton(getString(R.string.cancel)) {}
         }.show()
@@ -340,18 +507,22 @@ class DownloadsActivity : AppCompatActivity() {
         return s.trimEnd('0').trimEnd('.')
     }
 
-    private fun DownloadItem.isRunning(): Boolean =
-        status == DownloadStatus.DOWNLOADING || status == DownloadStatus.QUEUED
-
-    private fun sameId(a: Row, b: Row): Boolean = when {
-        a is Row.Active && b is Row.Active -> a.item.id == b.item.id
-        a is Row.Done && b is Row.Done -> a.item.id == b.item.id
-        else -> false
-    }
-
     companion object {
-        private const val TYPE_ACTIVE = 0
-        private const val TYPE_DONE = 1
+        private const val TYPE_GROUP = 0
+        private const val TYPE_EPISODE = 1
         private const val PAYLOAD_PROGRESS = "progress"
+
+        private val QUEUE_EPISODE_ORDER = Comparator { a: DownloadItem, b: DownloadItem ->
+            compareEpisode(a.episodeNumber, b.episodeNumber)
+        }
+        private val DONE_EPISODE_ORDER = Comparator { a: DownloadedItem, b: DownloadedItem ->
+            compareEpisode(a.episodeNumber, b.episodeNumber)
+        }
+
+        private fun compareEpisode(a: String, b: String): Int {
+            val n1 = a.toDoubleOrNull() ?: 0.0
+            val n2 = b.toDoubleOrNull() ?: 0.0
+            return n1.compareTo(n2)
+        }
     }
 }

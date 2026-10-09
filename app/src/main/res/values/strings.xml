@@ -273,6 +273,7 @@
     <string name="download_tab_downloaded">Downloaded</string>
     <string name="download_play">Play</string>
     <string name="download_delete">Delete</string>
+    <string name="download_delete_group_msg">Remove all %1$d episodes of this series from storage?</string>
     <string name="download_delete_title">Delete download</string>
     <string name="download_delete_msg">Remove this episode from storage?</string>
     <string name="download_queue_empty_downloaded">No downloaded episodes</string>

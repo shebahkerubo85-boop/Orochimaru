@@ -337,6 +337,7 @@ object DownloadManager {
                 mediaId = item.mediaId,
                 mediaName = item.mediaName,
                 cover = item.cover,
+                thumbnail = item.thumbnail,
                 episodeNumber = item.episodeNumber,
                 episodeTitle = item.episodeTitle,
                 path = path,

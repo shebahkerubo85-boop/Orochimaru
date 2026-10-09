@@ -38,6 +38,9 @@ fun DownloadManager.enqueue(
         mediaId = media.id,
         mediaName = media.userPreferredName.ifBlank { media.nameRomaji },
         cover = media.cover,
+        thumbnail = episode.thumb?.url?.takeIf { it.isNotBlank() }
+            ?: media.banner?.takeIf { it.isNotBlank() }
+            ?: media.cover,
         episodeNumber = episode.number,
         episodeTitle = episode.title,
         sourceName = sourceName,
