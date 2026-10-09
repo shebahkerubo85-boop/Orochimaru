@@ -841,12 +841,14 @@ class SelectorDialogFragment : DialogFragment() {
 
     /** Per-quality sizes of a server, e.g. "1080p · 1.2 GB · 720p · 700 MB"; null when unknown. */
     private fun videoSizesLabel(videos: List<Video>): String? {
-        val known = videos.mapNotNull { v -> v.quality?.let { it to v.size } }
-            .filter { it.second != null && it.second > 0.0 }
+        val known = videos.mapNotNull { v ->
+            val size = v.size
+            if (v.quality != null && size != null && size > 0.0) v.quality to size else null
+        }
             .distinctBy { it.first }
             .sortedByDescending { it.first }
         if (known.isEmpty()) return null
-        return known.joinToString(" \u00b7 ") { (q, size) -> "${q}p ${formatMb(size!!)}" }
+        return known.joinToString(" \u00b7 ") { (q, size) -> "${q}p ${formatMb(size)}" }
     }
 
     private fun formatMb(mb: Double): String {
