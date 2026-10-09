@@ -293,7 +293,7 @@ class DownloadsActivity : AppCompatActivity() {
 
     // ------------------------------------------------------------- holders
 
-    inner class GroupVH(private val b: ItemDownloadGroupBinding) :
+    private inner class GroupVH(private val b: ItemDownloadGroupBinding) :
         RecyclerView.ViewHolder(b.root) {
 
         fun bind(row: Row.Group) {
@@ -352,7 +352,7 @@ class DownloadsActivity : AppCompatActivity() {
         }
     }
 
-    inner class EpisodeVH(private val b: ItemDownloadEpisodeBinding) :
+    private inner class EpisodeVH(private val b: ItemDownloadEpisodeBinding) :
         RecyclerView.ViewHolder(b.root) {
 
         init {
