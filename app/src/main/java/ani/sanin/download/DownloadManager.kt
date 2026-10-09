@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import java.io.File
 
@@ -43,6 +44,9 @@ object DownloadManager {
 
     private var lastPersist = 0L
 
+    private const val MAX_RETRIES = 2
+    private const val RETRY_DELAY_MS = 3_000L
+
     fun init(context: Context) {
         if (::appContext.isInitialized) return
         appContext = context.applicationContext
@@ -53,7 +57,12 @@ object DownloadManager {
         completedItems = DownloadStore.loadCompleted().toMutableList()
         // Downloads that were mid-flight when the process died go back to queued.
         items.forEach {
-            if (it.status == DownloadStatus.DOWNLOADING) it.status = DownloadStatus.QUEUED
+            if (it.status == DownloadStatus.DOWNLOADING ||
+                it.status == DownloadStatus.PREPARING ||
+                it.status == DownloadStatus.RETRYING
+            ) {
+                it.status = DownloadStatus.QUEUED
+            }
         }
         publish()
         // The loaded files must reach the UI too, otherwise the "Downloaded" tab stays empty
@@ -96,11 +105,17 @@ object DownloadManager {
 
     fun pause(id: String) {
         val item = items.firstOrNull { it.id == id } ?: return
-        if (item.status == DownloadStatus.DOWNLOADING) {
-            item.status = DownloadStatus.PAUSED
-            activeJobs.remove(id)?.cancel()
-        } else if (item.status == DownloadStatus.QUEUED) {
-            item.status = DownloadStatus.PAUSED
+        when (item.status) {
+            DownloadStatus.DOWNLOADING,
+            DownloadStatus.PREPARING,
+            DownloadStatus.RETRYING,
+            -> {
+                item.status = DownloadStatus.PAUSED
+                activeJobs.remove(id)?.cancel()
+            }
+
+            DownloadStatus.QUEUED -> item.status = DownloadStatus.PAUSED
+            else -> return
         }
         persist()
         publish()
@@ -128,13 +143,22 @@ object DownloadManager {
     fun pauseAll() {
         var changed = false
         items.forEach { item ->
-            if (item.status == DownloadStatus.DOWNLOADING) {
-                item.status = DownloadStatus.PAUSED
-                activeJobs.remove(item.id)?.cancel()
-                changed = true
-            } else if (item.status == DownloadStatus.QUEUED) {
-                item.status = DownloadStatus.PAUSED
-                changed = true
+            when (item.status) {
+                DownloadStatus.DOWNLOADING,
+                DownloadStatus.PREPARING,
+                DownloadStatus.RETRYING,
+                -> {
+                    item.status = DownloadStatus.PAUSED
+                    activeJobs.remove(item.id)?.cancel()
+                    changed = true
+                }
+
+                DownloadStatus.QUEUED -> {
+                    item.status = DownloadStatus.PAUSED
+                    changed = true
+                }
+
+                else -> {}
             }
         }
         if (changed) {
@@ -200,7 +224,7 @@ object DownloadManager {
     // ---------------------------------------------------------------- engine
 
     private fun maxConcurrent(): Int =
-        PrefManager.getVal<Int>(PrefName.DownloadConcurrency).coerceIn(1, 4)
+        PrefManager.getVal<Int>(PrefName.DownloadConcurrency).coerceIn(1, 10)
 
     private fun pump() {
         if (!mutex.tryLock()) return
@@ -227,8 +251,11 @@ object DownloadManager {
             return
         }
         DownloadService.start(appContext)
-        item.status = DownloadStatus.DOWNLOADING
+        // PREPARING first: grab the offline extras (thumbnail, wordmark) before any bytes flow.
+        item.status = DownloadStatus.PREPARING
         item.error = null
+        persist()
+        publish()
         val job = scope.launch(start = CoroutineStart.LAZY) { run(item) }
         activeJobs[item.id] = job
         job.start()
@@ -242,21 +269,36 @@ object DownloadManager {
             var speedTime = System.currentTimeMillis()
             var speedBytes = 0L
             var progressLogged = false
-            temp = downloader.download(
-                item,
-                onProgress = { done, total, fraction ->
+
+            // Soft failure: artwork never blocks the download, it just stays absent.
+            try {
+                DownloadMetadata.prepare(appContext, item)
+            } catch (_: Exception) {
+            }
+
+            // Pull the bytes, retrying a couple of times before giving up.
+            item.status = DownloadStatus.DOWNLOADING
+            publish()
+            var attempt = 0
+            while (true) {
+                try {
+                    temp = downloader.download(
+                        item,
+                        onProgress = { done, total, fraction ->
                     item.downloadedBytes = done
+                    // Server-reported length wins. HLS remux gives bytes + a time fraction but no
+                    // byte total, so synthesize one (bytes / fraction) once it is past zero; that
+                    // converges on the real size, so the ring sweeps to a full circle on completion.
                     when {
-                        total > 0 -> {
-                            item.totalBytes = total
-                            item.progress = (done.toFloat() / total).coerceIn(0f, 1f)
+                        total > 0L -> item.totalBytes = total
+                        item.totalBytes <= 0L && fraction > 0f && fraction <= 1f -> {
+                            item.totalBytes = (done.toDouble() / fraction).toLong().coerceAtLeast(done)
                         }
-                        item.totalBytes > 0 -> {
-                            item.progress = (done.toFloat() / item.totalBytes).coerceIn(0f, 1f)
-                        }
-                        fraction >= 0f -> {
-                            item.progress = fraction.coerceIn(0f, 1f)
-                        }
+                    }
+                    item.progress = if (item.totalBytes > 0L) {
+                        (done.toFloat() / item.totalBytes).coerceIn(0f, 1f)
+                    } else {
+                        if (fraction in 0f..1f) fraction.coerceIn(0f, 1f) else item.progress
                     }
                     if (!progressLogged) {
                         if (item.progress > 0f) {
@@ -290,6 +332,23 @@ object DownloadManager {
                 },
                 isActive = { item.status == DownloadStatus.DOWNLOADING },
             )
+            break
+        } catch (e: DownloadCancelledException) {
+            throw e
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            attempt++
+            if (attempt > MAX_RETRIES) throw e
+            temp?.takeIf { it.exists() }?.delete()
+            item.status = DownloadStatus.RETRYING
+            item.error = e.message
+            persist()
+            publish()
+            Log.w("AnimeDownload", "retry $attempt for ${item.id}: ${item.error}")
+            delay(RETRY_DELAY_MS)
+        }
+            }
 
             val size = temp.length()
             val locator = DownloadStorageHelper.commit(appContext, item, temp)
@@ -343,6 +402,10 @@ object DownloadManager {
                 path = path,
                 sizeBytes = size,
                 timestamp = System.currentTimeMillis(),
+                synopsis = item.synopsis,
+                genres = item.genres,
+                thumbPath = item.thumbPath,
+                logoPath = item.logoPath,
             ),
         )
         persistCompleted()

@@ -126,6 +126,7 @@ class DownloadsActivity : AppCompatActivity() {
                     mediaId = mediaId,
                     title = head.mediaName,
                     cover = head.cover ?: head.thumbnail,
+                    thumbPath = head.thumbPath,
                     subtitle = "$doneForSeries / ${items.size}",
                     pause = groupPauseState(items),
                     isDownloadedTab = false,
@@ -152,6 +153,7 @@ class DownloadsActivity : AppCompatActivity() {
                     mediaId = mediaId,
                     title = head.mediaName,
                     cover = head.cover ?: head.thumbnail,
+                    thumbPath = head.thumbPath,
                     subtitle = "${items.size} episodes",
                     pause = GroupPauseState.NONE,
                     isDownloadedTab = true,
@@ -203,6 +205,7 @@ class DownloadsActivity : AppCompatActivity() {
             val mediaId: Int,
             val title: String,
             val cover: String?,
+            val thumbPath: String?,
             val subtitle: String,
             val pause: GroupPauseState,
             val isDownloadedTab: Boolean,
@@ -306,7 +309,7 @@ class DownloadsActivity : AppCompatActivity() {
         }
 
         fun bind(row: Row.Group) {
-            b.groupCover.loadImage(row.cover)
+            b.groupCover.loadImage(row.thumbPath ?: row.cover)
             b.groupTitle.text = row.title
             b.groupCount.text = row.subtitle
 
@@ -372,15 +375,23 @@ class DownloadsActivity : AppCompatActivity() {
 
         fun bindActive(item: DownloadItem) {
             b.root.setOnClickListener { toggleGroup(item.mediaId) }
-            b.episodeThumb.loadImage(item.thumbnail ?: item.cover)
+            b.episodeThumb.loadImage(item.thumbPath ?: item.thumbnail ?: item.cover)
             b.episodeTitle.text = episodeLabel(item.episodeNumber, item.episodeTitle)
             b.episodeMeta.text = metaLabel(item.serverName, item.quality)
             b.episodeMeta.visibility = if (b.episodeMeta.text.isBlank()) View.GONE else View.VISIBLE
 
+            b.episodePlay.visibility = View.GONE
+            b.episodeDelete.setImageResource(R.drawable.ic_baseline_close_24)
+            b.episodeDelete.setOnClickListener { DownloadManager.cancel(item.id) }
+
             bindProgress(item)
 
             when (item.status) {
-                DownloadStatus.DOWNLOADING, DownloadStatus.QUEUED -> {
+                DownloadStatus.PREPARING,
+                DownloadStatus.DOWNLOADING,
+                DownloadStatus.RETRYING,
+                DownloadStatus.QUEUED,
+                -> {
                     b.episodeAction.visibility = View.VISIBLE
                     b.episodeAction.setImageResource(R.drawable.ic_baseline_pause_24)
                     b.episodeAction.setOnClickListener { DownloadManager.pause(item.id) }
@@ -397,45 +408,44 @@ class DownloadsActivity : AppCompatActivity() {
 
                 else -> b.episodeAction.visibility = View.GONE
             }
-            b.episodeDelete.visibility = View.VISIBLE
-            b.episodeDelete.setOnClickListener { DownloadManager.cancel(item.id) }
         }
 
         fun bindDone(item: DownloadedItem) {
             b.root.setOnClickListener { playDownload(item) }
-            b.episodeThumb.loadImage(item.thumbnail ?: item.cover)
+            b.episodeThumb.loadImage(item.thumbPath ?: item.thumbnail ?: item.cover)
             b.episodeTitle.text = episodeLabel(item.episodeNumber, item.episodeTitle)
             b.episodeMeta.visibility = View.GONE
             b.episodeSize.text = formatSize(item.sizeBytes)
             b.episodeRing.visibility = View.GONE
-            b.episodePercent.visibility = View.GONE
-            b.episodeSpeed.text = ""
-            b.episodeSpeed.visibility = View.GONE
             b.episodeAction.visibility = View.GONE
-            b.episodeDelete.visibility = View.VISIBLE
+            b.episodeSpeed.text = ""
+            b.episodeSpeed.visibility = View.INVISIBLE
+            b.episodePlay.visibility = View.VISIBLE
+            b.episodePlay.setOnClickListener { playDownload(item) }
+            b.episodeDelete.setImageResource(R.drawable.ic_round_delete_24)
             b.episodeDelete.setOnClickListener { confirmDelete(item) }
         }
 
         /** Cheap rebind while downloading: only the live fields, never the image. */
         fun bindProgress(item: DownloadItem) {
             b.episodeSize.text = sizeLabel(item)
-            b.episodeSpeed.text = formatSpeed(item.speed)
-            b.episodeSpeed.visibility = if (item.speed > 0L) View.VISIBLE else View.GONE
+            b.episodeSpeed.text = statusLabel(item)
+            // INVISIBLE (not GONE) so the play/pause/x buttons never shift when the text is blank.
+            b.episodeSpeed.visibility = if (b.episodeSpeed.text.isBlank()) View.INVISIBLE else View.VISIBLE
 
+            // Always a determinate ring: it starts empty-ish at the top and sweeps clockwise to a
+            // full circle on completion. Never indeterminate, so it never renders as a spinner.
             val total = item.totalBytes
             val pct = if (total > 0L) {
                 ((item.downloadedBytes * 100) / total).toInt().coerceIn(0, 100)
             } else {
-                -1
+                0
             }
-            val indeterminate = pct < 0
             b.episodeRing.apply {
                 visibility = View.VISIBLE
-                isIndeterminate = indeterminate
-                if (!indeterminate) progress = pct
+                isIndeterminate = false
+                progress = pct
             }
-            b.episodePercent.visibility = if (indeterminate) View.GONE else View.VISIBLE
-            b.episodePercent.text = if (indeterminate) "" else "$pct%"
         }
     }
 
@@ -511,6 +521,21 @@ class DownloadsActivity : AppCompatActivity() {
         if (bytesPerSec <= 0L) return ""
         val mb = bytesPerSec / (1024.0 * 1024.0)
         return if (mb >= 1.0) "${trim(mb, 1)} MB/s" else "${bytesPerSec / 1024} KB/s"
+    }
+
+    /** Status line shown where the speed used to sit, e.g. "preparing", "pending", "downloading 5.6 MB/s". */
+    private fun statusLabel(item: DownloadItem): String = when (item.status) {
+        DownloadStatus.PREPARING -> "preparing"
+        DownloadStatus.QUEUED -> "pending"
+        DownloadStatus.RETRYING -> "retrying"
+        DownloadStatus.PAUSED -> "paused"
+        DownloadStatus.DOWNLOADING -> {
+            val speed = formatSpeed(item.speed)
+            if (speed.isBlank()) "downloading" else "downloading $speed"
+        }
+
+        DownloadStatus.ERROR -> item.error?.takeIf { it.isNotBlank() } ?: "error"
+        DownloadStatus.FINISHED -> ""
     }
 
     private fun trim(value: Double, decimals: Int): String {

@@ -76,5 +76,10 @@ fun DownloadedItem.toOfflineMedia(): Media {
         isAdult = false,
         format = "LOCAL",
         selected = Selected(sourceIndex = 0, server = DOWNLOADED_SERVER_NAME, video = 0),
+        // Offline extras so the pause overlay renders synopsis + genre chips with no network,
+        // and the wordmark points at the tiny local copy instead of a remote url.
+        description = synopsis,
+        genres = genres?.let { ArrayList(it) } ?: arrayListOf(),
+        logoUrl = logoPath?.let { Uri.fromFile(File(it)).toString() },
     )
 }

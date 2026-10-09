@@ -559,13 +559,16 @@ class SelectorDialogFragment : DialogFragment() {
                 is VideoExtractor -> {
                     holder.binding.streamName.text = item.server.name
                     holder.binding.streamName.visibility = View.VISIBLE
-                    val meta = listOfNotNull(
+                    val meta = mutableListOf(
                         item.server.extraData?.get("quality"),
                         item.server.extraData?.get("audio")?.uppercase()
-                    ).joinToString(" \u00b7 ")
-                    holder.binding.streamMeta.text = meta
+                    )
+                    if (isDownloadMenu == true) {
+                        videoSizesLabel(item.videos)?.let { meta.add(it) }
+                    }
+                    holder.binding.streamMeta.text = meta.filterNotNull().joinToString(" \u00b7 ")
                     holder.binding.streamMeta.visibility =
-                        if (meta.isEmpty()) View.GONE else View.VISIBLE
+                        if (meta.filterNotNull().isEmpty()) View.GONE else View.VISIBLE
                     holder.binding.streamLoading.visibility = View.GONE
                     holder.binding.streamRecyclerView.visibility = View.VISIBLE
                     holder.binding.streamHeader.isFocusable = true
@@ -722,8 +725,8 @@ class SelectorDialogFragment : DialogFragment() {
                     snackString(R.string.download_not_found)
                 }
             }
-            if (video.format == VideoType.CONTAINER) {
-                binding.urlSize.isVisible = video.size != null
+            if (video.size != null) {
+                binding.urlSize.isVisible = true
                 // if video size is null or 0, show "Unknown Size" else show the size in MB
                 val sizeText = getString(
                     R.string.mb_size, "${if (video.extraNote != null) " : " else ""}${
@@ -733,6 +736,8 @@ class SelectorDialogFragment : DialogFragment() {
                     }"
                 )
                 binding.urlSize.text = sizeText
+            } else {
+                binding.urlSize.isVisible = false
             }
             binding.urlNote.visibility = View.VISIBLE
             binding.urlNote.text = video.format.name
@@ -833,6 +838,21 @@ class SelectorDialogFragment : DialogFragment() {
 
     private fun qualityLabelFor(video: Video): String =
         if (video.quality == null) getString(R.string.quality_auto) else "${video.quality}p"
+
+    /** Per-quality sizes of a server, e.g. "1080p · 1.2 GB · 720p · 700 MB"; null when unknown. */
+    private fun videoSizesLabel(videos: List<Video>): String? {
+        val known = videos.mapNotNull { v -> v.quality?.let { it to v.size } }
+            .filter { it.second != null && it.second > 0.0 }
+            .distinctBy { it.first }
+            .sortedByDescending { it.first }
+        if (known.isEmpty()) return null
+        return known.joinToString(" \u00b7 ") { (q, size) -> "${q}p ${formatMb(size!!)}" }
+    }
+
+    private fun formatMb(mb: Double): String {
+        val fmt = DecimalFormat("#.#")
+        return if (mb >= 1024.0) "${fmt.format(mb / 1024.0)} GB" else "${fmt.format(mb)} MB"
+    }
 
     private fun getPreferredQuality(serverName: String): String? {
         return PrefManager.getVal<List<String>>(PrefName.PreferredQuality)

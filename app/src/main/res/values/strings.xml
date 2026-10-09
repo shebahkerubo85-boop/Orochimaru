@@ -253,6 +253,8 @@
     <string name="download_settings_storage_shared">Phone storage</string>
     <string name="download_settings_wifi">Download only on Wi-Fi</string>
     <string name="download_settings_concurrency">Simultaneous downloads</string>
+    <string name="download_settings_segments">Segments per episode</string>
+    <string name="download_settings_segments_desc">Parallel connections used per file. More = faster on capable networks (max 8)</string>
     <string name="download_settings_notifications">Show download notifications</string>
     <string name="download_settings_completed_notif">Notify when a download finishes</string>
     <string name="download_settings_auto_delete">Delete episodes once watched</string>

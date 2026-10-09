@@ -51,6 +51,8 @@ fun DownloadManager.enqueue(
         quality = video.quality,
         fileName = "Episode ${episode.number}",
         totalBytes = estimatedSize,
+        synopsis = media.description,
+        genres = media.genres.takeIf { it.isNotEmpty() },
     )
     enqueue(item)
     // One-time battery exemption prompt, so the OS does not kill the queue (or its foreground

@@ -31,15 +31,25 @@ data class DownloadItem(
     var totalBytes: Long = 0L,
     var speed: Long = 0L,
     var error: String? = null,
+    // Offline extras captured while preparing (paused-overlay synopsis/chips + small local art).
+    var synopsis: String? = null,
+    var genres: List<String>? = null,
+    var thumbPath: String? = null,
+    var logoPath: String? = null,
 ) : Serializable {
 
     val isActive: Boolean
-        get() = status == DownloadStatus.QUEUED || status == DownloadStatus.DOWNLOADING
+        get() = status == DownloadStatus.QUEUED ||
+            status == DownloadStatus.PREPARING ||
+            status == DownloadStatus.DOWNLOADING ||
+            status == DownloadStatus.RETRYING
 }
 
 enum class DownloadStatus {
     QUEUED,
+    PREPARING,
     DOWNLOADING,
+    RETRYING,
     PAUSED,
     FINISHED,
     ERROR,
@@ -59,6 +69,10 @@ data class DownloadedItem(
     val path: String,
     val sizeBytes: Long = 0L,
     val timestamp: Long = 0L,
+    val synopsis: String? = null,
+    val genres: List<String>? = null,
+    val thumbPath: String? = null,
+    val logoPath: String? = null,
 ) : Serializable
 
 /** Where the bytes are actually written. Chosen in Settings → Downloads. */

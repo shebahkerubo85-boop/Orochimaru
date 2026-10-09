@@ -3,12 +3,23 @@ package ani.sanin.download
 import android.content.Context
 import android.util.Log
 import ani.sanin.parsers.VideoType
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
+import java.io.RandomAccessFile
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 class DownloadException(message: String) : Exception(message)
 class DownloadCancelledException : Exception("cancelled")
@@ -16,7 +27,10 @@ class DownloadCancelledException : Exception("cancelled")
 /**
  * Turns a resolved [DownloadItem] into a finished temp file.
  *
- *  - Direct files (mp4, mkv, ...) are streamed with OkHttp and progress is exact.
+ *  - Direct files (mp4, mkv, ...): when the server reports an authoritative size, the file is
+ *    pulled over N parallel range connections (Segments per episode setting, up to 8) so one
+ *    download saturates the connection the way download-managers do. Otherwise it is streamed
+ *    over a single connection and progress is exact.
  *  - HLS playlists are remuxed with ffmpeg (selected because it is the only reliable way to
  *    stitch a live/segmented playlist into a single playable file). Proxy servers are not
  *    involved; ffmpeg follows the playlist itself.
@@ -58,8 +72,25 @@ class Downloader(
             val body = res.body ?: throw DownloadException("Empty response body")
             // Chunked/streaming responses return -1 here, which used to leave the progress bar
             // stuck on the indeterminate loop. Ask the server for the length before streaming.
-            var total = body.contentLength()
-            if (total <= 0L) total = resolveLength(item)
+            // Only a server-provided length enables segmented (multi-connection) downloads; a
+            // provider estimate must never be used to split ranges, or a wrong estimate would
+            // truncate the file.
+            var serverTotal = body.contentLength()
+            if (serverTotal <= 0L) serverTotal = resolveLength(item)
+            val total = if (serverTotal > 0L) serverTotal else item.totalBytes
+
+            val segments = PrefManager.getVal<Int>(PrefName.DownloadSegments).coerceIn(1, 8)
+            if (serverTotal > 0L && total >= MIN_SEGMENT_SIZE && segments > 1 && isActive()) {
+                try {
+                    downloadSegments(item, temp, total, segments, onProgress, isActive)
+                    return@withContext
+                } catch (e: DownloadCancelledException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "segmented download failed, falling back: ${e.message}")
+                }
+            }
+
             body.byteStream().use { input ->
                 temp.outputStream().use { output ->
                     val buffer = ByteArray(64 * 1024)
@@ -77,6 +108,106 @@ class Downloader(
                 }
             }
         }
+    }
+
+    /**
+     * IDM-style acceleration: splits the server-confirmed byte range into `segments` chunks and
+     * pulls each one over its own Range request into a `.partN` file, then merges them in order.
+     */
+    private suspend fun downloadSegments(
+        item: DownloadItem,
+        temp: File,
+        total: Long,
+        segments: Int,
+        onProgress: (Long, Long, Float) -> Unit,
+        isActive: () -> Boolean,
+    ) = withContext(Dispatchers.IO) {
+        val chunkSize = total / segments
+        val doneTotal = AtomicLong(0L)
+        val remaining = AtomicInteger(segments)
+        val failure = AtomicReference<Throwable?>()
+
+        fun partFile(i: Int) = File(temp.path + ".part$i")
+        fun cleanup() {
+            for (i in 0 until segments) {
+                partFile(i).takeIf { it.exists() }?.delete()
+            }
+        }
+
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val jobs = (0 until segments).map { i ->
+            val start = chunkSize * i
+            val end = if (i == segments - 1) total - 1 else start + chunkSize - 1
+            scope.launch {
+                val part = partFile(i)
+                try {
+                    if (!isActive()) throw DownloadCancelledException()
+                    val rangeRequest = Request.Builder().url(item.url)
+                        .apply { item.headers.forEach { (k, v) -> addHeader(k, v) } }
+                        .header("Range", "bytes=$start-$end")
+                        .build()
+                    client.newCall(rangeRequest).execute().use { res ->
+                        if (res.code != 206) {
+                            throw DownloadException("HTTP ${res.code} for range $start-$end")
+                        }
+                        val rangeBody = res.body
+                            ?: throw DownloadException("Empty range response body")
+                        rangeBody.byteStream().use { input ->
+                            RandomAccessFile(part, "rw").use { raf ->
+                                val buffer = ByteArray(64 * 1024)
+                                var read: Int
+                                while (input.read(buffer).also { read = it } != -1) {
+                                    if (!isActive()) throw DownloadCancelledException()
+                                    raf.write(buffer, 0, read)
+                                    doneTotal.addAndGet(read.toLong())
+                                }
+                            }
+                        }
+                    }
+                    if (part.length() != end - start + 1) {
+                        throw DownloadException(
+                            "segment $i short: ${part.length()} != ${end - start + 1}",
+                        )
+                    }
+                } catch (e: Throwable) {
+                    // A pause cancels the siblings too; surface it as a pause, never a generic
+                    // cancellation that would leave the item stuck in DOWNLOADING.
+                    val wrapped = if (!isActive() && e !is DownloadCancelledException) {
+                        DownloadCancelledException()
+                    } else {
+                        e
+                    }
+                    failure.compareAndSet(null, wrapped)
+                } finally {
+                    remaining.decrementAndGet()
+                }
+            }
+        }
+
+        try {
+            while (remaining.get() > 0 && failure.get() == null) {
+                if (!isActive()) jobs.forEach { it.cancel() }
+                onProgress(doneTotal.get(), total, -1f)
+                delay(100)
+            }
+        } finally {
+            scope.cancel()
+        }
+
+        val err = failure.get()
+        if (err != null) {
+            cleanup()
+            throw err
+        }
+
+        temp.outputStream().use { out ->
+            for (i in 0 until segments) {
+                partFile(i).inputStream().use { input -> input.copyTo(out) }
+            }
+        }
+        cleanup()
+        onProgress(total, total, -1f)
+        Log.i(TAG, "segmented download done: $segments ranges -> ${temp.length()} bytes")
     }
 
     /**
@@ -120,6 +251,7 @@ class Downloader(
 
     companion object {
         private const val TAG = "AnimeDownload"
+        private const val MIN_SEGMENT_SIZE = 1024L * 1024L
 
         fun defaultClient(): OkHttpClient = OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)

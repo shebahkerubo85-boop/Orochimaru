@@ -110,12 +110,26 @@ class SettingsDownloadsActivity : AppCompatActivity() {
                             iconRes = R.drawable.ic_set_misc,
                             choice = SubscreenBuilder.Choice(
                                 title = getString(R.string.download_settings_concurrency),
-                                options = arrayOf("1", "2", "3", "4"),
+                                options = arrayOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "10"),
                                 currentIndex =
                                     (PrefManager.getVal<Int>(PrefName.DownloadConcurrency) - 1)
-                                        .coerceIn(0, 3),
+                                        .coerceIn(0, 9),
                             ) { idx ->
                                 PrefManager.setVal(PrefName.DownloadConcurrency, idx + 1)
+                            },
+                        ),
+                        SubscreenBuilder.Entry(
+                            title = getString(R.string.download_settings_segments),
+                            desc = getString(R.string.download_settings_segments_desc),
+                            iconRes = R.drawable.ic_set_misc,
+                            choice = SubscreenBuilder.Choice(
+                                title = getString(R.string.download_settings_segments),
+                                options = arrayOf("1", "2", "3", "4", "5", "6", "7", "8"),
+                                currentIndex =
+                                    (PrefManager.getVal<Int>(PrefName.DownloadSegments) - 1)
+                                        .coerceIn(0, 7),
+                            ) { idx ->
+                                PrefManager.setVal(PrefName.DownloadSegments, idx + 1)
                             },
                         ),
                     ),
