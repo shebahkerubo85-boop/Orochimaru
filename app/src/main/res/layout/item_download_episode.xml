@@ -92,8 +92,7 @@
                         app:indicatorColor="?attr/colorPrimary"
                         app:indicatorSize="48dp"
                         app:trackColor="?attr/colorOutline"
-                        app:trackThickness="4dp"
-                        app:trackThicknessUnit="dp" />
+                        app:trackThickness="4dp" />
 
                     <TextView
                         android:id="@+id/episodePercent"
