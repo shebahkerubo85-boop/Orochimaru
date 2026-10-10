@@ -184,19 +184,16 @@ class FranchiseAdaptor(
     ) : RecyclerView.ViewHolder(binding.root) {
 
         init {
-            // Only the banner is a focus target. The card root is focusable in XML so the whole
-            // 152dp banner is hit by dpad, so that is turned off here and the banner takes it
-            // instead; the poster row stays unreachable until the franchise screen exists.
-            binding.root.isFocusable = false
+            // The card is one D-pad target, like every other card in the app: the root is
+            // focusable in XML and takes the visible outer ring, while the banner inside it
+            // is just art. Focusing a deep child here is what made the ring invisible.
             binding.root.isFocusableInTouchMode = false
-            binding.franchiseBanner.isFocusable = true
+            binding.franchiseBanner.isFocusable = false
             binding.franchiseBanner.isFocusableInTouchMode = false
-            // Focus belongs to the entire franchise banner, including its overlaid poster strip.
-            // The banner image receives D-pad focus; the CardView gets the visible outer ring.
-            FocusEffectUtil.applyFocusListener(binding.franchiseBanner, binding.root)
             binding.posterRow.isFocusable = false
             binding.posterRow.isFocusableInTouchMode = false
-            binding.franchiseBanner.setSafeOnClickListener {
+            FocusEffectUtil.applyFocusListener(binding.root)
+            binding.root.setSafeOnClickListener {
                 val position = bindingAdapterPosition
                 if (position != RecyclerView.NO_POSITION) {
                     onBannerClick(franchises[position], binding.franchiseBanner)
