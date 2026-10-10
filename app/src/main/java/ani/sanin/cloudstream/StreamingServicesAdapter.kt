@@ -174,6 +174,10 @@ class StreamingServicesAdapter(
             val logo = binding.streamingServiceLogo
             sizeTile()
             card.contentDescription = provider.displayName
+            // The whole service tile is one D-pad target; draw the focus ring on its bounds.
+            card.isFocusable = true
+            card.isFocusableInTouchMode = false
+            FocusEffectUtil.applyFocusListener(card)
             binding.streamingServiceSeeAll.isVisible = false
             logo.isVisible = true
             logo.scaleX = 1f
@@ -227,6 +231,12 @@ class StreamingServicesAdapter(
             card.contentDescription = "See all streaming services"
             arrow.isVisible = true
             logo.isVisible = false
+            // Keep See All as one card-sized D-pad target, not a tiny arrow target.
+            card.isFocusable = true
+            card.isFocusableInTouchMode = false
+            FocusEffectUtil.applyFocusListener(card)
+            arrow.isFocusable = false
+            arrow.isFocusableInTouchMode = false
             card.setSafeOnClickListener { onSeeAll() }
             // The arrow is an ImageButton, so it would swallow the tap before the card sees it;
             // it needs its own listener or the See All stops opening the full list.
