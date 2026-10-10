@@ -2403,10 +2403,13 @@ class ExoplayerView :
 
         mediaItem = mediaItemBuilder.build()
 
+        // Log hosts only: stream URLs and request headers may contain signed tokens,
+        // cookies, or other credentials that must not end up in persistent logs.
+        val mediaHost = runCatching { URI(video!!.file.url).host }.getOrNull() ?: "unknown"
+        val embedHost = runCatching { URI(ext.server.embed.url).host }.getOrNull() ?: "unknown"
         Logger.log(
-            "Player: building media source url=${video!!.file.url.take(200)} " +
-                "mime=$mimeType headers=${video!!.file.headers} " +
-                "server=${ext.server.name} embed=${ext.server.embed.url.take(100)}"
+            "Player: building media source host=$mediaHost mime=$mimeType " +
+                "server=${ext.server.name} embedHost=$embedHost"
         )
 
         val audioMediaItem = mutableListOf<MediaItem>()
