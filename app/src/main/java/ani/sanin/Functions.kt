@@ -1594,7 +1594,9 @@ fun Context.stripDividerGradient(): GradientDrawable {
         GradientDrawable.Orientation.LEFT_RIGHT,
         intArrayOf(primary, mid, transparent)
     )
-    if (android.os.Build.VERSION.SDK_INT >= 24) {
+    // The overload accepting color offsets was added in API 29.
+    // Keep the constructor-provided gradient on Android 9 and older to avoid NoSuchMethodError.
+    if (android.os.Build.VERSION.SDK_INT >= 29) {
         gradient.setColors(intArrayOf(primary, mid, transparent), floatArrayOf(0f, 0.65f, 1f))
     }
     return gradient
