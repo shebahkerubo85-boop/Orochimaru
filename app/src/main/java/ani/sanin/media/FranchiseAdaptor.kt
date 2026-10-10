@@ -14,6 +14,7 @@ import ani.sanin.databinding.ItemFranchisePosterBinding
 import ani.sanin.databinding.ItemMediaFranchiseBinding
 import ani.sanin.loadImage
 import ani.sanin.setSafeOnClickListener
+import ani.sanin.util.FocusEffectUtil
 
 /**
  * Adapter for the franchise cards that replace the Popular list on both Explore pages.
@@ -190,6 +191,11 @@ class FranchiseAdaptor(
             binding.root.isFocusableInTouchMode = false
             binding.franchiseBanner.isFocusable = true
             binding.franchiseBanner.isFocusableInTouchMode = false
+            // Focus belongs to the entire franchise banner, including its overlaid poster strip.
+            // The banner image receives D-pad focus; the CardView gets the visible outer ring.
+            FocusEffectUtil.applyFocusListener(binding.franchiseBanner, binding.root)
+            binding.posterRow.isFocusable = false
+            binding.posterRow.isFocusableInTouchMode = false
             binding.franchiseBanner.setSafeOnClickListener {
                 val position = bindingAdapterPosition
                 if (position != RecyclerView.NO_POSITION) {
@@ -289,7 +295,11 @@ class FranchiseAdaptor(
                 height = ViewGroup.LayoutParams.MATCH_PARENT
                 marginEnd = gap
             }
-            more.root.setSafeOnClickListener { onBannerClick(franchise, binding.franchiseBanner) }
+            // The overflow cell is informational inside the banner, not a separate focus target.
+            // Opening the franchise remains available through the whole-banner focus target.
+            more.root.isFocusable = false
+            more.root.isFocusableInTouchMode = false
+            more.root.isClickable = false
             row.addView(more.root)
         }
 
