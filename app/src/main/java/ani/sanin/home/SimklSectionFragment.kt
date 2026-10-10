@@ -5,6 +5,7 @@ import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -38,6 +39,9 @@ class SimklSectionFragment : Fragment() {
     private var originalItems: List<Simkl.SimklWatchedItem> = emptyList()
     private var recyclerView: RecyclerView? = null
 
+    /** Hands DPAD_UP on a first-row card back to the status pill. Set by the host fragment. */
+    var onExitUp: (() -> Boolean)? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         arguments?.let {
@@ -67,7 +71,36 @@ class SimklSectionFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        recyclerView?.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                dpadUpToHeader()
+            } else {
+                false
+            }
+        }
         updateAdapter(items)
+    }
+
+    /** Focuses the first card of this page, so DPAD_DOWN from the pill lands on the grid. */
+    fun focusFirstCard(): Boolean {
+        val rv = recyclerView ?: return false
+        if (rv.childCount > 0 && rv.getChildAt(0).requestFocus()) return true
+        return rv.requestFocus()
+    }
+
+    /**
+     * True only when the focused card is in the grid's first row, so the host can hand focus up to
+     * the status pill; lower rows fall through to the default vertical search.
+     */
+    private fun dpadUpToHeader(): Boolean {
+        val rv = recyclerView ?: return false
+        val focused = rv.findFocus() ?: return false
+        val holder = rv.findContainingViewHolder(focused) ?: return false
+        val position = holder.bindingAdapterPosition
+        if (position == RecyclerView.NO_POSITION) return false
+        val span = (rv.layoutManager as? GridLayoutManager)?.spanCount ?: 1
+        if (position >= span) return false
+        return onExitUp?.invoke() ?: false
     }
 
     fun filter(query: String) {

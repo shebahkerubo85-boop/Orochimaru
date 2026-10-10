@@ -41,6 +41,7 @@ class TmdbLibraryFragment : Fragment() {
     private val binding get() = _binding!!
     private var selectedTabIdx = 0
     private var viewPagerAttached = false
+    private var pendingInitialFocus = true
     private var tabsState by mutableStateOf<List<LibraryStatusTab>>(emptyList())
     private var selectedPillState by mutableIntStateOf(0)
     private var allItems: List<Simkl.SimklWatchedItem> = emptyList()
@@ -74,6 +75,7 @@ class TmdbLibraryFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        pendingInitialFocus = true
 
         val primaryColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorSurface)
 
@@ -107,6 +109,16 @@ class TmdbLibraryFragment : Fragment() {
                 binding.tmdbLibPill.setSelected(position)
             }
         })
+
+        // DOWN out of the pill lands on the pager container; bounce it straight onto the first
+        // card so the grid is reachable in one press, matching the anime library.
+        binding.tmdbLibViewPager.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                val page = childFragmentManager
+                    .findFragmentByTag("f${binding.tmdbLibViewPager.currentItem}") as? SimklSectionFragment
+                page?.focusFirstCard()
+            }
+        }
 
         if (Simkl.token == null) {
             showNotLoggedIn()
@@ -279,7 +291,9 @@ class TmdbLibraryFragment : Fragment() {
         }
 
         val fragments = sections.map { (_, sectionItems) ->
-            SimklSectionFragment.newInstance(sectionItems)
+            SimklSectionFragment.newInstance(sectionItems).apply {
+                onExitUp = { _binding?.tmdbLibPill?.requestFocus() == true }
+            }
         }
         sectionFragments.addAll(fragments)
 
@@ -299,13 +313,22 @@ class TmdbLibraryFragment : Fragment() {
         )
         selectedPillState = selectedTabIdx.coerceIn(0, titles.size - 1)
         renderStatusPill()
+        requestInitialFocus()
+    }
+
+    private fun requestInitialFocus() {
+        if (!pendingInitialFocus || tabsState.isEmpty()) return
+        pendingInitialFocus = false
+        binding.tmdbLibPill.post { _binding?.tmdbLibPill?.requestFocus() }
     }
 
     private fun showFilteredSections(items: List<Simkl.SimklWatchedItem>, title: String) {
         viewPagerAttached = false
         sectionFragments.clear()
 
-        val fragment = SimklSectionFragment.newInstance(items)
+        val fragment = SimklSectionFragment.newInstance(items).apply {
+            onExitUp = { _binding?.tmdbLibPill?.requestFocus() == true }
+        }
         sectionFragments.add(fragment)
 
         tabsState = listOf(LibraryStatusTab(label = title, count = items.size))
@@ -318,6 +341,7 @@ class TmdbLibraryFragment : Fragment() {
         binding.tmdbLibViewPager.setCurrentItem(0, false)
         selectedPillState = 0
         renderStatusPill()
+        requestInitialFocus()
     }
 
     private fun showNotLoggedIn() {

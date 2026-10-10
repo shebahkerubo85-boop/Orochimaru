@@ -42,6 +42,7 @@ class LibraryFragment : Fragment() {
     private var selectedTabIdx = 0
     private var viewPagerAttached = false
     private var lastTopFocusId = R.id.profileButton
+    private var pendingInitialFocus = true
 
     private var tabsState by mutableStateOf<List<LibraryStatusTab>>(emptyList())
     private var selectedPillState by mutableIntStateOf(0)
@@ -73,6 +74,7 @@ class LibraryFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        pendingInitialFocus = true
 
         val primaryColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorSurface)
 
@@ -109,7 +111,10 @@ class LibraryFragment : Fragment() {
             if (it != null) {
                 binding.listProgressBar.visibility = View.GONE
                 if (!viewPagerAttached) {
-                    binding.listViewPager.adapter = ListViewPagerAdapter(it.size, false, requireActivity())
+                    binding.listViewPager.adapter =
+                        ListViewPagerAdapter(it.size, false, requireActivity()) {
+                            _binding?.listTabPill?.requestFocus() == true
+                        }
                     val keys = it.keys.toList()
                         .map { key -> userKeys.getOrNull(defaultKeys.indexOf(key)) ?: key }
                     val values = it.values.toList()
@@ -120,6 +125,10 @@ class LibraryFragment : Fragment() {
                     binding.listViewPager.setCurrentItem(selectedTabIdx, false)
                     selectedPillState = selectedTabIdx
                     renderStatusPill()
+                    if (pendingInitialFocus && tabsState.isNotEmpty()) {
+                        pendingInitialFocus = false
+                        binding.listTabPill.post { _binding?.listTabPill?.requestFocus() }
+                    }
                 }
             }
         }

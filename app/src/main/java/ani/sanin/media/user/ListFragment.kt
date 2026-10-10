@@ -2,6 +2,7 @@ package ani.sanin.media.user
 
 import android.content.res.Configuration
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,7 +10,6 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import ani.sanin.R
 import ani.sanin.databinding.FragmentListBinding
 import ani.sanin.media.Media
 import ani.sanin.media.MediaAdaptor
@@ -23,6 +23,13 @@ class ListFragment : Fragment() {
     private var calendar = false
     private var grid: Boolean? = null
     private var list: MutableList<Media>? = null
+
+    /**
+     * Invoked when DPAD_UP is pressed while a card in the first row is focused, so the host can
+     * hand focus back to the status pill. Returns true when the host consumed the key.
+     */
+    var onExitUp: (() -> Boolean)? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         arguments?.let {
@@ -44,24 +51,17 @@ class ListFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         val screenWidth = resources.displayMetrics.run { widthPixels / density }
 
-        // The top row of cards hands focus back up to the status pill (DPAD_UP); lower rows keep
-        // the default vertical search so they move between rows. Recomputed as the grid scrolls,
-        // because a card's row changes with its scroll position.
-        binding.listRecyclerView.addOnChildAttachStateChangeListener(
-            object : RecyclerView.OnChildAttachStateChangeListener {
-                override fun onChildViewAttachedToWindow(child: View) {
-                    val span = (binding.listRecyclerView.layoutManager as? GridLayoutManager)?.spanCount ?: 1
-                    val p = binding.listRecyclerView.getChildAdapterPosition(child)
-                    child.nextFocusUpId = if (p in 0 until span) R.id.listTabPill else View.NO_ID
-                }
-                override fun onChildViewDetachedFromWindow(child: View) {}
+        // DPAD_UP from the first row of cards hands focus back up to the status pill. The listener
+        // is on the RecyclerView (an ancestor of the focused card) so it works no matter which
+        // child owns focus; lower rows return false so the default vertical search moves between
+        // rows. This avoids relying on nextFocusUpId, which does not resolve across the view pager.
+        binding.listRecyclerView.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                dpadUpToHeader()
+            } else {
+                false
             }
-        )
-        binding.listRecyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                refreshTopRowUpIds()
-            }
-        })
+        }
 
         fun update() {
             if (grid != null && list != null) {
@@ -72,7 +72,6 @@ class ListFragment : Fragment() {
                         if (grid!!) TmdbCards.gridSpan(screenWidth) else 1
                     )
                 binding.listRecyclerView.adapter = adapter
-                refreshTopRowUpIds()
             }
         }
 
@@ -112,15 +111,19 @@ class ListFragment : Fragment() {
         return rv.requestFocus()
     }
 
-    /** Points the first-row cards' DPAD_UP at the status pill; clears it for every other row. */
-    private fun refreshTopRowUpIds() {
-        val rv = _binding?.listRecyclerView ?: return
+    /**
+     * True when the focused card sits in the first row of the grid. The host uses this to hand
+     * focus up to the status pill instead of letting the default vertical search leave the grid.
+     */
+    private fun dpadUpToHeader(): Boolean {
+        val rv = _binding?.listRecyclerView ?: return false
+        val focused = rv.findFocus() ?: return false
+        val holder = rv.findContainingViewHolder(focused) ?: return false
+        val position = holder.bindingAdapterPosition
+        if (position == RecyclerView.NO_POSITION) return false
         val span = (rv.layoutManager as? GridLayoutManager)?.spanCount ?: 1
-        for (i in 0 until rv.childCount) {
-            val child = rv.getChildAt(i)
-            val pos = rv.getChildAdapterPosition(child)
-            child.nextFocusUpId = if (pos in 0 until span) R.id.listTabPill else View.NO_ID
-        }
+        if (position >= span) return false
+        return onExitUp?.invoke() ?: false
     }
 
     companion object {
