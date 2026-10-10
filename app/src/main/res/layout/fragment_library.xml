@@ -127,10 +127,12 @@
             
         </LinearLayout>
 
-        <androidx.compose.ui.platform.ComposeView
+        <ani.sanin.ui.components.LibraryStatusPill
             android:id="@+id/listTabPill"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
             android:focusable="true"
             android:nextFocusUp="@id/profileButton"
             android:nextFocusDown="@id/listViewPager" />

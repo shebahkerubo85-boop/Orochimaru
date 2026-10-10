@@ -37,7 +37,6 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
 import ani.sanin.ui.LensButtonBackground
-import ani.sanin.ui.components.LibraryStatusPill
 import ani.sanin.ui.components.LibraryStatusTab
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.TvKeyboardUtil
@@ -135,18 +134,17 @@ class ExtensionsActivity : AppCompatActivity() {
             if (hasFocus) focusFirstBrowseButton(viewPager)
         }
 
-        binding.extensionsPill.setContent {
-            LibraryStatusPill(
-                tabs = pillTabs,
-                selectedIndex = selectedPillIndex,
-                onTabSelected = { position -> selectTab(position) },
-                fillWidth = false,
-                compact = false,
-            )
-        }
+        binding.extensionsPill.bind(
+            tabs = pillTabs,
+            selectedIndex = selectedPillIndex,
+            onTabSelected = { position -> selectTab(position) },
+            fillWidth = false,
+            compact = false,
+        )
         viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 selectedPillIndex = position
+                binding.extensionsPill.setSelected(position)
                 updateSearchUiForTab(position)
                 viewPager.updateLayoutParams<ViewGroup.LayoutParams> {
                     height = ViewGroup.LayoutParams.MATCH_PARENT
@@ -416,6 +414,13 @@ class ExtensionsActivity : AppCompatActivity() {
             )
         }
         selectedPillIndex = 0
+        binding.extensionsPill.bind(
+            tabs = pillTabs,
+            selectedIndex = selectedPillIndex,
+            onTabSelected = { position -> selectTab(position) },
+            fillWidth = false,
+            compact = false,
+        )
         viewPager.setCurrentItem(0, false)
         // Re-apply focus override after adapter re-attach (mode switch recreates internals)
         viewPager.post {

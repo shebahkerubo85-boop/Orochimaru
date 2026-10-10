@@ -27,7 +27,6 @@ import ani.sanin.snackString
 import ani.sanin.themes.ThemeManager
 import ani.sanin.toPx
 import ani.sanin.ui.LensButtonBackground
-import ani.sanin.ui.components.LibraryStatusPill
 import ani.sanin.ui.components.LibraryStatusTab
 import ani.sanin.util.FocusEffectUtil
 import kotlinx.coroutines.Dispatchers
@@ -123,13 +122,11 @@ class FranchiseActivity : AppCompatActivity() {
 
         // The filter row is the same capsule the library status tabs use, so the travelling
         // selection indicator is identical rather than a per-chip background approximation.
-        binding.franchiseFilterPill.setContent {
-            LibraryStatusPill(
-                tabs = pillTabs.value,
-                selectedIndex = pillSelected.value,
-                onTabSelected = { selectFilter(it) },
-            )
-        }
+        binding.franchiseFilterPill.bind(
+            tabs = pillTabs.value,
+            selectedIndex = pillSelected.value,
+            onTabSelected = { selectFilter(it) },
+        )
         rebuildPillTabs()
         buildRows(ordered)
 
@@ -237,6 +234,11 @@ class FranchiseActivity : AppCompatActivity() {
         pillTabs.value = tabs
         if (pillSelected.value > tabs.lastIndex) pillSelected.value = 0
         selectedType = availableTypes.toList().getOrNull(pillSelected.value - 1)
+        binding.franchiseFilterPill.bind(
+            tabs = pillTabs.value,
+            selectedIndex = pillSelected.value,
+            onTabSelected = { selectFilter(it) },
+        )
     }
 
     /** Applies the pill's selection; index 0 is All, the rest are [availableTypes] in order. */

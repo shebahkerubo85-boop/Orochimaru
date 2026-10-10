@@ -1,402 +1,339 @@
 package ani.sanin.ui.components
 
-import android.app.Activity
+import android.animation.ValueAnimator
 import android.content.Context
-import android.content.ContextWrapper
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import android.text.TextUtils
+import android.util.AttributeSet
+import android.util.TypedValue
+import android.view.Gravity
 import android.view.View
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.focusable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import android.widget.HorizontalScrollView
+import android.widget.LinearLayout
+import android.widget.TextView
 import ani.sanin.getThemeColor
-import ani.sanin.isDarkTheme
+import ani.sanin.ui.GlassPill
+import ani.sanin.ui.GlassStripLayout
 import com.google.android.material.R
+import kotlin.math.pow
 import kotlin.math.roundToInt
 
 /**
- * Library status tabs (library / extensions / streaming-catalogue) rendered as a scrollable
- * capsule. Each tab is its own DPAD focus target, mirroring the calendar's week strip: the
- * focused tab (even when unselected) draws an accent oval rim at the exact size and shape of
- * the selection indicator, Enter / DPAD-center / click selects it, and Up/Down (or Left/Right
- * at the edges) hands focus back to the XML chrome via the hosting ComposeView.
+ * Library status tabs (library / extensions / streaming-catalogue / franchise filters) rendered
+ * as a scrollable capsule, now as plain Views rather than a Compose host.
+ *
+ * Each tab is its own DPAD focus target, mirroring the calendar's week strip: one travelling
+ * selection indicator is drawn behind the row ([GlassStripLayout]) and stretches toward the new
+ * tab on change, the focused tab (even when unselected) draws the calendar's accent oval rim, and
+ * Enter / DPAD-center / tap selects it. Up/Down (and Left/Right at the edges) hand focus back to
+ * the surrounding chrome via the nextFocus ids the host sets on this view.
  */
-
 data class LibraryStatusTab(val label: String, val count: Int)
 
-/**
- * Hand focus to the next focusable outside the pill in [direction], so DPAD can leave the
- * capsule for the chrome around it. Returns whether a target was found, so the key is only
- * swallowed when focus actually moved (otherwise focus would be trapped on the pill).
- *
- * [host] is the ComposeView the pill sits in: the natural search root for leaving it.
- */
-private fun leaveFocus(host: View?, direction: Int): Boolean {
-    val target = host?.focusSearch(direction) ?: return false
-    return target.requestFocus()
-}
+class LibraryStatusPill @JvmOverloads constructor(
+    context: Context,
+    attrs: AttributeSet? = null,
+    defStyleAttr: Int = 0,
+) : LinearLayout(context, attrs, defStyleAttr) {
 
-@Composable
-fun LibraryStatusPill(
-    tabs: List<LibraryStatusTab>,
-    selectedIndex: Int,
-    onTabSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-    fillWidth: Boolean = true,
-    compact: Boolean = true,
-) {
-    if (tabs.isEmpty()) return
+    private val scroll = HorizontalScrollView(context)
+    private val strip = GlassStripLayout(context)
+    private val row = LinearLayout(context)
 
-    val context = LocalContext.current
-    // The pill can sit under an AppBar theme overlay (fragment_library.xml applies
-    // Theme.Sanin.AppBarOverlay to the toolbar). That overlay does not carry the accent
-    // applied to the Activity at runtime, so resolving colour attrs from the view context
-    // fell back to the Material default (purple). Resolve from the owning Activity's theme.
-    val colorContext = remember(context) {
-        var ctx: Context = context
-        while (ctx is ContextWrapper) {
-            if (ctx is Activity) break
-            ctx = ctx.baseContext
-        }
-        ctx
-    }
-    val dark = isDarkTheme()
-    val accent = Color(colorContext.getThemeColor(R.attr.colorPrimary))
-    val textPrimary = Color(colorContext.getThemeColor(R.attr.colorOnSurface))
-    val textSecondary = Color(colorContext.getThemeColor(R.attr.colorOnSurfaceVariant))
-    val textOnAccent = Color(colorContext.getThemeColor(R.attr.colorOnPrimary))
-    val isLightTheme = !dark
+    private var tabs: List<LibraryStatusTab> = emptyList()
+    private var selectedIndex = 0
+    private var onTabSelected: ((Int) -> Unit)? = null
+    private var compact = true
 
-    val scrollState = rememberScrollState()
-    val tabWidths = remember { mutableStateMapOf<Int, Float>() }
-    var containerWidthPx by remember { mutableIntStateOf(0) }
-    val density = LocalDensity.current
+    private var indicatorPlaced = false
+    private var indLeft = 0f
+    private var indRight = 0f
+    private var indTop = 0f
+    private var indBottom = 0f
+    private var indicatorAnimator: ValueAnimator? = null
 
-    val focusRequesters = remember(tabs.size) { List(tabs.size) { FocusRequester() } }
-    val focusedTabs = remember(tabs.size) { mutableStateMapOf<Int, Boolean>() }
-    var focusedIndex by remember { mutableIntStateOf(selectedIndex.coerceIn(0, tabs.lastIndex)) }
+    private val density = resources.displayMetrics.density
 
-    // Auto-scroll to center the focused tab (skip the first two).
-    LaunchedEffect(focusedIndex, containerWidthPx) {
-        if (containerWidthPx <= 0) return@LaunchedEffect
+    init {
+        orientation = HORIZONTAL
+        GlassPill.applyContainer(this)
+        val inset = dp(6f)
+        setPadding(inset, inset, inset, inset)
 
-        if (focusedIndex <= 1) {
-            if (scrollState.value != 0) {
-                scrollState.animateScrollTo(0, animationSpec = tween(durationMillis = 350))
-            }
-            return@LaunchedEffect
-        }
+        row.orientation = HORIZONTAL
+        row.gravity = Gravity.CENTER_VERTICAL
 
-        val leftPaddingPx = with(density) { 6.dp.toPx() }
-        val spacingPx = with(density) { 8.dp.toPx() }
-        val accumulatedWidth = (0 until focusedIndex).sumOf { (tabWidths[it] ?: 0f).roundToInt() }
-        val currentTabWidth = (tabWidths[focusedIndex] ?: 0f).roundToInt()
-        if (currentTabWidth == 0) return@LaunchedEffect
+        strip.setIndicator(GlassPill.indicatorDrawable(context))
+        strip.addView(row)
 
-        val tabCenter = leftPaddingPx + accumulatedWidth + focusedIndex * spacingPx + currentTabWidth / 2f
-        val targetScroll = (tabCenter - containerWidthPx / 2f).coerceAtLeast(0f).toInt()
+        scroll.isHorizontalScrollBarEnabled = false
+        scroll.overScrollMode = View.OVER_SCROLL_NEVER
+        scroll.addView(strip)
+        addView(scroll)
 
-        if (scrollState.value != targetScroll) {
-            scrollState.animateScrollTo(targetScroll, animationSpec = tween(durationMillis = 350))
+        // The capsule itself takes focus so the hosts' nextFocusUp/Down ids (which point at the
+        // pill) resolve, then immediately forwards into the selected tab - the same shape the
+        // Compose host used.
+        isFocusable = true
+        isFocusableInTouchMode = false
+        setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) focusSelectedTab()
         }
     }
 
-    val tabShape = CircleShape
-    val selectedTabBrush = remember(accent, dark) {
-        Brush.verticalGradient(
-            colors = listOf(
-                if (dark) {
-                    lerp(accent, Color.White, 0.18f).copy(alpha = 0.32f)
-                } else {
-                    accent.copy(alpha = 0.20f)
-                },
-                if (dark) {
-                    accent.copy(alpha = 0.18f)
-                } else {
-                    Color.White.copy(alpha = 0.40f)
-                },
-            ),
-        )
-    }
-    val selectedTabBorderColor = remember(accent, dark) {
-        if (dark) accent.copy(alpha = 0.25f) else accent.copy(alpha = 0.28f)
-    }
-    val tabContainerColor = if (dark) Color.White.copy(alpha = 0.05f) else Color.Transparent
-
-    val view = LocalView.current
-    // LocalView.current is the internal AndroidComposeView the composition runs in; the
-    // ComposeView declared in XML is its parent, and that parent is the View the D-pad focus
-    // chain actually moves onto. Forwarding from the internal view never fired because the
-    // host swallows focus first, which is why the pill showed no ring and ate no keys.
-    val host = remember(view) { (view?.parent as? View) ?: view }
-
-    // Forward focus from the host ComposeView (XML nextFocus) into the last focused tab.
-    LaunchedEffect(host) {
-        host?.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus) {
-                val target = focusedIndex.coerceIn(0, tabs.lastIndex)
-                focusRequesters[target].requestFocus()
-            }
-        }
-    }
-
-    Box(
-        modifier = modifier
-            .then(if (fillWidth) Modifier.fillMaxWidth() else Modifier.wrapContentWidth())
-            // Light mode draws a drop shadow, so keep enough room around the capsule that
-            // the host ComposeView does not clip it.
-            .padding(
-                start = if (fillWidth) 16.dp else 6.dp,
-                top = if (isLightTheme) 6.dp else 0.dp,
-                end = if (fillWidth) 16.dp else 6.dp,
-                bottom = if (isLightTheme) 6.dp else 0.dp,
-            ),
+    /**
+     * Fills the pill and records the selection. Safe to call again whenever the tab list or the
+     * selected index changes; the cells are only rebuilt when the list actually differs.
+     */
+    fun bind(
+        tabs: List<LibraryStatusTab>,
+        selectedIndex: Int,
+        onTabSelected: (Int) -> Unit,
+        fillWidth: Boolean = true,
+        compact: Boolean = true,
     ) {
-        Row(
-            modifier = Modifier
-                .then(if (fillWidth) Modifier.fillMaxWidth() else Modifier.wrapContentWidth())
-                .onSizeChanged { containerWidthPx = it.width }
-                .then(
-                    if (isLightTheme) {
-                        Modifier
-                            .shadow(
-                                elevation = 6.dp,
-                                shape = tabShape,
-                                clip = false,
-                            )
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    listOf(
-                                        lerp(Color.White, accent, 0.06f),
-                                        lerp(Color.White, accent, 0.035f),
-                                        lerp(Color.White, accent, 0.018f),
-                                    ),
-                                ),
-                                shape = tabShape,
-                            )
-                            .border(
-                                width = 1.dp,
-                                brush = Brush.verticalGradient(
-                                    listOf(
-                                        accent.copy(alpha = 0.32f),
-                                        accent.copy(alpha = 0.18f),
-                                        accent.copy(alpha = 0.09f),
-                                    ),
-                                ),
-                                shape = tabShape,
-                            )
-                    } else {
-                        Modifier
-                            .background(tabContainerColor, tabShape)
-                            .border(
-                                width = 1.dp,
-                                brush = Brush.verticalGradient(
-                                    colorStops = arrayOf(
-                                        0.00f to Color.White.copy(alpha = 0.38f),
-                                        0.50f to Color.White.copy(alpha = 0.18f),
-                                        0.75f to Color.Transparent,
-                                        1.00f to Color.Transparent,
-                                    ),
-                                ),
-                                shape = tabShape,
-                            )
-                    },
-                )
-                .padding(6.dp)
-                .horizontalScroll(scrollState),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            tabs.forEachIndexed { index, tab ->
-                LibraryStatusTabView(
-                    tab = tab,
-                    isSelected = index == selectedIndex,
-                    isFocused = focusedTabs[index] == true,
-                    isLightTheme = isLightTheme,
-                    compact = compact,
-                    accent = accent,
-                    textOnAccent = textOnAccent,
-                    textPrimary = textPrimary,
-                    textSecondary = textSecondary,
-                    selectedTabBrush = selectedTabBrush,
-                    selectedTabBorderColor = selectedTabBorderColor,
-                    modifier = Modifier
-                        .focusRequester(focusRequesters[index])
-                        .focusable()
-                        .onFocusChanged { state ->
-                            if (state.hasFocus) focusedIndex = index
-                            focusedTabs[index] = state.hasFocus
-                        }
-                        // Left/Right between tabs is handled by the Compose focus manager;
-                        // it only reaches us at the edges, where we hand focus to the
-                        // surrounding chrome. Up/Down always leaves the pill. Handled on
-                        // KeyDown: the focus manager also acts on KeyDown, so a press that
-                        // moves focus internally is consumed before we see it (no double
-                        // move), while an edge/external move falls through to us.
-                        .onKeyEvent { event ->
-                            if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
-                            when (event.key) {
-                                Key.DirectionLeft ->
-                                    if (index == 0) leaveFocus(host, View.FOCUS_LEFT) else false
-                                Key.DirectionRight ->
-                                    if (index == tabs.lastIndex) leaveFocus(host, View.FOCUS_RIGHT) else false
-                                Key.DirectionUp -> leaveFocus(host, View.FOCUS_UP)
-                                Key.DirectionDown -> leaveFocus(host, View.FOCUS_DOWN)
-                                Key.Enter, Key.DirectionCenter -> {
-                                    onTabSelected(index)
-                                    true
-                                }
-                                else -> false
-                            }
-                        }
-                        .pointerInput(Unit) {
-                            detectTapGestures { onTabSelected(index) }
-                        }
-                        .onGloballyPositioned { coords ->
-                            tabWidths[index] = coords.size.width.toFloat()
-                        },
-                )
-            }
+        this.onTabSelected = onTabSelected
+        this.compact = compact
+        val structureChanged = this.tabs != tabs
+        this.tabs = tabs
+        this.selectedIndex = selectedIndex.coerceIn(0, (tabs.size - 1).coerceAtLeast(0))
+        if (structureChanged) {
+            rebuildTabs()
+            indicatorPlaced = false
         }
+        paintAll()
+        post { moveIndicator(this.selectedIndex, animate = indicatorPlaced) }
     }
-}
 
-@Composable
-private fun LibraryStatusTabView(
-    tab: LibraryStatusTab,
-    isSelected: Boolean,
-    isFocused: Boolean,
-    isLightTheme: Boolean,
-    compact: Boolean,
-    accent: Color,
-    textOnAccent: Color,
-    textPrimary: Color,
-    textSecondary: Color,
-    selectedTabBrush: Brush,
-    selectedTabBorderColor: Color,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier
-            .clip(CircleShape)
-            // The selection indicator fills exactly this slot; the focus rim below uses the
-            // same oval, so a focused-but-unselected tab shows a ring of the exact size and
-            // shape the selector would occupy (like the calendar's day cells).
-            .background(
-                brush = if (isSelected) selectedTabBrush else SolidColor(Color.Transparent),
-                shape = CircleShape,
-            )
-            .border(
-                width = 1.dp,
-                color = if (isSelected) selectedTabBorderColor else Color.Transparent,
-                shape = CircleShape,
-            )
-            .drawBehind {
-                if (isFocused) {
-                    drawRoundRect(
-                        color = accent,
-                        cornerRadius = CornerRadius(size.width / 2f, size.height / 2f),
-                        style = Stroke(width = 2.dp.toPx()),
-                    )
-                }
+    /** Moves the selection without touching the tab list (page swipes, programmatic changes). */
+    fun setSelected(index: Int) {
+        if (index !in tabs.indices) return
+        if (index == selectedIndex && indicatorPlaced) return
+        selectedIndex = index
+        paintAll()
+        moveIndicator(index, animate = indicatorPlaced)
+    }
+
+    private fun rebuildTabs() {
+        indicatorAnimator?.cancel()
+        row.removeAllViews()
+
+        val hPad = dp(if (compact) 14f else 16f)
+        val vPad = dp(if (compact) 7f else 10f)
+
+        tabs.forEachIndexed { index, tab ->
+            val cell = LinearLayout(context).apply {
+                orientation = HORIZONTAL
+                gravity = Gravity.CENTER
+                setPadding(hPad, vPad, hPad, vPad)
+                isFocusable = true
+                isFocusableInTouchMode = false
+                isClickable = true
+                id = View.generateViewId()
             }
-            .padding(
-                horizontal = if (compact) 14.dp else 16.dp,
-                vertical = if (compact) 7.dp else 10.dp,
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-        ) {
-            Text(
-                text = tab.label,
-                color = if (isSelected) {
-                    textPrimary
-                } else if (isLightTheme) {
-                    textSecondary
-                } else {
-                    textPrimary.copy(alpha = 0.65f)
+
+            cell.addView(
+                TextView(context).apply {
+                    text = tab.label
+                    maxLines = 1
+                    ellipsize = TextUtils.TruncateAt.END
+                    includeFontPadding = false
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, if (compact) 13f else 14f)
                 },
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                    fontSize = if (compact) 13.sp else 14.sp,
-                ),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                softWrap = false,
-                textAlign = TextAlign.Center,
             )
 
             if (tab.count > 0) {
-                Spacer(modifier = Modifier.width(6.dp))
-                Box(
-                    modifier = Modifier
-                        .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
-                        .background(accent, CircleShape)
-                        .padding(horizontal = 5.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = if (tab.count > 99) "99+" else tab.count.toString(),
-                        color = textOnAccent,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
+                val badge = TextView(context).apply {
+                    text = if (tab.count > 99) "99+" else tab.count.toString()
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
+                    typeface = Typeface.DEFAULT_BOLD
+                    gravity = Gravity.CENTER
+                    minWidth = dp(18f)
+                    minHeight = dp(18f)
+                    setPadding(dp(5f), 0, dp(5f), 0)
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.RECTANGLE
+                        cornerRadius = dp(100f).toFloat()
+                        setColor(accentColor())
+                    }
                 }
+                cell.addView(
+                    badge,
+                    LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+                        marginStart = dp(6f)
+                    },
+                )
+            }
+
+            val lp = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
+            if (index < tabs.lastIndex) lp.marginEnd = dp(8f)
+            row.addView(cell, lp)
+
+            cell.setOnClickListener { select(index) }
+            cell.setOnFocusChangeListener { _, focused ->
+                paintCell(index)
+                if (focused) reveal(cell)
             }
         }
+
+        // Left/Right chain inside the row; the ends inherit whatever the host set on the pill.
+        for (i in 0 until row.childCount) {
+            val c = row.getChildAt(i)
+            c.nextFocusLeftId = if (i > 0) row.getChildAt(i - 1).id else nextFocusLeftId
+            c.nextFocusRightId =
+                if (i < row.childCount - 1) row.getChildAt(i + 1).id else nextFocusRightId
+        }
     }
+
+    private fun select(index: Int) {
+        if (index !in tabs.indices) return
+        if (index == selectedIndex) return
+        onTabSelected?.invoke(index)
+        setSelected(index)
+    }
+
+    private fun focusSelectedTab() {
+        val idx = selectedIndex.coerceIn(0, (row.childCount - 1).coerceAtLeast(0))
+        row.getChildAt(idx)?.requestFocus()
+    }
+
+    private fun reveal(cell: View) {
+        val viewport = scroll.width
+        if (viewport <= 0) return
+        val target = when {
+            cell.left < scroll.scrollX -> cell.left
+            cell.right > scroll.scrollX + viewport -> cell.right - viewport
+            else -> return
+        }
+        scroll.smoothScrollTo(target, 0)
+    }
+
+    private fun paintAll() {
+        for (i in tabs.indices) paintCell(i)
+    }
+
+    private fun paintCell(index: Int) {
+        val cell = row.getChildAt(index) ?: return
+        // The selection fill is the travelling strip indicator behind the row, so the cell only
+        // ever paints the calendar's focus rim (never a per-cell selected fill).
+        GlassPill.applyCell(cell, selected = false, focused = cell.isFocused)
+
+        val selected = index == selectedIndex
+        val label = cell.getChildAt(0) as? TextView ?: return
+        val dark = GlassPill.isNight(context)
+        label.setTextColor(
+            when {
+                selected -> onSurfaceColor()
+                dark -> withAlpha(onSurfaceColor(), 0.65f)
+                else -> onSurfaceVariantColor()
+            },
+        )
+        label.typeface = if (selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+
+        if (cell.childCount > 1) {
+            (cell.getChildAt(1) as? TextView)?.setTextColor(onAccentColor())
+        }
+    }
+
+    /**
+     * Moves the single indicator onto tab [index]. When [animate], the leading edge eases out
+     * faster than the trailing edge so the capsule stretches toward the new tab and settles,
+     * identical to the calendar week strip.
+     */
+    private fun moveIndicator(index: Int, animate: Boolean) {
+        if (index < 0 || index >= row.childCount) return
+        val cell = row.getChildAt(index)
+        if (cell.width == 0 || cell.height == 0) {
+            // Not measured yet (or hidden). Retry once the pill is actually on screen; the
+            // isShown guard keeps a GONE pill from posting every frame forever.
+            if (isShown) post { moveIndicator(index, animate) }
+            return
+        }
+
+        val gap = dp(2f).toFloat()
+        val tl = cell.left + gap
+        val tr = cell.right - gap
+        val tt = cell.top + gap
+        val tb = cell.bottom - gap
+
+        if (!animate || !indicatorPlaced) {
+            indicatorAnimator?.cancel()
+            indLeft = tl
+            indRight = tr
+            indTop = tt
+            indBottom = tb
+            strip.setIndicatorBounds(tl, tt, tr, tb)
+            indicatorPlaced = true
+            return
+        }
+
+        val startLeft = indLeft
+        val startRight = indRight
+        val startTop = indTop
+        val startBottom = indBottom
+        val movingRight = (tl + tr) / 2f >= (startLeft + startRight) / 2f
+
+        indicatorAnimator?.cancel()
+        indicatorAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 340
+            addUpdateListener { anim ->
+                val t = anim.animatedFraction
+                val lead = 1f - (1f - t).pow(3.2f)
+                val trail = 1f - (1f - t).pow(1.7f)
+                if (movingRight) {
+                    indRight = startRight + (tr - startRight) * lead
+                    indLeft = startLeft + (tl - startLeft) * trail
+                } else {
+                    indLeft = startLeft + (tl - startLeft) * lead
+                    indRight = startRight + (tr - startRight) * trail
+                }
+                indTop = startTop + (tt - startTop) * t
+                indBottom = startBottom + (tb - startBottom) * t
+                strip.setIndicatorBounds(indLeft, indTop, indRight, indBottom)
+            }
+            start()
+        }
+    }
+
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+        propagateNextFocus()
+    }
+
+    /**
+     * The hosts set nextFocusUp/Down (and sometimes Left/Right) on the pill view; copy those onto
+     * the cells so DPAD leaves the capsule exactly where the host intended. Internal Left/Right
+     * chaining is preserved - only the row's outer edges inherit the pill's own ids.
+     */
+    private fun propagateNextFocus() {
+        if (row.childCount == 0) return
+        for (i in 0 until row.childCount) {
+            val c = row.getChildAt(i)
+            if (nextFocusUpId != NO_ID) c.nextFocusUpId = nextFocusUpId
+            if (nextFocusDownId != NO_ID) c.nextFocusDownId = nextFocusDownId
+        }
+        row.getChildAt(0).nextFocusLeftId = nextFocusLeftId
+        row.getChildAt(row.childCount - 1).nextFocusRightId = nextFocusRightId
+    }
+
+    private fun themed() = GlassPill.themedContext(context)
+
+    private fun accentColor() = themed().getThemeColor(R.attr.colorPrimary)
+
+    private fun onAccentColor() = themed().getThemeColor(R.attr.colorOnPrimary)
+
+    private fun onSurfaceColor() = themed().getThemeColor(R.attr.colorOnSurface)
+
+    private fun onSurfaceVariantColor() = themed().getThemeColor(R.attr.colorOnSurfaceVariant)
+
+    private fun withAlpha(color: Int, alpha: Float): Int = Color.argb(
+        (alpha * 255f).roundToInt().coerceIn(0, 255),
+        Color.red(color),
+        Color.green(color),
+        Color.blue(color),
+    )
+
+    private fun dp(value: Float): Int = (density * value).roundToInt().coerceAtLeast(0)
 }

@@ -26,7 +26,6 @@ import ani.sanin.connections.simkl.Simkl
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.databinding.FragmentTmdbLibraryBinding
 import ani.sanin.loadImage
-import ani.sanin.ui.components.LibraryStatusPill
 import ani.sanin.ui.components.LibraryStatusTab
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.getThemeColor
@@ -49,6 +48,22 @@ class TmdbLibraryFragment : Fragment() {
     private val libraryGenres = sortedSetOf<String>()
     private val itemGenres = HashMap<Pair<String, Int>, Set<String>>()
     private var genreEnrichmentRunning = false
+
+    /** (Re)builds the status pill from the current tabs/selection. Cheap to call repeatedly. */
+    private fun renderStatusPill() {
+        if (_binding == null) return
+        binding.tmdbLibPill.bind(
+            tabs = tabsState,
+            selectedIndex = selectedPillState,
+            onTabSelected = { idx ->
+                selectedPillState = idx
+                selectedTabIdx = idx
+                if (binding.tmdbLibViewPager.currentItem != idx) {
+                    binding.tmdbLibViewPager.setCurrentItem(idx, false)
+                }
+            },
+        )
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -83,24 +98,13 @@ class TmdbLibraryFragment : Fragment() {
         binding.tmdbLibPill.nextFocusDownId = R.id.tmdbLibViewPager
         binding.tmdbLibViewPager.nextFocusUpId = R.id.tmdbLibPill
 
-        binding.tmdbLibPill.setContent {
-            LibraryStatusPill(
-                tabs = tabsState,
-                selectedIndex = selectedPillState,
-                onTabSelected = { idx ->
-                    selectedPillState = idx
-                    selectedTabIdx = idx
-                    if (binding.tmdbLibViewPager.currentItem != idx) {
-                        binding.tmdbLibViewPager.setCurrentItem(idx, false)
-                    }
-                },
-            )
-        }
+        renderStatusPill()
 
         binding.tmdbLibViewPager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 selectedPillState = position
                 selectedTabIdx = position
+                binding.tmdbLibPill.setSelected(position)
             }
         })
 
@@ -294,6 +298,7 @@ class TmdbLibraryFragment : Fragment() {
             selectedTabIdx.coerceIn(0, titles.size - 1), false
         )
         selectedPillState = selectedTabIdx.coerceIn(0, titles.size - 1)
+        renderStatusPill()
     }
 
     private fun showFilteredSections(items: List<Simkl.SimklWatchedItem>, title: String) {
@@ -312,6 +317,7 @@ class TmdbLibraryFragment : Fragment() {
         viewPagerAttached = true
         binding.tmdbLibViewPager.setCurrentItem(0, false)
         selectedPillState = 0
+        renderStatusPill()
     }
 
     private fun showNotLoggedIn() {

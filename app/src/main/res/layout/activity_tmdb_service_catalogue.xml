@@ -67,7 +67,7 @@
           The same Tadami-style capsule pill the library status tabs use: a single
           rounded container whose selection strip travels between the two entries.
         -->
-        <androidx.compose.ui.platform.ComposeView
+        <ani.sanin.ui.components.LibraryStatusPill
             android:id="@+id/catalogueTypePill"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

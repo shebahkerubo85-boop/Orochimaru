@@ -1,11 +1,14 @@
 package ani.sanin.ui
 
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
+import android.os.Build
 import android.view.View
 import androidx.core.graphics.ColorUtils
 import ani.sanin.getThemeColor
@@ -22,12 +25,30 @@ import ani.sanin.getThemeColor
  */
 object GlassPill {
 
-    private fun isNight(context: Context): Boolean =
+    /** True when the current theme is the dark palette (the app's Light/Dark setting drives
+     *  AppCompatDelegate night mode, and the theme colours come from values-night). */
+    fun isNight(context: Context): Boolean =
         (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
             Configuration.UI_MODE_NIGHT_YES
 
     private fun dp(context: Context, value: Float): Int =
         (context.resources.displayMetrics.density * value).toInt().coerceAtLeast(1)
+
+    /**
+     * The owning Activity's context. The status pill can sit under an AppBar theme overlay
+     * (fragment_library.xml applies Theme.Sanin.AppBarOverlay to the toolbar), and that overlay
+     * does not carry the accent applied to the Activity at runtime, so colour attrs resolved
+     * from the view context fall back to the Material default (purple). Resolve from the
+     * Activity's own theme instead. No-op when the context already is the Activity.
+     */
+    fun themedContext(context: Context): Context {
+        var ctx: Context = context
+        while (ctx is ContextWrapper) {
+            if (ctx is Activity) return ctx
+            ctx = ctx.baseContext
+        }
+        return context
+    }
 
     /** Capsule radius: large enough that Android clamps it to a rounded end. */
     fun radiusPx(context: Context): Float =
@@ -40,7 +61,8 @@ object GlassPill {
     fun applyContainer(view: View) {
         val context = view.context
         val dark = isNight(context)
-        val accent = context.getThemeColor(com.google.android.material.R.attr.colorPrimary)
+        val accent = themedContext(context)
+            .getThemeColor(com.google.android.material.R.attr.colorPrimary)
         val radius = radiusPx(context)
 
         // Every theme gets the same top-lit capsule: a vertical gradient fill under a
@@ -51,10 +73,13 @@ object GlassPill {
         val rim: IntArray
         if (dark) {
             fill = intArrayOf(0x14FFFFFF, 0x0AFFFFFF, 0x05FFFFFF)
+            // The Compose dark-mode border: a white hairline that is brightest along the top
+            // and fades out entirely by ~3/4 of the way down (the pill's top-lit look).
             rim = intArrayOf(
-                ColorUtils.setAlphaComponent(Color.WHITE, 0x5C),
-                ColorUtils.setAlphaComponent(Color.WHITE, 0x24),
-                ColorUtils.setAlphaComponent(Color.WHITE, 0x05),
+                ColorUtils.setAlphaComponent(Color.WHITE, 0x61),
+                ColorUtils.setAlphaComponent(Color.WHITE, 0x2E),
+                ColorUtils.setAlphaComponent(Color.WHITE, 0x00),
+                ColorUtils.setAlphaComponent(Color.WHITE, 0x00),
             )
         } else {
             fill = intArrayOf(
@@ -62,10 +87,13 @@ object GlassPill {
                 ColorUtils.blendARGB(Color.WHITE, accent, 0.05f),
                 ColorUtils.blendARGB(Color.WHITE, accent, 0.02f),
             )
+            // Light-mode top-lit border: black hairline, brightest along the top and faded out
+            // by ~3/4 of the way down (the dark rim inverted).
             rim = intArrayOf(
-                ColorUtils.setAlphaComponent(accent, 0x52),
-                ColorUtils.setAlphaComponent(accent, 0x2E),
-                ColorUtils.setAlphaComponent(accent, 0x14),
+                ColorUtils.setAlphaComponent(Color.BLACK, 0x61),
+                ColorUtils.setAlphaComponent(Color.BLACK, 0x2E),
+                ColorUtils.setAlphaComponent(Color.BLACK, 0x00),
+                ColorUtils.setAlphaComponent(Color.BLACK, 0x00),
             )
         }
 
@@ -83,7 +111,14 @@ object GlassPill {
     ): Drawable {
         val rimLayer = GradientDrawable().apply {
             orientation = GradientDrawable.Orientation.TOP_BOTTOM
-            setColors(rim)
+            // The top-lit rim uses four stops (bright -> transparent in the top half). The
+            // float-offset overload only exists on API 29+; below that fall back to the
+            // evenly spaced four colours, which reads the same way.
+            if (rim.size == 4 && Build.VERSION.SDK_INT >= 29) {
+                setColors(rim, floatArrayOf(0f, 0.5f, 0.75f, 1f))
+            } else {
+                setColors(rim)
+            }
             cornerRadius = radius
         }
         val fillLayer = GradientDrawable().apply {
@@ -106,7 +141,8 @@ object GlassPill {
     fun applyCell(view: View, selected: Boolean, focused: Boolean) {
         val context = view.context
         val dark = isNight(context)
-        val accent = context.getThemeColor(com.google.android.material.R.attr.colorPrimary)
+        val accent = themedContext(context)
+            .getThemeColor(com.google.android.material.R.attr.colorPrimary)
         val radius = radiusPx(context)
         val gap = dp(context, 2f)
 
@@ -164,7 +200,8 @@ object GlassPill {
      */
     fun indicatorDrawable(context: Context): Drawable {
         val dark = isNight(context)
-        val accent = context.getThemeColor(com.google.android.material.R.attr.colorPrimary)
+        val accent = themedContext(context)
+            .getThemeColor(com.google.android.material.R.attr.colorPrimary)
         val radius = radiusPx(context)
 
         val fillLayer = GradientDrawable(

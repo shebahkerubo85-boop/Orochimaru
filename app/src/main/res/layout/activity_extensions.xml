@@ -92,7 +92,7 @@
             app:tint="?attr/colorOnBackground" />
     </LinearLayout>
 
-    <androidx.compose.ui.platform.ComposeView
+    <ani.sanin.ui.components.LibraryStatusPill
         android:id="@+id/extensionsPill"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

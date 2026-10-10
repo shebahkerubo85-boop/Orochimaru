@@ -48,7 +48,7 @@
                 app:srcCompat="@drawable/ic_expand_more"
                 app:tint="@color/franchise_on_page" />
 
-            <androidx.compose.ui.platform.ComposeView
+            <ani.sanin.ui.components.LibraryStatusPill
                 android:id="@+id/franchiseFilterPill"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"

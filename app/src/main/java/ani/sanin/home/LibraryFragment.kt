@@ -29,7 +29,6 @@ import ani.sanin.media.user.ListViewModel
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.ui.LensButtonBackground
-import ani.sanin.ui.components.LibraryStatusPill
 import ani.sanin.ui.components.LibraryStatusTab
 import ani.sanin.util.FocusEffectUtil
 import kotlinx.coroutines.Dispatchers
@@ -46,6 +45,22 @@ class LibraryFragment : Fragment() {
     private var selectedPillState by mutableIntStateOf(0)
 
     private val model: ListViewModel by activityViewModels()
+
+    /** (Re)builds the status pill from the current tabs/selection. Cheap to call repeatedly. */
+    private fun renderStatusPill() {
+        if (_binding == null) return
+        binding.listTabPill.bind(
+            tabs = tabsState,
+            selectedIndex = selectedPillState,
+            onTabSelected = { idx ->
+                selectedPillState = idx
+                selectedTabIdx = idx
+                if (binding.listViewPager.currentItem != idx) {
+                    binding.listViewPager.setCurrentItem(idx, false)
+                }
+            },
+        )
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -72,24 +87,13 @@ class LibraryFragment : Fragment() {
 
         binding.listAppBar.setBackgroundColor(primaryColor)
 
-        binding.listTabPill.setContent {
-            LibraryStatusPill(
-                tabs = tabsState,
-                selectedIndex = selectedPillState,
-                onTabSelected = { idx ->
-                    selectedPillState = idx
-                    selectedTabIdx = idx
-                    if (binding.listViewPager.currentItem != idx) {
-                        binding.listViewPager.setCurrentItem(idx, false)
-                    }
-                },
-            )
-        }
+        renderStatusPill()
 
         binding.listViewPager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 selectedPillState = position
                 selectedTabIdx = position
+                binding.listTabPill.setSelected(position)
             }
         })
 
@@ -113,6 +117,7 @@ class LibraryFragment : Fragment() {
                     viewPagerAttached = true
                     binding.listViewPager.setCurrentItem(selectedTabIdx, false)
                     selectedPillState = selectedTabIdx
+                    renderStatusPill()
                 }
             }
         }

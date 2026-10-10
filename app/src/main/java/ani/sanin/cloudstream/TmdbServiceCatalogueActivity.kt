@@ -25,7 +25,6 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
-import ani.sanin.ui.components.LibraryStatusPill
 import ani.sanin.ui.components.LibraryStatusTab
 import ani.sanin.ui.LensButtonBackground
 import ani.sanin.util.FocusEffectUtil
@@ -114,7 +113,7 @@ class TmdbServiceCatalogueActivity : AppCompatActivity() {
      *
      * The pill owns the single selection, so there is no index to keep in step with a
      * pair of chips: it reports which entry was tapped and the shelf is reloaded from
-     * there. The initial index is set before [setContent], so restoring a type from the
+     * there. The initial index is set before the pill is bound, so restoring a type from the
      * intent does not kick off a second load.
      *
      * This is the same capsule the library status tabs use, just wrap-content so it
@@ -130,15 +129,13 @@ class TmdbServiceCatalogueActivity : AppCompatActivity() {
         FocusEffectUtil.applyFocusListener(binding.mediaGrid)
         LensButtonBackground.apply(binding.mediaList)
         LensButtonBackground.apply(binding.mediaGrid)
-        binding.catalogueTypePill.setContent {
-            LibraryStatusPill(
-                tabs = pillTabs,
-                selectedIndex = selectedPillIndex,
-                onTabSelected = { index -> selectType(index) },
-                fillWidth = false,
-                compact = false,
-            )
-        }
+        binding.catalogueTypePill.bind(
+            tabs = pillTabs,
+            selectedIndex = selectedPillIndex,
+            onTabSelected = { index -> selectType(index) },
+            fillWidth = false,
+            compact = false,
+        )
     }
 
     private fun selectType(index: Int) {
