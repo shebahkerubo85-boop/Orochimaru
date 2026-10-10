@@ -147,7 +147,7 @@ internal object HlsRemuxer {
                 } else {
                     current.append(ch)
                     if (current.length > 16_384) {
-                        onLine(current.takeLast(16_384))
+                        onLine(current.takeLast(16_384).toString())
                         current.clear()
                     }
                 }
