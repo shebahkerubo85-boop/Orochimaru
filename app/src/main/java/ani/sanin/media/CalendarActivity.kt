@@ -1,6 +1,7 @@
 package ani.sanin.media
 
 import android.content.Intent
+import android.animation.ValueAnimator
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.Gravity
@@ -37,6 +38,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.math.pow
 
 class CalendarActivity : AppCompatActivity() {
 
@@ -49,6 +51,14 @@ class CalendarActivity : AppCompatActivity() {
     private val fullDayFmt = SimpleDateFormat("EEEE, MMMM d", Locale.US)
     private var allCalendarData: Map<String, MutableList<Media>> = emptyMap()
     private val dayShortNames = arrayOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+
+    /** The single travelling selection indicator drawn behind the day cells. */
+    private var indicatorPlaced = false
+    private var indLeft = 0f
+    private var indRight = 0f
+    private var indTop = 0f
+    private var indBottom = 0f
+    private var indicatorAnimator: ValueAnimator? = null
 
     /** Snaps the pill to a whole day after a drag settles, so exactly 7 days stay visible. */
     private val pillSnap = Runnable { snapPill() }
@@ -237,6 +247,7 @@ class CalendarActivity : AppCompatActivity() {
         repaintCells()
         updateDayLabel()
         updateSubtitle()
+        moveIndicatorTo(selectedIndex(), animate = indicatorPlaced)
         scrollPillTo(selectedIndex())
         refreshDisplay(allCalendarData)
     }
@@ -244,7 +255,8 @@ class CalendarActivity : AppCompatActivity() {
     /** One-time build of all 21 day cells; selection repaints, it never rebuilds. */
     private fun buildWeekStrip() {
         val strip = binding.calendarWeekStrip
-        strip.removeAllViews()
+        val row = binding.calendarWeekRow
+        row.removeAllViews()
         val pillWidth = resources.displayMetrics.widthPixels - dpToPx(24) - dpToPx(12)
         val dayW = (pillWidth / VISIBLE_DAYS).coerceAtLeast(dpToPx(34))
 
@@ -277,27 +289,86 @@ class CalendarActivity : AppCompatActivity() {
                 paintDayCell(cell, nameTv, numTv, i)
                 if (focused) scrollPillTo(i)
             }
-            strip.addView(cell)
+            row.addView(cell)
         }
 
         // Dpad: left/right step one day (the pill follows), up to the toggle, down to episodes.
-        for (i in 0 until strip.childCount) {
-            val cell = strip.getChildAt(i)
-            cell.nextFocusLeftId = if (i > 0) strip.getChildAt(i - 1).id else View.NO_ID
-            cell.nextFocusRightId = if (i < strip.childCount - 1) strip.getChildAt(i + 1).id else View.NO_ID
+        for (i in 0 until row.childCount) {
+            val cell = row.getChildAt(i)
+            cell.nextFocusLeftId = if (i > 0) row.getChildAt(i - 1).id else View.NO_ID
+            cell.nextFocusRightId = if (i < row.childCount - 1) row.getChildAt(i + 1).id else View.NO_ID
             cell.nextFocusUpId = R.id.calendarListToggle
             cell.nextFocusDownId = R.id.calendarDayEpisodes
         }
 
+        // The indicator is drawn by the strip behind the cells, so selection travels as one capsule.
+        strip.setIndicator(GlassPill.indicatorDrawable(this))
         repaintCells()
-        strip.post { scrollPillTo(selectedIndex(), smooth = false) }
+        strip.post {
+            moveIndicatorTo(selectedIndex(), animate = false)
+            scrollPillTo(selectedIndex(), smooth = false)
+        }
+    }
+
+    /**
+     * Moves the single selection indicator onto day [index]. When [animate], the leading edge
+     * eases out faster than the trailing edge so the capsule stretches toward the new day and
+     * settles, instead of snapping.
+     */
+    private fun moveIndicatorTo(index: Int, animate: Boolean) {
+        val strip = binding.calendarWeekStrip
+        val row = binding.calendarWeekRow
+        if (index < 0 || index >= row.childCount) return
+        val cell = row.getChildAt(index)
+        if (cell.width == 0 || cell.height == 0) return
+
+        val gap = dpToPx(2)
+        val tl = (cell.left + gap).toFloat()
+        val tr = (cell.right - gap).toFloat()
+        val tt = (cell.top + gap).toFloat()
+        val tb = (cell.bottom - gap).toFloat()
+
+        if (!animate || !indicatorPlaced) {
+            indicatorAnimator?.cancel()
+            indLeft = tl; indRight = tr; indTop = tt; indBottom = tb
+            strip.setIndicatorBounds(tl, tt, tr, tb)
+            indicatorPlaced = true
+            return
+        }
+
+        val startLeft = indLeft
+        val startRight = indRight
+        val startTop = indTop
+        val startBottom = indBottom
+        val movingRight = (tl + tr) / 2f >= (startLeft + startRight) / 2f
+
+        indicatorAnimator?.cancel()
+        indicatorAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 340
+            addUpdateListener { anim ->
+                val t = anim.animatedFraction
+                val lead = 1f - (1f - t).pow(3.2f)
+                val trail = 1f - (1f - t).pow(1.7f)
+                if (movingRight) {
+                    indRight = startRight + (tr - startRight) * lead
+                    indLeft = startLeft + (tl - startLeft) * trail
+                } else {
+                    indLeft = startLeft + (tl - startLeft) * lead
+                    indRight = startRight + (tr - startRight) * trail
+                }
+                indTop = startTop + (tt - startTop) * t
+                indBottom = startBottom + (tb - startBottom) * t
+                strip.setIndicatorBounds(indLeft, indTop, indRight, indBottom)
+            }
+            start()
+        }
     }
 
     /** Repaints every cell for the current selection without touching focus or scroll. */
     private fun repaintCells() {
-        val strip = binding.calendarWeekStrip
-        for (i in 0 until strip.childCount) {
-            val cell = strip.getChildAt(i) as? LinearLayout ?: continue
+        val row = binding.calendarWeekRow
+        for (i in 0 until row.childCount) {
+            val cell = row.getChildAt(i) as? LinearLayout ?: continue
             val nameTv = cell.getChildAt(0) as? TextView ?: continue
             val numTv = cell.getChildAt(1) as? TextView ?: continue
             paintDayCell(cell, nameTv, numTv, i)
@@ -305,8 +376,9 @@ class CalendarActivity : AppCompatActivity() {
     }
 
     /**
-     * Paints one day: the oval indicator when selected, the oval rim when focused-but-unselected,
-     * and nothing otherwise. Today keeps an accent number so it is marked without being selected.
+     * Paints one day: only the oval rim when focused; the selected fill now comes from the
+     * single travelling indicator behind the cells, so a cell never paints a selected fill.
+     * Today keeps an accent number so it is marked without being selected.
      */
     private fun paintDayCell(cell: LinearLayout, nameTv: TextView, numTv: TextView, index: Int) {
         val day = (rangeStart.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, index) }
@@ -317,7 +389,7 @@ class CalendarActivity : AppCompatActivity() {
         val onSurfaceVariant = getThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant)
         val accent = getThemeColor(com.google.android.material.R.attr.colorPrimary)
 
-        GlassPill.applyCell(cell, selected, cell.isFocused)
+        GlassPill.applyCell(cell, selected = false, focused = cell.isFocused)
         nameTv.setTextColor(if (selected) onSurface else onSurfaceVariant)
         numTv.setTextColor(
             when {
@@ -333,9 +405,9 @@ class CalendarActivity : AppCompatActivity() {
     /** Scrolls the pill so [index] sits inside the 7-day window, always on a whole-day boundary. */
     private fun scrollPillTo(index: Int, smooth: Boolean = true) {
         val scroll = binding.calendarWeekScroll
-        val strip = binding.calendarWeekStrip
-        if (strip.childCount == 0) return
-        val cellW = strip.getChildAt(0).width
+        val row = binding.calendarWeekRow
+        if (row.childCount == 0) return
+        val cellW = row.getChildAt(0).width
         if (cellW <= 0) return
         val maxFirst = (TOTAL_DAYS - VISIBLE_DAYS).coerceAtLeast(0)
         val first = (index - VISIBLE_DAYS / 2).coerceIn(0, maxFirst)
@@ -346,9 +418,9 @@ class CalendarActivity : AppCompatActivity() {
     /** Snaps a manual drag back to a whole-day boundary so exactly 7 days stay visible. */
     private fun snapPill() {
         val scroll = binding.calendarWeekScroll
-        val strip = binding.calendarWeekStrip
-        if (strip.childCount == 0) return
-        val cellW = strip.getChildAt(0).width
+        val row = binding.calendarWeekRow
+        if (row.childCount == 0) return
+        val cellW = row.getChildAt(0).width
         if (cellW <= 0) return
         val maxFirst = (TOTAL_DAYS - VISIBLE_DAYS).coerceAtLeast(0)
         val first = Math.round(scroll.scrollX.toFloat() / cellW).coerceIn(0, maxFirst)

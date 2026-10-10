@@ -43,26 +43,57 @@ object GlassPill {
         val accent = context.getThemeColor(com.google.android.material.R.attr.colorPrimary)
         val radius = radiusPx(context)
 
-        val bg = GradientDrawable().apply {
-            cornerRadius = radius
-            if (dark) {
-                setColor(0x0DFFFFFF)
-                setStroke(dp(context, 1f), 0x61FFFFFF)
-            } else {
-                orientation = GradientDrawable.Orientation.TOP_BOTTOM
-                setColors(
-                    intArrayOf(
-                        ColorUtils.blendARGB(Color.WHITE, accent, 0.06f),
-                        ColorUtils.blendARGB(Color.WHITE, accent, 0.035f),
-                        ColorUtils.blendARGB(Color.WHITE, accent, 0.018f),
-                    )
-                )
-                setStroke(dp(context, 1f), ColorUtils.setAlphaComponent(accent, 0x52))
-            }
+        // Every theme gets the same top-lit capsule: a vertical gradient fill under a
+        // vertical gradient rim (rim drawn first, fill inset by the stroke so only the
+        // border shows). Matches the Compose status pill, which previously only had the
+        // gradient in light mode.
+        val fill: IntArray
+        val rim: IntArray
+        if (dark) {
+            fill = intArrayOf(0x14FFFFFF, 0x0AFFFFFF, 0x05FFFFFF)
+            rim = intArrayOf(
+                ColorUtils.setAlphaComponent(Color.WHITE, 0x5C),
+                ColorUtils.setAlphaComponent(Color.WHITE, 0x24),
+                ColorUtils.setAlphaComponent(Color.WHITE, 0x05),
+            )
+        } else {
+            fill = intArrayOf(
+                ColorUtils.blendARGB(Color.WHITE, accent, 0.10f),
+                ColorUtils.blendARGB(Color.WHITE, accent, 0.05f),
+                ColorUtils.blendARGB(Color.WHITE, accent, 0.02f),
+            )
+            rim = intArrayOf(
+                ColorUtils.setAlphaComponent(accent, 0x52),
+                ColorUtils.setAlphaComponent(accent, 0x2E),
+                ColorUtils.setAlphaComponent(accent, 0x14),
+            )
         }
-        view.background = bg
+
+        view.background = capsule(fill, rim, dp(context, 1f), radius)
         view.clipToOutline = true
         view.elevation = if (dark) 0f else 6f * view.resources.displayMetrics.density
+    }
+
+    /** Vertical gradient fill inside a vertical gradient rim, both clamped to a capsule. */
+    private fun capsule(
+        fill: IntArray,
+        rim: IntArray,
+        stroke: Int,
+        radius: Float,
+    ): Drawable {
+        val rimLayer = GradientDrawable().apply {
+            orientation = GradientDrawable.Orientation.TOP_BOTTOM
+            setColors(rim)
+            cornerRadius = radius
+        }
+        val fillLayer = GradientDrawable().apply {
+            orientation = GradientDrawable.Orientation.TOP_BOTTOM
+            setColors(fill)
+            cornerRadius = radius
+        }
+        val layer = LayerDrawable(arrayOf<Drawable>(rimLayer, fillLayer))
+        layer.setLayerInset(1, stroke, stroke, stroke, stroke)
+        return layer
     }
 
     /**
@@ -124,6 +155,49 @@ object GlassPill {
             else -> null
         }
         view.elevation = 0f
+    }
+
+    /**
+     * The selection indicator on its own, for a strip that draws one travelling capsule behind
+     * its cells instead of a fill per cell. Same accent gradient + border as [applyCell]'s
+     * selected state; the caller supplies the gap by insetting the drawn bounds.
+     */
+    fun indicatorDrawable(context: Context): Drawable {
+        val dark = isNight(context)
+        val accent = context.getThemeColor(com.google.android.material.R.attr.colorPrimary)
+        val radius = radiusPx(context)
+
+        val fillLayer = GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            if (dark) {
+                intArrayOf(
+                    ColorUtils.setAlphaComponent(
+                        ColorUtils.blendARGB(accent, Color.WHITE, 0.18f), 0x52
+                    ),
+                    ColorUtils.setAlphaComponent(accent, 0x2E),
+                )
+            } else {
+                intArrayOf(
+                    ColorUtils.setAlphaComponent(accent, 0x33),
+                    ColorUtils.setAlphaComponent(Color.WHITE, 0x66),
+                )
+            },
+        ).apply { cornerRadius = radius }
+
+        val rimLayer = GradientDrawable().apply {
+            setColor(Color.TRANSPARENT)
+            cornerRadius = radius
+            setStroke(
+                dp(context, 1f),
+                if (dark) {
+                    ColorUtils.setAlphaComponent(accent, 0x40)
+                } else {
+                    ColorUtils.setAlphaComponent(accent, 0x47)
+                },
+            )
+        }
+
+        return LayerDrawable(arrayOf<Drawable>(fillLayer, rimLayer))
     }
 
     /** Every layer inset equally, so the oval floats inside its day slot instead of touching it. */

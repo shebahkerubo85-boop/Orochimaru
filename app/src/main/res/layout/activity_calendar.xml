@@ -113,11 +113,17 @@
                 android:overScrollMode="never"
                 android:scrollbars="none">
 
-                <LinearLayout
+                <ani.sanin.ui.GlassStripLayout
                     android:id="@+id/calendarWeekStrip"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal" />
+                    android:layout_height="wrap_content">
+
+                    <LinearLayout
+                        android:id="@+id/calendarWeekRow"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal" />
+                </ani.sanin.ui.GlassStripLayout>
             </HorizontalScrollView>
         </LinearLayout>
 
