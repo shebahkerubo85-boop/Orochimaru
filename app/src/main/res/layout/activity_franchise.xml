@@ -42,6 +42,7 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@android:string/cancel"
                 android:focusable="true"
+                android:nextFocusRight="@id/franchiseFilterPill"
                 android:padding="8dp"
                 android:rotation="90"
                 app:srcCompat="@drawable/ic_expand_more"
@@ -53,7 +54,8 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:layout_weight="1"
-                android:focusable="true" />
+                android:focusable="true"
+                android:nextFocusLeft="@id/franchiseBack" />
 
         </LinearLayout>
 
