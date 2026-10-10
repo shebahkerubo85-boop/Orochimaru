@@ -372,7 +372,7 @@ fun LibraryStatusPill(
                     }
                 }
                 .focusRequester(focusRequester)
-                .onFocusChanged { pillFocused = it.isFocused }
+                .onFocusChanged { pillFocused = it.hasFocus }
                 .focusable()
                 .onKeyEvent { event ->
                     if (event.type != KeyEventType.KeyUp) return@onKeyEvent false
