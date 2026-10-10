@@ -330,8 +330,19 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
                     d.listView?.choiceMode = android.widget.ListView.CHOICE_MODE_NONE
                 }
                 singleChoiceAdapter(picker, adapterPos) { pos ->
+                    // Dialog positions 0, 2 and 3 are structural rows, not sources.
+                    // Guard the mapping before touching either list so an unexpected
+                    // callback position cannot crash the picker on older TV devices.
+                    val idx = when {
+                        pos == 1 -> 0
+                        pos >= 4 -> pos - 3
+                        else -> return@singleChoiceAdapter
+                    }
+                    if (idx !in pluginIds.indices || idx !in pluginNames.indices) {
+                        return@singleChoiceAdapter
+                    }
+
                     picker.setChecked(pos)
-                    val idx = if (pos == 1) 0 else pos - 3
                     PrefManager.setVal(PrefName.ContentSource, pluginIds[idx])
                     pluginNameView.text = pluginNames[idx]
                     (activity as? MainActivity)?.setContentMode("movie_tv")
