@@ -8,6 +8,8 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import ani.sanin.R
 import ani.sanin.databinding.FragmentListBinding
 import ani.sanin.media.Media
 import ani.sanin.media.MediaAdaptor
@@ -42,6 +44,25 @@ class ListFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         val screenWidth = resources.displayMetrics.run { widthPixels / density }
 
+        // The top row of cards hands focus back up to the status pill (DPAD_UP); lower rows keep
+        // the default vertical search so they move between rows. Recomputed as the grid scrolls,
+        // because a card's row changes with its scroll position.
+        binding.listRecyclerView.addOnChildAttachStateChangeListener(
+            object : RecyclerView.OnChildAttachStateChangeListener {
+                override fun onChildViewAttachedToWindow(child: View) {
+                    val span = (binding.listRecyclerView.layoutManager as? GridLayoutManager)?.spanCount ?: 1
+                    val p = binding.listRecyclerView.getChildAdapterPosition(child)
+                    child.nextFocusUpId = if (p in 0 until span) R.id.listTabPill else View.NO_ID
+                }
+                override fun onChildViewDetachedFromWindow(child: View) {}
+            }
+        )
+        binding.listRecyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                refreshTopRowUpIds()
+            }
+        })
+
         fun update() {
             if (grid != null && list != null) {
                 val adapter = MediaAdaptor(if (grid!!) 0 else 1, list!!, requireActivity(), true)
@@ -51,6 +72,7 @@ class ListFragment : Fragment() {
                         if (grid!!) TmdbCards.gridSpan(screenWidth) else 1
                     )
                 binding.listRecyclerView.adapter = adapter
+                refreshTopRowUpIds()
             }
         }
 
@@ -81,6 +103,24 @@ class ListFragment : Fragment() {
     fun randomOptionClick() {
         val adapter = binding.listRecyclerView.adapter as MediaAdaptor
         adapter.randomOptionClick()
+    }
+
+    /** Focuses the first card of this page, so DPAD_DOWN from the pill lands on the grid. */
+    fun focusFirstCard(): Boolean {
+        val rv = _binding?.listRecyclerView ?: return false
+        if (rv.childCount > 0 && rv.getChildAt(0).requestFocus()) return true
+        return rv.requestFocus()
+    }
+
+    /** Points the first-row cards' DPAD_UP at the status pill; clears it for every other row. */
+    private fun refreshTopRowUpIds() {
+        val rv = _binding?.listRecyclerView ?: return
+        val span = (rv.layoutManager as? GridLayoutManager)?.spanCount ?: 1
+        for (i in 0 until rv.childCount) {
+            val child = rv.getChildAt(i)
+            val pos = rv.getChildAdapterPosition(child)
+            child.nextFocusUpId = if (pos in 0 until span) R.id.listTabPill else View.NO_ID
+        }
     }
 
     companion object {

@@ -24,6 +24,7 @@ import ani.sanin.databinding.FragmentLibraryBinding
 import ani.sanin.getThemeColor
 import ani.sanin.isDarkTheme
 import ani.sanin.loadImage
+import ani.sanin.media.user.ListFragment
 import ani.sanin.media.user.ListViewPagerAdapter
 import ani.sanin.media.user.ListViewModel
 import ani.sanin.settings.saving.PrefManager
@@ -40,6 +41,7 @@ class LibraryFragment : Fragment() {
     private val binding get() = _binding!!
     private var selectedTabIdx = 0
     private var viewPagerAttached = false
+    private var lastTopFocusId = R.id.profileButton
 
     private var tabsState by mutableStateOf<List<LibraryStatusTab>>(emptyList())
     private var selectedPillState by mutableIntStateOf(0)
@@ -134,14 +136,6 @@ class LibraryFragment : Fragment() {
             }
         }
 
-        // Fix dpad chain: settings/profile pill/avatar → status pill → pager grid.
-        binding.listSettings.nextFocusDownId = R.id.listTabPill
-        binding.profileButton.nextFocusDownId = R.id.listTabPill
-        binding.listAvatar.nextFocusDownId = R.id.listTabPill
-        binding.listTabPill.nextFocusUpId = R.id.profileButton
-        binding.listTabPill.nextFocusDownId = R.id.listViewPager
-        binding.listViewPager.nextFocusUpId = R.id.listTabPill
-
         // Profile pill: solid fill with the label inverted against it, so it stays the
         // highest-contrast thing in the bar in either theme.
         styleProfilePill()
@@ -195,6 +189,56 @@ class LibraryFragment : Fragment() {
         binding.listAvatar.setOnClickListener {
             FocusEffectUtil.spinOnTouch(binding.listAvatar)
             openProfile()
+        }
+
+        setupFocusChain()
+    }
+
+    /**
+     * Wires the Library screen's D-pad chain:
+     *
+     *   settings <-> profile <-> avatar      (top chrome, left/right)
+     *        any of them  v                   (down)
+     *                     status pill  v      (down)
+     *                     first card  ^       (up returns to the pill, then to where you came from)
+     *
+     * The pill is a view, so its cells are the focus targets; [setExitFocusUp] retargets the up
+     * exit to the top control the user last used.
+     */
+    private fun setupFocusChain() {
+        binding.listSettings.nextFocusRightId = R.id.profileButton
+        binding.listSettings.nextFocusDownId = R.id.listTabPill
+        binding.profileButton.nextFocusLeftId = R.id.listSettings
+        binding.profileButton.nextFocusRightId = R.id.listAvatar
+        binding.profileButton.nextFocusDownId = R.id.listTabPill
+        binding.listAvatar.nextFocusLeftId = R.id.profileButton
+        binding.listAvatar.nextFocusDownId = R.id.listTabPill
+
+        binding.listTabPill.setExitFocusUp(lastTopFocusId)
+        binding.listTabPill.setExitFocusDown(R.id.listViewPager)
+
+        // Remember which top control we came down from so UP on the pill returns there. Chain the
+        // existing (FocusEffectUtil) listener rather than replacing it, so the focus ring stays.
+        for (id in intArrayOf(R.id.listSettings, R.id.profileButton, R.id.listAvatar)) {
+            val control = binding.root.findViewById<View>(id) ?: continue
+            val borderListener = control.onFocusChangeListener
+            control.setOnFocusChangeListener { view, hasFocus ->
+                borderListener?.onFocusChange(view, hasFocus)
+                if (hasFocus) {
+                    lastTopFocusId = id
+                    binding.listTabPill.setExitFocusUp(id)
+                }
+            }
+        }
+
+        // DOWN out of the pill focuses the pager container; bounce it straight onto the first
+        // card so the grid is reachable in one press.
+        binding.listViewPager.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                val page = childFragmentManager
+                    .findFragmentByTag("f${binding.listViewPager.currentItem}") as? ListFragment
+                page?.focusFirstCard()
+            }
         }
     }
 

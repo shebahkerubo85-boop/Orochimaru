@@ -41,7 +41,8 @@ class AnimeExtensionsFragment : Fragment(), SearchQueryHandler {
     private val adapter = RepoCardAdapter(
         onOpen = { repo -> openRepo(repo) },
         onLongClick = { repo -> showRepoShortcuts(repo) },
-        countLabel = "extensions"
+        countLabel = "extensions",
+        onExitTop = { (activity as? ExtensionsActivity)?.focusPill() == true }
     )
     private var repos: List<RepoUi> = emptyList()
     private var query = ""

@@ -117,6 +117,23 @@ class LibraryStatusPill @JvmOverloads constructor(
         moveIndicator(index, animate = indicatorPlaced)
     }
 
+    /**
+     * Sets the DPAD-UP exit target and pushes it onto the tab cells. Hosts use this so the pill
+     * returns focus to whichever top-chrome control the user navigated down from.
+     */
+    fun setExitFocusUp(id: Int) {
+        if (nextFocusUpId == id) return
+        nextFocusUpId = id
+        propagateNextFocus()
+    }
+
+    /** Sets the DPAD-DOWN exit target (usually the content pager) and pushes it onto the cells. */
+    fun setExitFocusDown(id: Int) {
+        if (nextFocusDownId == id) return
+        nextFocusDownId = id
+        propagateNextFocus()
+    }
+
     private fun rebuildTabs() {
         indicatorAnimator?.cancel()
         row.removeAllViews()

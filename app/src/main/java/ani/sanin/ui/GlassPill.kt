@@ -4,11 +4,18 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.res.Configuration
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.ColorFilter
+import android.graphics.LinearGradient
+import android.graphics.Outline
+import android.graphics.Paint
+import android.graphics.PixelFormat
+import android.graphics.RectF
+import android.graphics.Shader
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
-import android.os.Build
 import android.view.View
 import androidx.core.graphics.ColorUtils
 import ani.sanin.getThemeColor
@@ -65,70 +72,47 @@ object GlassPill {
             .getThemeColor(com.google.android.material.R.attr.colorPrimary)
         val radius = radiusPx(context)
 
-        // Every theme gets the same top-lit capsule: a vertical gradient fill under a
-        // vertical gradient rim (rim drawn first, fill inset by the stroke so only the
-        // border shows). Matches the Compose status pill, which previously only had the
-        // gradient in light mode.
+        // Every theme gets the same top-lit capsule: a gradient fill with a rim light stroked
+        // along the outline, brightest along the top edge and fading down the sides.
         val fill: IntArray
-        val rim: IntArray
+        val rimPeak: Int
         if (dark) {
             fill = intArrayOf(0x14FFFFFF, 0x0AFFFFFF, 0x05FFFFFF)
-            // The Compose dark-mode border: a white hairline that is brightest along the top
-            // and fades out entirely by ~3/4 of the way down (the pill's top-lit look).
-            rim = intArrayOf(
-                ColorUtils.setAlphaComponent(Color.WHITE, 0x61),
-                ColorUtils.setAlphaComponent(Color.WHITE, 0x2E),
-                ColorUtils.setAlphaComponent(Color.WHITE, 0x00),
-                ColorUtils.setAlphaComponent(Color.WHITE, 0x00),
-            )
+            // Rim light: white at its brightest along the top, fading down the sides.
+            rimPeak = ColorUtils.setAlphaComponent(Color.WHITE, 0x61)
         } else {
             fill = intArrayOf(
                 ColorUtils.blendARGB(Color.WHITE, accent, 0.10f),
                 ColorUtils.blendARGB(Color.WHITE, accent, 0.05f),
                 ColorUtils.blendARGB(Color.WHITE, accent, 0.02f),
             )
-            // Light-mode top-lit border: black hairline, brightest along the top and faded out
-            // by ~3/4 of the way down (the dark rim inverted).
-            rim = intArrayOf(
-                ColorUtils.setAlphaComponent(Color.BLACK, 0x61),
-                ColorUtils.setAlphaComponent(Color.BLACK, 0x2E),
-                ColorUtils.setAlphaComponent(Color.BLACK, 0x00),
-                ColorUtils.setAlphaComponent(Color.BLACK, 0x00),
-            )
+            // Light-mode rim light: black at its brightest along the top, fading down the sides.
+            rimPeak = ColorUtils.setAlphaComponent(Color.BLACK, 0x61)
         }
 
-        view.background = capsule(fill, rim, dp(context, 1f), radius)
+        view.background = capsule(fill, rimPeak, dp(context, 3f), radius)
         view.clipToOutline = true
         view.elevation = if (dark) 0f else 6f * view.resources.displayMetrics.density
     }
 
-    /** Vertical gradient fill inside a vertical gradient rim, both clamped to a capsule. */
+    /**
+     * A capsule fill with a rim light stroked along its outline: [rimPeak] at the top edge
+     * fading to transparent toward the bottom. Because it is stroked (not a top band) the light
+     * follows the pill's curve onto the sides, and it is [thickness] px thick everywhere.
+     */
     private fun capsule(
         fill: IntArray,
-        rim: IntArray,
-        stroke: Int,
+        rimPeak: Int,
+        thickness: Int,
         radius: Float,
     ): Drawable {
-        val rimLayer = GradientDrawable().apply {
-            orientation = GradientDrawable.Orientation.TOP_BOTTOM
-            // The top-lit rim uses four stops (bright -> transparent in the top half). The
-            // float-offset overload only exists on API 29+; below that fall back to the
-            // evenly spaced four colours, which reads the same way.
-            if (rim.size == 4 && Build.VERSION.SDK_INT >= 29) {
-                setColors(rim, floatArrayOf(0f, 0.5f, 0.75f, 1f))
-            } else {
-                setColors(rim)
-            }
-            cornerRadius = radius
-        }
         val fillLayer = GradientDrawable().apply {
             orientation = GradientDrawable.Orientation.TOP_BOTTOM
             setColors(fill)
             cornerRadius = radius
         }
-        val layer = LayerDrawable(arrayOf<Drawable>(rimLayer, fillLayer))
-        layer.setLayerInset(1, stroke, stroke, stroke, stroke)
-        return layer
+        val rimLayer = TopLitRimDrawable(rimPeak, thickness.toFloat(), radius)
+        return LayerDrawable(arrayOf<Drawable>(fillLayer, rimLayer))
     }
 
     /**
@@ -242,5 +226,57 @@ object GlassPill {
         val layer = LayerDrawable(layers as Array<Drawable>)
         for (i in layers.indices) layer.setLayerInset(i, inset, inset, inset, inset)
         return layer
+    }
+}
+
+/**
+ * Strokes a rounded-rect (capsule) outline with a vertical gradient: [peak] along the top edge
+ * fading to transparent toward the bottom. Because it strokes the path it follows the curve onto
+ * the sides, [thicknessPx] px thick all the way round. Used for the pill's top-lit rim.
+ */
+private class TopLitRimDrawable(
+    private val peak: Int,
+    private val thicknessPx: Float,
+    private val radius: Float,
+) : Drawable() {
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = thicknessPx
+    }
+    private val rect = RectF()
+
+    override fun draw(canvas: Canvas) {
+        val b = bounds
+        val inset = thicknessPx / 2f
+        rect.set(b.left + inset, b.top + inset, b.right - inset, b.bottom - inset)
+        if (rect.width() <= 0f || rect.height() <= 0f) return
+        paint.shader = LinearGradient(
+            0f,
+            b.top.toFloat(),
+            0f,
+            b.bottom.toFloat(),
+            peak,
+            Color.TRANSPARENT,
+            Shader.TileMode.CLAMP,
+        )
+        canvas.drawRoundRect(rect, radius, radius, paint)
+    }
+
+    override fun setAlpha(alpha: Int) {
+        paint.alpha = alpha
+    }
+
+    override fun setColorFilter(colorFilter: ColorFilter?) {
+        paint.colorFilter = colorFilter
+    }
+
+    override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
+
+    override fun getOutline(outline: Outline) {
+        if (bounds.isEmpty) {
+            outline.setEmpty()
+        } else {
+            outline.setRoundRect(bounds, radius)
+        }
     }
 }

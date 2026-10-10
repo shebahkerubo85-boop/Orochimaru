@@ -16,6 +16,7 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.databinding.FragmentExtensionsBinding
 import ani.sanin.settings.RepoCardAdapter
 import ani.sanin.settings.RepoUi
+import ani.sanin.settings.ExtensionsActivity
 import ani.sanin.settings.githubOwnerAvatar
 import ani.sanin.settings.SearchQueryHandler
 import ani.sanin.util.customAlertDialog
@@ -64,7 +65,8 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
 
     private val adapter = RepoCardAdapter(
         onOpen = { repo -> openRepo(repo) },
-        onLongClick = { repo -> showRepoShortcuts(repo) }
+        onLongClick = { repo -> showRepoShortcuts(repo) },
+        onExitTop = { (activity as? ExtensionsActivity)?.focusPill() == true }
     )
     private var repos: List<RepoUi> = emptyList()
     private var query = ""

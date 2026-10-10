@@ -80,7 +80,7 @@
                     android:contentDescription="Settings"
                     android:focusable="true"
                     android:nextFocusRight="@id/profileButton"
-                    android:nextFocusDown="@id/listTabLayout"
+                    android:nextFocusDown="@id/listTabPill"
                     app:srcCompat="@drawable/ic_baseline_tune_24"
                     app:tint="?attr/colorOnBackground" />
 
@@ -99,7 +99,7 @@
                     android:fontFamily="@font/poppins_semi_bold"
                     android:gravity="center"
                     android:maxLines="1"
-                    android:nextFocusDown="@id/listTabLayout"
+                    android:nextFocusDown="@id/listTabPill"
                     android:nextFocusLeft="@id/listSettings"
                     android:nextFocusRight="@id/listAvatar"
                     android:text="My Profile"
@@ -114,7 +114,7 @@
                     android:contentDescription="Profile"
                     android:focusable="true"
                     android:nextFocusLeft="@id/profileButton"
-                    android:nextFocusDown="@id/listTabLayout"
+                    android:nextFocusDown="@id/listTabPill"
                     android:padding="2dp"
                     android:scaleType="centerCrop"
                     app:srcCompat="@drawable/ic_round_person_24"
@@ -144,7 +144,7 @@
         android:layout_height="match_parent"
         android:focusable="true"
         android:focusableInTouchMode="true"
-        android:nextFocusUp="@id/listTabLayout"
+        android:nextFocusUp="@id/listTabPill"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

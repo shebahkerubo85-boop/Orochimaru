@@ -3,6 +3,7 @@ package ani.sanin.settings
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -50,7 +51,8 @@ fun githubOwnerAvatar(repoUrl: String): String? {
 class RepoCardAdapter(
     private val onOpen: (RepoUi) -> Unit,
     private val onLongClick: (RepoUi) -> Unit,
-    private val countLabel: String = "plugins"
+    private val countLabel: String = "plugins",
+    private val onExitTop: (() -> Boolean)? = null
 ) : ListAdapter<RepoUi, RepoCardAdapter.VH>(DIFF) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -159,12 +161,15 @@ class RepoCardAdapter(
             setOnClickListener { onOpen(item) }
             isFocusable = true
             val onPrimary = ctx.getThemeColor(com.google.android.material.R.attr.colorOnPrimary)
-            // Unfocused: solid white pill with dark text; focused: primary fill.
+            val borderWidth = (3f * resources.displayMetrics.density).toInt()
+            // Unfocused: solid white pill with dark text; focused: primary fill plus a round
+            // focus border (a stroke that follows the pill's corners).
             fun styleBrowse(focused: Boolean) {
                 background = android.graphics.drawable.GradientDrawable().apply {
                     shape = android.graphics.drawable.GradientDrawable.RECTANGLE
                     setColor(if (focused) ctx.getThemeColor(com.google.android.material.R.attr.colorPrimary) else Color.WHITE)
                     cornerRadius = 24f * resources.displayMetrics.density
+                    if (focused) setStroke(borderWidth, onPrimary)
                 }
                 setTextColor(if (focused) onPrimary else Color.BLACK)
             }
@@ -172,19 +177,42 @@ class RepoCardAdapter(
             setOnFocusChangeListener { _, hasFocus ->
                 styleBrowse(hasFocus)
             }
+            // Explicit adjacency chain so DPAD moves card-to-card with no gaps: the pill's
+            // DPAD_DOWN lands here, and each Browse hands off to the next/previous one.
+            setOnKeyListener { _, keyCode, event ->
+                if (event.action != KeyEvent.ACTION_DOWN) {
+                    false
+                } else {
+                    when (keyCode) {
+                        KeyEvent.KEYCODE_DPAD_DOWN -> moveBrowseFocus(holder, 1)
+                        KeyEvent.KEYCODE_DPAD_UP -> moveBrowseFocus(holder, -1)
+                        else -> false
+                    }
+                }
+            }
         }
 
         // Card: not focusable, only long-press
         holder.binding.repoCardRoot.isFocusable = false
         holder.binding.repoCardRoot.setOnLongClickListener { onLongClick(item); true }
+    }
 
-        if (position == itemCount - 1) {
-            holder.binding.repoBrowseButton.nextFocusDownId = ani.sanin.R.id.searchViewText
-        } else {
-            // Chain Browse buttons directly so DPAD_DOWN skips card content
-            holder.binding.repoBrowseButton.nextFocusDownId = ani.sanin.R.id.repoBrowseButton
-        }
-        holder.binding.repoBrowseButton.nextFocusUpId = ani.sanin.R.id.repoBrowseButton
+    /**
+     * Moves D-pad focus [delta] cards away to that card's Browse button, so the chain runs
+     * pill -> Browse -> Browse ... and back with no gaps. Returns false at either end (the first
+     * card hands the up press to [onExitTop], typically the pill) or when the neighbour is not
+     * laid out yet, so the default focus search and its auto-scrolling take over.
+     */
+    private fun moveBrowseFocus(holder: VH, delta: Int): Boolean {
+        val rv = holder.itemView.parent as? RecyclerView ?: return false
+        val current = holder.absoluteAdapterPosition
+        if (current == RecyclerView.NO_POSITION) return false
+        val target = current + delta
+        if (target < 0) return onExitTop?.invoke() ?: false
+        if (target >= itemCount) return false
+        val vh = rv.findViewHolderForAdapterPosition(target) as? VH ?: return false
+        if (vh.itemView.parent == null) return false
+        return vh.binding.repoBrowseButton.requestFocus()
     }
 
     private fun applyGradient(view: View, topColor: Int, bottomColor: Int) {

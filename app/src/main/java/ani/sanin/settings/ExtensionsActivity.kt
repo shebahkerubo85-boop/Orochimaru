@@ -355,6 +355,9 @@ class ExtensionsActivity : AppCompatActivity() {
         )
     }
 
+    /** Focus the status pill (the repo cards' DPAD_UP exit target). */
+    fun focusPill(): Boolean = binding.extensionsPill.requestFocus()
+
     /** Focus the first Browse button in the current ViewPager page. */
     private fun focusFirstBrowseButton(viewPager: ViewPager2, attempt: Int = 0) {
         viewPager.postDelayed({
