@@ -5582,13 +5582,15 @@ class ExoplayerView :
                                 else -> null
                             }
                             if (rv != null) {
-                                var v: View? = focused
-                                var pos = RecyclerView.NO_POSITION
-                                while (v != null && v != rv) {
-                                    pos = rv.getChildAdapterPosition(v)
-                                    if (pos != RecyclerView.NO_POSITION) break
-                                    v = (v.parent as? View)
+                                // getChildAdapterPosition needs a direct child of the RecyclerView
+                                // (it casts the child's LayoutParams), so walk up to the item view
+                                // first — focus may sit on a nested view inside a card.
+                                var item: View? = focused
+                                while (item != null && item.parent !== rv) {
+                                    item = item.parent as? View
                                 }
+                                val pos = item?.let { rv.getChildAdapterPosition(it) }
+                                    ?: RecyclerView.NO_POSITION
                                 if (pos != RecyclerView.NO_POSITION) {
                                     val last = (rv.adapter?.itemCount ?: 0) - 1
                                     if (pos == last) {

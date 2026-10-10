@@ -767,7 +767,12 @@ class SelectorDialogFragment : DialogFragment() {
                         var p: android.view.ViewParent? = v.parent
                         while (p != null) {
                             if (p is RecyclerView && p.id == R.id.selectorRecyclerView) {
-                                val outerChild = v.parent?.parent?.parent as? View
+                                // Walk up to the direct child of the outer RecyclerView so
+                                // getChildAdapterPosition always sees RecyclerView.LayoutParams.
+                                var outerChild: android.view.View? = v
+                                while (outerChild != null && outerChild.parent !== p) {
+                                    outerChild = outerChild.parent as? android.view.View
+                                }
                                 if (outerChild != null) {
                                     val outerPos = p.getChildAdapterPosition(outerChild)
                                     if (outerPos != RecyclerView.NO_POSITION) {

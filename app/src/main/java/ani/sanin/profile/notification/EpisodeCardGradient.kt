@@ -29,7 +29,10 @@ object EpisodeCardGradient {
             GradientDrawable.Orientation.LEFT_RIGHT,
             colors
         )
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+        // The color-offset overload setColors(int[], float[]) was added in API 29 (Q), not N.
+        // On older devices fall back to the constructor's evenly spaced gradient to avoid
+        // NoSuchMethodError.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
             drawable.setColors(colors, floatArrayOf(0f, 0.42f, 1f))
         }
         return drawable

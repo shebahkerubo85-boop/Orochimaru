@@ -89,13 +89,15 @@ class ExtensionsActivity : AppCompatActivity() {
                     v = parent as? android.view.View
                 }
                 if (rv != null) {
-                    var node: android.view.View? = focused
-                    var pos = androidx.recyclerview.widget.RecyclerView.NO_POSITION
-                    while (node != null && node != rv) {
-                        pos = rv.getChildAdapterPosition(node)
-                        if (pos != androidx.recyclerview.widget.RecyclerView.NO_POSITION) break
-                        node = (node.parent as? android.view.View)
+                    // getChildAdapterPosition needs a direct child of the RecyclerView (it casts
+                    // the child's LayoutParams to RecyclerView.LayoutParams), so walk up to the
+                    // item view first — focus may sit on a nested view inside a card.
+                    var item: android.view.View? = focused
+                    while (item != null && item.parent !== rv) {
+                        item = item.parent as? android.view.View
                     }
+                    val pos = item?.let { rv.getChildAdapterPosition(it) }
+                        ?: androidx.recyclerview.widget.RecyclerView.NO_POSITION
                     if (pos != androidx.recyclerview.widget.RecyclerView.NO_POSITION) {
                         val last = (rv.adapter?.itemCount ?: 0) - 1
                         if (pos == last) {
