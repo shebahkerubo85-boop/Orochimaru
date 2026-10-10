@@ -68,13 +68,14 @@ android {
             isDefault = true
         }
 
-        // Phone builds bundle ffmpeg (via ffmpeg-kit) for HLS downloads, which requires API 24.
+        // HLS downloads use a downloadable FFmpeg engine instead of a bundled one; the phone
+        // flavor keeps API 24 from the old bundled engine.
         create("phone") {
             dimension = "device"
             isDefault = true
             minSdk = 24
         }
-        // TV builds skip ffmpeg entirely, so they keep the original API 23 floor.
+        // TV builds have no HLS FFmpeg engine, so they keep the original API 23 floor.
         create("tv") {
             dimension = "device"
             minSdk = 23
@@ -127,17 +128,8 @@ android {
 
     packaging {
         jniLibs {
-            // The phone build no longer pulls nextlib's FFmpeg copies (see dependencies), so the
-            // FFmpeg libs here come solely from ffmpeg-kit; the picks are kept as a safety net in
-            // case another dependency starts shipping them. libc++_shared is shared across several
-            // native deps and still needs picking.
-            pickFirsts += listOf(
-                "lib/**/libavcodec.so",
-                "lib/**/libavutil.so",
-                "lib/**/libswresample.so",
-                "lib/**/libswscale.so",
-                "lib/**/libc++_shared.so",
-            )
+            // libc++_shared is shared across several native deps and still needs picking.
+            pickFirsts += "lib/**/libc++_shared.so"
         }
     }
 
@@ -213,11 +205,6 @@ dependencies {
     implementation(libs.paging)
     implementation(libs.bundles.okhttp)
     implementation(libs.okio)
-    // ffmpeg-kit is only bundled in phone builds; the tv build has no ffmpeg at all.
-    add("phoneImplementation", libs.ffmpeg.kit.get())
-    add("phoneImplementation", libs.smart.exception.java.get())
-
-
     // CloudStream .cs3 plugin runtime (vendored com.lagradost.cloudstream3 library)
     implementation(libs.jackson.module.kotlin)
     implementation(libs.kotlinx.atomicfu)
@@ -264,11 +251,8 @@ dependencies {
     implementation(libs.fragment.ktx)
     implementation(libs.json)
     implementation(libs.tvprovider)
-    // nextlib-media3ext bundles its own FFmpeg 6.0 (libavcodec/libavutil/libswresample/libswscale),
-    // which collides with ffmpeg-kit's copies in the phone build. The duplicate libavutil has no
-    // av_set_saf_open symbol, so whichever copy won the jni merge broke ffmpeg-kit at load time.
-    // Phone uses a repackaged nextlib (libs/, same classes, FFmpeg libs removed) so ffmpeg-kit's
-    // copies win and nextlib's libmedia3ext.so links against them. tv keeps the stock artifact.
+    // Phone uses a repackaged nextlib with its FFmpeg copies removed. HLS remuxing now uses the
+    // optional downloadable standalone FFmpeg executable instead. TV keeps the stock artifact.
     add("tvImplementation", libs.nextlib.media3ext.get())
     add("phoneImplementation", files("libs/nextlib-media3ext-1.9.3-0.12.0-noffmpeg.aar"))
     // nextlib's JNI (libmedia3ext.so) links against media3-exoplayer, which the bundle already

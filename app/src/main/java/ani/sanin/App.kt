@@ -56,6 +56,7 @@ class App : Application() {
         Thread.setDefaultUncaughtExceptionHandler(FinalExceptionHandler())
         PrefManager.init(this)
         ani.sanin.download.DownloadManager.init(this)
+        ani.sanin.download.FfmpegRuntime.init(this)
 
         val crashlytics =
             ani.sanin.connections.crashlytics.CrashlyticsFactory.createCrashlytics()

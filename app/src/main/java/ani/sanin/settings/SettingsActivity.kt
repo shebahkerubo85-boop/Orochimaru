@@ -192,12 +192,12 @@ class SettingsActivity : AppCompatActivity() {
         ),
         SettingsSection(
             title = "Utilities",
-            desc = "Add-ons, cache & diagnostics",
+            desc = "Packs, cache & diagnostics",
             iconRes = R.drawable.ic_settings_tools,
             entries = listOf(
                 SectionEntry(
                     title = "Management",
-                    desc = "Add-ons, cache & diagnostics",
+                    desc = "Packs, cache & diagnostics",
                     iconRes = R.drawable.ic_settings_tools,
                     onClick = { startActivity(Intent(this, SettingsExtrasActivity::class.java)) },
                 ),

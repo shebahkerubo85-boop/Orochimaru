@@ -1,0 +1,8 @@
+name = "sanin-ffmpeg"
+main = "ffmpeg.js"
+compatibility_date = "2026-10-09"
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "FFMPEG_KV"
+id = "2542959da8864f33917de9cc9ece3815"

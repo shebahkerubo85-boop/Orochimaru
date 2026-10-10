@@ -265,6 +265,22 @@
     <string name="download_clear_all">Delete all downloads</string>
     <string name="download_clear_all_msg">Every downloaded episode will be removed from storage.</string>
     <string name="downloads_cleared">All downloads deleted</string>
+    <string name="packs">Packs</string>
+    <string name="packs_desc">Sanin features packs</string>
+    <string name="pack_ffmpeg">FFmpeg</string>
+    <string name="pack_ffmpeg_install_desc">Install download engine to unlock downloading</string>
+    <string name="pack_ffmpeg_downloading">Downloading engine</string>
+    <string name="pack_ffmpeg_progress">Downloading • %1$d%%</string>
+    <string name="pack_ffmpeg_progress_unknown">Downloading…</string>
+    <string name="pack_ffmpeg_installed">FFmpeg engine</string>
+    <string name="pack_ffmpeg_installed_desc">Installed • %1$s • Tap to remove</string>
+    <string name="pack_ffmpeg_failed">Install failed • %1$s • Tap to retry</string>
+    <string name="pack_ffmpeg_remove_title">Remove download engine</string>
+    <string name="pack_ffmpeg_remove_message">Remove FFmpeg from app storage? HLS downloads will stop until you install it again.</string>
+    <string name="pack_ffmpeg_removed">Download engine removed</string>
+    <string name="pack_ffmpeg_started">Download engine install started</string>
+    <string name="pack_ffmpeg_busy">Download engine is already downloading</string>
+    <string name="pack_ffmpeg_unsupported">Download engine is not supported on this device</string>
     <string name="download_pause">Pause</string>
     <string name="download_pause_all">Pause all</string>
     <string name="download_resume_all">Resume all</string>
@@ -606,7 +622,7 @@
     <!-- Same number, for a screen reader: "+3" alone reads as arithmetic. -->
     <string name="franchise_more_entries_desc">%1$d more entries, open the franchise screen</string>
     <string name="accounts">Accounts</string>
-    <string name="addons">Add-ons</string>
+    <string name="addons">Packs</string>
     <string name="myanimelist">MyAnimeList</string>
     <string name="login_with_anilist">Login with Anilist!</string>
     <string name="anilist">Anilist</string>
@@ -1197,7 +1213,7 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="anime_desc">Choose how you watch</string>
     <string name="manga_desc">Choose how you read</string>
     <string name="extensions_desc">Manage your reliable repositories</string>
-    <string name="addons_desc">Get more features out of your app</string>
+    <string name="addons_desc">Sanin features packs</string>
     <string name="alsettings_desc">Change your AniList settings</string>
     <string name="airing_notifications">Airing Anime notifications</string>
     <string name="airing_notifications_desc">Get notified whenever a new episode drops</string>

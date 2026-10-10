@@ -31,7 +31,7 @@ class SettingsExtrasActivity : AppCompatActivity() {
         }
         binding.subscreenBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
         binding.subscreenTitle.text = "Extensions"
-        binding.subscreenSubtitle.text = "Sources, add-ons & diagnostics"
+        binding.subscreenSubtitle.text = "Sources, packs & diagnostics"
         binding.subscreenIcon.setImageResource(R.drawable.ic_settings_tools)
 
         SubscreenBuilder.build(this, binding.subscreenContent, listOf(
@@ -43,8 +43,8 @@ class SettingsExtrasActivity : AppCompatActivity() {
                     onClick = { startActivity(Intent(this, SettingsExtensionsActivity::class.java)) },
                 ),
                 SubscreenBuilder.Entry(
-                    title = "Add-ons",
-                    desc = "Plugins & community extensions",
+                    title = "Packs",
+                    desc = "Sanin features packs",
                     iconRes = R.drawable.ic_widgets,
                     onClick = { startActivity(Intent(this, SettingsAddonActivity::class.java)) },
                 ),

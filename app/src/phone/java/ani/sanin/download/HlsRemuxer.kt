@@ -1,28 +1,25 @@
 package ani.sanin.download
 
 import android.util.Log
-import com.arthenica.ffmpegkit.FFmpegKit
-import com.arthenica.ffmpegkit.FFmpegKitConfig
-import com.arthenica.ffmpegkit.LogCallback
-import com.arthenica.ffmpegkit.LogRedirectionStrategy
-import com.arthenica.ffmpegkit.StatisticsCallback
-import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 /**
- * Phone-only HLS remuxer backed by ffmpeg-kit (FFmpeg 6.0).
+ * Phone-only HLS remuxer backed by the user-installed standalone FFmpeg executable.
  *
- * The playlist is stitched/remuxed with `-c copy` (no transcoding) so downloads are bound only
- * by network speed and the resulting file is a single playable container. ffmpeg follows the
- * playlist itself, so no proxy is involved.
+ * The playlist is stitched/remuxed with `-c copy` (no transcoding) so downloads are bound only by
+ * network speed and the resulting file is a single playable container. FFmpeg follows the playlist
+ * itself, so no proxy is involved.
  */
 internal object HlsRemuxer {
 
     private const val TAG = "HlsRemuxer"
 
     private val durationRegex = Regex("^(\\d+):(\\d{2}):(\\d{2}(?:\\.\\d+)?)")
+    private val sizeRegex = Regex("""size=\s*(\d+)\s*kB""", RegexOption.IGNORE_CASE)
 
     suspend fun remux(
         item: DownloadItem,
@@ -30,88 +27,133 @@ internal object HlsRemuxer {
         onProgress: (downloaded: Long, total: Long, fraction: Float) -> Unit,
         isActive: () -> Boolean,
     ) {
+        val ffmpeg = FfmpegRuntime.requireBinary()
         Log.i(TAG, "remux start url=${item.url} headers=${item.headers.size} out=${temp.absolutePath}")
-        try {
-            FFmpegKitConfig.setLogRedirectionStrategy(LogRedirectionStrategy.NEVER_PRINT_LOGS)
-        } catch (t: Throwable) {
-            // Almost always a native load failure (e.g. a missing symbol in libffmpegkit.so).
-            Log.e(TAG, "ffmpeg-kit failed to initialize", t)
-            throw DownloadException("ffmpeg-kit failed to load: ${t.message}")
-        }
 
         val headerString = item.headers.entries.joinToString("") { "${it.key}: ${it.value}\r\n" }
-        val args = mutableListOf<String>()
-        args += "-y"
-        if (headerString.isNotBlank()) {
-            args += "-headers"
-            args += headerString
+        val args = mutableListOf(
+            ffmpeg.absolutePath,
+            "-hide_banner",
+            "-nostdin",
+            "-loglevel",
+            "info",
+            "-y",
+        )
+        FfmpegRuntime.certificateBundle()?.let { bundle ->
+            args += listOf("-ca_file", bundle.absolutePath)
         }
-        args += "-i"
-        args += item.url
-        args += "-c"
-        args += "copy"
-        args += temp.absolutePath
+        if (headerString.isNotBlank()) {
+            args += listOf("-headers", headerString)
+        }
+        args += listOf(
+            "-i",
+            item.url,
+            "-c",
+            "copy",
+            "-f",
+            "matroska",
+            temp.absolutePath,
+        )
         Log.d(TAG, "ffmpeg args: ${args.joinToString(" ")}")
 
-        // ffmpeg prints the source duration during probing; capture it so HLS progress can be a
-        // real percentage (Statistics.time is the processed timestamp, not a byte total).
-        var totalDurationMs = 0L
-        val logCallback = LogCallback { ffLog ->
-            Log.v(TAG, ffLog.message)
-            if (totalDurationMs <= 0L) {
-                val msg = ffLog.message
-                if (msg != null) {
-                    val idx = msg.indexOf("Duration:")
-                    if (idx >= 0) {
-                        parseDurationMs(msg.substring(idx + "Duration:".length))?.let {
+        withContext(Dispatchers.IO) {
+            val process = try {
+                ProcessBuilder(args).redirectErrorStream(true).start()
+            } catch (e: Exception) {
+                throw DownloadException("ffmpeg could not start: ${e.message}")
+            }
+
+            // The reader blocks on the pipe, so a child job destroys the process when the download
+            // is paused/cancelled; that closes the pipe and lets the reader finish.
+            val watchdog = launch {
+                try {
+                    while (true) delay(200L)
+                } finally {
+                    if (process.isAlive) process.destroy()
+                }
+            }
+
+            var totalDurationMs = 0L
+            val tailLog = StringBuilder()
+            try {
+                readLines(process) { line ->
+                    if (tailLog.length < 4_000) {
+                        tailLog.append(line).append('\n')
+                    } else {
+                        tailLog.delete(0, tailLog.length - 3_000)
+                        tailLog.append(line).append('\n')
+                    }
+
+                    if (totalDurationMs <= 0L && line.contains("Duration:")) {
+                        parseDurationMs(line.substringAfter("Duration:"))?.let {
                             totalDurationMs = it
                             Log.i(TAG, "hls duration detected: ${it}ms")
                         }
                     }
+
+                    val size = sizeRegex.find(line)
+                        ?.groupValues
+                        ?.get(1)
+                        ?.toLongOrNull()
+                        ?.times(1024L)
+                    val timeIndex = line.indexOf("time=")
+                    val timeMs = if (timeIndex >= 0) {
+                        parseDurationMs(line.substring(timeIndex + "time=".length))
+                    } else {
+                        null
+                    }
+                    when {
+                        timeMs != null && totalDurationMs > 0L -> {
+                            val fraction = (timeMs.toFloat() / totalDurationMs).coerceIn(0f, 1f)
+                            onProgress(size ?: 0L, 0L, fraction)
+                        }
+
+                        size != null -> onProgress(size, 0L, -1f)
+                    }
+                }
+
+                val exit = process.waitFor()
+                if (!isActive()) throw DownloadCancelledException()
+                if (exit != 0) {
+                    val reason = tailLog.toString().trim().takeLast(500)
+                    Log.e(TAG, "ffmpeg failed ($exit): $reason")
+                    throw DownloadException("ffmpeg failed ($exit): $reason")
+                }
+                if (!temp.isFile || temp.length() <= 0L) {
+                    throw DownloadException("ffmpeg produced an empty file")
+                }
+                Log.i(TAG, "ffmpeg output=${temp.length()} bytes")
+            } finally {
+                watchdog.cancel()
+                if (process.isAlive) process.destroyForcibly()
+            }
+        }
+    }
+
+    private fun readLines(process: Process, onLine: (String) -> Unit) {
+        val reader = process.inputStream.bufferedReader()
+        val current = StringBuilder()
+        val buffer = CharArray(2_048)
+        while (true) {
+            val read = reader.read(buffer)
+            if (read < 0) break
+            for (index in 0 until read) {
+                val ch = buffer[index]
+                if (ch == '\r' || ch == '\n') {
+                    if (current.isNotEmpty()) {
+                        onLine(current.toString())
+                        current.clear()
+                    }
+                } else {
+                    current.append(ch)
+                    if (current.length > 16_384) {
+                        onLine(current.takeLast(16_384))
+                        current.clear()
+                    }
                 }
             }
         }
-        val statCallback = StatisticsCallback { s ->
-            val fraction = if (totalDurationMs > 0L) {
-                (s.time.toFloat() / totalDurationMs).coerceIn(0f, 1f)
-            } else {
-                -1f
-            }
-            if (s.size > 0L || fraction > 0f) onProgress(s.size.toLong(), 0L, fraction)
-        }
-
-        suspendCancellableCoroutine<Unit> { continuation ->
-            val startedAt = System.currentTimeMillis()
-            val session = FFmpegKit.executeWithArgumentsAsync(
-                args.toTypedArray(),
-                { ffmpegSession ->
-                    if (!continuation.isActive) return@executeWithArgumentsAsync
-                    if (ffmpegSession.returnCode?.isValueSuccess == true) {
-                        Log.i(
-                            TAG,
-                            "ffmpeg done in ${System.currentTimeMillis() - startedAt}ms, " +
-                                "output=${temp.length()} bytes",
-                        )
-                        continuation.resume(Unit)
-                    } else {
-                        val reason = ffmpegSession.failStackTrace?.takeIf { it.isNotBlank() }
-                            ?: ffmpegSession.allLogsAsString?.trim()?.takeLast(500)
-                            ?: "unknown error"
-                        Log.e(TAG, "ffmpeg failed (${ffmpegSession.returnCode}): $reason")
-                        continuation.resumeWithException(
-                            DownloadException("ffmpeg failed (${ffmpegSession.returnCode}): $reason"),
-                        )
-                    }
-                },
-                logCallback,
-                statCallback,
-            )
-            continuation.invokeOnCancellation { session.cancel() }
-            if (!isActive()) {
-                session.cancel()
-                continuation.cancel()
-            }
-        }
+        if (current.isNotEmpty()) onLine(current.toString())
     }
 
     private fun parseDurationMs(raw: String): Long? {
