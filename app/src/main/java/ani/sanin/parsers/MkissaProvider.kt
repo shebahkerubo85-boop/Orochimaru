@@ -150,8 +150,8 @@ class MkissaProvider : NativeAnimeParser() {
         sEpisode: SEpisode
     ): List<VideoServer> = withContext(Dispatchers.IO) {
         val showId = extra?.get("showId") ?: return@withContext emptyList()
-        val episodeString = extra["episodeString"] ?: episodeLink
-        val audio = extra["audio"] ?: if (selectDub) "dub" else "sub"
+        val episodeString = extra?.get("episodeString") ?: episodeLink
+        val audio = extra?.get("audio") ?: if (selectDub) "dub" else "sub"
         try {
             val root = graphql(buildJsonObject {
                 put("query", EPISODE_QUERY)
@@ -217,8 +217,8 @@ class MkissaProvider : NativeAnimeParser() {
 
     companion object {
         private const val SEARCH_QUERY = """
-            query ($search: SearchInput!) {
-              shows(search: $search) {
+            query (${'$'}search: SearchInput!) {
+              shows(search: ${'$'}search) {
                 edges {
                   _id
                   name
@@ -232,8 +232,8 @@ class MkissaProvider : NativeAnimeParser() {
         """
 
         private const val SERIES_QUERY = """
-            query ($showId: String!) {
-              show(_id: $showId) {
+            query (${'$'}showId: String!) {
+              show(_id: ${'$'}showId) {
                 _id
                 availableEpisodesDetail {
                   sub
@@ -244,8 +244,8 @@ class MkissaProvider : NativeAnimeParser() {
         """
 
         private const val EPISODE_QUERY = """
-            query ($showId: String!, $translationType: String!, $episodeString: String!) {
-              episode(showId: $showId, translationType: $translationType, episodeString: $episodeString) {
+            query (${'$'}showId: String!, ${'$'}translationType: String!, ${'$'}episodeString: String!) {
+              episode(showId: ${'$'}showId, translationType: ${'$'}translationType, episodeString: ${'$'}episodeString) {
                 sourceUrls {
                   sourceUrl
                   type
