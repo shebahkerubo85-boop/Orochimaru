@@ -10,6 +10,7 @@ import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -215,7 +216,7 @@ class LibraryStatusPill @JvmOverloads constructor(
     }
 
     private fun paintCell(index: Int) {
-        val cell = row.getChildAt(index) ?: return
+        val cell = row.getChildAt(index) as? ViewGroup ?: return
         // The selection fill is the travelling strip indicator behind the row, so the cell only
         // ever paints the calendar's focus rim (never a per-cell selected fill).
         GlassPill.applyCell(cell, selected = false, focused = cell.isFocused)
