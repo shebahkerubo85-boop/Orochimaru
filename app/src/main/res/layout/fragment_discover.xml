@@ -144,7 +144,6 @@
                     android:layout_height="wrap_content"
                     android:focusable="true"
                     android:nextFocusUp="@id/genreChipGroup"
-                    android:nextFocusDown="@id/discoverRecyclerView"
                     app:singleLine="true"
                     app:singleSelection="true" />
             </HorizontalScrollView>
