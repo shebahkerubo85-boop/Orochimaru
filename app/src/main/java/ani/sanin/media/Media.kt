@@ -138,6 +138,13 @@ data class Media(
             ?.filter { it.isMediaSpoiler != true }
             ?.map { "${it.name} : ${it.rank ?: 0}%" }
             ?: emptyList()),
+        idIMDB = apiMedia.externalLinks
+            ?.firstOrNull { it.site.contains("IMDb", ignoreCase = true) }
+            ?.url
+            ?.substringAfter("imdb.com/title/", "")
+            ?.substringBefore('/')
+            ?.takeIf { it.startsWith("tt") },
+        externalLinks = ArrayList(apiMedia.externalLinks ?: emptyList()),
     )
 
     constructor(mediaList: MediaList) : this(mediaList.media!!) {
