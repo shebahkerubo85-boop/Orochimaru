@@ -25,6 +25,11 @@ import ani.sanin.getThemeColor
 import ani.sanin.loadImage
 import ani.sanin.util.FocusEffectUtil
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 class TmdbDiscoveryFragment : Fragment() {
 
@@ -39,6 +44,8 @@ class TmdbDiscoveryFragment : Fragment() {
     private var traktEditorialCards: List<ani.sanin.media.Franchise> = emptyList()
     private var traktLoaded = false
     private var currentEditorialItems: List<TmdbMedia> = emptyList()
+    private val imdbLookupAttempted = mutableSetOf<String>()
+    private val imdbIds = mutableMapOf<String, String>()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -170,6 +177,7 @@ class TmdbDiscoveryFragment : Fragment() {
             adapter.submit(items)
             currentEditorialItems = items
             renderEditorialShelves(items)
+            loadImdbLinks(items)
             if (!traktLoaded) {
                 traktLoaded = true
                 viewLifecycleOwner.lifecycleScope.launch {
@@ -178,6 +186,36 @@ class TmdbDiscoveryFragment : Fragment() {
                     }.getOrDefault(emptyList())
                     if (_binding != null) renderEditorialShelves(currentEditorialItems)
                 }
+            }
+        }
+    }
+
+    /** Resolve IMDb ids through TMDB's documented external_ids payload, with a small
+     * concurrency cap and per-screen deduplication so category changes do not spam requests.
+     */
+    private fun loadImdbLinks(items: List<TmdbMedia>) {
+        val candidates = items.take(8).filter { item ->
+            val key = "${item.type}:${item.id}"
+            imdbLookupAttempted.add(key)
+        }
+        if (candidates.isEmpty()) return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val gate = Semaphore(3)
+            val found = coroutineScope {
+                candidates.map { item ->
+                    async {
+                        gate.withPermit {
+                            val id = runCatching {
+                                Tmdb.detail(item.type, item.id)?.externalIds?.imdbId
+                            }.getOrNull()?.takeIf { it.startsWith("tt") }
+                            "${item.type}:${item.id}" to id
+                        }
+                    }
+                }.awaitAll()
+            }
+            found.forEach { (key, id) -> if (id != null) imdbIds[key] = id }
+            if (_binding != null && found.any { it.second != null }) {
+                renderEditorialShelves(currentEditorialItems)
             }
         }
     }
@@ -204,7 +242,9 @@ class TmdbDiscoveryFragment : Fragment() {
                         title = item.displayTitle,
                         meta = listOfNotNull(item.year.takeIf { it.isNotBlank() }, item.type.uppercase())
                             .joinToString(" · "),
-                        imageUrl = item.posterPath?.let { "https://image.tmdb.org/t/p/w342$it" }
+                        imageUrl = item.posterPath?.let { "https://image.tmdb.org/t/p/w342$it" },
+                        externalUrl = imdbIds["${item.type}:${item.id}"]
+                            ?.let { "https://www.imdb.com/title/$it/" }
                     )
                 }.toList()
             return EditorialShelfData(title, note, cards, placeholderCount = 0)
