@@ -109,14 +109,24 @@ object GlassPill {
         return topLit(fill, rimPeak, dp(context, 3f), cornerRadiusPx)
     }
 
-    /** As [topLit] but with an explicit [rimPeak] and rim [thickness] in px. */
-    fun topLit(fill: IntArray, rimPeak: Int, thickness: Int, cornerRadiusPx: Float): Drawable {
+    /**
+     * As [topLit] but with an explicit [rimPeak] and rim [thickness] in px. [rimFloor] is the
+     * fraction of [rimPeak]'s alpha kept at the bottom edge instead of fading to fully clear;
+     * a floor keeps the rim visible down the sides of tall cards.
+     */
+    fun topLit(
+        fill: IntArray,
+        rimPeak: Int,
+        thickness: Int,
+        cornerRadiusPx: Float,
+        rimFloor: Float = 0f,
+    ): Drawable {
         val fillLayer = GradientDrawable().apply {
             orientation = GradientDrawable.Orientation.TOP_BOTTOM
             setColors(fill)
             cornerRadius = cornerRadiusPx
         }
-        val rimLayer = TopLitRimDrawable(rimPeak, thickness.toFloat(), cornerRadiusPx)
+        val rimLayer = TopLitRimDrawable(rimPeak, thickness.toFloat(), cornerRadiusPx, rimFloor)
         return LayerDrawable(arrayOf<Drawable>(fillLayer, rimLayer))
     }
 
@@ -145,7 +155,7 @@ object GlassPill {
             )
         }
         val rimPeak = ColorUtils.setAlphaComponent(accent, 0xCC)
-        view.background = topLit(fill, rimPeak, dp(context, 1f), radius)
+        view.background = topLit(fill, rimPeak, dp(context, 1f), radius, rimFloor = 0.5f)
         view.clipToOutline = true
     }
 
@@ -272,7 +282,11 @@ private class TopLitRimDrawable(
     private val peak: Int,
     private val thicknessPx: Float,
     private val radius: Float,
+    rimFloor: Float = 0f,
 ) : Drawable() {
+    private val floor = ColorUtils.setAlphaComponent(
+        peak, (Color.alpha(peak) * rimFloor).toInt().coerceIn(0, 255)
+    )
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = thicknessPx
@@ -290,7 +304,7 @@ private class TopLitRimDrawable(
             0f,
             b.bottom.toFloat(),
             peak,
-            Color.TRANSPARENT,
+            floor,
             Shader.TileMode.CLAMP,
         )
         canvas.drawRoundRect(rect, radius, radius, paint)
