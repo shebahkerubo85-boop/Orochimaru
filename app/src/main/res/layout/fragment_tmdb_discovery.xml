@@ -123,7 +123,6 @@
             android:layout_height="wrap_content"
             android:focusable="true"
             android:nextFocusUp="@id/tmdbGenreChips"
-            android:nextFocusDown="@id/tmdbDiscoveryGrid"
             app:singleSelection="true" />
     </HorizontalScrollView>
 
