@@ -165,6 +165,78 @@ object Kitsu {
      * simply absent rather than surfacing an error.
      */
     /**
+     * Read real Kitsu categories in capped pages, then rank locally by the catalogue's own
+     * media counts. This avoids relying on a sort field the API may not expose.
+     */
+    suspend fun categories(limit: Int = 60): List<KitsuCategory> = withContext(Dispatchers.IO) {
+        val safeLimit = limit.coerceIn(1, 100)
+        val found = ArrayList<KitsuCategory>()
+        var offset = 0
+        while (offset < safeLimit) {
+            val pageSize = minOf(PAGE_LIMIT, safeLimit - offset)
+            val document = get("/categories?page[limit]=$pageSize&page[offset]=$offset") ?: break
+            val resources = document.dataList()
+            if (resources.isEmpty()) break
+            resources.forEach { resource ->
+                val id = resource.id ?: return@forEach
+                val attributes = resource.categoryAttributes() ?: return@forEach
+                val slug = attributes.slug?.takeIf { it.isNotBlank() } ?: return@forEach
+                val title = attributes.title?.takeIf { it.isNotBlank() } ?: slug
+                found += KitsuCategory(id, slug, title, attributes.description, attributes.totalMediaCount)
+            }
+            offset += resources.size
+            if (resources.size < pageSize) break
+        }
+        found.distinctBy { it.slug }.sortedByDescending { it.totalMediaCount }.take(safeLimit)
+    }
+
+    /**
+     * Fetch one Kitsu category page. AniList IDs are read only from Kitsu's included mappings;
+     * a Kitsu ID is never passed through as an AniList ID.
+     */
+    suspend fun categoryAnime(
+        categorySlug: String,
+        offset: Int = 0,
+        limit: Int = PAGE_LIMIT,
+    ): KitsuCategoryPage = withContext(Dispatchers.IO) {
+        val safeLimit = limit.coerceIn(1, PAGE_LIMIT)
+        val safeOffset = offset.coerceAtLeast(0)
+        val document = get(
+            "/anime?filter[categories]=$categorySlug&sort=-userCount" +
+                "&page[limit]=$safeLimit&page[offset]=$safeOffset&include=mappings"
+        ) ?: return@withContext KitsuCategoryPage(emptyList(), 0, false, false)
+
+        val includedMappings = document.included.orEmpty().associateBy { it.id }
+        val resources = document.dataList()
+        val items = resources.mapNotNull { resource ->
+            val id = resource.id ?: return@mapNotNull null
+            val attributes = resource.animeAttributes() ?: return@mapNotNull null
+            val title = attributes.titles?.en?.takeIf { it.isNotBlank() }
+                ?: attributes.titles?.enJp?.takeIf { it.isNotBlank() }
+                ?: attributes.titles?.jaJp?.takeIf { it.isNotBlank() }
+                ?: attributes.canonicalTitle?.takeIf { it.isNotBlank() }
+                ?: return@mapNotNull null
+            val anilistId = resource.relationshipIds("mappings")
+                .asSequence()
+                .mapNotNull { includedMappings[it]?.mappingAttributes() }
+                .firstOrNull { it.externalSite == ANILIST_SITE }
+                ?.externalId?.toIntOrNull()
+            KitsuDiscoveryItem(
+                id = id,
+                title = title,
+                synopsis = attributes.synopsis ?: attributes.description,
+                year = attributes.startDate?.take(4)?.toIntOrNull() ?: attributes.seasonYear,
+                userCount = attributes.userCount,
+                score = attributes.averageRating?.toDoubleOrNull()?.div(10.0),
+                posterUrl = attributes.posterImage?.large
+                    ?: attributes.posterImage?.medium ?: attributes.posterImage?.small,
+                anilistId = anilistId,
+            )
+        }
+        KitsuCategoryPage(items, resources.size, resources.size >= safeLimit, true)
+    }
+
+    /**
      * Popular anime directly from Kitsu, independent of AniList's catalogue and ranking.
      * This is a small discovery feed, not a per-title lookup loop.
      */

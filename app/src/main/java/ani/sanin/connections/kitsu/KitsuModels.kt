@@ -137,6 +137,32 @@ data class KitsuDiscoveryItem(
     val anilistId: Int?,
 )
 
+data class KitsuCategory(
+    val id: String,
+    val slug: String,
+    val title: String,
+    val description: String? = null,
+    val totalMediaCount: Int = 0,
+)
+
+data class KitsuCategoryPage(
+    val items: List<KitsuDiscoveryItem>,
+    val rawCount: Int,
+    val hasMore: Boolean,
+    val success: Boolean,
+)
+
+@Serializable
+data class KitsuCategoryAttributes(
+    @SerialName("title") val title: String? = null,
+    @SerialName("slug") val slug: String? = null,
+    @SerialName("description") val description: String? = null,
+    @SerialName("totalMediaCount") val totalMediaCount: Int = 0,
+)
+
+fun KitsuResource.categoryAttributes(): KitsuCategoryAttributes? =
+    attributes?.let { kitsuJson.decodeFromJsonElement<KitsuCategoryAttributes>(it) }
+
 @Serializable
 data class KitsuTitles(
     @SerialName("en") val en: String? = null,
