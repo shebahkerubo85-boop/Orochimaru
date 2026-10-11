@@ -235,7 +235,7 @@ class TmdbDiscoveryFragment : Fragment() {
             val cards = items.asSequence()
                 .map { it to searchable(it) }
                 .filter { (item, text) -> predicate(item, text) }
-                .distinctBy { it.id to it.type }
+                .distinctBy { it.first.id to it.first.type }
                 .take(10)
                 .map { (item, _) ->
                     EditorialCardData(
