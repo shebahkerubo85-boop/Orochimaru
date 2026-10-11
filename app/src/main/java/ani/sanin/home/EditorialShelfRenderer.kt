@@ -34,7 +34,7 @@ data class EditorialShelfData(
 object EditorialShelfRenderer {
     fun render(context: Context, host: LinearLayout, shelves: List<EditorialShelfData>) {
         host.removeAllViews()
-        shelves.forEach { shelf ->
+        shelves.filter { it.cards.isNotEmpty() || it.placeholderCount > 0 }.forEach { shelf ->
             val section = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(context, 16))
