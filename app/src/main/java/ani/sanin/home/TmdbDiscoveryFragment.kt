@@ -36,6 +36,8 @@ class TmdbDiscoveryFragment : Fragment() {
     private var selectedGenre: TmdbGenre? = null
     private var selectedCategory = "Trending"
     private var genres: List<TmdbGenre> = emptyList()
+    private var traktEditorialCards: List<ani.sanin.media.Franchise> = emptyList()
+    private var traktLoaded = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -166,6 +168,15 @@ class TmdbDiscoveryFragment : Fragment() {
             binding.tmdbDiscoveryProgress.isVisible = false
             adapter.submit(items)
             renderEditorialShelves(items)
+            if (!traktLoaded) {
+                traktLoaded = true
+                viewLifecycleOwner.lifecycleScope.launch {
+                    traktEditorialCards = runCatching {
+                        ani.sanin.connections.trakt.Trakt.franchiseCards(skip = 0, take = 6).cards
+                    }.getOrDefault(emptyList())
+                    if (_binding != null) renderEditorialShelves(items)
+                }
+            }
         }
     }
 
@@ -220,6 +231,18 @@ class TmdbDiscoveryFragment : Fragment() {
                 listOf("fantasy", "science fiction", "adventure", "space", "kingdom", "world",
                     "magic", "universe", "journey").any(text::contains)
             },
+            EditorialShelfData(
+                "THE COMMUNITY'S RABBIT HOLES",
+                "Curated movie and TV lists from Trakt, not another popularity chart.",
+                traktEditorialCards.map { list ->
+                    EditorialCardData(
+                        title = list.name,
+                        meta = list.trendingRank?.let { "Trakt trending #$it" } ?: "Trakt community list",
+                        imageUrl = list.entries.firstOrNull()?.posterUrl ?: list.bannerUrl
+                    )
+                },
+                placeholderCount = 3
+            ),
             EditorialShelfData(
                 "TRAILER PARK", "Trailer cards are reserved here for a later pass.",
                 emptyList(), placeholderCount = 3
