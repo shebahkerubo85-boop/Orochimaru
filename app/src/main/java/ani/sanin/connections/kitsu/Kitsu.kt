@@ -172,16 +172,15 @@ object Kitsu {
         val safeLimit = limit.coerceIn(1, PAGE_LIMIT)
         val document = get("/anime?sort=-userCount&page[limit]=$safeLimit&include=mappings")
             ?: return@withContext emptyList()
-        val anilistIds = (document.included.orEmpty())
-            .mapNotNull { resource ->
-                val externalId = resource.mappingAttributes()
-                    ?.takeIf { it.externalSite == ANILIST_SITE }
-                    ?.externalId?.toIntOrNull()
-                externalId?.let { resource.id to it }
-            }.toMap()
+        val includedMappings = document.included.orEmpty().associateBy { it.id }
         document.dataList().mapNotNull { resource ->
             val id = resource.id ?: return@mapNotNull null
             val attributes = resource.animeAttributes() ?: return@mapNotNull null
+            val anilistId = resource.relationshipIds("mappings")
+                .asSequence()
+                .mapNotNull { includedMappings[it]?.mappingAttributes() }
+                .firstOrNull { it.externalSite == ANILIST_SITE }
+                ?.externalId?.toIntOrNull()
             val title = attributes.titles?.en?.takeIf { it.isNotBlank() }
                 ?: attributes.canonicalTitle?.takeIf { it.isNotBlank() }
                 ?: return@mapNotNull null
@@ -193,7 +192,7 @@ object Kitsu {
                 userCount = attributes.userCount,
                 score = attributes.averageRating?.toDoubleOrNull()?.div(10.0),
                 posterUrl = attributes.posterImage?.medium ?: attributes.posterImage?.small,
-                anilistId = anilistIds[id],
+                anilistId = anilistId,
             )
         }
     }
