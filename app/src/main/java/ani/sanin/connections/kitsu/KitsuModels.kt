@@ -122,6 +122,19 @@ data class KitsuAnimeAttributes(
     @SerialName("slug") val slug: String? = null,
     @SerialName("synopsis") val synopsis: String? = null,
     @SerialName("description") val description: String? = null,
+    @SerialName("userCount") val userCount: Int? = null,
+    @SerialName("averageRating") val averageRating: String? = null,
+)
+
+data class KitsuDiscoveryItem(
+    val id: String,
+    val title: String,
+    val synopsis: String?,
+    val year: Int?,
+    val userCount: Int?,
+    val score: Double?,
+    val posterUrl: String?,
+    val anilistId: Int?,
 )
 
 @Serializable
