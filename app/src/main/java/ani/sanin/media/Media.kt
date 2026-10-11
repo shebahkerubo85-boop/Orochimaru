@@ -138,6 +138,12 @@ data class Media(
             ?.filter { it.isMediaSpoiler != true }
             ?.map { "${it.name} : ${it.rank ?: 0}%" }
             ?: emptyList()),
+        idKitsu = apiMedia.externalLinks
+            ?.firstOrNull { it.site.contains("Kitsu", ignoreCase = true) }
+            ?.url
+            ?.substringAfter("kitsu.io/anime/", "")
+            ?.substringBefore('/')
+            ?.takeIf { it.isNotBlank() },
         idIMDB = apiMedia.externalLinks
             ?.firstOrNull { it.site.contains("IMDb", ignoreCase = true) }
             ?.url
