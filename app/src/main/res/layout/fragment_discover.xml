@@ -169,6 +169,18 @@
             android:orientation="vertical">
 
             <LinearLayout
+                android:id="@+id/discoverTrailerCarousel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <LinearLayout
+                android:id="@+id/discoverCategoryGrid"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <LinearLayout
                 android:id="@+id/discoverEditorialShelves"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
