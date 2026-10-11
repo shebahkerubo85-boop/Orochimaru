@@ -727,6 +727,7 @@ class TmdbHomeFragment : Fragment() {
             setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
         }
         val list = RecyclerView(ctx).apply {
+            setTag(R.id.section_row_tag, true)
             layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
             adapter = ConcatAdapter(
                 SimklContinueWatchingLandscapeAdapter(items) { item ->
@@ -833,6 +834,7 @@ class TmdbHomeFragment : Fragment() {
             setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
         }
         val list = RecyclerView(ctx).apply {
+            setTag(R.id.section_row_tag, true)
             layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
             adapter = ConcatAdapter(
                 SimklRowAdapter(items) { item ->
@@ -883,6 +885,7 @@ class TmdbHomeFragment : Fragment() {
             setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
         }
         val list = RecyclerView(ctx).apply {
+            setTag(R.id.section_row_tag, true)
             layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
             adapter = PluginRowAdapter(items) { item ->
                 startActivity(
@@ -914,6 +917,7 @@ class TmdbHomeFragment : Fragment() {
             setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
         }
         val list = RecyclerView(ctx).apply {
+            setTag(R.id.section_row_tag, true)
             layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
             val exploreList = ArrayList(items.map { it.toExploreMedia() })
             adapter = ConcatAdapter(

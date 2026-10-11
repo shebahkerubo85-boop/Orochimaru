@@ -399,8 +399,14 @@ class MediaDetailsActivity : AppCompatActivity() {
 
 
 
-        // Restore last selected tab (0=Info, 1=Watch, 2=Comments)
-        val savedWindow = media.selected!!.window
+        // Restore last selected tab (0=Info, 1=Watch, 2=Comments). Only when the user has opted
+        // in via "Remember Media Tab"; otherwise the details screen always opens on Info (or
+        // wherever an explicit caller/extra points).
+        val savedWindow = if (PrefManager.getVal<Boolean>(PrefName.RememberMediaTab)) {
+            media.selected!!.window
+        } else {
+            INFO_TAB
+        }
         var defaultTab = if (savedWindow == 2 && (!hasComments || rescueMode)) 1 else savedWindow
         if (model.continueMedia == null && media.cameFromContinue) {
             model.continueMedia = PrefManager.getVal(PrefName.ContinueMedia)

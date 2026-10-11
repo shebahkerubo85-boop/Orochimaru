@@ -160,16 +160,30 @@ class RepoCardAdapter(
             contentDescription = "Browse ${item.name}"
             setOnClickListener { onOpen(item) }
             isFocusable = true
+            // MaterialButton tints its background with colorPrimary by default, which would
+            // flatten the focus stroke into the primary fill; clear it so the ring shows.
+            backgroundTintList = null
             val onPrimary = ctx.getThemeColor(com.google.android.material.R.attr.colorOnPrimary)
             val borderWidth = (3f * resources.displayMetrics.density).toInt()
-            // Unfocused: solid white pill with dark text; focused: primary fill plus a round
-            // focus border (a stroke that follows the pill's corners).
+            // Unfocused: solid white pill with dark text; focused: primary fill plus a visible
+            // on-primary focus border (a stroke that follows the pill's corners).
             fun styleBrowse(focused: Boolean) {
                 background = android.graphics.drawable.GradientDrawable().apply {
                     shape = android.graphics.drawable.GradientDrawable.RECTANGLE
                     setColor(if (focused) ctx.getThemeColor(com.google.android.material.R.attr.colorPrimary) else Color.WHITE)
                     cornerRadius = 24f * resources.displayMetrics.density
-                    if (focused) setStroke(borderWidth, onPrimary)
+                }
+                // Ring as foreground so it is never flattened by the MaterialButton's background
+                // tint, and follows the pill's 24dp corners.
+                foreground = if (focused) {
+                    android.graphics.drawable.GradientDrawable().apply {
+                        shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                        setColor(Color.TRANSPARENT)
+                        cornerRadius = 24f * resources.displayMetrics.density
+                        setStroke(borderWidth, onPrimary)
+                    }
+                } else {
+                    null
                 }
                 setTextColor(if (focused) onPrimary else Color.BLACK)
             }

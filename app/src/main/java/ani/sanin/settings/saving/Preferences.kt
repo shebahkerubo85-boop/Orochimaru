@@ -331,6 +331,7 @@ enum class PrefName(val data: Pref) {
     PauseOverlay(Pref(Location.Player, Boolean::class, true)),
     ContinueWatchingShowScreenshot(Pref(Location.Player, Boolean::class, false)),
     SmartSourcePersistence(Pref(Location.General, Boolean::class, false)),
+    RememberMediaTab(Pref(Location.General, Boolean::class, false)),
     PreferDub(Pref(Location.General, Boolean::class, false)),
 
     AutoHideTimeout(Pref(Location.Player, Int::class, 5)),

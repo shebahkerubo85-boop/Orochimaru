@@ -1,6 +1,7 @@
 package ani.sanin.settings
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.view.HapticFeedbackConstants
 import android.view.View
@@ -79,9 +80,15 @@ class SettingsAccountActivity : AppCompatActivity() {
             fun reload() {
                 settingsAnilistLogin.isFocusable = true
                 settingsMALLogin.isFocusable = true
+                // Link buttons keep their brand fill; show a visible white focus ring that follows
+                // the pill's 24dp corners (the default primary ring was low-contrast on the brand
+                // colours, and AniList had no ring at all).
                 FocusEffectUtil.applyFocusListener(
+                    settingsAnilistLogin,
                     settingsMALLogin,
-                    settingsSimklLogin
+                    settingsSimklLogin,
+                    borderColor = Color.WHITE,
+                    cornerRadiusPx = 24f * resources.displayMetrics.density,
                 )
                 if (Anilist.token != null) {
                     settingsAnilistLogin.setText(R.string.unlink_anilist)

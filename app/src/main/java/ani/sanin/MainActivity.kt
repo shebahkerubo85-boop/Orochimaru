@@ -529,6 +529,11 @@ class MainActivity : AppCompatActivity() {
                         if (binding.homeNavRail.visibility == View.VISIBLE) return true
                     }
                 }
+                KeyEvent.KEYCODE_DPAD_UP -> {
+                    // Moving between card rows always lands on the row's first (leftmost) card
+                    // rather than whichever card the framework's spatial search happened to pick.
+                    if (moveToAdjacentSectionRow(View.FOCUS_UP)) return true
+                }
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
                     // DOWN off the Library status pill must land on the grid's first card. The
                     // pill's own nextFocusDown points at the view pager, whose focus search would
@@ -545,6 +550,7 @@ class MainActivity : AppCompatActivity() {
                         }
                         if (handled) return true
                     }
+                    if (moveToAdjacentSectionRow(View.FOCUS_DOWN)) return true
                 }
                 KeyEvent.KEYCODE_DPAD_RIGHT -> {
                     val id = currentFocus?.id
@@ -556,6 +562,10 @@ class MainActivity : AppCompatActivity() {
                         hideHomeNavRail()
                         return true
                     }
+                    // The right edge of a card row is a wall: focus stays on the last item
+                    // (the chevron when present, otherwise the last card) instead of spilling
+                    // into the next section.
+                    if (isAtSectionRowEnd(currentFocus)) return true
                 }
                 KeyEvent.KEYCODE_DPAD_LEFT -> {
                     val id = currentFocus?.id
@@ -636,6 +646,58 @@ class MainActivity : AppCompatActivity() {
             }
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    /** The horizontal media rail (section row) that contains [v], if any. */
+    private fun sectionRowOf(v: View?): RecyclerView? {
+        var view: View? = v
+        while (view != null) {
+            if (view is RecyclerView) {
+                if (view.layoutManager?.canScrollHorizontally() != true) return null
+                val tagged = view.getTag(R.id.section_row_tag) == true
+                return if (tagged || view is FadingEdgeRecyclerView) view else null
+            }
+            view = view.parent as? View
+        }
+        return null
+    }
+
+    /** True when [v] is focus inside a media row and sits on its last focusable item. */
+    private fun isAtSectionRowEnd(v: View?): Boolean {
+        val focus = v ?: return false
+        val row = sectionRowOf(focus) ?: return false
+        val holder = row.findContainingViewHolder(focus) ?: return false
+        val pos = holder.bindingAdapterPosition
+        if (pos == RecyclerView.NO_POSITION) return false
+        val count = row.adapter?.itemCount ?: return false
+        return pos == count - 1
+    }
+
+    /**
+     * Moves focus from a card row to the neighbouring row in [direction], landing on the
+     * target row's first card. Returns false when focus is not in a media row so the
+     * framework's normal navigation still runs.
+     */
+    private fun moveToAdjacentSectionRow(direction: Int): Boolean {
+        val focus = currentFocus ?: return false
+        if (sectionRowOf(focus) == null) return false
+        val target = focus.focusSearch(direction) ?: return false
+        val targetRow = sectionRowOf(target) ?: return false
+        focusRowStart(targetRow)
+        return true
+    }
+
+    private fun focusRowStart(row: RecyclerView) {
+        val existing = row.layoutManager?.findViewByPosition(0)
+        if (existing != null) {
+            existing.requestFocus()
+            return
+        }
+        if ((row.adapter?.itemCount ?: 0) == 0) return
+        row.scrollToPosition(0)
+        row.post {
+            (row.layoutManager?.findViewByPosition(0) ?: row.getChildAt(0))?.requestFocus()
+        }
     }
 
     /** True when the focused view is (or sits inside) a Library status pill. */

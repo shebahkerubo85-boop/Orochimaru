@@ -19,7 +19,13 @@ object FocusEffectUtil {
     private val savedForegrounds = mutableMapOf<View, Drawable?>()
     private val savedBackgrounds = mutableMapOf<View, Drawable?>()
 
-    fun applyFocusListener(vararg views: View, fade: Boolean = false, borderDp: Float = 3f, borderColor: Int? = null) {
+    fun applyFocusListener(
+        vararg views: View,
+        fade: Boolean = false,
+        borderDp: Float = 3f,
+        borderColor: Int? = null,
+        cornerRadiusPx: Float? = null,
+    ) {
         for (view in views) {
             removeBorder(view)
             view.onFocusChangeListener = null
@@ -29,7 +35,7 @@ object FocusEffectUtil {
                         resetView(lastFocusedView)
                         lastFocusedView = v
                     }
-                    applyBorder(v, v is ImageButton, borderDp, borderColor)
+                    applyBorder(v, v is ImageButton, borderDp, borderColor, cornerRadiusPx = cornerRadiusPx)
                     applyFocusGain(v)
                     if (fade) {
                         if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.FocusAnimations)) {
@@ -55,7 +61,7 @@ object FocusEffectUtil {
             if (view.isFocused) {
                 resetView(lastFocusedView)
                 lastFocusedView = view
-                applyBorder(view, view is ImageButton, borderDp)
+                applyBorder(view, view is ImageButton, borderDp, borderColor, null, cornerRadiusPx)
                 applyFocusGain(view)
             }
         }
@@ -163,7 +169,7 @@ object FocusEffectUtil {
         return color
     }
 
-    private fun applyBorder(v: View, isCircular: Boolean = false, borderDp: Float = 3f, borderColor: Int? = null, cornerRadii: FloatArray? = null) {
+    private fun applyBorder(v: View, isCircular: Boolean = false, borderDp: Float = 3f, borderColor: Int? = null, cornerRadii: FloatArray? = null, cornerRadiusPx: Float? = null) {
         val primaryColor = borderColor ?: getPrimaryColor(v)
         val borderWidthPx = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP, borderDp, v.resources.displayMetrics
@@ -185,7 +191,11 @@ object FocusEffectUtil {
         val defaultRadius = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP, 8f, v.resources.displayMetrics
         ).toInt()
-        val cornerRadius = if (cardRadius > 0f) cardRadius.toInt() else defaultRadius
+        val cornerRadius = when {
+            cornerRadiusPx != null -> cornerRadiusPx.toInt()
+            cardRadius > 0f -> cardRadius.toInt()
+            else -> defaultRadius
+        }
 
         val circular = isCircular || isCircularAvatar(v)
         val borderDrawable = GradientDrawable().apply {

@@ -79,6 +79,11 @@ class SettingsAnimeActivity : AppCompatActivity() {
                     ) { idx -> PrefManager.setVal(PrefName.DefaultStartUpTab, idx) },
                 ),
                 SubscreenBuilder.Entry(
+                    title = "Remember Media Tab",
+                    desc = "Reopen a title on the tab you last used",
+                    switch = PrefManager.getVal<Boolean>(PrefName.RememberMediaTab) to { v: Boolean -> PrefManager.setVal(PrefName.RememberMediaTab, v) },
+                ),
+                SubscreenBuilder.Entry(
                     title = "Continue Media",
                     desc = "Auto-resume from last position",
                     switch = PrefManager.getVal<Boolean>(PrefName.ContinueMedia) to { v: Boolean -> PrefManager.setVal(PrefName.ContinueMedia, v) },
