@@ -47,7 +47,7 @@ object EditorialShelfRenderer {
                 text = shelf.title
                 textSize = 18f
                 setTypeface(typeface, Typeface.BOLD)
-                setTextColor(context.getColorCompat(android.R.attr.textColorPrimary))
+                setTextColor(context.getColorCompat(com.google.android.material.R.attr.colorOnSurface))
             }
             section.addView(heading)
             val note = TextView(context).apply {
@@ -55,7 +55,7 @@ object EditorialShelfRenderer {
                 textSize = 12f
                 alpha = 0.72f
                 setPadding(0, dp(context, 2), 0, dp(context, 8))
-                setTextColor(context.getColorCompat(android.R.attr.textColorSecondary))
+                setTextColor(context.getColorCompat(com.google.android.material.R.attr.colorOnSurfaceVariant))
             }
             section.addView(note)
 
