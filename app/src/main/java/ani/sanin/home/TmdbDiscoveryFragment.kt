@@ -164,7 +164,67 @@ class TmdbDiscoveryFragment : Fragment() {
             val items = selectedGenre?.let { genre -> pool.filter { it.genreIds.contains(genre.id) } } ?: pool
             binding.tmdbDiscoveryProgress.isVisible = false
             adapter.submit(items)
+            renderEditorialShelves(items)
         }
+    }
+
+    private fun renderEditorialShelves(items: List<TmdbMedia>) {
+        val genreNames = genres.associate { it.id to it.name.lowercase() }
+        fun genreText(item: TmdbMedia): String =
+            item.genreIds.mapNotNull { genreNames[it] }.joinToString(" ")
+        fun searchable(item: TmdbMedia): String =
+            "${item.displayTitle} ${item.overview.orEmpty()} ${genreText(item)}".lowercase()
+
+        fun shelf(
+            title: String,
+            note: String,
+            predicate: (TmdbMedia, String) -> Boolean
+        ): EditorialShelfData {
+            val cards = items.asSequence()
+                .map { it to searchable(it) }
+                .filter { (item, text) -> predicate(item, text) }
+                .distinctBy { it.id to it.type }
+                .take(10)
+                .map { (item, _) ->
+                    EditorialCardData(
+                        title = item.displayTitle,
+                        meta = listOfNotNull(item.year.takeIf { it.isNotBlank() }, item.type.uppercase())
+                            .joinToString(" · "),
+                        imageUrl = item.posterPath?.let { "https://image.tmdb.org/t/p/w342$it" }
+                    )
+                }.toList()
+            return EditorialShelfData(title, note, cards, placeholderCount = 3)
+        }
+
+        val shelves = listOf(
+            shelf("THE SLOW BURN CLUB", "Chemistry, longing and relationships that take their time.") { item, text ->
+                ("romance" in text || "drama" in text) &&
+                    listOf("slow burn", "gradually", "slowly", "longing", "relationship develops",
+                        "will they", "unspoken feelings", "years later", "reunite").any(text::contains)
+            },
+            shelf("FIVE STEPS AHEAD", "Schemes, investigations and one move ahead of everyone.") { item, text ->
+                listOf("mastermind", "strateg", "conspiracy", "investigation", "detective", "scheme",
+                    "manipulat", "mind game", "outsmart", "heist").any(text::contains)
+            },
+            shelf("THE VILLAIN HAS A POINT", "Antiheroes, revenge and motives that complicate the story.") { item, text ->
+                listOf("antihero", "anti-hero", "villain", "revenge", "vengeance", "morally",
+                    "justice", "corrupt", "revenge").any(text::contains)
+            },
+            shelf("BEAUTIFULLY UNWELL", "Psychological spirals and characters barely holding it together.") { item, text ->
+                ("drama" in text || "thriller" in text || "psychological" in text || "horror" in text) &&
+                    listOf("obsession", "trauma", "paranoia", "unravel", "grief", "loneliness",
+                        "identity", "descent", "unstable", "haunted").any(text::contains)
+            },
+            shelf("WORLDS TO GET LOST IN", "Big worlds, strange rules and stories with room to wander.") { item, text ->
+                listOf("fantasy", "science fiction", "adventure", "space", "kingdom", "world",
+                    "magic", "universe", "journey").any(text::contains)
+            },
+            EditorialShelfData(
+                "TRAILER PARK", "Trailer cards are reserved here for a later pass.",
+                emptyList(), placeholderCount = 3
+            )
+        )
+        EditorialShelfRenderer.render(requireContext(), binding.tmdbEditorialShelves, shelves)
     }
 
     class TmdbGridAdapter(
