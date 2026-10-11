@@ -317,6 +317,7 @@ class DiscoveryFragment : Fragment() {
             // matchParent: the card takes the column width, so the count can follow the
             // screen instead of a hardcoded 3 that is right on a phone and wrong on a TV.
             adapter = MediaAdaptor(0, mutableListOf(), requireActivity(), true)
+            isNestedScrollingEnabled = false
             isFocusable = true
             isFocusableInTouchMode = false
             setOnKeyListener { _, keyCode, event ->
