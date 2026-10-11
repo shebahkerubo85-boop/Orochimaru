@@ -164,6 +164,40 @@ object Kitsu {
      * franchise. Null is also the "could not reach Kitsu" answer; the caller treats a card as
      * simply absent rather than surfacing an error.
      */
+    /**
+     * Popular anime directly from Kitsu, independent of AniList's catalogue and ranking.
+     * This is a small discovery feed, not a per-title lookup loop.
+     */
+    suspend fun discoverEditorial(limit: Int = 20): List<KitsuDiscoveryItem> = withContext(Dispatchers.IO) {
+        val safeLimit = limit.coerceIn(1, PAGE_LIMIT)
+        val document = get("/anime?sort=-userCount&page[limit]=$safeLimit&include=mappings")
+            ?: return@withContext emptyList()
+        val anilistIds = (document.included.orEmpty())
+            .mapNotNull { resource ->
+                val externalId = resource.mappingAttributes()
+                    ?.takeIf { it.externalSite == ANILIST_SITE }
+                    ?.externalId?.toIntOrNull()
+                externalId?.let { resource.id to it }
+            }.toMap()
+        document.dataList().mapNotNull { resource ->
+            val id = resource.id ?: return@mapNotNull null
+            val attributes = resource.animeAttributes() ?: return@mapNotNull null
+            val title = attributes.titles?.en?.takeIf { it.isNotBlank() }
+                ?: attributes.canonicalTitle?.takeIf { it.isNotBlank() }
+                ?: return@mapNotNull null
+            KitsuDiscoveryItem(
+                id = id,
+                title = title,
+                synopsis = attributes.synopsis ?: attributes.description,
+                year = attributes.startDate?.take(4)?.toIntOrNull() ?: attributes.seasonYear,
+                userCount = attributes.userCount,
+                score = attributes.averageRating?.toDoubleOrNull()?.div(10.0),
+                posterUrl = attributes.posterImage?.medium ?: attributes.posterImage?.small,
+                anilistId = anilistIds[id],
+            )
+        }
+    }
+
     suspend fun franchiseCard(anilistId: Int): Franchise? = withContext(Dispatchers.IO) {
         if (missingCache.containsKey(anilistId)) return@withContext null
         franchiseCache[anilistId]?.let { return@withContext it }
