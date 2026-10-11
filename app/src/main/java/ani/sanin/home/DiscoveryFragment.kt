@@ -304,6 +304,7 @@ class DiscoveryFragment : Fragment() {
                     MediaAdaptor(0, media.toMutableList(), requireActivity(), true),
                     false,
                 )
+                renderEditorialShelves(media)
                 if (media.isEmpty() && !discoverViewModel.isLoading.value) {
                     binding.discoverEmptyText.isVisible = true
                 } else {
@@ -311,6 +312,72 @@ class DiscoveryFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private fun renderEditorialShelves(media: List<Media>) {
+        fun searchable(item: Media): String = buildString {
+            append(item.userPreferredName).append(' ')
+            append(item.nameRomaji).append(' ')
+            append(item.description.orEmpty()).append(' ')
+            append(item.genres.joinToString(" ")).append(' ')
+            append(item.tags.joinToString(" "))
+        }.lowercase()
+
+        fun shelf(
+            title: String,
+            note: String,
+            predicate: (Media, String) -> Boolean
+        ): EditorialShelfData {
+            val cards = media.asSequence()
+                .map { it to searchable(it) }
+                .filter { (item, text) -> predicate(item, text) }
+                .distinctBy { it.first.id }
+                .take(10)
+                .map { (item, _) ->
+                    EditorialCardData(
+                        title = item.userPreferredName,
+                        meta = listOfNotNull(
+                            item.startDate?.year?.takeIf { it > 0 }?.toString(),
+                            item.meanScore?.takeIf { it > 0 }?.let { "★ $it" }
+                        ).joinToString(" · "),
+                        imageUrl = item.cover
+                    )
+                }.toList()
+            return EditorialShelfData(title, note, cards, placeholderCount = 3)
+        }
+
+        val shelves = listOf(
+            shelf("THE SLOW BURN CLUB", "The tension is the point. The payoff is earned.") { item, text ->
+                ("romance" in item.genres.map { it.lowercase() } || "drama" in item.genres.map { it.lowercase() } ||
+                    "slice of life" in item.genres.map { it.lowercase() }) &&
+                    listOf("slow burn", "gradually", "slowly develops", "will they", "relationship develops",
+                        "longing", "romantic tension", "unspoken feelings", "friends to lovers").any(text::contains)
+            },
+            shelf("FIVE STEPS AHEAD", "Master plans, mind games and people reading the room.") { item, text ->
+                listOf("mastermind", "strateg", "manipulat", "mind game", "psychological", "deduction",
+                    "outsmart", "schem", "detective", "tactical genius").any(text::contains)
+            },
+            shelf("THE VILLAIN HAS A POINT", "Messy motives. Questionable methods. A real argument.") { item, text ->
+                listOf("anti-hero", "antihero", "morally grey", "morally gray", "revenge", "villain protagonist",
+                    "tragic antagonist", "corruption", "justice", "vengeance").any(text::contains)
+            },
+            shelf("BEAUTIFULLY UNWELL", "Unstable minds, complicated feelings and emotional wreckage.") { item, text ->
+                ("psychological" in item.genres.map { it.lowercase() } ||
+                    "drama" in item.genres.map { it.lowercase() } ||
+                    "thriller" in item.genres.map { it.lowercase() }) &&
+                    listOf("obsession", "trauma", "mental", "descent", "unravel", "loneliness",
+                        "grief", "identity", "paranoia", "inner turmoil").any(text::contains)
+            },
+            shelf("ONE MORE EPISODE", "The dangerously easy-to-binge queue.") { item, text ->
+                item.popularity != null && item.popularity!! > 0 &&
+                    (item.status == "RELEASING" || item.meanScore?.let { it >= 75 } == true)
+            },
+            EditorialShelfData(
+                "TRAILER PARK", "A dedicated trailer shelf — previews will land here later.",
+                emptyList(), placeholderCount = 3
+            )
+        )
+        EditorialShelfRenderer.render(requireContext(), binding.discoverEditorialShelves, shelves)
     }
 
     override fun onDestroyView() {
