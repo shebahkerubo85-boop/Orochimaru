@@ -137,6 +137,8 @@ class DiscoveryFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val discoverViewModel: DiscoverViewModel by activityViewModels()
+    private var kitsuPicks: List<ani.sanin.connections.kitsu.KitsuDiscoveryItem> = emptyList()
+    private var kitsuLoaded = false
 
     private val animeGenres = listOf(
         "All", "Action", "Adventure", "Comedy", "Drama", "Ecchi",
@@ -175,11 +177,23 @@ class DiscoveryFragment : Fragment() {
         binding.seasonChipGroup.nextFocusDownId = R.id.discoverRecyclerView
         binding.discoverRecyclerView.nextFocusUpId = R.id.seasonChipGroup
         discoverViewModel.fetch()
+        loadKitsuEditorial()
         // Steal initial focus so a TV has somewhere to start. On a touch device the search
         // bar is focusableInTouchMode, so this also lit its focus border on open — a phone
         // has no d-pad to seed and should not paint a focus ring nobody asked for.
         if (isTvDevice(requireContext())) {
             binding.discoverSearchBar.post { if (isAdded) binding.discoverSearchBar.requestFocus() }
+        }
+    }
+
+    private fun loadKitsuEditorial() {
+        if (kitsuLoaded) return
+        kitsuLoaded = true
+        viewLifecycleOwner.lifecycleScope.launch {
+            kitsuPicks = runCatching {
+                ani.sanin.connections.kitsu.Kitsu.discoverEditorial(limit = 20)
+            }.getOrDefault(emptyList())
+            if (_binding != null) renderEditorialShelves(discoverViewModel.results.value)
         }
     }
 
@@ -372,6 +386,21 @@ class DiscoveryFragment : Fragment() {
                 item.popularity != null && item.popularity!! > 0 &&
                     (item.status == "RELEASING" || item.meanScore?.let { it >= 75 } == true)
             },
+            EditorialShelfData(
+                "KITSU AFTER HOURS", "A second anime catalogue, ranked by Kitsu's own community activity.",
+                kitsuPicks.map { pick ->
+                    EditorialCardData(
+                        title = pick.title,
+                        meta = listOfNotNull(
+                            pick.year?.toString(),
+                            pick.score?.takeIf { it > 0 }?.let { "Kitsu ★ ${"%.1f".format(java.util.Locale.US, it)}" },
+                            pick.userCount?.takeIf { it > 0 }?.let { "${it} members" }
+                        ).joinToString(" · "),
+                        imageUrl = pick.posterUrl
+                    )
+                },
+                placeholderCount = 0
+            ),
             EditorialShelfData(
                 "TRAILER PARK", "A dedicated trailer shelf — previews will land here later.",
                 emptyList(), placeholderCount = 3
