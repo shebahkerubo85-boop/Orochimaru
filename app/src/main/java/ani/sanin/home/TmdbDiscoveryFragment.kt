@@ -38,6 +38,7 @@ class TmdbDiscoveryFragment : Fragment() {
     private var genres: List<TmdbGenre> = emptyList()
     private var traktEditorialCards: List<ani.sanin.media.Franchise> = emptyList()
     private var traktLoaded = false
+    private var currentEditorialItems: List<TmdbMedia> = emptyList()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -167,6 +168,7 @@ class TmdbDiscoveryFragment : Fragment() {
             val items = selectedGenre?.let { genre -> pool.filter { it.genreIds.contains(genre.id) } } ?: pool
             binding.tmdbDiscoveryProgress.isVisible = false
             adapter.submit(items)
+            currentEditorialItems = items
             renderEditorialShelves(items)
             if (!traktLoaded) {
                 traktLoaded = true
@@ -174,7 +176,7 @@ class TmdbDiscoveryFragment : Fragment() {
                     traktEditorialCards = runCatching {
                         ani.sanin.connections.trakt.Trakt.franchiseCards(skip = 0, take = 6).cards
                     }.getOrDefault(emptyList())
-                    if (_binding != null) renderEditorialShelves(items)
+                    if (_binding != null) renderEditorialShelves(currentEditorialItems)
                 }
             }
         }
