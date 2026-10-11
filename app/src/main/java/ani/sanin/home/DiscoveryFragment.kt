@@ -343,7 +343,7 @@ class DiscoveryFragment : Fragment() {
                         imageUrl = item.cover
                     )
                 }.toList()
-            return EditorialShelfData(title, note, cards, placeholderCount = 3)
+            return EditorialShelfData(title, note, cards, placeholderCount = 0)
         }
 
         val shelves = listOf(
