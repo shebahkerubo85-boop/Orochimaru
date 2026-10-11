@@ -1880,6 +1880,7 @@ Page(page:$page,perPage:50) {
                         meanScore isFavourite format popularity
                         description(asHtml: false) genres
                         tags { name rank isMediaSpoiler }
+                        externalLinks { site url type }
                         bannerImage
                         coverImage { large }
                         title { english romaji userPreferred }
