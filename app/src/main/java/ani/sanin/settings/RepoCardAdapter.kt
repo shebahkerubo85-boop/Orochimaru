@@ -2,7 +2,6 @@ package ani.sanin.settings
 
 import android.content.res.Configuration
 import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
@@ -14,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
 import ani.sanin.databinding.ItemRepoCardBinding
 import ani.sanin.getThemeColor
+import ani.sanin.ui.GlassPill
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import com.bumptech.glide.Glide
@@ -216,13 +216,11 @@ class RepoCardAdapter(
     }
 
     private fun applyGradient(view: View, topColor: Int, bottomColor: Int) {
-        val gradient = GradientDrawable(
-            GradientDrawable.Orientation.TOP_BOTTOM,
-            intArrayOf(topColor, bottomColor)
-        ).apply {
-            cornerRadius = 16f * view.resources.displayMetrics.density
-        }
-        view.background = gradient
+        view.background = GlassPill.topLit(
+            view.context,
+            intArrayOf(topColor, bottomColor),
+            16f * view.resources.displayMetrics.density,
+        )
     }
 
     private fun blendWithSurface(color: Int, factor: Float): Int {

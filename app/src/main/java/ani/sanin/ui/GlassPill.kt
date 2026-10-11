@@ -90,28 +90,33 @@ object GlassPill {
             rimPeak = ColorUtils.setAlphaComponent(Color.BLACK, 0x61)
         }
 
-        view.background = capsule(fill, rimPeak, dp(context, 3f), radius)
+        view.background = topLit(fill, rimPeak, dp(context, 3f), radius)
         view.clipToOutline = true
         view.elevation = if (dark) 0f else 6f * view.resources.displayMetrics.density
     }
 
     /**
-     * A capsule fill with a rim light stroked along its outline: [rimPeak] at the top edge
-     * fading to transparent toward the bottom. Because it is stroked (not a top band) the light
-     * follows the pill's curve onto the sides, and it is [thickness] px thick everywhere.
+     * The top-lit look on its own: a rounded-rect [fill] with a rim light stroked along its
+     * outline - brightest along the top edge and fading to transparent toward the bottom.
+     * Because it is stroked (not a top band) the light follows the curve onto the sides, and it
+     * is 3dp thick everywhere. Used by the pill capsule and the repo cards, which share the same
+     * lit-top look at different corner radii.
      */
-    private fun capsule(
-        fill: IntArray,
-        rimPeak: Int,
-        thickness: Int,
-        radius: Float,
-    ): Drawable {
+    fun topLit(context: Context, fill: IntArray, cornerRadiusPx: Float): Drawable {
+        val rimPeak = ColorUtils.setAlphaComponent(
+            if (isNight(context)) Color.WHITE else Color.BLACK, 0x61
+        )
+        return topLit(fill, rimPeak, dp(context, 3f), cornerRadiusPx)
+    }
+
+    /** As [topLit] but with an explicit [rimPeak] and rim [thickness] in px. */
+    fun topLit(fill: IntArray, rimPeak: Int, thickness: Int, cornerRadiusPx: Float): Drawable {
         val fillLayer = GradientDrawable().apply {
             orientation = GradientDrawable.Orientation.TOP_BOTTOM
             setColors(fill)
-            cornerRadius = radius
+            cornerRadius = cornerRadiusPx
         }
-        val rimLayer = TopLitRimDrawable(rimPeak, thickness.toFloat(), radius)
+        val rimLayer = TopLitRimDrawable(rimPeak, thickness.toFloat(), cornerRadiusPx)
         return LayerDrawable(arrayOf<Drawable>(fillLayer, rimLayer))
     }
 
