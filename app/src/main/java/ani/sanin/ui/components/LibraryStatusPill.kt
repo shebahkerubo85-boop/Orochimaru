@@ -9,6 +9,7 @@ import android.text.TextUtils
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.HorizontalScrollView
@@ -48,6 +49,13 @@ class LibraryStatusPill @JvmOverloads constructor(
     private var onTabSelected: ((Int) -> Unit)? = null
     private var compact = true
 
+    /**
+     * DPAD_DOWN exit handler. When set, it fires instead of the generic nextFocusDown search so the
+     * host can land focus on a precise target (the first card of the grid). Returning true consumes
+     * the key; returning false falls back to the normal down search.
+     */
+    var onExitDown: (() -> Boolean)? = null
+
     private var indicatorPlaced = false
     private var indLeft = 0f
     private var indRight = 0f
@@ -81,6 +89,16 @@ class LibraryStatusPill @JvmOverloads constructor(
         isFocusableInTouchMode = false
         setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) focusSelectedTab()
+        }
+        // A focused cell is the key target here, and it doesn't consume DOWN, so the event bubbles
+        // up to this container. Hand DOWN to the host so it can drop focus straight onto the first
+        // card instead of into the view pager (which would restore whatever child it last held).
+        setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                onExitDown?.invoke() ?: false
+            } else {
+                false
+            }
         }
     }
 

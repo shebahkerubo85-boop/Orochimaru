@@ -104,11 +104,21 @@ class ListFragment : Fragment() {
         adapter.randomOptionClick()
     }
 
-    /** Focuses the first card of this page, so DPAD_DOWN from the pill lands on the grid. */
+    /**
+     * Sends focus to the first card of the grid (first row, left column). Scrolls to the top first
+     * so a scrolled grid can't leave focus on an arbitrary remembered child.
+     */
     fun focusFirstCard(): Boolean {
         val rv = _binding?.listRecyclerView ?: return false
-        if (rv.childCount > 0 && rv.getChildAt(0).requestFocus()) return true
-        return rv.requestFocus()
+        rv.stopScroll()
+        rv.scrollToPosition(0)
+        val attached = rv.findViewHolderForAdapterPosition(0)?.itemView
+        if (attached != null && attached.requestFocus()) return true
+        rv.post {
+            val target = rv.findViewHolderForAdapterPosition(0)?.itemView ?: rv.getChildAt(0)
+            target?.requestFocus()
+        }
+        return true
     }
 
     /**

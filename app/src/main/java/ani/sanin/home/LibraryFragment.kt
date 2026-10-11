@@ -226,6 +226,10 @@ class LibraryFragment : Fragment() {
         binding.listTabPill.setExitFocusUp(lastTopFocusId)
         binding.listTabPill.setExitFocusDown(R.id.listViewPager)
 
+        // DPAD_DOWN out of the pill always lands on the first card (first row, left column),
+        // regardless of which tab is selected or how far the grid was scrolled.
+        binding.listTabPill.onExitDown = { focusFirstCardInPager() }
+
         // Remember which top control we came down from so UP on the pill returns there. Chain the
         // existing (FocusEffectUtil) listener rather than replacing it, so the focus ring stays.
         for (id in intArrayOf(R.id.listSettings, R.id.profileButton, R.id.listAvatar)) {
@@ -240,15 +244,17 @@ class LibraryFragment : Fragment() {
             }
         }
 
-        // DOWN out of the pill focuses the pager container; bounce it straight onto the first
-        // card so the grid is reachable in one press.
+        // Fallback path: if focus still lands on the pager container (e.g. nextFocusDown ran before
+        // our key listener), force it onto the first card rather than the pager's remembered child.
         binding.listViewPager.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus) {
-                val page = childFragmentManager
-                    .findFragmentByTag("f${binding.listViewPager.currentItem}") as? ListFragment
-                page?.focusFirstCard()
-            }
+            if (hasFocus) focusFirstCardInPager()
         }
+    }
+
+    private fun focusFirstCardInPager(): Boolean {
+        val page = childFragmentManager
+            .findFragmentByTag("f${binding.listViewPager.currentItem}") as? ListFragment
+        return page?.focusFirstCard() ?: false
     }
 
     /** Solid pill behind the label, with the label colour inverted against it. */

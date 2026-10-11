@@ -100,6 +100,10 @@ class TmdbLibraryFragment : Fragment() {
         binding.tmdbLibPill.nextFocusDownId = R.id.tmdbLibViewPager
         binding.tmdbLibViewPager.nextFocusUpId = R.id.tmdbLibPill
 
+        // DOWN out of the pill always drops onto the first card of the current section, not the
+        // view pager's remembered child.
+        binding.tmdbLibPill.onExitDown = { focusFirstCardInPager() }
+
         renderStatusPill()
 
         binding.tmdbLibViewPager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
@@ -110,14 +114,10 @@ class TmdbLibraryFragment : Fragment() {
             }
         })
 
-        // DOWN out of the pill lands on the pager container; bounce it straight onto the first
-        // card so the grid is reachable in one press, matching the anime library.
+        // Fallback when focus still lands on the pager container: drop it onto the first card
+        // rather than whatever child the pager had remembered.
         binding.tmdbLibViewPager.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus) {
-                val page = childFragmentManager
-                    .findFragmentByTag("f${binding.tmdbLibViewPager.currentItem}") as? SimklSectionFragment
-                page?.focusFirstCard()
-            }
+            if (hasFocus) focusFirstCardInPager()
         }
 
         if (Simkl.token == null) {
@@ -320,6 +320,12 @@ class TmdbLibraryFragment : Fragment() {
         if (!pendingInitialFocus || tabsState.isEmpty()) return
         pendingInitialFocus = false
         binding.tmdbLibPill.post { _binding?.tmdbLibPill?.requestFocus() }
+    }
+
+    private fun focusFirstCardInPager(): Boolean {
+        val page = childFragmentManager
+            .findFragmentByTag("f${binding.tmdbLibViewPager.currentItem}") as? SimklSectionFragment
+        return page?.focusFirstCard() ?: false
     }
 
     private fun showFilteredSections(items: List<Simkl.SimklWatchedItem>, title: String) {

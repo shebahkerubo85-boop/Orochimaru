@@ -81,11 +81,24 @@ class SimklSectionFragment : Fragment() {
         updateAdapter(items)
     }
 
-    /** Focuses the first card of this page, so DPAD_DOWN from the pill lands on the grid. */
+    /**
+     * Sends focus to the first card of the grid (first row, left column). Scrolls to the top first
+     * so a scrolled grid can't leave focus on an arbitrary remembered child.
+     */
     fun focusFirstCard(): Boolean {
         val rv = recyclerView ?: return false
-        if (rv.childCount > 0 && rv.getChildAt(0).requestFocus()) return true
-        return rv.requestFocus()
+        rv.stopScroll()
+        rv.scrollToPosition(0)
+        val holder = rv.findViewHolderForAdapterPosition(0)
+        val poster = holder?.itemView?.findViewById<View>(R.id.tmdbCardPoster)
+        if (poster != null && poster.requestFocus()) return true
+        if (holder != null && holder.itemView.requestFocus()) return true
+        rv.post {
+            val h = rv.findViewHolderForAdapterPosition(0)
+            val p = h?.itemView?.findViewById<View>(R.id.tmdbCardPoster)
+            if (p != null) p.requestFocus() else h?.itemView?.requestFocus()
+        }
+        return true
     }
 
     /**
