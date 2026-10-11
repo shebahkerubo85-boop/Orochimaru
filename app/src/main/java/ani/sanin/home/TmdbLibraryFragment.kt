@@ -100,10 +100,6 @@ class TmdbLibraryFragment : Fragment() {
         binding.tmdbLibPill.nextFocusDownId = R.id.tmdbLibViewPager
         binding.tmdbLibViewPager.nextFocusUpId = R.id.tmdbLibPill
 
-        // DOWN out of the pill always drops onto the first card of the current section, not the
-        // view pager's remembered child.
-        binding.tmdbLibPill.onExitDown = { focusFirstCardInPager() }
-
         renderStatusPill()
 
         binding.tmdbLibViewPager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
@@ -113,12 +109,6 @@ class TmdbLibraryFragment : Fragment() {
                 binding.tmdbLibPill.setSelected(position)
             }
         })
-
-        // Fallback when focus still lands on the pager container: drop it onto the first card
-        // rather than whatever child the pager had remembered.
-        binding.tmdbLibViewPager.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus) focusFirstCardInPager()
-        }
 
         if (Simkl.token == null) {
             showNotLoggedIn()
@@ -322,8 +312,15 @@ class TmdbLibraryFragment : Fragment() {
         binding.tmdbLibPill.post { _binding?.tmdbLibPill?.requestFocus() }
     }
 
+    /**
+     * DPAD_DOWN out of the status pill. Handled from [ani.sanin.MainActivity.dispatchKeyEvent]
+     * because that runs before the framework's focus search - which would otherwise follow the
+     * pill's nextFocusDown into the view pager and restore whatever child that pager last held.
+     */
+    fun focusFirstCard(): Boolean = focusFirstCardInPager()
+
     private fun focusFirstCardInPager(): Boolean {
-        val page = childFragmentManager
+        val page = parentFragmentManager
             .findFragmentByTag("f${binding.tmdbLibViewPager.currentItem}") as? SimklSectionFragment
         return page?.focusFirstCard() ?: false
     }

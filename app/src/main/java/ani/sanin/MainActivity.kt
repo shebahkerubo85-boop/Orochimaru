@@ -529,6 +529,23 @@ class MainActivity : AppCompatActivity() {
                         if (binding.homeNavRail.visibility == View.VISIBLE) return true
                     }
                 }
+                KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    // DOWN off the Library status pill must land on the grid's first card. The
+                    // pill's own nextFocusDown points at the view pager, whose focus search would
+                    // restore whatever card it last held, so resolve it here before the framework
+                    // runs that search.
+                    if (isFocusInLibraryStatusPill()) {
+                        val fragment = currentFragmentTag?.let {
+                            supportFragmentManager.findFragmentByTag(it)
+                        }
+                        val handled = when (fragment) {
+                            is LibraryFragment -> fragment.focusFirstCard()
+                            is TmdbLibraryFragment -> fragment.focusFirstCard()
+                            else -> false
+                        }
+                        if (handled) return true
+                    }
+                }
                 KeyEvent.KEYCODE_DPAD_RIGHT -> {
                     val id = currentFocus?.id
                     if (id == R.id.homeNavHome || id == R.id.homeNavExplore || id == R.id.homeNavDiscovery || id == R.id.homeNavLibrary) {
@@ -619,6 +636,16 @@ class MainActivity : AppCompatActivity() {
             }
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    /** True when the focused view is (or sits inside) a Library status pill. */
+    private fun isFocusInLibraryStatusPill(): Boolean {
+        var view: View? = currentFocus
+        while (view != null) {
+            if (view.id == R.id.listTabPill || view.id == R.id.tmdbLibPill) return true
+            view = view.parent as? View
+        }
+        return false
     }
 
     private fun updateModeLabel() {
