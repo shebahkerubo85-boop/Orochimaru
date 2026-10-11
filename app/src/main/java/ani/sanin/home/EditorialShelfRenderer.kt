@@ -17,7 +17,8 @@ import ani.sanin.util.FocusEffectUtil
 data class EditorialCardData(
     val title: String,
     val meta: String = "",
-    val imageUrl: String? = null
+    val imageUrl: String? = null,
+    val externalUrl: String? = null
 )
 
 data class EditorialShelfData(
@@ -145,6 +146,17 @@ object EditorialShelfRenderer {
                 setTextColor(context.getColorCompat(android.R.attr.textColorSecondary))
                 setPadding(dp(context, 2), dp(context, 3), dp(context, 2), dp(context, 4))
             })
+        }
+        if (!data.externalUrl.isNullOrBlank()) {
+            card.isClickable = true
+            card.setOnClickListener {
+                runCatching {
+                    context.startActivity(android.content.Intent(
+                        android.content.Intent.ACTION_VIEW,
+                        android.net.Uri.parse(data.externalUrl)
+                    ))
+                }
+            }
         }
         FocusEffectUtil.applyFocusListener(card)
         return card
