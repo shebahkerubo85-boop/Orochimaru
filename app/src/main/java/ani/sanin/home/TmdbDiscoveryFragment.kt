@@ -53,6 +53,7 @@ class TmdbDiscoveryFragment : Fragment() {
         // instead of running two columns behind it on the same phone.
         val cols = TmdbCards.gridSpan(dm.widthPixels / dm.density)
         binding.tmdbDiscoveryGrid.layoutManager = GridLayoutManager(requireContext(), cols)
+        binding.tmdbDiscoveryGrid.isNestedScrollingEnabled = false
         binding.tmdbDiscoveryGrid.adapter = adapter
         val openSearch = { startActivity(Intent(requireContext(), TmdbSearchActivity::class.java)) }
         binding.tmdbDiscoverySearchText.setOnClickListener { openSearch() }
