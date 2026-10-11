@@ -227,6 +227,13 @@
             android:name=".media.MediaListViewActivity"
             android:parentActivityName=".MainActivity" />
         <activity
+            android:name=".home.KitsuCategoryResultsActivity"
+            android:parentActivityName=".MainActivity" />
+        <activity
+            android:name=".home.KitsuTrailerPlayerActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:parentActivityName=".MainActivity" />
+        <activity
             android:name=".media.MediaDetailsActivity"
             android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.Sanin.NeverCutout"

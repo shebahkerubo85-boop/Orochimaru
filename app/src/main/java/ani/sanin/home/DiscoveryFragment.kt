@@ -2,6 +2,12 @@ package ani.sanin.home
 
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Typeface
+import android.view.Gravity
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.HorizontalScrollView
+import android.widget.TextView
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -26,6 +32,8 @@ import ani.sanin.media.SearchActivity
 import ani.sanin.home.SearchBottomSheet
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.Job
 import ani.sanin.cloudstream.TmdbCards
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -141,6 +149,17 @@ class DiscoveryFragment : Fragment() {
     private var kitsuLoaded = false
     private var tmdbAnimationPicks: List<ani.sanin.connections.tmdb.TmdbMedia> = emptyList()
     private var tmdbAnimationLoaded = false
+    private var kitsuCategories: List<ani.sanin.connections.kitsu.KitsuCategory> = emptyList()
+    private var categoryArtwork: Map<String, String?> = emptyMap()
+    private var categoriesLoaded = false
+    private var trailerLoaded = false
+    private var trailerItems: List<DiscoveryTrailer> = emptyList()
+
+    private data class DiscoveryTrailer(
+        val title: String,
+        val key: String,
+        val posterUrl: String?,
+    )
 
     private val animeGenres = listOf(
         "All", "Action", "Adventure", "Comedy", "Drama", "Ecchi",
@@ -179,6 +198,8 @@ class DiscoveryFragment : Fragment() {
         discoverViewModel.fetch()
         loadKitsuEditorial()
         loadTmdbAnimationEditorial()
+        loadKitsuCategories()
+        renderTrailerCarousel()
         // Steal initial focus so a TV has somewhere to start. On a touch device the search
         // bar is focusableInTouchMode, so this also lit its focus border on open — a phone
         // has no d-pad to seed and should not paint a focus ring nobody asked for.
@@ -216,9 +237,271 @@ class DiscoveryFragment : Fragment() {
                     .distinctBy { it.type to it.id }
                     .take(12)
             }.getOrDefault(emptyList())
-            if (_binding != null) renderEditorialShelves(discoverViewModel.results.value)
+            if (_binding != null) {
+                renderEditorialShelves(discoverViewModel.results.value)
+                loadTrailerCarousel()
+            }
         }
     }
+
+    private fun loadKitsuCategories() {
+        if (kitsuCategories.isNotEmpty()) {
+            renderCategoryGrid()
+            return
+        }
+        if (categoriesLoaded) return
+        categoriesLoaded = true
+        viewLifecycleOwner.lifecycleScope.launch {
+            kitsuCategories = runCatching {
+                ani.sanin.connections.kitsu.Kitsu.categories(limit = 60).take(12)
+            }.getOrDefault(emptyList())
+            if (_binding == null) return@launch
+            renderCategoryGrid()
+            if (kitsuCategories.isEmpty()) return@launch
+
+            categoryArtwork = kitsuCategories.map { category ->
+                async {
+                    category.slug to runCatching {
+                        ani.sanin.connections.kitsu.Kitsu.categoryAnime(
+                            categorySlug = category.slug, offset = 0, limit = 1
+                        ).items.firstOrNull()?.posterUrl
+                    }.getOrNull()
+                }
+            }.awaitAll().toMap()
+            if (_binding != null) renderCategoryGrid()
+        }
+    }
+
+    private fun renderCategoryGrid() {
+        val host = _binding?.discoverCategoryGrid ?: return
+        host.removeAllViews()
+        val context = host.context
+        host.addView(TextView(context).apply {
+            text = "FIND YOUR NEXT OBSESSION"
+            textSize = 18f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            setPadding(dp(12), dp(14), dp(12), dp(8))
+        })
+        if (kitsuCategories.isEmpty()) {
+            host.addView(TextView(context).apply {
+                text = if (categoriesLoaded) "Kitsu categories are unavailable right now."
+                    else "Loading Kitsu categories…"
+                textSize = 13f
+                alpha = 0.78f
+                setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+                setPadding(dp(12), dp(4), dp(12), dp(12))
+                if (categoriesLoaded) {
+                    isFocusable = true
+                    isClickable = true
+                    setOnClickListener {
+                        categoriesLoaded = false
+                        loadKitsuCategories()
+                    }
+                    FocusEffectUtil.applyFocusListener(this)
+                }
+            })
+            return
+        }
+
+        kitsuCategories.chunked(2).forEachIndexed { rowIndex, rowCategories ->
+            val row = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(3), dp(3), dp(3), dp(3))
+            }
+            rowCategories.forEachIndexed { columnIndex, category ->
+                val index = rowIndex * 2 + columnIndex
+                val card = LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    isFocusable = true
+                    isClickable = true
+                    background = context.getDrawable(R.drawable.bg_editorial_card_focus)
+                    setPadding(dp(8), dp(8), dp(8), dp(8))
+                    layoutParams = LinearLayout.LayoutParams(0, dp(100), 1f).apply {
+                        marginStart = dp(4)
+                        marginEnd = dp(4)
+                    }
+                    setOnClickListener {
+                        startActivity(Intent(context, KitsuCategoryResultsActivity::class.java)
+                            .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_SLUG, category.slug)
+                            .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_TITLE, category.title))
+                    }
+                }
+                val art = ImageView(context).apply {
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    setImageResource(R.drawable.ic_editorial_artwork_unavailable)
+                    rotation = if (index % 2 == 0) -3f else 3f
+                    contentDescription = "${category.title} artwork"
+                    layoutParams = LinearLayout.LayoutParams(dp(78), dp(62)).apply {
+                        marginEnd = dp(7)
+                        marginStart = dp(2)
+                    }
+                }
+                categoryArtwork[category.slug]?.takeIf { it.isNotBlank() }?.let { art.loadImage(it) }
+                val title = TextView(context).apply {
+                    text = category.title
+                    textSize = 13f
+                    maxLines = 3
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                    setTypeface(typeface, Typeface.BOLD)
+                    setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+                    gravity = Gravity.CENTER_VERTICAL
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                }
+                if (index % 2 == 0) {
+                    card.addView(art)
+                    card.addView(title)
+                } else {
+                    card.addView(title)
+                    card.addView(art)
+                }
+                FocusEffectUtil.applyFocusListener(card)
+                row.addView(card)
+            }
+            if (rowCategories.size == 1) {
+                row.addView(View(context), LinearLayout.LayoutParams(0, dp(100), 1f).apply {
+                    marginStart = dp(4)
+                    marginEnd = dp(4)
+                })
+            }
+            host.addView(row)
+        }
+        host.setPadding(0, 0, 0, dp(8))
+    }
+
+    private fun loadTrailerCarousel() {
+        if (trailerLoaded) {
+            renderTrailerCarousel()
+            return
+        }
+        trailerLoaded = true
+        viewLifecycleOwner.lifecycleScope.launch {
+            val picks = tmdbAnimationPicks.take(12)
+            val trailers = if (ani.sanin.connections.tmdb.Tmdb.apiKey.isBlank()) {
+                emptyList()
+            } else {
+                picks.map { pick ->
+                    async {
+                        val detail = runCatching {
+                            ani.sanin.connections.tmdb.Tmdb.detail(pick.type, pick.id)
+                        }.getOrNull()
+                        val video = detail?.videos?.results.orEmpty()
+                            .filter { it.site.equals("YouTube", ignoreCase = true) && !it.key.isNullOrBlank() }
+                            .sortedBy {
+                                when (it.type?.lowercase()) {
+                                    "trailer" -> 0
+                                    "teaser" -> 1
+                                    else -> 2
+                                }
+                            }.firstOrNull()
+                        video?.let {
+                            DiscoveryTrailer(
+                                title = detail?.displayTitle?.takeIf { name -> name.isNotBlank() } ?: pick.displayTitle,
+                                key = it.key.orEmpty(),
+                                posterUrl = detail?.posterPath?.let { path -> "https://image.tmdb.org/t/p/w500$path" }
+                                    ?: pick.posterPath?.let { path -> "https://image.tmdb.org/t/p/w500$path" }
+                            )
+                        }
+                    }
+                }.awaitAll().filterNotNull().distinctBy { it.key }.shuffled().take(10)
+            }
+            trailerItems = trailers
+            if (_binding != null) renderTrailerCarousel()
+        }
+    }
+
+    private fun renderTrailerCarousel() {
+        val host = _binding?.discoverTrailerCarousel ?: return
+        host.removeAllViews()
+        val context = host.context
+        host.addView(TextView(context).apply {
+            text = "TRAILERS TO DROP INTO"
+            textSize = 18f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            setPadding(dp(12), dp(12), dp(12), dp(8))
+        })
+        val scroll = HorizontalScrollView(context).apply {
+            isHorizontalScrollBarEnabled = false
+            clipToPadding = false
+            setPadding(dp(8), dp(2), dp(8), dp(10))
+        }
+        val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+        if (trailerItems.isEmpty()) {
+            repeat(3) { index ->
+                val placeholder = LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER
+                    background = context.getDrawable(R.drawable.bg_editorial_card_focus)
+                    layoutParams = LinearLayout.LayoutParams(dp(112), dp(178)).apply {
+                        marginEnd = dp(10)
+                    }
+                    setPadding(dp(8), dp(8), dp(8), dp(8))
+                }
+                placeholder.addView(ImageView(context).apply {
+                    setImageResource(R.drawable.ic_editorial_artwork_unavailable)
+                    scaleType = ImageView.ScaleType.CENTER_INSIDE
+                    layoutParams = LinearLayout.LayoutParams(dp(58), dp(58))
+                    contentDescription = "Trailer artwork unavailable"
+                })
+                placeholder.addView(TextView(context).apply {
+                    text = if (ani.sanin.connections.tmdb.Tmdb.apiKey.isBlank())
+                        "Add TMDB API key" else "Trailer slot ${index + 1}"
+                    textSize = 11f
+                    gravity = Gravity.CENTER
+                    setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+                    setPadding(0, dp(8), 0, 0)
+                })
+                row.addView(placeholder)
+            }
+        } else {
+            trailerItems.forEach { trailer ->
+                val card = LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
+                    background = context.getDrawable(R.drawable.bg_editorial_card_focus)
+                    isFocusable = true
+                    isClickable = true
+                    layoutParams = LinearLayout.LayoutParams(dp(116), dp(190)).apply {
+                        marginEnd = dp(10)
+                    }
+                    setPadding(dp(5), dp(5), dp(5), dp(5))
+                    setOnClickListener {
+                        startActivity(Intent(context, KitsuTrailerPlayerActivity::class.java)
+                            .putExtra(KitsuTrailerPlayerActivity.EXTRA_VIDEO_KEY, trailer.key)
+                            .putExtra(KitsuTrailerPlayerActivity.EXTRA_TITLE, trailer.title))
+                    }
+                }
+                val poster = ImageView(context).apply {
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    setImageResource(R.drawable.ic_editorial_artwork_unavailable)
+                    contentDescription = trailer.title
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, dp(145)
+                    )
+                }
+                trailer.posterUrl?.let { poster.loadImage(it) }
+                card.addView(poster)
+                card.addView(TextView(context).apply {
+                    text = trailer.title
+                    textSize = 11.5f
+                    maxLines = 2
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                    setTypeface(typeface, Typeface.BOLD)
+                    setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+                    setPadding(dp(3), dp(5), dp(3), 0)
+                })
+                FocusEffectUtil.applyFocusListener(card)
+                row.addView(card)
+            }
+        }
+        scroll.addView(row)
+        host.addView(scroll)
+    }
+
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
 
     private fun setupSearchBar() {
         binding.discoverSearchBar.hint = getString(R.string.search)
@@ -444,10 +727,6 @@ class DiscoveryFragment : Fragment() {
                 },
                 placeholderCount = 0
             ),
-            EditorialShelfData(
-                "TRAILER PARK", "A dedicated trailer shelf — previews will land here later.",
-                emptyList(), placeholderCount = 3
-            )
         )
         EditorialShelfRenderer.render(requireContext(), binding.discoverEditorialShelves, shelves)
     }
