@@ -354,7 +354,9 @@ class DiscoveryFragment : Fragment() {
                             item.startDate?.year?.takeIf { it > 0 }?.toString(),
                             item.meanScore?.takeIf { it > 0 }?.let { "★ $it" }
                         ).joinToString(" · "),
-                        imageUrl = item.cover
+                        imageUrl = item.cover,
+                        externalUrl = item.idIMDB?.takeIf { it.startsWith("tt") }
+                            ?.let { "https://www.imdb.com/title/$it/" }
                     )
                 }.toList()
             return EditorialShelfData(title, note, cards, placeholderCount = 0)
@@ -396,7 +398,8 @@ class DiscoveryFragment : Fragment() {
                             pick.score?.takeIf { it > 0 }?.let { "Kitsu ★ ${"%.1f".format(java.util.Locale.US, it)}" },
                             pick.userCount?.takeIf { it > 0 }?.let { "${it} members" }
                         ).joinToString(" · "),
-                        imageUrl = pick.posterUrl
+                        imageUrl = pick.posterUrl,
+                        externalUrl = "https://kitsu.io/anime/${pick.id}"
                     )
                 },
                 placeholderCount = 0
