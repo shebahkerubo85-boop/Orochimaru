@@ -144,7 +144,6 @@
                     android:layout_height="wrap_content"
                     android:focusable="true"
                     android:nextFocusUp="@id/genreChipGroup"
-                    android:nextFocusDown="@id/discoverRecyclerView"
                     app:singleLine="true"
                     app:singleSelection="true" />
             </HorizontalScrollView>
@@ -164,9 +163,20 @@
         android:background="?attr/colorSurface"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <FrameLayout
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/discoverEditorialShelves"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/discoverRecyclerView"
@@ -234,7 +244,8 @@
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:visibility="gone" />
 
-        </FrameLayout>
+            </FrameLayout>
+        </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

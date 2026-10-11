@@ -133,6 +133,24 @@ data class Media(
             seasonYear = apiMedia.seasonYear
         ),
         format = apiMedia.format?.toString(),
+        genres = ArrayList(apiMedia.genres ?: emptyList()),
+        tags = ArrayList(apiMedia.tags
+            ?.filter { it.isMediaSpoiler != true }
+            ?.map { "${it.name} : ${it.rank ?: 0}%" }
+            ?: emptyList()),
+        idKitsu = apiMedia.externalLinks
+            ?.firstOrNull { it.site.contains("Kitsu", ignoreCase = true) }
+            ?.url
+            ?.substringAfter("kitsu.io/anime/", "")
+            ?.substringBefore('/')
+            ?.takeIf { it.isNotBlank() },
+        idIMDB = apiMedia.externalLinks
+            ?.firstOrNull { it.site.contains("IMDb", ignoreCase = true) }
+            ?.url
+            ?.substringAfter("imdb.com/title/", "")
+            ?.substringBefore('/')
+            ?.takeIf { it.startsWith("tt") },
+        externalLinks = ArrayList(apiMedia.externalLinks ?: emptyList()),
     )
 
     constructor(mediaList: MediaList) : this(mediaList.media!!) {

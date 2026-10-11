@@ -1878,6 +1878,9 @@ Page(page:$page,perPage:50) {
                         id idMal type isAdult status(version: 2) chapters episodes
                         nextAiringEpisode { episode }
                         meanScore isFavourite format popularity
+                        description(asHtml: false) genres
+                        tags { name rank isMediaSpoiler }
+                        externalLinks { site url type }
                         bannerImage
                         coverImage { large }
                         title { english romaji userPreferred }

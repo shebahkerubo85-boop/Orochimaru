@@ -137,6 +137,10 @@ class DiscoveryFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val discoverViewModel: DiscoverViewModel by activityViewModels()
+    private var kitsuPicks: List<ani.sanin.connections.kitsu.KitsuDiscoveryItem> = emptyList()
+    private var kitsuLoaded = false
+    private var tmdbAnimationPicks: List<ani.sanin.connections.tmdb.TmdbMedia> = emptyList()
+    private var tmdbAnimationLoaded = false
 
     private val animeGenres = listOf(
         "All", "Action", "Adventure", "Comedy", "Drama", "Ecchi",
@@ -172,14 +176,47 @@ class DiscoveryFragment : Fragment() {
         binding.genreChipGroup.nextFocusUpId = R.id.discoverSearchBar
         binding.genreChipGroup.nextFocusDownId = R.id.seasonChipGroup
         binding.seasonChipGroup.nextFocusUpId = R.id.genreChipGroup
-        binding.seasonChipGroup.nextFocusDownId = R.id.discoverRecyclerView
-        binding.discoverRecyclerView.nextFocusUpId = R.id.seasonChipGroup
         discoverViewModel.fetch()
+        loadKitsuEditorial()
+        loadTmdbAnimationEditorial()
         // Steal initial focus so a TV has somewhere to start. On a touch device the search
         // bar is focusableInTouchMode, so this also lit its focus border on open — a phone
         // has no d-pad to seed and should not paint a focus ring nobody asked for.
         if (isTvDevice(requireContext())) {
             binding.discoverSearchBar.post { if (isAdded) binding.discoverSearchBar.requestFocus() }
+        }
+    }
+
+    private fun loadKitsuEditorial() {
+        if (kitsuLoaded) return
+        kitsuLoaded = true
+        viewLifecycleOwner.lifecycleScope.launch {
+            kitsuPicks = runCatching {
+                ani.sanin.connections.kitsu.Kitsu.discoverEditorial(limit = 20)
+            }.getOrDefault(emptyList())
+            if (_binding != null) renderEditorialShelves(discoverViewModel.results.value)
+        }
+    }
+
+    private fun loadTmdbAnimationEditorial() {
+        if (tmdbAnimationLoaded) return
+        tmdbAnimationLoaded = true
+        viewLifecycleOwner.lifecycleScope.launch {
+            tmdbAnimationPicks = runCatching {
+                val client = ani.sanin.connections.tmdb.Tmdb
+                val films = client.discover(
+                    mediaType = "movie", genres = "16", sort = "popularity.desc"
+                )
+                val series = client.discover(
+                    mediaType = "tv", genres = "16", sort = "popularity.desc"
+                )
+                films.zip(series).flatMap { (film, show) -> listOf(film, show) }
+                    .plus(if (films.size > series.size) films.drop(series.size) else emptyList())
+                    .plus(if (series.size > films.size) series.drop(films.size) else emptyList())
+                    .distinctBy { it.type to it.id }
+                    .take(12)
+            }.getOrDefault(emptyList())
+            if (_binding != null) renderEditorialShelves(discoverViewModel.results.value)
         }
     }
 
@@ -280,6 +317,7 @@ class DiscoveryFragment : Fragment() {
             // matchParent: the card takes the column width, so the count can follow the
             // screen instead of a hardcoded 3 that is right on a phone and wrong on a TV.
             adapter = MediaAdaptor(0, mutableListOf(), requireActivity(), true)
+            isNestedScrollingEnabled = false
             isFocusable = true
             isFocusableInTouchMode = false
             setOnKeyListener { _, keyCode, event ->
@@ -304,6 +342,7 @@ class DiscoveryFragment : Fragment() {
                     MediaAdaptor(0, media.toMutableList(), requireActivity(), true),
                     false,
                 )
+                renderEditorialShelves(media)
                 if (media.isEmpty() && !discoverViewModel.isLoading.value) {
                     binding.discoverEmptyText.isVisible = true
                 } else {
@@ -311,6 +350,106 @@ class DiscoveryFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private fun renderEditorialShelves(media: List<Media>) {
+        fun searchable(item: Media): String = buildString {
+            append(item.userPreferredName).append(' ')
+            append(item.nameRomaji).append(' ')
+            append(item.description.orEmpty()).append(' ')
+            append(item.genres.joinToString(" ")).append(' ')
+            append(item.tags.joinToString(" "))
+        }.lowercase()
+
+        fun shelf(
+            title: String,
+            note: String,
+            predicate: (Media, String) -> Boolean
+        ): EditorialShelfData {
+            val cards = media.asSequence()
+                .map { it to searchable(it) }
+                .filter { (item, text) -> predicate(item, text) }
+                .distinctBy { it.first.id }
+                .take(10)
+                .map { (item, _) ->
+                    EditorialCardData(
+                        title = item.userPreferredName,
+                        meta = listOfNotNull(
+                            item.startDate?.year?.takeIf { it > 0 }?.toString(),
+                            item.meanScore?.takeIf { it > 0 }?.let { "★ $it" }
+                        ).joinToString(" · "),
+                        imageUrl = item.cover,
+                        externalUrl = item.idIMDB?.takeIf { it.startsWith("tt") }
+                            ?.let { "https://www.imdb.com/title/$it/" }
+                    )
+                }.toList()
+            return EditorialShelfData(title, note, cards, placeholderCount = 0)
+        }
+
+        val shelves = listOf(
+            shelf("THE SLOW BURN CLUB", "The tension is the point. The payoff is earned.") { item, text ->
+                ("romance" in item.genres.map { it.lowercase() } || "drama" in item.genres.map { it.lowercase() } ||
+                    "slice of life" in item.genres.map { it.lowercase() }) &&
+                    listOf("slow burn", "gradually", "slowly develops", "will they", "relationship develops",
+                        "longing", "romantic tension", "unspoken feelings", "friends to lovers").any(text::contains)
+            },
+            shelf("FIVE STEPS AHEAD", "Master plans, mind games and people reading the room.") { item, text ->
+                listOf("mastermind", "strateg", "manipulat", "mind game", "psychological", "deduction",
+                    "outsmart", "schem", "detective", "tactical genius").any(text::contains)
+            },
+            shelf("THE VILLAIN HAS A POINT", "Messy motives. Questionable methods. A real argument.") { item, text ->
+                listOf("anti-hero", "antihero", "morally grey", "morally gray", "revenge", "villain protagonist",
+                    "tragic antagonist", "corruption", "justice", "vengeance").any(text::contains)
+            },
+            shelf("BEAUTIFULLY UNWELL", "Unstable minds, complicated feelings and emotional wreckage.") { item, text ->
+                ("psychological" in item.genres.map { it.lowercase() } ||
+                    "drama" in item.genres.map { it.lowercase() } ||
+                    "thriller" in item.genres.map { it.lowercase() }) &&
+                    listOf("obsession", "trauma", "mental", "descent", "unravel", "loneliness",
+                        "grief", "identity", "paranoia", "inner turmoil").any(text::contains)
+            },
+            shelf("ONE MORE EPISODE", "The dangerously easy-to-binge queue.") { item, text ->
+                item.popularity != null && item.popularity!! > 0 &&
+                    (item.status == "RELEASING" || item.meanScore?.let { it >= 75 } == true)
+            },
+            EditorialShelfData(
+                "TMDB ANIMATION RADAR", "Animation from TMDB adds another discovery lens; this shelf can include non-Japanese animation too.",
+                tmdbAnimationPicks.map { item ->
+                    EditorialCardData(
+                        title = item.displayTitle,
+                        meta = listOfNotNull(
+                            item.year.takeIf { it.isNotBlank() },
+                            item.type.uppercase(),
+                            item.voteAverage.takeIf { it > 0.0 }?.let { "TMDB ★ ${"%.1f".format(java.util.Locale.US, it)}" }
+                        ).joinToString(" · "),
+                        imageUrl = item.posterPath?.let { "https://image.tmdb.org/t/p/w342$it" },
+                        externalUrl = "https://www.themoviedb.org/${item.type}/${item.id}"
+                    )
+                },
+                placeholderCount = 0
+            ),
+            EditorialShelfData(
+                "KITSU AFTER HOURS", "A second anime catalogue, ranked by Kitsu's own community activity.",
+                kitsuPicks.map { pick ->
+                    EditorialCardData(
+                        title = pick.title,
+                        meta = listOfNotNull(
+                            pick.year?.toString(),
+                            pick.score?.takeIf { it > 0 }?.let { "Kitsu ★ ${"%.1f".format(java.util.Locale.US, it)}" },
+                            pick.userCount?.takeIf { it > 0 }?.let { "${it} members" }
+                        ).joinToString(" · "),
+                        imageUrl = pick.posterUrl,
+                        externalUrl = "https://kitsu.io/anime/${pick.id}"
+                    )
+                },
+                placeholderCount = 0
+            ),
+            EditorialShelfData(
+                "TRAILER PARK", "A dedicated trailer shelf — previews will land here later.",
+                emptyList(), placeholderCount = 3
+            )
+        )
+        EditorialShelfRenderer.render(requireContext(), binding.discoverEditorialShelves, shelves)
     }
 
     override fun onDestroyView() {

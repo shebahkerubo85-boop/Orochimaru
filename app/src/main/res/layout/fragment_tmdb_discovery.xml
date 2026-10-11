@@ -123,9 +123,27 @@
             android:layout_height="wrap_content"
             android:focusable="true"
             android:nextFocusUp="@id/tmdbGenreChips"
-            android:nextFocusDown="@id/tmdbDiscoveryGrid"
             app:singleSelection="true" />
     </HorizontalScrollView>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:clipToPadding="false"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+    <LinearLayout
+        android:id="@+id/tmdbEditorialShelves"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical" />
 
     <ProgressBar
         android:id="@+id/tmdbDiscoveryProgress"
@@ -137,11 +155,12 @@
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/tmdbDiscoveryGrid"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:clipToPadding="false"
         android:focusable="true"
-        android:nextFocusUp="@id/tmdbCategoryChips"
         android:paddingStart="24dp"
         android:paddingEnd="24dp"
         android:paddingBottom="64dp" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 </LinearLayout>
