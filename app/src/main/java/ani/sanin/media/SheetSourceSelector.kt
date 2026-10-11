@@ -17,6 +17,7 @@ import ani.sanin.databinding.BottomSheetSelectorBinding
 import ani.sanin.databinding.ItemStreamBinding
 import ani.sanin.databinding.ItemUrlBinding
 import ani.sanin.getThemeColor
+import ani.sanin.ui.GlassPill
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.GlassComponent
 import ani.sanin.util.GlassEffectManager
@@ -214,6 +215,7 @@ class SheetSourceSelector : DialogFragment() {
 
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
             val binding = (holder as GroupViewHolder).binding
+            GlassPill.applyServerCard(binding.streamCardContainer)
             if (loadingMessage != null) {
                 binding.streamName.text = loadingMessage
                 binding.streamMeta.visibility = View.GONE
@@ -256,6 +258,13 @@ class SheetSourceSelector : DialogFragment() {
             binding.urlSize.visibility = View.GONE
             binding.urlSub.visibility = View.GONE
             binding.urlDownload.visibility = View.GONE
+            val r = 16f * holder.itemView.resources.displayMetrics.density
+            val top = if (position == 0) r else 0f
+            val bottom = if (position == itemCount - 1) r else 0f
+            FocusEffectUtil.applyFocusListener(
+                holder.itemView,
+                floatArrayOf(top, top, top, top, bottom, bottom, bottom, bottom),
+            )
         }
 
         override fun getItemCount(): Int = rowIndices.size
@@ -264,7 +273,6 @@ class SheetSourceSelector : DialogFragment() {
             RecyclerView.ViewHolder(binding.root) {
             init {
                 itemView.isFocusable = true
-                FocusEffectUtil.applyFocusListener(itemView)
                 itemView.setOnClickListener {
                     onSelect?.invoke(rowIndices[bindingAdapterPosition])
                     dismissAllowingStateLoss()

@@ -42,9 +42,9 @@
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/streamCardContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_stream_container"
         android:clipToOutline="true"
         android:elevation="6dp"
         android:orientation="vertical">

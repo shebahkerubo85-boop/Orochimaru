@@ -61,6 +61,37 @@ object FocusEffectUtil {
         }
     }
 
+    /**
+     * Focus ring with per-corner radii in px ([topLeft, topLeft, topRight, topRight,
+     * bottomRight, bottomRight, bottomLeft, bottomLeft]). Server-sheet quality rows use this so the
+     * ring follows the group card's rounded outline (round top on the first row, round bottom on
+     * the last) instead of a generic 8dp that looked square inside the 16dp card.
+     */
+    fun applyFocusListener(view: View, cornerRadii: FloatArray, onFocusChanged: ((View, Boolean) -> Unit)? = null) {
+        removeBorder(view)
+        view.onFocusChangeListener = null
+        view.setOnFocusChangeListener { v, hasFocus ->
+            if (hasFocus) {
+                if (lastFocusedView != v) {
+                    resetView(lastFocusedView)
+                    lastFocusedView = v
+                }
+                applyBorder(v, isCircular = false, borderDp = 3f, cornerRadii = cornerRadii)
+                applyFocusGain(v)
+            } else {
+                removeBorder(v)
+                applyFocusLoss(v)
+            }
+            onFocusChanged?.invoke(v, hasFocus)
+        }
+        if (view.isFocused) {
+            resetView(lastFocusedView)
+            lastFocusedView = view
+            applyBorder(view, isCircular = false, borderDp = 3f, cornerRadii = cornerRadii)
+            applyFocusGain(view)
+        }
+    }
+
     fun applyFocusListener(focusView: View, borderTarget: View, isCircular: Boolean = false, fade: Boolean = false, borderDp: Float = 3f) {
         removeBorder(borderTarget)
         focusView.onFocusChangeListener = null
@@ -132,7 +163,7 @@ object FocusEffectUtil {
         return color
     }
 
-    private fun applyBorder(v: View, isCircular: Boolean = false, borderDp: Float = 3f, borderColor: Int? = null) {
+    private fun applyBorder(v: View, isCircular: Boolean = false, borderDp: Float = 3f, borderColor: Int? = null, cornerRadii: FloatArray? = null) {
         val primaryColor = borderColor ?: getPrimaryColor(v)
         val borderWidthPx = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP, borderDp, v.resources.displayMetrics
@@ -161,7 +192,10 @@ object FocusEffectUtil {
             setShape(if (circular) GradientDrawable.OVAL else GradientDrawable.RECTANGLE)
             setColor(Color.TRANSPARENT)
             setStroke(borderWidthPx, primaryColor)
-            if (!circular) setCornerRadius(cornerRadius.toFloat())
+            if (!circular) {
+                if (cornerRadii != null) setCornerRadii(cornerRadii)
+                else setCornerRadius(cornerRadius.toFloat())
+            }
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {

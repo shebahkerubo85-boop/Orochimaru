@@ -121,6 +121,35 @@ object GlassPill {
     }
 
     /**
+     * A rounded server-sheet card: the same top-lit rim as the pill, but tinted with the theme
+     * primary and stroked 1dp. One gradient is drawn per card, so a grouped server (a name header
+     * with its quality cards) shares a single gradient while each card keeps its own focus ring.
+     */
+    fun applyServerCard(view: View, cornerRadiusDp: Float = 16f) {
+        val context = view.context
+        val dark = isNight(context)
+        val accent = themedContext(context)
+            .getThemeColor(com.google.android.material.R.attr.colorPrimary)
+        val radius = cornerRadiusDp * context.resources.displayMetrics.density
+        val fill = if (dark) {
+            intArrayOf(
+                ColorUtils.setAlphaComponent(accent, 0x1F),
+                ColorUtils.setAlphaComponent(accent, 0x0A),
+                ColorUtils.setAlphaComponent(accent, 0x00),
+            )
+        } else {
+            intArrayOf(
+                ColorUtils.setAlphaComponent(accent, 0x1A),
+                ColorUtils.setAlphaComponent(accent, 0x09),
+                ColorUtils.setAlphaComponent(accent, 0x00),
+            )
+        }
+        val rimPeak = ColorUtils.setAlphaComponent(accent, 0xCC)
+        view.background = topLit(fill, rimPeak, dp(context, 1f), radius)
+        view.clipToOutline = true
+    }
+
+    /**
      * One day cell.
      *
      * @param selected draws the accent-brush oval indicator, inset from the cell edge so the

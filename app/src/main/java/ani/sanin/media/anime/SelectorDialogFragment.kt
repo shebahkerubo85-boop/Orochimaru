@@ -47,6 +47,7 @@ import ani.sanin.download.bestVideoOf
 import ani.sanin.download.enqueue
 import ani.sanin.download.toOfflineExtractor
 import ani.sanin.getThemeColor
+import ani.sanin.ui.GlassPill
 import ani.sanin.hideSystemBars
 import ani.sanin.media.Media
 import ani.sanin.media.MediaDetailsViewModel
@@ -542,6 +543,7 @@ class SelectorDialogFragment : DialogFragment() {
             )
 
         override fun onBindViewHolder(holder: StreamViewHolder, position: Int) {
+            GlassPill.applyServerCard(holder.binding.streamCardContainer)
             when (val item = links.getOrNull(position)) {
                 is ServerPlaceholder -> {
                     holder.binding.streamName.text = item.name
@@ -571,19 +573,13 @@ class SelectorDialogFragment : DialogFragment() {
                         if (meta.filterNotNull().isEmpty()) View.GONE else View.VISIBLE
                     holder.binding.streamLoading.visibility = View.GONE
                     holder.binding.streamRecyclerView.visibility = View.VISIBLE
-                    holder.binding.streamHeader.isFocusable = true
-                    FocusEffectUtil.applyFocusListener(holder.binding.streamHeader)
-                    holder.binding.streamHeader.setOnClickListener {
-                        performClick(holder.bindingAdapterPosition)
-                    }
-                    holder.binding.streamHeader.setOnLongClickListener {
-                        if (item.videos.size > 1) {
-                            showQualityCompactDialog(item)
-                            true
-                        } else {
-                            false
-                        }
-                    }
+                    // The name header is a label only: not focusable or clickable, so D-pad
+                    // focus lands straight on the quality cards under it.
+                    holder.binding.streamHeader.isFocusable = false
+                    holder.binding.streamHeader.isClickable = false
+                    holder.binding.streamHeader.onFocusChangeListener = null
+                    holder.binding.streamHeader.setOnClickListener(null)
+                    holder.binding.streamHeader.setOnLongClickListener(null)
                     holder.binding.streamRecyclerView.layoutManager = LinearLayoutManager(requireContext())
                     holder.binding.streamRecyclerView.adapter = VideoAdapter(item, onEpisodeDownloadHandler)
                 }
@@ -751,6 +747,13 @@ class SelectorDialogFragment : DialogFragment() {
                     getString(R.string.multi_quality)
                 else -> serverName
             }
+            val r = 16f * holder.itemView.resources.displayMetrics.density
+            val top = if (position == 0) r else 0f
+            val bottom = if (position == itemCount - 1) r else 0f
+            FocusEffectUtil.applyFocusListener(
+                holder.itemView,
+                floatArrayOf(top, top, top, top, bottom, bottom, bottom, bottom),
+            ) { v, hasFocus -> if (hasFocus) holder.scrollIntoOuterView(v) }
         }
 
         override fun getItemCount(): Int = extractor.videos.size
@@ -759,33 +762,6 @@ class SelectorDialogFragment : DialogFragment() {
             RecyclerView.ViewHolder(binding.root) {
             init {
                 itemView.isFocusable = true
-                FocusEffectUtil.applyFocusListener(itemView)
-                val borderListener = itemView.onFocusChangeListener
-                itemView.setOnFocusChangeListener { v, hasFocus ->
-                    borderListener?.onFocusChange(v, hasFocus)
-                    if (hasFocus) {
-                        var p: android.view.ViewParent? = v.parent
-                        while (p != null) {
-                            if (p is RecyclerView && p.id == R.id.selectorRecyclerView) {
-                                // Walk up to the direct child of the outer RecyclerView so
-                                // getChildAdapterPosition always sees RecyclerView.LayoutParams.
-                                var outerChild: android.view.View? = v
-                                while (outerChild != null && outerChild.parent !== p) {
-                                    outerChild = outerChild.parent as? android.view.View
-                                }
-                                if (outerChild != null) {
-                                    val outerPos = p.getChildAdapterPosition(outerChild)
-                                    if (outerPos != RecyclerView.NO_POSITION) {
-                                        (p.layoutManager as? LinearLayoutManager)
-                                            ?.scrollToPositionWithOffset(outerPos, 0)
-                                    }
-                                }
-                                break
-                            }
-                            p = (p as? View)?.parent
-                        }
-                    }
-                }
                 itemView.setSafeOnClickListener {
                     if (isDownloadMenu == true) {
                         binding.urlDownload.performClick()
@@ -820,6 +796,32 @@ class SelectorDialogFragment : DialogFragment() {
                     dismissAllowingStateLoss()
                     startActivity(Intent.createChooser(intent, "Open Video in :"))
                     true
+                }
+            }
+
+            /**
+             * When a quality card gains focus, scroll the outer server list so the whole card is
+             * visible. Walk up to the direct child of the outer RecyclerView so
+             * getChildAdapterPosition always sees RecyclerView.LayoutParams.
+             */
+            fun scrollIntoOuterView(v: View) {
+                var p: android.view.ViewParent? = v.parent
+                while (p != null) {
+                    if (p is RecyclerView && p.id == R.id.selectorRecyclerView) {
+                        var outerChild: android.view.View? = v
+                        while (outerChild != null && outerChild.parent !== p) {
+                            outerChild = outerChild.parent as? android.view.View
+                        }
+                        if (outerChild != null) {
+                            val outerPos = p.getChildAdapterPosition(outerChild)
+                            if (outerPos != RecyclerView.NO_POSITION) {
+                                (p.layoutManager as? LinearLayoutManager)
+                                    ?.scrollToPositionWithOffset(outerPos, 0)
+                            }
+                        }
+                        break
+                    }
+                    p = (p as? View)?.parent
                 }
             }
         }
