@@ -210,8 +210,10 @@ class DiscoveryFragment : Fragment() {
                 val series = client.discover(
                     mediaType = "tv", genres = "16", sort = "popularity.desc"
                 )
-                (films + series).distinctBy { it.type to it.id }
-                    .sortedByDescending { it.voteAverage }
+                films.zip(series).flatMap { (film, show) -> listOf(film, show) }
+                    .plus(if (films.size > series.size) films.drop(series.size) else emptyList())
+                    .plus(if (series.size > films.size) series.drop(films.size) else emptyList())
+                    .distinctBy { it.type to it.id }
                     .take(12)
             }.getOrDefault(emptyList())
             if (_binding != null) renderEditorialShelves(discoverViewModel.results.value)
