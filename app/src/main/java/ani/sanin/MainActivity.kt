@@ -667,7 +667,11 @@ class MainActivity : AppCompatActivity() {
         val focus = v ?: return false
         val row = sectionRowOf(focus) ?: return false
         val holder = row.findContainingViewHolder(focus) ?: return false
-        val pos = holder.bindingAdapterPosition
+        // absoluteAdapterPosition, not bindingAdapterPosition: home/explore rows wrap their
+        // adapter (plus a trailing "show more" chevron) in a ConcatAdapter, so the binding
+        // position is relative to the inner adapter (0..n-1 or always 0 for the chevron) and
+        // never reaches the row's last index. That let D-pad right walk off the end and loop.
+        val pos = holder.absoluteAdapterPosition
         if (pos == RecyclerView.NO_POSITION) return false
         val count = row.adapter?.itemCount ?: return false
         return pos == count - 1
