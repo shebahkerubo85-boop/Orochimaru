@@ -205,7 +205,7 @@ class TmdbDiscoveryFragment : Fragment() {
                         imageUrl = item.posterPath?.let { "https://image.tmdb.org/t/p/w342$it" }
                     )
                 }.toList()
-            return EditorialShelfData(title, note, cards, placeholderCount = 3)
+            return EditorialShelfData(title, note, cards, placeholderCount = 0)
         }
 
         val shelves = listOf(
