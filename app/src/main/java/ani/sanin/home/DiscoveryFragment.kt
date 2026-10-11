@@ -139,6 +139,8 @@ class DiscoveryFragment : Fragment() {
     private val discoverViewModel: DiscoverViewModel by activityViewModels()
     private var kitsuPicks: List<ani.sanin.connections.kitsu.KitsuDiscoveryItem> = emptyList()
     private var kitsuLoaded = false
+    private var tmdbAnimationPicks: List<ani.sanin.connections.tmdb.TmdbMedia> = emptyList()
+    private var tmdbAnimationLoaded = false
 
     private val animeGenres = listOf(
         "All", "Action", "Adventure", "Comedy", "Drama", "Ecchi",
@@ -176,6 +178,7 @@ class DiscoveryFragment : Fragment() {
         binding.seasonChipGroup.nextFocusUpId = R.id.genreChipGroup
         discoverViewModel.fetch()
         loadKitsuEditorial()
+        loadTmdbAnimationEditorial()
         // Steal initial focus so a TV has somewhere to start. On a touch device the search
         // bar is focusableInTouchMode, so this also lit its focus border on open — a phone
         // has no d-pad to seed and should not paint a focus ring nobody asked for.
@@ -190,6 +193,26 @@ class DiscoveryFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             kitsuPicks = runCatching {
                 ani.sanin.connections.kitsu.Kitsu.discoverEditorial(limit = 20)
+            }.getOrDefault(emptyList())
+            if (_binding != null) renderEditorialShelves(discoverViewModel.results.value)
+        }
+    }
+
+    private fun loadTmdbAnimationEditorial() {
+        if (tmdbAnimationLoaded) return
+        tmdbAnimationLoaded = true
+        viewLifecycleOwner.lifecycleScope.launch {
+            tmdbAnimationPicks = runCatching {
+                val client = ani.sanin.connections.tmdb.Tmdb
+                val films = client.discover(
+                    mediaType = "movie", genres = "16", sort = "popularity.desc"
+                )
+                val series = client.discover(
+                    mediaType = "tv", genres = "16", sort = "popularity.desc"
+                )
+                (films + series).distinctBy { it.type to it.id }
+                    .sortedByDescending { it.voteAverage }
+                    .take(12)
             }.getOrDefault(emptyList())
             if (_binding != null) renderEditorialShelves(discoverViewModel.results.value)
         }
@@ -386,6 +409,22 @@ class DiscoveryFragment : Fragment() {
                 item.popularity != null && item.popularity!! > 0 &&
                     (item.status == "RELEASING" || item.meanScore?.let { it >= 75 } == true)
             },
+            EditorialShelfData(
+                "TMDB ANIMATION RADAR", "Animation from TMDB adds another discovery lens; this shelf can include non-Japanese animation too.",
+                tmdbAnimationPicks.map { item ->
+                    EditorialCardData(
+                        title = item.displayTitle,
+                        meta = listOfNotNull(
+                            item.year.takeIf { it.isNotBlank() },
+                            item.type.uppercase(),
+                            item.voteAverage.takeIf { it > 0.0 }?.let { "TMDB ★ ${"%.1f".format(java.util.Locale.US, it)}" }
+                        ).joinToString(" · "),
+                        imageUrl = item.posterPath?.let { "https://image.tmdb.org/t/p/w342$it" },
+                        externalUrl = "https://www.themoviedb.org/${item.type}/${item.id}"
+                    )
+                },
+                placeholderCount = 0
+            ),
             EditorialShelfData(
                 "KITSU AFTER HOURS", "A second anime catalogue, ranked by Kitsu's own community activity.",
                 kitsuPicks.map { pick ->
