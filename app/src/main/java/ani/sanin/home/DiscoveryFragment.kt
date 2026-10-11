@@ -174,8 +174,6 @@ class DiscoveryFragment : Fragment() {
         binding.genreChipGroup.nextFocusUpId = R.id.discoverSearchBar
         binding.genreChipGroup.nextFocusDownId = R.id.seasonChipGroup
         binding.seasonChipGroup.nextFocusUpId = R.id.genreChipGroup
-        binding.seasonChipGroup.nextFocusDownId = R.id.discoverRecyclerView
-        binding.discoverRecyclerView.nextFocusUpId = R.id.seasonChipGroup
         discoverViewModel.fetch()
         loadKitsuEditorial()
         // Steal initial focus so a TV has somewhere to start. On a touch device the search
