@@ -364,7 +364,7 @@ class DiscoveryFragment : Fragment() {
         const val CATEGORY_COLUMN_GAP_DP = 44
         const val CATEGORY_ROW_GAP_DP = 18
         const val CATEGORY_SIDE_PADDING_DP = 3
-        const val MIN_CATEGORY_CARD_WIDTH_DP = 220
+        const val MIN_CATEGORY_CONTENT_WIDTH_DP = 140
         const val MAX_CATEGORY_COLUMNS = 4
     }
 
@@ -657,8 +657,11 @@ class DiscoveryFragment : Fragment() {
         }
         val availableWidthDp = ((host.width - host.paddingLeft - host.paddingRight) /
             resources.displayMetrics.density).toInt().coerceAtLeast(1)
+        // This threshold selects the column count only; each card remains weight-based and
+        // expands to the actual available width after the 3dp edge padding and 44dp gaps.
+        // 140dp allows a real multi-column grid on narrow phone portrait screens too.
         val columnCount = ((availableWidthDp + CATEGORY_COLUMN_GAP_DP) /
-            (MIN_CATEGORY_CARD_WIDTH_DP + CATEGORY_COLUMN_GAP_DP))
+            (MIN_CATEGORY_CONTENT_WIDTH_DP + CATEGORY_COLUMN_GAP_DP))
             .coerceIn(1, MAX_CATEGORY_COLUMNS)
         if (renderedCategoryColumnCount != 0 && renderedCategoryColumnCount != columnCount) {
             val focusedSlug = host.findFocus()?.tag as? String
