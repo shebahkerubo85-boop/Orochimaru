@@ -451,27 +451,27 @@ class DiscoveryFragment : Fragment() {
         val title = category.title
         val key = title.lowercase(java.util.Locale.ROOT)
         return when {
-            listOf("action", "battle", "fight", "combat").any(key::contains) ->
+            listOf("action", "battle", "fight", "combat").any { key.contains(it) } ->
                 "$title anime built around clashes, high stakes, and decisive moments."
-            listOf("love", "romance", "couple", "relationship").any(key::contains) ->
+            listOf("love", "romance", "couple", "relationship").any { key.contains(it) } ->
                 "$title stories about attraction, relationships, and the choices between them."
-            listOf("school", "student", "campus", "classroom").any(key::contains) ->
+            listOf("school", "student", "campus", "classroom").any { key.contains(it) } ->
                 "$title anime where school life, friendships, and everyday drama take centre stage."
-            listOf("fantasy", "magic", "witch", "wizard", "myth", "supernatural").any(key::contains) ->
+            listOf("fantasy", "magic", "witch", "wizard", "myth", "supernatural").any { key.contains(it) } ->
                 "$title tales filled with strange worlds, unusual powers, and hidden rules."
-            listOf("sci-fi", "science fiction", "space", "robot", "mecha", "cyber").any(key::contains) ->
+            listOf("sci-fi", "science fiction", "space", "robot", "mecha", "cyber").any { key.contains(it) } ->
                 "$title stories exploring technology, strange futures, and life beyond the ordinary."
-            listOf("sport", "soccer", "football", "baseball", "basketball", "tennis", "volleyball").any(key::contains) ->
+            listOf("sport", "soccer", "football", "baseball", "basketball", "tennis", "volleyball").any { key.contains(it) } ->
                 "$title anime driven by practice, rivalry, teamwork, and big moments."
-            listOf("music", "band", "idol", "dance", "sing").any(key::contains) ->
+            listOf("music", "band", "idol", "dance", "sing").any { key.contains(it) } ->
                 "$title stories where performance, creativity, and finding a voice matter."
-            listOf("comedy", "parody", "humor", "gag").any(key::contains) ->
+            listOf("comedy", "parody", "humor", "gag").any { key.contains(it) } ->
                 "$title anime for sharp jokes, unexpected chaos, and characters who keep things lively."
-            listOf("horror", "ghost", "vampire", "monster", "demon").any(key::contains) ->
+            listOf("horror", "ghost", "vampire", "monster", "demon").any { key.contains(it) } ->
                 "$title stories bringing eerie mysteries, unsettling encounters, and otherworldly trouble."
-            listOf("crime", "detective", "mystery", "thriller", "suspense").any(key::contains) ->
+            listOf("crime", "detective", "mystery", "thriller", "suspense").any { key.contains(it) } ->
                 "$title anime full of clues, secrets, and questions worth chasing."
-            listOf("family", "friend", "slice of life", "daily life").any(key::contains) ->
+            listOf("family", "friend", "slice of life", "daily life").any { key.contains(it) } ->
                 "$title stories focused on personal bonds, everyday moments, and growing together."
             else ->
                 "Explore anime tagged for $key themes, tropes, and storylines."
