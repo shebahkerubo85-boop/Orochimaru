@@ -47,6 +47,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.Calendar
 import java.util.concurrent.atomic.AtomicInteger
 import ani.sanin.getThemeColor
@@ -322,6 +324,10 @@ class DiscoveryFragment : Fragment() {
     private var kitsuCategories: List<ani.sanin.connections.kitsu.KitsuCategory> = emptyList()
     private var categoryArtwork: Map<String, String?> = emptyMap()
     private val categoryArtworkLoading = HashSet<String>()
+    private val categoryArtworkSelectionMutex = Mutex()
+    private val reservedCategoryArtworkUrls = HashSet<String>()
+    private var hasResumedDiscoveryOnce = false
+    private var shuffleArtworkWhenResumed = false
     private var allDiscoveryCategories: List<CuratedDiscoveryCategory> = CuratedDiscoveryCategories.all
     private var remainingCategoriesLoaded = false
     private var remainingCategoriesLoading = false
@@ -361,7 +367,7 @@ class DiscoveryFragment : Fragment() {
 
     private companion object {
         const val CATEGORY_CARD_HEIGHT_DP = 100
-        const val CATEGORY_COLUMN_GAP_DP = 44
+        const val CATEGORY_COLUMN_GAP_DP = 18
         const val CATEGORY_ROW_GAP_DP = 18
         const val CATEGORY_SIDE_PADDING_DP = 3
         const val MIN_CATEGORY_CONTENT_WIDTH_DP = 140
@@ -378,6 +384,7 @@ class DiscoveryFragment : Fragment() {
         allDiscoveryCategories = CuratedDiscoveryCategories.all
         categoryArtwork = emptyMap()
         categoryArtworkLoading.clear()
+        synchronized(reservedCategoryArtworkUrls) { reservedCategoryArtworkUrls.clear() }
         remainingCategoriesLoaded = false
         remainingCategoriesLoading = false
         categoryArtworkGeneration++
@@ -574,7 +581,22 @@ class DiscoveryFragment : Fragment() {
                 if (categoryArtwork.containsKey(slug) || !categoryArtworkLoading.add(slug)) continue
                 val generation = categoryArtworkGeneration
                 viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-                    val poster = runCatching { Kitsu.categoryThumbnail(slug) }.getOrNull()
+                    // Fetch candidate posters in parallel, then reserve a unique choice under a
+                    // small mutex. Each candidate pool comes only from this exact Kitsu category.
+                    val candidates = runCatching { Kitsu.categoryThumbnails(slug) }.getOrDefault(emptyList())
+                    val poster = categoryArtworkSelectionMutex.withLock {
+                        val used = synchronized(reservedCategoryArtworkUrls) {
+                            reservedCategoryArtworkUrls.toSet()
+                        }
+                        val picked = candidates.filterNot { it in used }.randomOrNull()
+                            ?: candidates.randomOrNull()
+                        if (!picked.isNullOrBlank()) {
+                            synchronized(reservedCategoryArtworkUrls) {
+                                reservedCategoryArtworkUrls.add(picked)
+                            }
+                        }
+                        picked
+                    }
                     withContext(Dispatchers.Main) {
                         categoryArtworkLoading.remove(slug)
                         if (_binding == null || generation != categoryArtworkGeneration) return@withContext
@@ -657,9 +679,8 @@ class DiscoveryFragment : Fragment() {
         }
         val availableWidthDp = ((host.width - host.paddingLeft - host.paddingRight) /
             resources.displayMetrics.density).toInt().coerceAtLeast(1)
-        // This threshold selects the column count only; each card remains weight-based and
-        // expands to the actual available width after the 3dp edge padding and 44dp gaps.
-        // 140dp allows a real multi-column grid on narrow phone portrait screens too.
+        // This threshold selects the column count only; cards remain weight-based and expand
+        // to the measured width after the 3dp edge padding and 18dp gaps.
         val columnCount = ((availableWidthDp + CATEGORY_COLUMN_GAP_DP) /
             (MIN_CATEGORY_CONTENT_WIDTH_DP + CATEGORY_COLUMN_GAP_DP))
             .coerceIn(1, MAX_CATEGORY_COLUMNS)
@@ -716,6 +737,7 @@ class DiscoveryFragment : Fragment() {
                                 Intent(context, KitsuCategoryResultsActivity::class.java)
                                     .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_SLUG, category.kitsuSlug)
                                     .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_TITLE, category.title)
+                                    .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_DESCRIPTION, category.description)
                             )
                         }
                     }
@@ -735,17 +757,40 @@ class DiscoveryFragment : Fragment() {
                         tag = CategoryArtworkTag(categoryArtwork[category.kitsuSlug])
                     }
                     artworkFrame.addView(artworkImage)
-                    artworkFrame.addView(View(context).apply {
-                        background = GradientDrawable(
-                            GradientDrawable.Orientation.LEFT_RIGHT,
-                            intArrayOf(Color.TRANSPARENT, surfaceColor)
-                        )
-                        isClickable = false
-                        isFocusable = false
-                    }, FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT
-                    ))
+                    // Fade all four poster edges into the card surface. A full-frame horizontal
+                    // gradient only blended the edge nearest the text column.
+                    fun addArtworkFade(
+                        orientation: GradientDrawable.Orientation,
+                        colors: IntArray,
+                        params: FrameLayout.LayoutParams,
+                    ) {
+                        artworkFrame.addView(View(context).apply {
+                            background = GradientDrawable(orientation, colors)
+                            isClickable = false
+                            isFocusable = false
+                        }, params)
+                    }
+                    val fadeSize = dp(18)
+                    addArtworkFade(
+                        GradientDrawable.Orientation.LEFT_RIGHT,
+                        intArrayOf(surfaceColor, Color.TRANSPARENT),
+                        FrameLayout.LayoutParams(fadeSize, FrameLayout.LayoutParams.MATCH_PARENT, Gravity.START)
+                    )
+                    addArtworkFade(
+                        GradientDrawable.Orientation.LEFT_RIGHT,
+                        intArrayOf(Color.TRANSPARENT, surfaceColor),
+                        FrameLayout.LayoutParams(fadeSize, FrameLayout.LayoutParams.MATCH_PARENT, Gravity.END)
+                    )
+                    addArtworkFade(
+                        GradientDrawable.Orientation.TOP_BOTTOM,
+                        intArrayOf(surfaceColor, Color.TRANSPARENT),
+                        FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, fadeSize, Gravity.TOP)
+                    )
+                    addArtworkFade(
+                        GradientDrawable.Orientation.TOP_BOTTOM,
+                        intArrayOf(Color.TRANSPARENT, surfaceColor),
+                        FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, fadeSize, Gravity.BOTTOM)
+                    )
                     card.addView(artworkFrame)
 
                     val textColumn = LinearLayout(context).apply {
@@ -821,6 +866,29 @@ class DiscoveryFragment : Fragment() {
                 }
             })
         }
+    }
+
+    private fun resetCategoryArtworkForVisit() {
+        categoryArtworkGeneration++
+        categoryArtwork = emptyMap()
+        categoryArtworkLoading.clear()
+        synchronized(reservedCategoryArtworkUrls) { reservedCategoryArtworkUrls.clear() }
+        updateCategoryArtworkUrls()
+        loadVisibleCategoryArtwork()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (hasResumedDiscoveryOnce && shuffleArtworkWhenResumed && _binding != null) {
+            shuffleArtworkWhenResumed = false
+            resetCategoryArtworkForVisit()
+        }
+        hasResumedDiscoveryOnce = true
+    }
+
+    override fun onPause() {
+        if (hasResumedDiscoveryOnce) shuffleArtworkWhenResumed = true
+        super.onPause()
     }
 
     private fun loadTrailerCarousel() {

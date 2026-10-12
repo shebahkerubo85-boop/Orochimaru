@@ -2,6 +2,8 @@ package ani.sanin.home
 
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.StateListDrawable
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -36,6 +38,7 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_CATEGORY_SLUG = "kitsu_category_slug"
         const val EXTRA_CATEGORY_TITLE = "kitsu_category_title"
+        const val EXTRA_CATEGORY_DESCRIPTION = "kitsu_category_description"
         private const val PAGE_SIZE = 20
     }
 
@@ -45,7 +48,10 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
     private lateinit var recycler: RecyclerView
     private var categorySlug = ""
     private var categoryTitle = ""
+    private var categoryDescription = ""
     private var resolvedCategorySlug: String? = null
+    private lateinit var categoryHeading: TextView
+    private lateinit var descriptionView: TextView
     private var offset = 0
     private var loading = false
     private var endReached = false
@@ -54,9 +60,10 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         categorySlug = intent.getStringExtra(EXTRA_CATEGORY_SLUG).orEmpty()
         categoryTitle = intent.getStringExtra(EXTRA_CATEGORY_TITLE).orEmpty().ifBlank { "Anime category" }
+        categoryDescription = intent.getStringExtra(EXTRA_CATEGORY_DESCRIPTION).orEmpty()
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(getThemeColor(com.google.android.material.R.attr.colorSurface))
+            setBackgroundColor(Color.BLACK)
         }
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -69,21 +76,42 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
             gravity = Gravity.CENTER
             isFocusable = true
             isClickable = true
-            setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            setTextColor(Color.WHITE)
             layoutParams = LinearLayout.LayoutParams(dp(44), dp(48))
             setOnClickListener { finish() }
         }
         FocusEffectUtil.applyFocusListener(back)
         header.addView(back)
-        header.addView(TextView(this).apply {
+        categoryHeading = TextView(this).apply {
             text = categoryTitle
-            textSize = 22f
+            textSize = 24f
             setTypeface(typeface, Typeface.BOLD)
-            setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            gravity = Gravity.CENTER_VERTICAL or Gravity.START
+            setTextColor(Color.WHITE)
             maxLines = 2
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        })
+        }
+        header.addView(categoryHeading)
         root.addView(header)
+
+        descriptionView = TextView(this).apply {
+            text = categoryDescription
+            textSize = 15.5f
+            gravity = Gravity.START
+            setTextColor(Color.rgb(190, 190, 190))
+            setPadding(dp(16), 0, dp(16), dp(16))
+            isVisible = categoryDescription.isNotBlank()
+        }
+        root.addView(descriptionView)
+
+        root.addView(TextView(this).apply {
+            text = "Cards"
+            textSize = 18f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(Color.WHITE)
+            setPadding(dp(16), dp(2), dp(16), dp(8))
+        })
+
         progress = ProgressBar(this).apply { isVisible = false }
         root.addView(progress, LinearLayout.LayoutParams(dp(36), dp(36)).apply {
             gravity = Gravity.CENTER_HORIZONTAL
@@ -91,7 +119,8 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
         status = TextView(this).apply {
             textSize = 14f
             gravity = Gravity.CENTER
-            setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            setTextColor(Color.WHITE)
+            setBackgroundColor(Color.BLACK)
             setPadding(dp(16), dp(8), dp(16), dp(8))
             isVisible = false
         }
@@ -106,6 +135,7 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
             }
         }
         recycler = RecyclerView(this).apply {
+            setBackgroundColor(Color.BLACK)
             val spans = if (isTvDevice(this@KitsuCategoryResultsActivity)) 5 else 3
             layoutManager = GridLayoutManager(this@KitsuCategoryResultsActivity, spans)
             adapter = this@KitsuCategoryResultsActivity.adapter
@@ -145,20 +175,29 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
                 // renames a tag or an editorial title maps to a different official slug,
                 // resolve it against the full live catalogue before querying results.
                 if (resolvedCategorySlug == null && offset == 0 && adapter.itemCount == 0) {
-                    resolvedCategorySlug = withContext(Dispatchers.IO) {
+                    val matchedCategory = withContext(Dispatchers.IO) {
                         val categories = Kitsu.allCategories()
                         val requestedSlug = normalizeCategoryKey(categorySlug)
                         val requestedTitle = normalizeCategoryKey(categoryTitle)
                         categories.firstOrNull {
                             it.slug.equals(categorySlug, ignoreCase = true)
-                        }?.slug
-                            ?: categories.firstOrNull {
-                                normalizeCategoryKey(it.title) == requestedTitle
-                            }?.slug
-                            ?: categories.firstOrNull {
-                                normalizeCategoryKey(it.slug) == requestedSlug
-                            }?.slug
-                            ?: categorySlug
+                        } ?: categories.firstOrNull {
+                            normalizeCategoryKey(it.title) == requestedTitle
+                        } ?: categories.firstOrNull {
+                            normalizeCategoryKey(it.slug) == requestedSlug
+                        }
+                    }
+                    resolvedCategorySlug = matchedCategory?.slug ?: categorySlug
+                    matchedCategory?.let { category ->
+                        categoryHeading.text = "$categoryTitle (${category.mediaCount})"
+                        if (categoryDescription.isBlank()) {
+                            categoryDescription = category.description
+                                ?.replace(Regex("<[^>]*>"), " ")
+                                ?.replace(Regex("\\s+"), " ")
+                                ?.trim().orEmpty()
+                            descriptionView.text = categoryDescription
+                            descriptionView.isVisible = categoryDescription.isNotBlank()
+                        }
                     }
                 }
                 val page = withContext(Dispatchers.IO) {
@@ -226,7 +265,20 @@ private class KitsuAnimeAdapter(
             orientation = LinearLayout.VERTICAL
             isFocusable = true
             isClickable = true
-            background = context.getDrawable(R.drawable.bg_editorial_card_focus)
+            background = StateListDrawable().apply {
+                addState(intArrayOf(android.R.attr.state_focused), GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    setColor(Color.BLACK)
+                    setStroke(dp(context, 2), context.getThemeColor(com.google.android.material.R.attr.colorSecondary))
+                    cornerRadius = dp(context, 14).toFloat()
+                })
+                addState(intArrayOf(), GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    setColor(Color.BLACK)
+                    setStroke(dp(context, 1), Color.rgb(42, 42, 42))
+                    cornerRadius = dp(context, 14).toFloat()
+                })
+            }
             setPadding(dp(context, 6), dp(context, 6), dp(context, 6), dp(context, 8))
             layoutParams = RecyclerView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
@@ -246,7 +298,7 @@ private class KitsuAnimeAdapter(
             textSize = 13f
             maxLines = 2
             setTypeface(typeface, Typeface.BOLD)
-            setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            setTextColor(Color.WHITE)
             setPadding(dp(context, 3), dp(context, 7), dp(context, 3), 0)
         }
         card.addView(poster)
