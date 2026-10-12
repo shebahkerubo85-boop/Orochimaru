@@ -581,28 +581,35 @@ class DiscoveryFragment : Fragment() {
                 if (categoryArtwork.containsKey(slug) || !categoryArtworkLoading.add(slug)) continue
                 val generation = categoryArtworkGeneration
                 viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-                    // AniList supplies the poster art; Kitsu remains the category catalogue.
-                    // Reserve unique URLs so neighbouring cards do not stack the same cover.
-                    val category = allDiscoveryCategories.firstOrNull { it.kitsuSlug == slug }
-                        ?: CuratedDiscoveryCategory(slug.replace('-', ' '), slug, "")
+                    // Kitsu defines exact category membership. Use its AniList mappings,
+                    // then fetch covers only for those IDs from AniList—never infer membership
+                    // from similar tags or fall back to unrelated popular anime.
                     val poster = categoryArtworkSelectionMutex.withLock {
                         // A request from an earlier visit must not reserve a poster in this visit.
                         if (generation != categoryArtworkGeneration) return@withLock null
                         val used = synchronized(reservedCategoryArtworkUrls) {
                             reservedCategoryArtworkUrls.toSet()
                         }
-                        val picked = runCatching {
-                            CuratedCategoryArtwork.pickFor(
-                                categories = listOf(category),
-                                excludedPosterUrls = used,
-                            )[slug]
-                        }.getOrNull()
-                        if (!picked.isNullOrBlank()) {
-                            synchronized(reservedCategoryArtworkUrls) {
-                                reservedCategoryArtworkUrls.add(picked)
+                        runCatching {
+                            val categoryMedia = Kitsu.animeByCategory(slug, page = 1).media
+                            val categoryIds = categoryMedia.map { it.id }.distinct()
+                            val covers = if (categoryIds.isEmpty()) {
+                                emptyList()
+                            } else {
+                                Anilist.query.getMediaList(categoryIds).orEmpty()
+                                    .filter { !it.isAdult }
+                                    .mapNotNull { it.cover?.takeIf(String::isNotBlank) }
+                                    .distinct()
                             }
-                        }
-                        picked
+                            val picked = covers.filterNot { it in used }.randomOrNull()
+                                ?: covers.randomOrNull()
+                            if (!picked.isNullOrBlank()) {
+                                synchronized(reservedCategoryArtworkUrls) {
+                                    reservedCategoryArtworkUrls.add(picked)
+                                }
+                            }
+                            picked
+                        }.getOrNull()
                     }
                     withContext(Dispatchers.Main) {
                         // Ignore stale visits before touching the loading set: a newer visit may
