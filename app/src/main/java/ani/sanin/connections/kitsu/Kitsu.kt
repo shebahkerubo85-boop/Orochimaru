@@ -111,7 +111,7 @@ object Kitsu {
     private var categoryCache: List<KitsuCategory>? = null
 
     /** Successful poster lookups, sourced from the category's own anime listing. */
-    private val categoryThumbnailCache = ConcurrentHashMap<String, String>()
+    private val categoryThumbnailCache = ConcurrentHashMap<String, List<String>>()
 
     /**
      * Franchise id per Kitsu anime id.
@@ -638,23 +638,25 @@ object Kitsu {
      * the category can still have a usable Kitsu poster even when its anime lacks an AniList
      * mapping. Explicitly NSFW-tagged artwork remains filtered.
      */
-    suspend fun categoryThumbnail(slug: String): String? {
-        if (slug.isBlank()) return null
+    suspend fun categoryThumbnails(slug: String): List<String> {
+        if (slug.isBlank()) return emptyList()
         categoryThumbnailCache[slug]?.let { return it }
         val doc = get(
-            "/anime?filter[categories]=$slug&sort=-averageRating&page[limit]=$PAGE_LIMIT" +
+            "/anime?filter[categories]=$slug&sort=-userCount&page[limit]=$PAGE_LIMIT" +
                 "&page[offset]=0"
-        ) ?: return null
-        val poster = doc.dataList().asSequence().mapNotNull { resource ->
+        ) ?: return emptyList()
+        // Keep several category-native posters so the UI can shuffle on every visit and
+        // avoid repeating artwork across neighbouring category cards.
+        val posters = doc.dataList().mapNotNull { resource ->
             val attrs = resource.animeAttributes() ?: return@mapNotNull null
             if (attrs.nsfw) return@mapNotNull null
             attrs.posterImage?.large
                 ?: attrs.posterImage?.medium
                 ?: attrs.posterImage?.original
                 ?: attrs.posterImage?.small
-        }.firstOrNull { it.isNotBlank() }
-        if (!poster.isNullOrBlank()) categoryThumbnailCache[slug] = poster
-        return poster
+        }.filter { it.isNotBlank() }.distinct().take(PAGE_LIMIT)
+        if (posters.isNotEmpty()) categoryThumbnailCache[slug] = posters
+        return posters
     }
 
     /**

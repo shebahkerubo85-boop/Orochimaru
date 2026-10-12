@@ -322,6 +322,8 @@ class DiscoveryFragment : Fragment() {
     private var kitsuCategories: List<ani.sanin.connections.kitsu.KitsuCategory> = emptyList()
     private var categoryArtwork: Map<String, String?> = emptyMap()
     private val categoryArtworkLoading = HashSet<String>()
+    /** Poster URLs already assigned during this Discovery visit, to avoid visible repeats. */
+    private val categoryArtworkUsedPosters = HashSet<String>()
     private var allDiscoveryCategories: List<CuratedDiscoveryCategory> = CuratedDiscoveryCategories.all
     private var remainingCategoriesLoaded = false
     private var remainingCategoriesLoading = false
@@ -361,7 +363,7 @@ class DiscoveryFragment : Fragment() {
 
     private companion object {
         const val CATEGORY_CARD_HEIGHT_DP = 100
-        const val CATEGORY_COLUMN_GAP_DP = 44
+        const val CATEGORY_COLUMN_GAP_DP = 18
         const val CATEGORY_ROW_GAP_DP = 18
         const val CATEGORY_SIDE_PADDING_DP = 3
         const val MIN_CATEGORY_CONTENT_WIDTH_DP = 140
@@ -378,6 +380,7 @@ class DiscoveryFragment : Fragment() {
         allDiscoveryCategories = CuratedDiscoveryCategories.all
         categoryArtwork = emptyMap()
         categoryArtworkLoading.clear()
+        categoryArtworkUsedPosters.clear()
         remainingCategoriesLoaded = false
         remainingCategoriesLoading = false
         categoryArtworkGeneration++
@@ -403,6 +406,14 @@ class DiscoveryFragment : Fragment() {
         binding.discoverAvatar.nextFocusDownId = View.NO_ID
         binding.discoverAvatar.nextFocusLeftId = R.id.discoverSearchBar
 
+        // Recalculate the column count when the same view is resized (including phone rotation).
+        binding.discoverCategoryGrid.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
+            if (right > left && right - left != oldRight - oldLeft &&
+                renderedCategoryColumnCount > 0 && _binding != null
+            ) {
+                renderCategoryGrid()
+            }
+        }
         binding.discoverScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
             val contentHeight = binding.discoverScroll.getChildAt(0)?.height ?: return@setOnScrollChangeListener
             if (scrollY + binding.discoverScroll.height >= contentHeight - dp(500)) {
@@ -574,10 +585,15 @@ class DiscoveryFragment : Fragment() {
                 if (categoryArtwork.containsKey(slug) || !categoryArtworkLoading.add(slug)) continue
                 val generation = categoryArtworkGeneration
                 viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-                    val poster = runCatching { Kitsu.categoryThumbnail(slug) }.getOrNull()
+                    val posters = runCatching { Kitsu.categoryThumbnails(slug) }.getOrDefault(emptyList())
                     withContext(Dispatchers.Main) {
                         categoryArtworkLoading.remove(slug)
                         if (_binding == null || generation != categoryArtworkGeneration) return@withContext
+                        // Shuffle on each Discovery visit, choosing an unused poster first. Every
+                        // candidate comes from this exact Kitsu category, never a global fallback.
+                        val unusedPosters = posters.filterNot { it in categoryArtworkUsedPosters }
+                        val poster = unusedPosters.randomOrNull() ?: posters.randomOrNull()
+                        if (!poster.isNullOrBlank()) categoryArtworkUsedPosters.add(poster)
                         categoryArtwork = categoryArtwork + (slug to poster)
                         updateCategoryArtworkUrls()
                         loadVisibleCategoryArtwork()
@@ -715,7 +731,8 @@ class DiscoveryFragment : Fragment() {
                             startActivity(
                                 Intent(context, KitsuCategoryResultsActivity::class.java)
                                     .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_SLUG, category.kitsuSlug)
-                                    .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_TITLE, category.title)
+                                     .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_TITLE, category.title)
+                                    .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_DESCRIPTION, category.description)
                             )
                         }
                     }
@@ -735,17 +752,41 @@ class DiscoveryFragment : Fragment() {
                         tag = CategoryArtworkTag(categoryArtwork[category.kitsuSlug])
                     }
                     artworkFrame.addView(artworkImage)
-                    artworkFrame.addView(View(context).apply {
-                        background = GradientDrawable(
-                            GradientDrawable.Orientation.LEFT_RIGHT,
-                            intArrayOf(Color.TRANSPARENT, surfaceColor)
-                        )
-                        isClickable = false
-                        isFocusable = false
-                    }, FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT
-                    ))
+                    // Fade every edge into the card surface. The old single rightward
+                    // gradient only blended the poster's right edge, leaving the other three
+                    // edges visibly cut out against the card.
+                    fun addPosterEdgeBlend(
+                        orientation: GradientDrawable.Orientation,
+                        colors: IntArray,
+                        params: FrameLayout.LayoutParams,
+                    ) {
+                        artworkFrame.addView(View(context).apply {
+                            background = GradientDrawable(orientation, colors)
+                            isClickable = false
+                            isFocusable = false
+                            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                        }, params)
+                    }
+                    addPosterEdgeBlend(
+                        GradientDrawable.Orientation.LEFT_RIGHT,
+                        intArrayOf(surfaceColor, Color.TRANSPARENT),
+                        FrameLayout.LayoutParams(dp(22), FrameLayout.LayoutParams.MATCH_PARENT, Gravity.START)
+                    )
+                    addPosterEdgeBlend(
+                        GradientDrawable.Orientation.RIGHT_LEFT,
+                        intArrayOf(surfaceColor, Color.TRANSPARENT),
+                        FrameLayout.LayoutParams(dp(22), FrameLayout.LayoutParams.MATCH_PARENT, Gravity.END)
+                    )
+                    addPosterEdgeBlend(
+                        GradientDrawable.Orientation.TOP_BOTTOM,
+                        intArrayOf(surfaceColor, Color.TRANSPARENT),
+                        FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, dp(18), Gravity.TOP)
+                    )
+                    addPosterEdgeBlend(
+                        GradientDrawable.Orientation.BOTTOM_TOP,
+                        intArrayOf(surfaceColor, Color.TRANSPARENT),
+                        FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, dp(18), Gravity.BOTTOM)
+                    )
                     card.addView(artworkFrame)
 
                     val textColumn = LinearLayout(context).apply {
