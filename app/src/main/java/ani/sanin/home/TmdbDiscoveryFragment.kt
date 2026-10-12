@@ -427,13 +427,13 @@ class TmdbDiscoveryFragment : Fragment() {
             page = page,
             extra = tvExtra
         )
-        return buildList {
-            val max = maxOf(movie.size, tv.size)
-            for (i in 0 until max) {
-                movie.getOrNull(i)?.let(::add)
-                tv.getOrNull(i)?.let(::add)
-            }
-        }.distinctBy { it.type to it.id }
+        val merged = mutableListOf<TmdbMedia>()
+        val max = maxOf(movie.size, tv.size)
+        for (i in 0 until max) {
+            movie.getOrNull(i)?.let { merged.add(it) }
+            tv.getOrNull(i)?.let { merged.add(it) }
+        }
+        return merged.distinctBy { it.type to it.id }
     }
 
     private suspend fun resolveKeyword(category: TmdbDiscoveryCategory): Int? {
