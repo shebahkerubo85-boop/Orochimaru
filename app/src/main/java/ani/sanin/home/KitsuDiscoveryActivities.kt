@@ -36,15 +36,20 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_CATEGORY_SLUG = "kitsu_category_slug"
         const val EXTRA_CATEGORY_TITLE = "kitsu_category_title"
+        const val EXTRA_CATEGORY_DESCRIPTION = "kitsu_category_description"
         private const val PAGE_SIZE = 20
     }
 
     private lateinit var adapter: KitsuAnimeAdapter
     private lateinit var progress: ProgressBar
     private lateinit var status: TextView
+    private lateinit var titleView: TextView
+    private lateinit var descriptionView: TextView
     private lateinit var recycler: RecyclerView
     private var categorySlug = ""
     private var categoryTitle = ""
+    private var categoryDescription = ""
+    private var categoryCount = 0
     private var resolvedCategorySlug: String? = null
     private var offset = 0
     private var loading = false
@@ -54,9 +59,10 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         categorySlug = intent.getStringExtra(EXTRA_CATEGORY_SLUG).orEmpty()
         categoryTitle = intent.getStringExtra(EXTRA_CATEGORY_TITLE).orEmpty().ifBlank { "Anime category" }
+        categoryDescription = intent.getStringExtra(EXTRA_CATEGORY_DESCRIPTION).orEmpty()
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(getThemeColor(com.google.android.material.R.attr.colorSurface))
+            setBackgroundColor(Color.BLACK)
         }
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -75,23 +81,37 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
         }
         FocusEffectUtil.applyFocusListener(back)
         header.addView(back)
-        header.addView(TextView(this).apply {
+        titleView = TextView(this).apply {
             text = categoryTitle
-            textSize = 22f
+            textSize = 24f
             setTypeface(typeface, Typeface.BOLD)
-            setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            setTextColor(Color.WHITE)
             maxLines = 2
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        })
+        }
+        header.addView(titleView)
         root.addView(header)
-        progress = ProgressBar(this).apply { isVisible = false }
+        descriptionView = TextView(this).apply {
+            text = categoryDescription
+            textSize = 16f
+            gravity = Gravity.START
+            textAlignment = View.TEXT_ALIGNMENT_VIEW_START
+            setTextColor(Color.LTGRAY)
+            setPadding(dp(16), dp(2), dp(16), dp(14))
+            isVisible = categoryDescription.isNotBlank()
+        }
+        root.addView(descriptionView)
+        progress = ProgressBar(this).apply {
+            isVisible = false
+            indeterminateTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
+        }
         root.addView(progress, LinearLayout.LayoutParams(dp(36), dp(36)).apply {
             gravity = Gravity.CENTER_HORIZONTAL
         })
         status = TextView(this).apply {
             textSize = 14f
             gravity = Gravity.CENTER
-            setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            setTextColor(Color.LTGRAY)
             setPadding(dp(16), dp(8), dp(16), dp(8))
             isVisible = false
         }
@@ -145,21 +165,22 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
                 // renames a tag or an editorial title maps to a different official slug,
                 // resolve it against the full live catalogue before querying results.
                 if (resolvedCategorySlug == null && offset == 0 && adapter.itemCount == 0) {
-                    resolvedCategorySlug = withContext(Dispatchers.IO) {
+                    val resolved = withContext(Dispatchers.IO) {
                         val categories = Kitsu.allCategories()
                         val requestedSlug = normalizeCategoryKey(categorySlug)
                         val requestedTitle = normalizeCategoryKey(categoryTitle)
-                        categories.firstOrNull {
+                        val match = categories.firstOrNull {
                             it.slug.equals(categorySlug, ignoreCase = true)
-                        }?.slug
-                            ?: categories.firstOrNull {
-                                normalizeCategoryKey(it.title) == requestedTitle
-                            }?.slug
-                            ?: categories.firstOrNull {
-                                normalizeCategoryKey(it.slug) == requestedSlug
-                            }?.slug
-                            ?: categorySlug
+                        } ?: categories.firstOrNull {
+                            normalizeCategoryKey(it.title) == requestedTitle
+                        } ?: categories.firstOrNull {
+                            normalizeCategoryKey(it.slug) == requestedSlug
+                        }
+                        (match?.slug ?: categorySlug) to (match?.mediaCount ?: 0)
                     }
+                    resolvedCategorySlug = resolved.first
+                    categoryCount = resolved.second
+                    updateCategoryTitle()
                 }
                 val page = withContext(Dispatchers.IO) {
                     Kitsu.categoryAnime(resolvedCategorySlug ?: categorySlug, offset, PAGE_SIZE)
@@ -182,6 +203,7 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
                     adapter.append(page.items)
                     added = true
                 }
+                updateCategoryTitle()
                 attempts++
             } while (!added && !endReached && attempts < 3)
 
@@ -193,6 +215,11 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
             progress.isVisible = false
             loading = false
         }
+    }
+
+    private fun updateCategoryTitle() {
+        val count = categoryCount.takeIf { it > 0 } ?: adapter.itemCount
+        titleView.text = if (count > 0) "$categoryTitle ($count)" else categoryTitle
     }
 
     private fun normalizeCategoryKey(value: String): String =
@@ -226,7 +253,11 @@ private class KitsuAnimeAdapter(
             orientation = LinearLayout.VERTICAL
             isFocusable = true
             isClickable = true
-            background = context.getDrawable(R.drawable.bg_editorial_card_focus)
+            background = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                setColor(Color.rgb(12, 12, 12))
+                cornerRadius = dp(context, 14).toFloat()
+            }
             setPadding(dp(context, 6), dp(context, 6), dp(context, 6), dp(context, 8))
             layoutParams = RecyclerView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
