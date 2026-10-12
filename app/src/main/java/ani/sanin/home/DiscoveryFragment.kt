@@ -361,7 +361,7 @@ class DiscoveryFragment : Fragment() {
 
     private companion object {
         const val CATEGORY_CARD_HEIGHT_DP = 100
-        const val CATEGORY_COLUMN_GAP_DP = 44
+        const val CATEGORY_COLUMN_GAP_DP = 18
         const val CATEGORY_ROW_GAP_DP = 18
         const val CATEGORY_SIDE_PADDING_DP = 3
         const val MIN_CATEGORY_CONTENT_WIDTH_DP = 140
@@ -574,10 +574,15 @@ class DiscoveryFragment : Fragment() {
                 if (categoryArtwork.containsKey(slug) || !categoryArtworkLoading.add(slug)) continue
                 val generation = categoryArtworkGeneration
                 viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-                    val poster = runCatching { Kitsu.categoryThumbnail(slug) }.getOrNull()
+                    val posters = runCatching { Kitsu.categoryThumbnails(slug) }.getOrDefault(emptyList())
                     withContext(Dispatchers.Main) {
                         categoryArtworkLoading.remove(slug)
                         if (_binding == null || generation != categoryArtworkGeneration) return@withContext
+                        // Assign from this category's own Kitsu listing. Prefer artwork not already used
+                        // by another category card; only repeat when the candidate pools overlap.
+                        val alreadyUsed = categoryArtwork.values.filterNotNull().toHashSet()
+                        val poster = posters.filterNot { it in alreadyUsed }.randomOrNull()
+                            ?: posters.randomOrNull()
                         categoryArtwork = categoryArtwork + (slug to poster)
                         updateCategoryArtworkUrls()
                         loadVisibleCategoryArtwork()
@@ -658,8 +663,8 @@ class DiscoveryFragment : Fragment() {
         val availableWidthDp = ((host.width - host.paddingLeft - host.paddingRight) /
             resources.displayMetrics.density).toInt().coerceAtLeast(1)
         // This threshold selects the column count only; each card remains weight-based and
-        // expands to the actual available width after the 3dp edge padding and 44dp gaps.
-        // 140dp allows a real multi-column grid on narrow phone portrait screens too.
+        // expands to the measured available width after 3dp edge padding and 18dp gaps.
+        // The threshold only decides when another column is useful; it never fixes card width.
         val columnCount = ((availableWidthDp + CATEGORY_COLUMN_GAP_DP) /
             (MIN_CATEGORY_CONTENT_WIDTH_DP + CATEGORY_COLUMN_GAP_DP))
             .coerceIn(1, MAX_CATEGORY_COLUMNS)
@@ -736,10 +741,15 @@ class DiscoveryFragment : Fragment() {
                     }
                     artworkFrame.addView(artworkImage)
                     artworkFrame.addView(View(context).apply {
-                        background = GradientDrawable(
-                            GradientDrawable.Orientation.LEFT_RIGHT,
-                            intArrayOf(Color.TRANSPARENT, surfaceColor)
-                        )
+                        // A radial fade covers all four edges and corners. The previous
+                        // left-to-right gradient only blended the text-facing edge.
+                        background = GradientDrawable().apply {
+                            shape = GradientDrawable.RECTANGLE
+                            gradientType = GradientDrawable.RADIAL_GRADIENT
+                            gradientRadius = dp(60).toFloat()
+                            setGradientCenter(0.5f, 0.5f)
+                            setColors(intArrayOf(Color.TRANSPARENT, surfaceColor))
+                        }
                         isClickable = false
                         isFocusable = false
                     }, FrameLayout.LayoutParams(
