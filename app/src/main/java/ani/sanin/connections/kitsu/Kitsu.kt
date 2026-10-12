@@ -110,9 +110,6 @@ object Kitsu {
     @Volatile
     private var categoryCache: List<KitsuCategory>? = null
 
-    /** Successful poster lookups, sourced from the category's own anime listing. */
-    private val categoryThumbnailCache = ConcurrentHashMap<String, String>()
-
     /**
      * Franchise id per Kitsu anime id.
      *
@@ -638,24 +635,32 @@ object Kitsu {
      * the category can still have a usable Kitsu poster even when its anime lacks an AniList
      * mapping. Explicitly NSFW-tagged artwork remains filtered.
      */
-    suspend fun categoryThumbnail(slug: String): String? {
-        if (slug.isBlank()) return null
-        categoryThumbnailCache[slug]?.let { return it }
+    /**
+     * Candidate poster artwork sampled from this category's own anime listing.
+     *
+     * No process-wide selected-poster cache: Discovery deliberately calls this when its
+     * screen is opened so category artwork can shuffle between visits. The UI chooses among
+     * these candidates while avoiding posters already assigned to other visible categories.
+     */
+    suspend fun categoryThumbnails(slug: String): List<String> {
+        if (slug.isBlank()) return emptyList()
         val doc = get(
             "/anime?filter[categories]=$slug&sort=-averageRating&page[limit]=$PAGE_LIMIT" +
                 "&page[offset]=0"
-        ) ?: return null
-        val poster = doc.dataList().asSequence().mapNotNull { resource ->
+        ) ?: return emptyList()
+        return doc.dataList().asSequence().mapNotNull { resource ->
             val attrs = resource.animeAttributes() ?: return@mapNotNull null
             if (attrs.nsfw) return@mapNotNull null
             attrs.posterImage?.large
                 ?: attrs.posterImage?.medium
                 ?: attrs.posterImage?.original
                 ?: attrs.posterImage?.small
-        }.firstOrNull { it.isNotBlank() }
-        if (!poster.isNullOrBlank()) categoryThumbnailCache[slug] = poster
-        return poster
+        }.filter { it.isNotBlank() }.distinct().toList()
     }
+
+    /** Compatibility helper for callers that only need one category poster. */
+    suspend fun categoryThumbnail(slug: String): String? =
+        categoryThumbnails(slug).randomOrNull()
 
     /**
      * Anime in one category, most highly rated first.
