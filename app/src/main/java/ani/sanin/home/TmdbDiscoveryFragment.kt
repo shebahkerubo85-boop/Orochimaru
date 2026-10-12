@@ -42,7 +42,8 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.time.LocalDate
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 class TmdbDiscoveryFragment : Fragment() {
@@ -138,6 +139,9 @@ class TmdbDiscoveryFragment : Fragment() {
 
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
+
+    private fun todayIso(): String =
+        SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
 
     private fun openDetails(item: TmdbMedia) {
         startActivity(Intent(requireContext(), TmdbDetailsActivity::class.java)
@@ -398,7 +402,7 @@ class TmdbDiscoveryFragment : Fragment() {
         if (category.id == "hidden-gems" || category.id == "underrated-masterpieces") {
             extra.add("vote_count.gte" to "250")
             extra.add("vote_average.gte" to "7.0")
-            extra.add("release_date.lte" to LocalDate.now().toString())
+            extra.add("release_date.lte" to todayIso())
         }
         val keyword = keywordId?.toString()
         val movie = Tmdb.discover(
@@ -435,8 +439,9 @@ class TmdbDiscoveryFragment : Fragment() {
         val key = query.lowercase(Locale.ROOT)
         if (keywordCache.containsKey(key)) return keywordCache[key]
         val resolved = runCatching {
-            Tmdb.searchKeywords(query).firstOrNull { normalize(it.name) == normalize(query) }?.id
-                ?: Tmdb.searchKeywords(query).firstOrNull {
+            val matches = Tmdb.searchKeywords(query)
+            matches.firstOrNull { normalize(it.name) == normalize(query) }?.id
+                ?: matches.firstOrNull {
                     normalize(it.name).contains(normalize(query)) ||
                         normalize(query).contains(normalize(it.name))
                 }?.id
