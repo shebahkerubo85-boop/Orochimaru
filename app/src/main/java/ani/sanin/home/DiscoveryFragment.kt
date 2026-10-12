@@ -721,6 +721,7 @@ class DiscoveryFragment : Fragment() {
                                 Intent(context, KitsuCategoryResultsActivity::class.java)
                                     .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_SLUG, category.kitsuSlug)
                                     .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_TITLE, category.title)
+                                    .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_DESCRIPTION, category.description)
                             )
                         }
                     }
