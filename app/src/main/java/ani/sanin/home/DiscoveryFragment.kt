@@ -2,8 +2,11 @@ package ani.sanin.home
 
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.HorizontalScrollView
@@ -43,6 +46,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Calendar
 import java.util.concurrent.atomic.AtomicInteger
 import ani.sanin.getThemeColor
@@ -333,6 +337,10 @@ class DiscoveryFragment : Fragment() {
     private var tmdbAnimationLoaded = false
     private var kitsuCategories: List<ani.sanin.connections.kitsu.KitsuCategory> = emptyList()
     private var categoryArtwork: Map<String, String?> = emptyMap()
+    private var allDiscoveryCategories: List<CuratedDiscoveryCategory> = CuratedDiscoveryCategories.all
+    private var remainingCategoriesLoaded = false
+    private var remainingCategoriesLoading = false
+    private var categoryArtworkGeneration = 0
     private var categoriesLoaded = false
     private var trailerLoaded = false
     private var trailerItems: List<DiscoveryTrailer> = emptyList()
@@ -359,7 +367,9 @@ class DiscoveryFragment : Fragment() {
         return binding.root
     }
 
-    private var visibleCuratedCategoryCount = 20
+    private data class CategoryArtworkTag(val url: String?, val loaded: Boolean = false)
+
+    private var visibleCuratedCategoryCount = CuratedDiscoveryCategories.all.size
     private var renderedCuratedCategoryCount = 0
     private var categoryGridScrollListenerInstalled = false
 
@@ -368,6 +378,13 @@ class DiscoveryFragment : Fragment() {
     ) {
         super.onViewCreated(view, savedInstanceState)
         isTv = isTvDevice(requireContext())
+        visibleCuratedCategoryCount = CuratedDiscoveryCategories.all.size
+        renderedCuratedCategoryCount = 0
+        allDiscoveryCategories = CuratedDiscoveryCategories.all
+        categoryArtwork = emptyMap()
+        remainingCategoriesLoaded = false
+        remainingCategoriesLoading = false
+        categoryArtworkGeneration++
         setupSearchBar()
         setupAvatar()
 
@@ -393,10 +410,16 @@ class DiscoveryFragment : Fragment() {
         binding.discoverScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
             val contentHeight = binding.discoverScroll.getChildAt(0)?.height ?: return@setOnScrollChangeListener
             if (scrollY + binding.discoverScroll.height >= contentHeight - dp(500)) {
-                revealNextCategoryBatch()
+                if (visibleCuratedCategoryCount < allDiscoveryCategories.size) {
+                    revealNextCategoryBatch()
+                } else if (!remainingCategoriesLoaded) {
+                    loadNextRemainingCategoryBatch()
+                }
             }
+            loadVisibleCategoryArtwork()
         }
         renderCategoryGrid()
+        loadArtworkFor(CuratedDiscoveryCategories.all)
         if (isTv) {
             binding.discoverSearchBar.post {
                 if (isAdded) binding.discoverSearchBar.requestFocus()
@@ -404,11 +427,121 @@ class DiscoveryFragment : Fragment() {
         }
     }
 
+    /** Reveal ten unchosen Kitsu categories per scroll-to-bottom trigger. */
     private fun revealNextCategoryBatch() {
-        if (visibleCuratedCategoryCount >= CuratedDiscoveryCategories.all.size) return
-        visibleCuratedCategoryCount = (visibleCuratedCategoryCount + 20)
-            .coerceAtMost(CuratedDiscoveryCategories.all.size)
+        if (visibleCuratedCategoryCount >= allDiscoveryCategories.size) return
+        val start = visibleCuratedCategoryCount
+        visibleCuratedCategoryCount = (visibleCuratedCategoryCount + 10)
+            .coerceAtMost(allDiscoveryCategories.size)
         renderCategoryGrid()
+        loadArtworkFor(allDiscoveryCategories.subList(start, visibleCuratedCategoryCount))
+        loadVisibleCategoryArtwork()
+    }
+
+    /**
+     * Fetch the remaining public Kitsu category catalogue only when the user reaches the end
+     * of the curated 64. Cards are revealed ten at a time by scroll-triggered pagination.
+     */
+    private fun loadNextRemainingCategoryBatch() {
+        if (remainingCategoriesLoading || remainingCategoriesLoaded) return
+        remainingCategoriesLoading = true
+        renderCategoryGrid()
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            val fetched = runCatching { Kitsu.allCategories() }.getOrDefault(emptyList())
+            withContext(Dispatchers.Main) {
+                if (_binding == null) return@withContext
+                remainingCategoriesLoading = false
+                if (fetched.isEmpty()) {
+                    // An empty response can mean a network failure. Leave this retryable.
+                    renderCategoryGrid()
+                    return@withContext
+                }
+                val chosenSlugs = CuratedDiscoveryCategories.all.mapTo(HashSet()) { it.kitsuSlug }
+                val remaining = fetched
+                    .asSequence()
+                    .filter { !it.nsfw && it.mediaCount > 0 && it.slug !in chosenSlugs }
+                    .distinctBy { it.slug }
+                    .sortedByDescending { it.mediaCount }
+                    .map { category ->
+                        CuratedDiscoveryCategory(
+                            title = category.title,
+                            kitsuSlug = category.slug,
+                            description = "Explore ${category.title.lowercase(java.util.Locale.ROOT)} anime and related stories."
+                        )
+                    }
+                    .toList()
+                allDiscoveryCategories = CuratedDiscoveryCategories.all + remaining
+                remainingCategoriesLoaded = true
+                if (visibleCuratedCategoryCount < allDiscoveryCategories.size) {
+                    revealNextCategoryBatch()
+                } else {
+                    renderCategoryGrid()
+                }
+            }
+        }
+    }
+
+    /** AniList artwork is fetched once for a pool, shuffled per visit, and loaded near view. */
+    private fun loadArtworkFor(categories: List<CuratedDiscoveryCategory>) {
+        if (categories.isEmpty()) return
+        val generation = categoryArtworkGeneration
+        val excluded = categoryArtwork.values.filterNotNull().toSet()
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            val picks = CuratedCategoryArtwork.pickFor(categories, excluded)
+            withContext(Dispatchers.Main) {
+                if (_binding == null || generation != categoryArtworkGeneration) return@withContext
+                categoryArtwork = categoryArtwork + picks
+                updateCategoryArtworkUrls()
+                loadVisibleCategoryArtwork()
+            }
+        }
+    }
+
+    /** Update URL tags without rebuilding cards, preserving focus and scroll position. */
+    private fun updateCategoryArtworkUrls() {
+        val host = _binding?.discoverCategoryGrid ?: return
+        for (rowIndex in 1 until host.childCount) {
+            val row = host.getChildAt(rowIndex) as? LinearLayout ?: continue
+            for (cardIndex in 0 until row.childCount) {
+                val card = row.getChildAt(cardIndex) as? LinearLayout ?: continue
+                val slug = card.tag as? String ?: continue
+                val frame = (0 until card.childCount)
+                    .mapNotNull { card.getChildAt(it) as? FrameLayout }
+                    .firstOrNull() ?: continue
+                val image = frame.getChildAt(0) as? ImageView ?: continue
+                val url = categoryArtwork[slug]
+                val old = image.tag as? CategoryArtworkTag
+                if (old?.url != url) image.tag = CategoryArtworkTag(url)
+            }
+        }
+    }
+
+    /** Only start image requests for cards near the viewport; loadImage uses app image caching. */
+    private fun loadVisibleCategoryArtwork() {
+        val currentBinding = _binding ?: return
+        val host = currentBinding.discoverCategoryGrid
+        val scroll = currentBinding.discoverScroll
+        val viewportTop = scroll.scrollY - dp(240)
+        val viewportBottom = scroll.scrollY + scroll.height + dp(500)
+        for (rowIndex in 1 until host.childCount) {
+            val row = host.getChildAt(rowIndex) as? LinearLayout ?: continue
+            for (cardIndex in 0 until row.childCount) {
+                val card = row.getChildAt(cardIndex) as? LinearLayout ?: continue
+                val cardTop = host.top + row.top + card.top
+                val cardBottom = cardTop + card.height
+                if (cardBottom < viewportTop || cardTop > viewportBottom) continue
+                val frame = (0 until card.childCount)
+                    .mapNotNull { card.getChildAt(it) as? FrameLayout }
+                    .firstOrNull() ?: continue
+                val image = frame.getChildAt(0) as? ImageView ?: continue
+                val tag = image.tag as? CategoryArtworkTag ?: continue
+                val url = tag.url ?: continue
+                if (!tag.loaded) {
+                    image.loadImage(url)
+                    image.tag = tag.copy(loaded = true)
+                }
+            }
+        }
     }
 
     private fun loadKitsuEditorial() {
@@ -453,9 +586,8 @@ class DiscoveryFragment : Fragment() {
     }
 
     /**
-     * Render the curated, stable category list in two columns. The cards are hardcoded and
-     * paged locally (20 + 20 + remainder), so the landing page works even if Kitsu's category
-     * catalogue is slow or omits an editorial category.
+     * Render all 64 curated categories first, followed by unchosen Kitsu categories in
+     * scroll-triggered batches of ten. Existing cards are appended to preserve focus and scroll.
      */
     private fun renderCategoryGrid() {
         val host = _binding?.discoverCategoryGrid ?: return
@@ -478,7 +610,7 @@ class DiscoveryFragment : Fragment() {
         // Remove only the "more" hint, not existing cards: focus and scroll position remain
         // stable on Android TV while each new batch is appended.
         host.findViewWithTag<View>("curated-more-footer")?.let { host.removeView(it) }
-        val categories = CuratedDiscoveryCategories.all
+        val categories = allDiscoveryCategories
         val shownCount = visibleCuratedCategoryCount.coerceAtMost(categories.size)
         if (shownCount > renderedCuratedCategoryCount) {
             val newCategories = categories.subList(renderedCuratedCategoryCount, shownCount)
@@ -492,17 +624,19 @@ class DiscoveryFragment : Fragment() {
                         LinearLayout.LayoutParams.WRAP_CONTENT
                     )
                 }
-                rowCategories.forEach { category ->
+                rowCategories.forEachIndexed { columnIndex, category ->
                     val card = LinearLayout(context).apply {
                         id = View.generateViewId()
+                        tag = category.kitsuSlug
                         orientation = LinearLayout.VERTICAL
                         gravity = Gravity.TOP
                         isFocusable = true
                         isClickable = true
+                        clipChildren = false
                         background = context.getDrawable(R.drawable.bg_editorial_card_focus)
                         setPadding(dp(12), dp(12), dp(12), dp(12))
                         layoutParams = LinearLayout.LayoutParams(
-                            0, LinearLayout.LayoutParams.MATCH_PARENT, 1f
+                            0, dp(248), 1f
                         ).apply {
                             marginStart = dp(4)
                             marginEnd = dp(4)
@@ -524,14 +658,47 @@ class DiscoveryFragment : Fragment() {
                         setTypeface(typeface, Typeface.BOLD)
                         setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
                     })
+                    val artworkFrame = FrameLayout(context).apply {
+                        clipChildren = false
+                        clipToPadding = false
+                        layoutParams = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT, dp(112)
+                        ).apply {
+                            topMargin = dp(2)
+                            bottomMargin = dp(2)
+                        }
+                    }
+                    val artworkImage = ImageView(context).apply {
+                        scaleType = ImageView.ScaleType.CENTER_CROP
+                        setImageResource(R.drawable.ic_editorial_artwork_unavailable)
+                        contentDescription = "${category.title} artwork"
+                        rotation = if (columnIndex == 0) -4f else 4f
+                        layoutParams = FrameLayout.LayoutParams(dp(86), dp(108), Gravity.CENTER)
+                        tag = CategoryArtworkTag(categoryArtwork[category.kitsuSlug])
+                    }
+                    artworkFrame.addView(artworkImage)
+                    val surfaceColor = context.getThemeColor(com.google.android.material.R.attr.colorSurface)
+                    artworkFrame.addView(View(context).apply {
+                        // Fade the lower poster edge into the card surface, not a hard image box.
+                        background = GradientDrawable(
+                            GradientDrawable.Orientation.TOP_BOTTOM,
+                            intArrayOf(Color.TRANSPARENT, surfaceColor)
+                        )
+                        isClickable = false
+                        isFocusable = false
+                    }, FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT
+                    ))
+                    card.addView(artworkFrame)
                     card.addView(TextView(context).apply {
                         text = category.description
                         textSize = 12f
                         maxLines = 3
                         ellipsize = android.text.TextUtils.TruncateAt.END
-                        alpha = 0.82f
+                        alpha = 0.88f
                         setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
-                        setPadding(0, dp(6), 0, 0)
+                        setPadding(0, dp(4), 0, 0)
                     })
                     FocusEffectUtil.applyFocusListener(card)
                     if (renderedCuratedCategoryCount == 0 && rowIndex == 0 &&
@@ -553,10 +720,10 @@ class DiscoveryFragment : Fragment() {
             renderedCuratedCategoryCount = shownCount
         }
 
-        if (shownCount < categories.size) {
+        if (shownCount < categories.size || !remainingCategoriesLoaded || remainingCategoriesLoading) {
             host.addView(TextView(context).apply {
                 tag = "curated-more-footer"
-                text = "KEEP SCROLLING TO DISCOVER MORE"
+                text = if (remainingCategoriesLoading) "FINDING MORE CATEGORIES…" else "KEEP SCROLLING TO DISCOVER MORE"
                 textSize = 11f
                 gravity = Gravity.CENTER
                 alpha = 0.65f
