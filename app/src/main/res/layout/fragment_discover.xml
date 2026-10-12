@@ -28,7 +28,8 @@
                 android:layout_marginBottom="8dp"
                 android:text="@string/discover"
                 android:textAppearance="@style/TextAppearance.MaterialComponents.Headline5"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                android:visibility="gone" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -99,15 +100,16 @@
                 android:layout_marginBottom="4dp"
                 android:text="@string/genre"
                 android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle2"
-                android:textColor="?attr/colorOnSurfaceVariant" />
-
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:visibility="gone" />
             <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:scrollbars="none"
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp"
-                android:paddingBottom="4dp">
+                android:paddingBottom="4dp"
+                android:visibility="gone">
 
                 <com.google.android.material.chip.ChipGroup
                     android:id="@+id/genreChipGroup"
@@ -129,7 +131,8 @@
                 android:layout_marginBottom="4dp"
                 android:text="@string/season"
                 android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle2"
-                android:textColor="?attr/colorOnSurfaceVariant" />
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:visibility="gone" />
 
             <HorizontalScrollView
                 android:layout_width="match_parent"
@@ -137,7 +140,8 @@
                 android:scrollbars="none"
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp"
-                android:paddingBottom="8dp">
+                android:paddingBottom="8dp"
+                android:visibility="gone">
 
                 <com.google.android.material.chip.ChipGroup
                     android:id="@+id/seasonChipGroup"

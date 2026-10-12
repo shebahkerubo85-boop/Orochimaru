@@ -45,6 +45,7 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
     private lateinit var recycler: RecyclerView
     private var categorySlug = ""
     private var categoryTitle = ""
+    private var resolvedCategorySlug: String? = null
     private var offset = 0
     private var loading = false
     private var endReached = false
@@ -140,8 +141,28 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
             var added = false
             var attempts = 0
             do {
+                // The curated grid's slug is the preferred stable mapping. If Kitsu ever
+                // renames a tag or an editorial title maps to a different official slug,
+                // resolve it against the full live catalogue before querying results.
+                if (resolvedCategorySlug == null && offset == 0 && adapter.itemCount == 0) {
+                    resolvedCategorySlug = withContext(Dispatchers.IO) {
+                        val categories = Kitsu.allCategories()
+                        val requestedSlug = normalizeCategoryKey(categorySlug)
+                        val requestedTitle = normalizeCategoryKey(categoryTitle)
+                        categories.firstOrNull {
+                            it.slug.equals(categorySlug, ignoreCase = true)
+                        }?.slug
+                            ?: categories.firstOrNull {
+                                normalizeCategoryKey(it.title) == requestedTitle
+                            }?.slug
+                            ?: categories.firstOrNull {
+                                normalizeCategoryKey(it.slug) == requestedSlug
+                            }?.slug
+                            ?: categorySlug
+                    }
+                }
                 val page = withContext(Dispatchers.IO) {
-                    Kitsu.categoryAnime(categorySlug, offset, PAGE_SIZE)
+                    Kitsu.categoryAnime(resolvedCategorySlug ?: categorySlug, offset, PAGE_SIZE)
                 }
                 if (!page.success) {
                     if (adapter.itemCount == 0) {
@@ -173,6 +194,9 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
             loading = false
         }
     }
+
+    private fun normalizeCategoryKey(value: String): String =
+        value.lowercase(java.util.Locale.ROOT).filter { it.isLetterOrDigit() }
 
     private fun showStatus(message: String) {
         status.text = message

@@ -359,40 +359,56 @@ class DiscoveryFragment : Fragment() {
         return binding.root
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    private var visibleCuratedCategoryCount = 20
+    private var renderedCuratedCategoryCount = 0
+    private var categoryGridScrollListenerInstalled = false
+
+    override fun onViewCreated(
+        view: View, savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
         isTv = isTvDevice(requireContext())
         setupSearchBar()
         setupAvatar()
-        setupGenreChips()
-        setupSeasonChips()
-        setupResultsGrid()
-        observeViewModel()
-        binding.genreChipGroup.isFocusable = true
-        binding.seasonChipGroup.isFocusable = true
-        // Fix dpad chain: search bar → genre chips → season chips → grid
-        // XML had searchBar→avatar→genre which trapped focus; unify to
-        // linear vertical chain so DPAD_DOWN from search lands on chips, not avatar.
-        binding.discoverSearchBar.nextFocusDownId = R.id.genreChipGroup
-        binding.discoverSearchBar.nextFocusRightId = R.id.discoverAvatar
-        binding.discoverAvatar.nextFocusDownId = R.id.genreChipGroup
+
+        // Discovery is now the curated category landing page. The old genre/season chips,
+        // AniList results grid, editorial shelves and trailer carousel are intentionally not
+        // initialized here, so they cannot issue unrelated network requests or reappear.
+        binding.genreChipGroup.visibility = View.GONE
+        binding.seasonChipGroup.visibility = View.GONE
+        binding.discoverRecyclerView.visibility = View.GONE
+        binding.discoverProgressBar.visibility = View.GONE
+        binding.discoverEmptyText.visibility = View.GONE
+        binding.discoverErrorGroup.visibility = View.GONE
+        binding.discoverLoadingMore.visibility = View.GONE
+        binding.discoverLoadMoreErrorGroup.visibility = View.GONE
+        binding.discoverTrailerCarousel.visibility = View.GONE
+        binding.discoverEditorialShelves.visibility = View.GONE
+
+        // The first actual card is assigned as the D-pad destination when the grid is built.
+        binding.discoverSearchBar.nextFocusDownId = View.NO_ID
+        binding.discoverAvatar.nextFocusDownId = View.NO_ID
         binding.discoverAvatar.nextFocusLeftId = R.id.discoverSearchBar
-        binding.genreChipGroup.nextFocusUpId = R.id.discoverSearchBar
-        binding.genreChipGroup.nextFocusDownId = R.id.seasonChipGroup
-        binding.seasonChipGroup.nextFocusUpId = R.id.genreChipGroup
-        binding.seasonChipGroup.nextFocusDownId = R.id.discoverRecyclerView
-        binding.discoverRecyclerView.nextFocusUpId = R.id.seasonChipGroup
-        discoverViewModel.ensureLoaded()
-        loadKitsuEditorial()
-        loadTmdbAnimationEditorial()
-        loadKitsuCategories()
-        renderTrailerCarousel()
-        // Steal initial focus so a TV has somewhere to start. On a touch device the search
-        // bar is focusableInTouchMode, so this also lit its focus border on open — a phone
-        // has no d-pad to seed and should not paint a focus ring nobody asked for.
-        if (isTv) {
-            binding.discoverSearchBar.post { if (isAdded) binding.discoverSearchBar.requestFocus() }
+
+        binding.discoverScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+            val contentHeight = binding.discoverScroll.getChildAt(0)?.height ?: return@setOnScrollChangeListener
+            if (scrollY + binding.discoverScroll.height >= contentHeight - dp(500)) {
+                revealNextCategoryBatch()
+            }
         }
+        renderCategoryGrid()
+        if (isTv) {
+            binding.discoverSearchBar.post {
+                if (isAdded) binding.discoverSearchBar.requestFocus()
+            }
+        }
+    }
+
+    private fun revealNextCategoryBatch() {
+        if (visibleCuratedCategoryCount >= CuratedDiscoveryCategories.all.size) return
+        visibleCuratedCategoryCount = (visibleCuratedCategoryCount + 20)
+            .coerceAtMost(CuratedDiscoveryCategories.all.size)
+        renderCategoryGrid()
     }
 
     private fun loadKitsuEditorial() {
@@ -432,130 +448,122 @@ class DiscoveryFragment : Fragment() {
     }
 
     private fun loadKitsuCategories() {
-        if (kitsuCategories.isNotEmpty()) {
-            renderCategoryGrid()
-            return
-        }
-        if (categoriesLoaded) return
-        categoriesLoaded = true
-        viewLifecycleOwner.lifecycleScope.launch {
-            kitsuCategories = runCatching {
-                ani.sanin.connections.kitsu.Kitsu.categories(limit = 60).take(12)
-            }.getOrDefault(emptyList())
-            if (_binding == null) return@launch
-            renderCategoryGrid()
-            if (kitsuCategories.isEmpty()) return@launch
-
-            categoryArtwork = kitsuCategories.map { category ->
-                async {
-                    category.slug to runCatching {
-                        ani.sanin.connections.kitsu.Kitsu.categoryAnime(
-                            categorySlug = category.slug, offset = 0, limit = 1
-                        ).items.firstOrNull()?.posterUrl
-                    }.getOrNull()
-                }
-            }.awaitAll().toMap()
-            if (_binding != null) renderCategoryGrid()
-        }
+        // Kept as a no-network compatibility entry point for any older internal caller.
+        renderCategoryGrid()
     }
 
+    /**
+     * Render the curated, stable category list in two columns. The cards are hardcoded and
+     * paged locally (20 + 20 + remainder), so the landing page works even if Kitsu's category
+     * catalogue is slow or omits an editorial category.
+     */
     private fun renderCategoryGrid() {
         val host = _binding?.discoverCategoryGrid ?: return
-        host.removeAllViews()
         val context = host.context
-        host.addView(TextView(context).apply {
-            text = "FIND YOUR NEXT OBSESSION"
-            textSize = 18f
-            setTypeface(typeface, Typeface.BOLD)
-            setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
-            setPadding(dp(12), dp(14), dp(12), dp(8))
-        })
-        if (kitsuCategories.isEmpty()) {
+        if (host.childCount == 0) {
+            // A recreated view gets a fresh host even when the fragment retained the reveal
+            // count after rotation. Rebuild from the start without resetting how many were shown.
+            renderedCuratedCategoryCount = 0
+            host.orientation = LinearLayout.VERTICAL
+            host.setPadding(dp(4), dp(4), dp(4), dp(16))
             host.addView(TextView(context).apply {
-                text = if (categoriesLoaded) "Kitsu categories are unavailable right now."
-                    else "Loading Kitsu categories…"
-                textSize = 13f
-                alpha = 0.78f
+                text = "FIND YOUR NEXT OBSESSION"
+                textSize = 20f
+                setTypeface(typeface, Typeface.BOLD)
                 setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
-                setPadding(dp(12), dp(4), dp(12), dp(12))
-                if (categoriesLoaded) {
-                    isFocusable = true
-                    isClickable = true
-                    setOnClickListener {
-                        categoriesLoaded = false
-                        loadKitsuCategories()
-                    }
-                    FocusEffectUtil.applyFocusListener(this)
-                }
+                setPadding(dp(12), dp(16), dp(12), dp(12))
             })
-            return
         }
 
-        kitsuCategories.chunked(2).forEachIndexed { rowIndex, rowCategories ->
-            val row = LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(3), dp(3), dp(3), dp(3))
-            }
-            rowCategories.forEachIndexed { columnIndex, category ->
-                val index = rowIndex * 2 + columnIndex
-                val card = LinearLayout(context).apply {
+        // Remove only the "more" hint, not existing cards: focus and scroll position remain
+        // stable on Android TV while each new batch is appended.
+        host.findViewWithTag<View>("curated-more-footer")?.let { host.removeView(it) }
+        val categories = CuratedDiscoveryCategories.all
+        val shownCount = visibleCuratedCategoryCount.coerceAtMost(categories.size)
+        if (shownCount > renderedCuratedCategoryCount) {
+            val newCategories = categories.subList(renderedCuratedCategoryCount, shownCount)
+            newCategories.chunked(2).forEachIndexed { rowIndex, rowCategories ->
+                val row = LinearLayout(context).apply {
                     orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER_VERTICAL
-                    isFocusable = true
-                    isClickable = true
-                    background = context.getDrawable(R.drawable.bg_editorial_card_focus)
-                    setPadding(dp(8), dp(8), dp(8), dp(8))
-                    layoutParams = LinearLayout.LayoutParams(0, dp(100), 1f).apply {
+                    gravity = Gravity.TOP
+                    setPadding(dp(4), dp(4), dp(4), dp(4))
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                }
+                rowCategories.forEach { category ->
+                    val card = LinearLayout(context).apply {
+                        id = View.generateViewId()
+                        orientation = LinearLayout.VERTICAL
+                        gravity = Gravity.TOP
+                        isFocusable = true
+                        isClickable = true
+                        background = context.getDrawable(R.drawable.bg_editorial_card_focus)
+                        setPadding(dp(12), dp(12), dp(12), dp(12))
+                        layoutParams = LinearLayout.LayoutParams(
+                            0, LinearLayout.LayoutParams.MATCH_PARENT, 1f
+                        ).apply {
+                            marginStart = dp(4)
+                            marginEnd = dp(4)
+                        }
+                        contentDescription = "${category.title}. ${category.description}"
+                        setOnClickListener {
+                            startActivity(
+                                Intent(context, KitsuCategoryResultsActivity::class.java)
+                                    .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_SLUG, category.kitsuSlug)
+                                    .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_TITLE, category.title)
+                            )
+                        }
+                    }
+                    card.addView(TextView(context).apply {
+                        text = category.title.uppercase(java.util.Locale.ROOT)
+                        textSize = 14f
+                        maxLines = 2
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                        setTypeface(typeface, Typeface.BOLD)
+                        setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+                    })
+                    card.addView(TextView(context).apply {
+                        text = category.description
+                        textSize = 12f
+                        maxLines = 3
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                        alpha = 0.82f
+                        setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+                        setPadding(0, dp(6), 0, 0)
+                    })
+                    FocusEffectUtil.applyFocusListener(card)
+                    if (renderedCuratedCategoryCount == 0 && rowIndex == 0 &&
+                        category == newCategories.firstOrNull()
+                    ) {
+                        binding.discoverSearchBar.nextFocusDownId = card.id
+                        binding.discoverAvatar.nextFocusDownId = card.id
+                    }
+                    row.addView(card)
+                }
+                if (rowCategories.size == 1) {
+                    row.addView(View(context), LinearLayout.LayoutParams(0, dp(1), 1f).apply {
                         marginStart = dp(4)
                         marginEnd = dp(4)
-                    }
-                    setOnClickListener {
-                        startActivity(Intent(context, KitsuCategoryResultsActivity::class.java)
-                            .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_SLUG, category.slug)
-                            .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_TITLE, category.title))
-                    }
+                    })
                 }
-                val art = ImageView(context).apply {
-                    scaleType = ImageView.ScaleType.CENTER_CROP
-                    setImageResource(R.drawable.ic_editorial_artwork_unavailable)
-                    rotation = if (index % 2 == 0) -3f else 3f
-                    contentDescription = "${category.title} artwork"
-                    layoutParams = LinearLayout.LayoutParams(dp(78), dp(62)).apply {
-                        marginEnd = dp(7)
-                        marginStart = dp(2)
-                    }
-                }
-                categoryArtwork[category.slug]?.takeIf { it.isNotBlank() }?.let { art.loadImage(it) }
-                val title = TextView(context).apply {
-                    text = category.title
-                    textSize = 13f
-                    maxLines = 3
-                    ellipsize = android.text.TextUtils.TruncateAt.END
-                    setTypeface(typeface, Typeface.BOLD)
-                    setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
-                    gravity = Gravity.CENTER_VERTICAL
-                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                }
-                if (index % 2 == 0) {
-                    card.addView(art)
-                    card.addView(title)
-                } else {
-                    card.addView(title)
-                    card.addView(art)
-                }
-                FocusEffectUtil.applyFocusListener(card)
-                row.addView(card)
+                host.addView(row)
             }
-            if (rowCategories.size == 1) {
-                row.addView(View(context), LinearLayout.LayoutParams(0, dp(100), 1f).apply {
-                    marginStart = dp(4)
-                    marginEnd = dp(4)
-                })
-            }
-            host.addView(row)
+            renderedCuratedCategoryCount = shownCount
         }
-        host.setPadding(0, 0, 0, dp(8))
+
+        if (shownCount < categories.size) {
+            host.addView(TextView(context).apply {
+                tag = "curated-more-footer"
+                text = "KEEP SCROLLING TO DISCOVER MORE"
+                textSize = 11f
+                gravity = Gravity.CENTER
+                alpha = 0.65f
+                setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+                setPadding(dp(8), dp(12), dp(8), dp(12))
+            })
+        }
     }
 
     private fun loadTrailerCarousel() {
