@@ -47,6 +47,7 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
     private var categorySlug = ""
     private var categoryTitle = ""
     private var categoryDescription = ""
+    private var categoryMediaCount = 0
     private lateinit var categoryHeading: TextView
     private var resolvedCategorySlug: String? = null
     private var offset = 0
@@ -164,17 +165,21 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
                         val categories = Kitsu.allCategories()
                         val requestedSlug = normalizeCategoryKey(categorySlug)
                         val requestedTitle = normalizeCategoryKey(categoryTitle)
-                        categories.firstOrNull {
+                        val matched = categories.firstOrNull {
                             it.slug.equals(categorySlug, ignoreCase = true)
-                        }?.slug
-                            ?: categories.firstOrNull {
-                                normalizeCategoryKey(it.title) == requestedTitle
-                            }?.slug
-                            ?: categories.firstOrNull {
-                                normalizeCategoryKey(it.slug) == requestedSlug
-                            }?.slug
-                            ?: categorySlug
+                        } ?: categories.firstOrNull {
+                            normalizeCategoryKey(it.title) == requestedTitle
+                        } ?: categories.firstOrNull {
+                            normalizeCategoryKey(it.slug) == requestedSlug
+                        }
+                        categoryMediaCount = matched?.mediaCount ?: 0
+                        matched?.slug ?: categorySlug
                     }
+                }
+                categoryHeading.text = if (categoryMediaCount > 0) {
+                    "$categoryTitle ($categoryMediaCount)"
+                } else {
+                    "$categoryTitle (${adapter.itemCount})"
                 }
                 val page = withContext(Dispatchers.IO) {
                     Kitsu.categoryAnime(resolvedCategorySlug ?: categorySlug, offset, PAGE_SIZE)
@@ -195,7 +200,7 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
                 endReached = !page.hasMore
                 if (page.items.isNotEmpty()) {
                     adapter.append(page.items)
-                    categoryHeading.text = "$categoryTitle (${adapter.itemCount})"
+                    if (categoryMediaCount <= 0) categoryHeading.text = "$categoryTitle (${adapter.itemCount})"
                     added = true
                 }
                 attempts++
