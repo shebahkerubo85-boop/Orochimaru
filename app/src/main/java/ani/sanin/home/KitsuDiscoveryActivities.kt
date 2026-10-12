@@ -75,7 +75,7 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
             gravity = Gravity.CENTER
             isFocusable = true
             isClickable = true
-            setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            setTextColor(Color.WHITE)
             layoutParams = LinearLayout.LayoutParams(dp(44), dp(48))
             setOnClickListener { finish() }
         }
