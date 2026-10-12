@@ -358,6 +358,7 @@ class DiscoveryFragment : Fragment() {
     private var renderedCuratedCategoryCount = 0
     private var renderedCategoryColumnCount = 0
     private var categoryGridScrollListenerInstalled = false
+    private var skipNextResumeArtworkRefresh = true
 
     private companion object {
         const val CATEGORY_CARD_HEIGHT_DP = 100
@@ -366,6 +367,23 @@ class DiscoveryFragment : Fragment() {
         const val CATEGORY_SIDE_PADDING_DP = 3
         const val MIN_CATEGORY_CONTENT_WIDTH_DP = 140
         const val MAX_CATEGORY_COLUMNS = 4
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (skipNextResumeArtworkRefresh) {
+            skipNextResumeArtworkRefresh = false
+            return
+        }
+        // A retained Discovery view should reshuffle when the user returns to the screen,
+        // not only when Android happens to recreate the fragment view.
+        if (_binding != null) {
+            categoryArtwork = emptyMap()
+            categoryArtworkLoading.clear()
+            categoryArtworkGeneration++
+            updateCategoryArtworkUrls()
+            loadVisibleCategoryArtwork()
+        }
     }
 
     override fun onViewCreated(
