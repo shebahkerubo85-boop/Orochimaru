@@ -598,8 +598,10 @@ class DiscoveryFragment : Fragment() {
                         picked
                     }
                     withContext(Dispatchers.Main) {
-                        categoryArtworkLoading.remove(slug)
+                        // Ignore stale visits before touching the loading set: a newer visit may
+                        // already be resolving artwork for this same category.
                         if (_binding == null || generation != categoryArtworkGeneration) return@withContext
+                        categoryArtworkLoading.remove(slug)
                         categoryArtwork = categoryArtwork + (slug to poster)
                         updateCategoryArtworkUrls()
                         loadVisibleCategoryArtwork()
