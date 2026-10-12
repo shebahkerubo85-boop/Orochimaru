@@ -417,7 +417,7 @@ class TmdbDiscoveryFragment : Fragment() {
         )
         val tvExtra = extra.filterNot { it.first == "release_date.lte" }.toMutableList()
         if (category.id == "hidden-gems" || category.id == "underrated-masterpieces") {
-            tvExtra.add("first_air_date.lte" to LocalDate.now().toString())
+            tvExtra.add("first_air_date.lte" to todayIso())
         }
         val tv = Tmdb.discover(
             mediaType = "tv",
