@@ -78,17 +78,6 @@ class DiscoverViewModel : ViewModel() {
     private val fetchGeneration = AtomicInteger(0)
 
     /**
-     * Kitsu categories that carry no anime.
-     *
-     * Every other empty category is a grouping node with a zero `totalMediaCount` and is
-     * dropped by [loadCategories]. Ahegao is the exception: Kitsu counts 252 media against it
-     * but every one of them is manga, so it is a real category that filters to an empty anime
-     * grid. It is the only such row in the catalogue, so it is excluded by its stable slug
-     * rather than probing all 218 categories with 218 extra requests.
-     */
-    private val nonAnimeCategorySlugs = setOf("ahegao")
-
-    /**
      * Loads Kitsu's category catalogue once.
      *
      * The chips are built from this, so it runs alongside the first grid fetch rather than
@@ -98,13 +87,8 @@ class DiscoverViewModel : ViewModel() {
     fun loadCategories() {
         if (_categories.value.isNotEmpty() || categoriesJob?.isActive == true) return
         categoriesJob = viewModelScope.launch(Dispatchers.IO) {
-            // `totalMediaCount` is Kitsu's count across every medium, so a zero means the row
-            // is a grouping node (Elements, Setting, Themes, ...) that no anime is tagged with
-            // and which would only ever filter to an empty grid. nsfw rows are dropped to match
-            // the adult filter the AniList-backed "All" browse already applies, and the one
-            // media-bearing but anime-less row is dropped too; see [nonAnimeCategorySlugs].
+            // Keep the complete Kitsu catalogue, including empty grouping categories and NSFW-tagged rows.
             val categories = Kitsu.allCategories()
-                .filterNot { it.nsfw || it.mediaCount <= 0 || it.slug in nonAnimeCategorySlugs }
             if (categories.isNotEmpty()) _categories.value = categories
         }
     }
@@ -372,7 +356,17 @@ class DiscoveryFragment : Fragment() {
 
     private var visibleCuratedCategoryCount = CuratedDiscoveryCategories.all.size
     private var renderedCuratedCategoryCount = 0
+    private var renderedCategoryColumnCount = 0
     private var categoryGridScrollListenerInstalled = false
+
+    private companion object {
+        const val CATEGORY_CARD_HEIGHT_DP = 100
+        const val CATEGORY_COLUMN_GAP_DP = 44
+        const val CATEGORY_ROW_GAP_DP = 18
+        const val CATEGORY_SIDE_PADDING_DP = 3
+        const val MIN_CATEGORY_CARD_WIDTH_DP = 220
+        const val MAX_CATEGORY_COLUMNS = 4
+    }
 
     override fun onViewCreated(
         view: View, savedInstanceState: Bundle?,
@@ -422,6 +416,9 @@ class DiscoveryFragment : Fragment() {
         }
         renderCategoryGrid()
         loadVisibleCategoryArtwork()
+        // Start catalogue loading immediately; users should not have to scroll to the bottom
+        // of the curated 64 before the remaining categories begin fetching.
+        loadNextRemainingCategoryBatch()
         if (isTv) {
             binding.discoverSearchBar.post {
                 if (isAdded) binding.discoverSearchBar.requestFocus()
@@ -479,8 +476,8 @@ class DiscoveryFragment : Fragment() {
     }
 
     /**
-     * Fetch the remaining public Kitsu category catalogue only when the user reaches the end
-     * of the curated 64. Cards are revealed ten at a time by scroll-triggered pagination.
+     * Fetch the remaining public Kitsu category catalogue as soon as Discovery opens.
+     * The curated 64 stay first; the next unique categories are revealed ten at a time.
      */
     private fun loadNextRemainingCategoryBatch() {
         if (remainingCategoriesLoading || remainingCategoriesLoaded) return
@@ -499,7 +496,7 @@ class DiscoveryFragment : Fragment() {
                 val chosenSlugs = CuratedDiscoveryCategories.all.mapTo(HashSet()) { it.kitsuSlug }
                 val remaining = fetched
                     .asSequence()
-                    .filter { !it.nsfw && it.mediaCount > 0 && it.slug !in chosenSlugs }
+                    .filter { it.slug !in chosenSlugs }
                     .distinctBy { it.slug }
                     .sortedByDescending { it.mediaCount }
                     .take(86)
@@ -632,8 +629,8 @@ class DiscoveryFragment : Fragment() {
     }
 
     /**
-     * Render the first 64 editorial categories, then the selected 86 live categories in
-     * batches of ten. Cards are landscape and touch edge-to-edge with no grid gutters.
+     * Render the first 64 editorial categories, then up to 86 live categories in batches of ten.
+     * Column count and card widths are calculated from the measured grid width in either orientation.
      */
     private fun renderCategoryGrid() {
         val host = _binding?.discoverCategoryGrid ?: return
@@ -641,7 +638,7 @@ class DiscoveryFragment : Fragment() {
         if (host.childCount == 0) {
             renderedCuratedCategoryCount = 0
             host.orientation = LinearLayout.VERTICAL
-            host.setPadding(0, dp(4), 0, dp(16))
+            host.setPadding(dp(CATEGORY_SIDE_PADDING_DP), dp(4), dp(CATEGORY_SIDE_PADDING_DP), dp(16))
             host.addView(TextView(context).apply {
                 text = "FIND YOUR NEXT OBSESSION"
                 textSize = 20f
@@ -654,9 +651,39 @@ class DiscoveryFragment : Fragment() {
         host.findViewWithTag<View>("curated-more-footer")?.let { host.removeView(it) }
         val categories = allDiscoveryCategories
         val shownCount = visibleCuratedCategoryCount.coerceAtMost(categories.size)
+        if (host.width <= 0) {
+            host.post { if (_binding != null) renderCategoryGrid() }
+            return
+        }
+        val availableWidthDp = ((host.width - host.paddingLeft - host.paddingRight) /
+            resources.displayMetrics.density).toInt().coerceAtLeast(1)
+        val columnCount = ((availableWidthDp + CATEGORY_COLUMN_GAP_DP) /
+            (MIN_CATEGORY_CARD_WIDTH_DP + CATEGORY_COLUMN_GAP_DP))
+            .coerceIn(1, MAX_CATEGORY_COLUMNS)
+        if (renderedCategoryColumnCount != 0 && renderedCategoryColumnCount != columnCount) {
+            val focusedSlug = host.findFocus()?.tag as? String
+            // Keep the heading, discard old rows/footer, then rebuild at the new measured width.
+            while (host.childCount > 1) host.removeViewAt(1)
+            renderedCuratedCategoryCount = 0
+            renderedCategoryColumnCount = columnCount
+            renderCategoryGrid()
+            if (focusedSlug != null) {
+                host.post {
+                    (0 until host.childCount)
+                        .asSequence()
+                        .map { host.getChildAt(it) as? LinearLayout }
+                        .filterNotNull()
+                        .flatMap { row -> (0 until row.childCount).asSequence().map { row.getChildAt(it) } }
+                        .firstOrNull { it.tag == focusedSlug }
+                        ?.requestFocus()
+                }
+            }
+            return
+        }
+        renderedCategoryColumnCount = columnCount
         if (shownCount > renderedCuratedCategoryCount) {
             val newCategories = categories.subList(renderedCuratedCategoryCount, shownCount)
-            newCategories.chunked(2).forEachIndexed { rowIndex, rowCategories ->
+            newCategories.chunked(columnCount).forEachIndexed { rowIndex, rowCategories ->
                 val row = LinearLayout(context).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.TOP
@@ -664,7 +691,7 @@ class DiscoveryFragment : Fragment() {
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT
-                    )
+                    ).apply { bottomMargin = dp(CATEGORY_ROW_GAP_DP) }
                 }
                 rowCategories.forEachIndexed { columnIndex, category ->
                     val card = LinearLayout(context).apply {
@@ -677,7 +704,9 @@ class DiscoveryFragment : Fragment() {
                         clipChildren = false
                         background = context.getDrawable(R.drawable.bg_editorial_card_focus)
                         setPadding(dp(8), dp(8), dp(8), dp(8))
-                        layoutParams = LinearLayout.LayoutParams(0, dp(144), 1f)
+                        layoutParams = LinearLayout.LayoutParams(0, dp(CATEGORY_CARD_HEIGHT_DP), 1f).apply {
+                            if (columnIndex < columnCount - 1) marginEnd = dp(CATEGORY_COLUMN_GAP_DP)
+                        }
                         contentDescription = "${category.title}. ${category.description}"
                         setOnClickListener {
                             startActivity(
@@ -748,8 +777,17 @@ class DiscoveryFragment : Fragment() {
                     }
                     row.addView(card)
                 }
-                if (rowCategories.size == 1) {
-                    row.addView(View(context), LinearLayout.LayoutParams(0, dp(144), 1f))
+                if (rowCategories.size < columnCount) {
+                    repeat(columnCount - rowCategories.size) { spacerIndex ->
+                        row.addView(View(context).apply {
+                            isFocusable = false
+                            isClickable = false
+                        }, LinearLayout.LayoutParams(0, dp(CATEGORY_CARD_HEIGHT_DP), 1f).apply {
+                            if (spacerIndex < columnCount - rowCategories.size - 1) {
+                                marginEnd = dp(CATEGORY_COLUMN_GAP_DP)
+                            }
+                        })
+                    }
                 }
                 host.addView(row)
             }
@@ -1332,8 +1370,8 @@ class DiscoveryFragment : Fragment() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        // MainActivity handles configChanges, so this fragment's view survives the
-        // rotation and the span built in setupResultsGrid is still the portrait one.
+        // MainActivity handles configChanges, so the measured width can change in place.
         _binding?.discoverRecyclerView?.let { TmdbCards.applyGridSpan(it) }
+        _binding?.discoverCategoryGrid?.post { if (_binding != null) renderCategoryGrid() }
     }
 }
