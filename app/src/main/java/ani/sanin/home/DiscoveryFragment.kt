@@ -371,7 +371,7 @@ class DiscoveryFragment : Fragment() {
         const val CATEGORY_ROW_GAP_DP = 18
         const val CATEGORY_SIDE_PADDING_DP = 3
         const val MIN_CATEGORY_CONTENT_WIDTH_DP = 140
-        const val MAX_CATEGORY_COLUMNS = 4
+        const val MAX_CATEGORY_COLUMNS = 2
     }
 
     override fun onViewCreated(
@@ -581,17 +581,22 @@ class DiscoveryFragment : Fragment() {
                 if (categoryArtwork.containsKey(slug) || !categoryArtworkLoading.add(slug)) continue
                 val generation = categoryArtworkGeneration
                 viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-                    // Fetch candidate posters in parallel, then reserve a unique choice under a
-                    // small mutex. Each candidate pool comes only from this exact Kitsu category.
-                    val candidates = runCatching { Kitsu.categoryThumbnails(slug) }.getOrDefault(emptyList())
+                    // AniList supplies the poster art; Kitsu remains the category catalogue.
+                    // Reserve unique URLs so neighbouring cards do not stack the same cover.
+                    val category = allDiscoveryCategories.firstOrNull { it.kitsuSlug == slug }
+                        ?: CuratedDiscoveryCategory(slug.replace('-', ' '), slug, "")
                     val poster = categoryArtworkSelectionMutex.withLock {
                         // A request from an earlier visit must not reserve a poster in this visit.
                         if (generation != categoryArtworkGeneration) return@withLock null
                         val used = synchronized(reservedCategoryArtworkUrls) {
                             reservedCategoryArtworkUrls.toSet()
                         }
-                        val picked = candidates.filterNot { it in used }.randomOrNull()
-                            ?: candidates.randomOrNull()
+                        val picked = runCatching {
+                            CuratedCategoryArtwork.pickFor(
+                                categories = listOf(category),
+                                excludedPosterUrls = used,
+                            )[slug]
+                        }.getOrNull()
                         if (!picked.isNullOrBlank()) {
                             synchronized(reservedCategoryArtworkUrls) {
                                 reservedCategoryArtworkUrls.add(picked)
@@ -756,7 +761,7 @@ class DiscoveryFragment : Fragment() {
                         scaleType = ImageView.ScaleType.CENTER_CROP
                         setImageResource(R.drawable.ic_editorial_artwork_unavailable)
                         contentDescription = "${category.title} category thumbnail"
-                        rotation = if (columnIndex % 2 == 0) -4f else 4f
+                        rotation = if (columnIndex % 2 == 0) -8f else 8f
                         layoutParams = FrameLayout.LayoutParams(dp(72), dp(72), Gravity.CENTER)
                         tag = CategoryArtworkTag(categoryArtwork[category.kitsuSlug])
                     }
@@ -774,7 +779,7 @@ class DiscoveryFragment : Fragment() {
                             isFocusable = false
                         }, params)
                     }
-                    val fadeSize = dp(18)
+                    val fadeSize = dp(30)
                     addArtworkFade(
                         GradientDrawable.Orientation.LEFT_RIGHT,
                         intArrayOf(surfaceColor, Color.TRANSPARENT),
@@ -795,8 +800,6 @@ class DiscoveryFragment : Fragment() {
                         intArrayOf(Color.TRANSPARENT, surfaceColor),
                         FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, fadeSize, Gravity.BOTTOM)
                     )
-                    card.addView(artworkFrame)
-
                     val textColumn = LinearLayout(context).apply {
                         orientation = LinearLayout.VERTICAL
                         gravity = Gravity.CENTER_VERTICAL
@@ -819,7 +822,15 @@ class DiscoveryFragment : Fragment() {
                         setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
                         setPadding(0, dp(4), 0, 0)
                     })
-                    card.addView(textColumn)
+                    // Mirror the two-column grid: posters face the outside screen edges,
+                    // with each category's title and description toward the centre.
+                    if (columnIndex == 0) {
+                        card.addView(artworkFrame)
+                        card.addView(textColumn)
+                    } else {
+                        card.addView(textColumn)
+                        card.addView(artworkFrame)
+                    }
                     FocusEffectUtil.applyFocusListener(card)
                     if (renderedCuratedCategoryCount == 0 && rowIndex == 0 &&
                         category == newCategories.firstOrNull()

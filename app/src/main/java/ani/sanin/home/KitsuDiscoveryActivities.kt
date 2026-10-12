@@ -22,6 +22,7 @@ import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import ani.sanin.connections.anilist.Anilist
 import ani.sanin.R
 import ani.sanin.connections.kitsu.Kitsu
 import ani.sanin.connections.kitsu.KitsuDiscoveryItem
@@ -103,14 +104,6 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
             isVisible = categoryDescription.isNotBlank()
         }
         root.addView(descriptionView)
-
-        root.addView(TextView(this).apply {
-            text = "Cards"
-            textSize = 18f
-            setTypeface(typeface, Typeface.BOLD)
-            setTextColor(Color.WHITE)
-            setPadding(dp(16), dp(2), dp(16), dp(8))
-        })
 
         progress = ProgressBar(this).apply { isVisible = false }
         root.addView(progress, LinearLayout.LayoutParams(dp(36), dp(36)).apply {
@@ -218,7 +211,24 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
                 offset += page.rawCount
                 endReached = !page.hasMore
                 if (page.items.isNotEmpty()) {
-                    adapter.append(page.items)
+                    // Kitsu determines category membership and provides AniList mappings only.
+                    // Display posters from AniList; unmapped titles keep the placeholder.
+                    val anilistIds = page.items.mapNotNull { it.anilistId }.distinct()
+                    val covers = if (anilistIds.isEmpty()) {
+                        emptyMap()
+                    } else {
+                        runCatching {
+                            withContext(Dispatchers.IO) {
+                                Anilist.query.getMediaList(anilistIds).orEmpty()
+                                    .mapNotNull { media -> media.cover?.let { media.id to it } }
+                                    .toMap()
+                            }
+                        }.getOrDefault(emptyMap())
+                    }
+                    val itemsWithAniListPosters = page.items.map { item ->
+                        item.copy(posterUrl = item.anilistId?.let(covers::get))
+                    }
+                    adapter.append(itemsWithAniListPosters)
                     added = true
                 }
                 attempts++
