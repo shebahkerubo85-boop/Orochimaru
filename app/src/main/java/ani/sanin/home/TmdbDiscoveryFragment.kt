@@ -169,7 +169,9 @@ class TmdbDiscoveryFragment : Fragment() {
             setPadding(dp(12), 0, dp(12), dp(16))
         })
 
-        val columnCount = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) 2 else 2
+        val measuredWidth = host.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
+        val availableWidthDp = (measuredWidth / resources.displayMetrics.density).toInt()
+        val columnCount = ((availableWidthDp + 18) / (140 + 18)).coerceIn(1, 2)
         TmdbDiscoveryCategories.all.chunked(columnCount).forEachIndexed { rowIndex, rowCategories ->
             val row = LinearLayout(requireContext()).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -456,6 +458,7 @@ class TmdbDiscoveryFragment : Fragment() {
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         _binding?.tmdbDiscoveryGrid?.let { TmdbCards.applyGridSpan(it) }
+        if (_binding != null && selectedCategory == null) renderCategories()
     }
 
     override fun onDestroyView() {
