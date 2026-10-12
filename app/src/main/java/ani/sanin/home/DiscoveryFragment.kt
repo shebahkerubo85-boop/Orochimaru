@@ -356,6 +356,7 @@ class DiscoveryFragment : Fragment() {
 
     private var visibleCuratedCategoryCount = CuratedDiscoveryCategories.all.size
     private var renderedCuratedCategoryCount = 0
+    private var renderedCategoryColumnCount = 0
     private var categoryGridScrollListenerInstalled = false
 
     private companion object {
@@ -659,6 +660,27 @@ class DiscoveryFragment : Fragment() {
         val columnCount = ((availableWidthDp + CATEGORY_COLUMN_GAP_DP) /
             (MIN_CATEGORY_CARD_WIDTH_DP + CATEGORY_COLUMN_GAP_DP))
             .coerceIn(1, MAX_CATEGORY_COLUMNS)
+        if (renderedCategoryColumnCount != 0 && renderedCategoryColumnCount != columnCount) {
+            val focusedSlug = host.findFocus()?.tag as? String
+            // Keep the heading, discard old rows/footer, then rebuild at the new measured width.
+            while (host.childCount > 1) host.removeViewAt(1)
+            renderedCuratedCategoryCount = 0
+            renderedCategoryColumnCount = columnCount
+            renderCategoryGrid()
+            if (focusedSlug != null) {
+                host.post {
+                    (0 until host.childCount)
+                        .asSequence()
+                        .map { host.getChildAt(it) as? LinearLayout }
+                        .filterNotNull()
+                        .flatMap { row -> (0 until row.childCount).asSequence().map { row.getChildAt(it) } }
+                        .firstOrNull { it.tag == focusedSlug }
+                        ?.requestFocus()
+                }
+            }
+            return
+        }
+        renderedCategoryColumnCount = columnCount
         if (shownCount > renderedCuratedCategoryCount) {
             val newCategories = categories.subList(renderedCuratedCategoryCount, shownCount)
             newCategories.chunked(columnCount).forEachIndexed { rowIndex, rowCategories ->
@@ -683,7 +705,7 @@ class DiscoveryFragment : Fragment() {
                         background = context.getDrawable(R.drawable.bg_editorial_card_focus)
                         setPadding(dp(8), dp(8), dp(8), dp(8))
                         layoutParams = LinearLayout.LayoutParams(0, dp(CATEGORY_CARD_HEIGHT_DP), 1f).apply {
-                            if (columnIndex < rowCategories.lastIndex) marginEnd = dp(CATEGORY_COLUMN_GAP_DP)
+                            if (columnIndex < columnCount - 1) marginEnd = dp(CATEGORY_COLUMN_GAP_DP)
                         }
                         contentDescription = "${category.title}. ${category.description}"
                         setOnClickListener {
@@ -761,7 +783,7 @@ class DiscoveryFragment : Fragment() {
                             isFocusable = false
                             isClickable = false
                         }, LinearLayout.LayoutParams(0, dp(CATEGORY_CARD_HEIGHT_DP), 1f).apply {
-                            if (rowCategories.isNotEmpty() || spacerIndex < columnCount - rowCategories.size - 1) {
+                            if (spacerIndex < columnCount - rowCategories.size - 1) {
                                 marginEnd = dp(CATEGORY_COLUMN_GAP_DP)
                             }
                         })
@@ -1348,8 +1370,8 @@ class DiscoveryFragment : Fragment() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        // MainActivity handles configChanges, so this fragment's view survives the
-        // rotation and the span built in setupResultsGrid is still the portrait one.
+        // MainActivity handles configChanges, so the measured width can change in place.
         _binding?.discoverRecyclerView?.let { TmdbCards.applyGridSpan(it) }
+        _binding?.discoverCategoryGrid?.post { if (_binding != null) renderCategoryGrid() }
     }
 }
