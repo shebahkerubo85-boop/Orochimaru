@@ -110,6 +110,9 @@ object Kitsu {
     @Volatile
     private var categoryCache: List<KitsuCategory>? = null
 
+    /** Successful poster lookups, sourced from the category's own anime listing. */
+    private val categoryThumbnailCache = ConcurrentHashMap<String, String>()
+
     /**
      * Franchise id per Kitsu anime id.
      *
@@ -601,6 +604,7 @@ object Kitsu {
                     id = id,
                     title = title,
                     slug = slug,
+                    description = attrs.description,
                     nsfw = attrs.nsfw,
                     childCount = attrs.childCount,
                     mediaCount = attrs.totalMediaCount,
@@ -621,6 +625,33 @@ object Kitsu {
         // the missing rows would never be retried.
         if (complete && categories.isNotEmpty()) categoryCache = categories
         return categories
+    }
+
+    /**
+     * Poster artwork from an anime that is actually listed inside this Kitsu category.
+     *
+     * Unlike the general AniList discovery pool, this never borrows an unrelated popular
+     * title just because its tags look similar. Mapping to AniList is not required for artwork:
+     * the category can still have a usable Kitsu poster even when its anime lacks an AniList
+     * mapping.
+     */
+    suspend fun categoryThumbnail(slug: String): String? {
+        if (slug.isBlank()) return null
+        categoryThumbnailCache[slug]?.let { return it }
+        val doc = get(
+            "/anime?filter[categories]=$slug&sort=-averageRating&page[limit]=$PAGE_LIMIT" +
+                "&page[offset]=0"
+        ) ?: return null
+        val poster = doc.dataList().asSequence().mapNotNull { resource ->
+            val attrs = resource.animeAttributes() ?: return@mapNotNull null
+            if (attrs.nsfw) return@mapNotNull null
+            attrs.posterImage?.large
+                ?: attrs.posterImage?.medium
+                ?: attrs.posterImage?.original
+                ?: attrs.posterImage?.small
+        }.firstOrNull { it.isNotBlank() }
+        if (!poster.isNullOrBlank()) categoryThumbnailCache[slug] = poster
+        return poster
     }
 
     /**
