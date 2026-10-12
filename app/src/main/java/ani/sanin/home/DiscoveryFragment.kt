@@ -360,6 +360,7 @@ class DiscoveryFragment : Fragment() {
     }
 
     private var visibleCuratedCategoryCount = 20
+    private var renderedCuratedCategoryCount = 0
     private var categoryGridScrollListenerInstalled = false
 
     override fun onViewCreated(
@@ -458,84 +459,95 @@ class DiscoveryFragment : Fragment() {
     private fun renderCategoryGrid() {
         val host = _binding?.discoverCategoryGrid ?: return
         val context = host.context
-        host.removeAllViews()
-        host.orientation = LinearLayout.VERTICAL
-        host.setPadding(dp(4), dp(4), dp(4), dp(16))
-
-        host.addView(TextView(context).apply {
-            text = "FIND YOUR NEXT OBSESSION"
-            textSize = 20f
-            setTypeface(typeface, Typeface.BOLD)
-            setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
-            setPadding(dp(12), dp(16), dp(12), dp(12))
-        })
-
-        val categories = CuratedDiscoveryCategories.all
-        val shown = categories.take(visibleCuratedCategoryCount)
-        shown.chunked(2).forEach { rowCategories ->
-            val row = LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.TOP
-                setPadding(dp(4), dp(4), dp(4), dp(4))
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-            }
-            rowCategories.forEach { category ->
-                val card = LinearLayout(context).apply {
-                    orientation = LinearLayout.VERTICAL
-                    gravity = Gravity.TOP
-                    isFocusable = true
-                    isClickable = true
-                    background = context.getDrawable(R.drawable.bg_editorial_card_focus)
-                    setPadding(dp(12), dp(12), dp(12), dp(12))
-                    layoutParams = LinearLayout.LayoutParams(
-                        0, LinearLayout.LayoutParams.MATCH_PARENT, 1f
-                    ).apply {
-                        marginStart = dp(4)
-                        marginEnd = dp(4)
-                    }
-                    contentDescription = "${category.title}. ${category.description}"
-                    setOnClickListener {
-                        startActivity(
-                            Intent(context, KitsuCategoryResultsActivity::class.java)
-                                .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_SLUG, category.kitsuSlug)
-                                .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_TITLE, category.title)
-                        )
-                    }
-                }
-                card.addView(TextView(context).apply {
-                    text = category.title.uppercase(java.util.Locale.ROOT)
-                    textSize = 14f
-                    maxLines = 2
-                    ellipsize = android.text.TextUtils.TruncateAt.END
-                    setTypeface(typeface, Typeface.BOLD)
-                    setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
-                })
-                card.addView(TextView(context).apply {
-                    text = category.description
-                    textSize = 12f
-                    maxLines = 3
-                    ellipsize = android.text.TextUtils.TruncateAt.END
-                    alpha = 0.82f
-                    setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
-                    setPadding(0, dp(6), 0, 0)
-                })
-                FocusEffectUtil.applyFocusListener(card)
-                row.addView(card)
-            }
-            if (rowCategories.size == 1) {
-                row.addView(View(context), LinearLayout.LayoutParams(0, dp(1), 1f).apply {
-                    marginStart = dp(4)
-                    marginEnd = dp(4)
-                })
-            }
-            host.addView(row)
+        if (host.childCount == 0) {
+            // A recreated view gets a fresh host even when the fragment retained the reveal
+            // count after rotation. Rebuild from the start without resetting how many were shown.
+            renderedCuratedCategoryCount = 0
+            host.orientation = LinearLayout.VERTICAL
+            host.setPadding(dp(4), dp(4), dp(4), dp(16))
+            host.addView(TextView(context).apply {
+                text = "FIND YOUR NEXT OBSESSION"
+                textSize = 20f
+                setTypeface(typeface, Typeface.BOLD)
+                setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+                setPadding(dp(12), dp(16), dp(12), dp(12))
+            })
         }
 
-        if (visibleCuratedCategoryCount < categories.size) {
+        // Remove only the "more" hint, not existing cards: focus and scroll position remain
+        // stable on Android TV while each new batch is appended.
+        host.findViewWithTag<View>("curated-more-footer")?.let { host.removeView(it) }
+        val categories = CuratedDiscoveryCategories.all
+        val shownCount = visibleCuratedCategoryCount.coerceAtMost(categories.size)
+        if (shownCount > renderedCuratedCategoryCount) {
+            val newCategories = categories.subList(renderedCuratedCategoryCount, shownCount)
+            newCategories.chunked(2).forEachIndexed { rowIndex, rowCategories ->
+                val row = LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.TOP
+                    setPadding(dp(4), dp(4), dp(4), dp(4))
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                }
+                rowCategories.forEach { category ->
+                    val card = LinearLayout(context).apply {
+                        orientation = LinearLayout.VERTICAL
+                        gravity = Gravity.TOP
+                        isFocusable = true
+                        isClickable = true
+                        background = context.getDrawable(R.drawable.bg_editorial_card_focus)
+                        setPadding(dp(12), dp(12), dp(12), dp(12))
+                        layoutParams = LinearLayout.LayoutParams(
+                            0, LinearLayout.LayoutParams.MATCH_PARENT, 1f
+                        ).apply {
+                            marginStart = dp(4)
+                            marginEnd = dp(4)
+                        }
+                        contentDescription = "${category.title}. ${category.description}"
+                        setOnClickListener {
+                            startActivity(
+                                Intent(context, KitsuCategoryResultsActivity::class.java)
+                                    .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_SLUG, category.kitsuSlug)
+                                    .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_TITLE, category.title)
+                            )
+                        }
+                    }
+                    card.addView(TextView(context).apply {
+                        text = category.title.uppercase(java.util.Locale.ROOT)
+                        textSize = 14f
+                        maxLines = 2
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                        setTypeface(typeface, Typeface.BOLD)
+                        setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+                    })
+                    card.addView(TextView(context).apply {
+                        text = category.description
+                        textSize = 12f
+                        maxLines = 3
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                        alpha = 0.82f
+                        setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+                        setPadding(0, dp(6), 0, 0)
+                    })
+                    FocusEffectUtil.applyFocusListener(card)
+                    row.addView(card)
+                }
+                if (rowCategories.size == 1) {
+                    row.addView(View(context), LinearLayout.LayoutParams(0, dp(1), 1f).apply {
+                        marginStart = dp(4)
+                        marginEnd = dp(4)
+                    })
+                }
+                host.addView(row)
+            }
+            renderedCuratedCategoryCount = shownCount
+        }
+
+        if (shownCount < categories.size) {
             host.addView(TextView(context).apply {
+                tag = "curated-more-footer"
                 text = "KEEP SCROLLING TO DISCOVER MORE"
                 textSize = 11f
                 gravity = Gravity.CENTER
