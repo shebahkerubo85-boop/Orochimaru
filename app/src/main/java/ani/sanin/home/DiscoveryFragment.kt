@@ -385,8 +385,9 @@ class DiscoveryFragment : Fragment() {
         binding.discoverTrailerCarousel.visibility = View.GONE
         binding.discoverEditorialShelves.visibility = View.GONE
 
-        binding.discoverSearchBar.nextFocusDownId = R.id.discoverCategoryGrid
-        binding.discoverAvatar.nextFocusDownId = R.id.discoverCategoryGrid
+        // The first actual card is assigned as the D-pad destination when the grid is built.
+        binding.discoverSearchBar.nextFocusDownId = View.NO_ID
+        binding.discoverAvatar.nextFocusDownId = View.NO_ID
         binding.discoverAvatar.nextFocusLeftId = R.id.discoverSearchBar
 
         binding.discoverScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
@@ -493,6 +494,7 @@ class DiscoveryFragment : Fragment() {
                 }
                 rowCategories.forEach { category ->
                     val card = LinearLayout(context).apply {
+                        id = View.generateViewId()
                         orientation = LinearLayout.VERTICAL
                         gravity = Gravity.TOP
                         isFocusable = true
@@ -532,6 +534,12 @@ class DiscoveryFragment : Fragment() {
                         setPadding(0, dp(6), 0, 0)
                     })
                     FocusEffectUtil.applyFocusListener(card)
+                    if (renderedCuratedCategoryCount == 0 && rowIndex == 0 &&
+                        category == newCategories.firstOrNull()
+                    ) {
+                        binding.discoverSearchBar.nextFocusDownId = card.id
+                        binding.discoverAvatar.nextFocusDownId = card.id
+                    }
                     row.addView(card)
                 }
                 if (rowCategories.size == 1) {
