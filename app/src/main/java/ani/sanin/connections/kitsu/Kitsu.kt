@@ -110,8 +110,8 @@ object Kitsu {
     @Volatile
     private var categoryCache: List<KitsuCategory>? = null
 
-    /** Successful poster lookups, sourced from the category's own anime listing. */
-    private val categoryThumbnailCache = ConcurrentHashMap<String, String>()
+    /** Candidate poster pools sourced from each category's own anime listing. */
+    private val categoryThumbnailCache = ConcurrentHashMap<String, List<String>>()
 
     /**
      * Franchise id per Kitsu anime id.
@@ -638,23 +638,33 @@ object Kitsu {
      * the category can still have a usable Kitsu poster even when its anime lacks an AniList
      * mapping. Explicitly NSFW-tagged artwork remains filtered.
      */
-    suspend fun categoryThumbnail(slug: String): String? {
-        if (slug.isBlank()) return null
+    /**
+     * Candidate posters from this exact category. Cache the pool for low network usage, but
+     * let Discovery shuffle a different candidate whenever its screen is opened.
+     */
+    suspend fun categoryThumbnails(slug: String): List<String> {
+        if (slug.isBlank()) return emptyList()
         categoryThumbnailCache[slug]?.let { return it }
         val doc = get(
             "/anime?filter[categories]=$slug&sort=-averageRating&page[limit]=$PAGE_LIMIT" +
                 "&page[offset]=0"
-        ) ?: return null
-        val poster = doc.dataList().asSequence().mapNotNull { resource ->
+        ) ?: return emptyList()
+        val posters = doc.dataList().asSequence().mapNotNull { resource ->
             val attrs = resource.animeAttributes() ?: return@mapNotNull null
             if (attrs.nsfw) return@mapNotNull null
             attrs.posterImage?.large
                 ?: attrs.posterImage?.medium
                 ?: attrs.posterImage?.original
                 ?: attrs.posterImage?.small
-        }.firstOrNull { it.isNotBlank() }
-        if (!poster.isNullOrBlank()) categoryThumbnailCache[slug] = poster
-        return poster
+        }.filter { it.isNotBlank() }.distinct().toList()
+        if (posters.isNotEmpty()) categoryThumbnailCache.putIfAbsent(slug, posters)
+        return categoryThumbnailCache[slug] ?: posters
+    }
+
+    /** Compatibility helper for callers that only need one shuffled poster. */
+    suspend fun categoryThumbnail(slug: String, excludedPosters: Set<String> = emptySet()): String? {
+        val posters = categoryThumbnails(slug)
+        return posters.filterNot { it in excludedPosters }.randomOrNull() ?: posters.randomOrNull()
     }
 
     /**
