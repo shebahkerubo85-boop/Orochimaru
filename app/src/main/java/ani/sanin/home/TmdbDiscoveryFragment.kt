@@ -118,13 +118,13 @@ class TmdbDiscoveryFragment : Fragment() {
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backCallback!!)
 
         binding.tmdbDiscoveryScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
-            val child = binding.tmdbDiscoveryScroll.getChildAt(0) ?: return@setOnScrollChangeListener
-            if (selectedCategory == null &&
-                scrollY + binding.tmdbDiscoveryScroll.height >= child.height - dp(420)
-            ) {
-                val next = (artworkLimit + 12).coerceAtMost(TmdbDiscoveryCategories.all.size)
-                if (next > artworkLimit) {
-                    artworkLimit = next
+            if (selectedCategory == null) {
+                // Load artwork just ahead of the viewport instead of waiting until the bottom
+                // of the full 150-shelf list.
+                val rowsAhead = (scrollY + binding.tmdbDiscoveryScroll.height) / dp(118) + 2
+                val needed = (rowsAhead * 2).coerceAtMost(TmdbDiscoveryCategories.all.size)
+                if (needed > artworkLimit) {
+                    artworkLimit = (artworkLimit + 12).coerceAtMost(needed)
                     loadCategoryArtwork()
                 }
             }
