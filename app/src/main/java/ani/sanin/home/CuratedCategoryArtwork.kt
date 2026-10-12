@@ -79,12 +79,12 @@ internal object CuratedCategoryArtwork {
             )
 
             val relevant = ranked.filter { it.relevance > 0 && it.media.id !in usedIds &&
-                it.media.cover !in usedUrls }
-            val fallback = ranked.filter { it.media.id !in usedIds && it.media.cover !in usedUrls }
+                it.media.cover?.let { url -> url !in usedUrls } == true }
+            val fallback = ranked.filter { it.media.id !in usedIds && it.media.cover?.let { url -> url !in usedUrls } == true }
                 .take(16)
             val candidates = (relevant.take(8).ifEmpty { fallback })
             val picked = candidates.randomOrNull()?.media
-                ?: ranked.firstOrNull { it.media.cover !in usedUrls }?.media
+                ?: ranked.firstOrNull { it.media.cover?.let { url -> url !in usedUrls } == true }?.media
                 ?: ranked.firstOrNull()?.media
 
             if (picked != null) {
