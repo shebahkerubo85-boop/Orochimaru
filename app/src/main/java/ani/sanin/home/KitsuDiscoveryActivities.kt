@@ -36,6 +36,7 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_CATEGORY_SLUG = "kitsu_category_slug"
         const val EXTRA_CATEGORY_TITLE = "kitsu_category_title"
+        const val EXTRA_CATEGORY_DESCRIPTION = "kitsu_category_description"
         private const val PAGE_SIZE = 20
     }
 
@@ -45,6 +46,8 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
     private lateinit var recycler: RecyclerView
     private var categorySlug = ""
     private var categoryTitle = ""
+    private var categoryDescription = ""
+    private lateinit var categoryHeading: TextView
     private var resolvedCategorySlug: String? = null
     private var offset = 0
     private var loading = false
@@ -54,9 +57,10 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         categorySlug = intent.getStringExtra(EXTRA_CATEGORY_SLUG).orEmpty()
         categoryTitle = intent.getStringExtra(EXTRA_CATEGORY_TITLE).orEmpty().ifBlank { "Anime category" }
+        categoryDescription = intent.getStringExtra(EXTRA_CATEGORY_DESCRIPTION).orEmpty()
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(getThemeColor(com.google.android.material.R.attr.colorSurface))
+            setBackgroundColor(Color.BLACK)
         }
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -75,15 +79,26 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
         }
         FocusEffectUtil.applyFocusListener(back)
         header.addView(back)
-        header.addView(TextView(this).apply {
-            text = categoryTitle
-            textSize = 22f
+        categoryHeading = TextView(this).apply {
+            text = "$categoryTitle (0)"
+            textSize = 24f
             setTypeface(typeface, Typeface.BOLD)
-            setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            setTextColor(Color.WHITE)
             maxLines = 2
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        })
+        }
+        header.addView(categoryHeading)
         root.addView(header)
+        if (categoryDescription.isNotBlank()) {
+            root.addView(TextView(this).apply {
+                text = categoryDescription
+                textSize = 16f
+                gravity = Gravity.START
+                textAlignment = View.TEXT_ALIGNMENT_VIEW_START
+                setTextColor(Color.LTGRAY)
+                setPadding(dp(16), dp(0), dp(16), dp(16))
+            })
+        }
         progress = ProgressBar(this).apply { isVisible = false }
         root.addView(progress, LinearLayout.LayoutParams(dp(36), dp(36)).apply {
             gravity = Gravity.CENTER_HORIZONTAL
@@ -91,7 +106,7 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
         status = TextView(this).apply {
             textSize = 14f
             gravity = Gravity.CENTER
-            setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            setTextColor(Color.WHITE)
             setPadding(dp(16), dp(8), dp(16), dp(8))
             isVisible = false
         }
@@ -180,6 +195,7 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
                 endReached = !page.hasMore
                 if (page.items.isNotEmpty()) {
                     adapter.append(page.items)
+                    categoryHeading.text = "$categoryTitle (${adapter.itemCount})"
                     added = true
                 }
                 attempts++
@@ -246,7 +262,7 @@ private class KitsuAnimeAdapter(
             textSize = 13f
             maxLines = 2
             setTypeface(typeface, Typeface.BOLD)
-            setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            setTextColor(Color.WHITE)
             setPadding(dp(context, 3), dp(context, 7), dp(context, 3), 0)
         }
         card.addView(poster)
