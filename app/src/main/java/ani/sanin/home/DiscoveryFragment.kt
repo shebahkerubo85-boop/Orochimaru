@@ -396,6 +396,7 @@ class DiscoveryFragment : Fragment() {
         allDiscoveryCategories = CuratedDiscoveryCategories.all
         categoryArtwork = emptyMap()
         categoryArtworkLoading.clear()
+        skipNextResumeArtworkRefresh = true
         remainingCategoriesLoaded = false
         remainingCategoriesLoading = false
         categoryArtworkGeneration++
