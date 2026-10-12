@@ -79,7 +79,7 @@ object TmdbDiscoveryCategories {
         c("Road-Trip Shenanigans", "Wrong turns make the best stories.", "35,12", "road trip"),
         c("Workplace Comedy", "Office politics, absurd bosses, and Monday energy.", "35", "workplace comedy"),
         c("Black Cinema", "Distinct voices and stories across Black filmmaking.", "18", "african american"),
-        c("Korean Cinema", "Bold Korean films from intimate drama to thrillers.", "18", null, "ko"),
+        c("K-drama", "Korean screen stories full of tension, tenderness, and twists.", "18", null, "ko"),
         c("Independent Films", "Fresh voices working outside the studio machine.", "18", "independent film"),
         c("Content Warnings & Ratings", "Understand ratings and avoid content you do not want.", "18", null),
         c("LGBTQ+ Stories", "Stories of identity, love, and belonging.", "18,10749", "lgbt"),
