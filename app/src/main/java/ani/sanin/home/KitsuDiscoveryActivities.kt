@@ -253,11 +253,7 @@ private class KitsuAnimeAdapter(
             orientation = LinearLayout.VERTICAL
             isFocusable = true
             isClickable = true
-            background = android.graphics.drawable.GradientDrawable().apply {
-                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                setColor(Color.rgb(12, 12, 12))
-                cornerRadius = dp(context, 14).toFloat()
-            }
+            background = context.getDrawable(R.drawable.bg_editorial_card_focus)
             setPadding(dp(context, 6), dp(context, 6), dp(context, 6), dp(context, 8))
             layoutParams = RecyclerView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
