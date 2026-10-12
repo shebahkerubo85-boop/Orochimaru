@@ -210,22 +210,22 @@ class TmdbDiscoveryFragment : Fragment() {
                 }
                 artworkFrame.addView(image)
                 val surface = requireContext().getThemeColor(com.google.android.material.R.attr.colorSurface)
-                fun fade(orientation: GradientDrawable.Orientation, colors: IntArray, params: FrameLayout.LayoutParams) {
+                fun addFade(orientation: GradientDrawable.Orientation, colors: IntArray, params: FrameLayout.LayoutParams) {
                     artworkFrame.addView(View(requireContext()).apply {
                         background = GradientDrawable(orientation, colors)
                         isClickable = false
                         isFocusable = false
                     }, params)
                 }
-                val fade = dp(30)
-                fade(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(surface, Color.TRANSPARENT),
-                    FrameLayout.LayoutParams(fade, FrameLayout.LayoutParams.MATCH_PARENT, Gravity.START))
-                fade(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.TRANSPARENT, surface),
-                    FrameLayout.LayoutParams(fade, FrameLayout.LayoutParams.MATCH_PARENT, Gravity.END))
-                fade(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(surface, Color.TRANSPARENT),
-                    FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, fade, Gravity.TOP))
-                fade(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(Color.TRANSPARENT, surface),
-                    FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, fade, Gravity.BOTTOM))
+                val fadeSize = dp(30)
+                addFade(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(surface, Color.TRANSPARENT),
+                    FrameLayout.LayoutParams(fadeSize, FrameLayout.LayoutParams.MATCH_PARENT, Gravity.START))
+                addFade(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.TRANSPARENT, surface),
+                    FrameLayout.LayoutParams(fadeSize, FrameLayout.LayoutParams.MATCH_PARENT, Gravity.END))
+                addFade(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(surface, Color.TRANSPARENT),
+                    FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, fadeSize, Gravity.TOP))
+                addFade(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(Color.TRANSPARENT, surface),
+                    FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, fadeSize, Gravity.BOTTOM))
 
                 val textColumn = LinearLayout(requireContext()).apply {
                     orientation = LinearLayout.VERTICAL
