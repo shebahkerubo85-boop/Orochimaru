@@ -341,6 +341,7 @@ class DiscoveryFragment : Fragment() {
     private var allDiscoveryCategories: List<CuratedDiscoveryCategory> = CuratedDiscoveryCategories.all
     private var remainingCategoriesLoaded = false
     private var remainingCategoriesLoading = false
+    private var revealCategoryBatchWhenLoaded = false
     private var categoryArtworkGeneration = 0
     private var categoriesLoaded = false
     private var trailerLoaded = false
@@ -415,13 +416,16 @@ class DiscoveryFragment : Fragment() {
                 if (visibleCuratedCategoryCount < allDiscoveryCategories.size) {
                     revealNextCategoryBatch()
                 } else if (!remainingCategoriesLoaded) {
-                    loadNextRemainingCategoryBatch()
+                    loadNextRemainingCategoryBatch(revealWhenLoaded = true)
                 }
             }
             loadVisibleCategoryArtwork()
         }
         renderCategoryGrid()
         loadVisibleCategoryArtwork()
+        // Fetch the full catalogue in the background, without changing the initial 64-card view.
+        // This prevents the first scroll-to-bottom event from having to wait on eleven API pages.
+        loadNextRemainingCategoryBatch()
         if (isTv) {
             binding.discoverSearchBar.post {
                 if (isAdded) binding.discoverSearchBar.requestFocus()
@@ -482,8 +486,16 @@ class DiscoveryFragment : Fragment() {
      * Fetch the remaining public Kitsu category catalogue only when the user reaches the end
      * of the curated 64. Cards are revealed ten at a time by scroll-triggered pagination.
      */
-    private fun loadNextRemainingCategoryBatch() {
-        if (remainingCategoriesLoading || remainingCategoriesLoaded) return
+    private fun loadNextRemainingCategoryBatch(revealWhenLoaded: Boolean = false) {
+        if (revealWhenLoaded) revealCategoryBatchWhenLoaded = true
+        if (remainingCategoriesLoaded) {
+            if (revealWhenLoaded && visibleCuratedCategoryCount < allDiscoveryCategories.size) {
+                revealCategoryBatchWhenLoaded = false
+                revealNextCategoryBatch()
+            }
+            return
+        }
+        if (remainingCategoriesLoading) return
         remainingCategoriesLoading = true
         renderCategoryGrid()
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
@@ -513,7 +525,11 @@ class DiscoveryFragment : Fragment() {
                     .toList()
                 allDiscoveryCategories = CuratedDiscoveryCategories.all + remaining
                 remainingCategoriesLoaded = true
-                if (visibleCuratedCategoryCount < allDiscoveryCategories.size) {
+                // Keep the curated 64 intact until the user reaches the end. If they reached
+                // the end while the catalogue was still loading, honor that request now.
+                val shouldReveal = revealCategoryBatchWhenLoaded
+                revealCategoryBatchWhenLoaded = false
+                if (shouldReveal && visibleCuratedCategoryCount < allDiscoveryCategories.size) {
                     revealNextCategoryBatch()
                 } else {
                     renderCategoryGrid()
@@ -774,7 +790,7 @@ class DiscoveryFragment : Fragment() {
                 isClickable = true
                 setOnClickListener {
                     when {
-                        !remainingCategoriesLoaded -> loadNextRemainingCategoryBatch()
+                        !remainingCategoriesLoaded -> loadNextRemainingCategoryBatch(revealWhenLoaded = true)
                         visibleCuratedCategoryCount < allDiscoveryCategories.size -> revealNextCategoryBatch()
                     }
                 }
