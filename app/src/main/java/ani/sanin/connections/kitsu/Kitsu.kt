@@ -636,7 +636,7 @@ object Kitsu {
      * Unlike the general AniList discovery pool, this never borrows an unrelated popular
      * title just because its tags look similar. Mapping to AniList is not required for artwork:
      * the category can still have a usable Kitsu poster even when its anime lacks an AniList
-     * mapping.
+     * mapping. NSFW-tagged artwork is eligible too.
      */
     suspend fun categoryThumbnail(slug: String): String? {
         if (slug.isBlank()) return null
@@ -676,7 +676,6 @@ object Kitsu {
         val mappingsById = doc.included.orEmpty().associateBy { it.id }
         val media = rows.mapNotNull { resource ->
             val attrs = resource.animeAttributes() ?: return@mapNotNull null
-            if (attrs.nsfw) return@mapNotNull null
             val anilistId = resource.relationshipIds("mappings").firstNotNullOfOrNull { mappingId ->
                 mappingsById[mappingId]?.mappingAttributes()
                     ?.takeIf { it.externalSite == ANILIST_SITE }
