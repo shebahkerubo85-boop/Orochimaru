@@ -636,7 +636,7 @@ object Kitsu {
      * Unlike the general AniList discovery pool, this never borrows an unrelated popular
      * title just because its tags look similar. Mapping to AniList is not required for artwork:
      * the category can still have a usable Kitsu poster even when its anime lacks an AniList
-     * mapping. NSFW-tagged artwork is eligible too.
+     * mapping. Explicitly NSFW-tagged artwork remains filtered.
      */
     suspend fun categoryThumbnail(slug: String): String? {
         if (slug.isBlank()) return null
@@ -647,6 +647,7 @@ object Kitsu {
         ) ?: return null
         val poster = doc.dataList().asSequence().mapNotNull { resource ->
             val attrs = resource.animeAttributes() ?: return@mapNotNull null
+            if (attrs.nsfw) return@mapNotNull null
             attrs.posterImage?.large
                 ?: attrs.posterImage?.medium
                 ?: attrs.posterImage?.original
@@ -664,7 +665,7 @@ object Kitsu {
      * inlines each anime's AniList mapping, which is the only way to open an entry: the
      * Sanin detail screen is keyed by AniList id and Kitsu ids do not line up with it (see
      * the class comment). An entry with no AniList mapping has nothing to open, so it is
-     * skipped rather than shown as a dead card. NSFW-tagged entries remain eligible.
+     * skipped rather than shown as a dead card. Explicitly NSFW-tagged titles remain filtered.
      */
     suspend fun animeByCategory(slug: String, page: Int = 1): CategoryPage {
         val offset = ((page - 1).coerceAtLeast(0)) * PAGE_LIMIT
@@ -676,6 +677,7 @@ object Kitsu {
         val mappingsById = doc.included.orEmpty().associateBy { it.id }
         val media = rows.mapNotNull { resource ->
             val attrs = resource.animeAttributes() ?: return@mapNotNull null
+            if (attrs.nsfw) return@mapNotNull null
             val anilistId = resource.relationshipIds("mappings").firstNotNullOfOrNull { mappingId ->
                 mappingsById[mappingId]?.mappingAttributes()
                     ?.takeIf { it.externalSite == ANILIST_SITE }
