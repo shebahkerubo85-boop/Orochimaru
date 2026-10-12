@@ -674,8 +674,8 @@ class DiscoveryFragment : Fragment() {
         val availableWidthDp = ((host.width - host.paddingLeft - host.paddingRight) /
             resources.displayMetrics.density).toInt().coerceAtLeast(1)
         // This threshold selects the column count only; each card remains weight-based and
-        // expands to the actual available width after the 3dp edge padding and 44dp gaps.
-        // 140dp allows a real multi-column grid on narrow phone portrait screens too.
+        // expands to the actual available width after the 3dp edge padding and 18dp gaps.
+        // The threshold is only a fit estimate; the measured width selects 1–4 columns.
         val columnCount = ((availableWidthDp + CATEGORY_COLUMN_GAP_DP) /
             (MIN_CATEGORY_CONTENT_WIDTH_DP + CATEGORY_COLUMN_GAP_DP))
             .coerceIn(1, MAX_CATEGORY_COLUMNS)
@@ -731,7 +731,7 @@ class DiscoveryFragment : Fragment() {
                             startActivity(
                                 Intent(context, KitsuCategoryResultsActivity::class.java)
                                     .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_SLUG, category.kitsuSlug)
-                                     .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_TITLE, category.title)
+                                    .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_TITLE, category.title)
                                     .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_DESCRIPTION, category.description)
                             )
                         }

@@ -76,7 +76,7 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
             gravity = Gravity.CENTER
             isFocusable = true
             isClickable = true
-            setTextColor(Color.WHITE)
+            setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurface))
             layoutParams = LinearLayout.LayoutParams(dp(44), dp(48))
             setOnClickListener { finish() }
         }
@@ -116,7 +116,7 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
         status = TextView(this).apply {
             textSize = 14f
             gravity = Gravity.CENTER
-            setTextColor(Color.LTGRAY)
+            setTextColor(getThemeColor(com.google.android.material.R.attr.colorOnSurface))
             setPadding(dp(16), dp(8), dp(16), dp(8))
             isVisible = false
         }
@@ -252,7 +252,7 @@ private class KitsuAnimeAdapter(
             orientation = LinearLayout.VERTICAL
             isFocusable = true
             isClickable = true
-            background = context.getDrawable(R.drawable.bg_amoled_discovery_card_focus)
+            background = context.getDrawable(R.drawable.bg_editorial_card_focus)
             setPadding(dp(context, 6), dp(context, 6), dp(context, 6), dp(context, 8))
             layoutParams = RecyclerView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
@@ -272,7 +272,7 @@ private class KitsuAnimeAdapter(
             textSize = 13f
             maxLines = 2
             setTypeface(typeface, Typeface.BOLD)
-            setTextColor(Color.WHITE)
+            setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
             setPadding(dp(context, 3), dp(context, 7), dp(context, 3), 0)
         }
         card.addView(poster)
