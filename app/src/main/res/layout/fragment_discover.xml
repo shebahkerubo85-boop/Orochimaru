@@ -28,7 +28,8 @@
                 android:layout_marginBottom="8dp"
                 android:text="@string/discover"
                 android:textAppearance="@style/TextAppearance.MaterialComponents.Headline5"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                android:visibility="gone" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -99,15 +100,121 @@
                 android:layout_marginBottom="4dp"
                 android:text="@string/genre"
                 android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle2"
-                android:textColor="?attr/colorOnSurfaceVariant" />
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:visibility="gone" />
 
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/discoverAppBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorSurface"
+        app:elevation="0dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingTop="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp"
+                android:text="@string/discover"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Headline5"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginBottom="8dp">
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/discoverSearchBar"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:focusable="true"
+                    android:nextFocusDown="@id/discoverAvatar"
+                    android:nextFocusRight="@id/discoverAvatar"
+                    android:textColorHint="?attr/colorOnSurface"
+                    android:transitionName="@string/search"
+                    app:boxBackgroundColor="@color/bg"
+                    app:boxBackgroundMode="outline"
+                    app:boxCornerRadiusBottomEnd="24dp"
+                    app:boxCornerRadiusBottomStart="24dp"
+                    app:boxCornerRadiusTopEnd="24dp"
+                    app:boxCornerRadiusTopStart="24dp"
+                    app:boxStrokeColor="@color/text_input_layout_stroke_color"
+                    app:endIconDrawable="@drawable/ic_round_search_24"
+                    app:endIconTint="?attr/colorOnSurface"
+                    app:hintAnimationEnabled="true">
+
+                    <AutoCompleteTextView
+                        android:id="@+id/discoverSearchText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:focusable="false"
+                        android:fontFamily="@font/poppins_bold"
+                        android:inputType="none"
+                        android:padding="8dp"
+                        android:textColor="?android:attr/textColorSecondary"
+                        android:textSize="14sp"
+                        tools:ignore="LabelFor,TextContrastCheck" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.imageview.ShapeableImageView
+                    android:id="@+id/discoverAvatar"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:focusable="true"
+                    android:focusableInTouchMode="false"
+                    android:nextFocusDown="@id/genreChipGroup"
+                    android:nextFocusLeft="@id/discoverSearchBar"
+                    android:padding="2dp"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/ic_round_person_24"
+                    android:backgroundTint="@null"
+                    app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.Circle"
+                    app:tint="@null"
+                    tools:ignore="ContentDescription" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginBottom="4dp"
+                android:text="@string/genre"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle2"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:visibility="gone" />
             <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:scrollbars="none"
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp"
-                android:paddingBottom="4dp">
+                android:paddingBottom="4dp"
+                android:visibility="gone">
 
                 <com.google.android.material.chip.ChipGroup
                     android:id="@+id/genreChipGroup"
@@ -129,7 +236,8 @@
                 android:layout_marginBottom="4dp"
                 android:text="@string/season"
                 android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle2"
-                android:textColor="?attr/colorOnSurfaceVariant" />
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:visibility="gone" />
 
             <HorizontalScrollView
                 android:layout_width="match_parent"
@@ -137,7 +245,8 @@
                 android:scrollbars="none"
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp"
-                android:paddingBottom="8dp">
+                android:paddingBottom="8dp"
+                android:visibility="gone">
 
                 <com.google.android.material.chip.ChipGroup
                     android:id="@+id/seasonChipGroup"
