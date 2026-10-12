@@ -134,7 +134,7 @@ jobs:
             if [ -n "$BODY" ]; then
               NOTES="$NOTES"$'\n'"$BODY"
             else
-              NOTES="$NOTES"
+              NOTES="$NOTES"$'\n'"${MSG}"
             fi
           done <<< "$(git log "$RANGE" --oneline --reverse)"
 
@@ -148,23 +148,4 @@ jobs:
           body_path: /tmp/release_notes.md
           files: /tmp/apks/*.apk
           generate_release_notes: false
-          # Let GitHub apply its default latest-release policy instead of explicitly
-          # changing the release policy, which failed after the assets were uploaded.
-          make_latest: legacy
-\n'"${MSG}"
-            fi
-          done <<< "$(git log "$RANGE" --oneline --reverse)"
-
-          echo "$NOTES" > /tmp/release_notes.md
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.release.outputs.new_tag }}
-          name: "v${{ steps.release.outputs.new_tag }}"
-          body_path: /tmp/release_notes.md
-          files: /tmp/apks/*.apk
-          generate_release_notes: false
-          # Let GitHub apply its default latest-release policy instead of explicitly
-          # changing the release policy, which failed after the assets were uploaded.
           make_latest: legacy
