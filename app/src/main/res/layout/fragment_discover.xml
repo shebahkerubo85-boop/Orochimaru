@@ -121,6 +121,7 @@
             </HorizontalScrollView>
 
             <TextView
+                android:id="@+id/discoverSeasonLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
@@ -158,6 +159,7 @@
         the page turning grey behind the pinned chips once scrolled.
     -->
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/discoverScroll"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="?attr/colorSurface"
@@ -190,14 +192,71 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/discoverRecyclerView"
+            <!--
+                The grid is wrap_content inside the scroll view, so the footer (next page spinner
+                and its retry) sits right after the last row rather than pinned to the screen.
+            -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:clipToPadding="false"
-                android:focusable="true"
-                android:nextFocusUp="@id/seasonChipGroup"
-                android:padding="8dp" />
+                android:orientation="vertical">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/discoverRecyclerView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:clipToPadding="false"
+                    android:focusable="true"
+                    android:nextFocusUp="@id/seasonChipGroup"
+                    android:padding="8dp" />
+
+                <FrameLayout
+                    android:id="@+id/discoverLoadingMore"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="16dp"
+                    android:visibility="gone">
+
+                    <com.airbnb.lottie.LottieAnimationView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_gravity="center_horizontal"
+                        app:lottie_rawRes="@raw/tomoe"
+                        app:lottie_autoPlay="true"
+                        app:lottie_loop="true"
+                        app:lottie_colorFilter="?attr/colorSecondary"
+                        app:lottie_speed="1.75" />
+                </FrameLayout>
+
+                <LinearLayout
+                    android:id="@+id/discoverLoadMoreErrorGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_horizontal"
+                    android:orientation="horizontal"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="16dp"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical"
+                        android:layout_marginEnd="12dp"
+                        android:text="@string/error"
+                        android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/discoverLoadMoreRetry"
+                        style="@style/Widget.MaterialComponents.Chip.Action"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:focusable="true"
+                        android:text="@string/retry" />
+                </LinearLayout>
+            </LinearLayout>
 
             <FrameLayout
                 android:id="@+id/discoverProgressBar"
@@ -244,6 +303,33 @@
                 app:lottie_speed="1.75" android:rotation="195" />
 
             </FrameLayout>
+
+            <LinearLayout
+                android:id="@+id/discoverErrorGroup"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="48dp"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    android:text="@string/error"
+                    android:textAppearance="@style/TextAppearance.MaterialComponents.Body1"
+                    android:textColor="?attr/colorOnSurfaceVariant" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/discoverRetryChip"
+                    style="@style/Widget.MaterialComponents.Chip.Action"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:focusable="true"
+                    android:text="@string/retry" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/discoverEmptyText"

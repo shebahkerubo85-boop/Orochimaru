@@ -23,8 +23,11 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import androidx.recyclerview.widget.GridLayoutManager
 import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
 import ani.sanin.R
 import ani.sanin.connections.anilist.Anilist
+import ani.sanin.connections.kitsu.Kitsu
+import ani.sanin.connections.kitsu.KitsuCategory
 import ani.sanin.databinding.FragmentDiscoverBinding
 import ani.sanin.media.Media
 import ani.sanin.media.MediaAdaptor
@@ -41,56 +44,235 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import java.util.concurrent.atomic.AtomicInteger
 import ani.sanin.getThemeColor
 import ani.sanin.isTvDevice
 import ani.sanin.loadImage
 import ani.sanin.util.FocusEffectUtil
 
 class DiscoverViewModel : ViewModel() {
-    private val _selectedGenre = MutableStateFlow<String?>(null)
-    val selectedGenre: StateFlow<String?> = _selectedGenre.asStateFlow()
+    private val _categories = MutableStateFlow<List<KitsuCategory>>(emptyList())
+    val categories: StateFlow<List<KitsuCategory>> = _categories.asStateFlow()
+
+    private val _selectedCategory = MutableStateFlow<KitsuCategory?>(null)
+    val selectedCategory: StateFlow<KitsuCategory?> = _selectedCategory.asStateFlow()
 
     private val _selectedSeason = MutableStateFlow(DiscoverSeason.current())
     val selectedSeason: StateFlow<DiscoverSeason> = _selectedSeason.asStateFlow()
 
-    private val _results = MutableStateFlow<List<Media>>(emptyList())
-    val results: StateFlow<List<Media>> = _results.asStateFlow()
+    private val _uiState = MutableStateFlow(DiscoverUiState())
+    val uiState: StateFlow<DiscoverUiState> = _uiState.asStateFlow()
 
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    private var pageJob: Job? = null
+    private var categoriesJob: Job? = null
+    private var loaded = false
 
-    private var fetchJob: Job? = null
+    /**
+     * Monotonic id for the latest query. Only a result carrying the current id may publish;
+     * see [refresh].
+     */
+    private val fetchGeneration = AtomicInteger(0)
 
-    fun selectGenre(genre: String?) {
-        _selectedGenre.value = genre
-        fetch()
+    /**
+     * Kitsu categories that carry no anime.
+     *
+     * Every other empty category is a grouping node with a zero `totalMediaCount` and is
+     * dropped by [loadCategories]. Ahegao is the exception: Kitsu counts 252 media against it
+     * but every one of them is manga, so it is a real category that filters to an empty anime
+     * grid. It is the only such row in the catalogue, so it is excluded by its stable slug
+     * rather than probing all 218 categories with 218 extra requests.
+     */
+    private val nonAnimeCategorySlugs = setOf("ahegao")
+
+    /**
+     * Loads Kitsu's category catalogue once.
+     *
+     * The chips are built from this, so it runs alongside the first grid fetch rather than
+     * before it: the grid has a default "All" query to show and should not wait on the
+     * category list. Cached in the ViewModel, so a rotation does not refetch it.
+     */
+    fun loadCategories() {
+        if (_categories.value.isNotEmpty() || categoriesJob?.isActive == true) return
+        categoriesJob = viewModelScope.launch(Dispatchers.IO) {
+            // `totalMediaCount` is Kitsu's count across every medium, so a zero means the row
+            // is a grouping node (Elements, Setting, Themes, ...) that no anime is tagged with
+            // and which would only ever filter to an empty grid. nsfw rows are dropped to match
+            // the adult filter the AniList-backed "All" browse already applies, and the one
+            // media-bearing but anime-less row is dropped too; see [nonAnimeCategorySlugs].
+            val categories = Kitsu.allCategories()
+                .filterNot { it.nsfw || it.mediaCount <= 0 || it.slug in nonAnimeCategorySlugs }
+            if (categories.isNotEmpty()) _categories.value = categories
+        }
+    }
+
+    /** Runs the first load once per ViewModel, so a returning view does not refetch. */
+    fun ensureLoaded() {
+        if (loaded) return
+        loaded = true
+        refresh()
+    }
+
+    fun selectCategory(category: KitsuCategory?) {
+        _selectedCategory.value = category
+        refresh()
     }
 
     fun selectSeason(season: DiscoverSeason) {
         _selectedSeason.value = season
-        fetch()
+        // Season belongs to the AniList "All" browse; choosing one leaves the Kitsu category
+        // so the two filters never fight over which source feeds the grid.
+        _selectedCategory.value = null
+        refresh()
     }
 
-    fun fetch() {
-        fetchJob?.cancel()
-        fetchJob = viewModelScope.launch(Dispatchers.IO) {
-            _isLoading.value = true
-            try {
-                val genre = _selectedGenre.value
-                val season = _selectedSeason.value
-                val mediaList = Anilist.query.discoverAnime(
-                    genre = genre,
-                    season = season.apiValue,
-                    seasonYear = season.year,
-                )
-                _results.value = mediaList ?: emptyList()
-            } catch (_: Exception) {
-            } finally {
-                _isLoading.value = false
+    /** Re-runs the current selection from its first page; used by the error-state retry. */
+    fun retry() = refresh()
+
+    /** Starts a fresh query for the current selection and clears all previous page state. */
+    fun refresh() {
+        // Cancelling an in-flight OkHttp call does not interrupt it (`get` is a blocking
+        // request and tryWithSuspend swallows cancellation), so an older request can still
+        // finish after a newer one and would append stale cards. Each query carries a
+        // generation and only the newest is allowed to publish.
+        val generation = fetchGeneration.incrementAndGet()
+        val category = _selectedCategory.value
+        val season = _selectedSeason.value
+        pageJob?.cancel()
+        _uiState.value = DiscoverUiState(queryId = generation, isInitialLoading = true)
+        pageJob = viewModelScope.launch(Dispatchers.IO) {
+            if (category == null) {
+                loadAnilist(generation, season)
+            } else {
+                appendCategoryPages(generation, category, baseItems = emptyList(), basePage = 0)
             }
         }
     }
+
+    /** Pulls the next Kitsu page when the grid approaches its end. */
+    fun loadMore() {
+        val state = _uiState.value
+        if (state.queryId != fetchGeneration.get()) return
+        if (state.isInitialLoading || state.isLoadingMore || !state.hasMore ||
+            state.error || state.loadMoreError
+        ) {
+            return
+        }
+        val category = _selectedCategory.value ?: return
+        _uiState.value = state.copy(isLoadingMore = true, loadMoreError = false)
+        pageJob = viewModelScope.launch(Dispatchers.IO) {
+            appendCategoryPages(state.queryId, category, baseItems = state.items, basePage = state.page)
+        }
+    }
+
+    /** Clears a failed "load more" and retries the same page. */
+    fun retryLoadMore() {
+        val state = _uiState.value
+        if (state.isLoadingMore) return
+        _uiState.value = state.copy(loadMoreError = false)
+        loadMore()
+    }
+
+    private suspend fun loadAnilist(generation: Int, season: DiscoverSeason) {
+        // discoverAnime answers with null on failure, so a null here is the error case.
+        val list = runCatching {
+            Anilist.query.discoverAnime(
+                season = season.apiValue,
+                seasonYear = season.year,
+            )
+        }.getOrNull()
+        if (generation != fetchGeneration.get()) return
+        _uiState.value = if (list == null) {
+            DiscoverUiState(queryId = generation, error = true)
+        } else {
+            DiscoverUiState(queryId = generation, items = list.distinctBy { it.id })
+        }
+    }
+
+    /**
+     * Appends consecutive Kitsu pages to [baseItems] until a full batch of new cards has
+     * arrived, the listing is exhausted, or the per-trigger cap is hit.
+     *
+     * A page can lose a third of its rows to entries with no AniList mapping, so a single page
+     * often leaves the grid short; the loop keeps going while it is underfilled so the user is
+     * not left with a half-empty screen and nothing to scroll. Cards are deduplicated by
+     * AniList id because that is the key the detail screen opens on.
+     */
+    private suspend fun appendCategoryPages(
+        generation: Int,
+        category: KitsuCategory,
+        baseItems: List<Media>,
+        basePage: Int,
+    ) {
+        val items = ArrayList(baseItems)
+        val seenIds = HashSet<Int>(baseItems.size * 2)
+        baseItems.forEach { seenIds.add(it.id) }
+        var page = basePage
+        var fetched = 0
+        while (generation == fetchGeneration.get() && fetched < MAX_PAGES_PER_TRIGGER) {
+            val result = Kitsu.animeByCategory(category.slug, page + 1)
+            if (generation != fetchGeneration.get()) return
+            if (result.failed) {
+                // Keep whatever arrived; a failure with nothing to show is the full (centred)
+                // error state, otherwise it is a retryable footer under the grid.
+                val nothingYet = items.isEmpty()
+                _uiState.value = DiscoverUiState(
+                    queryId = generation,
+                    items = items,
+                    page = page,
+                    hasMore = !nothingYet,
+                    error = nothingYet,
+                    loadMoreError = !nothingYet,
+                )
+                return
+            }
+            page += 1
+            fetched += 1
+            var added = 0
+            for (media in result.media) {
+                if (seenIds.add(media.id)) {
+                    items.add(media)
+                    added++
+                }
+            }
+            if (!result.hasMore) {
+                _uiState.value = DiscoverUiState(
+                    queryId = generation,
+                    items = items,
+                    page = page,
+                    hasMore = false,
+                )
+                return
+            }
+            if (added >= PAGE_FILL_TARGET) break
+        }
+        _uiState.value = DiscoverUiState(
+            queryId = generation,
+            items = items,
+            page = page,
+            hasMore = true,
+        )
+    }
+
+    private companion object {
+        /** New cards wanted per load before paging may pause. */
+        const val PAGE_FILL_TARGET = 20
+
+        /** Upper bound on requests a single load may spend filling the grid. */
+        const val MAX_PAGES_PER_TRIGGER = 5
+    }
 }
+
+/** The Discovery grid's single source of truth, so loading, empty and error never overlap. */
+data class DiscoverUiState(
+    val queryId: Int = 0,
+    val items: List<Media> = emptyList(),
+    val page: Int = 0,
+    val isInitialLoading: Boolean = false,
+    val isLoadingMore: Boolean = false,
+    val hasMore: Boolean = false,
+    val error: Boolean = false,
+    val loadMoreError: Boolean = false,
+)
 
 data class DiscoverSeason(
     val label: String,
@@ -161,12 +343,14 @@ class DiscoveryFragment : Fragment() {
         val posterUrl: String?,
     )
 
-    private val animeGenres = listOf(
-        "All", "Action", "Adventure", "Comedy", "Drama", "Ecchi",
-        "Fantasy", "Horror", "Mahou Shoujo", "Mecha", "Music",
-        "Mystery", "Psychological", "Romance", "Sci-Fi", "Slice of Life",
-        "Sports", "Supernatural", "Thriller",
-    )
+    /** Backing list of the grid adapter; appended to as pages arrive. */
+    private lateinit var gridItems: MutableList<Media>
+    private lateinit var gridAdapter: MediaAdaptor
+
+    /** QueryId currently rendered, so a new query rebuilds instead of appending. */
+    private var renderedQueryId = -1
+
+    private var isTv = false
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?,
@@ -177,6 +361,7 @@ class DiscoveryFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        isTv = isTvDevice(requireContext())
         setupSearchBar()
         setupAvatar()
         setupGenreChips()
@@ -195,7 +380,9 @@ class DiscoveryFragment : Fragment() {
         binding.genreChipGroup.nextFocusUpId = R.id.discoverSearchBar
         binding.genreChipGroup.nextFocusDownId = R.id.seasonChipGroup
         binding.seasonChipGroup.nextFocusUpId = R.id.genreChipGroup
-        discoverViewModel.fetch()
+        binding.seasonChipGroup.nextFocusDownId = R.id.discoverRecyclerView
+        binding.discoverRecyclerView.nextFocusUpId = R.id.seasonChipGroup
+        discoverViewModel.ensureLoaded()
         loadKitsuEditorial()
         loadTmdbAnimationEditorial()
         loadKitsuCategories()
@@ -203,7 +390,7 @@ class DiscoveryFragment : Fragment() {
         // Steal initial focus so a TV has somewhere to start. On a touch device the search
         // bar is focusableInTouchMode, so this also lit its focus border on open — a phone
         // has no d-pad to seed and should not paint a focus ring nobody asked for.
-        if (isTvDevice(requireContext())) {
+        if (isTv) {
             binding.discoverSearchBar.post { if (isAdded) binding.discoverSearchBar.requestFocus() }
         }
     }
@@ -215,7 +402,7 @@ class DiscoveryFragment : Fragment() {
             kitsuPicks = runCatching {
                 ani.sanin.connections.kitsu.Kitsu.discoverEditorial(limit = 20)
             }.getOrDefault(emptyList())
-            if (_binding != null) renderEditorialShelves(discoverViewModel.results.value)
+            if (_binding != null) renderEditorialShelves(discoverViewModel.uiState.value.items)
         }
     }
 
@@ -238,7 +425,7 @@ class DiscoveryFragment : Fragment() {
                     .take(12)
             }.getOrDefault(emptyList())
             if (_binding != null) {
-                renderEditorialShelves(discoverViewModel.results.value)
+                renderEditorialShelves(discoverViewModel.uiState.value.items)
                 loadTrailerCarousel()
             }
         }
@@ -552,23 +739,156 @@ class DiscoveryFragment : Fragment() {
     }
 
     private fun setupGenreChips() {
-        val onSurface = requireContext().getThemeColor(com.google.android.material.R.attr.colorOnSurface)
-        animeGenres.forEach { genre ->
-            val chip = Chip(requireContext()).apply {
-                text = genre
+        renderCategoryChips(emptyList())
+        viewLifecycleOwner.lifecycleScope.launch {
+            discoverViewModel.categories.collect { renderCategoryChips(it) }
+        }
+        discoverViewModel.loadCategories()
+    }
+
+    /**
+     * Rebuilds the category row.
+     *
+     * On a phone that is a fixed "All" chip followed by every Kitsu category. On a TV the full
+     * row would be a long sideways scroll for a d-pad, so it collapses to "All" plus a single
+     * browse chip that opens a picker. The catalogue arrives asynchronously, so this runs first
+     * with just "All" and again once it lands; the current selection is read on each pass so
+     * the checked chip survives the rebuild rather than snapping back to the first one.
+     */
+    private fun renderCategoryChips(categories: List<KitsuCategory>) {
+        if (!isAdded || _binding == null) return
+        val group = binding.genreChipGroup
+        val textColor = requireContext().getThemeColor(
+            com.google.android.material.R.attr.colorOnSurface
+        )
+        val selected = discoverViewModel.selectedCategory.value
+        group.removeAllViews()
+        addCategoryChip(group, textColor, getString(R.string.all), selected == null) {
+            applyCategorySelection(null)
+        }
+        if (isTv) {
+            if (categories.isEmpty()) return
+            // Opens the picker without toggling itself: the check reflects the actual selection
+            // and is only rebuilt when one is made, so cancelling the dialog leaves it alone.
+            val browse = Chip(group.context).apply {
+                text = selected?.title ?: getString(R.string.categories)
                 isCheckable = true
-                isChecked = (genre == "All" && discoverViewModel.selectedGenre.value == null)
+                isChecked = selected != null
                 isFocusable = true
-                setTextColor(onSurface)
-                setOnClickListener {
-                    binding.genreChipGroup.clearCheck()
-                    isChecked = true
-                    discoverViewModel.selectGenre(if (genre == "All") null else genre)
+                setTextColor(textColor)
+                setOnClickListener { showCategoryPicker() }
+            }
+            FocusEffectUtil.applyFocusListener(browse)
+            group.addView(browse)
+        } else {
+            categories.forEach { category ->
+                addCategoryChip(group, textColor, category.title, selected?.id == category.id) {
+                    applyCategorySelection(category)
                 }
             }
-            FocusEffectUtil.applyFocusListener(chip)
-            binding.genreChipGroup.addView(chip)
         }
+    }
+
+    /** One checkable category chip, styled and wired like the rest of the Discovery row. */
+    private fun addCategoryChip(
+        group: ChipGroup,
+        textColor: Int,
+        label: String,
+        checked: Boolean,
+        onSelect: () -> Unit,
+    ) {
+        val chip = Chip(group.context).apply {
+            text = label
+            isCheckable = true
+            isChecked = checked
+            isFocusable = true
+            setTextColor(textColor)
+            setOnClickListener {
+                group.clearCheck()
+                isChecked = true
+                onSelect()
+            }
+        }
+        FocusEffectUtil.applyFocusListener(chip)
+        group.addView(chip)
+    }
+
+    /** Applies a category choice and keeps the season row in sync: seasons only browse "All". */
+    private fun applyCategorySelection(category: KitsuCategory?) {
+        val hadCategory = discoverViewModel.selectedCategory.value != null
+        discoverViewModel.selectCategory(category)
+        setSeasonRowEnabled(category == null)
+        // Re-checking in place (rather than re-inflating) keeps the season row's D-pad focus.
+        if (category != null) {
+            binding.seasonChipGroup.clearCheck()
+        } else if (hadCategory) {
+            checkSeasonChip(discoverViewModel.selectedSeason.value)
+        }
+        // TV shows one browse chip instead of the full row, so its label and check are the only
+        // thing reflecting the choice; update them without rebuilding the chip under the focus.
+        if (isTv) {
+            (binding.genreChipGroup.getChildAt(1) as? Chip)?.apply {
+                text = category?.title ?: getString(R.string.categories)
+                isChecked = category != null
+            }
+        }
+    }
+
+    /**
+     * Seasons belong to the AniList "All" browse, so a Kitsu category dims and disables the row
+     * instead of leaving a lit chip that no longer applies to the grid.
+     */
+    private fun setSeasonRowEnabled(enabled: Boolean) {
+        val group = binding.seasonChipGroup
+        group.isEnabled = enabled
+        group.alpha = if (enabled) 1f else 0.4f
+        for (index in 0 until group.childCount) {
+            group.getChildAt(index).isEnabled = enabled
+        }
+    }
+
+    /** Re-checks the stored season chip after the row is re-enabled, without re-fetching. */
+    private fun checkSeasonChip(season: DiscoverSeason) {
+        val group = binding.seasonChipGroup
+        group.clearCheck()
+        for (index in 0 until group.childCount) {
+            val chip = group.getChildAt(index) as? Chip ?: continue
+            if (chip.text == season.label) {
+                chip.isChecked = true
+                break
+            }
+        }
+    }
+
+    /** TV-only picker: the full category list in a dialog so a d-pad is not stuck scrolling. */
+    private fun showCategoryPicker() {
+        if (!isAdded) return
+        val categories = discoverViewModel.categories.value
+        if (categories.isEmpty()) return
+        val ctx = requireContext()
+        val textColor = ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface)
+        val pad = (ctx.resources.displayMetrics.density * 16).toInt()
+        val group = ChipGroup(ctx).apply {
+            isSingleSelection = true
+            setPadding(pad, pad / 2, pad, pad / 2)
+        }
+        val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+            .setTitle(R.string.categories)
+            .setView(group)
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+        val selected = discoverViewModel.selectedCategory.value
+        addCategoryChip(group, textColor, getString(R.string.all), selected == null) {
+            dialog.dismiss()
+            applyCategorySelection(null)
+        }
+        categories.forEach { category ->
+            addCategoryChip(group, textColor, category.title, selected?.id == category.id) {
+                dialog.dismiss()
+                applyCategorySelection(category)
+            }
+        }
+        dialog.show()
     }
 
     private fun setupSeasonChips() {
@@ -586,20 +906,40 @@ class DiscoveryFragment : Fragment() {
                     binding.seasonChipGroup.clearCheck()
                     isChecked = true
                     discoverViewModel.selectSeason(season)
+                    // A season leaves the Kitsu category, so the row has to show "All" again;
+                    // it is updated in place so the focused season chip keeps D-pad focus.
+                    updateCategoryRowToAll()
                 }
             }
             FocusEffectUtil.applyFocusListener(chip)
             binding.seasonChipGroup.addView(chip)
         }
+        // A rotated view rebuilds the chips but the ViewModel kept its category selection, so an
+        // active category must re-dim the row on restore rather than looking tappable.
+        setSeasonRowEnabled(discoverViewModel.selectedCategory.value == null)
+    }
+
+    /** Puts the category row back on "All" after a season pick, without re-inflating it. */
+    private fun updateCategoryRowToAll() {
+        val group = binding.genreChipGroup
+        for (index in 0 until group.childCount) {
+            (group.getChildAt(index) as? Chip)?.isChecked = false
+        }
+        (group.getChildAt(0) as? Chip)?.isChecked = true
+        if (isTv) {
+            (group.getChildAt(1) as? Chip)?.text = getString(R.string.categories)
+        }
     }
 
     private fun setupResultsGrid() {
+        gridItems = mutableListOf()
+        gridAdapter = MediaAdaptor(0, gridItems, requireActivity(), true)
         binding.discoverRecyclerView.apply {
             val dm = resources.displayMetrics
             layoutManager = GridLayoutManager(requireContext(), TmdbCards.gridSpan(dm.widthPixels / dm.density))
             // matchParent: the card takes the column width, so the count can follow the
             // screen instead of a hardcoded 3 that is right on a phone and wrong on a TV.
-            adapter = MediaAdaptor(0, mutableListOf(), requireActivity(), true)
+            adapter = gridAdapter
             isNestedScrollingEnabled = false
             isFocusable = true
             isFocusableInTouchMode = false
@@ -610,29 +950,58 @@ class DiscoveryFragment : Fragment() {
                 } else false
             }
         }
+        // The grid is wrap_content inside a NestedScrollView, so it never scrolls itself; the
+        // next page is pulled once the surrounding scroll closes to within a screen of its end.
+        binding.discoverScroll.setOnScrollChangeListener { _, _, _, _, _ ->
+            val content = binding.discoverScroll.getChildAt(0)?.height ?: return@setOnScrollChangeListener
+            val remaining = content - binding.discoverScroll.scrollY - binding.discoverScroll.height
+            if (remaining <= resources.displayMetrics.heightPixels) {
+                discoverViewModel.loadMore()
+            }
+        }
+        binding.discoverLoadMoreRetry.setOnClickListener { discoverViewModel.retryLoadMore() }
+        FocusEffectUtil.applyFocusListener(binding.discoverRetryChip, binding.discoverLoadMoreRetry)
+        binding.discoverRetryChip.setOnClickListener { discoverViewModel.retry() }
     }
 
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
-            discoverViewModel.isLoading.collect { loading ->
-                binding.discoverProgressBar.isVisible = loading
-                binding.discoverRecyclerView.isVisible = !loading
-            }
+            discoverViewModel.uiState.collect { render(it) }
         }
-        viewLifecycleOwner.lifecycleScope.launch {
-            discoverViewModel.results.collect { media ->
-                binding.discoverRecyclerView.swapAdapter(
-                    MediaAdaptor(0, media.toMutableList(), requireActivity(), true),
-                    false,
-                )
-                renderEditorialShelves(media)
-                if (media.isEmpty() && !discoverViewModel.isLoading.value) {
-                    binding.discoverEmptyText.isVisible = true
-                } else {
-                    binding.discoverEmptyText.isVisible = false
-                }
-            }
+    }
+
+    /**
+     * Renders a state without ever swapping the adapter, so scroll position and D-pad focus
+     * survive paging. A new queryId rebuilds the list and jumps to the top; the same query
+     * only ever appends, so later pages animate in below the fold.
+     */
+    private fun render(state: DiscoverUiState) {
+        val newQuery = state.queryId != renderedQueryId
+        if (newQuery) renderedQueryId = state.queryId
+
+        if (newQuery) {
+            gridItems.clear()
+            gridItems.addAll(state.items)
+            gridAdapter.notifyDataSetChanged()
+            binding.discoverRecyclerView.scrollToPosition(0)
+            binding.discoverScroll.scrollTo(0, 0)
+        } else if (state.items.size > gridItems.size) {
+            val start = gridItems.size
+            gridItems.addAll(state.items.subList(start, state.items.size))
+            gridAdapter.notifyItemRangeInserted(start, gridItems.size - start)
         }
+
+        renderEditorialShelves(state.items)
+
+        val hasItems = state.items.isNotEmpty()
+        binding.discoverProgressBar.isVisible = state.isInitialLoading && !hasItems
+        binding.discoverRecyclerView.isVisible = hasItems
+        binding.discoverEmptyText.isVisible = !state.isInitialLoading && !state.error && !hasItems
+        binding.discoverErrorGroup.isVisible = state.error && !hasItems
+        // The footer lives inside the scrolling content, so hide it whenever there is no grid to
+        // sit under rather than leaving a stray spinner/retry on an empty screen.
+        binding.discoverLoadingMore.isVisible = hasItems && state.isLoadingMore
+        binding.discoverLoadMoreErrorGroup.isVisible = hasItems && state.loadMoreError
     }
 
     private fun renderEditorialShelves(media: List<Media>) {
@@ -733,6 +1102,7 @@ class DiscoveryFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        renderedQueryId = -1
         _binding = null
     }
 

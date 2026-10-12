@@ -1,8 +1,11 @@
 package ani.sanin.connections.kitsu
 
+import ani.sanin.connections.anilist.api.FuzzyDate
 import ani.sanin.media.Franchise
 import ani.sanin.util.Logger
 import ani.sanin.media.FranchiseEntry
+import ani.sanin.media.Media
+import ani.sanin.media.anime.Anime
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.tryWithSuspend
@@ -11,7 +14,20 @@ import kotlinx.coroutines.withContext
 import okhttp3.Request
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+
+/**
+ * One page of a Kitsu category listing.
+ *
+ * [failed] is what separates "the request failed" from "the category has no more cards":
+ * both come back with no items, but the Discovery grid offers a retry for the former only.
+ */
+data class CategoryPage(
+    val media: List<Media>,
+    val hasMore: Boolean,
+    val failed: Boolean = false,
+)
 
 /**
  * Kitsu client, used to build the anime Franchise cards on the Explore page.
@@ -83,6 +99,16 @@ object Kitsu {
      * title that is not in Kitsu's database, which is a lot of them.
      */
     private val missingCache = ConcurrentHashMap<Int, Boolean>()
+
+    /**
+     * Every Kitsu category, fetched once per process.
+     *
+     * The category catalogue is a global list that changes rarely, so re-walking its eleven
+     * pages every time Discovery opens would be pure waste. Null until the first successful
+     * fetch; a failed fetch leaves it null so the next open retries.
+     */
+    @Volatile
+    private var categoryCache: List<KitsuCategory>? = null
 
     /**
      * Franchise id per Kitsu anime id.
@@ -534,6 +560,130 @@ object Kitsu {
             title = title,
             synopsis = synopsis ?: description,
             anilistId = anilistId,
+        )
+    }
+
+    /**
+     * Every category Kitsu carries, in title order.
+     *
+     * `/categories` is paginated at [PAGE_LIMIT] like every other Kitsu route, and the
+     * catalogue is 218 rows, so this walks all eleven pages rather than stopping at the
+     * first one. `include=parent` inlines each row's parent resource, so the parent list
+     * can be resolved from that same response instead of one extra request per category.
+     *
+     * Only ids, slugs and titles that are actually present are kept: a row missing any of
+     * them cannot be filtered on, so it is dropped rather than carried as a broken chip.
+     */
+    suspend fun allCategories(): List<KitsuCategory> {
+        categoryCache?.let { return it }
+        val out = LinkedHashMap<String, KitsuCategory>()
+        var offset = 0
+        var complete = false
+        while (true) {
+            val doc = get(
+                "/categories?page[limit]=$PAGE_LIMIT&page[offset]=$offset" +
+                    "&sort=title&include=parent"
+            ) ?: break
+            val rows = doc.dataList()
+            if (rows.isEmpty()) {
+                complete = true
+                break
+            }
+            val parentsById = doc.included.orEmpty()
+                .associate { resource -> resource.id to resource.categoryAttributes()?.title }
+            for (resource in rows) {
+                val attrs = resource.categoryAttributes() ?: continue
+                val id = resource.id ?: continue
+                val title = attrs.title?.takeIf { it.isNotBlank() } ?: continue
+                val slug = attrs.slug?.takeIf { it.isNotBlank() } ?: continue
+                val parentId = resource.relationshipIds("parent").firstOrNull()
+                out[id] = KitsuCategory(
+                    id = id,
+                    title = title,
+                    slug = slug,
+                    nsfw = attrs.nsfw,
+                    childCount = attrs.childCount,
+                    mediaCount = attrs.totalMediaCount,
+                    parentId = parentId,
+                    parentTitle = parentId?.let { parentsById[it] },
+                )
+            }
+            offset += rows.size
+            val total = doc.meta?.count ?: 0
+            if (rows.size < PAGE_LIMIT || (total > 0 && offset >= total)) {
+                complete = true
+                break
+            }
+        }
+        val categories = out.values.toList()
+        // Only a walk that reached the end of the catalogue is cached. Caching a walk that
+        // stopped on a failed page would freeze the partial list for the whole process and
+        // the missing rows would never be retried.
+        if (complete && categories.isNotEmpty()) categoryCache = categories
+        return categories
+    }
+
+    /**
+     * Anime in one category, most highly rated first.
+     *
+     * `filter[categories]` takes the category *slug*, which is the value Kitsu's own
+     * category rows carry and the one stable across a category rename. `include=mappings`
+     * inlines each anime's AniList mapping, which is the only way to open an entry: the
+     * Sanin detail screen is keyed by AniList id and Kitsu ids do not line up with it (see
+     * the class comment). An entry with no AniList mapping has nothing to open, so it is
+     * skipped rather than shown as a dead card, and every nsfw entry is dropped to match
+     * the adult filter the AniList-backed Discovery already applies.
+     */
+    suspend fun animeByCategory(slug: String, page: Int = 1): CategoryPage {
+        val offset = ((page - 1).coerceAtLeast(0)) * PAGE_LIMIT
+        val doc = get(
+            "/anime?filter[categories]=$slug&sort=-averageRating" +
+                "&page[limit]=$PAGE_LIMIT&page[offset]=$offset&include=mappings"
+        ) ?: return CategoryPage(emptyList(), hasMore = false, failed = true)
+        val rows = doc.dataList()
+        val mappingsById = doc.included.orEmpty().associateBy { it.id }
+        val media = rows.mapNotNull { resource ->
+            val attrs = resource.animeAttributes() ?: return@mapNotNull null
+            if (attrs.nsfw) return@mapNotNull null
+            val anilistId = resource.relationshipIds("mappings").firstNotNullOfOrNull { mappingId ->
+                mappingsById[mappingId]?.mappingAttributes()
+                    ?.takeIf { it.externalSite == ANILIST_SITE }
+                    ?.externalId?.toIntOrNull()
+            } ?: return@mapNotNull null
+            resource.toMedia(anilistId, attrs)
+        }
+        // `meta.count` is the size of the whole filtered listing, so the walk is done once the
+        // rows consumed so far cover it. It is absent on the relationship routes, so a short
+        // page is the fallback signal.
+        val consumed = offset + rows.size
+        val total = doc.meta?.count ?: 0
+        val hasMore = if (total > 0) consumed < total else rows.size >= PAGE_LIMIT
+        return CategoryPage(media = media, hasMore = hasMore)
+    }
+
+    /** A category listing entry as a Discovery card. Null when it has no usable title. */
+    private fun KitsuResource.toMedia(anilistId: Int, attrs: KitsuAnimeAttributes): Media? {
+        val title = attrs.displayTitle() ?: return null
+        return Media(
+            id = anilistId,
+            name = title,
+            nameRomaji = attrs.titles?.enJp?.takeIf { it.isNotBlank() } ?: title,
+            userPreferredName = title,
+            cover = attrs.posterImage?.large
+                ?: attrs.posterImage?.medium
+                ?: attrs.posterImage?.original,
+            banner = attrs.coverImage?.large ?: attrs.coverImage?.original,
+            isAdult = attrs.nsfw,
+            description = attrs.synopsis,
+            format = attrs.subtype?.uppercase(Locale.ROOT)
+                ?: attrs.showType?.uppercase(Locale.ROOT),
+            startDate = attrs.startDate?.take(4)?.toIntOrNull()?.let { FuzzyDate(year = it) },
+            anime = Anime(
+                totalEpisodes = attrs.episodeCount,
+                season = attrs.season,
+                seasonYear = attrs.seasonYear,
+            ),
+            idKitsu = id,
         )
     }
 

@@ -117,12 +117,17 @@ data class KitsuAnimeAttributes(
     @SerialName("titles") val titles: KitsuTitles? = null,
     @SerialName("startDate") val startDate: String? = null,
     @SerialName("seasonYear") val seasonYear: Int? = null,
+    @SerialName("season") val season: String? = null,
     @SerialName("showType") val showType: String? = null,
+    @SerialName("subtype") val subtype: String? = null,
     @SerialName("posterImage") val posterImage: KitsuPosterImage? = null,
+    @SerialName("coverImage") val coverImage: KitsuPosterImage? = null,
     @SerialName("slug") val slug: String? = null,
     @SerialName("synopsis") val synopsis: String? = null,
     @SerialName("description") val description: String? = null,
     @SerialName("userCount") val userCount: Int? = null,
+    @SerialName("nsfw") val nsfw: Boolean = false,
+    @SerialName("episodeCount") val episodeCount: Int? = null,
     @SerialName("averageRating") val averageRating: String? = null,
 )
 
@@ -137,14 +142,6 @@ data class KitsuDiscoveryItem(
     val anilistId: Int?,
 )
 
-data class KitsuCategory(
-    val id: String,
-    val slug: String,
-    val title: String,
-    val description: String? = null,
-    val totalMediaCount: Int = 0,
-)
-
 data class KitsuCategoryPage(
     val items: List<KitsuDiscoveryItem>,
     val rawCount: Int,
@@ -152,14 +149,39 @@ data class KitsuCategoryPage(
     val success: Boolean,
 )
 
+/**
+ * A Kitsu category, shared by the Discovery chip row and the editorial shelves.
+ *
+ * Kitsu ships 218 of these, ordered as a tree with a `parent`, but the list route only
+ * carries the parent as a link; `include=parent` inlines it and the parent's own title is
+ * read back from the document's `included` block. The flat shape carries both the
+ * `totalMediaCount` the editorial path reads and the `mediaCount`/`nsfw`/`parent` fields
+ * the Discovery chips resolve.
+ */
+data class KitsuCategory(
+    val id: String,
+    val slug: String,
+    val title: String,
+    val description: String? = null,
+    val totalMediaCount: Int = 0,
+    val nsfw: Boolean = false,
+    val childCount: Int = 0,
+    val mediaCount: Int = 0,
+    val parentId: String? = null,
+    val parentTitle: String? = null,
+)
+
 @Serializable
 data class KitsuCategoryAttributes(
     @SerialName("title") val title: String? = null,
     @SerialName("slug") val slug: String? = null,
     @SerialName("description") val description: String? = null,
+    @SerialName("nsfw") val nsfw: Boolean = false,
+    @SerialName("childCount") val childCount: Int = 0,
     @SerialName("totalMediaCount") val totalMediaCount: Int = 0,
 )
 
+/** Decodes this resource's attributes as a category. Null when they are not. */
 fun KitsuResource.categoryAttributes(): KitsuCategoryAttributes? =
     attributes?.let { kitsuJson.decodeFromJsonElement<KitsuCategoryAttributes>(it) }
 
