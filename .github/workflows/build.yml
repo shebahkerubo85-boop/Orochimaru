@@ -148,4 +148,4 @@ jobs:
           body_path: /tmp/release_notes.md
           files: /tmp/apks/*.apk
           generate_release_notes: false
-          make_latest: true
+          make_latest: legacy
