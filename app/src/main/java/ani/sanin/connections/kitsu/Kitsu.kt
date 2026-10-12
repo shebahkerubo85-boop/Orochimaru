@@ -620,10 +620,13 @@ object Kitsu {
             }
         }
         val categories = out.values.toList()
-        // Only a walk that reached the end of the catalogue is cached. Caching a walk that
-        // stopped on a failed page would freeze the partial list for the whole process and
-        // the missing rows would never be retried.
-        if (complete && categories.isNotEmpty()) categoryCache = categories
+        // Never present a partial catalogue as complete: a failed page must be retried on the
+        // next attempt, otherwise categories beyond the failed offset silently disappear.
+        if (!complete) {
+            Logger.log("Kitsu: category catalogue fetch incomplete at offset=$offset; collected=${categories.size}")
+            return emptyList()
+        }
+        if (categories.isNotEmpty()) categoryCache = categories
         return categories
     }
 
@@ -644,7 +647,6 @@ object Kitsu {
         ) ?: return null
         val poster = doc.dataList().asSequence().mapNotNull { resource ->
             val attrs = resource.animeAttributes() ?: return@mapNotNull null
-            if (attrs.nsfw) return@mapNotNull null
             attrs.posterImage?.large
                 ?: attrs.posterImage?.medium
                 ?: attrs.posterImage?.original
@@ -662,8 +664,7 @@ object Kitsu {
      * inlines each anime's AniList mapping, which is the only way to open an entry: the
      * Sanin detail screen is keyed by AniList id and Kitsu ids do not line up with it (see
      * the class comment). An entry with no AniList mapping has nothing to open, so it is
-     * skipped rather than shown as a dead card, and every nsfw entry is dropped to match
-     * the adult filter the AniList-backed Discovery already applies.
+     * skipped rather than shown as a dead card. NSFW-tagged entries remain eligible.
      */
     suspend fun animeByCategory(slug: String, page: Int = 1): CategoryPage {
         val offset = ((page - 1).coerceAtLeast(0)) * PAGE_LIMIT
