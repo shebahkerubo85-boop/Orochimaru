@@ -361,7 +361,7 @@ class DiscoveryFragment : Fragment() {
 
     private companion object {
         const val CATEGORY_CARD_HEIGHT_DP = 100
-        const val CATEGORY_COLUMN_GAP_DP = 44
+        const val CATEGORY_COLUMN_GAP_DP = 18
         const val CATEGORY_ROW_GAP_DP = 18
         const val CATEGORY_SIDE_PADDING_DP = 3
         const val MIN_CATEGORY_CONTENT_WIDTH_DP = 140
@@ -736,10 +736,24 @@ class DiscoveryFragment : Fragment() {
                     }
                     artworkFrame.addView(artworkImage)
                     artworkFrame.addView(View(context).apply {
-                        background = GradientDrawable(
-                            GradientDrawable.Orientation.LEFT_RIGHT,
-                            intArrayOf(Color.TRANSPARENT, surfaceColor)
-                        )
+                        background = android.graphics.drawable.LayerDrawable(arrayOf(
+                            GradientDrawable(
+                                GradientDrawable.Orientation.LEFT_RIGHT,
+                                intArrayOf(surfaceColor, Color.TRANSPARENT)
+                            ),
+                            GradientDrawable(
+                                GradientDrawable.Orientation.RIGHT_LEFT,
+                                intArrayOf(surfaceColor, Color.TRANSPARENT)
+                            ),
+                            GradientDrawable(
+                                GradientDrawable.Orientation.TOP_BOTTOM,
+                                intArrayOf(surfaceColor, Color.TRANSPARENT)
+                            ),
+                            GradientDrawable(
+                                GradientDrawable.Orientation.BOTTOM_TOP,
+                                intArrayOf(surfaceColor, Color.TRANSPARENT)
+                            )
+                        ))
                         isClickable = false
                         isFocusable = false
                     }, FrameLayout.LayoutParams(
