@@ -585,6 +585,8 @@ class DiscoveryFragment : Fragment() {
                     // small mutex. Each candidate pool comes only from this exact Kitsu category.
                     val candidates = runCatching { Kitsu.categoryThumbnails(slug) }.getOrDefault(emptyList())
                     val poster = categoryArtworkSelectionMutex.withLock {
+                        // A request from an earlier visit must not reserve a poster in this visit.
+                        if (generation != categoryArtworkGeneration) return@withLock null
                         val used = synchronized(reservedCategoryArtworkUrls) {
                             reservedCategoryArtworkUrls.toSet()
                         }
