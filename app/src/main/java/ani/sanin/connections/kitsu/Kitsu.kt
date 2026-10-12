@@ -640,21 +640,22 @@ object Kitsu {
      */
     suspend fun categoryThumbnail(slug: String): String? {
         if (slug.isBlank()) return null
-        categoryThumbnailCache[slug]?.let { return it }
+        // Choose from this category's own result page on every Discovery visit instead of
+        // pinning the first poster forever. Random selection prevents the top result from
+        // dominating every category card.
         val doc = get(
             "/anime?filter[categories]=$slug&sort=-averageRating&page[limit]=$PAGE_LIMIT" +
                 "&page[offset]=0"
         ) ?: return null
-        val poster = doc.dataList().asSequence().mapNotNull { resource ->
+        val posters = doc.dataList().mapNotNull { resource ->
             val attrs = resource.animeAttributes() ?: return@mapNotNull null
             if (attrs.nsfw) return@mapNotNull null
-            attrs.posterImage?.large
+            (attrs.posterImage?.large
                 ?: attrs.posterImage?.medium
                 ?: attrs.posterImage?.original
-                ?: attrs.posterImage?.small
-        }.firstOrNull { it.isNotBlank() }
-        if (!poster.isNullOrBlank()) categoryThumbnailCache[slug] = poster
-        return poster
+                ?: attrs.posterImage?.small)?.takeIf { it.isNotBlank() }
+        }.distinct()
+        return posters.randomOrNull()
     }
 
     /**
