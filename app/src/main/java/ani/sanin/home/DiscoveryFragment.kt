@@ -4,7 +4,6 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Typeface
-import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.widget.FrameLayout
@@ -27,10 +26,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import androidx.recyclerview.widget.GridLayoutManager
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.DataSource
-import com.bumptech.glide.load.engine.GlideException
-import com.bumptech.glide.request.RequestListener
-import com.bumptech.glide.request.target.Target
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import ani.sanin.R
@@ -1076,23 +1071,13 @@ class DiscoveryFragment : Fragment() {
      */
     private fun ImageView.loadReelThumbnail(key: String) {
         val view = this
+        // Glide forbids starting a new load inside a RequestListener (it throws
+        // "You can't start or clear loads in RequestListener or Target callbacks"), so the
+        // fallback goes through RequestBuilder#error instead: a 404 on the HD thumbnail still
+        // leaves Glide itself to run the standard-quality request.
         Glide.with(view)
             .load(ReelFeed.thumbnailUrl(key))
-            .listener(object : RequestListener<Drawable> {
-                override fun onLoadFailed(
-                    e: GlideException?, model: Any?,
-                    target: Target<Drawable>?, isFirstResource: Boolean
-                ): Boolean {
-                    Glide.with(view).load(ReelFeed.thumbnailFallbackUrl(key)).into(view)
-                    return true
-                }
-
-                override fun onResourceReady(
-                    resource: Drawable?, model: Any?,
-                    target: Target<Drawable>?,
-                    dataSource: DataSource?, isFirstResource: Boolean
-                ): Boolean = false
-            })
+            .error(Glide.with(view).load(ReelFeed.thumbnailFallbackUrl(key)))
             .into(view)
     }
 
