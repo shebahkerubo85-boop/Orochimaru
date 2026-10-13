@@ -55,9 +55,7 @@ class TmdbDiscoveryFragment : Fragment() {
 
     private var _binding: FragmentTmdbDiscoveryBinding? = null
     private val binding get() = _binding!!
-    private val adapter = DiscoveryOutlineAdapter { card ->
-        if (card.id > 0) openDetailsById(card.mediaType, card.id)
-    }
+    private val adapter = TmdbGridAdapter { openDetails(it) }
     private var genres: List<TmdbGenre> = emptyList()
     /** Shelf scroll position captured before a category opens, restored on the way back. */
     private var shelvesScrollY = 0
@@ -170,21 +168,6 @@ class TmdbDiscoveryFragment : Fragment() {
             .putExtra(TmdbDetailsActivity.ARG_MEDIA_ID, item.id)
             .putExtra(TmdbDetailsActivity.ARG_OPEN_TAB, TmdbDetailsActivity.TAB_INFO))
     }
-
-    private fun openDetailsById(mediaType: String, mediaId: Int) {
-        startActivity(Intent(requireContext(), TmdbDetailsActivity::class.java)
-            .putExtra(TmdbDetailsActivity.ARG_MEDIA_TYPE, mediaType)
-            .putExtra(TmdbDetailsActivity.ARG_MEDIA_ID, mediaId)
-            .putExtra(TmdbDetailsActivity.ARG_OPEN_TAB, TmdbDetailsActivity.TAB_INFO))
-    }
-
-    private fun TmdbMedia.toOutlineCard(): DiscoveryOutlineAdapter.OutlineCard =
-        DiscoveryOutlineAdapter.OutlineCard(
-            id = id,
-            mediaType = type,
-            title = displayTitle,
-            posterUrl = posterPath?.let { "https://image.tmdb.org/t/p/w342$it" },
-        )
 
     /** Loads the trailer reels feed once, then renders the rail of entry-point cards. */
     private fun loadTmdbReelRail() {
@@ -556,7 +539,7 @@ class TmdbDiscoveryFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             val items = runCatching { fetchCategory(category, page = 1) }.getOrDefault(emptyList())
             if (_binding == null || selectedCategory?.id != category.id) return@launch
-            adapter.submit(items.map { it.toOutlineCard() })
+            adapter.submit(items)
             binding.tmdbDiscoveryProgress.isVisible = false
             binding.tmdbDiscoveryGrid.isVisible = items.isNotEmpty()
             if (items.isEmpty()) {

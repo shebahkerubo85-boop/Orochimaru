@@ -365,6 +365,49 @@ object TmdbCards {
         }
     }
 
+    /**
+     * The standard grid card for a title with no TMDB record (e.g. AniList/Kitsu discovery
+     * results): the same rounded poster with the title below, honouring the roundness and
+     * grid-cut preferences, but without the TMDB-only extras (rating pill, logo art, watch
+     * progress badge) that need a TMDB id.
+     */
+    fun applyPlainCardStyle(
+        binding: ItemTmdbCardBinding,
+        title: String,
+        posterUrl: String?,
+        cellWidth: Int? = null,
+    ) {
+        val size = cardSize()
+        val gap = (GRID_CARD_GAP_DP * binding.root.resources.displayMetrics.density).toInt()
+        val baseW = 102f
+        val baseH = 154f
+        val (w, h) = if (cellWidth != null) {
+            val cell = (cellWidth - gap).coerceAtLeast(1)
+            cell to (cell * baseH / baseW).toInt()
+        } else {
+            (baseW * size).toInt() to (baseH * size).toInt()
+        }
+        binding.tmdbCardPoster.updateLayoutParams<ViewGroup.LayoutParams> {
+            width = w
+            height = h
+        }
+        binding.tmdbCard.radius = roundness()
+        // The extras are TMDB-only; leave them off rather than binding someone else's data.
+        binding.tmdbCardGradient.isVisible = false
+        binding.tmdbCardLogo.isVisible = false
+        binding.tmdbCardOverlayTitle.isVisible = false
+        binding.tmdbCardRating.isVisible = false
+        binding.tmdbCardYear.isVisible = false
+        binding.tmdbCardTitle.isVisible = true
+        binding.tmdbCardTitle.text = title
+        if (cellWidth != null) {
+            binding.tmdbCard.cardElevation = GRID_CARD_ELEVATION_DP * binding.root.resources.displayMetrics.density
+            binding.tmdbCard.translationZ = GRID_CARD_TRANSLATION_Z_DP * binding.root.resources.displayMetrics.density
+        }
+        binding.root.findViewById<View>(R.id.progressBadge)?.isVisible = false
+        binding.tmdbCardPoster.loadImage(posterUrl)
+    }
+
     fun setCardGradient(view: View) {
         val intensity = PrefManager.getVal<Float>(PrefName.CardGradientIntensity)
         if (intensity <= 0f) {

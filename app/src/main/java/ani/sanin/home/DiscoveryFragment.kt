@@ -328,10 +328,9 @@ class DiscoveryFragment : Fragment() {
     private var kitsuCategories: List<ani.sanin.connections.kitsu.KitsuCategory> = emptyList()
     private var categoryArtwork: Map<String, String?> = emptyMap()
     private val categoryArtworkLoading = HashSet<String>()
+    private val categoryArtworkAttempts = HashMap<String, Int>()
     private val categoryArtworkSelectionMutex = Mutex()
     private val reservedCategoryArtworkUrls = HashSet<String>()
-    private var hasResumedDiscoveryOnce = false
-    private var shuffleArtworkWhenResumed = false
     private var allDiscoveryCategories: List<CuratedDiscoveryCategory> = CuratedDiscoveryCategories.all
     private var remainingCategoriesLoaded = false
     private var remainingCategoriesLoading = false
@@ -351,7 +350,7 @@ class DiscoveryFragment : Fragment() {
     private var animeCategoryOffset = 0
     private var animeCategoryLoading = false
     private var animeCategoryEndReached = false
-    private lateinit var animeCategoryAdapter: DiscoveryOutlineAdapter
+    private lateinit var animeCategoryAdapter: DiscoveryStandardCardAdapter
     private var animeCategoryBackCallback: OnBackPressedCallback? = null
 
     /** One entry point card on the rail: a show's first video, and where it sits in the feed. */
@@ -392,6 +391,10 @@ class DiscoveryFragment : Fragment() {
         const val MIN_CATEGORY_CONTENT_WIDTH_DP = 140
         const val MAX_CATEGORY_COLUMNS = 2
 
+        /** Retry a category's poster a few times before giving up, so a transient failure does
+         *  not blank the card forever but a persistent one cannot spin the scanner. */
+        const val CATEGORY_ARTWORK_MAX_ATTEMPTS = 3
+
         /** Shows seeded into the top reels rail; the player pages the rest of the pool itself. */
         const val RAIL_ANIME_COUNT = 12
 
@@ -409,6 +412,7 @@ class DiscoveryFragment : Fragment() {
         allDiscoveryCategories = CuratedDiscoveryCategories.all
         categoryArtwork = emptyMap()
         categoryArtworkLoading.clear()
+        categoryArtworkAttempts.clear()
         synchronized(reservedCategoryArtworkUrls) { reservedCategoryArtworkUrls.clear() }
         remainingCategoriesLoaded = false
         remainingCategoriesLoading = false
@@ -458,7 +462,8 @@ class DiscoveryFragment : Fragment() {
             loadVisibleCategoryArtwork()
         }
         renderCategoryGrid()
-        loadVisibleCategoryArtwork()
+        // The grid has no rows until it is measured, so scan for artwork once layout completes.
+        binding.discoverCategoryGrid.post { if (_binding != null) loadVisibleCategoryArtwork() }
         // The reel rail sits above the category grid; start it immediately so its cards are
         // ready by the time the grid header has painted.
         loadReelRail()
@@ -636,6 +641,9 @@ class DiscoveryFragment : Fragment() {
         val currentBinding = _binding ?: return
         val host = currentBinding.discoverCategoryGrid
         val scroll = currentBinding.discoverScroll
+        // Before layout every card reports zero size and would look "visible", triggering a mass
+        // fetch. Callers scan again after layout; just skip until then.
+        if (scroll.height <= 0 || host.height <= 0) return
         val viewportTop = scroll.scrollY - dp(240)
         val viewportBottom = scroll.scrollY + scroll.height + dp(500)
         for (rowIndex in 1 until host.childCount) {
@@ -660,8 +668,15 @@ class DiscoveryFragment : Fragment() {
                     continue
                 }
 
-                // A null result is remembered in categoryArtwork too, preventing retry loops.
+                // A completed fetch is remembered in categoryArtwork (even with a null poster) so
+                // it is not requested again; only a card currently in flight is skipped here.
                 if (categoryArtwork.containsKey(slug) || !categoryArtworkLoading.add(slug)) continue
+                val attempts = categoryArtworkAttempts.getOrDefault(slug, 0)
+                if (attempts >= CATEGORY_ARTWORK_MAX_ATTEMPTS) {
+                    categoryArtworkLoading.remove(slug)
+                    continue
+                }
+                categoryArtworkAttempts[slug] = attempts + 1
                 val generation = categoryArtworkGeneration
                 viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                     // Kitsu already carries each entry's own poster on the category listing, so
@@ -670,6 +685,10 @@ class DiscoveryFragment : Fragment() {
                     // burst limiter, after which every AniList query fails and posters stop
                     // loading. The Kitsu poster is guaranteed to belong to this exact category,
                     // and an entry without one simply contributes no candidate.
+                    // A fetch that throws stays unresolved so a later scan retries it; only a
+                    // successful fetch (even one that yields no poster) is remembered. Caching
+                    // failures as "no artwork" was leaving middle cards blank for the whole visit.
+                    val resolved = java.util.concurrent.atomic.AtomicBoolean(false)
                     val poster = categoryArtworkSelectionMutex.withLock {
                         // A request from an earlier visit must not reserve a poster in this visit.
                         if (generation != categoryArtworkGeneration) return@withLock null
@@ -689,14 +708,16 @@ class DiscoveryFragment : Fragment() {
                                 }
                             }
                             picked
-                        }.getOrNull()
+                        }.onSuccess { resolved.set(true) }.getOrNull()
                     }
                     withContext(Dispatchers.Main) {
                         // Ignore stale visits before touching the loading set: a newer visit may
                         // already be resolving artwork for this same category.
                         if (_binding == null || generation != categoryArtworkGeneration) return@withContext
                         categoryArtworkLoading.remove(slug)
-                        categoryArtwork = categoryArtwork + (slug to poster)
+                        if (resolved.get()) {
+                            categoryArtwork = categoryArtwork + (slug to poster)
+                        }
                         updateCategoryArtworkUrls()
                         loadVisibleCategoryArtwork()
                     }
@@ -776,7 +797,7 @@ class DiscoveryFragment : Fragment() {
         val categories = allDiscoveryCategories
         val shownCount = visibleCuratedCategoryCount.coerceAtMost(categories.size)
         if (host.width <= 0) {
-            host.post { if (_binding != null) renderCategoryGrid() }
+            host.post { if (_binding != null) { renderCategoryGrid(); loadVisibleCategoryArtwork() } }
             return
         }
         val availableWidthDp = ((host.width - host.paddingLeft - host.paddingRight) /
@@ -971,22 +992,13 @@ class DiscoveryFragment : Fragment() {
         }
     }
 
-    private fun resetCategoryArtworkForVisit() {
-        categoryArtworkGeneration++
-        categoryArtwork = emptyMap()
-        categoryArtworkLoading.clear()
-        synchronized(reservedCategoryArtworkUrls) { reservedCategoryArtworkUrls.clear() }
-        updateCategoryArtworkUrls()
-        loadVisibleCategoryArtwork()
-    }
-
     /**
      * Wires the in-place category result grid. A category tap swaps the shelf grid for this
      * grid under the same search bar and trailer rail, exactly like the TMDB discovery screen,
      * instead of pushing a separate results activity.
      */
     private fun setupAnimeCategoryResults() {
-        animeCategoryAdapter = DiscoveryOutlineAdapter { card ->
+        animeCategoryAdapter = DiscoveryStandardCardAdapter { card ->
             if (card.id <= 0) {
                 Toast.makeText(requireContext(), "AniList mapping unavailable for this title", Toast.LENGTH_SHORT).show()
             } else {
@@ -996,8 +1008,9 @@ class DiscoveryFragment : Fragment() {
                 )
             }
         }
+        val dm = resources.displayMetrics
         binding.discoverCategoryResultsGrid.layoutManager =
-            GridLayoutManager(requireContext(), if (isTv) 5 else 3)
+            GridLayoutManager(requireContext(), TmdbCards.gridSpan(dm.widthPixels / dm.density))
         binding.discoverCategoryResultsGrid.adapter = animeCategoryAdapter
         binding.discoverCategoryResultsGrid.isNestedScrollingEnabled = false
         animeCategoryBackCallback = object : OnBackPressedCallback(false) {
@@ -1142,9 +1155,8 @@ class DiscoveryFragment : Fragment() {
                         }.getOrDefault(emptyMap())
                     }
                     animeCategoryAdapter.append(page.items.map { item ->
-                        DiscoveryOutlineAdapter.OutlineCard(
+                        DiscoveryStandardCardAdapter.Card(
                             id = item.anilistId ?: 0,
-                            mediaType = "anime",
                             title = item.title,
                             posterUrl = item.anilistId?.let(covers::get),
                         )
@@ -1178,20 +1190,6 @@ class DiscoveryFragment : Fragment() {
 
     private fun normalizeAnimeCategoryKey(value: String): String =
         value.lowercase(java.util.Locale.ROOT).filter { it.isLetterOrDigit() }
-
-    override fun onResume() {
-        super.onResume()
-        if (hasResumedDiscoveryOnce && shuffleArtworkWhenResumed && _binding != null) {
-            shuffleArtworkWhenResumed = false
-            resetCategoryArtworkForVisit()
-        }
-        hasResumedDiscoveryOnce = true
-    }
-
-    override fun onPause() {
-        if (hasResumedDiscoveryOnce) shuffleArtworkWhenResumed = true
-        super.onPause()
-    }
 
     /** Loads the anime reels feed once, then renders the rail of entry-point cards. */
     private fun loadReelRail() {
@@ -1786,6 +1784,12 @@ class DiscoveryFragment : Fragment() {
         super.onConfigurationChanged(newConfig)
         // MainActivity handles configChanges, so the measured width can change in place.
         _binding?.discoverRecyclerView?.let { TmdbCards.applyGridSpan(it) }
-        _binding?.discoverCategoryGrid?.post { if (_binding != null) renderCategoryGrid() }
+        _binding?.discoverCategoryResultsGrid?.let { TmdbCards.applyGridSpan(it) }
+        _binding?.discoverCategoryGrid?.post {
+            if (_binding != null) {
+                renderCategoryGrid()
+                loadVisibleCategoryArtwork()
+            }
+        }
     }
 }
