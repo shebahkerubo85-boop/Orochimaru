@@ -1058,6 +1058,12 @@ class DiscoveryFragment : Fragment() {
                 YouTubeShortsPlayerActivity.EXTRA_COVERS,
                 ArrayList(reelEntries.map { it.cover ?: "" })
             )
+            // The show's AniList id per item, so tapping the bottom pill can open that show's
+            // info page.
+            putIntegerArrayListExtra(
+                YouTubeShortsPlayerActivity.EXTRA_ANIME_IDS,
+                ArrayList(reelEntries.map { it.anilistId })
+            )
             putExtra(YouTubeShortsPlayerActivity.EXTRA_START_INDEX, startIndex)
             putExtra(YouTubeShortsPlayerActivity.EXTRA_REEL_MODE, true)
         }

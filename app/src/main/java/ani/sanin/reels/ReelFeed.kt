@@ -34,6 +34,7 @@ object ReelFeed {
     /** One playable video, tagged with the show it belongs to and that show's display metadata. */
     data class ReelItem(
         val key: String,
+        val anilistId: Int,
         val animeTitle: String,
         val videoName: String,
         val synopsis: String? = null,
@@ -213,6 +214,7 @@ object ReelFeed {
                 if (!seen.add(key)) return@mapNotNull null
                 ReelItem(
                     key = key,
+                    anilistId = ref.anilistId,
                     animeTitle = ref.title,
                     videoName = video.name?.takeIf { it.isNotBlank() } ?: ref.title,
                     synopsis = ref.synopsis,
