@@ -5,6 +5,8 @@ import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import android.view.Gravity
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -35,6 +37,7 @@ import ani.sanin.connections.kitsu.KitsuCategory
 import ani.sanin.databinding.FragmentDiscoverBinding
 import ani.sanin.media.Media
 import ani.sanin.media.MediaAdaptor
+import ani.sanin.media.MediaDetailsActivity
 import ani.sanin.media.SearchActivity
 import ani.sanin.home.SearchBottomSheet
 import ani.sanin.reels.ReelFeed
@@ -338,6 +341,19 @@ class DiscoveryFragment : Fragment() {
     private var reelEntries: List<ReelFeed.ReelItem> = emptyList()
     private var reelRailCards: List<ReelCard> = emptyList()
 
+    /** In-place category browsing: the shelf grid is swapped for a result grid, TMDB-style. */
+    private var animeCategoryOpen = false
+    private var shelvesScrollY = 0
+    private var animeCategorySlug = ""
+    private var animeCategoryTitle = ""
+    private var animeCategoryDescription = ""
+    private var resolvedAnimeCategorySlug: String? = null
+    private var animeCategoryOffset = 0
+    private var animeCategoryLoading = false
+    private var animeCategoryEndReached = false
+    private lateinit var animeCategoryAdapter: DiscoveryOutlineAdapter
+    private var animeCategoryBackCallback: OnBackPressedCallback? = null
+
     /** One entry point card on the rail: a show's first video, and where it sits in the feed. */
     private data class ReelCard(
         val title: String,
@@ -378,6 +394,9 @@ class DiscoveryFragment : Fragment() {
 
         /** Shows seeded into the top reels rail; the player pages the rest of the pool itself. */
         const val RAIL_ANIME_COUNT = 12
+
+        /** Page size for the in-place anime category result grid. */
+        const val ANIME_CATEGORY_PAGE_SIZE = 20
     }
 
     override fun onViewCreated(
@@ -396,6 +415,7 @@ class DiscoveryFragment : Fragment() {
         categoryArtworkGeneration++
         setupSearchBar()
         setupAvatar()
+        setupAnimeCategoryResults()
 
         // Discovery is now the curated category landing page. The old genre/season chips,
         // AniList results grid and editorial shelves are intentionally not initialized here, so
@@ -417,6 +437,16 @@ class DiscoveryFragment : Fragment() {
         binding.discoverAvatar.nextFocusLeftId = R.id.discoverSearchBar
 
         binding.discoverScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+            if (animeCategoryOpen) {
+                // The result grid lives inside this scroll view (nested scrolling is off), so
+                // paging is driven here rather than by the grid's own scroll listener.
+                val resultsContent = binding.discoverScroll.getChildAt(0)?.height
+                    ?: return@setOnScrollChangeListener
+                if (scrollY + binding.discoverScroll.height >= resultsContent - dp(500)) {
+                    loadAnimeCategoryPage()
+                }
+                return@setOnScrollChangeListener
+            }
             val contentHeight = binding.discoverScroll.getChildAt(0)?.height ?: return@setOnScrollChangeListener
             if (scrollY + binding.discoverScroll.height >= contentHeight - dp(500)) {
                 if (visibleCuratedCategoryCount < allDiscoveryCategories.size) {
@@ -690,6 +720,12 @@ class DiscoveryFragment : Fragment() {
                 setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
                 setPadding(dp(12), dp(16), dp(12), dp(12))
             })
+            host.addView(TextView(context).apply {
+                text = "150 moods, tropes, worlds, and rabbit holes, sorted for whatever you're in the mood for."
+                textSize = 13f
+                setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+                setPadding(dp(12), 0, dp(12), dp(12))
+            })
         }
 
         host.findViewWithTag<View>("curated-more-footer")?.let { host.removeView(it) }
@@ -755,12 +791,7 @@ class DiscoveryFragment : Fragment() {
                         }
                         contentDescription = "${category.title}. ${category.description}"
                         setOnClickListener {
-                            startActivity(
-                                Intent(context, KitsuCategoryResultsActivity::class.java)
-                                    .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_SLUG, category.kitsuSlug)
-                                    .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_TITLE, category.title)
-                                    .putExtra(KitsuCategoryResultsActivity.EXTRA_CATEGORY_DESCRIPTION, category.description)
-                            )
+                            openAnimeCategory(category.kitsuSlug, category.title, category.description)
                         }
                     }
 
@@ -904,6 +935,205 @@ class DiscoveryFragment : Fragment() {
         updateCategoryArtworkUrls()
         loadVisibleCategoryArtwork()
     }
+
+    /**
+     * Wires the in-place category result grid. A category tap swaps the shelf grid for this
+     * grid under the same search bar and trailer rail, exactly like the TMDB discovery screen,
+     * instead of pushing a separate results activity.
+     */
+    private fun setupAnimeCategoryResults() {
+        animeCategoryAdapter = DiscoveryOutlineAdapter { card ->
+            if (card.id <= 0) {
+                Toast.makeText(requireContext(), "AniList mapping unavailable for this title", Toast.LENGTH_SHORT).show()
+            } else {
+                startActivity(
+                    Intent(requireContext(), MediaDetailsActivity::class.java)
+                        .putExtra("mediaId", card.id)
+                )
+            }
+        }
+        binding.discoverCategoryResultsGrid.layoutManager =
+            GridLayoutManager(requireContext(), if (isTv) 5 else 3)
+        binding.discoverCategoryResultsGrid.adapter = animeCategoryAdapter
+        binding.discoverCategoryResultsGrid.isNestedScrollingEnabled = false
+        animeCategoryBackCallback = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                closeAnimeCategory()
+            }
+        }
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, animeCategoryBackCallback!!)
+    }
+
+    private fun openAnimeCategory(slug: String, title: String, description: String) {
+        if (animeCategoryOpen || slug.isBlank()) return
+        animeCategoryOpen = true
+        shelvesScrollY = binding.discoverScroll.scrollY
+        animeCategorySlug = slug
+        animeCategoryTitle = title
+        animeCategoryDescription = description
+        resolvedAnimeCategorySlug = null
+        animeCategoryOffset = 0
+        animeCategoryEndReached = false
+        animeCategoryBackCallback?.isEnabled = true
+        animeCategoryAdapter.clear()
+        binding.discoverCategoryGrid.visibility = View.GONE
+        binding.discoverEditorialShelves.visibility = View.GONE
+        binding.discoverCategoryHeader.visibility = View.VISIBLE
+        binding.discoverCategoryResultsGrid.visibility = View.VISIBLE
+        binding.discoverCategoryStatus.visibility = View.GONE
+        renderAnimeCategoryHeader(mediaCount = null)
+        binding.discoverScroll.scrollTo(0, 0)
+        loadAnimeCategoryPage()
+    }
+
+    private fun closeAnimeCategory() {
+        if (!animeCategoryOpen) return
+        animeCategoryOpen = false
+        animeCategoryBackCallback?.isEnabled = false
+        animeCategoryAdapter.clear()
+        binding.discoverCategoryHeader.visibility = View.GONE
+        binding.discoverCategoryResultsGrid.visibility = View.GONE
+        binding.discoverCategoryStatus.visibility = View.GONE
+        binding.discoverCategoryProgress.visibility = View.GONE
+        binding.discoverCategoryGrid.visibility = View.VISIBLE
+        // Return to the shelf position captured when the category was opened.
+        val target = shelvesScrollY
+        binding.discoverScroll.post { if (_binding != null) binding.discoverScroll.scrollTo(0, target) }
+    }
+
+    private fun renderAnimeCategoryHeader(mediaCount: Int?) {
+        val header = binding.discoverCategoryHeader
+        header.removeAllViews()
+        val context = header.context
+        header.setPadding(dp(12), dp(12), dp(12), dp(16))
+        header.addView(Chip(context).apply {
+            text = "‹  All discovery shelves"
+            isFocusable = true
+            setOnClickListener { closeAnimeCategory() }
+            FocusEffectUtil.applyFocusListener(this)
+        })
+        header.addView(TextView(context).apply {
+            text = if (mediaCount != null) "$animeCategoryTitle ($mediaCount)" else animeCategoryTitle
+            textSize = 21f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            setPadding(0, dp(10), 0, dp(4))
+        })
+        if (animeCategoryDescription.isNotBlank()) {
+            header.addView(TextView(context).apply {
+                text = animeCategoryDescription
+                textSize = 13f
+                setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+            })
+        }
+    }
+
+    private fun loadAnimeCategoryPage() {
+        if (animeCategoryLoading || animeCategoryEndReached) return
+        animeCategoryLoading = true
+        binding.discoverCategoryProgress.visibility = View.VISIBLE
+        viewLifecycleOwner.lifecycleScope.launch {
+            var added = false
+            var attempts = 0
+            do {
+                // Resolve the curated slug against the live catalogue once, then page results.
+                if (resolvedAnimeCategorySlug == null && animeCategoryOffset == 0 && animeCategoryAdapter.isEmpty()) {
+                    val matched = withContext(Dispatchers.IO) {
+                        runCatching {
+                            val categories = Kitsu.allCategories()
+                            val requestedSlug = normalizeAnimeCategoryKey(animeCategorySlug)
+                            val requestedTitle = normalizeAnimeCategoryKey(animeCategoryTitle)
+                            categories.firstOrNull { it.slug.equals(animeCategorySlug, ignoreCase = true) }
+                                ?: categories.firstOrNull { normalizeAnimeCategoryKey(it.title) == requestedTitle }
+                                ?: categories.firstOrNull { normalizeAnimeCategoryKey(it.slug) == requestedSlug }
+                        }.getOrNull()
+                    }
+                    resolvedAnimeCategorySlug = matched?.slug ?: animeCategorySlug
+                    if (_binding == null) {
+                        animeCategoryLoading = false
+                        return@launch
+                    }
+                    matched?.let { category ->
+                        if (animeCategoryDescription.isBlank()) {
+                            animeCategoryDescription = category.description
+                                ?.replace(Regex("<[^>]*>"), " ")
+                                ?.replace(Regex("\\s+"), " ")
+                                ?.trim()
+                                .orEmpty()
+                        }
+                        renderAnimeCategoryHeader(mediaCount = category.mediaCount)
+                    }
+                }
+                val page = withContext(Dispatchers.IO) {
+                    Kitsu.categoryAnime(
+                        categorySlug = resolvedAnimeCategorySlug ?: animeCategorySlug,
+                        offset = animeCategoryOffset,
+                        limit = ANIME_CATEGORY_PAGE_SIZE,
+                    )
+                }
+                if (!page.success) {
+                    if (animeCategoryAdapter.isEmpty()) {
+                        showAnimeCategoryStatus("Couldn't load this category. Tap to retry.") {
+                            animeCategoryEndReached = false
+                            loadAnimeCategoryPage()
+                        }
+                    }
+                    animeCategoryEndReached = true
+                    break
+                }
+                animeCategoryOffset += page.rawCount
+                animeCategoryEndReached = !page.hasMore
+                if (page.items.isNotEmpty()) {
+                    // Kitsu supplies the membership; AniList supplies the poster for mapped ids.
+                    val anilistIds = page.items.mapNotNull { it.anilistId }.distinct()
+                    val covers = if (anilistIds.isEmpty()) {
+                        emptyMap<Int, String>()
+                    } else {
+                        runCatching {
+                            withContext(Dispatchers.IO) {
+                                Anilist.query.getMediaList(anilistIds).orEmpty()
+                                    .mapNotNull { media -> media.cover?.let { media.id to it } }
+                                    .toMap()
+                            }
+                        }.getOrDefault(emptyMap())
+                    }
+                    animeCategoryAdapter.append(page.items.map { item ->
+                        DiscoveryOutlineAdapter.OutlineCard(
+                            id = item.anilistId ?: 0,
+                            mediaType = "anime",
+                            title = item.title,
+                            posterUrl = item.anilistId?.let(covers::get),
+                        )
+                    })
+                    added = true
+                }
+                attempts++
+            } while (!added && !animeCategoryEndReached && attempts < 3)
+
+            if (_binding == null) {
+                animeCategoryLoading = false
+                return@launch
+            }
+            if (animeCategoryAdapter.isEmpty() && animeCategoryEndReached) {
+                showAnimeCategoryStatus("No mapped anime found in this category.")
+            } else {
+                binding.discoverCategoryStatus.visibility = View.GONE
+            }
+            binding.discoverCategoryProgress.visibility = View.GONE
+            animeCategoryLoading = false
+        }
+    }
+
+    private fun showAnimeCategoryStatus(message: String, onRetry: (() -> Unit)? = null) {
+        binding.discoverCategoryStatus.text = message
+        binding.discoverCategoryStatus.isFocusable = onRetry != null
+        binding.discoverCategoryStatus.isClickable = onRetry != null
+        binding.discoverCategoryStatus.setOnClickListener { onRetry?.invoke() }
+        binding.discoverCategoryStatus.visibility = View.VISIBLE
+    }
+
+    private fun normalizeAnimeCategoryKey(value: String): String =
+        value.lowercase(java.util.Locale.ROOT).filter { it.isLetterOrDigit() }
 
     override fun onResume() {
         super.onResume()
@@ -1502,6 +1732,8 @@ class DiscoveryFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        animeCategoryBackCallback?.isEnabled = false
+        animeCategoryBackCallback = null
         renderedQueryId = -1
         _binding = null
     }

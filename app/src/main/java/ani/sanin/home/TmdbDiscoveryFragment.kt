@@ -55,8 +55,12 @@ class TmdbDiscoveryFragment : Fragment() {
 
     private var _binding: FragmentTmdbDiscoveryBinding? = null
     private val binding get() = _binding!!
-    private val adapter = TmdbGridAdapter { openDetails(it) }
+    private val adapter = DiscoveryOutlineAdapter { card ->
+        if (card.id > 0) openDetailsById(card.mediaType, card.id)
+    }
     private var genres: List<TmdbGenre> = emptyList()
+    /** Shelf scroll position captured before a category opens, restored on the way back. */
+    private var shelvesScrollY = 0
     private var selectedCategory: TmdbDiscoveryCategory? = null
     private val keywordCache = mutableMapOf<String, Int?>()
     private val artworkCache = mutableMapOf<String, String?>()
@@ -166,6 +170,21 @@ class TmdbDiscoveryFragment : Fragment() {
             .putExtra(TmdbDetailsActivity.ARG_MEDIA_ID, item.id)
             .putExtra(TmdbDetailsActivity.ARG_OPEN_TAB, TmdbDetailsActivity.TAB_INFO))
     }
+
+    private fun openDetailsById(mediaType: String, mediaId: Int) {
+        startActivity(Intent(requireContext(), TmdbDetailsActivity::class.java)
+            .putExtra(TmdbDetailsActivity.ARG_MEDIA_TYPE, mediaType)
+            .putExtra(TmdbDetailsActivity.ARG_MEDIA_ID, mediaId)
+            .putExtra(TmdbDetailsActivity.ARG_OPEN_TAB, TmdbDetailsActivity.TAB_INFO))
+    }
+
+    private fun TmdbMedia.toOutlineCard(): DiscoveryOutlineAdapter.OutlineCard =
+        DiscoveryOutlineAdapter.OutlineCard(
+            id = id,
+            mediaType = type,
+            title = displayTitle,
+            posterUrl = posterPath?.let { "https://image.tmdb.org/t/p/w342$it" },
+        )
 
     /** Loads the trailer reels feed once, then renders the rail of entry-point cards. */
     private fun loadTmdbReelRail() {
@@ -502,6 +521,8 @@ class TmdbDiscoveryFragment : Fragment() {
     private fun openCategory(category: TmdbDiscoveryCategory) {
         selectedCategory = category
         backCallback?.isEnabled = true
+        // Keep where the shelf list was so "All discovery shelves" can land back on it.
+        shelvesScrollY = binding.tmdbDiscoveryScroll.scrollY
         binding.tmdbDiscoveryScroll.scrollTo(0, 0)
         binding.tmdbDiscoveryGrid.isVisible = true
         binding.tmdbDiscoveryProgress.isVisible = true
@@ -546,7 +567,7 @@ class TmdbDiscoveryFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             val items = runCatching { fetchCategory(category, page = 1) }.getOrDefault(emptyList())
             if (_binding == null || selectedCategory?.id != category.id) return@launch
-            adapter.submit(items)
+            adapter.submit(items.map { it.toOutlineCard() })
             binding.tmdbDiscoveryProgress.isVisible = false
             binding.tmdbDiscoveryGrid.isVisible = items.isNotEmpty()
             if (items.isEmpty()) {
@@ -567,7 +588,9 @@ class TmdbDiscoveryFragment : Fragment() {
         binding.tmdbDiscoveryGrid.isVisible = false
         adapter.submit(emptyList())
         renderCategories()
-        binding.tmdbDiscoveryScroll.scrollTo(0, 0)
+        // Restore the shelf scroll position captured when the category was opened.
+        val target = shelvesScrollY
+        binding.tmdbDiscoveryScroll.post { if (_binding != null) binding.tmdbDiscoveryScroll.scrollTo(0, target) }
         loadCategoryArtwork()
     }
 
