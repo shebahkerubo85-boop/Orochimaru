@@ -529,7 +529,7 @@
         <activity
             android:name=".youtube.YouTubeShortsPlayerActivity"
             android:theme="@style/Theme.AppCompat"
-            android:screenOrientation="portrait"
+            android:screenOrientation="sensor"
             android:configChanges="orientation|screenSize" />
 
         <activity

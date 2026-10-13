@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.GestureDetector
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -227,15 +228,18 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/watch?v=$id")))
         }
         // The bottom pill names the show playing now; tapping it opens that show's info page.
-        animePill.setOnClickListener {
-            val animeId = adapter.animeIdAt(adapter.currentPos)
-            if (animeId > 0) {
-                startActivity(
-                    Intent(this, MediaDetailsActivity::class.java)
-                        .putExtra("mediaId", animeId)
-                        .putExtra(MediaDetailsActivity.TAB_TO_OPEN, MediaDetailsActivity.INFO_TAB)
-                )
-            }
+        animePill.setOnClickListener { openAnimeInfo() }
+    }
+
+    /** Opens the info page of the show behind the reel currently on screen. */
+    private fun openAnimeInfo() {
+        val animeId = adapter.animeIdAt(adapter.currentPos)
+        if (animeId > 0) {
+            startActivity(
+                Intent(this, MediaDetailsActivity::class.java)
+                    .putExtra("mediaId", animeId)
+                    .putExtra(MediaDetailsActivity.TAB_TO_OPEN, MediaDetailsActivity.INFO_TAB)
+            )
         }
     }
 
@@ -346,10 +350,18 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
     }
 
     private fun onReelEnded() {
-        val next = adapter.currentPos + 1
+        moveReel(1)
+    }
+
+    /**
+     * Steps to the adjacent reel. Down/forward past the end pulls the next batch in reels mode so
+     * playback continues; up/back simply stops at the first reel.
+     */
+    private fun moveReel(delta: Int) {
+        val next = adapter.currentPos + delta
         if (next < adapter.itemCount) {
-            recycler.smoothScrollToPosition(next)
-        } else if (reelMode) {
+            if (next >= 0) recycler.smoothScrollToPosition(next)
+        } else if (reelMode && delta > 0) {
             loadMoreReels {
                 if (adapter.currentPos + 1 < adapter.itemCount) {
                     recycler.smoothScrollToPosition(adapter.currentPos + 1)
@@ -420,6 +432,37 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
             if (fresh.isNotEmpty()) return fresh
         }
         return emptyList()
+    }
+
+    /**
+     * D-pad navigation for controllers, keyboards and TV remotes: up/down step through the reels and
+     * right opens the current show's info page (center/enter toggles play-pause). The feed is a
+     * single vertical runway, so we bypass the default focus search that would otherwise hop between
+     * the overlay buttons.
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val initialPress = event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0
+        when (event.keyCode) {
+            KeyEvent.KEYCODE_DPAD_DOWN -> {
+                if (initialPress) moveReel(1)
+                return true
+            }
+            KeyEvent.KEYCODE_DPAD_UP -> {
+                if (initialPress) moveReel(-1)
+                return true
+            }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                if (initialPress) openAnimeInfo()
+                return true
+            }
+            KeyEvent.KEYCODE_DPAD_CENTER,
+            KeyEvent.KEYCODE_ENTER,
+            KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                if (initialPress) togglePlayPause()
+                return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     override fun onPause() {
