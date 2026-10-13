@@ -65,8 +65,17 @@ object ReelFeed {
         }
     }
 
-    /** A portrait card's artwork, straight from the video's key. */
-    fun thumbnailUrl(key: String): String = "https://img.youtube.com/vi/$key/hqdefault.jpg"
+    /**
+     * A card's artwork, straight from the video's key.
+     *
+     * Deliberately the 16:9 master, not `hqdefault`: that one is a 4:3 frame with the 16:9 video
+     * letterboxed inside, so any crop of it carries the baked-in black bars top and bottom.
+     * `maxresdefault` is missing for some videos, so callers fall back to [thumbnailFallbackUrl].
+     */
+    fun thumbnailUrl(key: String): String = "https://img.youtube.com/vi/$key/maxresdefault.jpg"
+
+    /** The always-available 16:9 thumbnail used when [thumbnailUrl] has no master. */
+    fun thumbnailFallbackUrl(key: String): String = "https://img.youtube.com/vi/$key/mqdefault.jpg"
 
     /**
      * Every video for [refs], interleaved round-robin and shuffled.

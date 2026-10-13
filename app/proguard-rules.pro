@@ -228,3 +228,11 @@
 #############################################
 -dontwarn jdk.internal.misc.Unsafe
 -dontwarn jdk.internal.misc.**
+
+#############################################
+# WebView JS bridges (@JavascriptInterface) must survive R8,
+# which would otherwise strip the unused-looking bridge methods.
+#############################################
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}

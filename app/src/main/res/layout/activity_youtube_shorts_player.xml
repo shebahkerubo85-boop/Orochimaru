@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    The reel player. All user-facing chrome lives here rather than in the item, so exactly one set
+    of controls drives whichever reel is on screen and YouTube's own branding/controls stay hidden
+    behind the item's touch blocker.
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -12,6 +17,149 @@
         android:overScrollMode="never"
         android:clipToPadding="false" />
 
+    <!-- Bottom scrim: gives the title a readable bed and masks YouTube's corner watermark. -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="260dp"
+        android:layout_gravity="bottom"
+        android:background="@drawable/bg_title_scrim"
+        android:clickable="false"
+        android:focusable="false" />
+
+    <!-- Bottom info + custom transport bar. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="20dp"
+        android:paddingEnd="16dp">
+
+        <TextView
+            android:id="@+id/shortTitleText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/poppins_bold"
+            android:textColor="@android:color/white"
+            android:textSize="15sp"
+            android:shadowColor="#80000000"
+            android:shadowDx="1"
+            android:shadowDy="1"
+            android:shadowRadius="4"
+            android:maxLines="2"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/shortChannelText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:fontFamily="@font/poppins"
+            android:textColor="#CCFFFFFF"
+            android:textSize="12sp"
+            android:shadowColor="#80000000"
+            android:shadowDx="1"
+            android:shadowDy="1"
+            android:shadowRadius="4" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/playerTimeCurrent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="38dp"
+                android:textColor="#CCFFFFFF"
+                android:textSize="11sp" />
+
+            <SeekBar
+                android:id="@+id/playerProgress"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:max="1000"
+                android:maxHeight="3dp"
+                android:minHeight="3dp"
+                android:progressTint="@android:color/white"
+                android:progressBackgroundTint="#66FFFFFF"
+                android:thumbTint="@android:color/white"
+                android:paddingVertical="0dp" />
+
+            <TextView
+                android:id="@+id/playerTimeDuration"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="38dp"
+                android:gravity="end"
+                android:textColor="#CCFFFFFF"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Right-side actions. -->
+    <LinearLayout
+        android:layout_width="56dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end|center_vertical"
+        android:layout_marginEnd="8dp"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <ImageButton
+            android:id="@+id/btnLike"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginBottom="14dp"
+            android:background="@drawable/bg_play_button"
+            android:focusable="true"
+            android:padding="10dp"
+            app:srcCompat="@drawable/ic_baseline_thumb_up_24"
+            app:tint="@android:color/white"
+            android:contentDescription="Like" />
+
+        <ImageButton
+            android:id="@+id/btnDislike"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/bg_play_button"
+            android:focusable="true"
+            android:padding="10dp"
+            app:srcCompat="@drawable/ic_baseline_thumb_down_24"
+            app:tint="@android:color/white"
+            android:contentDescription="Dislike" />
+
+        <ImageButton
+            android:id="@+id/btnComments"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/bg_play_button"
+            android:focusable="true"
+            android:padding="10dp"
+            app:srcCompat="@drawable/ic_round_comment_24"
+            app:tint="@android:color/white"
+            android:contentDescription="@string/comments" />
+
+        <ImageButton
+            android:id="@+id/btnShare"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="@drawable/bg_play_button"
+            android:focusable="true"
+            android:padding="10dp"
+            app:srcCompat="@drawable/ic_round_share_24"
+            app:tint="@android:color/white"
+            android:contentDescription="@string/share" />
+    </LinearLayout>
+
+    <!-- Top controls: close and mute. -->
     <ImageButton
         android:id="@+id/closeBtn"
         android:layout_width="44dp"
@@ -24,6 +172,69 @@
         android:padding="10dp"
         app:srcCompat="@drawable/ic_round_arrow_back_ios_new_24"
         app:tint="@android:color/white"
-        android:contentDescription="Close" />
+        android:contentDescription="@string/close" />
+
+    <ImageButton
+        android:id="@+id/playerMute"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_gravity="top|end"
+        android:layout_marginEnd="8dp"
+        android:layout_marginTop="40dp"
+        android:background="@drawable/bg_play_button"
+        android:focusable="true"
+        android:padding="10dp"
+        app:srcCompat="@drawable/ic_baseline_volume_up_24"
+        app:tint="@android:color/white"
+        android:contentDescription="Mute" />
+
+    <!-- Center play/pause, shown briefly on tap. -->
+    <ImageButton
+        android:id="@+id/playerPlayPause"
+        android:layout_width="68dp"
+        android:layout_height="68dp"
+        android:layout_gravity="center"
+        android:background="@drawable/bg_play_button"
+        android:focusable="true"
+        android:padding="16dp"
+        android:visibility="gone"
+        app:srcCompat="@drawable/ic_baseline_pause_24"
+        app:tint="@android:color/white"
+        android:contentDescription="@string/pause" />
+
+    <!-- Comments sheet (initially hidden). -->
+    <LinearLayout
+        android:id="@+id/commentsPanel"
+        android:layout_width="match_parent"
+        android:layout_height="300dp"
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:background="#EE1A1A1A"
+        android:visibility="gone"
+        android:padding="12dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/comments"
+            android:fontFamily="@font/poppins_bold"
+            android:textColor="@android:color/white"
+            android:textSize="14sp"
+            android:layout_marginBottom="8dp" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/commentsRecycler"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/playerLoading"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="center"
+        android:indeterminateTint="@android:color/white"
+        android:visibility="gone" />
 
 </FrameLayout>

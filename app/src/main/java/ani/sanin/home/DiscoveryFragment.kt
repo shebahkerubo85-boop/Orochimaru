@@ -4,6 +4,7 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.widget.FrameLayout
@@ -25,6 +26,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import androidx.recyclerview.widget.GridLayoutManager
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.DataSource
+import com.bumptech.glide.load.engine.GlideException
+import com.bumptech.glide.request.RequestListener
+import com.bumptech.glide.request.target.Target
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import ani.sanin.R
@@ -1012,7 +1018,7 @@ class DiscoveryFragment : Fragment() {
                         LinearLayout.LayoutParams.MATCH_PARENT, dp(145)
                     )
                 }
-                thumb.loadImage(ReelFeed.thumbnailUrl(card.key))
+                thumb.loadReelThumbnail(card.key)
                 holder.addView(thumb)
                 holder.addView(TextView(context).apply {
                     text = card.title
@@ -1047,6 +1053,33 @@ class DiscoveryFragment : Fragment() {
             putExtra(YouTubeShortsPlayerActivity.EXTRA_REEL_MODE, true)
         }
         startActivity(intent)
+    }
+
+    /**
+     * Loads a card's 16:9 artwork, falling back to the always-present thumbnail when the HD
+     * master is missing (some videos 404 on it). Glide reports that miss as a load failure, so we
+     * swap in the fallback rather than surfacing the error placeholder.
+     */
+    private fun ImageView.loadReelThumbnail(key: String) {
+        val view = this
+        Glide.with(view)
+            .load(ReelFeed.thumbnailUrl(key))
+            .listener(object : RequestListener<Drawable> {
+                override fun onLoadFailed(
+                    e: GlideException?, model: Any?,
+                    target: Target<Drawable>?, isFirstResource: Boolean
+                ): Boolean {
+                    Glide.with(view).load(ReelFeed.thumbnailFallbackUrl(key)).into(view)
+                    return true
+                }
+
+                override fun onResourceReady(
+                    resource: Drawable?, model: Any?,
+                    target: Target<Drawable>?,
+                    dataSource: DataSource?, isFirstResource: Boolean
+                ): Boolean = false
+            })
+            .into(view)
     }
 
     private fun dp(value: Int): Int =
