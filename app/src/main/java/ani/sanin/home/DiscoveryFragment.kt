@@ -595,9 +595,12 @@ class DiscoveryFragment : Fragment() {
                 if (categoryArtwork.containsKey(slug) || !categoryArtworkLoading.add(slug)) continue
                 val generation = categoryArtworkGeneration
                 viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-                    // Kitsu defines exact category membership. Use its AniList mappings,
-                    // then fetch covers only for those IDs from AniList—never infer membership
-                    // from similar tags or fall back to unrelated popular anime.
+                    // Kitsu already carries each entry's own poster on the category listing, so
+                    // no AniList round-trip is needed. Asking AniList once per visible card was
+                    // the Discovery tab's rate-limit source: dozens of rapid calls trip AniList's
+                    // burst limiter, after which every AniList query fails and posters stop
+                    // loading. The Kitsu poster is guaranteed to belong to this exact category,
+                    // and an entry without one simply contributes no candidate.
                     val poster = categoryArtworkSelectionMutex.withLock {
                         // A request from an earlier visit must not reserve a poster in this visit.
                         if (generation != categoryArtworkGeneration) return@withLock null
@@ -605,16 +608,10 @@ class DiscoveryFragment : Fragment() {
                             reservedCategoryArtworkUrls.toSet()
                         }
                         runCatching {
-                            val categoryMedia = Kitsu.animeByCategory(slug, page = 1).media
-                            val categoryIds = categoryMedia.map { it.id }.distinct()
-                            val covers = if (categoryIds.isEmpty()) {
-                                emptyList()
-                            } else {
-                                Anilist.query.getMediaList(categoryIds).orEmpty()
-                                    .filter { !it.isAdult }
-                                    .mapNotNull { it.cover?.takeIf(String::isNotBlank) }
-                                    .distinct()
-                            }
+                            val covers = Kitsu.animeByCategory(slug, page = 1).media
+                                .filter { !it.isAdult }
+                                .mapNotNull { it.cover?.takeIf(String::isNotBlank) }
+                                .distinct()
                             val picked = covers.filterNot { it in used }.randomOrNull()
                                 ?: covers.randomOrNull()
                             if (!picked.isNullOrBlank()) {
