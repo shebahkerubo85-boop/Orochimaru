@@ -553,17 +553,6 @@ class TmdbDiscoveryFragment : Fragment() {
             setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
         })
         host.addView(header)
-        if (category.id == "content-warnings-ratings") {
-            binding.tmdbDiscoveryProgress.isVisible = false
-            binding.tmdbDiscoveryGrid.isVisible = false
-            host.addView(TextView(requireContext()).apply {
-                text = "This shelf is guidance, not a list of mature titles. Check the regional age certification and details on a title's Info tab, and skip anything you do not want to watch. TMDB does not provide a universal, reliable nudity flag."
-                textSize = 14f
-                setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
-                setPadding(dp(12), dp(12), dp(12), dp(24))
-            })
-            return
-        }
         viewLifecycleOwner.lifecycleScope.launch {
             val items = runCatching { fetchCategory(category, page = 1) }.getOrDefault(emptyList())
             if (_binding == null || selectedCategory?.id != category.id) return@launch
