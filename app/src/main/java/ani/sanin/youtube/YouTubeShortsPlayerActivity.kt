@@ -16,6 +16,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.SeekBar
@@ -26,6 +27,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import ani.sanin.R
 import ani.sanin.reels.ReelFeed
 import ani.sanin.themes.ThemeManager
@@ -49,8 +51,12 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
     private lateinit var recycler: RecyclerView
     private lateinit var adapter: ShortsAdapter
 
-    private lateinit var titleText: TextView
-    private lateinit var channelText: TextView
+    private lateinit var videoTitle: TextView
+    private lateinit var channelAvatar: ImageView
+    private lateinit var animePill: View
+    private lateinit var animeTitle: TextView
+    private lateinit var synopsis: TextView
+    private lateinit var genres: TextView
     private lateinit var playPause: ImageButton
     private lateinit var muteButton: ImageButton
     private lateinit var progress: SeekBar
@@ -91,6 +97,10 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         val videoIds = intent.getStringArrayListExtra(EXTRA_VIDEO_IDS) ?: arrayListOf()
         val startIdx = intent.getIntExtra(EXTRA_START_INDEX, 0)
         val titles = intent.getStringArrayListExtra(EXTRA_TITLES) ?: arrayListOf()
+        val animeTitles = intent.getStringArrayListExtra(EXTRA_ANIME_TITLES) ?: arrayListOf()
+        val synopses = intent.getStringArrayListExtra(EXTRA_SYNOPSIS) ?: arrayListOf()
+        val genresRaw = intent.getStringArrayListExtra(EXTRA_GENRES) ?: arrayListOf()
+        val covers = intent.getStringArrayListExtra(EXTRA_COVERS) ?: arrayListOf()
         reelMode = intent.getBooleanExtra(EXTRA_REEL_MODE, false)
 
         if (videoIds.isEmpty()) { finish(); return }
@@ -98,8 +108,12 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         seenReelKeys.addAll(videoIds)
 
         recycler = findViewById(R.id.shortsRecyclerView)
-        titleText = findViewById(R.id.shortTitleText)
-        channelText = findViewById(R.id.shortChannelText)
+        videoTitle = findViewById(R.id.videoTitleText)
+        channelAvatar = findViewById(R.id.channelAvatar)
+        animePill = findViewById(R.id.animePill)
+        animeTitle = findViewById(R.id.animeTitleText)
+        synopsis = findViewById(R.id.synopsisText)
+        genres = findViewById(R.id.genresText)
         playPause = findViewById(R.id.playerPlayPause)
         muteButton = findViewById(R.id.playerMute)
         progress = findViewById(R.id.playerProgress)
@@ -110,7 +124,7 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         btnLike = findViewById(R.id.btnLike)
         btnDislike = findViewById(R.id.btnDislike)
 
-        adapter = ShortsAdapter(videoIds, titles)
+        adapter = ShortsAdapter(videoIds, titles, animeTitles, synopses, genresRaw, covers)
         recycler.layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
         recycler.adapter = adapter
 
@@ -210,8 +224,28 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
     }
 
     private fun onCurrentChanged(position: Int) {
-        titleText.text = adapter.titleAt(position)
-        channelText.text = "Aniphex"
+        videoTitle.text = adapter.titleAt(position)
+
+        val cover = adapter.coverAt(position)
+        if (cover.isNullOrBlank()) {
+            channelAvatar.isVisible = false
+        } else {
+            channelAvatar.isVisible = true
+            Glide.with(this).load(cover).circleCrop().into(channelAvatar)
+        }
+
+        val show = adapter.animeTitleAt(position)
+        animePill.isVisible = show.isNotBlank()
+        animeTitle.text = show
+
+        val desc = adapter.synopsisAt(position)
+        synopsis.isVisible = desc.isNotBlank()
+        synopsis.text = desc
+
+        val tags = formatGenres(adapter.genresAt(position))
+        genres.isVisible = tags.isNotEmpty()
+        genres.text = tags
+
         userSeeking = false
         progress.progress = 0
         timeCurrent.text = formatTime(0)
@@ -220,6 +254,17 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         updateActionIcons()
         adapter.setMuted(isMuted)
     }
+
+    /** "Action|Shounen|Supernatural" -> "#action #shounen #supernatural", capped so it never wraps. */
+    private fun formatGenres(raw: String): String =
+        raw.split('|')
+            .asSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .map { "#" + it.lowercase().replace(Regex("[^a-z0-9]"), "") }
+            .filter { it.length > 1 }
+            .take(4)
+            .joinToString(" ")
 
     private fun updateActionIcons() {
         val id = adapter.currentVideoId()
@@ -316,7 +361,14 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
             if (items.isEmpty()) {
                 reelExhausted = true
             } else {
-                adapter.appendItems(items.map { it.key }, items.map { it.animeTitle })
+                adapter.appendItems(
+                    items.map { it.key },
+                    items.map { it.videoName },
+                    items.map { it.animeTitle },
+                    items.map { it.synopsis ?: "" },
+                    items.map { it.genres.joinToString("|") },
+                    items.map { it.cover ?: "" },
+                )
             }
             reelLoading = false
             onAppended?.invoke()
@@ -348,7 +400,11 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
 
     inner class ShortsAdapter(
         private val videoIds: MutableList<String>,
-        private val titles: MutableList<String>
+        private val titles: MutableList<String>,
+        private val animeTitles: MutableList<String>,
+        private val synopses: MutableList<String>,
+        private val genres: MutableList<String>,
+        private val covers: MutableList<String>,
     ) : RecyclerView.Adapter<ShortsAdapter.VH>() {
 
         private val webViews = mutableMapOf<Int, WebView>()
@@ -357,6 +413,14 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         fun currentVideoId(): String? = videoIds.getOrNull(currentPos)
 
         fun titleAt(position: Int): String = titles.getOrElse(position) { "" }
+
+        fun animeTitleAt(position: Int): String = animeTitles.getOrElse(position) { "" }
+
+        fun synopsisAt(position: Int): String = synopses.getOrElse(position) { "" }
+
+        fun genresAt(position: Int): String = genres.getOrElse(position) { "" }
+
+        fun coverAt(position: Int): String? = covers.getOrNull(position)
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
             val view = LayoutInflater.from(parent.context)
@@ -367,11 +431,22 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         override fun getItemCount() = videoIds.size
 
         /** Appends a batch to the end of the feed without disturbing what is on screen. */
-        fun appendItems(newIds: List<String>, newTitles: List<String>) {
+        fun appendItems(
+            newIds: List<String>,
+            newTitles: List<String>,
+            newAnimeTitles: List<String>,
+            newSynopses: List<String>,
+            newGenres: List<String>,
+            newCovers: List<String>,
+        ) {
             if (newIds.isEmpty()) return
             val start = videoIds.size
             videoIds.addAll(newIds)
             titles.addAll(newTitles)
+            animeTitles.addAll(newAnimeTitles)
+            synopses.addAll(newSynopses)
+            genres.addAll(newGenres)
+            covers.addAll(newCovers)
             notifyItemRangeInserted(start, newIds.size)
         }
 
@@ -517,6 +592,10 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         const val EXTRA_VIDEO_IDS = "video_ids"
         const val EXTRA_START_INDEX = "start_index"
         const val EXTRA_TITLES = "titles"
+        const val EXTRA_ANIME_TITLES = "anime_titles"
+        const val EXTRA_SYNOPSIS = "synopsis"
+        const val EXTRA_GENRES = "genres"
+        const val EXTRA_COVERS = "covers"
         const val EXTRA_REEL_MODE = "reel_mode"
 
         /** How close to the end of the feed the next batch is fetched. */

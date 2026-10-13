@@ -1045,9 +1045,27 @@ class DiscoveryFragment : Fragment() {
                 YouTubeShortsPlayerActivity.EXTRA_VIDEO_IDS,
                 ArrayList(reelEntries.map { it.key })
             )
+            // The top header shows the actual video name ("Naruto – Opening 1"); the bottom pill
+            // shows the show's name ("Naruto"); the rest labels the synopsis/genre block.
             putStringArrayListExtra(
                 YouTubeShortsPlayerActivity.EXTRA_TITLES,
+                ArrayList(reelEntries.map { it.videoName })
+            )
+            putStringArrayListExtra(
+                YouTubeShortsPlayerActivity.EXTRA_ANIME_TITLES,
                 ArrayList(reelEntries.map { it.animeTitle })
+            )
+            putStringArrayListExtra(
+                YouTubeShortsPlayerActivity.EXTRA_SYNOPSIS,
+                ArrayList(reelEntries.map { it.synopsis ?: "" })
+            )
+            putStringArrayListExtra(
+                YouTubeShortsPlayerActivity.EXTRA_GENRES,
+                ArrayList(reelEntries.map { it.genres.joinToString("|") })
+            )
+            putStringArrayListExtra(
+                YouTubeShortsPlayerActivity.EXTRA_COVERS,
+                ArrayList(reelEntries.map { it.cover ?: "" })
             )
             putExtra(YouTubeShortsPlayerActivity.EXTRA_START_INDEX, startIndex)
             putExtra(YouTubeShortsPlayerActivity.EXTRA_REEL_MODE, true)

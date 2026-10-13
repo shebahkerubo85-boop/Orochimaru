@@ -22,13 +22,22 @@ import kotlinx.coroutines.sync.withPermit
 object ReelFeed {
 
     /** A show in the pool, before its videos are known. */
-    data class AnimeRef(val anilistId: Int, val title: String)
+    data class AnimeRef(
+        val anilistId: Int,
+        val title: String,
+        val synopsis: String? = null,
+        val genres: List<String> = emptyList(),
+        val cover: String? = null,
+    )
 
-    /** One playable video, tagged with the show it belongs to. */
+    /** One playable video, tagged with the show it belongs to and that show's display metadata. */
     data class ReelItem(
         val key: String,
         val animeTitle: String,
         val videoName: String,
+        val synopsis: String? = null,
+        val genres: List<String> = emptyList(),
+        val cover: String? = null,
     )
 
     private const val MAX_CACHE = 160
@@ -61,7 +70,13 @@ object ReelFeed {
                 .takeIf { it.isNotBlank() }
                 ?: item.nameRomaji.takeIf { it.isNotBlank() }
                 ?: return@mapNotNull null
-            AnimeRef(item.id, title)
+            AnimeRef(
+                anilistId = item.id,
+                title = title,
+                synopsis = cleanSynopsis(item.description),
+                genres = item.genres.toList(),
+                cover = item.cover,
+            )
         }
     }
 
@@ -141,10 +156,29 @@ object ReelFeed {
                     key = key,
                     animeTitle = ref.title,
                     videoName = video.name?.takeIf { it.isNotBlank() } ?: ref.title,
+                    synopsis = ref.synopsis,
+                    genres = ref.genres,
+                    cover = ref.cover,
                 )
             }
             .toList()
     }
+
+    /**
+     * AniList returns descriptions as light markup even with `asHtml:false`, so it is flattened to
+     * a single readable line here and cached that way.
+     */
+    private fun cleanSynopsis(html: String?): String? = html
+        ?.replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), " ")
+        ?.replace(Regex("<[^>]+>"), "")
+        ?.replace("&quot;", "\"")
+        ?.replace("&#039;", "'")
+        ?.replace("&amp;", "&")
+        ?.replace("&lt;", "<")
+        ?.replace("&gt;", ">")
+        ?.replace(Regex("\\s+"), " ")
+        ?.trim()
+        ?.ifBlank { null }
 
     private fun typeRank(type: String?): Int = when (type?.lowercase()) {
         "trailer" -> 0

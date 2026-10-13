@@ -3,6 +3,10 @@
     The reel player. All user-facing chrome lives here rather than in the item, so exactly one set
     of controls drives whichever reel is on screen and YouTube's own branding/controls stay hidden
     behind the item's touch blocker.
+
+    Layout, top to bottom:
+      * top row      -> close button + channel avatar + the real video title ("Naruto - Opening 1")
+      * bottom block -> show pill ("Naruto >"), 2-line synopsis, genre hashtags, then the transport
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -17,47 +21,157 @@
         android:overScrollMode="never"
         android:clipToPadding="false" />
 
-    <!-- Bottom scrim: gives the title a readable bed and masks YouTube's corner watermark. -->
+    <!-- Top readability bed behind the header. -->
     <View
         android:layout_width="match_parent"
-        android:layout_height="260dp"
+        android:layout_height="170dp"
+        android:layout_gravity="top"
+        android:background="@drawable/bg_reel_top_scrim"
+        android:clickable="false"
+        android:focusable="false" />
+
+    <!-- Top row: close, channel avatar, real video title. -->
+    <LinearLayout
+        android:id="@+id/topHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="4dp"
+        android:paddingEnd="68dp"
+        android:paddingTop="38dp"
+        android:paddingBottom="10dp">
+
+        <ImageButton
+            android:id="@+id/closeBtn"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="@drawable/bg_play_button"
+            android:focusable="true"
+            android:padding="10dp"
+            app:srcCompat="@drawable/ic_round_arrow_back_ios_new_24"
+            app:tint="@android:color/white"
+            android:contentDescription="@string/close" />
+
+        <ImageView
+            android:id="@+id/channelAvatar"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/bg_avatar_ring"
+            android:padding="2dp"
+            android:scaleType="centerCrop"
+            android:contentDescription="@null" />
+
+        <TextView
+            android:id="@+id/videoTitleText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="10dp"
+            android:fontFamily="@font/poppins_bold"
+            android:textColor="@android:color/white"
+            android:textSize="15sp"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:shadowColor="#B3000000"
+            android:shadowDx="1"
+            android:shadowDy="1"
+            android:shadowRadius="5" />
+    </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/playerMute"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_gravity="top|end"
+        android:layout_marginEnd="8dp"
+        android:layout_marginTop="38dp"
+        android:background="@drawable/bg_play_button"
+        android:focusable="true"
+        android:padding="10dp"
+        app:srcCompat="@drawable/ic_baseline_volume_up_24"
+        app:tint="@android:color/white"
+        android:contentDescription="Mute" />
+
+    <!-- Bottom scrim: readable bed for the info block and masks YouTube's corner watermark. -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="320dp"
         android:layout_gravity="bottom"
         android:background="@drawable/bg_title_scrim"
         android:clickable="false"
         android:focusable="false" />
 
-    <!-- Bottom info + custom transport bar. -->
+    <!-- Bottom info: show pill, synopsis, genres, then custom transport bar. -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:orientation="vertical"
-        android:paddingHorizontal="16dp"
-        android:paddingBottom="20dp"
-        android:paddingEnd="16dp">
+        android:paddingStart="16dp"
+        android:paddingEnd="72dp"
+        android:paddingBottom="20dp">
 
-        <TextView
-            android:id="@+id/shortTitleText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/poppins_bold"
-            android:textColor="@android:color/white"
-            android:textSize="15sp"
-            android:shadowColor="#80000000"
-            android:shadowDx="1"
-            android:shadowDy="1"
-            android:shadowRadius="4"
-            android:maxLines="2"
-            android:ellipsize="end" />
-
-        <TextView
-            android:id="@+id/shortChannelText"
+        <LinearLayout
+            android:id="@+id/animePill"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/bg_lens_pill"
+            android:paddingStart="11dp"
+            android:paddingEnd="7dp"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp">
+
+            <TextView
+                android:id="@+id/animeTitleText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins"
+                android:textColor="#E6FFFFFF"
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:includeFontPadding="false" />
+
+            <ImageView
+                android:layout_width="15dp"
+                android:layout_height="15dp"
+                android:layout_marginStart="1dp"
+                app:srcCompat="@drawable/ic_baseline_keyboard_arrow_right_24"
+                app:tint="#B3FFFFFF"
+                android:contentDescription="@null" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/synopsisText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
             android:fontFamily="@font/poppins"
             android:textColor="#CCFFFFFF"
             android:textSize="12sp"
+            android:lineSpacingExtra="2dp"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:shadowColor="#80000000"
+            android:shadowDx="1"
+            android:shadowDy="1"
+            android:shadowRadius="4" />
+
+        <TextView
+            android:id="@+id/genresText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:fontFamily="@font/poppins"
+            android:textColor="#B3FFFFFF"
+            android:textSize="11sp"
+            android:maxLines="1"
+            android:ellipsize="end"
             android:shadowColor="#80000000"
             android:shadowDx="1"
             android:shadowDy="1"
@@ -66,7 +180,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_marginTop="8dp"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
@@ -158,35 +272,6 @@
             app:tint="@android:color/white"
             android:contentDescription="@string/share" />
     </LinearLayout>
-
-    <!-- Top controls: close and mute. -->
-    <ImageButton
-        android:id="@+id/closeBtn"
-        android:layout_width="44dp"
-        android:layout_height="44dp"
-        android:layout_gravity="top|start"
-        android:layout_marginStart="8dp"
-        android:layout_marginTop="40dp"
-        android:background="@drawable/bg_play_button"
-        android:focusable="true"
-        android:padding="10dp"
-        app:srcCompat="@drawable/ic_round_arrow_back_ios_new_24"
-        app:tint="@android:color/white"
-        android:contentDescription="@string/close" />
-
-    <ImageButton
-        android:id="@+id/playerMute"
-        android:layout_width="44dp"
-        android:layout_height="44dp"
-        android:layout_gravity="top|end"
-        android:layout_marginEnd="8dp"
-        android:layout_marginTop="40dp"
-        android:background="@drawable/bg_play_button"
-        android:focusable="true"
-        android:padding="10dp"
-        app:srcCompat="@drawable/ic_baseline_volume_up_24"
-        app:tint="@android:color/white"
-        android:contentDescription="Mute" />
 
     <!-- Center play/pause, shown briefly on tap. -->
     <ImageButton
