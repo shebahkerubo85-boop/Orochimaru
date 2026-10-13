@@ -30,8 +30,10 @@ import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import ani.sanin.R
+import ani.sanin.cloudstream.TmdbDetailsActivity
 import ani.sanin.media.MediaDetailsActivity
 import ani.sanin.reels.ReelFeed
+import ani.sanin.reels.TmdbReelFeed
 import ani.sanin.themes.ThemeManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -80,8 +82,13 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
 
     /** Reels mode appends more anime as the viewer nears the end; the shorts feature does not. */
     private var reelMode = false
+
+    /** Which catalog the endless append draws from once the seeded rail runs out. */
+    private var reelSource = SOURCE_ANIME
     private val seenReelKeys = HashSet<String>()
-    private val seenAnimeIds = HashSet<Int>()
+
+    /** Shows already played, keyed "a:<anilistId>" or "t:<mediaType>:<tmdbId>" so ids never clash. */
+    private val seenReelShows = HashSet<String>()
     private var reelLoading = false
     private var reelRetryJob: Job? = null
 
@@ -106,12 +113,18 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         val genresRaw = intent.getStringArrayListExtra(EXTRA_GENRES) ?: arrayListOf()
         val covers = intent.getStringArrayListExtra(EXTRA_COVERS) ?: arrayListOf()
         val animeIds = intent.getIntegerArrayListExtra(EXTRA_ANIME_IDS) ?: arrayListOf()
+        val tmdbIds = intent.getIntegerArrayListExtra(EXTRA_TMDB_IDS) ?: arrayListOf()
+        val tmdbTypes = intent.getStringArrayListExtra(EXTRA_TMDB_TYPES) ?: arrayListOf()
         reelMode = intent.getBooleanExtra(EXTRA_REEL_MODE, false)
+        reelSource = intent.getStringExtra(EXTRA_REEL_SOURCE) ?: SOURCE_ANIME
 
         if (videoIds.isEmpty()) { finish(); return }
 
         seenReelKeys.addAll(videoIds)
-        seenAnimeIds.addAll(animeIds)
+        seenReelShows.addAll(animeIds.map { "a:$it" })
+        tmdbIds.forEachIndexed { index, id ->
+            seenReelShows.add("t:${tmdbTypes.getOrElse(index) { "movie" }}:$id")
+        }
 
         recycler = findViewById(R.id.shortsRecyclerView)
         videoTitle = findViewById(R.id.videoTitleText)
@@ -130,7 +143,7 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         btnLike = findViewById(R.id.btnLike)
         btnDislike = findViewById(R.id.btnDislike)
 
-        adapter = ShortsAdapter(videoIds, animeIds, titles, animeTitles, synopses, genresRaw, covers)
+        adapter = ShortsAdapter(videoIds, animeIds, tmdbIds, tmdbTypes, titles, animeTitles, synopses, genresRaw, covers)
         recycler.layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
         recycler.adapter = adapter
 
@@ -228,12 +241,23 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/watch?v=$id")))
         }
         // The bottom pill names the show playing now; tapping it opens that show's info page.
-        animePill.setOnClickListener { openAnimeInfo() }
+        animePill.setOnClickListener { openInfo() }
     }
 
-    /** Opens the info page of the show behind the reel currently on screen. */
-    private fun openAnimeInfo() {
-        val animeId = adapter.animeIdAt(adapter.currentPos)
+    /** Opens the details page of the title behind the reel on screen (anime or TMDB). */
+    private fun openInfo() {
+        val position = adapter.currentPos
+        val tmdbId = adapter.tmdbIdAt(position)
+        if (tmdbId > 0) {
+            startActivity(
+                Intent(this, TmdbDetailsActivity::class.java)
+                    .putExtra(TmdbDetailsActivity.ARG_MEDIA_TYPE, adapter.tmdbTypeAt(position))
+                    .putExtra(TmdbDetailsActivity.ARG_MEDIA_ID, tmdbId)
+                    .putExtra(TmdbDetailsActivity.ARG_OPEN_TAB, TmdbDetailsActivity.TAB_INFO)
+            )
+            return
+        }
+        val animeId = adapter.animeIdAt(position)
         if (animeId > 0) {
             startActivity(
                 Intent(this, MediaDetailsActivity::class.java)
@@ -255,7 +279,8 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         }
 
         val show = adapter.animeTitleAt(position)
-        animePill.isVisible = show.isNotBlank() && adapter.animeIdAt(position) > 0
+        animePill.isVisible = show.isNotBlank() &&
+            (adapter.animeIdAt(position) > 0 || adapter.tmdbIdAt(position) > 0)
         animeTitle.text = show
 
         val desc = adapter.synopsisAt(position)
@@ -376,10 +401,11 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
     }
 
     /**
-     * Appends the next mixed batch of anime videos.
+     * Appends the next mixed batch of reels.
      *
-     * Pages the AniList pool, resolves each show's videos and interleaves them, skipping keys
-     * already queued so the rail's seed feed and earlier batches never repeat.
+     * Draws from the anime or TMDB catalog depending on [reelSource], resolves each title's videos
+     * and interleaves them, skipping shows and keys already queued so the seed rail and every
+     * earlier batch never repeat.
      */
     private fun loadMoreReels(onAppended: (() -> Unit)? = null) {
         if (reelLoading) return
@@ -395,6 +421,8 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
                 adapter.appendItems(
                     items.map { it.key },
                     items.map { it.anilistId },
+                    items.map { it.tmdbId },
+                    items.map { it.mediaType ?: "" },
                     items.map { it.videoName },
                     items.map { it.animeTitle },
                     items.map { it.synopsis ?: "" },
@@ -416,7 +444,10 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun nextReelBatch(): List<ReelFeed.ReelItem> {
+    private suspend fun nextReelBatch(): List<ReelFeed.ReelItem> =
+        if (reelSource == SOURCE_TMDB) nextTmdbBatch() else nextAnimeBatch()
+
+    private suspend fun nextAnimeBatch(): List<ReelFeed.ReelItem> {
         var attempts = 0
         while (attempts++ < REEL_MAX_EMPTY_PAGES) {
             val pool = runCatching { ReelFeed.draw() }.getOrDefault(emptyList())
@@ -425,9 +456,23 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
             // player with. Drop shows already played before resolving any videos, both to keep
             // "never repeat" and to avoid spending a page on shows whose videos would all be
             // filtered out anyway.
-            val freshShows = pool.filter { seenAnimeIds.add(it.anilistId) }
+            val freshShows = pool.filter { seenReelShows.add("a:${it.anilistId}") }
             if (freshShows.isEmpty()) continue
             val fresh = runCatching { ReelFeed.buildInterleaved(freshShows) }.getOrDefault(emptyList())
+                .filter { seenReelKeys.add(it.key) }
+            if (fresh.isNotEmpty()) return fresh
+        }
+        return emptyList()
+    }
+
+    private suspend fun nextTmdbBatch(): List<ReelFeed.ReelItem> {
+        var attempts = 0
+        while (attempts++ < REEL_MAX_EMPTY_PAGES) {
+            val pool = runCatching { TmdbReelFeed.draw() }.getOrDefault(emptyList())
+            if (pool.isEmpty()) return emptyList()
+            val freshShows = pool.filter { seenReelShows.add(it.showKey) }
+            if (freshShows.isEmpty()) continue
+            val fresh = runCatching { TmdbReelFeed.buildInterleaved(freshShows) }.getOrDefault(emptyList())
                 .filter { seenReelKeys.add(it.key) }
             if (fresh.isNotEmpty()) return fresh
         }
@@ -452,7 +497,7 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
                 return true
             }
             KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                if (initialPress) openAnimeInfo()
+                if (initialPress) openInfo()
                 return true
             }
             KeyEvent.KEYCODE_DPAD_CENTER,
@@ -478,6 +523,8 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
     inner class ShortsAdapter(
         private val videoIds: MutableList<String>,
         private val animeIds: MutableList<Int>,
+        private val tmdbIds: MutableList<Int>,
+        private val tmdbTypes: MutableList<String>,
         private val titles: MutableList<String>,
         private val animeTitles: MutableList<String>,
         private val synopses: MutableList<String>,
@@ -491,6 +538,10 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         fun currentVideoId(): String? = videoIds.getOrNull(currentPos)
 
         fun animeIdAt(position: Int): Int = animeIds.getOrElse(position) { -1 }
+
+        fun tmdbIdAt(position: Int): Int = tmdbIds.getOrElse(position) { 0 }
+
+        fun tmdbTypeAt(position: Int): String = tmdbTypes.getOrElse(position) { "movie" }
 
         fun titleAt(position: Int): String = titles.getOrElse(position) { "" }
 
@@ -514,6 +565,8 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         fun appendItems(
             newIds: List<String>,
             newAnimeIds: List<Int>,
+            newTmdbIds: List<Int>,
+            newTmdbTypes: List<String>,
             newTitles: List<String>,
             newAnimeTitles: List<String>,
             newSynopses: List<String>,
@@ -524,6 +577,8 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
             val start = videoIds.size
             videoIds.addAll(newIds)
             animeIds.addAll(newAnimeIds)
+            tmdbIds.addAll(newTmdbIds)
+            tmdbTypes.addAll(newTmdbTypes)
             titles.addAll(newTitles)
             animeTitles.addAll(newAnimeTitles)
             synopses.addAll(newSynopses)
@@ -673,6 +728,8 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_VIDEO_IDS = "video_ids"
         const val EXTRA_ANIME_IDS = "anime_ids"
+        const val EXTRA_TMDB_IDS = "tmdb_ids"
+        const val EXTRA_TMDB_TYPES = "tmdb_types"
         const val EXTRA_START_INDEX = "start_index"
         const val EXTRA_TITLES = "titles"
         const val EXTRA_ANIME_TITLES = "anime_titles"
@@ -680,6 +737,11 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         const val EXTRA_GENRES = "genres"
         const val EXTRA_COVERS = "covers"
         const val EXTRA_REEL_MODE = "reel_mode"
+
+        /** Which catalog the endless append draws from; defaults to the anime rail. */
+        const val EXTRA_REEL_SOURCE = "reel_source"
+        const val SOURCE_ANIME = "anime"
+        const val SOURCE_TMDB = "tmdb"
 
         /** How close to the end of the feed the next batch is fetched. */
         private const val REEL_PREFETCH_DISTANCE = 4

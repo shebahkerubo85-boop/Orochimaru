@@ -11,6 +11,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -22,6 +23,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.chip.Chip
+import com.bumptech.glide.Glide
 import ani.sanin.R
 import ani.sanin.cloudstream.TmdbCards
 import ani.sanin.cloudstream.TmdbDetailsActivity
@@ -33,7 +35,10 @@ import ani.sanin.databinding.FragmentTmdbDiscoveryBinding
 import ani.sanin.databinding.ItemTmdbCardBinding
 import ani.sanin.getThemeColor
 import ani.sanin.loadImage
+import ani.sanin.reels.ReelFeed
+import ani.sanin.reels.TmdbReelFeed
 import ani.sanin.util.FocusEffectUtil
+import ani.sanin.youtube.YouTubeShortsPlayerActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -59,7 +64,18 @@ class TmdbDiscoveryFragment : Fragment() {
     private var artworkLimit = 12
     private var backCallback: OnBackPressedCallback? = null
 
+    private var tmdbReelLoaded = false
+    private var tmdbReelEntries: List<ReelFeed.ReelItem> = emptyList()
+    private var tmdbReelCards: List<TmdbReelCard> = emptyList()
+
+    private data class TmdbReelCard(val title: String, val key: String, val startIndex: Int)
+
     private val categorySemaphore = Semaphore(3)
+
+    private companion object {
+        /** How many titles the trailer rail seeds before the player takes over the feed. */
+        const val RAIL_MEDIA_COUNT = 12
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentTmdbDiscoveryBinding.inflate(inflater, container, false)
@@ -132,6 +148,7 @@ class TmdbDiscoveryFragment : Fragment() {
 
         renderCategories()
         loadCategoryArtwork()
+        loadTmdbReelRail()
         viewLifecycleOwner.lifecycleScope.launch {
             genres = runCatching { Tmdb.genres() }.getOrDefault(emptyList())
         }
@@ -148,6 +165,172 @@ class TmdbDiscoveryFragment : Fragment() {
             .putExtra(TmdbDetailsActivity.ARG_MEDIA_TYPE, item.type)
             .putExtra(TmdbDetailsActivity.ARG_MEDIA_ID, item.id)
             .putExtra(TmdbDetailsActivity.ARG_OPEN_TAB, TmdbDetailsActivity.TAB_INFO))
+    }
+
+    /** Loads the trailer reels feed once, then renders the rail of entry-point cards. */
+    private fun loadTmdbReelRail() {
+        if (tmdbReelLoaded) {
+            renderTmdbReelRail()
+            return
+        }
+        tmdbReelLoaded = true
+        viewLifecycleOwner.lifecycleScope.launch {
+            val entries = withContext(Dispatchers.IO) {
+                runCatching {
+                    TmdbReelFeed.buildInterleaved(TmdbReelFeed.railPool(RAIL_MEDIA_COUNT))
+                }.getOrNull()
+            }
+            tmdbReelEntries = entries ?: emptyList()
+            // One card per title, in the order each first appears in the mixed feed, so a tap drops
+            // the viewer at that title's first video without breaking the interleave.
+            val seen = HashSet<String>()
+            tmdbReelCards = tmdbReelEntries.mapIndexedNotNull { index, item ->
+                if (seen.add(item.animeTitle)) TmdbReelCard(item.animeTitle, item.key, index) else null
+            }
+            if (_binding != null) renderTmdbReelRail()
+        }
+    }
+
+    private fun renderTmdbReelRail() {
+        val host = _binding?.tmdbTrailerCarousel ?: return
+        host.visibility = View.VISIBLE
+        host.removeAllViews()
+        val context = host.context
+        host.addView(TextView(context).apply {
+            text = "TRAILERS TO DROP INTO"
+            textSize = 18f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            setPadding(dp(12), dp(12), dp(12), dp(8))
+        })
+        val scroll = HorizontalScrollView(context).apply {
+            isHorizontalScrollBarEnabled = false
+            clipToPadding = false
+            setPadding(dp(8), dp(2), dp(8), dp(10))
+        }
+        val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+        if (tmdbReelCards.isEmpty()) {
+            repeat(3) { index ->
+                val placeholder = LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER
+                    background = context.getDrawable(R.drawable.bg_editorial_card_focus)
+                    layoutParams = LinearLayout.LayoutParams(dp(112), dp(178)).apply {
+                        marginEnd = dp(10)
+                    }
+                    setPadding(dp(8), dp(8), dp(8), dp(8))
+                }
+                placeholder.addView(ImageView(context).apply {
+                    setImageResource(R.drawable.ic_editorial_artwork_unavailable)
+                    scaleType = ImageView.ScaleType.CENTER_INSIDE
+                    layoutParams = LinearLayout.LayoutParams(dp(58), dp(58))
+                    contentDescription = "Trailer artwork unavailable"
+                })
+                placeholder.addView(TextView(context).apply {
+                    text = if (Tmdb.apiKey.isBlank())
+                        "Add TMDB API key" else "Loading trailers ${index + 1}"
+                    textSize = 11f
+                    gravity = Gravity.CENTER
+                    setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+                    setPadding(0, dp(8), 0, 0)
+                })
+                row.addView(placeholder)
+            }
+        } else {
+            tmdbReelCards.forEach { card ->
+                val holder = LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
+                    background = context.getDrawable(R.drawable.bg_editorial_card_focus)
+                    isFocusable = true
+                    isClickable = true
+                    layoutParams = LinearLayout.LayoutParams(dp(116), dp(190)).apply {
+                        marginEnd = dp(10)
+                    }
+                    setPadding(dp(5), dp(5), dp(5), dp(5))
+                    setOnClickListener { openTmdbReelPlayer(card.startIndex) }
+                }
+                val thumb = ImageView(context).apply {
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    setImageResource(R.drawable.ic_editorial_artwork_unavailable)
+                    contentDescription = card.title
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, dp(145)
+                    )
+                }
+                thumb.loadTmdbReelThumbnail(card.key)
+                holder.addView(thumb)
+                holder.addView(TextView(context).apply {
+                    text = card.title
+                    textSize = 11.5f
+                    maxLines = 2
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                    setTypeface(typeface, Typeface.BOLD)
+                    setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+                    setPadding(dp(3), dp(5), dp(3), 0)
+                })
+                FocusEffectUtil.applyFocusListener(holder)
+                row.addView(holder)
+            }
+        }
+        scroll.addView(row)
+        host.addView(scroll)
+    }
+
+    /** Opens the vertical reels player at [startIndex], continuing the TMDB trailer feed from there. */
+    private fun openTmdbReelPlayer(startIndex: Int) {
+        if (tmdbReelEntries.isEmpty() || !isAdded) return
+        val intent = Intent(requireContext(), YouTubeShortsPlayerActivity::class.java).apply {
+            putStringArrayListExtra(
+                YouTubeShortsPlayerActivity.EXTRA_VIDEO_IDS,
+                ArrayList(tmdbReelEntries.map { it.key })
+            )
+            // The header shows the specific video ("Official Trailer"); the pill shows the title.
+            putStringArrayListExtra(
+                YouTubeShortsPlayerActivity.EXTRA_TITLES,
+                ArrayList(tmdbReelEntries.map { it.videoName })
+            )
+            putStringArrayListExtra(
+                YouTubeShortsPlayerActivity.EXTRA_ANIME_TITLES,
+                ArrayList(tmdbReelEntries.map { it.animeTitle })
+            )
+            putStringArrayListExtra(
+                YouTubeShortsPlayerActivity.EXTRA_SYNOPSIS,
+                ArrayList(tmdbReelEntries.map { it.synopsis ?: "" })
+            )
+            putStringArrayListExtra(
+                YouTubeShortsPlayerActivity.EXTRA_GENRES,
+                ArrayList(tmdbReelEntries.map { it.genres.joinToString("|") })
+            )
+            putStringArrayListExtra(
+                YouTubeShortsPlayerActivity.EXTRA_COVERS,
+                ArrayList(tmdbReelEntries.map { it.cover ?: "" })
+            )
+            // The title's TMDB id + media type, so the pill can open TmdbDetailsActivity.
+            putIntegerArrayListExtra(
+                YouTubeShortsPlayerActivity.EXTRA_TMDB_IDS,
+                ArrayList(tmdbReelEntries.map { it.tmdbId })
+            )
+            putStringArrayListExtra(
+                YouTubeShortsPlayerActivity.EXTRA_TMDB_TYPES,
+                ArrayList(tmdbReelEntries.map { it.mediaType ?: "movie" })
+            )
+            putExtra(YouTubeShortsPlayerActivity.EXTRA_START_INDEX, startIndex)
+            putExtra(YouTubeShortsPlayerActivity.EXTRA_REEL_MODE, true)
+            putExtra(YouTubeShortsPlayerActivity.EXTRA_REEL_SOURCE, YouTubeShortsPlayerActivity.SOURCE_TMDB)
+        }
+        startActivity(intent)
+    }
+
+    /**
+     * Loads a card's 16:9 artwork with the same 404-safe fallback the anime rail uses, so a title
+     * whose HD thumbnail is missing still shows its standard-quality one.
+     */
+    private fun ImageView.loadTmdbReelThumbnail(key: String) {
+        val view = this
+        Glide.with(view)
+            .load(ReelFeed.thumbnailUrl(key))
+            .error(Glide.with(view).load(ReelFeed.thumbnailFallbackUrl(key)))
+            .into(view)
     }
 
     private fun renderCategories() {

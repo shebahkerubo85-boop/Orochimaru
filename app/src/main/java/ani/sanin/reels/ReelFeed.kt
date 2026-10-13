@@ -40,6 +40,10 @@ object ReelFeed {
         val synopsis: String? = null,
         val genres: List<String> = emptyList(),
         val cover: String? = null,
+        // A TMDB title instead of an AniList one. Only one of [anilistId] / [tmdbId] is positive;
+        // the player uses whichever is set to decide which details screen the show pill opens.
+        val tmdbId: Int = 0,
+        val mediaType: String? = null,
     )
 
     private const val MAX_CACHE = 160
