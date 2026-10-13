@@ -482,42 +482,86 @@ class DiscoveryFragment : Fragment() {
         loadVisibleCategoryArtwork()
     }
 
-    /** Uses the source description when available, with a category-aware fallback. */
+    /** Short editorial hooks for the long-tail Kitsu categories; source blurbs are often definitions. */
     private fun discoveryCategoryDescription(category: KitsuCategory): String {
-        val source = category.description
-            ?.replace(Regex("<[^>]*>"), " ")
-            ?.replace(Regex("\\s+"), " ")
-            ?.trim()
-            ?.takeIf { it.length >= 18 && !it.equals(category.title, ignoreCase = true) }
-        if (!source.isNullOrBlank()) return source.take(180)
-
-        val title = category.title
+        val title = category.title.trim()
         val key = title.lowercase(java.util.Locale.ROOT)
+            .replace(Regex("[^a-z0-9]+"), " ")
+            .trim()
+        val exact = mapOf(
+            "school" to "Hallway crushes, classroom chaos, and drama after the bell.",
+            "blackmail" to "One secret in the wrong hands changes everything.",
+            "samurai" to "Honor draws the blade. Survival decides the rest.",
+            "swordplay" to "Steel sings, skill decides, and every duel has a story.",
+            "assassination" to "One target, a risky plan, and no room for mistakes.",
+            "revenge" to "Old wounds make dangerous plans.",
+            "time travel" to "Change one moment. Face a thousand consequences.",
+            "parallel world" to "A new world, unfamiliar rules, and no easy way home.",
+            "survival" to "Every choice buys time—or costs it.",
+            "bullying" to "Power games, hard truths, and standing your ground.",
+            "workplace" to "Office politics by day, personal chaos after hours.",
+            "delinquents" to "Bad reputations, fierce loyalty, and trouble on every corner.",
+            "mafia" to "Family ties get messy when business turns personal.",
+            "detective" to "Follow the clues. Trust nobody too quickly.",
+            "ghost" to "The past refuses to stay buried.",
+            "zombies" to "The world falls apart; getting through today is the win.",
+            "robots" to "Human stakes, machine muscle, and futures on the line.",
+            "aliens" to "First contact rarely goes according to plan.",
+            "idol" to "Bright lights, brutal practice, and the dream behind the smile.",
+            "cooking" to "Big flavours, fierce rivals, and plates worth fighting for.",
+            "revenge" to "Old wounds make dangerous plans.",
+            "twins" to "Double the trouble, with secrets to match.",
+            "body swapping" to "Wrong body, wrong life, and a very strange Monday.",
+            "gender bender" to "Identity gets complicated when expectations flip.",
+            "unrequited love" to "One heart speaks; the other may never hear it.",
+            "love triangle" to "Three hearts, crossed signals, zero simple answers.",
+            "childhood friends" to "Years of history, one new feeling, and everything at stake.",
+            "found family" to "Strangers become your people, one mess at a time.",
+            "coming of age" to "Growing up is the plot twist nobody dodges.",
+            "tragic romance" to "Tender moments, impossible timing, and feelings that linger.",
+            "psychological" to "Mind games, shifting truths, and a reality you can't quite trust.",
+            "post apocalyptic" to "After the end, the hardest part is starting over.",
+            "dystopia" to "A broken system—and someone reckless enough to challenge it.",
+            "space" to "Big skies, bigger stakes, and a long way from home.",
+            "pirates" to "Treasure, treachery, and trouble on the open sea.",
+            "ghost stories" to "Every haunting comes with a story.",
+            "school life" to "Hallway crushes, classroom chaos, and drama after the bell."
+        )
+        exact[key]?.let { return it }
+
         return when {
-            listOf("action", "battle", "fight", "combat").any { key.contains(it) } ->
-                "$title anime built around clashes, high stakes, and decisive moments."
-            listOf("love", "romance", "couple", "relationship").any { key.contains(it) } ->
-                "$title stories about attraction, relationships, and the choices between them."
-            listOf("school", "student", "campus", "classroom").any { key.contains(it) } ->
-                "$title anime where school life, friendships, and everyday drama take centre stage."
-            listOf("fantasy", "magic", "witch", "wizard", "myth", "supernatural").any { key.contains(it) } ->
-                "$title tales filled with strange worlds, unusual powers, and hidden rules."
-            listOf("sci-fi", "science fiction", "space", "robot", "mecha", "cyber").any { key.contains(it) } ->
-                "$title stories exploring technology, strange futures, and life beyond the ordinary."
-            listOf("sport", "soccer", "football", "baseball", "basketball", "tennis", "volleyball").any { key.contains(it) } ->
-                "$title anime driven by practice, rivalry, teamwork, and big moments."
-            listOf("music", "band", "idol", "dance", "sing").any { key.contains(it) } ->
-                "$title stories where performance, creativity, and finding a voice matter."
-            listOf("comedy", "parody", "humor", "gag").any { key.contains(it) } ->
-                "$title anime for sharp jokes, unexpected chaos, and characters who keep things lively."
-            listOf("horror", "ghost", "vampire", "monster", "demon").any { key.contains(it) } ->
-                "$title stories bringing eerie mysteries, unsettling encounters, and otherworldly trouble."
-            listOf("crime", "detective", "mystery", "thriller", "suspense").any { key.contains(it) } ->
-                "$title anime full of clues, secrets, and questions worth chasing."
-            listOf("family", "friend", "slice of life", "daily life").any { key.contains(it) } ->
-                "$title stories focused on personal bonds, everyday moments, and growing together."
+            listOf("blackmail", "extortion", "hostage", "kidnap").any(key::contains) ->
+                "Secrets become leverage, and nobody gets a clean exit."
+            listOf("school", "student", "classroom", "campus", "academy").any(key::contains) ->
+                "Hallway drama, unlikely friendships, and chaos between classes."
+            listOf("sword", "samurai", "ninja", "martial", "fencing", "duel").any(key::contains) ->
+                "Sharp skills, sharper rivals, and every move matters."
+            listOf("love", "romance", "couple", "kiss", "dating", "heartbreak").any(key::contains) ->
+                "Mixed signals, big feelings, and timing that never helps."
+            listOf("battle", "war", "combat", "fight", "military", "weapon").any(key::contains) ->
+                "High stakes, hard choices, and no easy victories."
+            listOf("mystery", "crime", "detective", "thriller", "conspiracy", "suspense").any(key::contains) ->
+                "Clues pile up. The truth keeps moving."
+            listOf("ghost", "horror", "demon", "vampire", "monster", "occult", "haunted").any(key::contains) ->
+                "Something is lurking—and it knows more than it should."
+            listOf("magic", "fantasy", "witch", "wizard", "dragon", "myth").any(key::contains) ->
+                "Strange powers, stranger rules, and trouble around every corner."
+            listOf("space", "sci fi", "science fiction", "cyber", "robot", "mecha", "android").any(key::contains) ->
+                "Unfamiliar futures, bold ideas, and technology with consequences."
+            listOf("sport", "soccer", "football", "baseball", "basketball", "tennis", "volleyball", "racing", "boxing").any(key::contains) ->
+                "Rivals, relentless practice, and a moment to prove it."
+            listOf("music", "band", "sing", "dance", "idol", "perform", "theatre").any(key::contains) ->
+                "Rehearsals, rivalries, and the rush of taking the stage."
+            listOf("food", "cook", "cooking", "restaurant", "gourmet").any(key::contains) ->
+                "Passion on the plate and competition turned up high."
+            listOf("family", "friend", "childhood", "sibling", "parent").any(key::contains) ->
+                "Complicated bonds, shared history, and showing up for each other."
+            listOf("comedy", "parody", "absurd", "gag", "slapstick").any(key::contains) ->
+                "Bad plans, great timing, and chaos with perfect delivery."
+            listOf("travel", "journey", "adventure", "exploration").any(key::contains) ->
+                "New places, unexpected detours, and stories waiting around the bend."
             else ->
-                "Explore anime tagged for $key themes, tropes, and storylines."
+                "A distinct anime trope, with its own kind of chaos."
         }
     }
 
