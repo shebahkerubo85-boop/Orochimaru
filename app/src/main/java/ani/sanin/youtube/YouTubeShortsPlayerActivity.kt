@@ -145,6 +145,11 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
 
         adapter = ShortsAdapter(videoIds, animeIds, tmdbIds, tmdbTypes, titles, animeTitles, synopses, genresRaw, covers)
         recycler.layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
+            .apply { isItemPrefetchEnabled = false }
+        // Only the visible reel should own a live WebView: no pre-built neighbours, no detached
+        // cache. Each WebView is a full YouTube player, so a small set of them is what stutters a TV.
+        recycler.setItemViewCacheSize(0)
+        recycler.recycledViewPool.setMaxRecycledViews(0, 1)
         recycler.adapter = adapter
 
         // PagerSnapHelper (not LinearSnapHelper): a reel is a full-screen page, so a fling must
@@ -533,6 +538,8 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
     ) : RecyclerView.Adapter<ShortsAdapter.VH>() {
 
         private val webViews = mutableMapOf<Int, WebView>()
+        /** Every WebView ever built, so [destroyAll] tears down reels that have scrolled away too. */
+        private val allWebViews = HashSet<WebView>()
         var currentPos = -1
 
         fun currentVideoId(): String? = videoIds.getOrNull(currentPos)
@@ -589,12 +596,18 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             holder.boundPosition = position
+            // Only the reel on screen loads its YouTube embed. Neighbours are prepared lazily when
+            // they become current (setCurrent), so a whole film-strip of embeds is never fetched at
+            // once — that simultaneous loading is what made the player crawl on TV.
+            if (position == currentPos) load(holder, position)
+        }
+
+        /** Loads a holder's embed if it is not already showing the reel it is bound to. */
+        private fun load(holder: VH, position: Int) {
             val videoId = videoIds[position]
-            if (holder.loadedVideoId != videoId) {
-                holder.loadedVideoId = videoId
-                setupWebView(holder, videoId, position)
-            }
-            webViews[position] = holder.youtubeWebView
+            if (holder.loadedVideoId == videoId) return
+            holder.loadedVideoId = videoId
+            setupWebView(holder, videoId, position)
         }
 
         override fun onViewRecycled(holder: VH) {
@@ -629,6 +642,7 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
                 "https://www.youtube-nocookie.com", buildHtml(videoId), "text/html", "utf-8", null
             )
             webViews[position] = webView
+            allWebViews.add(webView)
         }
 
         /**
@@ -649,13 +663,36 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
 
             @JavascriptInterface
             fun onProgress(currentSeconds: String, durationSeconds: String) {
+                if (position != currentPos) return
+                // The page pushes a delivery several times a second; only one tick reaches the UI
+                // thread per interval, so scrubbing stays smooth without the bridge flooding it.
+                val now = System.currentTimeMillis()
+                if (now - lastProgressAt < PROGRESS_THROTTLE_MS) return
+                lastProgressAt = now
                 val cur = currentSeconds.toDoubleOrNull() ?: return
                 val dur = durationSeconds.toDoubleOrNull() ?: 0.0
                 runOnUiThread { if (position == currentPos) onPlayerProgress(cur, dur) }
             }
+
+            var lastProgressAt = 0L
         }
 
-        fun setCurrent(position: Int) { currentPos = position }
+        fun setCurrent(position: Int) {
+            val previous = currentPos
+            currentPos = position
+            // Stop the reel we are leaving, and kick off the one we arrive at — the embed only
+            // loads now, so only one player ever runs.
+            if (previous != position && previous >= 0) webViews[previous]?.let { command(it, "pause()") }
+            val holder = recycler.findViewHolderForAdapterPosition(position) as? VH
+            if (holder != null) {
+                load(holder, position)
+            } else {
+                // The holder for a freshly scrolled-to position may not be laid out yet.
+                recycler.post {
+                    (recycler.findViewHolderForAdapterPosition(position) as? VH)?.let { load(it, position) }
+                }
+            }
+        }
 
         fun playCurrent() {
             val webView = webViews[currentPos] ?: return
@@ -680,7 +717,8 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         }
 
         fun destroyAll() {
-            webViews.values.forEach { it.destroy() }
+            allWebViews.forEach { it.destroy() }
+            allWebViews.clear()
             webViews.clear()
         }
 
@@ -751,5 +789,8 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
 
         /** How long to wait before retrying an append that came back empty. */
         private const val REEL_RETRY_DELAY_MS = 8_000L
+
+        /** How often the JS progress bridge may touch the UI thread (the page pushes several a second). */
+        private const val PROGRESS_THROTTLE_MS = 500L
     }
 }

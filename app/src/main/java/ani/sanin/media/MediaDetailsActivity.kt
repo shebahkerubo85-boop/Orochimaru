@@ -61,7 +61,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -80,27 +79,46 @@ class MediaDetailsActivity : AppCompatActivity() {
     var commentTabOpener: (() -> Unit)? = null
     var watchTabOpener: (() -> Unit)? = null
 
-    @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
 
         super.onCreate(savedInstanceState)
-        var media: Media = intent.getSerialized("media") ?: mediaSingleton ?: emptyMedia()
+        val providedMedia: Media = intent.getSerialized("media") ?: mediaSingleton ?: emptyMedia()
         intent.removeExtra("media")
         val id = intent.getIntExtra("mediaId", -1)
+        val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
+
+        // Build the screen shell first so the window, theme and back/gesture wiring are up
+        // immediately. A caller that names the title only by id (a reel, a deep link) must not
+        // block the UI thread on the AniList round-trip, so the fetch lands later and fills in.
+        ThemeManager(this).applyTheme()
+        initActivity(this)
+        MediaSingleton.bitmap = null
+        binding = ActivityMediaBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
         if (id != -1) {
-            val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
-            runBlocking {
-                withContext(Dispatchers.IO) {
-                    if (rescueMode) {
-                        val animeNode = MAL.query.getAnimeDetails(id)
-                        media = if (animeNode != null) Media(animeNode, true)
-                        else emptyMedia()
-                    } else {
-                        media = Anilist.query.getMedia(id, false) ?: emptyMedia()
-                    }
-                }
+            lifecycleScope.launch {
+                val media = withContext(Dispatchers.IO) { fetchMediaById(id, rescueMode) }
+                if (isFinishing || isDestroyed) return@launch
+                bindMedia(media ?: emptyMedia(), savedInstanceState, rescueMode)
             }
+        } else {
+            bindMedia(providedMedia, savedInstanceState, rescueMode)
         }
+    }
+
+    /** The AniList (or MAL, in rescue mode) round-trip, kept off the main thread. */
+    private suspend fun fetchMediaById(id: Int, rescueMode: Boolean): Media? = withContext(Dispatchers.IO) {
+        if (rescueMode) {
+            MAL.query.getAnimeDetails(id)?.let { Media(it, true) }
+        } else {
+            Anilist.query.getMedia(id, false)
+        }
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun bindMedia(initialMedia: Media, savedInstanceState: Bundle?, rescueMode: Boolean) {
+        var media = initialMedia
         if (media.name == "No media found") {
             snackString(media.name)
             onBackPressedDispatcher.onBackPressed()
@@ -115,19 +133,12 @@ class MediaDetailsActivity : AppCompatActivity() {
         // to the home screen. Cleared again in onDestroy, but only when the activity is going
         // away for good.
         mediaSingleton = media
-        ThemeManager(this).applyTheme()
-        initActivity(this)
-        MediaSingleton.bitmap = null
-
-        binding = ActivityMediaBinding.inflate(layoutInflater)
-        setContentView(binding.root)
 
         // Backing out of an extension's source prefs must restore the media UI.
         supportFragmentManager.addOnBackStackChangedListener { syncExtensionPrefsUi() }
 
         val isDownload = intent.getBooleanExtra("download", false)
         media.selected = model.loadSelected(media, isDownload)
-        val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
         hasComments = PrefManager.getVal<Int>(PrefName.CommentsEnabled) == 1 && !rescueMode
 
 // Load full-screen banner background.
@@ -191,11 +202,12 @@ class MediaDetailsActivity : AppCompatActivity() {
             binding.incognito.visibility = View.VISIBLE
         }
 
-        // Load MediaInfoFragment into the left panel
+        // Load MediaInfoFragment into the left panel. If the id-based fetch finished after the
+        // activity had already saved its state, this transaction can no longer use commit().
         if (savedInstanceState == null) {
             supportFragmentManager.beginTransaction()
                 .replace(R.id.mediaInfoFragmentContainer, MediaInfoFragment())
-                .commit()
+                .commitAllowingStateLoss()
         }
 
         // Native nav pills (info/watch/comments — info now focuses the left panel)

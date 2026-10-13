@@ -89,6 +89,14 @@ class App : Application() {
 
         initializeNetwork()
 
+        // The reels player renders YouTube inside a WebView, and the first WebView built in a
+        // process pays a one-time provider/Chromium init cost — on a TV that is seconds, and it
+        // lands squarely on the player's first frame. Build (and drop) one here, off the launch
+        // path, so the provider is already warm by the time a reel is opened.
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            runCatching { android.webkit.WebView(this).destroy() }
+        }, 2_000L)
+
         setupNotificationChannels()
         if (!LogcatLogger.isInstalled) {
             LogcatLogger.install(AndroidLogcatLogger(LogPriority.VERBOSE))
