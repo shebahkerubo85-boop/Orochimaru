@@ -15,16 +15,28 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
+import ani.sanin.reels.ReelFeed
 import ani.sanin.themes.ThemeManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class YouTubeShortsPlayerActivity : AppCompatActivity() {
 
     private lateinit var recycler: RecyclerView
     private lateinit var adapter: ShortsAdapter
+
+    /** Reels mode appends more anime as the viewer nears the end; the shorts feature does not. */
+    private var reelMode = false
+    private val seenReelKeys = HashSet<String>()
+    private var reelPage = 0
+    private var reelLoading = false
+    private var reelExhausted = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,8 +52,11 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         val videoIds = intent.getStringArrayListExtra(EXTRA_VIDEO_IDS) ?: arrayListOf()
         val startIdx = intent.getIntExtra(EXTRA_START_INDEX, 0)
         val titles = intent.getStringArrayListExtra(EXTRA_TITLES) ?: arrayListOf()
+        reelMode = intent.getBooleanExtra(EXTRA_REEL_MODE, false)
 
         if (videoIds.isEmpty()) { finish(); return }
+
+        seenReelKeys.addAll(videoIds)
 
         recycler = findViewById(R.id.shortsRecyclerView)
         adapter = ShortsAdapter(videoIds, titles)
@@ -51,6 +66,13 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         LinearSnapHelper().attachToRecyclerView(recycler)
 
         recycler.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(rv, dx, dy)
+                if (!reelMode) return
+                val last = (rv.layoutManager as LinearLayoutManager).findLastVisibleItemPosition()
+                if (last >= adapter.itemCount - REEL_PREFETCH_DISTANCE) loadMoreReels()
+            }
+
             override fun onScrollStateChanged(rv: RecyclerView, newState: Int) {
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
                     val pos = (rv.layoutManager as LinearLayoutManager).findFirstVisibleItemPosition()
@@ -68,6 +90,39 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         findViewById<ImageButton>(R.id.closeBtn).setOnClickListener { finish() }
     }
 
+    /**
+     * Appends the next mixed batch of anime videos.
+     *
+     * Pages the AniList pool, resolves each show's videos and interleaves them, skipping keys
+     * already queued so the rail's seed feed and earlier batches never repeat.
+     */
+    private fun loadMoreReels() {
+        if (reelLoading || reelExhausted) return
+        reelLoading = true
+        lifecycleScope.launch {
+            val items = withContext(Dispatchers.IO) { nextReelBatch() }
+            if (items.isEmpty()) {
+                reelExhausted = true
+            } else {
+                adapter.appendItems(items.map { it.key }, items.map { it.animeTitle })
+            }
+            reelLoading = false
+        }
+    }
+
+    private suspend fun nextReelBatch(): List<ReelFeed.ReelItem> {
+        var attempts = 0
+        while (attempts++ < REEL_MAX_EMPTY_PAGES) {
+            val page = ++reelPage
+            val pool = runCatching { ReelFeed.pool(page = page, perPage = 30) }.getOrDefault(emptyList())
+            if (pool.isEmpty()) return emptyList()
+            val fresh = runCatching { ReelFeed.buildInterleaved(pool) }.getOrDefault(emptyList())
+                .filter { seenReelKeys.add(it.key) }
+            if (fresh.isNotEmpty()) return fresh
+        }
+        return emptyList()
+    }
+
     override fun onPause() {
         super.onPause()
         adapter.pauseCurrent()
@@ -79,8 +134,8 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
     }
 
     inner class ShortsAdapter(
-        private val videoIds: List<String>,
-        private val titles: List<String>
+        private val videoIds: MutableList<String>,
+        private val titles: MutableList<String>
     ) : RecyclerView.Adapter<ShortsAdapter.VH>() {
 
         private val webViews = mutableMapOf<Int, WebView>()
@@ -95,6 +150,15 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         }
 
         override fun getItemCount() = videoIds.size
+
+        /** Appends a batch to the end of the feed without disturbing what is on screen. */
+        fun appendItems(newIds: List<String>, newTitles: List<String>) {
+            if (newIds.isEmpty()) return
+            val start = videoIds.size
+            videoIds.addAll(newIds)
+            titles.addAll(newTitles)
+            notifyItemRangeInserted(start, newIds.size)
+        }
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             val videoId = videoIds[position]
@@ -227,5 +291,12 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         const val EXTRA_VIDEO_IDS = "video_ids"
         const val EXTRA_START_INDEX = "start_index"
         const val EXTRA_TITLES = "titles"
+        const val EXTRA_REEL_MODE = "reel_mode"
+
+        /** How close to the end of the feed the next batch is fetched. */
+        private const val REEL_PREFETCH_DISTANCE = 4
+
+        /** How many empty pool pages to skip before giving up on an append. */
+        private const val REEL_MAX_EMPTY_PAGES = 4
     }
 }

@@ -344,7 +344,10 @@ data class TmdbVideo(
     @SerialName("key") val key: String? = null,
     val name: String? = null,
     val site: String? = null,
-    val type: String? = null
+    val type: String? = null,
+    val official: Boolean = false,
+    @SerialName("published_at") val publishedAt: String? = null,
+    val size: Int = 0
 )
 
 @Serializable
@@ -817,6 +820,18 @@ object Tmdb {
             "append_to_response" to "images,external_ids,credits,recommendations,videos,keywords"
         ) ?: return null
         return runCatching { json.decodeFromString<TmdbDetail>(body) }.getOrNull()
+    }
+
+    /**
+     * The trailer/teaser/clip videos TMDB holds for a single title.
+     *
+     * A dedicated endpoint rather than [detail] (which is a heavyweight
+     * `append_to_response`): a reels feed reads the videos of dozens of titles and only ever
+     * needs the keys, so this keeps each call to a few kilobytes.
+     */
+    suspend fun videos(mediaType: String, id: Int): List<TmdbVideo> {
+        val body = get("/$mediaType/$id/videos", "language" to "en-US") ?: return emptyList()
+        return runCatching { json.decodeFromString<TmdbVideoPage>(body).results }.getOrDefault(emptyList())
     }
 
     suspend fun seasons(mediaType: String, id: Int): List<TmdbSeason> {

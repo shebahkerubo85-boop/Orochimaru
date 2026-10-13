@@ -36,10 +36,10 @@ import ani.sanin.media.Media
 import ani.sanin.media.MediaAdaptor
 import ani.sanin.media.SearchActivity
 import ani.sanin.home.SearchBottomSheet
+import ani.sanin.reels.ReelFeed
+import ani.sanin.youtube.YouTubeShortsPlayerActivity
 
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.Job
 import ani.sanin.cloudstream.TmdbCards
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -333,13 +333,15 @@ class DiscoveryFragment : Fragment() {
     private var remainingCategoriesLoading = false
     private var categoryArtworkGeneration = 0
     private var categoriesLoaded = false
-    private var trailerLoaded = false
-    private var trailerItems: List<DiscoveryTrailer> = emptyList()
+    private var reelRailLoaded = false
+    private var reelEntries: List<ReelFeed.ReelItem> = emptyList()
+    private var reelRailCards: List<ReelCard> = emptyList()
 
-    private data class DiscoveryTrailer(
+    /** One entry point card on the rail: a show's first video, and where it sits in the feed. */
+    private data class ReelCard(
         val title: String,
         val key: String,
-        val posterUrl: String?,
+        val startIndex: Int,
     )
 
     /** Backing list of the grid adapter; appended to as pages arrive. */
@@ -372,6 +374,9 @@ class DiscoveryFragment : Fragment() {
         const val CATEGORY_SIDE_PADDING_DP = 3
         const val MIN_CATEGORY_CONTENT_WIDTH_DP = 140
         const val MAX_CATEGORY_COLUMNS = 2
+
+        /** Shows seeded into the top reels rail; the player pages the rest of the pool itself. */
+        const val RAIL_ANIME_COUNT = 12
     }
 
     override fun onViewCreated(
@@ -392,8 +397,9 @@ class DiscoveryFragment : Fragment() {
         setupAvatar()
 
         // Discovery is now the curated category landing page. The old genre/season chips,
-        // AniList results grid, editorial shelves and trailer carousel are intentionally not
-        // initialized here, so they cannot issue unrelated network requests or reappear.
+        // AniList results grid and editorial shelves are intentionally not initialized here, so
+        // they cannot issue unrelated network requests or reappear. The trailer-carousel host is
+        // reused for the anime reels rail, which loads just below the search bar.
         binding.genreChipGroup.visibility = View.GONE
         binding.seasonChipGroup.visibility = View.GONE
         binding.discoverRecyclerView.visibility = View.GONE
@@ -402,7 +408,6 @@ class DiscoveryFragment : Fragment() {
         binding.discoverErrorGroup.visibility = View.GONE
         binding.discoverLoadingMore.visibility = View.GONE
         binding.discoverLoadMoreErrorGroup.visibility = View.GONE
-        binding.discoverTrailerCarousel.visibility = View.GONE
         binding.discoverEditorialShelves.visibility = View.GONE
 
         // The first actual card is assigned as the D-pad destination when the grid is built.
@@ -423,6 +428,9 @@ class DiscoveryFragment : Fragment() {
         }
         renderCategoryGrid()
         loadVisibleCategoryArtwork()
+        // The reel rail sits above the category grid; start it immediately so its cards are
+        // ready by the time the grid header has painted.
+        loadReelRail()
         // Start catalogue loading immediately; users should not have to scroll to the bottom
         // of the curated 64 before the remaining categories begin fetching.
         loadNextRemainingCategoryBatch()
@@ -656,7 +664,7 @@ class DiscoveryFragment : Fragment() {
             }.getOrDefault(emptyList())
             if (_binding != null) {
                 renderEditorialShelves(discoverViewModel.uiState.value.items)
-                loadTrailerCarousel()
+                loadReelRail()
             }
         }
     }
@@ -913,49 +921,34 @@ class DiscoveryFragment : Fragment() {
         super.onPause()
     }
 
-    private fun loadTrailerCarousel() {
-        if (trailerLoaded) {
-            renderTrailerCarousel()
+    /** Loads the anime reels feed once, then renders the rail of entry-point cards. */
+    private fun loadReelRail() {
+        if (reelRailLoaded) {
+            renderReelRail()
             return
         }
-        trailerLoaded = true
+        reelRailLoaded = true
         viewLifecycleOwner.lifecycleScope.launch {
-            val picks = tmdbAnimationPicks.take(12)
-            val trailers = if (ani.sanin.connections.tmdb.Tmdb.apiKey.isBlank()) {
-                emptyList()
-            } else {
-                picks.map { pick ->
-                    async {
-                        val detail = runCatching {
-                            ani.sanin.connections.tmdb.Tmdb.detail(pick.type, pick.id)
-                        }.getOrNull()
-                        val video = detail?.videos?.results.orEmpty()
-                            .filter { it.site.equals("YouTube", ignoreCase = true) && !it.key.isNullOrBlank() }
-                            .sortedBy {
-                                when (it.type?.lowercase()) {
-                                    "trailer" -> 0
-                                    "teaser" -> 1
-                                    else -> 2
-                                }
-                            }.firstOrNull()
-                        video?.let {
-                            DiscoveryTrailer(
-                                title = detail?.displayTitle?.takeIf { name -> name.isNotBlank() } ?: pick.displayTitle,
-                                key = it.key.orEmpty(),
-                                posterUrl = detail?.posterPath?.let { path -> "https://image.tmdb.org/t/p/w500$path" }
-                                    ?: pick.posterPath?.let { path -> "https://image.tmdb.org/t/p/w500$path" }
-                            )
-                        }
-                    }
-                }.awaitAll().filterNotNull().distinctBy { it.key }.shuffled().take(10)
+            val entries = withContext(Dispatchers.IO) {
+                runCatching {
+                    val pool = ReelFeed.pool(page = 1, perPage = 30).take(RAIL_ANIME_COUNT)
+                    ReelFeed.buildInterleaved(pool)
+                }.getOrNull()
             }
-            trailerItems = trailers
-            if (_binding != null) renderTrailerCarousel()
+            reelEntries = entries ?: emptyList()
+            // One card per show, in the order each first appears in the mixed feed, so a tap
+            // drops the viewer at that show's first video without breaking the interleave.
+            val seen = HashSet<String>()
+            reelRailCards = reelEntries.mapIndexedNotNull { index, item ->
+                if (seen.add(item.animeTitle)) ReelCard(item.animeTitle, item.key, index) else null
+            }
+            if (_binding != null) renderReelRail()
         }
     }
 
-    private fun renderTrailerCarousel() {
+    private fun renderReelRail() {
         val host = _binding?.discoverTrailerCarousel ?: return
+        host.visibility = View.VISIBLE
         host.removeAllViews()
         val context = host.context
         host.addView(TextView(context).apply {
@@ -971,7 +964,7 @@ class DiscoveryFragment : Fragment() {
             setPadding(dp(8), dp(2), dp(8), dp(10))
         }
         val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
-        if (trailerItems.isEmpty()) {
+        if (reelRailCards.isEmpty()) {
             repeat(3) { index ->
                 val placeholder = LinearLayout(context).apply {
                     orientation = LinearLayout.VERTICAL
@@ -990,7 +983,7 @@ class DiscoveryFragment : Fragment() {
                 })
                 placeholder.addView(TextView(context).apply {
                     text = if (ani.sanin.connections.tmdb.Tmdb.apiKey.isBlank())
-                        "Add TMDB API key" else "Trailer slot ${index + 1}"
+                        "Add TMDB API key" else "Loading reels ${index + 1}"
                     textSize = 11f
                     gravity = Gravity.CENTER
                     setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
@@ -999,8 +992,8 @@ class DiscoveryFragment : Fragment() {
                 row.addView(placeholder)
             }
         } else {
-            trailerItems.forEach { trailer ->
-                val card = LinearLayout(context).apply {
+            reelRailCards.forEach { card ->
+                val holder = LinearLayout(context).apply {
                     orientation = LinearLayout.VERTICAL
                     background = context.getDrawable(R.drawable.bg_editorial_card_focus)
                     isFocusable = true
@@ -1009,24 +1002,20 @@ class DiscoveryFragment : Fragment() {
                         marginEnd = dp(10)
                     }
                     setPadding(dp(5), dp(5), dp(5), dp(5))
-                    setOnClickListener {
-                        startActivity(Intent(context, KitsuTrailerPlayerActivity::class.java)
-                            .putExtra(KitsuTrailerPlayerActivity.EXTRA_VIDEO_KEY, trailer.key)
-                            .putExtra(KitsuTrailerPlayerActivity.EXTRA_TITLE, trailer.title))
-                    }
+                    setOnClickListener { openReelPlayer(card.startIndex) }
                 }
-                val poster = ImageView(context).apply {
+                val thumb = ImageView(context).apply {
                     scaleType = ImageView.ScaleType.CENTER_CROP
                     setImageResource(R.drawable.ic_editorial_artwork_unavailable)
-                    contentDescription = trailer.title
+                    contentDescription = card.title
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT, dp(145)
                     )
                 }
-                trailer.posterUrl?.let { poster.loadImage(it) }
-                card.addView(poster)
-                card.addView(TextView(context).apply {
-                    text = trailer.title
+                thumb.loadImage(ReelFeed.thumbnailUrl(card.key))
+                holder.addView(thumb)
+                holder.addView(TextView(context).apply {
+                    text = card.title
                     textSize = 11.5f
                     maxLines = 2
                     ellipsize = android.text.TextUtils.TruncateAt.END
@@ -1034,12 +1023,30 @@ class DiscoveryFragment : Fragment() {
                     setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
                     setPadding(dp(3), dp(5), dp(3), 0)
                 })
-                FocusEffectUtil.applyFocusListener(card)
-                row.addView(card)
+                FocusEffectUtil.applyFocusListener(holder)
+                row.addView(holder)
             }
         }
         scroll.addView(row)
         host.addView(scroll)
+    }
+
+    /** Opens the vertical reels player at [startIndex], continuing the mixed feed from there. */
+    private fun openReelPlayer(startIndex: Int) {
+        if (reelEntries.isEmpty() || !isAdded) return
+        val intent = Intent(requireContext(), YouTubeShortsPlayerActivity::class.java).apply {
+            putStringArrayListExtra(
+                YouTubeShortsPlayerActivity.EXTRA_VIDEO_IDS,
+                ArrayList(reelEntries.map { it.key })
+            )
+            putStringArrayListExtra(
+                YouTubeShortsPlayerActivity.EXTRA_TITLES,
+                ArrayList(reelEntries.map { it.animeTitle })
+            )
+            putExtra(YouTubeShortsPlayerActivity.EXTRA_START_INDEX, startIndex)
+            putExtra(YouTubeShortsPlayerActivity.EXTRA_REEL_MODE, true)
+        }
+        startActivity(intent)
     }
 
     private fun dp(value: Int): Int =

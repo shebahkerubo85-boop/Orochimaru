@@ -33,6 +33,13 @@ data class AniZipMappingIds(
     @SerialName("kitsu_id") val kitsuId: Int? = null,
     @SerialName("themoviedb_id") val tmdbId: String? = null,
     @SerialName("thetvdb_id") val tvdbId: Int? = null,
+    /**
+     * AniList's own format for the entry ("TV", "MOVIE", "OVA", "ONA", …).
+     *
+     * Needed because [tmdbId] is a bare number and TMDB keys movies and shows in separate id
+     * namespaces, so the id alone cannot say which endpoint will answer.
+     */
+    @SerialName("type") val type: String? = null,
 )
 
 @Serializable
@@ -46,6 +53,7 @@ data class AniZipMappings(
     val kitsuId: Int? get() = mappings?.kitsuId
     val tmdbId: String? get() = mappings?.tmdbId
     val tvdbId: Int? get() = mappings?.tvdbId
+    val type: String? get() = mappings?.type
 
     /**
      * Episode entry for a (usually numeric) episode number.
