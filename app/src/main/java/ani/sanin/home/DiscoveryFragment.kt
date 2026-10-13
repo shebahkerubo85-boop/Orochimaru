@@ -937,8 +937,7 @@ class DiscoveryFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             val entries = withContext(Dispatchers.IO) {
                 runCatching {
-                    val pool = ReelFeed.pool(page = 1, perPage = 30).take(RAIL_ANIME_COUNT)
-                    ReelFeed.buildInterleaved(pool)
+                    ReelFeed.buildInterleaved(ReelFeed.railPool(RAIL_ANIME_COUNT))
                 }.getOrNull()
             }
             reelEntries = entries ?: emptyList()

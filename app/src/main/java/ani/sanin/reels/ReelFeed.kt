@@ -8,6 +8,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlin.random.Random
 
 /**
  * Builds the anime trailer "reels" feed: the YouTube videos TMDB holds for popular anime,
@@ -42,6 +43,22 @@ object ReelFeed {
 
     private const val MAX_CACHE = 160
 
+    // How deep a random draw may reach. Roughly the top ~1500 of any ranking: far enough down
+    // that mid-popularity shows surface, shallow enough that the tail is not all obscure entries.
+    private const val MAX_PAGE = 50
+
+    // Half of all draws come from this shallower band so popular shows still appear often; the
+    // other half range across the full depth to bring in the middle of the catalog.
+    private const val POPULAR_BAND_PAGE = 12
+
+    // Each draw takes one page under one of these orders; mixing them keeps the feed from
+    // settling into "always the most popular".
+    private val SORTS = listOf("POPULARITY_DESC", "SCORE_DESC", "TRENDING_DESC", "FAVOURITES_DESC")
+
+    // Last few pages drawn, so back-to-back draws do not land on the same slice.
+    private const val RECENT_PAGE_MEMORY = 12
+    private val recentPages = ArrayDeque<Int>()
+
     private val cacheLock = Any()
     private val cache = object : LinkedHashMap<Int, List<ReelItem>>(16, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Int, List<ReelItem>>?): Boolean =
@@ -60,9 +77,11 @@ object ReelFeed {
         .thenBy { typeRank(it.type) }
         .thenByDescending { it.publishedAt ?: "" }
 
-    /** A page of popular anime, in AniList popularity order. */
-    suspend fun pool(page: Int, perPage: Int = 30): List<AnimeRef> {
-        val media = runCatching { Anilist.query.discoverAnime(page = page, perPage = perPage) }
+    /** A page of anime from AniList under a given sort order. */
+    suspend fun pool(page: Int, perPage: Int = 30, sort: String = "POPULARITY_DESC"): List<AnimeRef> {
+        val media = runCatching {
+            Anilist.query.discoverAnime(page = page, perPage = perPage, sort = sort)
+        }
             .getOrNull()
             ?: return emptyList()
         return media.mapNotNull { item ->
@@ -78,6 +97,46 @@ object ReelFeed {
                 cover = item.cover,
             )
         }
+    }
+
+    /**
+     * One page of shows drawn from a random slice of the catalog under a random rank order.
+     *
+     * Pulling page 1 of popularity every time is what made the rail and the player feel like the
+     * same handful of top shows. Choosing a random page in [1, MAX_PAGE] mixes the household names
+     * at the head of the list with mid-popularity shows further down, and rotating the sort keeps
+     * any one ordering (popular / top-rated / trending) from dominating. Recently used pages are
+     * skipped so consecutive draws do not collide.
+     */
+    suspend fun draw(perPage: Int = 30): List<AnimeRef> =
+        pool(page = nextPage(), perPage = perPage, sort = SORTS.random())
+
+    /**
+     * A rail-sized pool taken from several independent draws and shuffled.
+     *
+     * Two draws are merged (so the strip spans more than one rank slice) and de-duplicated by
+     * AniList id, then shuffled and trimmed to [cardCount] before videos are resolved.
+     */
+    suspend fun railPool(cardCount: Int): List<AnimeRef> {
+        val merged = LinkedHashMap<Int, AnimeRef>()
+        repeat(2) { draw().forEach { merged.putIfAbsent(it.anilistId, it) } }
+        return merged.values.shuffled().take(cardCount)
+    }
+
+    private fun nextPage(): Int = synchronized(cacheLock) {
+        var page: Int
+        var guard = 0
+        do {
+            page = if (Random.nextBoolean()) {
+                (1..POPULAR_BAND_PAGE).random()
+            } else {
+                (1..MAX_PAGE).random()
+            }
+            guard++
+        } while (page in recentPages && guard < 8)
+        recentPages.addLast(page)
+        while (recentPages.size > RECENT_PAGE_MEMORY) recentPages.removeFirst()
+        page
     }
 
     /**

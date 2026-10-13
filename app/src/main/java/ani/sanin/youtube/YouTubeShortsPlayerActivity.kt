@@ -77,7 +77,6 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
     /** Reels mode appends more anime as the viewer nears the end; the shorts feature does not. */
     private var reelMode = false
     private val seenReelKeys = HashSet<String>()
-    private var reelPage = 0
     private var reelLoading = false
     private var reelExhausted = false
 
@@ -378,8 +377,7 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
     private suspend fun nextReelBatch(): List<ReelFeed.ReelItem> {
         var attempts = 0
         while (attempts++ < REEL_MAX_EMPTY_PAGES) {
-            val page = ++reelPage
-            val pool = runCatching { ReelFeed.pool(page = page, perPage = 30) }.getOrDefault(emptyList())
+            val pool = runCatching { ReelFeed.draw() }.getOrDefault(emptyList())
             if (pool.isEmpty()) return emptyList()
             val fresh = runCatching { ReelFeed.buildInterleaved(pool) }.getOrDefault(emptyList())
                 .filter { seenReelKeys.add(it.key) }
@@ -601,7 +599,7 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         /** How close to the end of the feed the next batch is fetched. */
         private const val REEL_PREFETCH_DISTANCE = 4
 
-        /** How many empty pool pages to skip before giving up on an append. */
-        private const val REEL_MAX_EMPTY_PAGES = 4
+        /** How many random draws to attempt before giving up on an append. */
+        private const val REEL_MAX_EMPTY_PAGES = 6
     }
 }

@@ -1860,6 +1860,7 @@ Page(page:$page,perPage:50) {
         seasonYear: Int? = null,
         page: Int = 1,
         perPage: Int = 30,
+        sort: String = "POPULARITY_DESC",
     ): List<Media>? = tryWithSuspend {
         val genrePart = if (genre != null) ", genre: \"$genre\"" else ""
         val seasonPart = if (season != null) ", season: $season" else ""
@@ -1870,7 +1871,7 @@ Page(page:$page,perPage:50) {
                     media(
                         type: ANIME
                         isAdult: false
-                        sort: [POPULARITY_DESC]
+                        sort: [$sort]
                         $genrePart
                         $seasonPart
                         $yearPart
