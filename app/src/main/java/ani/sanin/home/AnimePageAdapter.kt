@@ -312,7 +312,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         // is narrow enough to keep the side panel.
         val modern = isModernBanner()
         val classic = isClassicBanner()
-        val fullBleed = modern || classic || is3DBanner()
+        val fullBleed = modern || classic || is3DBanner() || is3DBanner()
 
         trendingBinding.trendingLeftFade.isVisible = isLandscape && !fullBleed
         if (isLandscape) {
