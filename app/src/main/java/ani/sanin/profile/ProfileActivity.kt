@@ -31,8 +31,6 @@ import ani.sanin.media.user.ListActivity
 import ani.sanin.navBarHeight
 import ani.sanin.openImage
 import ani.sanin.openLinkInBrowser
-import ani.sanin.profile.activity.ActivityFragment
-import ani.sanin.profile.activity.ActivityFragment.Companion.ActivityType
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.snackString
@@ -230,6 +228,7 @@ class ProfileActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedListene
                         )
                     }
 
+                    profileMangaCountContainer.visibility = View.GONE
                     profileAnimeCount.text = user.statistics.anime.count.toString()
                     profileAnimeCountContainer.setOnClickListener {
                         ContextCompat.startActivity(
