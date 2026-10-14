@@ -190,10 +190,10 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                     ),
                     SubscreenBuilder.Entry(
                         title = "Banner Type",
-                        desc = "Compact keeps the current narrow card; Classic is a wide banner with the logo on top, then Watch Now, then the chips; Modern is a full-bleed cinematic banner with the logo, synopsis and a portrait poster",
+                        desc = "Compact keeps the narrow card; Classic uses the logo, Watch Now and chips; Modern is a cinematic banner with synopsis and poster; 3D uses a rotating poster carousel",
                         choice = SubscreenBuilder.Choice(
                             title = "Banner Type",
-                            options = arrayOf("Compact", "Classic", "Modern"),
+                            options = arrayOf("Compact", "Classic", "Modern", "3D"),
                             currentIndex = PrefManager.getVal<Int>(PrefName.BannerType),
                         ) { idx -> PrefManager.setVal(PrefName.BannerType, idx) },
                     ),
