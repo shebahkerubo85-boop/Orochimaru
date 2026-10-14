@@ -8,7 +8,10 @@
  *  GET  /debug?key=<admin>   (diagnostics, no secrets returned)
  *
  *  scheduled() runs every 15 minutes: looks for episodes that just aired for the
- *  shows each device follows and sends an FCM message.
+ *  shows each device follows and sends an FCM message. Subscribers are processed
+ *  in slices (see SLICE_SUBS/CURSOR_KEY) so each invocation stays within the
+ *  Workers Free per-invocation limits; a full cycle covers everyone over several
+ *  ticks.
  *
  * Configuration is read from KV key `cfg:config` (see README notes). Values may also
  * come from env bindings (FCM_PROJECT_ID / FCM_CLIENT_EMAIL / FCM_PRIVATE_KEY /
@@ -20,7 +23,16 @@ const WINDOW_BACK = 6 * 3600; // seconds of airing history to scan
 const WINDOW_FWD = 30 * 60;
 const TMDB_WINDOW_DAYS = 3;
 const ID_BATCH = 50;
-const MAX_PUSHES_PER_SUB = 25;
+
+// Sharding so a single invocation stays within the Workers Free limits
+// (50 external subrequests, 10 ms CPU, 1000 KV ops per invocation). Each cron
+// tick handles one slice of subscribers and advances a cursor, so a full cycle
+// covers everyone across several ticks.
+const SLICE_SUBS = 20; // subscribers handled per invocation
+const MAX_ANILIST_IDS = 300; // AniList IDs queried per invocation (6 batches)
+const MAX_TMDB_FETCHES = 18; // TMDB lookups per invocation
+const MAX_SENDS = 18; // FCM sends per invocation
+const CURSOR_KEY = "meta:cursor";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -217,13 +229,13 @@ async function anilistHits(min, max, ids) {
 
 // ---------------------------------------------------------------- TMDB
 
-async function tmdbHits(cfg, ids) {
+async function tmdbHits(cfg, ids, max = 40) {
   if (!cfg.tmdbKey || ids.length === 0) return [];
   const out = [];
   const cutoff = new Date(Date.now() - TMDB_WINDOW_DAYS * 86400_000)
     .toISOString()
     .slice(0, 10);
-  for (const id of ids.slice(0, 40)) {
+  for (const id of ids.slice(0, max)) {
     try {
       const res = await fetch(
         `https://api.themoviedb.org/3/tv/${id}?api_key=${cfg.tmdbKey}&language=en-US`,
@@ -277,26 +289,73 @@ async function allSubs(env) {
 
 // ---------------------------------------------------------------- cron
 
+// Sweep progress cursor: p = KV list page cursor, a = AniList id window offset,
+// t = TMDB id window offset. Windows rotate so every subscriber's shows are
+// eventually checked while each invocation stays within the Free plan budget.
+function freshCursor() {
+  return { p: "", a: 0, t: 0 };
+}
+
+async function readCursor(env) {
+  const raw = await env.SUBS.get(CURSOR_KEY);
+  if (!raw) return freshCursor();
+  try {
+    const v = JSON.parse(raw);
+    return {
+      p: typeof v.p === "string" ? v.p : "",
+      a: Number.isInteger(v.a) ? v.a : 0,
+      t: Number.isInteger(v.t) ? v.t : 0,
+    };
+  } catch {
+    // Legacy plain-string cursor from an earlier deploy.
+    return { p: raw.startsWith("sub:") ? raw : "", a: 0, t: 0 };
+  }
+}
+
+async function writeCursor(env, c) {
+  await env.SUBS.put(CURSOR_KEY, JSON.stringify(c));
+}
+
 async function runSweep(env) {
   const cfg = await loadConfig(env);
-  const subs = await allSubs(env);
-  if (subs.length === 0) return { subs: 0, sent: 0 };
 
-  const allAnilist = new Set();
-  const allTmdb = new Set();
-  for (const s of subs) {
-    for (const id of s.a || []) allAnilist.add(id);
-    for (const id of s.m || []) allTmdb.add(id);
+  const state = await readCursor(env);
+  const page = await env.SUBS.list({
+    prefix: "sub:",
+    limit: SLICE_SUBS,
+    cursor: state.p || undefined,
+  });
+
+  if (page.keys.length === 0) {
+    if (state.p) await writeCursor(env, freshCursor());
+    return { subs: 0, sent: 0, dead: 0 };
   }
 
+  const subs = [];
+  for (const key of page.keys) {
+    const raw = await env.SUBS.get(key.name);
+    if (!raw) continue;
+    try {
+      subs.push({ key: key.name, ...JSON.parse(raw) });
+    } catch {
+      /* unreadable entry, ignore */
+    }
+  }
+
+  const allAnilist = [...new Set(subs.flatMap((s) => s.a || []))];
+  const allTmdb = [...new Set(subs.flatMap((s) => s.m || []))];
+
   const now = Math.floor(Date.now() / 1000);
-  const airing = allAnilist.size
-    ? await anilistHits(now - WINDOW_BACK, now + WINDOW_FWD, [...allAnilist])
+  const anilistIds = allAnilist.slice(state.a, state.a + MAX_ANILIST_IDS);
+  const tmdbIds = allTmdb.slice(state.t, state.t + MAX_TMDB_FETCHES);
+  const airing = anilistIds.length
+    ? await anilistHits(now - WINDOW_BACK, now + WINDOW_FWD, anilistIds)
     : [];
-  const shows = await tmdbHits(cfg, [...allTmdb]);
+  const shows = await tmdbHits(cfg, tmdbIds);
 
   let sent = 0;
   const dead = [];
+  let processedAll = true;
 
   for (const sub of subs) {
     const noted = sub.n || {};
@@ -309,11 +368,11 @@ async function runSweep(env) {
       if (!followedA.has(a.mediaId)) continue;
       const prev = noted[`a${a.mediaId}`] || 0;
       if (a.episode <= prev) continue;
-      nextNoted[`a${a.mediaId}`] = a.episode;
       const title =
         a.media?.title?.english || a.media?.title?.romaji || a.media?.title?.native || "New episode";
-      jobs.push(
-        notificationPayload(
+      jobs.push({
+        note: [`a${a.mediaId}`, a.episode],
+        payload: notificationPayload(
           "New episode available",
           `${title} · Episode ${a.episode}`,
           a.media?.coverImage?.large || "",
@@ -326,7 +385,7 @@ async function runSweep(env) {
             cover: a.media?.coverImage?.large || "",
           },
         ),
-      );
+      });
     }
 
     for (const show of shows) {
@@ -334,10 +393,10 @@ async function runSweep(env) {
       const key = `t${show.id}`;
       const val = `S${show.season}E${show.episode}`;
       if (noted[key] === val) continue;
-      nextNoted[key] = val;
       const label = show.episodeTitle ? ` (${show.episodeTitle})` : "";
-      jobs.push(
-        notificationPayload(
+      jobs.push({
+        note: [key, val],
+        payload: notificationPayload(
           "New episode available",
           `${show.name} · S${show.season}E${show.episode}${label}`,
           show.poster,
@@ -351,28 +410,63 @@ async function runSweep(env) {
             cover: show.poster,
           },
         ),
-      );
+      });
     }
 
     if (jobs.length === 0) continue;
 
+    // Out of send budget: stop here without advancing past this subscriber so
+    // its remaining jobs are retried on the next tick.
+    if (sent >= MAX_SENDS) {
+      processedAll = false;
+      break;
+    }
+
+    const toSend = jobs.slice(0, MAX_SENDS - sent);
     let subDead = false;
-    for (const job of jobs.slice(0, MAX_PUSHES_PER_SUB)) {
-      const r = await sendFcm(cfg, sub.t, job);
+    for (const job of toSend) {
+      const r = await sendFcm(cfg, sub.t, job.payload);
       if (r === "dead") {
         subDead = true;
         break;
       }
-      if (r === "ok") sent++;
+      if (r === "ok") {
+        sent++;
+        nextNoted[job.note[0]] = job.note[1];
+      }
     }
+
     if (subDead) {
       dead.push(sub.key);
     } else {
+      // Persist progress for exactly the jobs that were sent; anything not sent
+      // stays unnoted and is retried next tick without duplication.
       await env.SUBS.put(sub.key, JSON.stringify({ ...sub, key: undefined, n: nextNoted }));
     }
   }
 
   for (const key of dead) await env.SUBS.delete(key);
+
+  // If the send budget cut the slice short, retry the same page and windows.
+  // Otherwise advance the AniList/TMDB windows, and only move to the next page
+  // once both windows have been fully swept (already-sent jobs are suppressed
+  // via each subscriber's `n`).
+  let next;
+  if (!processedAll) {
+    next = state;
+  } else {
+    const a = state.a + MAX_ANILIST_IDS;
+    const t = state.t + MAX_TMDB_FETCHES;
+    const anilistDone = a >= allAnilist.length;
+    const tmdbDone = t >= allTmdb.length;
+    if (anilistDone && tmdbDone) {
+      next = { p: page.list_complete ? "" : page.cursor || "", a: 0, t: 0 };
+    } else {
+      next = { p: state.p || "", a: anilistDone ? 0 : a, t: tmdbDone ? 0 : t };
+    }
+  }
+  await writeCursor(env, next);
+
   return { subs: subs.length, sent, dead: dead.length };
 }
 
