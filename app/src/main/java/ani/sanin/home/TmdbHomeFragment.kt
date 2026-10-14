@@ -26,6 +26,7 @@ import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
 import ani.sanin.isClassicBanner
 import ani.sanin.isModernBanner
+import ani.sanin.is3DBanner
 import ani.sanin.bannerCardSizePx
 import ani.sanin.cloudstream.CsInstalledSource
 import ani.sanin.cloudstream.CsRepos
@@ -172,18 +173,19 @@ class TmdbHomeFragment : Fragment() {
         val cal = activity?.findViewById<View>(R.id.mainCalendarContainer)
         val avatar = activity?.findViewById<View>(R.id.mainUserAvatarContainer)
         val carouselMode = mode == 0
+        val threeD = carouselMode && is3DBanner()
 
         if (bannerShown) {
-            // Vertical chain, anime-exact: top icons -> watch-now -> first card.
-            // In carousel mode the banner card itself is NOT a focus point; the
-            // watch-now button owns the banner focus and moves the carousel.
+            // 3D exposes the focused poster's own Watch Now pill; other carousel
+            // types keep the external pill as the single focus stop.
             b.tmdbBannerFrame.isFocusable = !carouselMode
             b.tmdbBannerFrame.isClickable = !carouselMode
             b.tmdbBannerFrame.nextFocusUpId = R.id.mainCalendarContainer
-            watchBtn.isFocusable = true
+            watchBtn.isVisible = !threeD
+            watchBtn.isFocusable = !threeD
             watchBtn.nextFocusUpId = R.id.mainCalendarContainer
-            cal?.nextFocusDownId = watchBtn.id
-            avatar?.nextFocusDownId = watchBtn.id
+            cal?.nextFocusDownId = if (threeD) View.NO_ID else watchBtn.id
+            avatar?.nextFocusDownId = if (threeD) View.NO_ID else watchBtn.id
             watchBtn.nextFocusDownId = View.NO_ID
         } else {
             b.tmdbBannerFrame.nextFocusUpId = View.NO_ID
@@ -196,7 +198,8 @@ class TmdbHomeFragment : Fragment() {
         // Once rows are laid out, wire each row vertically.
         binding.tmdbHomeSections.post {
             if (_binding == null) return@post
-            val activeBtn = if (bannerShown) activeWatchBtn() else null
+            val threeD = mode == 0 && is3DBanner()
+            val activeBtn = if (bannerShown && !threeD) activeWatchBtn() else null
             val carousel = if (mode == 0) b.tmdbBannerCarousel else null
             var first = true
             for (i in 0 until b.tmdbHomeSections.childCount) {
@@ -446,8 +449,9 @@ class TmdbHomeFragment : Fragment() {
         rv.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
         // The banner carousel is never D-pad focusable (anime-exact): the
         // watch-now button is the banner focus point and moves this carousel.
-        rv.isFocusable = false
-        rv.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+        rv.isFocusable = is3DBanner()
+        rv.descendantFocusability = if (is3DBanner()) ViewGroup.FOCUS_AFTER_DESCENDANTS
+            else ViewGroup.FOCUS_BLOCK_DESCENDANTS
         // The default animator cross-fades a full-bleed banner on every bind,
         // which is the most expensive thing on a low-RAM TV. The slide is enough.
         rv.itemAnimator = null
