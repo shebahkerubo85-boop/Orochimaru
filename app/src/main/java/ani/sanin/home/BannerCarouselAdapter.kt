@@ -246,7 +246,7 @@ class BannerCarouselAdapter(
         // In Classic the genres were already folded into the chip list above,
         // so only Compact/Large still build the separate genre row here.
         val genresRow = holder.genresRow
-        if (!isClassicBanner()) {
+        if (!isClassicBanner() && !is3DBanner()) {
             genresRow?.removeAllViews()
             if (media.genres.isNotEmpty() && genresRow != null) {
                 val density = ctx.resources.displayMetrics.density
