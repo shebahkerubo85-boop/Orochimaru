@@ -222,20 +222,50 @@ fun View.bannerCardSizePx(maxHeightFraction: Float = 0.55f): Pair<Int, Int> {
  * Gives the 3D banner rail its curved, depth-aware poster treatment.
  * Called on scroll and after layout so D-pad movement and touch swipes stay in sync.
  */
+/**
+ * Positions each poster on the circumference of a vertical cylinder.
+ * The RecyclerView still handles scrolling/snapping; this only maps each
+ * attached face onto the ring, like rotateY(angle) translateZ(radius) in CSS.
+ */
 fun RecyclerView.apply3DBannerTransforms() {
-    if (!is3DBanner() || width <= 0) return
-    val center = width / 2f
-    val halfWidth = (width / 2f).coerceAtLeast(1f)
+    if (!is3DBanner() || width <= 0 || childCount == 0) return
+
+    val centerX = width / 2f
+    val density = resources.displayMetrics.density
+    val firstChild = getChildAt(0)
+    val firstMargins = firstChild.layoutParams as? ViewGroup.MarginLayoutParams
+    val fallbackSpacing = firstChild.width +
+        (firstMargins?.leftMargin ?: 0) + (firstMargins?.rightMargin ?: 0)
+    val measuredSpacing = if (childCount > 1) {
+        val firstCenter = (getChildAt(0).left + getChildAt(0).right) / 2f
+        val secondCenter = (getChildAt(1).left + getChildAt(1).right) / 2f
+        kotlin.math.abs(secondCenter - firstCenter)
+    } else 0f
+    val spacing = (measuredSpacing.takeIf { it > 1f } ?: fallbackSpacing.toFloat())
+        .coerceAtLeast(1f)
+
+    // Eight faces make one complete turn, matching the reference's 45° steps.
+    val anglePerFace = 45f
+    val radius = (firstChild.width / (2f * kotlin.math.sin(Math.toRadians(22.5).toFloat())))
+        .coerceAtLeast(1f)
+
     for (index in 0 until childCount) {
         val child = getChildAt(index)
-        val childCenter = (child.left + child.right) / 2f
-        val distance = ((childCenter - center) / halfWidth).coerceIn(-1f, 1f)
-        val depth = 1f - abs(distance)
-        child.rotationY = -distance * 34f
-        child.scaleX = 0.86f + depth * 0.14f
-        child.scaleY = 0.90f + depth * 0.10f
-        child.translationZ = depth * 22f * resources.displayMetrics.density
-        child.alpha = 0.72f + depth * 0.28f
+        val childCenterX = (child.left + child.right) / 2f
+        val angle = (((childCenterX - centerX) / spacing) * anglePerFace)
+            .coerceIn(-180f, 180f)
+        val radians = Math.toRadians(angle.toDouble())
+        val projectedX = centerX + kotlin.math.sin(radians).toFloat() * radius
+        val depth = kotlin.math.cos(radians).toFloat()
+
+        child.cameraDistance = 10000f * density
+        child.rotationY = angle
+        child.translationX = projectedX - childCenterX
+        child.translationZ = depth * radius
+        val frontness = ((depth + 1f) / 2f).coerceIn(0f, 1f)
+        child.scaleX = 0.94f + frontness * 0.06f
+        child.scaleY = 0.96f + frontness * 0.04f
+        child.alpha = 0.82f + frontness * 0.18f
     }
 }
 
