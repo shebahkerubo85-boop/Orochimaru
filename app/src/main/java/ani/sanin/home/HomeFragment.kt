@@ -1155,7 +1155,7 @@ class HomeFragment : Fragment() {
                 // hide that panel, so pointing the chain at it would strand the
                 // user on a view that is not on screen.
                 val target =
-                    if (isModernBanner() || isClassicBanner()) R.id.homeBannerCarousel
+                    if (isModernBanner() || isClassicBanner() || (is3DBanner() && carouselActive)) R.id.homeBannerCarousel
                     else R.id.homeBannerWatchBtn
                 cwItemUpTarget = target
                 cwRow?.nextFocusUpId = target
@@ -1192,7 +1192,7 @@ class HomeFragment : Fragment() {
 
         // Modern is full-bleed in every orientation: the artwork, logo, synopsis and
         // metadata all live inside the banner, so the side strip is never used.
-        if ((isModernBanner() || is3DBanner()) && hasBanner) {
+        if ((isModernBanner() && hasBanner) || (is3DBanner() && carouselActive)) {
             card.sizeBannerCard()
             setCardCentered(card)
             fade.isVisible = false
@@ -1249,7 +1249,7 @@ class HomeFragment : Fragment() {
         // chips and a watch pill on the card itself, so the side panel would
         // duplicate all three and leave a second watch button stranded at the
         // bottom left. Only Compact is still narrow enough to need it.
-        val fullBleed = isModernBanner() || isClassicBanner()
+        val fullBleed = isModernBanner() || isClassicBanner() || (is3DBanner() && carouselActive)
 
         fade.isVisible = !fullBleed
         fade.updateLayoutParams<ViewGroup.MarginLayoutParams> {
