@@ -123,7 +123,7 @@ class TmdbBannerCarouselAdapter(
 
         // --- Clearlogo / Title ---
         val logoUrl = logoUrls[pos]
-        if (!logoUrl.isNullOrBlank()) {
+        if (!is3DBanner() && !logoUrl.isNullOrBlank()) {
             holder.clearlogo.isVisible = true
             holder.title.isVisible = false
             val logoReq = Glide.with(ctx).load(logoUrl)
