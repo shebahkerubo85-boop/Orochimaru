@@ -80,6 +80,10 @@ class TmdbHomeFragment : Fragment() {
             is Tmdb -> media.displayTitle
             is Plugin -> response.name
         }
+        val posterUrl: String? get() = when (this) {
+            is Tmdb -> media.posterPath?.let { ani.sanin.connections.tmdb.Tmdb.imageUrl(it, 780) }
+            is Plugin -> response.posterUrl
+        }
         val bannerUrl: String? get() = when (this) {
             is Tmdb -> media.backdropPath?.let { ani.sanin.connections.tmdb.Tmdb.imageUrl(it, 780) }
             is Plugin -> backdropUrl ?: response.posterUrl
