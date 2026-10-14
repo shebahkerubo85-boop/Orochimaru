@@ -5,6 +5,11 @@
     android:id="@+id/chartLayout"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:layout_marginStart="8dp"
+    android:layout_marginEnd="8dp"
+    android:layout_marginTop="10dp"
+    android:paddingBottom="8dp"
+    android:background="@drawable/bg_episode_card"
     android:orientation="vertical">
 
     <FrameLayout
@@ -16,8 +21,9 @@
             android:id="@+id/typeText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:fontFamily="@font/poppins_semi_bold"
+            android:layout_gravity="start|center_vertical"
+            android:layout_marginStart="16dp"
+            android:fontFamily="@font/poppins_bold"
             android:text="Format"
             android:textColor="?attr/colorOnSurface"
             android:textSize="16sp"
@@ -40,15 +46,17 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:layout_marginLeft="10dp"
-        android:layout_marginRight="10dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
         android:backgroundTint="@color/transparent"
-        app:cardCornerRadius="64dp">
+        app:cardCornerRadius="20dp"
+        app:cardElevation="0dp"
+        app:strokeColor="@color/transparent">
 
         <com.github.aachartmodel.aainfographics.aachartcreator.AAChartView
             android:id="@+id/chartView"
             android:layout_width="match_parent"
-            android:layout_height="350dp"
+            android:layout_height="280dp"
             android:background="?android:colorBackground" />
     </com.google.android.material.card.MaterialCardView>
 </LinearLayout>
