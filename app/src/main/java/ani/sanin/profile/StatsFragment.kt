@@ -70,7 +70,7 @@ class StatsFragment :
             ArrayAdapter(
                 requireContext(),
                 R.layout.item_dropdown,
-                MediaType.entries.map { it.name.uppercase(Locale.ROOT).replace("_", " ") }
+                listOf("ANIME")
             )
         )
         binding.sourceFilter.setAdapter(
@@ -130,8 +130,9 @@ class StatsFragment :
                     withContext(Dispatchers.Main) {
                         binding.filterContainer.visibility = View.VISIBLE
                         binding.sourceType.setOnItemClickListener { _, _, i, _ ->
-                            type = MediaType.entries.toTypedArray()[i]
-                            loadStats(type == MediaType.ANIME)
+                            type = MediaType.ANIME
+                            binding.sourceType.setText("ANIME", false)
+                            loadStats(true)
                         }
                         binding.sourceFilter.setOnItemClickListener { _, _, i, _ ->
                             statType = StatType.entries.toTypedArray()[i]
