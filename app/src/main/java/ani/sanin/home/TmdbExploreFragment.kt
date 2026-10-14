@@ -418,7 +418,7 @@ class TmdbExploreFragment : Fragment() {
         // Modern and Classic fill the whole width, so there is no left strip to fade and
         // no side panel — the banner carries the logo, chips and watch pill instead. Only
         // Compact keeps the side panel.
-        val fullBleed = isModernBanner() || isClassicBanner() || is3DBanner()
+        val fullBleed = isModernBanner() || isClassicBanner() || is3DBanner() || is3DBanner()
 
         trendingBinding.trendingLeftFade.isVisible = isLandscape && !fullBleed
         if (isLandscape) {
