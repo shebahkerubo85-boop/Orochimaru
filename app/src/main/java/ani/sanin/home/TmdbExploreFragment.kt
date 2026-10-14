@@ -38,6 +38,7 @@ import ani.sanin.databinding.LayoutTrendingBinding
 import ani.sanin.getThemeColor
 import ani.sanin.isClassicBanner
 import ani.sanin.isModernBanner
+import ani.sanin.is3DBanner
 import ani.sanin.isTvDevice
 import ani.sanin.limitedAsyncMap
 import ani.sanin.settings.saving.PrefManager
@@ -311,7 +312,7 @@ class TmdbExploreFragment : Fragment() {
             layoutRes = layoutForBannerType(isModernBanner()),
             // Classic and Modern carry their own watch pill, so the cardMode path that
             // hides it only applies to Compact.
-            cardMode = !isModernBanner() && !isClassicBanner(),
+            cardMode = !isModernBanner() && !isClassicBanner() && !is3DBanner(),
             hideDescription = !isModernBanner(),
             modernMode = isModernBanner()
         )
@@ -417,7 +418,7 @@ class TmdbExploreFragment : Fragment() {
         // Modern and Classic fill the whole width, so there is no left strip to fade and
         // no side panel — the banner carries the logo, chips and watch pill instead. Only
         // Compact keeps the side panel.
-        val fullBleed = isModernBanner() || isClassicBanner()
+        val fullBleed = isModernBanner() || isClassicBanner() || is3DBanner()
 
         trendingBinding.trendingLeftFade.isVisible = isLandscape && !fullBleed
         if (isLandscape) {
