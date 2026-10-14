@@ -45,6 +45,7 @@ import com.bumptech.glide.request.target.Target
 import ani.sanin.MainActivity
 import ani.sanin.isClassicBanner
 import ani.sanin.isModernBanner
+import ani.sanin.is3DBanner
 import ani.sanin.R
 import ani.sanin.Refresh
 import ani.sanin.blurImage
@@ -817,7 +818,7 @@ class HomeFragment : Fragment() {
                             layoutRes = layoutForBannerType(modern),
                             // Classic carries its own watch pill, same as Modern.
                             // Leaving it in cardMode hid the button entirely.
-                            cardMode = !modern && !isClassicBanner(),
+                            cardMode = !modern && !isClassicBanner() && !is3DBanner(),
                             hideDescription = !modern,
                             modernMode = modern,
                         )
@@ -1191,7 +1192,7 @@ class HomeFragment : Fragment() {
 
         // Modern is full-bleed in every orientation: the artwork, logo, synopsis and
         // metadata all live inside the banner, so the side strip is never used.
-        if (isModernBanner() && hasBanner) {
+        if ((isModernBanner() || is3DBanner()) && hasBanner) {
             card.sizeBannerCard()
             setCardCentered(card)
             fade.isVisible = false
