@@ -28,6 +28,7 @@ import ani.sanin.media.CharacterAdapter
 import ani.sanin.media.Media
 import ani.sanin.media.MediaAdaptor
 import ani.sanin.openOrCopyAnilistLink
+import ani.sanin.profile.activity.ActivityFragment
 import ani.sanin.setBaseline
 import ani.sanin.setSlideIn
 import ani.sanin.setSlideUp
@@ -122,13 +123,11 @@ class ProfileFragment : Fragment() {
             binding.profileFavAnime
         )
 
-        initRecyclerView(
-            model.getMangaFav(),
-            binding.profileFavMangaContainer,
-            binding.profileFavMangaRecyclerView,
-            binding.profileFavMangaProgressBar,
-            binding.profileFavManga
-        )
+        // Sanin is anime-first: keep manga out of the profile UI.
+        binding.profileFavMangaContainer.visibility = View.GONE
+        (binding.statsChaptersRead.parent as? View)?.visibility = View.GONE
+        (binding.statsVolumeRead.parent as? View)?.visibility = View.GONE
+        (binding.statsMangaMeanScore.parent as? View)?.visibility = View.GONE
 
         user.favourites?.characters?.nodes?.forEach { i ->
             favCharacter.add(Character(i.id, i.name.full, i.image.large, i.image.large, "", i.isFavourite))
@@ -139,6 +138,19 @@ class ProfileFragment : Fragment() {
         }
 
         setFavPeople()
+
+        // Activity is part of the profile page now, not a separate navigation tab.
+        if (childFragmentManager.findFragmentById(R.id.profileActivityFeedContainer) == null) {
+            childFragmentManager.beginTransaction()
+                .replace(
+                    R.id.profileActivityFeedContainer,
+                    ActivityFragment.newInstance(
+                        ActivityFragment.Companion.ActivityType.OTHER_USER,
+                        user.id
+                    )
+                )
+                .commit()
+        }
     }
 
     override fun onResume() {
