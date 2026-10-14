@@ -19,6 +19,7 @@ import com.bumptech.glide.Glide
 import ani.sanin.R
 import ani.sanin.connections.tmdb.TmdbDetail
 import ani.sanin.isClassicBanner
+import ani.sanin.is3DBanner
 import ani.sanin.getThemeColor
 
 class TmdbBannerCarouselAdapter(
@@ -54,6 +55,16 @@ class TmdbBannerCarouselAdapter(
                 parent,
                 false,
             )
+        if (is3DBanner()) {
+            view.layoutParams = RecyclerView.LayoutParams(
+                (parent.resources.displayMetrics.widthPixels * 0.52f).toInt(),
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ).apply {
+                val margin = (8 * parent.resources.displayMetrics.density).toInt()
+                leftMargin = margin
+                rightMargin = margin
+            }
+        }
         return ViewHolder(view)
     }
 
@@ -68,13 +79,13 @@ class TmdbBannerCarouselAdapter(
         }
 
         // --- Banner image ---
-        val imageUrl = item.bannerUrl
+        val imageUrl = if (is3DBanner()) item.posterUrl else item.bannerUrl
         val bannerImage = holder.bannerImage
         val loadOptions = bannerLoadOptions(currentBannerType(modernMode, isClassicBanner()))
         if (!imageUrl.isNullOrBlank()) {
             holder.bannerImage?.isVisible = true
             holder.bannerBg.isVisible = true
-            bannerImage?.scaleType = if (isClassicBanner()) android.widget.ImageView.ScaleType.CENTER_CROP
+            bannerImage?.scaleType = if (isClassicBanner() || is3DBanner()) android.widget.ImageView.ScaleType.CENTER_CROP
                 else android.widget.ImageView.ScaleType.FIT_CENTER
             Glide.with(ctx).load(imageUrl).placeholder(R.color.bg_black).error(R.drawable.ic_round_person_24)
                 .apply(loadOptions)
@@ -193,7 +204,7 @@ class TmdbBannerCarouselAdapter(
         // --- Watch Now pill / fav button ---
         // Classic shows the pill as its D-pad stop, the same as Modern. Compact
         // keeps hiding both, since its metadata lives in the side panel.
-        if (isClassicBanner()) {
+        if (isClassicBanner() || is3DBanner()) {
             holder.playBtn.setOnClickListener { onItemClick(item) }
             holder.playBtn.isFocusable = true
             holder.playBtn.isFocusableInTouchMode = false
@@ -218,7 +229,7 @@ class TmdbBannerCarouselAdapter(
         for (offset in listOf(-1, 1)) {
             val adjPos = realPosition(position + offset)
             if (adjPos in items.indices) {
-                items[adjPos].bannerUrl?.let {
+                (if (is3DBanner()) items[adjPos].posterUrl else items[adjPos].bannerUrl)?.let {
                     Glide.with(ctx)
                         .load(it)
                         .apply(bannerLoadOptions(currentBannerType(modernMode, isClassicBanner())))
