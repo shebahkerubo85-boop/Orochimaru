@@ -173,6 +173,7 @@ function notificationPayload(title, body, image, data) {
       priority: "high",
       notification: {
         channel_id: "anime_push",
+        icon: "notification_icon",
         ...(image ? { image } : {}),
         color: "#039BE5",
         click_action: "ani.sanin.OPEN_MEDIA",
