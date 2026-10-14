@@ -92,14 +92,15 @@ class BannerCarouselAdapter(
             parent.clipChildren = false
             val sidePadding = ((viewportWidth - cardWidth) / 2).coerceAtLeast(0)
             parent.setPadding(sidePadding, parent.paddingTop, sidePadding, parent.paddingBottom)
-            if (threeDScrollListener == null) {
+            val recycler = parent as? RecyclerView
+            if (recycler != null && threeDScrollListener == null) {
                 threeDScrollListener = object : RecyclerView.OnScrollListener() {
                     override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                         recyclerView.apply3DBannerTransforms()
                     }
                 }
-                parent.addOnScrollListener(threeDScrollListener!!)
-                parent.post { parent.apply3DBannerTransforms() }
+                recycler.addOnScrollListener(threeDScrollListener!!)
+                recycler.post { recycler.apply3DBannerTransforms() }
             }
         }
         return ViewHolder(view)
