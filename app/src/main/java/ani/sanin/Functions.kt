@@ -246,7 +246,7 @@ fun RecyclerView.apply3DBannerTransforms() {
 
     // Eight faces make one complete turn, matching the reference's 45° steps.
     val anglePerFace = 45f
-    val radius = (firstChild.width / (2f * kotlin.math.sin(Math.toRadians(22.5).toFloat())))
+    val radius = (firstChild.width / (2f * kotlin.math.sin(Math.toRadians(22.5)).toFloat()))
         .coerceAtLeast(1f)
 
     for (index in 0 until childCount) {
