@@ -266,7 +266,96 @@
                 android:orientation="vertical"
                 android:padding="8dp">
 
+
+
                 <TextView
+                    android:id="@+id/activityMediaName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/poppins_bold"
+                    android:maxLines="2"
+                    android:text="@string/anime"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    tools:ignore="HardcodedText" />
+
+android:id="@+id/activityBannerContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="vertical"
+        android:visibility="visible">
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start|center_vertical"
+            app:cardBackgroundColor="@color/nav_bg"
+            app:cardCornerRadius="24dp"
+            app:strokeColor="@color/transparent">
+
+            <ImageView
+                android:id="@+id/activityBannerImage"
+                android:layout_width="match_parent"
+                android:layout_height="152dp"
+                android:scaleType="centerCrop"
+                tools:ignore="ContentDescription"
+                tools:srcCompat="@tools:sample/backgrounds/scenic" />
+
+            <ImageView
+                android:id="@+id/imageView"
+                android:layout_width="match_parent"
+                android:layout_height="153dp"
+                app:srcCompat="@drawable/linear_gradient_nav"
+                tools:ignore="ContentDescription" />
+
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/activityCoverContainer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start|center_vertical"
+                android:layout_margin="16dp"
+                android:layout_marginStart="16dp"
+                android:backgroundTint="@color/bg_white"
+                app:cardCornerRadius="16dp"
+                app:strokeColor="@color/transparent">
+
+                <com.google.android.material.imageview.ShapeableImageView
+                    android:id="@+id/activityCover"
+                    android:layout_width="108dp"
+                    android:layout_height="160dp"
+                    android:layout_gravity="center"
+                    android:scaleType="centerCrop"
+                    tools:ignore="ContentDescription,ImageContrastCheck"
+                    tools:srcCompat="@tools:sample/backgrounds/scenic"
+                    tools:tint="@color/transparent" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start|bottom"
+                android:layout_marginStart="128dp"
+                android:layout_marginEnd="8dp"
+                android:layout_marginBottom="8dp"
+                android:orientation="vertical"
+                android:padding="8dp">
+
+                <TextView
+                    android:id="@+id/activityMediaName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/poppins_bold"
+                    android:maxLines="2"
+                    android:text="@string/anime"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    tools:ignore="HardcodedText" />
+
                     android:id="@+id/activityMediaName"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
