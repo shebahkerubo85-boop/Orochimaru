@@ -31,6 +31,7 @@ import ani.sanin.getThemeColor
 import ani.sanin.initActivity
 import ani.sanin.media.MediaType
 import ani.sanin.navBarHeight
+import ani.sanin.notifications.ExtensionBatchInstaller
 import ani.sanin.others.AndroidBug5497Workaround
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
@@ -125,6 +126,8 @@ class ExtensionsActivity : AppCompatActivity() {
         initActivity(this)
         AndroidBug5497Workaround.assistActivity(this) { }
 
+        cloudStreamMode = intent.getBooleanExtra(EXTRA_CLOUDSTREAM_MODE, false)
+
         setupModeToggle()
 
         val viewPager = findViewById<ViewPager2>(R.id.viewPager)
@@ -198,6 +201,15 @@ class ExtensionsActivity : AppCompatActivity() {
         binding.settingsContainer.updatePadding(top = statusBarHeight, bottom = navBarHeight)
 
         setupModeButtons()
+
+        if (intent.getBooleanExtra(EXTRA_INSTALL_UPDATES, false)) {
+            ExtensionBatchInstaller.installPending(this)
+        }
+    }
+
+    companion object {
+        const val EXTRA_CLOUDSTREAM_MODE = "extra_cloudstream_mode"
+        const val EXTRA_INSTALL_UPDATES = "extra_install_updates"
     }
 
     /** Search only exists on Installed tabs (position 0): icon + expandable bar. */

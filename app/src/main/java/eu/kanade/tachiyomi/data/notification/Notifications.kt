@@ -86,6 +86,8 @@ object Notifications {
     const val CHANNEL_EXTENSIONS_UPDATE = "ext_apk_update_channel"
     const val ID_UPDATES_TO_EXTS = -401
     const val ID_EXTENSION_INSTALLER = -402
+    const val CHANNEL_PLUGIN_UPDATE = "plugin_update_channel"
+    const val ID_PLUGIN_UPDATES = -1102
 
     private val deprecatedChannels = listOf(
         "downloader_channel",
@@ -122,7 +124,7 @@ object Notifications {
                     setName("Downloader")
                 },
                 buildNotificationChannelGroup(GROUP_APK_UPDATES) {
-                    setName("App & Extension Updates")
+                    setName("App, Plugin & Extension Updates")
                 },
                 buildNotificationChannelGroup(GROUP_COMMENTS) {
                     setName("Comments")
@@ -192,6 +194,10 @@ object Notifications {
                 buildNotificationChannel(CHANNEL_EXTENSIONS_UPDATE, IMPORTANCE_DEFAULT) {
                     setGroup(GROUP_APK_UPDATES)
                     setName("Extension Updates")
+                },
+                buildNotificationChannel(CHANNEL_PLUGIN_UPDATE, IMPORTANCE_DEFAULT) {
+                    setGroup(GROUP_APK_UPDATES)
+                    setName("Plugin Updates")
                 },
             ),
         )

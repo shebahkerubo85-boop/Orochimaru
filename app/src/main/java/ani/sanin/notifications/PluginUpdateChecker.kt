@@ -12,6 +12,7 @@ import ani.sanin.R
 import ani.sanin.cloudstream.CsInstalledSource
 import ani.sanin.cloudstream.CsRepos
 import ani.sanin.cloudstream.CsSource
+import ani.sanin.settings.ExtensionsActivity
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.util.Logger
@@ -24,8 +25,6 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
 object PluginUpdateChecker {
-
-    private const val NOTIFICATION_ID = -1101
 
     data class UpdateInfo(
         val id: String,
@@ -47,7 +46,7 @@ object PluginUpdateChecker {
             val animeUpdates = checkAnimeExtensionUpdates()
 
             if (autoUpdate) {
-                val updatedNames = mutableListOf<String>()
+                val updatedPlugins = mutableListOf<String>()
 
                 // Auto-update CloudStream plugins
                 for (info in csUpdates) {
@@ -55,46 +54,77 @@ object PluginUpdateChecker {
                     if (repoSource != null) {
                         runCatching {
                             CsRepos.install(context, info.repoUrl, repoSource)
-                            updatedNames.add(info.displayName)
+                            updatedPlugins.add(info.displayName)
                             Logger.log("PluginUpdateChecker: Auto-updated CS plugin ${info.displayName}")
                         }
                     }
                 }
 
-                // Auto-update Aniyomi extensions
-                for (ext in animeUpdates) {
-                    runCatching {
-                        val manager: AnimeExtensionManager = Injekt.get()
-                        manager.updateExtension(ext)
-                        updatedNames.add(ext.name)
-                        Logger.log("PluginUpdateChecker: Auto-updated anime extension ${ext.name}")
-                    }
-                }
-
-                if (updatedNames.isNotEmpty()) {
+                if (updatedPlugins.isNotEmpty()) {
                     showNotification(
                         context,
+                        Notifications.CHANNEL_PLUGIN_UPDATE,
+                        Notifications.ID_PLUGIN_UPDATES,
                         "Plugins Updated",
-                        "Updated ${updatedNames.size} plugin(s): ${updatedNames.joinToString(", ")}"
+                        "Updated ${updatedPlugins.size} plugin(s): ${updatedPlugins.joinToString(", ")}",
+                        extensionsActivityPendingIntent(
+                            context,
+                            Notifications.ID_PLUGIN_UPDATES,
+                            cloudStreamMode = true
+                        )
+                    )
+                }
+
+                // Extensions can't be installed silently (Android requires a user-confirmed
+                // install), so just notify and let the tap run the batch install.
+                if (animeUpdates.isNotEmpty()) {
+                    val extensionLines = animeUpdates.map { it.name }
+                    showNotification(
+                        context,
+                        Notifications.CHANNEL_EXTENSIONS_UPDATE,
+                        Notifications.ID_UPDATES_TO_EXTS,
+                        "Extensions Updated",
+                        "Updated ${animeUpdates.size} extension(s): ${extensionLines.joinToString(", ")}\n" +
+                            "Installation still required — tap to install.",
+                        extensionsActivityPendingIntent(
+                            context,
+                            Notifications.ID_UPDATES_TO_EXTS,
+                            installUpdates = true
+                        )
                     )
                 }
             } else {
                 // Notification-only mode: show what has updates available
-                val allUpdates = mutableListOf<String>()
-
-                for (info in csUpdates) {
-                    allUpdates.add("${info.displayName} (v${info.installedVersion} → v${info.availableVersion})")
-                }
-                for (ext in animeUpdates) {
-                    allUpdates.add(ext.name)
-                }
-
-                if (allUpdates.isNotEmpty()) {
-                    val summary = allUpdates.joinToString("\n")
+                if (csUpdates.isNotEmpty()) {
+                    val pluginLines = csUpdates.map {
+                        "${it.displayName} (v${it.installedVersion} → v${it.availableVersion})"
+                    }
                     showNotification(
                         context,
-                        "${allUpdates.size} Plugin Update${if (allUpdates.size > 1) "s" else ""} Available",
-                        summary
+                        Notifications.CHANNEL_PLUGIN_UPDATE,
+                        Notifications.ID_PLUGIN_UPDATES,
+                        "${csUpdates.size} Plugin Update${if (csUpdates.size > 1) "s" else ""} Available",
+                        pluginLines.joinToString("\n"),
+                        extensionsActivityPendingIntent(
+                            context,
+                            Notifications.ID_PLUGIN_UPDATES,
+                            cloudStreamMode = true
+                        )
+                    )
+                }
+
+                if (animeUpdates.isNotEmpty()) {
+                    val extensionLines = animeUpdates.map { it.name }
+                    showNotification(
+                        context,
+                        Notifications.CHANNEL_EXTENSIONS_UPDATE,
+                        Notifications.ID_UPDATES_TO_EXTS,
+                        "${animeUpdates.size} Extension Update${if (animeUpdates.size > 1) "s" else ""} Available",
+                        extensionLines.joinToString("\n"),
+                        extensionsActivityPendingIntent(
+                            context,
+                            Notifications.ID_UPDATES_TO_EXTS
+                        )
                     )
                 }
             }
@@ -150,18 +180,34 @@ object PluginUpdateChecker {
         }.getOrNull()
     }
 
-    private fun showNotification(context: Context, title: String, text: String) {
-        val intent = Intent(context, Class.forName("ani.sanin.MainActivity")).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+    private fun extensionsActivityPendingIntent(
+        context: Context,
+        requestCode: Int,
+        cloudStreamMode: Boolean = false,
+        installUpdates: Boolean = false
+    ): PendingIntent {
+        val intent = Intent(context, ExtensionsActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            putExtra(ExtensionsActivity.EXTRA_CLOUDSTREAM_MODE, cloudStreamMode)
+            putExtra(ExtensionsActivity.EXTRA_INSTALL_UPDATES, installUpdates)
         }
-        val pendingIntent = PendingIntent.getActivity(
+        return PendingIntent.getActivity(
             context,
-            0,
+            requestCode,
             intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
+    }
 
-        val notification = NotificationCompat.Builder(context, Notifications.CHANNEL_EXTENSIONS_UPDATE)
+    private fun showNotification(
+        context: Context,
+        channelId: String,
+        notificationId: Int,
+        title: String,
+        text: String,
+        pendingIntent: PendingIntent
+    ) {
+        val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.notification_icon)
             .setContentTitle(title)
             .setContentText(text)
@@ -177,7 +223,7 @@ object PluginUpdateChecker {
             ) == PackageManager.PERMISSION_GRANTED
         ) {
             NotificationManagerCompat.from(context)
-                .notify(NOTIFICATION_ID, notification)
+                .notify(notificationId, notification)
         }
     }
 }
