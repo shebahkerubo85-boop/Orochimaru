@@ -24,6 +24,7 @@ import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
 import ani.sanin.R
 import ani.sanin.isClassicBanner
+import ani.sanin.is3DBanner
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.getThemeColor
 import ani.sanin.loadImage
@@ -67,6 +68,16 @@ class BannerCarouselAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(layoutRes, parent, false)
+        if (is3DBanner()) {
+            view.layoutParams = RecyclerView.LayoutParams(
+                (parent.resources.displayMetrics.widthPixels * 0.52f).toInt(),
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ).apply {
+                val margin = (8 * parent.resources.displayMetrics.density).toInt()
+                leftMargin = margin
+                rightMargin = margin
+            }
+        }
         return ViewHolder(view)
     }
 
@@ -81,14 +92,15 @@ class BannerCarouselAdapter(
 
         // --- Banner image (AniZip backdrop, fallback AniList banner/cover) ---
         val anizipUrl = backdropUrls[media.id]
-        val imageUrl = if (!anizipUrl.isNullOrBlank()) anizipUrl
+        val imageUrl = if (is3DBanner()) media.cover
+                       else if (!anizipUrl.isNullOrBlank()) anizipUrl
                        else media.banner ?: media.cover
         val bannerImage = holder.bannerImage
         val loadOptions = bannerLoadOptions(currentBannerType(modernMode, isClassicBanner()))
         if (!imageUrl.isNullOrBlank()) {
             holder.bannerBg.visibility = View.VISIBLE
             bannerImage?.visibility = View.VISIBLE
-            bannerImage?.scaleType = if (isClassicBanner()) ImageView.ScaleType.CENTER_CROP
+            bannerImage?.scaleType = if (isClassicBanner() || is3DBanner()) ImageView.ScaleType.CENTER_CROP
                 else ImageView.ScaleType.FIT_CENTER
             Glide.with(holder.itemView.context)
                 .load(imageUrl)
@@ -106,7 +118,7 @@ class BannerCarouselAdapter(
                         resource: Drawable, model: Any, target: Target<Drawable>,
                         dataSource: DataSource, isFirstResource: Boolean
                     ): Boolean {
-                        bannerImage?.scaleType = if (isClassicBanner() ||
+                        bannerImage?.scaleType = if (isClassicBanner() || is3DBanner() ||
                             resource.intrinsicHeight > resource.intrinsicWidth)
                             ImageView.ScaleType.CENTER_CROP
                         else
@@ -117,7 +129,7 @@ class BannerCarouselAdapter(
                         e: GlideException?, model: Any?, target: Target<Drawable>,
                         isFirstResource: Boolean
                     ): Boolean {
-                        bannerImage?.scaleType = if (isClassicBanner()) ImageView.ScaleType.CENTER_CROP
+                        bannerImage?.scaleType = if (isClassicBanner() || is3DBanner()) ImageView.ScaleType.CENTER_CROP
                             else ImageView.ScaleType.FIT_CENTER
                         return false
                     }
@@ -168,7 +180,13 @@ class BannerCarouselAdapter(
             }
         val scoreText = media.meanScore?.let { "$it%" }
 
-        if (isClassicBanner()) {
+        if (is3DBanner()) {
+            holder.genresRow?.isVisible = false
+            holder.formatTag?.isVisible = false
+            holder.statusTag?.isVisible = false
+            holder.seasonTag?.isVisible = false
+            holder.scoreTag?.isVisible = false
+        } else if (isClassicBanner()) {
             bindClassicChips(
                 holder.genresRow,
                 holder.chipsTop,
@@ -191,7 +209,7 @@ class BannerCarouselAdapter(
             ?.replace(Regex("<.*?>"), "")
             ?.replace(Regex("\\s+"), " ")
             ?.trim()
-        if (hideDescription || isClassicBanner()) {
+        if (hideDescription || isClassicBanner() || is3DBanner()) {
             holder.description.isVisible = false
         } else if (!desc.isNullOrBlank()) {
             holder.description.text = desc
@@ -306,7 +324,7 @@ class BannerCarouselAdapter(
             val pos = realPosition(position + offset)
             if (pos in items.indices) {
                 val item = items[pos]
-                val url = backdropUrls[item.id] ?: item.banner ?: item.cover
+                val url = if (is3DBanner()) item.cover else backdropUrls[item.id] ?: item.banner ?: item.cover
                 if (!url.isNullOrBlank()) {
                     Glide.with(ctx)
                         .load(url)
@@ -657,6 +675,7 @@ private fun setChip(view: TextView?, text: String?) {
  * original card layout it has always used.
  */
 fun layoutForBannerType(modern: Boolean): Int = when {
+    is3DBanner() -> R.layout.item_banner_3d
     modern -> R.layout.item_banner_modern
     isClassicBanner() -> R.layout.item_banner_classic
     else -> R.layout.item_banner_card
