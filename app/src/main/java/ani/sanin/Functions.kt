@@ -154,6 +154,7 @@ import java.util.TimerTask
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.math.log2
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
@@ -215,6 +216,27 @@ fun View.bannerCardSizePx(maxHeightFraction: Float = 0.55f): Pair<Int, Int> {
         }
     }
     return (finalW * density).toInt() to (finalH * density).toInt()
+}
+
+/**
+ * Gives the 3D banner rail its curved, depth-aware poster treatment.
+ * Called on scroll and after layout so D-pad movement and touch swipes stay in sync.
+ */
+fun RecyclerView.apply3DBannerTransforms() {
+    if (!is3DBanner() || width <= 0) return
+    val center = width / 2f
+    val halfWidth = (width / 2f).coerceAtLeast(1f)
+    for (index in 0 until childCount) {
+        val child = getChildAt(index)
+        val childCenter = (child.left + child.right) / 2f
+        val distance = ((childCenter - center) / halfWidth).coerceIn(-1f, 1f)
+        val depth = 1f - abs(distance)
+        child.rotationY = -distance * 34f
+        child.scaleX = 0.86f + depth * 0.14f
+        child.scaleY = 0.90f + depth * 0.10f
+        child.translationZ = depth * 22f * resources.displayMetrics.density
+        child.alpha = 0.72f + depth * 0.28f
+    }
 }
 
 fun View.sizeBannerCard(maxHeightFraction: Float = 0.55f) {
