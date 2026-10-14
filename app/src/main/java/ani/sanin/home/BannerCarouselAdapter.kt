@@ -25,6 +25,7 @@ import com.bumptech.glide.request.target.Target
 import ani.sanin.R
 import ani.sanin.isClassicBanner
 import ani.sanin.is3DBanner
+import ani.sanin.apply3DBannerTransforms
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.getThemeColor
 import ani.sanin.loadImage
@@ -46,6 +47,7 @@ class BannerCarouselAdapter(
 ) : RecyclerView.Adapter<BannerCarouselAdapter.ViewHolder>() {
 
     private var landscapeOverlay = false
+    private var threeDScrollListener: RecyclerView.OnScrollListener? = null
     private var cardWidthPx = 0
 
     fun setLandscapeMode(enabled: Boolean, cardWidthPx: Int) {
@@ -69,13 +71,35 @@ class BannerCarouselAdapter(
         val view = LayoutInflater.from(parent.context)
             .inflate(layoutRes, parent, false)
         if (is3DBanner()) {
+            val density = parent.resources.displayMetrics.density
+            val viewportWidth = parent.width.takeIf { it > 0 }
+                ?: parent.resources.displayMetrics.widthPixels
+            val cardWidth = if (parent.resources.configuration.orientation ==
+                android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
+                (240 * density).toInt()
+            } else {
+                (viewportWidth * 0.58f).toInt()
+            }
             view.layoutParams = RecyclerView.LayoutParams(
-                (parent.resources.displayMetrics.widthPixels * 0.52f).toInt(),
+                cardWidth,
                 ViewGroup.LayoutParams.MATCH_PARENT,
             ).apply {
-                val margin = (8 * parent.resources.displayMetrics.density).toInt()
+                val margin = (8 * density).toInt()
                 leftMargin = margin
                 rightMargin = margin
+            }
+            parent.clipToPadding = false
+            parent.clipChildren = false
+            val sidePadding = ((viewportWidth - cardWidth) / 2).coerceAtLeast(0)
+            parent.setPadding(sidePadding, parent.paddingTop, sidePadding, parent.paddingBottom)
+            if (threeDScrollListener == null) {
+                threeDScrollListener = object : RecyclerView.OnScrollListener() {
+                    override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                        recyclerView.apply3DBannerTransforms()
+                    }
+                }
+                parent.addOnScrollListener(threeDScrollListener!!)
+                parent.post { parent.apply3DBannerTransforms() }
             }
         }
         return ViewHolder(view)
