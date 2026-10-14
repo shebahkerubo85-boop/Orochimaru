@@ -19,7 +19,7 @@
  */
 
 const ANILIST_ENDPOINT = "https://graphql.anilist.co";
-const WINDOW_BACK = 6 * 3600; // seconds of airing history to scan
+const WINDOW_BACK = 12 * 3600; // seconds of airing history to scan
 const WINDOW_FWD = 30 * 60;
 const TMDB_WINDOW_DAYS = 3;
 const ID_BATCH = 50;
@@ -30,8 +30,8 @@ const ID_BATCH = 50;
 // covers everyone across several ticks.
 const SLICE_SUBS = 20; // subscribers handled per invocation
 const MAX_ANILIST_IDS = 300; // AniList IDs queried per invocation (6 batches)
-const MAX_TMDB_FETCHES = 18; // TMDB lookups per invocation
-const MAX_SENDS = 18; // FCM sends per invocation
+const MAX_TMDB_FETCHES = 30; // TMDB lookups per invocation
+const MAX_SENDS = 12; // FCM sends per invocation
 const CURSOR_KEY = "meta:cursor";
 
 const CORS = {
