@@ -167,7 +167,7 @@ class BannerCarouselAdapter(
         holder.clearlogo.isVisible = false
         holder.clearlogo.setImageDrawable(null)
         val logoUrl = logoUrls[media.id]
-        if (!logoUrl.isNullOrBlank()) {
+        if (!is3DBanner() && !logoUrl.isNullOrBlank()) {
             holder.clearlogo.isVisible = true
             holder.title.isVisible = false
             val logoReq = com.bumptech.glide.Glide.with(holder.clearlogo.context)
