@@ -67,11 +67,9 @@ class ProfileActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedListene
         screenWidth = resources.displayMetrics.widthPixels.toFloat()
         navBar = binding.profileNavBar
         FocusEffectUtil.applyFocusListener(binding.root, navBar)
-        val feedTab = navBar.createTab(R.drawable.ic_round_filter_24, "Feed")
         val profileTab = navBar.createTab(R.drawable.ic_round_person_24, "Profile")
         val statsTab = navBar.createTab(R.drawable.ic_stats_24, "Stats")
         navBar.addTab(profileTab)
-        navBar.addTab(feedTab)
         navBar.addTab(statsTab)
         navBar.visibility = View.GONE
         binding.profileViewPager.isUserInputEnabled = false
@@ -325,11 +323,10 @@ class ProfileActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedListene
     ) :
         FragmentStateAdapter(fragmentManager, lifecycle) {
 
-        override fun getItemCount(): Int = 3
+        override fun getItemCount(): Int = 2
         override fun createFragment(position: Int): Fragment = when (position) {
             0 -> ProfileFragment.newInstance(user)
-            1 -> ActivityFragment.newInstance(ActivityType.OTHER_USER, user.id)
-            2 -> StatsFragment.newInstance(user)
+            1 -> StatsFragment.newInstance(user)
             else -> ProfileFragment.newInstance(user)
         }
     }
