@@ -172,6 +172,7 @@ val Float.px: Int get() = (this * getSystem().displayMetrics.density).toInt()
 const val BANNER_TYPE_COMPACT = 0
 const val BANNER_TYPE_CLASSIC = 1
 const val BANNER_TYPE_MODERN = 2
+const val BANNER_TYPE_3D = 3
 
 fun bannerType(): Int = try {
     PrefManager.getVal<Int>(PrefName.BannerType)
@@ -183,6 +184,8 @@ fun isClassicBanner(): Boolean = bannerType() == BANNER_TYPE_CLASSIC
 
 fun isModernBanner(): Boolean = bannerType() == BANNER_TYPE_MODERN
 
+fun is3DBanner(): Boolean = bannerType() == BANNER_TYPE_3D
+
 fun View.bannerCardSizePx(maxHeightFraction: Float = 0.55f): Pair<Int, Int> {
     val dm = resources.displayMetrics
     val density = dm.density
@@ -190,8 +193,8 @@ fun View.bannerCardSizePx(maxHeightFraction: Float = 0.55f): Pair<Int, Int> {
     val screenH = dm.heightPixels / density
     val finalH: Float
     val finalW: Float
-    if (isModernBanner()) {
-        // Modern: full-bleed cinematic strip. 300dp on TV/landscape, shorter on phones.
+    if (isModernBanner() || is3DBanner()) {
+        // Modern and 3D use the cinematic strip height. 300dp on TV/landscape, shorter on phones.
         finalH = resources.getDimension(R.dimen.banner_modern_height) / density
         finalW = screenW
     } else if (isClassicBanner()) {
