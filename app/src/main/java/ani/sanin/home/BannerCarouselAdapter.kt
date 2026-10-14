@@ -503,6 +503,28 @@ class BannerCarouselAdapter(
         val bottomGradient = holder.bottomGradient ?: return
         val density = holder.itemView.context.resources.displayMetrics.density
 
+        if (is3DBanner()) {
+            scrim.isVisible = false
+            bottomGradient.isVisible = true
+            val lp = content.layoutParams as FrameLayout.LayoutParams
+            lp.width = FrameLayout.LayoutParams.MATCH_PARENT
+            lp.gravity = Gravity.BOTTOM
+            content.layoutParams = lp
+            content.gravity = Gravity.END
+            val pad = (14 * density).toInt()
+            content.setPadding(pad, pad, pad, pad)
+            holder.clearlogo.isVisible = false
+            holder.title.isVisible = true
+            holder.formatTag?.isVisible = false
+            holder.statusTag?.isVisible = false
+            holder.seasonTag?.isVisible = false
+            holder.scoreTag?.isVisible = false
+            holder.genresRow?.isVisible = false
+            holder.description.isVisible = false
+            holder.favBtn?.isVisible = false
+            return
+        }
+
         // Classic keeps its full stack (pill, chips, logo) in both orientations;
         // landscape just centres it and drops the left scrim.
         if (isClassicBanner()) {
