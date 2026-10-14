@@ -435,5 +435,21 @@
                 tools:listitem="@layout/item_media_compact"
                 tools:orientation="horizontal" />
         </LinearLayout>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="20dp"
+            android:layout_marginEnd="16dp"
+            android:fontFamily="@font/poppins_bold"
+            android:text="Recent activity"
+            android:textSize="18sp" />
+
+        <FrameLayout
+            android:id="@+id/profileActivityFeedContainer"
+            android:layout_width="match_parent"
+            android:layout_height="520dp"
+            android:layout_marginTop="4dp" />
+
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>
