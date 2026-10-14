@@ -63,9 +63,9 @@ class TmdbBannerCarouselAdapter(
                 ?: parent.resources.displayMetrics.widthPixels
             val cardWidth = if (parent.resources.configuration.orientation ==
                 android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
-                (240 * density).toInt()
+                (200 * density).toInt()
             } else {
-                (viewportWidth * 0.58f).toInt()
+                (viewportWidth * 0.42f).toInt()
             }
             view.layoutParams = RecyclerView.LayoutParams(
                 cardWidth,
