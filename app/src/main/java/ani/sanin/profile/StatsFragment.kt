@@ -141,31 +141,39 @@ class StatsFragment :
     }
 
     private fun updateJourneySummary(anime: Boolean) {
-        val summaries = stats.mapNotNull { userStats ->
-            val data = if (anime) userStats?.statistics?.anime else userStats?.statistics?.manga
-            data
+        // The first entry is the profile being viewed; comparison data must not inflate
+        // the headline totals.
+        val data = stats.firstOrNull()?.let { profile ->
+            if (anime) profile.statistics?.anime else profile.statistics?.manga
         }
-        val totalCount = summaries.sumOf { data ->
-            data.statuses.sumOf { it.count }
-        }
+
+        val totalCount = data?.statuses?.sumOf { it.count } ?: 0
         val totalTime = if (anime) {
-            summaries.sumOf { data -> data.statuses.sumOf { it.minutesWatched } } / 60
+            (data?.statuses?.sumOf { it.minutesWatched } ?: 0) / 60
         } else {
-            summaries.sumOf { data -> data.statuses.sumOf { it.chaptersRead } }
+            data?.statuses?.sumOf { it.chaptersRead } ?: 0
         }
-        val scored = summaries.flatMap { data -> data.genres }
-        val scoreCount = scored.sumOf { it.count }
+
+        // Use score buckets for an overall weighted mean; genre means overlap because
+        // a title can belong to several genres.
+        val scoreBuckets = data?.scores.orEmpty()
+        val scoreCount = scoreBuckets.sumOf { it.count }
         val weightedScore = if (scoreCount > 0) {
-            scored.sumOf { it.meanScore.toDouble() * it.count } / scoreCount
+            scoreBuckets.sumOf { it.meanScore.toDouble() * it.count } / scoreCount
         } else {
             0.0
         }
+
+        binding.journeyTitle.text = if (anime) "Your anime journey" else "Your manga journey"
+        binding.journeyCountLabel.text = if (anime) "ANIME TITLES LOGGED" else "MANGA TITLES LOGGED"
+        binding.journeyTimeLabel.text = if (anime) "TIME WATCHED" else "CHAPTERS READ"
+        binding.journeyScoreLabel.text = "MEAN SCORE"
         binding.journeyCount.text = totalCount.toString()
         binding.journeyTime.text = if (anime) {
             if (totalTime >= 1000) String.format(java.util.Locale.getDefault(), "%.1fk h", totalTime / 1000.0)
             else "${totalTime} h"
         } else {
-            totalTime.toString() + " ch"
+            totalTime.toString()
         }
         binding.journeyScore.text = if (scoreCount > 0) {
             String.format(java.util.Locale.getDefault(), "%.1f", weightedScore)
@@ -338,7 +346,7 @@ class StatsFragment :
                 chartPackets,
                 xAxisName = "Score",
             )
-            adapter.add(ChartItem("Score", scoreChart, activity))
+            adapter.add(ChartItem("Score fingerprint", scoreChart, activity))
         }
     }
 
@@ -676,7 +684,7 @@ class StatsFragment :
             val voiceActorsChart = ChartBuilder.buildChart(
                 activity,
                 ChartType.TwoDimensional,
-                AAChartType.Column,
+                AAChartType.Bar,
                 statType,
                 type,
                 chartPackets,
@@ -685,7 +693,7 @@ class StatsFragment :
                 passedCategories = chartPackets[0].names as List<String>,
                 scrollPos = 0.0f
             )
-            adapter.add(ChartItem("Voice Actor", voiceActorsChart, activity))
+            adapter.add(ChartItem("Voice actor leaderboard", voiceActorsChart, activity))
         }
     }
 
@@ -731,7 +739,7 @@ class StatsFragment :
             val studioChart = ChartBuilder.buildChart(
                 activity,
                 ChartType.TwoDimensional,
-                AAChartType.Spline,
+                AAChartType.Bar,
                 statType,
                 type,
                 chartPackets,
@@ -741,7 +749,7 @@ class StatsFragment :
                 scrollPos = null,
                 normalize = true
             )
-            adapter.add(ChartItem("Studio", studioChart, activity))
+            adapter.add(ChartItem("Studio leaderboard", studioChart, activity))
         }
     }
 
