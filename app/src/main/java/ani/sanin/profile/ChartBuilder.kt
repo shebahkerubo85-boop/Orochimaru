@@ -121,7 +121,7 @@ class ChartBuilder {
                             ) + if (normalize && chartPackets.size > 1) " (Normalized)" else ""
                         )
                         .zoomType(AAChartZoomType.None)
-                        .dataLabelsEnabled(false)
+                        .dataLabelsEnabled(chartPackets.size == 1 && chartPackets.first().names.size <= 12)
                         .yAxisTitle(
                             getTypeName(
                                 statType,
@@ -205,6 +205,11 @@ class ChartBuilder {
                 enabled(true)
                     .labelFormat = "{name}"
             }
+            // Keep series keys visible and label compact single-series charts directly.
+            aaOptions.plotOptions?.series?.dataLabels?.enabled(
+                chartType == ChartType.OneDimensional ||
+                    (chartPackets.size == 1 && chartPackets.first().names.size <= 12)
+            )
             aaOptions.plotOptions?.series?.connectNulls(false)
             aaOptions.plotOptions?.series?.stacking(AAChartStackingType.False)
             aaOptions.chart?.panning = true
