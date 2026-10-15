@@ -101,7 +101,7 @@ class BannerCarouselAdapter(
                 cardWidth,
                 ViewGroup.LayoutParams.MATCH_PARENT,
             ).apply {
-                val margin = (16 * density).toInt()
+                val margin = (8 * density).toInt()
                 leftMargin = margin
                 rightMargin = margin
                 topMargin = (6 * density).toInt()
@@ -550,9 +550,11 @@ class BannerCarouselAdapter(
             content.gravity = Gravity.CENTER_HORIZONTAL
             val pad = (14 * density).toInt()
             content.setPadding(pad, 0, pad, pad)
-            holder.clearlogo.maxWidth = Int.MAX_VALUE
-            holder.clearlogo.maxHeight = Int.MAX_VALUE
+            holder.clearlogo.maxWidth = (holder.itemView.width - (28 * density).toInt()).coerceAtLeast(1)
+            holder.clearlogo.maxHeight = (52 * density).toInt()
             holder.title.isVisible = !holder.clearlogo.isVisible
+            holder.title.maxLines = 3
+            holder.title.setAutoSizeTextTypeUniformWithConfiguration(9, 14, 1, android.util.TypedValue.COMPLEX_UNIT_SP)
             holder.formatTag?.isVisible = false
             holder.statusTag?.isVisible = false
             holder.seasonTag?.isVisible = false
