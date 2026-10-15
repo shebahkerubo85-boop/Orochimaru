@@ -16,7 +16,6 @@ import ani.sanin.profile.ChartBuilder.Companion.ChartPacket
 import ani.sanin.profile.ChartBuilder.Companion.ChartType
 import ani.sanin.profile.ChartBuilder.Companion.MediaType
 import ani.sanin.profile.ChartBuilder.Companion.StatType
-import ani.sanin.setBaseline
 import ani.sanin.statusBarHeight
 import ani.sanin.ui.components.LibraryStatusPill
 import ani.sanin.ui.components.LibraryStatusTab
@@ -52,8 +51,6 @@ class StatsFragment :
         activity = requireActivity() as ProfileActivity
 
         user = arguments?.getSerializableCompat<Query.UserProfile>("user") as Query.UserProfile
-
-        binding.statisticList.setBaseline(activity.binding.profileNavBarContainer!!)
 
         binding.statisticList.adapter = adapter
         binding.statisticList.recycledViewPool.setMaxRecycledViews(0, 0)
@@ -121,7 +118,6 @@ class StatsFragment :
         super.onResume()
         if (this::binding.isInitialized) {
             binding.statisticList.visibility = View.VISIBLE
-            binding.statisticList.setBaseline(activity.binding.profileNavBarContainer!!)
             binding.root.requestLayout()
             if (!loadedFirstTime) {
                 activity.lifecycleScope.launch {
