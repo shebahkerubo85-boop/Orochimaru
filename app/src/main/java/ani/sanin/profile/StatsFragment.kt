@@ -140,6 +140,40 @@ class StatsFragment :
         }
     }
 
+    private fun updateJourneySummary(anime: Boolean) {
+        val summaries = stats.mapNotNull { userStats ->
+            val data = if (anime) userStats?.statistics?.anime else userStats?.statistics?.manga
+            data
+        }
+        val totalCount = summaries.sumOf { data ->
+            data.statuses.sumOf { it.count }
+        }
+        val totalTime = if (anime) {
+            summaries.sumOf { data -> data.statuses.sumOf { it.minutesWatched } } / 60
+        } else {
+            summaries.sumOf { data -> data.statuses.sumOf { it.chaptersRead } }
+        }
+        val scored = summaries.flatMap { data -> data.genres }
+        val scoreCount = scored.sumOf { it.count }
+        val weightedScore = if (scoreCount > 0) {
+            scored.sumOf { it.meanScore.toDouble() * it.count } / scoreCount
+        } else {
+            0.0
+        }
+        binding.journeyCount.text = totalCount.toString()
+        binding.journeyTime.text = if (anime) {
+            if (totalTime >= 1000) String.format(java.util.Locale.getDefault(), "%.1fk h", totalTime / 1000.0)
+            else "${totalTime} h"
+        } else {
+            totalTime.toString() + " ch"
+        }
+        binding.journeyScore.text = if (scoreCount > 0) {
+            String.format(java.util.Locale.getDefault(), "%.1f", weightedScore)
+        } else {
+            "—"
+        }
+    }
+
     private fun standardizeChartPackets(
         packets: MutableList<ChartPacket>
     ): MutableList<ChartPacket> {
@@ -161,6 +195,7 @@ class StatsFragment :
         binding.statisticProgressBar.visibility = View.VISIBLE
         binding.statisticList.visibility = View.GONE
         adapter.clear()
+        updateJourneySummary(anime)
         loadFormatChart(anime)
         loadScoreChart(anime)
         loadStatusChart(anime)
