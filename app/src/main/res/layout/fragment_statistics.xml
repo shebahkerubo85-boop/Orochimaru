@@ -36,6 +36,134 @@
             android:textSize="12sp" />
     </LinearLayout>
 
+    <HorizontalScrollView
+        android:id="@+id/journeySummaryScroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipToPadding="false"
+        android:fillViewport="false"
+        android:scrollbars="none"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="12dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="132dp"
+                android:layout_height="88dp"
+                android:layout_marginEnd="8dp"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="0dp"
+                app:strokeColor="?attr/colorOutlineVariant"
+                app:strokeWidth="1dp"
+                app:cardBackgroundColor="?attr/colorSurfaceVariant">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center_vertical"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="IN YOUR LIBRARY"
+                        android:textColor="?attr/colorOnSurface"
+                        android:alpha="0.65"
+                        android:textSize="9sp" />
+
+                    <TextView
+                        android:id="@+id/journeyCount"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="5dp"
+                        android:text="—"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="23sp"
+                        android:fontFamily="@font/poppins_bold" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="132dp"
+                android:layout_height="88dp"
+                android:layout_marginEnd="8dp"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="0dp"
+                app:strokeColor="?attr/colorOutlineVariant"
+                app:strokeWidth="1dp"
+                app:cardBackgroundColor="?attr/colorSurfaceVariant">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center_vertical"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="TIME INVESTED"
+                        android:textColor="?attr/colorOnSurface"
+                        android:alpha="0.65"
+                        android:textSize="9sp" />
+
+                    <TextView
+                        android:id="@+id/journeyTime"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="5dp"
+                        android:text="—"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="23sp"
+                        android:fontFamily="@font/poppins_bold" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="132dp"
+                android:layout_height="88dp"
+                app:cardCornerRadius="18dp"
+                app:cardElevation="0dp"
+                app:strokeColor="?attr/colorOutlineVariant"
+                app:strokeWidth="1dp"
+                app:cardBackgroundColor="?attr/colorSurfaceVariant">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center_vertical"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="TASTE SCORE"
+                        android:textColor="?attr/colorOnSurface"
+                        android:alpha="0.65"
+                        android:textSize="9sp" />
+
+                    <TextView
+                        android:id="@+id/journeyScore"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="5dp"
+                        android:text="—"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="23sp"
+                        android:fontFamily="@font/poppins_bold" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+    </HorizontalScrollView>
+
     <LinearLayout
         android:id="@+id/filterContainer"
         android:layout_width="match_parent"
