@@ -4,7 +4,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -19,13 +18,14 @@ import ani.sanin.profile.ChartBuilder.Companion.MediaType
 import ani.sanin.profile.ChartBuilder.Companion.StatType
 import ani.sanin.setBaseline
 import ani.sanin.statusBarHeight
+import ani.sanin.ui.components.LibraryStatusPill
+import ani.sanin.ui.components.LibraryStatusTab
 import com.github.aachartmodel.aainfographics.aachartcreator.AAChartType
 import com.xwray.groupie.GroupieAdapter
 import eu.kanade.tachiyomi.util.system.getSerializableCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Locale
 
 class StatsFragment :
     Fragment() {
@@ -66,19 +66,19 @@ class StatsFragment :
             topMargin = statusBarHeight
         }
 
-        binding.sourceType.setAdapter(
-            ArrayAdapter(
-                requireContext(),
-                R.layout.item_dropdown,
-                listOf("ANIME")
-            )
-        )
-        binding.sourceFilter.setAdapter(
-            ArrayAdapter(
-                requireContext(),
-                R.layout.item_dropdown,
-                StatType.entries.map { it.name.uppercase(Locale.ROOT).replace("_", " ") }
-            )
+        binding.statsViewPill.bind(
+            tabs = listOf(
+                LibraryStatusTab("Score", 0),
+                LibraryStatusTab("Count", 0),
+                LibraryStatusTab("Time", 0),
+            ),
+            selectedIndex = listOf(StatType.AVG_SCORE, StatType.COUNT, StatType.TIME).indexOf(statType),
+            onTabSelected = { index ->
+                statType = listOf(StatType.AVG_SCORE, StatType.COUNT, StatType.TIME)[index]
+                loadStats(type == MediaType.ANIME)
+            },
+            fillWidth = true,
+            compact = true,
         )
 
         binding.compare.setOnCheckedChangeListener { _, isChecked ->
@@ -129,15 +129,6 @@ class StatsFragment :
                     stats.add(Anilist.query.getUserStatistics(user.id)?.data?.user)
                     withContext(Dispatchers.Main) {
                         binding.filterContainer.visibility = View.VISIBLE
-                        binding.sourceType.setOnItemClickListener { _, _, i, _ ->
-                            type = MediaType.ANIME
-                            binding.sourceType.setText("ANIME", false)
-                            loadStats(true)
-                        }
-                        binding.sourceFilter.setOnItemClickListener { _, _, i, _ ->
-                            statType = StatType.entries.toTypedArray()[i]
-                            loadStats(type == MediaType.ANIME)
-                        }
                         loadStats(type == MediaType.ANIME)
                         binding.statisticProgressBar.visibility = View.GONE
                     }
