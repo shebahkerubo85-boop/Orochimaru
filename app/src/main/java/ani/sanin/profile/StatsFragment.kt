@@ -416,7 +416,7 @@ class StatsFragment :
             val releaseYearChart = ChartBuilder.buildChart(
                 activity,
                 ChartType.TwoDimensional,
-                AAChartType.Bubble,
+                AAChartType.Areaspline,
                 statType,
                 type,
                 chartPackets,
@@ -509,7 +509,7 @@ class StatsFragment :
             val genreChart = ChartBuilder.buildChart(
                 activity,
                 ChartType.TwoDimensional,
-                AAChartType.Areaspline,
+                AAChartType.Bar,
                 statType,
                 type,
                 chartPackets,
@@ -564,7 +564,7 @@ class StatsFragment :
             val tagChart = ChartBuilder.buildChart(
                 activity,
                 ChartType.TwoDimensional,
-                AAChartType.Areaspline,
+                AAChartType.Bar,
                 statType,
                 type,
                 chartPackets,
