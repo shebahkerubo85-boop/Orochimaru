@@ -26,6 +26,7 @@ import ani.sanin.connections.tmdb.TmdbDetail
 import ani.sanin.isClassicBanner
 import ani.sanin.is3DBanner
 import ani.sanin.apply3DBannerTransforms
+import ani.sanin.BannerCylinderLayoutManager
 import ani.sanin.getThemeColor
 
 class TmdbBannerCarouselAdapter(
@@ -54,6 +55,21 @@ class TmdbBannerCarouselAdapter(
 
     val actualCount: Int get() = items.size
     fun realPosition(virtualPos: Int): Int = virtualPos % items.size
+
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        super.onAttachedToRecyclerView(recyclerView)
+        if (!is3DBanner()) return
+        val current = recyclerView.layoutManager as? LinearLayoutManager ?: return
+        if (current is BannerCylinderLayoutManager) return
+        val position = current.findFirstVisibleItemPosition()
+            .takeIf { it != RecyclerView.NO_POSITION } ?: 0
+        val offset = current.findViewByPosition(position)?.left ?: 0
+        recyclerView.layoutManager = BannerCylinderLayoutManager(
+            recyclerView.context,
+            current.orientation,
+            current.reverseLayout,
+        ).also { it.scrollToPositionWithOffset(position, offset) }
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -328,7 +344,7 @@ class TmdbBannerCarouselAdapter(
             content.setPadding(pad, 0, pad, pad)
             holder.clearlogo.maxWidth = Int.MAX_VALUE
             holder.clearlogo.maxHeight = Int.MAX_VALUE
-            holder.title.isVisible = true
+            holder.title.isVisible = !holder.clearlogo.isVisible
             holder.formatTag?.isVisible = false
             holder.statusTag?.isVisible = false
             holder.seasonTag?.isVisible = false

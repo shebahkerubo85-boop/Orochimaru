@@ -86,6 +86,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.MutableLiveData
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import ani.sanin.BuildConfig.APPLICATION_ID
@@ -264,6 +265,28 @@ fun RecyclerView.apply3DBannerTransforms() {
         child.scaleY = 0.88f + frontness * 0.12f
         // Back-facing posters stay visible, but clearly sit behind the front poster.
         child.alpha = 0.22f + frontness * 0.78f
+    }
+}
+
+
+/**
+ * Keeps enough off-screen faces attached for the far side of the cylinder to
+ * project back into view. Extra layout is only enabled while 3D banners are active.
+ */
+class BannerCylinderLayoutManager(
+    context: Context,
+    orientation: Int,
+    reverseLayout: Boolean,
+) : LinearLayoutManager(context, orientation, reverseLayout) {
+    override fun calculateExtraLayoutSpace(
+        state: RecyclerView.State,
+        extraLayoutSpace: IntArray,
+    ) {
+        super.calculateExtraLayoutSpace(state, extraLayoutSpace)
+        if (!is3DBanner()) return
+        val extra = width * 2
+        extraLayoutSpace[0] = max(extraLayoutSpace[0], extra)
+        extraLayoutSpace[1] = max(extraLayoutSpace[1], extra)
     }
 }
 
