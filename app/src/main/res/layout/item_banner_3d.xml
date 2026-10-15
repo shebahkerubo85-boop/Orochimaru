@@ -3,16 +3,16 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/transparent"
+    android:background="@drawable/banner_modern_poster_bg"
     android:clipChildren="false"
-    android:clipToOutline="false"
-    android:elevation="0dp">
+    android:clipToOutline="true"
+    android:elevation="4dp">
 
     <ImageView
         android:id="@+id/bannerBg"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:visibility="gone"
+        android:alpha="0.22"
         android:importantForAccessibility="no"
         android:scaleType="centerCrop"
         tools:src="@tools:sample/backgrounds/scenic" />
@@ -24,13 +24,6 @@
         android:importantForAccessibility="no"
         android:scaleType="centerCrop"
         tools:src="@tools:sample/backgrounds/scenic" />
-
-    <View
-        android:id="@+id/banner3DDimOverlay"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#99000000"
-        android:importantForAccessibility="no" />
 
     <View
         android:id="@+id/bannerBottomGradient"
