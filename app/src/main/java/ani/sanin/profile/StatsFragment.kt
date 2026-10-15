@@ -77,7 +77,7 @@ class StatsFragment :
                 statType = listOf(StatType.AVG_SCORE, StatType.COUNT, StatType.TIME)[index]
                 loadStats(type == MediaType.ANIME)
             },
-            fillWidth = true,
+            fillWidth = false,
             compact = true,
         )
 
@@ -261,7 +261,7 @@ class StatsFragment :
                 chartPackets,
                 xAxisName = "Format",
             )
-            adapter.add(ChartItem("Format", formatChart, activity))
+            adapter.add(ChartItem("FORMAT MIX", formatChart, activity))
         }
     }
 
@@ -301,7 +301,7 @@ class StatsFragment :
                 chartPackets,
                 xAxisName = "Status",
             )
-            adapter.add(ChartItem("Status", statusChart, activity))
+            adapter.add(ChartItem("WATCH STATUS", statusChart, activity))
         }
     }
 
@@ -393,7 +393,7 @@ class StatsFragment :
                 chartPackets,
                 xAxisName = "Length",
             )
-            adapter.add(ChartItem("Length", lengthChart, activity))
+            adapter.add(ChartItem("TITLE LENGTH", lengthChart, activity))
         }
     }
 
@@ -436,7 +436,7 @@ class StatsFragment :
                 xAxisName = "Year",
                 scrollPos = 0.0f
             )
-            adapter.add(ChartItem("Release Year", releaseYearChart, activity))
+            adapter.add(ChartItem("RELEASE TIMELINE", releaseYearChart, activity))
         }
     }
 
@@ -476,7 +476,7 @@ class StatsFragment :
                 chartPackets,
                 xAxisName = "Year",
             )
-            adapter.add(ChartItem("Start Year", startYearChart, activity))
+            adapter.add(ChartItem("STARTED BY YEAR", startYearChart, activity))
         }
     }
 
@@ -531,7 +531,7 @@ class StatsFragment :
                 passedCategories = chartPackets[0].names as List<String>,
                 normalize = true
             )
-            adapter.add(ChartItem("Genre", genreChart, activity))
+            adapter.add(ChartItem("GENRE RANKING", genreChart, activity))
         }
     }
 
@@ -577,7 +577,7 @@ class StatsFragment :
             val tagChart = ChartBuilder.buildChart(
                 activity,
                 ChartType.TwoDimensional,
-                AAChartType.Bar,
+                AAChartType.Areaspline,
                 statType,
                 type,
                 chartPackets,
@@ -586,7 +586,7 @@ class StatsFragment :
                 passedCategories = chartPackets[0].names as List<String>,
                 scrollPos = 0.0f
             )
-            adapter.add(ChartItem("Tag", tagChart, activity))
+            adapter.add(ChartItem("TAG LANDSCAPE", tagChart, activity))
         }
     }
 
@@ -641,7 +641,7 @@ class StatsFragment :
                 passedCategories = chartPackets[0].names as List<String>,
                 scrollPos = null
             )
-            adapter.add(ChartItem("Country", countryChart, activity))
+            adapter.add(ChartItem("ORIGIN COUNTRIES", countryChart, activity))
         }
     }
 
@@ -811,7 +811,7 @@ class StatsFragment :
                 passedCategories = chartPackets[0].names as List<String>,
                 scrollPos = 0.0f
             )
-            adapter.add(ChartItem("Staff", staffChart, activity))
+            adapter.add(ChartItem("STAFF YOU FOLLOW", staffChart, activity))
         }
     }
 
