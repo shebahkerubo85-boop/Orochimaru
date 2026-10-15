@@ -291,6 +291,29 @@
             </com.google.android.material.card.MaterialCardView>
         </com.google.android.material.appbar.CollapsingToolbarLayout>
 
+    <LinearLayout
+        android:id="@+id/profileNavBarContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorSurface"
+        android:orientation="vertical"
+        android:focusable="true">
+
+        <nl.joery.animatedbottombar.AnimatedBottomBar
+            android:id="@+id/profileNavBar"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="@null"
+            android:padding="0dp"
+            app:abb_animationDuration="0"
+            app:abb_indicatorAppearance="round"
+            app:abb_indicatorLocation="top"
+            app:abb_selectedTabType="icon"
+            app:itemActiveIndicatorStyle="@style/BottomNavBar"
+            app:itemIconTint="@color/tab_layout_icon"
+            app:itemRippleColor="#00000000"
+            android:focusable="true" />
+    </LinearLayout>
 
     </com.google.android.material.appbar.AppBarLayout>
 </merge>
