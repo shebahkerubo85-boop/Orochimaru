@@ -63,7 +63,7 @@ class ProfileActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedListene
         setContentView(binding.root)
         val context = this
         screenWidth = resources.displayMetrics.widthPixels.toFloat()
-        navBar = binding.profileNavBar
+        navBar = binding.profileNavBar!!
         FocusEffectUtil.applyFocusListener(binding.root, navBar)
         val profileTab = navBar.createTab(R.drawable.ic_round_person_24, "")
         val statsTab = navBar.createTab(R.drawable.ic_stats_24, "")
