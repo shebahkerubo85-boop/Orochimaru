@@ -80,7 +80,7 @@
         android:id="@+id/profileNavBarContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
+        android:layout_gravity="top"
         android:background="?attr/colorSurface"
         android:orientation="vertical"
     android:focusable="true">
@@ -88,20 +88,16 @@
         <nl.joery.animatedbottombar.AnimatedBottomBar
             android:id="@+id/profileNavBar"
             android:layout_width="match_parent"
-            android:layout_height="64dp"
+            android:layout_height="48dp"
             android:background="@null"
             android:padding="0dp"
-            app:abb_animationInterpolator="@anim/over_shoot"
+            app:abb_animationDuration="0"
             app:abb_indicatorAppearance="round"
             app:abb_indicatorLocation="top"
-            app:abb_selectedTabType="text"
-            app:abb_textAppearance="@style/NavBarText"
+            app:abb_selectedTabType="icon"
             app:itemActiveIndicatorStyle="@style/BottomNavBar"
             app:itemIconTint="@color/tab_layout_icon"
             app:itemRippleColor="#00000000"
-            app:itemTextAppearanceActive="@style/NavBarText"
-            app:itemTextAppearanceInactive="@style/NavBarText"
-            android:focusable="true"
-        app:itemTextColor="@color/tab_layout_icon" />
+            android:focusable="true" />
     </LinearLayout>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
