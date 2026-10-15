@@ -22,6 +22,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:fontFamily="@font/poppins_bold"
+            android:id="@+id/journeyTitle"
             android:text="Your anime journey"
             android:textColor="?attr/colorOnSurface"
             android:textSize="22sp" />
@@ -72,7 +73,8 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="IN YOUR LIBRARY"
+                        android:id="@+id/journeyCountLabel"
+                        android:text="TITLES LOGGED"
                         android:textColor="?attr/colorOnSurface"
                         android:alpha="0.65"
                         android:textSize="9sp" />
@@ -109,6 +111,7 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:id="@+id/journeyTimeLabel"
                         android:text="TIME INVESTED"
                         android:textColor="?attr/colorOnSurface"
                         android:alpha="0.65"
@@ -145,7 +148,8 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="TASTE SCORE"
+                        android:id="@+id/journeyScoreLabel"
+                        android:text="MEAN SCORE"
                         android:textColor="?attr/colorOnSurface"
                         android:alpha="0.65"
                         android:textSize="9sp" />
