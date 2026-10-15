@@ -243,7 +243,7 @@ fun RecyclerView.apply3DBannerTransforms() {
 
     // Eight faces make one complete turn; the extra radius creates visible gaps.
     val anglePerFace = 45f
-    val gapPx = 4f * density
+    val gapPx = 12f * density
     val radius = ((firstChild.width + gapPx) /
         (2f * kotlin.math.sin(Math.toRadians(22.5)).toFloat())).coerceAtLeast(1f)
 
@@ -261,12 +261,9 @@ fun RecyclerView.apply3DBannerTransforms() {
         child.rotationY = angle
         child.translationX = projectedX - childCenterX
         child.translationZ = depth * radius
-        val sideScale = 0.68f + frontness * 0.32f
-        child.scaleX = sideScale
-        child.scaleY = 0.72f + frontness * 0.28f
-        // Keep rear faces readable but dim their actual image, not the whole card.
-        child.findViewById<View>(R.id.banner3DDimOverlay)?.alpha =
-            (0.62f * (1f - frontness)).coerceIn(0f, 0.62f)
+        child.scaleX = 0.84f + frontness * 0.16f
+        child.scaleY = 0.88f + frontness * 0.12f
+        // Back-facing posters stay visible, but clearly sit behind the front poster.
         child.alpha = 1f
     }
 }
