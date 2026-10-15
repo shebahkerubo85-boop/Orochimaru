@@ -65,8 +65,8 @@ class ProfileActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedListene
         screenWidth = resources.displayMetrics.widthPixels.toFloat()
         navBar = binding.profileNavBar
         FocusEffectUtil.applyFocusListener(binding.root, navBar)
-        val profileTab = navBar.createTab(R.drawable.ic_round_person_24, "Profile")
-        val statsTab = navBar.createTab(R.drawable.ic_stats_24, "Stats")
+        val profileTab = navBar.createTab(R.drawable.ic_round_person_24, "")
+        val statsTab = navBar.createTab(R.drawable.ic_stats_24, "")
         navBar.addTab(profileTab)
         navBar.addTab(statsTab)
         navBar.visibility = View.GONE
@@ -100,7 +100,7 @@ class ProfileActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedListene
                         newTab: AnimatedBottomBar.Tab
                     ) {
                         selected = newIndex
-                        binding.profileViewPager.setCurrentItem(selected, true)
+                        binding.profileViewPager.setCurrentItem(selected, false)
                     }
                 })
 
