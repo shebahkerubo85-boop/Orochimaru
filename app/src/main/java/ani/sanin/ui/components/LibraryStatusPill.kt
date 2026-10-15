@@ -97,6 +97,13 @@ class LibraryStatusPill @JvmOverloads constructor(
     ) {
         this.onTabSelected = onTabSelected
         this.compact = compact
+        scroll.layoutParams = (scroll.layoutParams ?: LayoutParams(
+            if (fillWidth) LayoutParams.MATCH_PARENT else LayoutParams.WRAP_CONTENT,
+            LayoutParams.WRAP_CONTENT,
+        )).apply {
+            width = if (fillWidth) LayoutParams.MATCH_PARENT else LayoutParams.WRAP_CONTENT
+            height = LayoutParams.WRAP_CONTENT
+        }
         val structureChanged = this.tabs != tabs
         this.tabs = tabs
         this.selectedIndex = selectedIndex.coerceIn(0, (tabs.size - 1).coerceAtLeast(0))
