@@ -456,7 +456,7 @@
                             android:nextFocusRight="@+id/exo_tracks"
                             android:nextFocusDown="@id/exo_play"
                             android:backgroundTint="#00FFFFFF"
-                            android:src="@drawable/ic_round_video_library_24"
+                            android:src="@drawable/ic_episodes_24"
                             app:tint="@color/bg_white"
                             tools:ignore="ContentDescription" />
 
