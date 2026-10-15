@@ -4,12 +4,34 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="horizontal"
+    android:orientation="vertical"
     android:background="?attr/colorSurface">
+
+    <LinearLayout
+        android:id="@+id/profileNavBarContainer"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="?attr/colorSurface"
+        android:orientation="horizontal">
+
+        <nl.joery.animatedbottombar.AnimatedBottomBar
+            android:id="@+id/profileNavBar"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="@null"
+            android:padding="0dp"
+            app:abb_animationDuration="0"
+            app:abb_indicatorAppearance="round"
+            app:abb_indicatorLocation="top"
+            app:abb_selectedTabType="icon"
+            app:itemActiveIndicatorStyle="@style/BottomNavBar"
+            app:itemIconTint="@color/tab_layout_icon"
+            app:itemRippleColor="#00000000" />
+    </LinearLayout>
 
     <androidx.coordinatorlayout.widget.CoordinatorLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="0dp"
         android:layout_weight="1">
 
         <LinearLayout
@@ -42,34 +64,5 @@
         </LinearLayout>
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
-
-    <LinearLayout
-        android:id="@+id/profileNavBarContainer"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:background="?attr/colorSurface"
-        android:orientation="horizontal">
-
-        <nl.joery.animatedbottombar.AnimatedBottomBar
-            android:id="@+id/profileNavBar"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:layout_gravity="center_horizontal|bottom"
-            android:layout_weight="0"
-            android:background="@null"
-            android:padding="0dp"
-            app:abb_animationInterpolator="@anim/over_shoot"
-            app:abb_indicatorAppearance="round"
-            app:abb_indicatorLocation="top"
-            app:abb_isVerticalBar="true"
-            app:abb_selectedTabType="text"
-            app:abb_textAppearance="@style/NavBarText"
-            app:itemActiveIndicatorStyle="@style/BottomNavBar"
-            app:itemIconTint="@color/tab_layout_icon"
-            app:itemRippleColor="#00000000"
-            app:itemTextAppearanceActive="@style/NavBarText"
-            app:itemTextAppearanceInactive="@style/NavBarText"
-            app:itemTextColor="@color/tab_layout_icon" />
-    </LinearLayout>
 
 </LinearLayout>
