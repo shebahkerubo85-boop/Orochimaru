@@ -84,9 +84,10 @@ class BannerCarouselAdapter(
                 cardWidth,
                 ViewGroup.LayoutParams.MATCH_PARENT,
             ).apply {
-                val margin = (8 * density).toInt()
+                val margin = (16 * density).toInt()
                 leftMargin = margin
                 rightMargin = margin
+                topMargin = (6 * density).toInt()
             }
             parent.clipToPadding = false
             parent.clipChildren = false
@@ -168,15 +169,33 @@ class BannerCarouselAdapter(
         holder.clearlogo.isVisible = false
         holder.clearlogo.setImageDrawable(null)
         val logoUrl = logoUrls[media.id]
-        if (!is3DBanner() && !logoUrl.isNullOrBlank()) {
+        if (!logoUrl.isNullOrBlank()) {
+            holder.clearlogo.tag = media.id
             holder.clearlogo.isVisible = true
             holder.title.isVisible = false
             val logoReq = com.bumptech.glide.Glide.with(holder.clearlogo.context)
                 .load(logoUrl)
+                .listener(object : RequestListener<Drawable> {
+                    override fun onResourceReady(
+                        resource: Drawable, model: Any, target: Target<Drawable>,
+                        dataSource: DataSource, isFirstResource: Boolean
+                    ): Boolean = false
+
+                    override fun onLoadFailed(
+                        e: GlideException?, model: Any?, target: Target<Drawable>,
+                        isFirstResource: Boolean
+                    ): Boolean {
+                        if (holder.clearlogo.tag == media.id) {
+                            holder.clearlogo.isVisible = false
+                            holder.title.isVisible = true
+                        }
+                        return false
+                    }
+                })
             // Classic has a hardcoded logo size, so decode to exactly that and
             // let the view scale it; the old fixed 240x64 was tuned for the
             // wrap_content logo and left Classic's larger box undersampled.
-            if (isClassicBanner()) {
+            if (isClassicBanner() || is3DBanner()) {
                 logoReq.override(
                     holder.clearlogo.layoutParams.width,
                     holder.clearlogo.layoutParams.height
@@ -511,10 +530,11 @@ class BannerCarouselAdapter(
             lp.width = FrameLayout.LayoutParams.MATCH_PARENT
             lp.gravity = Gravity.BOTTOM
             content.layoutParams = lp
-            content.gravity = Gravity.END
+            content.gravity = Gravity.CENTER_HORIZONTAL
             val pad = (14 * density).toInt()
-            content.setPadding(pad, pad, pad, pad)
-            holder.clearlogo.isVisible = false
+            content.setPadding(pad, 0, pad, pad)
+            holder.clearlogo.maxWidth = Int.MAX_VALUE
+            holder.clearlogo.maxHeight = Int.MAX_VALUE
             holder.title.isVisible = true
             holder.formatTag?.isVisible = false
             holder.statusTag?.isVisible = false

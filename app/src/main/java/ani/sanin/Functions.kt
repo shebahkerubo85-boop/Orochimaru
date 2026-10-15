@@ -194,11 +194,11 @@ fun View.bannerCardSizePx(maxHeightFraction: Float = 0.55f): Pair<Int, Int> {
     val screenH = dm.heightPixels / density
     val finalH: Float
     val finalW: Float
-    if (isModernBanner() || is3DBanner()) {
-        // Modern and 3D use the cinematic strip height. 300dp on TV/landscape, shorter on phones.
+    if (isModernBanner()) {
+        // Modern keeps its own cinematic dimensions.
         finalH = resources.getDimension(R.dimen.banner_modern_height) / density
         finalW = screenW
-    } else if (isClassicBanner()) {
+    } else if (isClassicBanner() || is3DBanner()) {
         // Classic: full-width strip, no left empty bar. The height comes from a
         // resource so portrait can be taller and landscape shorter for the same
         // banner type; see banner_classic_height in values/ and values-land/.
@@ -219,13 +219,9 @@ fun View.bannerCardSizePx(maxHeightFraction: Float = 0.55f): Pair<Int, Int> {
 }
 
 /**
- * Gives the 3D banner rail its curved, depth-aware poster treatment.
- * Called on scroll and after layout so D-pad movement and touch swipes stay in sync.
- */
-/**
- * Positions each poster on the circumference of a vertical cylinder.
- * The RecyclerView still handles scrolling/snapping; this only maps each
- * attached face onto the ring, like rotateY(angle) translateZ(radius) in CSS.
+ * Maps attached banner cards onto a shared cylindrical projection.
+ * RecyclerView scrolling changes each face's angle; depth controls Z ordering
+ * and dimming so the opposite side remains visible through the gaps.
  */
 fun RecyclerView.apply3DBannerTransforms() {
     if (!is3DBanner() || width <= 0 || childCount == 0) return
@@ -244,10 +240,11 @@ fun RecyclerView.apply3DBannerTransforms() {
     val spacing = (measuredSpacing.takeIf { it > 1f } ?: fallbackSpacing.toFloat())
         .coerceAtLeast(1f)
 
-    // Eight faces make one complete turn, matching the reference's 45° steps.
+    // Eight faces make one complete turn; the extra radius creates visible gaps.
     val anglePerFace = 45f
-    val radius = (firstChild.width / (2f * kotlin.math.sin(Math.toRadians(22.5)).toFloat()))
-        .coerceAtLeast(1f)
+    val gapPx = 32f * density
+    val radius = ((firstChild.width + gapPx) /
+        (2f * kotlin.math.sin(Math.toRadians(22.5)).toFloat())).coerceAtLeast(1f)
 
     for (index in 0 until childCount) {
         val child = getChildAt(index)
@@ -257,15 +254,16 @@ fun RecyclerView.apply3DBannerTransforms() {
         val radians = Math.toRadians(angle.toDouble())
         val projectedX = centerX + kotlin.math.sin(radians).toFloat() * radius
         val depth = kotlin.math.cos(radians).toFloat()
+        val frontness = ((depth + 1f) / 2f).coerceIn(0f, 1f)
 
         child.cameraDistance = 10000f * density
         child.rotationY = angle
         child.translationX = projectedX - childCenterX
         child.translationZ = depth * radius
-        val frontness = ((depth + 1f) / 2f).coerceIn(0f, 1f)
-        child.scaleX = 0.94f + frontness * 0.06f
-        child.scaleY = 0.96f + frontness * 0.04f
-        child.alpha = 0.82f + frontness * 0.18f
+        child.scaleX = 0.84f + frontness * 0.16f
+        child.scaleY = 0.88f + frontness * 0.12f
+        // Back-facing posters stay visible, but clearly sit behind the front poster.
+        child.alpha = 0.22f + frontness * 0.78f
     }
 }
 

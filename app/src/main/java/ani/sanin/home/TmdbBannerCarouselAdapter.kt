@@ -1,5 +1,10 @@
 package ani.sanin.home
 
+import com.bumptech.glide.request.target.Target
+import com.bumptech.glide.request.RequestListener
+import com.bumptech.glide.load.engine.GlideException
+import com.bumptech.glide.load.DataSource
+import android.graphics.drawable.Drawable
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -71,9 +76,10 @@ class TmdbBannerCarouselAdapter(
                 cardWidth,
                 ViewGroup.LayoutParams.MATCH_PARENT,
             ).apply {
-                val margin = (8 * density).toInt()
+                val margin = (16 * density).toInt()
                 leftMargin = margin
                 rightMargin = margin
+                topMargin = (6 * density).toInt()
             }
             parent.clipToPadding = false
             parent.clipChildren = false
@@ -125,11 +131,29 @@ class TmdbBannerCarouselAdapter(
 
         // --- Clearlogo / Title ---
         val logoUrl = logoUrls[pos]
-        if (!is3DBanner() && !logoUrl.isNullOrBlank()) {
+        if (!logoUrl.isNullOrBlank()) {
+            holder.clearlogo.tag = pos
             holder.clearlogo.isVisible = true
             holder.title.isVisible = false
             val logoReq = Glide.with(ctx).load(logoUrl)
-            if (isClassicBanner()) {
+                .listener(object : RequestListener<Drawable> {
+                    override fun onResourceReady(
+                        resource: Drawable, model: Any, target: Target<Drawable>,
+                        dataSource: DataSource, isFirstResource: Boolean
+                    ): Boolean = false
+
+                    override fun onLoadFailed(
+                        e: GlideException?, model: Any?, target: Target<Drawable>,
+                        isFirstResource: Boolean
+                    ): Boolean {
+                        if (holder.clearlogo.tag == pos) {
+                            holder.clearlogo.isVisible = false
+                            holder.title.isVisible = true
+                        }
+                        return false
+                    }
+                })
+            if (isClassicBanner() || is3DBanner()) {
                 // Decode to the hardcoded view size rather than an arbitrary
                 // 240x64 that was tuned for the old wrap_content logo.
                 logoReq.override(
@@ -299,10 +323,11 @@ class TmdbBannerCarouselAdapter(
             lp.width = FrameLayout.LayoutParams.MATCH_PARENT
             lp.gravity = Gravity.BOTTOM
             content.layoutParams = lp
-            content.gravity = Gravity.END
+            content.gravity = Gravity.CENTER_HORIZONTAL
             val pad = (14 * density).toInt()
-            content.setPadding(pad, pad, pad, pad)
-            holder.clearlogo.isVisible = false
+            content.setPadding(pad, 0, pad, pad)
+            holder.clearlogo.maxWidth = Int.MAX_VALUE
+            holder.clearlogo.maxHeight = Int.MAX_VALUE
             holder.title.isVisible = true
             holder.formatTag?.isVisible = false
             holder.statusTag?.isVisible = false
