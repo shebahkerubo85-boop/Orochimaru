@@ -21,6 +21,7 @@ class ChartItem(
     override fun bind(viewBinding: ItemChartBinding, position: Int) {
         binding = viewBinding
         binding.typeText.text = title
+        binding.chartDescription.text = descriptionFor(title)
         binding.root.visibility = View.INVISIBLE
         binding.chartView.clipToPadding = true
         val callback: AAChartView.AAChartViewCallBack = object : AAChartView.AAChartViewCallBack {
@@ -47,6 +48,21 @@ class ChartItem(
         }
     }
 
+    private fun descriptionFor(title: String): String = when (title) {
+        "SCORE FINGERPRINT" -> "How your ratings are distributed. Score, Count and Time change the measure."
+        "FORMAT MIX" -> "Compare TV, films and specials using the selected measure."
+        "WATCH STATUS" -> "See how your titles are split across planning, watching and completed statuses."
+        "TITLE LENGTH" -> "Compare short and long titles using the selected measure."
+        "RELEASE TIMELINE" -> "Explore release years and how your collection shifts over time."
+        "STARTED BY YEAR" -> "See when you began titles, grouped by the year you started them."
+        "GENRE RANKING" -> "Genres ranked by the selected measure. A title can count toward several genres."
+        "TAG LANDSCAPE" -> "A broader view of recurring themes across your list."
+        "ORIGIN COUNTRIES" -> "Compare the countries associated with titles in your list."
+        "VOICE ACTOR LEADERBOARD" -> "Voice actors ranked by titles associated with them; switch the measure to compare."
+        "STUDIO LEADERBOARD" -> "Studios ranked by titles in your list; titles may have multiple studios."
+        "STAFF YOU FOLLOW" -> "Explore creators connected to the titles you have logged."
+        else -> "Grouped by category. Use Score, Count or Time to change the measure."
+    }
     override fun getLayout(): Int {
         return R.layout.item_chart
     }
