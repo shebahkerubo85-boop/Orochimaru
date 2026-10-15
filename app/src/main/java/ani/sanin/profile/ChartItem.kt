@@ -48,7 +48,7 @@ class ChartItem(
         }
     }
 
-    private fun descriptionFor(title: String): String = when (title) {
+    private fun descriptionFor(title: String): String = when (title.uppercase()) {
         "SCORE FINGERPRINT" -> "How your ratings are distributed. Score, Count and Time change the measure."
         "FORMAT MIX" -> "Compare TV, films and specials using the selected measure."
         "WATCH STATUS" -> "See how your titles are split across planning, watching and completed statuses."
