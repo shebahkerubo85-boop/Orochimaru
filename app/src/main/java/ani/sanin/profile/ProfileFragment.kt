@@ -29,7 +29,6 @@ import ani.sanin.media.Media
 import ani.sanin.media.MediaAdaptor
 import ani.sanin.openOrCopyAnilistLink
 import ani.sanin.profile.activity.ActivityFragment
-import ani.sanin.setBaseline
 import ani.sanin.setSlideIn
 import ani.sanin.setSlideUp
 import ani.sanin.util.AniMarkdown.Companion.getFullAniHTML
@@ -57,8 +56,6 @@ class ProfileFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         activity = requireActivity() as ProfileActivity
-
-        binding.root.setBaseline(activity.binding.profileNavBarContainer)
 
         user = arguments?.getSerializableCompat<Query.UserProfile>("user") as Query.UserProfile
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
@@ -150,14 +147,6 @@ class ProfileFragment : Fragment() {
                     )
                 )
                 .commit()
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (this::binding.isInitialized) {
-            binding.root.requestLayout()
-            binding.root.setBaseline(activity.binding.profileNavBarContainer)
         }
     }
 
