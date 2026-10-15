@@ -142,26 +142,31 @@ class StatsFragment :
 
     private fun updateJourneySummary(anime: Boolean) {
         // The first entry is the profile being viewed; comparison data must not inflate
-        // the headline totals.
-        val data = stats.firstOrNull()?.let { profile ->
-            if (anime) profile.statistics?.anime else profile.statistics?.manga
-        }
+        // the headline totals. AniList generates separate Anime and Manga stat types.
+        val profile = stats.firstOrNull()
+        val totalCount: Int
+        val totalTime: Int
+        val scoreCount: Int
+        val weightedScore: Double
 
-        val totalCount = data?.statuses?.sumOf { it.count } ?: 0
-        val totalTime = if (anime) {
-            (data?.statuses?.sumOf { it.minutesWatched } ?: 0) / 60
+        if (anime) {
+            val data = profile?.statistics?.anime
+            totalCount = data?.statuses?.sumOf { it.count } ?: 0
+            totalTime = (data?.statuses?.sumOf { it.minutesWatched } ?: 0) / 60
+            val scoreBuckets = data?.scores.orEmpty()
+            scoreCount = scoreBuckets.sumOf { it.count }
+            weightedScore = if (scoreCount > 0) {
+                scoreBuckets.sumOf { it.meanScore.toDouble() * it.count } / scoreCount
+            } else 0.0
         } else {
-            data?.statuses?.sumOf { it.chaptersRead } ?: 0
-        }
-
-        // Use score buckets for an overall weighted mean; genre means overlap because
-        // a title can belong to several genres.
-        val scoreBuckets = data?.scores.orEmpty()
-        val scoreCount = scoreBuckets.sumOf { it.count }
-        val weightedScore = if (scoreCount > 0) {
-            scoreBuckets.sumOf { it.meanScore.toDouble() * it.count } / scoreCount
-        } else {
-            0.0
+            val data = profile?.statistics?.manga
+            totalCount = data?.statuses?.sumOf { it.count } ?: 0
+            totalTime = data?.statuses?.sumOf { it.chaptersRead } ?: 0
+            val scoreBuckets = data?.scores.orEmpty()
+            scoreCount = scoreBuckets.sumOf { it.count }
+            weightedScore = if (scoreCount > 0) {
+                scoreBuckets.sumOf { it.meanScore.toDouble() * it.count } / scoreCount
+            } else 0.0
         }
 
         binding.journeyTitle.text = if (anime) "Your anime journey" else "Your manga journey"
