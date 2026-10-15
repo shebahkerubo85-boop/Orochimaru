@@ -7,8 +7,8 @@
     android:layout_height="wrap_content"
     android:layout_marginStart="8dp"
     android:layout_marginEnd="8dp"
-    android:layout_marginTop="10dp"
-    android:paddingBottom="8dp"
+    android:layout_marginTop="8dp"
+    android:paddingBottom="10dp"
     android:background="@drawable/bg_episode_card"
     android:orientation="vertical">
 
@@ -26,7 +26,7 @@
             android:fontFamily="@font/poppins_bold"
             android:text="Format"
             android:textColor="?attr/colorOnSurface"
-            android:textSize="16sp"
+            android:textSize="15sp"
             tools:ignore="HardcodedText" />
 
         <ImageButton
@@ -56,7 +56,7 @@
         <com.github.aachartmodel.aainfographics.aachartcreator.AAChartView
             android:id="@+id/chartView"
             android:layout_width="match_parent"
-            android:layout_height="280dp"
+            android:layout_height="220dp"
             android:background="?android:colorBackground" />
     </com.google.android.material.card.MaterialCardView>
 </LinearLayout>
