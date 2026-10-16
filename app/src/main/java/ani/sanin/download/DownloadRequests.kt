@@ -29,10 +29,6 @@ fun DownloadManager.enqueue(
     val url = video.file.url
     if (url.isBlank()) return null
 
-    // video.size is reported in MB; keep it as an estimate so the queue can show a total
-    // even when the server does not send a Content-Length.
-    val estimatedSize = video.size?.takeIf { it > 0.0 }?.let { (it * 1024.0 * 1024.0).toLong() } ?: 0L
-
     val item = DownloadItem(
         id = "${media.id}:${episode.number}",
         mediaId = media.id,
@@ -50,7 +46,6 @@ fun DownloadManager.enqueue(
         videoType = video.format,
         quality = video.quality,
         fileName = "Episode ${episode.number}",
-        totalBytes = estimatedSize,
         synopsis = media.description,
         genres = media.genres.takeIf { it.isNotEmpty() },
     )
