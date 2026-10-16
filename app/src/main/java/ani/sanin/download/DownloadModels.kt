@@ -73,6 +73,10 @@ data class DownloadedItem(
     val genres: List<String>? = null,
     val thumbPath: String? = null,
     val logoPath: String? = null,
+    // HLS downloads live in the persistent Media3 cache, not as a remuxed single file.
+    val videoType: VideoType? = null,
+    val sourceUrl: String? = null,
+    val headers: Map<String, String>? = emptyMap(),
 ) : Serializable
 
 /** Where the bytes are actually written. Chosen in Settings → Downloads. */
