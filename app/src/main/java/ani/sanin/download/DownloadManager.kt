@@ -206,6 +206,17 @@ object DownloadManager {
     }
 
     private fun deleteDownloadedFile(item: DownloadedItem) {
+        if (item.path.startsWith(DownloadHlsCache.LOCATOR_PREFIX)) {
+            val sourceUrl = item.sourceUrl ?: return
+            scope.launch {
+                try {
+                    DownloadHlsCache.remove(appContext, sourceUrl, item.headers.orEmpty())
+                } catch (e: Exception) {
+                    Log.w("AnimeDownload", "Could not remove cached HLS ${item.id}", e)
+                }
+            }
+            return
+        }
         try {
             if (item.path.startsWith("content://")) {
                 android.net.Uri.parse(item.path).let { uri ->
@@ -350,9 +361,14 @@ object DownloadManager {
         }
             }
 
-            val size = temp.length()
-            val locator = DownloadStorageHelper.commit(appContext, item, temp)
-                ?: throw DownloadException("Could not save file")
+            val isHls = item.videoType == ani.sanin.parsers.VideoType.M3U8
+            val size = if (isHls) item.downloadedBytes else temp.length()
+            val locator = if (isHls) {
+                DownloadHlsCache.locator(item.id)
+            } else {
+                DownloadStorageHelper.commit(appContext, item, temp)
+                    ?: throw DownloadException("Could not save file")
+            }
 
             item.progress = 1f
             item.totalBytes = size
@@ -406,6 +422,9 @@ object DownloadManager {
                 genres = item.genres,
                 thumbPath = item.thumbPath,
                 logoPath = item.logoPath,
+                videoType = item.videoType,
+                sourceUrl = if (item.videoType == ani.sanin.parsers.VideoType.M3U8) item.url else null,
+                headers = if (item.videoType == ani.sanin.parsers.VideoType.M3U8) item.headers else emptyMap(),
             ),
         )
         persistCompleted()
