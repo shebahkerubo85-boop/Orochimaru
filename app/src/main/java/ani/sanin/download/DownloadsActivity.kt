@@ -439,7 +439,7 @@ class DownloadsActivity : AppCompatActivity() {
             val pct = if (total > 0L) {
                 ((item.downloadedBytes * 100) / total).toInt().coerceIn(0, 100)
             } else {
-                0
+                (item.progress * 100).toInt().coerceIn(0, 100)
             }
             b.episodeRing.apply {
                 visibility = View.VISIBLE
@@ -466,8 +466,10 @@ class DownloadsActivity : AppCompatActivity() {
     private fun sizeLabel(item: DownloadItem): String =
         if (item.totalBytes > 0L) {
             "${formatSize(item.downloadedBytes)} / ${formatSize(item.totalBytes)}"
+        } else if (item.downloadedBytes > 0L) {
+            "${formatSize(item.downloadedBytes)} downloaded"
         } else {
-            formatSize(item.downloadedBytes)
+            "Size unknown"
         }
 
     private fun playDownload(item: DownloadedItem) {
@@ -507,7 +509,7 @@ class DownloadsActivity : AppCompatActivity() {
     }
 
     private fun formatSize(bytes: Long): String {
-        if (bytes <= 0L) return "0 MB"
+        if (bytes <= 0L) return "Size unknown"
         val kb = bytes / 1024.0
         val mb = kb / 1024.0
         return when {
