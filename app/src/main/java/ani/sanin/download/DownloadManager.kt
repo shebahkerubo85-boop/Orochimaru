@@ -363,6 +363,7 @@ object DownloadManager {
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
             attempt++
             if (attempt > MAX_RETRIES) throw e
             temp?.takeIf { it.exists() }?.delete()
