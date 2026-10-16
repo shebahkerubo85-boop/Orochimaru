@@ -17,8 +17,9 @@ import java.io.InputStream
  *  - [DownloadStorage.SHARED]: a user-picked folder through the Storage Access Framework. A copy
  *    of the finished temp file is streamed into the chosen document tree.
  *
- * Everything is downloaded to a real temp file first, because ffmpeg (HLS) needs a real path and
- * SAF does not expose one.
+ * Direct-file downloads use a real temp file before committing to app storage or a SAF folder.
+ * HLS downloads are managed separately by DownloadHlsCache so their playlist and segments remain
+ * addressable by ExoPlayer for reliable offline playback.
  */
 object DownloadStorageHelper {
 
