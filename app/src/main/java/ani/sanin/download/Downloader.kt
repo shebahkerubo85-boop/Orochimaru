@@ -83,7 +83,7 @@ class Downloader(
             // truncate the file.
             var serverTotal = body.contentLength()
             if (serverTotal <= 0L) serverTotal = resolveLength(item)
-            val total = if (serverTotal > 0L) serverTotal else item.totalBytes
+            val total = if (serverTotal > 0L) serverTotal else 0L
 
             val segments = PrefManager.getVal<Int>(PrefName.DownloadSegments).coerceIn(1, 8)
             if (serverTotal > 0L && total >= MIN_SEGMENT_SIZE && segments > 1 && isActive()) {
