@@ -22,7 +22,8 @@ const val DOWNLOADED_SERVER_NAME = "Downloaded"
  */
 fun DownloadedItem.playbackUri(): String {
     if (path.startsWith(DownloadHlsCache.LOCATOR_PREFIX)) {
-        return sourceUrl ?: throw IllegalStateException("Downloaded HLS source URL is missing")
+        return playbackUrl ?: sourceUrl
+            ?: throw IllegalStateException("Downloaded HLS source URL is missing")
     }
     val p = path
     return if (p.startsWith("content://") || p.startsWith("file://")) p
