@@ -117,8 +117,7 @@ class Downloader(
             item.headers.forEach { (k, v) -> addHeader(k, v) }
         }
         if (offset > 0L) builder.header("Range", "bytes=$offset-")
-        try {
-            executeCancellable(builder.build()).use { res ->
+        executeCancellable(builder.build()).use { res ->
                 val range = parseContentRange(res.header("Content-Range"))
                 if (offset > 0L && res.code == 206) {
                     if (range == null || range.first != offset ||
@@ -164,7 +163,6 @@ class Downloader(
                     throw DownloadException("Incomplete download: $finalLength of $actualTotal bytes")
                 }
                 if (finalLength <= 0L) throw DownloadException("Downloaded file is empty")
-            }
         }
     }
 
