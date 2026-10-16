@@ -225,23 +225,23 @@ class DownloadsActivity : AppCompatActivity() {
         private val rows = mutableListOf<Row>()
 
         fun submit(next: List<Row>) {
+            // Keep the old snapshot alive until DiffUtil has finished dispatching callbacks.
+            val previous = rows.toList()
             val diff = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
-                override fun getOldListSize(): Int = rows.size
+                override fun getOldListSize(): Int = previous.size
                 override fun getNewListSize(): Int = next.size
                 override fun areItemsTheSame(oldPos: Int, newPos: Int): Boolean =
-                    sameId(rows[oldPos], next[newPos])
+                    sameId(previous[oldPos], next[newPos])
 
                 override fun areContentsTheSame(oldPos: Int, newPos: Int): Boolean =
-                    rows[oldPos] == next[newPos]
+                    previous[oldPos] == next[newPos]
 
-                override fun getChangePayload(oldPos: Int, newItem: Int): Any? {
-                    val a = rows[oldPos]
-                    val b = next[newItem]
+                override fun getChangePayload(oldPos: Int, newPos: Int): Any? {
+                    val a = previous[oldPos]
+                    val b = next[newPos]
                     if (a is Row.Active && b is Row.Active && a.item.id == b.item.id &&
                         a.item.isActive && b.item.isActive
-                    ) {
-                        return PAYLOAD_PROGRESS
-                    }
+                    ) return PAYLOAD_PROGRESS
                     return null
                 }
             }, false)
@@ -249,7 +249,6 @@ class DownloadsActivity : AppCompatActivity() {
             rows.addAll(next)
             diff.dispatchUpdatesTo(this)
         }
-
         override fun getItemCount(): Int = rows.size
 
         override fun getItemViewType(position: Int): Int = when (rows[position]) {
