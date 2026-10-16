@@ -152,7 +152,11 @@ class Downloader(
                         .apply { item.headers.forEach { (k, v) -> addHeader(k, v) } }
                         .header("Range", "bytes=$start-$end")
                         .build()
-                    client.newCall(rangeRequest).execute().use { res ->
+                    val call = client.newCall(rangeRequest)
+                    currentCoroutineContext().job.invokeOnCompletion { cause ->
+                        if (cause is CancellationException) call.cancel()
+                    }
+                    call.execute().use { res ->
                         if (res.code != 206) {
                             throw DownloadException("HTTP ${res.code} for range $start-$end")
                         }
