@@ -14,12 +14,17 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import java.io.File
+import java.io.IOException
 import java.io.RandomAccessFile
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -111,13 +116,8 @@ class Downloader(
             item.headers.forEach { (k, v) -> addHeader(k, v) }
         }
         if (offset > 0L) builder.header("Range", "bytes=$offset-")
-        val call = client.newCall(builder.build())
-        val job = currentCoroutineContext().job
-        val cancellation = job.invokeOnCompletion { cause ->
-            if (cause is CancellationException) call.cancel()
-        }
         try {
-            call.execute().use { res ->
+            executeCancellable(builder.build()).use { res ->
                 val range = parseContentRange(res.header("Content-Range"))
                 if (offset > 0L && res.code == 206) {
                     if (range == null || range.first != offset ||
@@ -164,8 +164,6 @@ class Downloader(
                 }
                 if (finalLength <= 0L) throw DownloadException("Downloaded file is empty")
             }
-        } finally {
-            cancellation.dispose()
         }
     }
 
@@ -201,11 +199,7 @@ class Downloader(
                         .apply { item.headers.forEach { (k, v) -> addHeader(k, v) } }
                         .header("Range", "bytes=$start-$end")
                         .build()
-                    val call = client.newCall(rangeRequest)
-                    currentCoroutineContext().job.invokeOnCompletion { cause ->
-                        if (cause is CancellationException) call.cancel()
-                    }
-                    call.execute().use { res ->
+                    executeCancellable(rangeRequest).use { res ->
                         val range = parseContentRange(res.header("Content-Range"))
                         if (res.code != 206 || range == null || range.first != start ||
                             range.last != end || range.total != total
@@ -311,13 +305,8 @@ class Downloader(
         val builder = Request.Builder().url(item.url)
         item.headers.forEach { (k, v) -> builder.addHeader(k, v) }
         if (head) builder.head() else builder.get().header("Range", "bytes=0-0")
-        val call = client.newCall(builder.build())
-        val job = currentCoroutineContext().job
-        val cancellation = job.invokeOnCompletion { cause ->
-            if (cause is CancellationException) call.cancel()
-        }
         return try {
-            call.execute().use { res ->
+            executeCancellable(builder.build()).use { res ->
                 if (head) {
                     if (!res.isSuccessful) return -1L
                     res.header("Content-Length")?.toLongOrNull()?.takeIf { it > 0L } ?: -1L
@@ -333,21 +322,14 @@ class Downloader(
         } catch (_: Exception) {
             currentCoroutineContext().ensureActive()
             -1L
-        } finally {
-            cancellation.dispose()
         }
     }
 
     private suspend fun supportsRanges(item: DownloadItem, total: Long): Boolean {
         val builder = Request.Builder().url(item.url).get().header("Range", "bytes=0-0")
         item.headers.forEach { (k, v) -> builder.addHeader(k, v) }
-        val call = client.newCall(builder.build())
-        val job = currentCoroutineContext().job
-        val cancellation = job.invokeOnCompletion { cause ->
-            if (cause is CancellationException) call.cancel()
-        }
         return try {
-            call.execute().use { res ->
+            executeCancellable(builder.build()).use { res ->
                 val range = parseContentRange(res.header("Content-Range"))
                 res.code == 206 && range != null && range.first == 0L &&
                     range.last == 0L && range.total == total &&
@@ -358,10 +340,27 @@ class Downloader(
         } catch (_: Exception) {
             currentCoroutineContext().ensureActive()
             false
-        } finally {
-            cancellation.dispose()
         }
     }
+
+    /** OkHttp async execution is cancellable immediately, unlike a blocking execute() call. */
+    private suspend fun executeCancellable(request: Request): Response =
+        suspendCancellableCoroutine { continuation ->
+            val call = client.newCall(request)
+            continuation.invokeOnCancellation { call.cancel() }
+            call.enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    val token = continuation.tryResumeWithException(e)
+                    if (token != null) continuation.completeResume(token)
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    val token = continuation.tryResume(response)
+                    if (token != null) continuation.completeResume(token)
+                    else response.close()
+                }
+            })
+        }
 
     private suspend fun downloadHls(
         item: DownloadItem,
