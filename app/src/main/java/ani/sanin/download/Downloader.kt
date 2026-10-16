@@ -7,6 +7,7 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.CancellationException
@@ -344,6 +345,7 @@ class Downloader(
     }
 
     /** OkHttp async execution is cancellable immediately, unlike a blocking execute() call. */
+    @OptIn(InternalCoroutinesApi::class)
     private suspend fun executeCancellable(request: Request): Response =
         suspendCancellableCoroutine { continuation ->
             val call = client.newCall(request)
