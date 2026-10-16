@@ -102,8 +102,14 @@ object DownloadManager {
     // ---------------------------------------------------------------- mutations
 
     fun enqueue(item: DownloadItem) {
+        // An episode can be offered by several servers/qualities. Keep one queue entry per
+        // episode so repeated taps cannot start duplicate transfers or overwrite the same file.
         if (isDownloaded(item.mediaId, item.episodeNumber)) return
-        items.removeAll { it.id == item.id }
+        val existing = items.firstOrNull {
+            it.mediaId == item.mediaId && it.episodeNumber == item.episodeNumber
+        }
+        if (existing != null) return
+
         items.add(item)
         persist()
         publish()
