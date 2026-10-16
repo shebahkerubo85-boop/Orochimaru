@@ -72,6 +72,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
+import androidx.media3.common.StreamKey
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.common.TrackGroup
@@ -89,6 +90,7 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.hls.HlsMediaSource
+import androidx.media3.exoplayer.hls.playlist.HlsMultivariantPlaylist
 import androidx.media3.exoplayer.hls.playlist.HlsPlaylistTracker
 import androidx.media3.exoplayer.DefaultLivePlaybackSpeedControl
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -136,6 +138,7 @@ import ani.sanin.media.anime.live.LivestreamChunk
 import ani.sanin.media.anime.live.PREFERRED_LIVE_OFFSET
 import ani.sanin.databinding.ActivityExoplayerBinding
 import ani.sanin.defaultHeaders
+import ani.sanin.download.DownloadHlsCache
 import ani.sanin.dp
 import ani.sanin.getCurrentBrightnessValue
 import ani.sanin.getLanguageCode
@@ -2251,7 +2254,14 @@ class ExoplayerView :
                 setDefaultRequestProperties(requestHeaders)
             }
         val defaultDataSourceFactory = DefaultDataSource.Factory(this, httpDataSourceFactory)
-        cacheFactory =
+        val isOfflineHlsDownload =
+            media.format == "LOCAL" && video?.format == VideoType.M3U8
+        cacheFactory = if (isOfflineHlsDownload) {
+            // Completed HLS downloads must never fall through to the network. The manifest,
+            // selected variant, encryption keys (when present), and media segments were stored
+            // by HlsDownloader in this same persistent cache.
+            DownloadHlsCache.offlineDataSourceFactory(this)
+        } else {
             CacheDataSource.Factory().apply {
                 setCache(VideoCache.getInstance(this@ExoplayerView))
                 setUpstreamDataSourceFactory(defaultDataSourceFactory)
@@ -2260,6 +2270,7 @@ class ExoplayerView :
                 // hang indefinitely.
                 setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
             }
+        }
 
         // Set up libass for ASS/SSA subtitle rendering.
         // Render mode: 0=Canvas (CPU, better for TV), 1=OpenGL (GPU, better for phone)
@@ -2297,7 +2308,8 @@ class ExoplayerView :
         // stuck in BUFFERING with no network activity and no error.  CS3
         // already builds its live source without a cache.
         val contentDataSourceFactory: DataSource.Factory =
-            if (isDeclaredLiveStream()) defaultDataSourceFactory else cacheFactory
+            if (isOfflineHlsDownload) cacheFactory
+            else if (isDeclaredLiveStream()) defaultDataSourceFactory else cacheFactory
 
         assMediaSourceFactory = DefaultMediaSourceFactory(contentDataSourceFactory, extractorsFactory)
         assMediaSourceFactory.setSubtitleParserFactory(assSubtitleParserFactory)
@@ -2384,6 +2396,12 @@ class ExoplayerView :
             .setUri(video!!.file.url)
             .setMimeType(mimeType)
             .setSubtitleConfigurations(sub)
+        if (isOfflineHlsDownload) {
+            // Match the single rendition downloaded by DownloadHlsCache.
+            mediaItemBuilder.setStreamKeys(
+                listOf(StreamKey(HlsMultivariantPlaylist.GROUP_INDEX_VARIANT, 0)),
+            )
+        }
 
         // A MediaItem only counts as live once it carries a LiveConfiguration
         // (Timeline.Window.isLive() is literally "liveConfiguration != null").
