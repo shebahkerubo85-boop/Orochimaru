@@ -315,11 +315,8 @@ object DownloadManager {
                         item,
                         onProgress = { done, total, fraction ->
                     item.downloadedBytes = done
-                    // Server-reported length wins. HLS remux gives bytes + a time fraction but no
-                    // byte total, so synthesize one (bytes / fraction) once it is past zero; that
-                    // converges on the real size, so the ring sweeps to a full circle on completion.
-                    // Only a measured server/cache byte total is a size. Never promote an
-                    // estimate or a percentage-derived guess into a fake byte count.
+                    // Only measured server/cache bytes are a size. A percentage must never be
+                    // converted into a fabricated byte total.
                     if (total > 0L) item.totalBytes = total
                     item.progress = if (item.totalBytes > 0L) {
                         (done.toDouble() / item.totalBytes).toFloat().coerceIn(0f, 1f)
