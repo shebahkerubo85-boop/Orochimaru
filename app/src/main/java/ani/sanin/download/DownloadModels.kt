@@ -23,6 +23,9 @@ data class DownloadItem(
     val url: String,
     val headers: Map<String, String> = emptyMap(),
     val videoType: VideoType = VideoType.CONTAINER,
+    // Variant playlist selected for the cache-only offline player (master playlists may list
+    // several qualities, but only one rendition is downloaded to save storage and time).
+    var offlinePlaybackUrl: String? = null,
     val quality: Int? = null,
     val fileName: String,
     var status: DownloadStatus = DownloadStatus.QUEUED,
@@ -76,6 +79,7 @@ data class DownloadedItem(
     // HLS downloads live in the persistent Media3 cache, not as a remuxed single file.
     val videoType: VideoType? = null,
     val sourceUrl: String? = null,
+    val playbackUrl: String? = null,
     val headers: Map<String, String>? = emptyMap(),
 ) : Serializable
 
