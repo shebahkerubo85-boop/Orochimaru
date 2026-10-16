@@ -39,7 +39,7 @@ fun DownloadedItem.toOfflineExtractor(): VideoExtractor {
     val isHlsCache = path.startsWith(DownloadHlsCache.LOCATOR_PREFIX)
     val video = Video(
         quality = null,
-        videoType = if (isHlsCache) VideoType.M3U8 else (videoType ?: VideoType.CONTAINER),
+        format = if (isHlsCache) VideoType.M3U8 else (videoType ?: VideoType.CONTAINER),
         file = ani.sanin.FileUrl(playbackUri(), headers.orEmpty()),
         size = sizeBytes.takeIf { it > 0 }?.toDouble(),
     )
