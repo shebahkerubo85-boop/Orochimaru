@@ -58,6 +58,12 @@ object DownloadManager {
         completedItems = DownloadStore.loadCompleted().toMutableList()
         // Downloads that were mid-flight when the process died go back to queued.
         items.forEach {
+            // Queue entries from older versions stored provider estimates in totalBytes.
+            // They are not authoritative and can be wildly wrong, so recalculate on the next run.
+            it.totalBytes = 0L
+            it.downloadedBytes = 0L
+            it.progress = 0f
+            it.speed = 0L
             if (it.status == DownloadStatus.DOWNLOADING ||
                 it.status == DownloadStatus.PREPARING ||
                 it.status == DownloadStatus.RETRYING
