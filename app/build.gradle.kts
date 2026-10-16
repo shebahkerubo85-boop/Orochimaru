@@ -68,13 +68,12 @@ android {
             isDefault = true
         }
 
-        // Phone builds bundle ffmpeg (via ffmpeg-kit) for HLS downloads, which requires API 24.
+        // Native Media3 HLS downloading works with the app's existing API 23 floor.
         create("phone") {
             dimension = "device"
             isDefault = true
-            minSdk = 24
+            minSdk = 23
         }
-        // TV builds skip ffmpeg entirely, so they keep the original API 23 floor.
         create("tv") {
             dimension = "device"
             minSdk = 23
@@ -250,8 +249,6 @@ dependencies {
     implementation(libs.fragment.ktx)
     implementation(libs.json)
     implementation(libs.tvprovider)
-    // Native HLS downloads use Media3; no FFmpeg runtime is needed in either flavor.
-    implementation(libs.nextlib.media3ext)
     // nextlib's JNI (libmedia3ext.so) links against media3-exoplayer, which the bundle already
     // provides; error_prone_annotations was only declared by the nextlib POM.
     add("phoneImplementation", "com.google.errorprone:error_prone_annotations:2.48.0")
