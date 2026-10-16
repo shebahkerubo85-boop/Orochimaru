@@ -160,7 +160,6 @@ object DownloadManager {
 
     fun cancel(id: String) {
         activeJobs[id]?.cancel()
-        items.firstOrNull { it.id == id }?.let { Downloader.cleanup(appContext, it) }
         items.removeAll { it.id == id }
         persist()
         publish()
@@ -229,7 +228,6 @@ object DownloadManager {
         activeJobs.keys.toList().forEach { id ->
                 activeJobs[id]?.cancel()
         }
-        items.toList().forEach { Downloader.cleanup(appContext, it) }
         items.clear()
         persist()
         publish()

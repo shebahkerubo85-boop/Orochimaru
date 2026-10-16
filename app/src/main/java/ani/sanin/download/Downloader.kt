@@ -52,7 +52,7 @@ class Downloader(
         Log.i(TAG, "download ${item.videoType} url=${item.url} -> ${temp.absolutePath}")
         try {
             when (item.videoType) {
-                VideoType.M3U8 -> downloadHls(item, onProgress, isActive)
+                VideoType.M3U8, VideoType.DASH -> downloadHls(item, onProgress, isActive)
                 else -> downloadDirect(item, temp, onProgress, isActive)
             }
             Log.i(TAG, "download finished url=${item.url} size=${temp.length()}")

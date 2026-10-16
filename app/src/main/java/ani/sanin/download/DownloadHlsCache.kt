@@ -176,7 +176,8 @@ object DownloadHlsCache {
             }
             runInterruptible(Dispatchers.IO) { downloader.remove() }
         }
-        removeUrl(playbackUrl?.takeIf { it.isNotBlank() } ?: sourceUrl)
+        removeUrl(sourceUrl)
+        if (!playbackUrl.isNullOrBlank() && playbackUrl != sourceUrl) removeUrl(playbackUrl)
         Log.i(TAG, "adaptive cache removed type=$type")
     }
 }
