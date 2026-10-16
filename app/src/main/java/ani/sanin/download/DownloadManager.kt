@@ -424,6 +424,7 @@ object DownloadManager {
                 logoPath = item.logoPath,
                 videoType = item.videoType,
                 sourceUrl = if (item.videoType == ani.sanin.parsers.VideoType.M3U8) item.url else null,
+                playbackUrl = if (item.videoType == ani.sanin.parsers.VideoType.M3U8) item.offlinePlaybackUrl else null,
                 headers = if (item.videoType == ani.sanin.parsers.VideoType.M3U8) item.headers else emptyMap(),
             ),
         )
