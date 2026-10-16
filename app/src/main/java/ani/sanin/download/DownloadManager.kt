@@ -111,7 +111,8 @@ object DownloadManager {
             DownloadStatus.RETRYING,
             -> {
                 item.status = DownloadStatus.PAUSED
-                activeJobs.remove(id)?.cancel()
+                downloader.cancel(id)
+                activeJobs[id]?.cancel()
             }
 
             DownloadStatus.QUEUED -> item.status = DownloadStatus.PAUSED
@@ -133,7 +134,8 @@ object DownloadManager {
     fun retry(id: String) = resume(id)
 
     fun cancel(id: String) {
-        activeJobs.remove(id)?.cancel()
+        downloader.cancel(id)
+        activeJobs[id]?.cancel()
         items.removeAll { it.id == id }
         persist()
         publish()
@@ -149,7 +151,8 @@ object DownloadManager {
                 DownloadStatus.RETRYING,
                 -> {
                     item.status = DownloadStatus.PAUSED
-                    activeJobs.remove(item.id)?.cancel()
+                    downloader.cancel(item.id)
+                    activeJobs[item.id]?.cancel()
                     changed = true
                 }
 
@@ -199,9 +202,13 @@ object DownloadManager {
     }
 
     fun deleteAll() {
-        activeJobs.values.forEach { it.cancel() }
-        activeJobs.clear()
+        activeJobs.keys.toList().forEach { id ->
+            downloader.cancel(id)
+            activeJobs[id]?.cancel()
+        }
         items.clear()
+        persist()
+        publish()
         clearCompleted(true)
     }
 
@@ -241,7 +248,9 @@ object DownloadManager {
         if (!mutex.tryLock()) return
         try {
             while (activeJobs.size < maxConcurrent()) {
-                val next = items.firstOrNull { it.status == DownloadStatus.QUEUED } ?: break
+                val next = items.firstOrNull {
+                    it.status == DownloadStatus.QUEUED && !activeJobs.containsKey(it.id)
+                } ?: break
                 start(next)
             }
             if (items.none { it.isActive } && activeJobs.isEmpty()) {
@@ -284,7 +293,13 @@ object DownloadManager {
             // Soft failure: artwork never blocks the download, it just stays absent.
             try {
                 DownloadMetadata.prepare(appContext, item)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (_: Exception) {
+            }
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
+            if (items.none { it.id == item.id } || item.status != DownloadStatus.PREPARING) {
+                throw DownloadCancelledException()
             }
 
             // Pull the bytes, retrying a couple of times before giving up.
@@ -300,16 +315,15 @@ object DownloadManager {
                     // Server-reported length wins. HLS remux gives bytes + a time fraction but no
                     // byte total, so synthesize one (bytes / fraction) once it is past zero; that
                     // converges on the real size, so the ring sweeps to a full circle on completion.
-                    when {
-                        total > 0L -> item.totalBytes = total
-                        item.totalBytes <= 0L && fraction > 0f && fraction <= 1f -> {
-                            item.totalBytes = (done.toDouble() / fraction).toLong().coerceAtLeast(done)
-                        }
-                    }
+                    // Only a measured server/cache byte total is a size. Never promote an
+                    // estimate or a percentage-derived guess into a fake byte count.
+                    if (total > 0L) item.totalBytes = total
                     item.progress = if (item.totalBytes > 0L) {
-                        (done.toFloat() / item.totalBytes).coerceIn(0f, 1f)
+                        (done.toDouble() / item.totalBytes).toFloat().coerceIn(0f, 1f)
+                    } else if (fraction.isFinite() && fraction in 0f..1f) {
+                        fraction
                     } else {
-                        if (fraction in 0f..1f) fraction.coerceIn(0f, 1f) else item.progress
+                        item.progress
                     }
                     if (!progressLogged) {
                         if (item.progress > 0f) {
@@ -361,8 +375,13 @@ object DownloadManager {
         }
             }
 
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
+            if (items.none { it.id == item.id } || item.status != DownloadStatus.DOWNLOADING) {
+                throw DownloadCancelledException()
+            }
             val isHls = item.videoType == ani.sanin.parsers.VideoType.M3U8
             val size = if (isHls) item.downloadedBytes else temp.length()
+            if (!isHls && size <= 0L) throw DownloadException("Downloaded file is empty")
             val locator = if (isHls) {
                 DownloadHlsCache.locator(item.id)
             } else {
@@ -382,9 +401,11 @@ object DownloadManager {
             Log.i("AnimeDownload", "saved ${item.mediaName} ep${item.episodeNumber} ($size bytes) -> $locator")
         } catch (e: DownloadCancelledException) {
             temp?.takeIf { it.exists() }?.delete()
-            item.status = DownloadStatus.PAUSED
-            persist()
-            publish()
+            if (items.any { it.id == item.id }) {
+                item.status = DownloadStatus.PAUSED
+                persist()
+                publish()
+            }
         } catch (e: kotlinx.coroutines.CancellationException) {
             temp?.takeIf { it.exists() }?.delete()
             throw e
@@ -397,7 +418,8 @@ object DownloadManager {
             notifier.error(item, item.error)
             Log.e("AnimeDownload", "failed ${item.mediaName} ep${item.episodeNumber}: ${item.error}", e)
         } finally {
-            activeJobs.remove(item.id)
+            val runningJob = kotlinx.coroutines.currentCoroutineContext()[Job]
+            if (activeJobs[item.id] === runningJob) activeJobs.remove(item.id)
             publish()
             pump()
         }
