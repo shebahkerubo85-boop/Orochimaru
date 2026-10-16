@@ -197,7 +197,6 @@ import io.github.peerless2012.ass.media.AssHandler
 import io.github.peerless2012.ass.media.AssHandlerConfig
 import io.github.peerless2012.ass.media.kt.withAssMkvSupport
 import io.github.peerless2012.ass.media.kt.withAssSupport
-import io.github.anilbeesetti.nextlib.media3ext.ffdecoder.NextRenderersFactory
 import io.github.peerless2012.ass.media.parser.AssSubtitleParserFactory
 import io.github.peerless2012.ass.media.type.AssRenderType
 import kotlinx.coroutines.CoroutineScope
@@ -2584,17 +2583,14 @@ class ExoplayerView :
 
         hideSystemBars()
 
-        val decodingMode = PrefManager.getVal<Int>(PrefName.DecodingMode) // 0=Hardware, 1=Software
-        val decoderMode = when (decodingMode) {
-            1 -> DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON   // Software only (FFmpeg)
-            else -> DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF // Hardware only (MediaCodec)
-        }
-        val nextRenderersFactory = NextRenderersFactory(this)
-            .setEnableDecoderFallback(false)
-            .setExtensionRendererMode(decoderMode)
+        // Use Media3's built-in renderers only. FFmpeg software decoding is intentionally not
+        // bundled; standard hardware decoding and libass subtitle rendering remain available.
         val handler = assHandler!!
-        Logger.log("Libass: Calling nextRenderersFactory.withAssSupport()")
-        val renderersFactory = nextRenderersFactory.withAssSupport(handler)
+        Logger.log("Libass: Calling DefaultRenderersFactory.withAssSupport()")
+        val renderersFactory = DefaultRenderersFactory(this)
+            .setEnableDecoderFallback(false)
+            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
+            .withAssSupport(handler)
 
         exoPlayer =
             ExoPlayer
