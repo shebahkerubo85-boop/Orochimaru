@@ -31,9 +31,8 @@ class DownloadCancelledException : Exception("cancelled")
  *    pulled over N parallel range connections (Segments per episode setting, up to 8) so one
  *    download saturates the connection the way download-managers do. Otherwise it is streamed
  *    over a single connection and progress is exact.
- *  - HLS playlists are remuxed with ffmpeg (selected because it is the only reliable way to
- *    stitch a live/segmented playlist into a single playable file). Proxy servers are not
- *    involved; ffmpeg follows the playlist itself.
+ *  - HLS playlists are downloaded with Media3's native HlsDownloader into a persistent
+ *    ExoPlayer cache. Playback uses that same cache offline; no remuxing or native FFmpeg is used.
  */
 class Downloader(
     private val context: android.content.Context,
@@ -48,7 +47,7 @@ class Downloader(
         val temp = DownloadStorageHelper.tempFile(context, item)
         Log.i(TAG, "download ${item.videoType} url=${item.url} -> ${temp.absolutePath}")
         when (item.videoType) {
-            VideoType.M3U8 -> downloadHls(item, temp, onProgress, isActive)
+            VideoType.M3U8 -> downloadHls(item, onProgress, isActive)
             else -> downloadDirect(item, temp, onProgress, isActive)
         }
         Log.i(TAG, "download finished url=${item.url} size=${temp.length()}")
@@ -244,10 +243,9 @@ class Downloader(
 
     private suspend fun downloadHls(
         item: DownloadItem,
-        temp: File,
         onProgress: (Long, Long, Float) -> Unit,
         isActive: () -> Boolean,
-    ) = HlsRemuxer.remux(item, temp, onProgress, isActive)
+    ) = HlsRemuxer.download(context, item, onProgress, isActive)
 
     companion object {
         private const val TAG = "AnimeDownload"
