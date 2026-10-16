@@ -49,12 +49,20 @@ class Downloader(
     ): File {
         val temp = DownloadStorageHelper.tempFile(context, item)
         Log.i(TAG, "download ${item.videoType} url=${item.url} -> ${temp.absolutePath}")
-        when (item.videoType) {
-            VideoType.M3U8 -> downloadHls(item, onProgress, isActive)
-            else -> downloadDirect(item, temp, onProgress, isActive)
+        try {
+            when (item.videoType) {
+                VideoType.M3U8 -> downloadHls(item, onProgress, isActive)
+                else -> downloadDirect(item, temp, onProgress, isActive)
+            }
+            Log.i(TAG, "download finished url=${item.url} size=${temp.length()}")
+            return temp
+        } catch (error: Throwable) {
+            // The manager only receives the temp file after a successful return. Without cleanup
+            // here, a pause/cancel or final network failure can strand partial files indefinitely.
+            temp.delete()
+            for (part in 0 until 8) File("${temp.path}.part$part").delete()
+            throw error
         }
-        Log.i(TAG, "download finished url=${item.url} size=${temp.length()}")
-        return temp
     }
 
     private suspend fun downloadDirect(
