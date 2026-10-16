@@ -3,6 +3,8 @@ package ani.sanin.download
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
+import android.app.PendingIntent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -46,6 +48,7 @@ class DownloadNotifier(private val context: Context) {
         val notif = NotificationCompat.Builder(context, channel())
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setContentTitle(item.mediaName)
+            .setContentIntent(PendingIntent.getActivity(context, 7200, Intent(context, DownloadsActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
             .setContentText(
                 context.getString(R.string.downloading_episode, item.episodeNumber),
             )
