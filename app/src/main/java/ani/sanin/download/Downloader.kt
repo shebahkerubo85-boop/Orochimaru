@@ -13,6 +13,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -300,42 +301,66 @@ class Downloader(
     }
 
     /** Trust only a successful HEAD length or a valid one-byte 206 probe. */
-    private fun resolveLength(item: DownloadItem): Long {
+    private suspend fun resolveLength(item: DownloadItem): Long {
         val head = probeLength(item, head = true)
         if (head > 0L) return head
         return probeLength(item, head = false)
     }
 
-    private fun probeLength(item: DownloadItem, head: Boolean): Long = try {
+    private suspend fun probeLength(item: DownloadItem, head: Boolean): Long {
         val builder = Request.Builder().url(item.url)
         item.headers.forEach { (k, v) -> builder.addHeader(k, v) }
         if (head) builder.head() else builder.get().header("Range", "bytes=0-0")
-        client.newCall(builder.build()).execute().use { res ->
-            if (head) {
-                if (!res.isSuccessful) return -1L
-                res.header("Content-Length")?.toLongOrNull()?.takeIf { it > 0L } ?: -1L
-            } else {
-                val range = parseContentRange(res.header("Content-Range"))
-                if (res.code == 206 && range != null && range.first == 0L &&
-                    range.last == 0L
-                ) range.total else -1L
-            }
+        val call = client.newCall(builder.build())
+        val job = currentCoroutineContext().job
+        val cancellation = job.invokeOnCompletion { cause ->
+            if (cause is CancellationException) call.cancel()
         }
-    } catch (_: Exception) {
-        -1L
+        return try {
+            call.execute().use { res ->
+                if (head) {
+                    if (!res.isSuccessful) return -1L
+                    res.header("Content-Length")?.toLongOrNull()?.takeIf { it > 0L } ?: -1L
+                } else {
+                    val range = parseContentRange(res.header("Content-Range"))
+                    if (res.code == 206 && range != null && range.first == 0L &&
+                        range.last == 0L
+                    ) range.total else -1L
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            currentCoroutineContext().ensureActive()
+            -1L
+        } finally {
+            cancellation.dispose()
+        }
     }
 
-    private fun supportsRanges(item: DownloadItem, total: Long): Boolean = try {
+    private suspend fun supportsRanges(item: DownloadItem, total: Long): Boolean {
         val builder = Request.Builder().url(item.url).get().header("Range", "bytes=0-0")
         item.headers.forEach { (k, v) -> builder.addHeader(k, v) }
-        client.newCall(builder.build()).execute().use { res ->
-            val range = parseContentRange(res.header("Content-Range"))
-            res.code == 206 && range != null && range.first == 0L &&
-                range.last == 0L && range.total == total &&
-                (res.body?.contentLength() ?: -1L).let { it == -1L || it == 1L }
+        val call = client.newCall(builder.build())
+        val job = currentCoroutineContext().job
+        val cancellation = job.invokeOnCompletion { cause ->
+            if (cause is CancellationException) call.cancel()
         }
-    } catch (_: Exception) {
-        false
+        return try {
+            call.execute().use { res ->
+                val range = parseContentRange(res.header("Content-Range"))
+                res.code == 206 && range != null && range.first == 0L &&
+                    range.last == 0L && range.total == total &&
+                    (res.body?.contentLength() ?: -1L).let { it == -1L || it == 1L }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            currentCoroutineContext().ensureActive()
+            false
+        } finally {
+            cancellation.dispose()
+        }
     }
 
     private suspend fun downloadHls(
