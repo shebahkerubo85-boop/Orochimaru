@@ -151,15 +151,6 @@ class PlayerSettingsActivity :
                     ) { idx -> PrefManager.setVal(PrefName.BufferSize, intArrayOf(16, 32, 64, 128)[idx]) },
                 ),
                 SubscreenBuilder.Entry(
-                    title = getString(R.string.software_decoding),
-                    desc = "Hardware or software decoding",
-                    choice = SubscreenBuilder.Choice(
-                        title = getString(R.string.software_decoding),
-                        options = arrayOf("Hardware (MediaCodec)", "Software (FFmpeg)"),
-                        currentIndex = PrefManager.getVal<Int>(PrefName.DecodingMode),
-                    ) { idx -> PrefManager.setVal(PrefName.DecodingMode, idx) },
-                ),
-                SubscreenBuilder.Entry(
                     title = "Pause Overlay",
                     desc = "Show overlay when paused",
                     iconRes = R.drawable.ic_set_overlay,
