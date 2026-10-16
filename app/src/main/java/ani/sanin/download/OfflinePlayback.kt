@@ -21,21 +21,25 @@ const val DOWNLOADED_SERVER_NAME = "Downloaded"
  * uri (SAF). ExoPlayer needs a proper uri, so normalize bare paths to `file://`.
  */
 fun DownloadedItem.playbackUri(): String {
+    if (path.startsWith(DownloadHlsCache.LOCATOR_PREFIX)) {
+        return sourceUrl ?: throw IllegalStateException("Downloaded HLS source URL is missing")
+    }
     val p = path
     return if (p.startsWith("content://") || p.startsWith("file://")) p
     else Uri.fromFile(File(p)).toString()
 }
 
 /**
- * Wraps a finished download as a [VideoExtractor] so the existing player pipeline can open the
- * local file exactly like any other source (the player already knows how to read `content://` and
- * `file://`). The single video is a [VideoType.CONTAINER]; HLS downloads were remuxed to mkv.
+ * Wraps a finished download as a [VideoExtractor]. Direct files use their local file/SAF URI;
+ * HLS downloads keep their original playlist URL and are opened through the persistent cache-only
+ * Media3 data source so they continue to work without a network connection.
  */
 fun DownloadedItem.toOfflineExtractor(): VideoExtractor {
+    val isHlsCache = path.startsWith(DownloadHlsCache.LOCATOR_PREFIX)
     val video = Video(
         quality = null,
-        videoType = VideoType.CONTAINER,
-        url = playbackUri(),
+        videoType = if (isHlsCache) VideoType.M3U8 else (videoType ?: VideoType.CONTAINER),
+        file = ani.sanin.FileUrl(playbackUri(), headers.orEmpty()),
         size = sizeBytes.takeIf { it > 0 }?.toDouble(),
     )
     return object : VideoExtractor() {
