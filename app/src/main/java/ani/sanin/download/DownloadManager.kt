@@ -111,7 +111,6 @@ object DownloadManager {
             DownloadStatus.RETRYING,
             -> {
                 item.status = DownloadStatus.PAUSED
-                downloader.cancel(id)
                 activeJobs[id]?.cancel()
             }
 
@@ -134,7 +133,6 @@ object DownloadManager {
     fun retry(id: String) = resume(id)
 
     fun cancel(id: String) {
-        downloader.cancel(id)
         activeJobs[id]?.cancel()
         items.removeAll { it.id == id }
         persist()
@@ -151,7 +149,6 @@ object DownloadManager {
                 DownloadStatus.RETRYING,
                 -> {
                     item.status = DownloadStatus.PAUSED
-                    downloader.cancel(item.id)
                     activeJobs[item.id]?.cancel()
                     changed = true
                 }
@@ -203,8 +200,7 @@ object DownloadManager {
 
     fun deleteAll() {
         activeJobs.keys.toList().forEach { id ->
-            downloader.cancel(id)
-            activeJobs[id]?.cancel()
+                activeJobs[id]?.cancel()
         }
         items.clear()
         persist()
