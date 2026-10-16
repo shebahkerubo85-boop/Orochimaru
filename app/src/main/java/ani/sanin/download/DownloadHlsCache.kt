@@ -89,7 +89,7 @@ object DownloadHlsCache {
         val playbackUrl = when (item.videoType) {
             VideoType.M3U8 -> resolveHlsPlaybackUrl(item, client)
             VideoType.DASH -> item.url
-            else -> throw DownloadException("Adaptive cache does not support \${item.videoType}")
+            else -> throw DownloadException("Adaptive cache does not support ${item.videoType}")
         }
         item.offlinePlaybackUrl = playbackUrl
         val factory = dataSourceFactory(context, item.headers, offlineOnly = false, client = client)
@@ -97,7 +97,7 @@ object DownloadHlsCache {
         val downloader: Media3Downloader = when (item.videoType) {
             VideoType.M3U8 -> HlsDownloader.Factory(factory).setExecutor(executor).create(media)
             VideoType.DASH -> DashDownloader.Factory(factory).setExecutor(executor).create(media)
-            else -> throw DownloadException("Unsupported adaptive type: \${item.videoType}")
+            else -> throw DownloadException("Unsupported adaptive type: ${item.videoType}")
         }
         val job = currentCoroutineContext().job
         val cancellation = job.invokeOnCompletion { cause ->
@@ -113,7 +113,7 @@ object DownloadHlsCache {
                 }
             }
             if (!isActive()) throw DownloadCancelledException()
-            Log.i(TAG, "cached type=\${item.videoType} id=\${item.id}")
+            Log.i(TAG, "cached type=${item.videoType} id=${item.id}")
         } finally {
             cancellation.dispose()
         }
@@ -126,7 +126,7 @@ object DownloadHlsCache {
             }.build()
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    throw DownloadException("HTTP \${response.code} while resolving HLS playlist")
+                    throw DownloadException("HTTP ${response.code} while resolving HLS playlist")
                 }
                 val playlist = response.body?.string()
                     ?: throw DownloadException("Empty HLS playlist response")

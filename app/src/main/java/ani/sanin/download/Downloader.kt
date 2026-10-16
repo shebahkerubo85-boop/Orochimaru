@@ -80,7 +80,7 @@ class Downloader(
         if (existingBytes == 0L && total >= MIN_SEGMENT_SIZE && segments > 1 && isActive() &&
             supportsRanges(item, total)
         ) {
-            Log.i(TAG, "trying $segments verified range segments for \${item.id}, total=$total")
+            Log.i(TAG, "trying $segments verified range segments for ${item.id}, total=$total")
             try {
                 downloadSegments(item, temp, total, segments, onProgress, isActive)
                 return@withContext
@@ -89,9 +89,9 @@ class Downloader(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.w(TAG, "segmented download failed; restarting as a single stream: \${e.message}")
+                Log.w(TAG, "segmented download failed; restarting as a single stream: ${e.message}")
                 temp.delete()
-                for (part in 0 until 8) File("\${temp.path}.part$part").delete()
+                for (part in 0 until 8) File("${temp.path}.part$part").delete()
             }
         }
         downloadSingle(item, temp, total, onProgress, isActive)
@@ -129,10 +129,10 @@ class Downloader(
                     // Server ignored Range (or this is a fresh request): truncate, never append.
                     offset = 0L
                 } else if (!res.isSuccessful) {
-                    throw DownloadException("HTTP \${res.code} for \${item.url}")
+                    throw DownloadException("HTTP ${res.code} for ${item.url}")
                 } else if (offset > 0L && res.code != 206) {
                     temp.delete()
-                    throw DownloadException("Server did not honour resume Range (HTTP \${res.code})")
+                    throw DownloadException("Server did not honour resume Range (HTTP ${res.code})")
                 } else if (res.code == 206 && range == null) {
                     throw DownloadException("Invalid Content-Range on partial response")
                 }
@@ -316,7 +316,9 @@ class Downloader(
                 res.header("Content-Length")?.toLongOrNull()?.takeIf { it > 0L } ?: -1L
             } else {
                 val range = parseContentRange(res.header("Content-Range"))
-                if (res.code == 206 && range?.first == 0L && range.last == 0L) range.total else -1L
+                if (res.code == 206 && range != null && range.first == 0L &&
+                    range.last == 0L
+                ) range.total else -1L
             }
         }
     } catch (_: Exception) {
@@ -328,7 +330,8 @@ class Downloader(
         item.headers.forEach { (k, v) -> builder.addHeader(k, v) }
         client.newCall(builder.build()).execute().use { res ->
             val range = parseContentRange(res.header("Content-Range"))
-            res.code == 206 && range?.first == 0L && range.last == 0L && range.total == total &&
+            res.code == 206 && range != null && range.first == 0L &&
+                range.last == 0L && range.total == total &&
                 (res.body?.contentLength() ?: -1L).let { it == -1L || it == 1L }
         }
     } catch (_: Exception) {
