@@ -9,6 +9,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -65,7 +68,11 @@ class Downloader(
             .apply { item.headers.forEach { (k, v) -> addHeader(k, v) } }
             .build()
 
-        val response = client.newCall(request).execute()
+        val call = client.newCall(request)
+        currentCoroutineContext().job.invokeOnCompletion { cause ->
+            if (cause is CancellationException) call.cancel()
+        }
+        val response = call.execute()
         response.use { res ->
             if (!res.isSuccessful) throw DownloadException("HTTP ${res.code} for ${item.url}")
             val body = res.body ?: throw DownloadException("Empty response body")
