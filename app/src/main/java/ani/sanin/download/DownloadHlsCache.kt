@@ -20,7 +20,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.job
 import kotlinx.coroutines.runInterruptible
+import okhttp3.Request
 import java.io.File
+import java.net.URI
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -89,6 +91,9 @@ object DownloadHlsCache {
         isActive: () -> Boolean,
     ) {
         if (!isActive()) throw DownloadCancelledException()
+        // If the URL is a master playlist, remember the first variant's media playlist URL.
+        // ExoPlayer can then play exactly the cached rendition without trying uncached qualities.
+        item.offlinePlaybackUrl = resolvePlaybackUrl(item)
         val cacheFactory = dataSourceFactory(context, item.headers, offlineOnly = false)
         val downloader = HlsDownloader.Factory(cacheFactory)
             .setExecutor(executor)
@@ -114,6 +119,34 @@ object DownloadHlsCache {
             cancellation.dispose()
         }
     }
+
+    private suspend fun resolvePlaybackUrl(item: DownloadItem): String =
+        runInterruptible(Dispatchers.IO) {
+            val request = Request.Builder().url(item.url).apply {
+                item.headers.forEach { (name, value) -> addHeader(name, value) }
+            }.build()
+            Downloader.defaultClient().newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    throw DownloadException("HTTP ${response.code} while resolving HLS playlist")
+                }
+                val playlist = response.body?.string()
+                    ?: throw DownloadException("Empty HLS playlist response")
+                val finalUrl = response.request.url.toString()
+                val lines = playlist.lineSequence().map(String::trim).toList()
+                val streamInfo = lines.indexOfFirst {
+                    it.startsWith("#EXT-X-STREAM-INF", ignoreCase = true)
+                }
+                val variant = if (streamInfo >= 0) {
+                    lines.drop(streamInfo + 1).firstOrNull {
+                        it.isNotBlank() && !it.startsWith("#")
+                    }
+                } else {
+                    null
+                }
+                if (variant.isNullOrBlank()) item.url
+                else URI(finalUrl).resolve(variant).toString()
+            }
+        }
 
     /** Remove the cached manifest graph and all its segments when the user deletes the episode. */
     suspend fun remove(context: Context, url: String, headers: Map<String, String>) {
