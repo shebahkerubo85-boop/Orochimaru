@@ -87,16 +87,61 @@ class Downloader(
 
             val segments = PrefManager.getVal<Int>(PrefName.DownloadSegments).coerceIn(1, 8)
             if (serverTotal > 0L && total >= MIN_SEGMENT_SIZE && segments > 1 && isActive()) {
+                Log.i(TAG, "trying $segments range segments for ${item.id}, total=$total")
+                // Close the initial full-file GET before opening range requests. Leaving it open
+                // wastes a connection and can make the host throttle the parallel requests.
+                res.close()
                 try {
                     downloadSegments(item, temp, total, segments, onProgress, isActive)
                     return@withContext
                 } catch (e: DownloadCancelledException) {
                     throw e
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    Log.w(TAG, "segmented download failed, falling back: ${e.message}")
+                    Log.w(TAG, "segmented download failed, retrying as single stream: ${e.message}")
+                    downloadSingle(item, temp, total, onProgress, isActive)
+                    return@withContext
                 }
             }
 
+            body.byteStream().use { input ->
+                temp.outputStream().use { output ->
+                    val buffer = ByteArray(64 * 1024)
+                    var read: Int
+                    var done = 0L
+                    while (input.read(buffer).also { read = it } != -1) {
+                        if (!isActive()) {
+                            temp.delete()
+                            throw DownloadCancelledException()
+                        }
+                        output.write(buffer, 0, read)
+                        done += read
+                        onProgress(done, total, -1f)
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun downloadSingle(
+        item: DownloadItem,
+        temp: File,
+        total: Long,
+        onProgress: (Long, Long, Float) -> Unit,
+        isActive: () -> Boolean,
+    ) = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url(item.url)
+            .apply { item.headers.forEach { (k, v) -> addHeader(k, v) } }
+            .build()
+        val call = client.newCall(request)
+        currentCoroutineContext().job.invokeOnCompletion { cause ->
+            if (cause is CancellationException) call.cancel()
+        }
+        call.execute().use { res ->
+            if (!res.isSuccessful) throw DownloadException("HTTP ${res.code} for ${item.url}")
+            val body = res.body ?: throw DownloadException("Empty response body")
             body.byteStream().use { input ->
                 temp.outputStream().use { output ->
                     val buffer = ByteArray(64 * 1024)
@@ -262,12 +307,21 @@ class Downloader(
         private const val TAG = "AnimeDownload"
         private const val MIN_SEGMENT_SIZE = 1024L * 1024L
 
-        fun defaultClient(): OkHttpClient = OkHttpClient.Builder()
+        fun defaultClient(): OkHttpClient {
+            // OkHttp defaults to five concurrent requests per host. That silently caps a user
+            // selecting 6–8 segments, so align the per-host dispatcher with the segment ceiling.
+            val dispatcher = okhttp3.Dispatcher().apply {
+                maxRequests = 32
+                maxRequestsPerHost = 8
+            }
+            return OkHttpClient.Builder()
+            .dispatcher(dispatcher)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
             .followRedirects(true)
             .retryOnConnectionFailure(true)
             .build()
+        }
     }
 }
