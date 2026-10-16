@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.app.PendingIntent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
@@ -40,6 +41,7 @@ class DownloadService : Service() {
             val notification: Notification = NotificationCompat.Builder(this, DownloadNotifier.CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.stat_sys_download)
                 .setContentTitle(getString(R.string.downloads))
+                .setContentIntent(PendingIntent.getActivity(this, 7200, Intent(this, DownloadsActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
                 .setOngoing(true)
                 .build()
             val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
