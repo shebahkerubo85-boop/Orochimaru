@@ -96,6 +96,11 @@ class MediaDetailsActivity : AppCompatActivity() {
         binding = ActivityMediaBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Activity Result launchers must be registered before the Activity reaches STARTED.
+        // Do this synchronously in onCreate, before the id-based media fetch can suspend and
+        // resume after the Activity has already reached RESUMED.
+        launcher = LauncherWrapper(this, ActivityResultContracts.OpenDocumentTree())
+
         if (id != -1) {
             lifecycleScope.launch {
                 val media = withContext(Dispatchers.IO) { fetchMediaById(id, rescueMode) }
@@ -124,9 +129,6 @@ class MediaDetailsActivity : AppCompatActivity() {
             onBackPressedDispatcher.onBackPressed()
             return
         }
-        val contract = ActivityResultContracts.OpenDocumentTree()
-        launcher = LauncherWrapper(this, contract)
-
         // Hand the media to the static so a rebuilt activity can find it again. Rotating hands
         // this activity the very same Intent instance, and the extra was pulled off that at
         // :88, so without this the rebuild resolves to emptyMedia() and immediately backs out
