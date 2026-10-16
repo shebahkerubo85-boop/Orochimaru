@@ -49,6 +49,8 @@ class DownloadNotifier(private val context: Context) {
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setContentTitle(item.mediaName)
             .setContentIntent(PendingIntent.getActivity(context, 7200, Intent(context, DownloadsActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+            .addAction(android.R.drawable.ic_media_pause, "Pause", PendingIntent.getBroadcast(context, item.id.hashCode(), Intent(context, DownloadActionReceiver::class.java).setAction(DownloadActionReceiver.ACTION_PAUSE).putExtra(DownloadActionReceiver.EXTRA_ITEM_ID, item.id), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+            .addAction(android.R.drawable.ic_menu_delete, "Delete", PendingIntent.getBroadcast(context, item.id.hashCode() + 1, Intent(context, DownloadActionReceiver::class.java).setAction(DownloadActionReceiver.ACTION_DELETE).putExtra(DownloadActionReceiver.EXTRA_ITEM_ID, item.id), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
             .setContentText(
                 context.getString(R.string.downloading_episode, item.episodeNumber),
             )
