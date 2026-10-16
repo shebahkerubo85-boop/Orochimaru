@@ -160,6 +160,7 @@ object DownloadManager {
 
     fun cancel(id: String) {
         activeJobs[id]?.cancel()
+        items.firstOrNull { it.id == id }?.let { Downloader.cleanup(appContext, it) }
         items.removeAll { it.id == id }
         persist()
         publish()
@@ -228,6 +229,7 @@ object DownloadManager {
         activeJobs.keys.toList().forEach { id ->
                 activeJobs[id]?.cancel()
         }
+        items.toList().forEach { Downloader.cleanup(appContext, it) }
         items.clear()
         persist()
         publish()
@@ -239,7 +241,13 @@ object DownloadManager {
             val sourceUrl = item.sourceUrl ?: return
             scope.launch {
                 try {
-                    DownloadHlsCache.remove(appContext, sourceUrl, item.headers.orEmpty())
+                    DownloadHlsCache.remove(
+                        appContext,
+                        sourceUrl,
+                        item.headers.orEmpty(),
+                        item.videoType ?: ani.sanin.parsers.VideoType.M3U8,
+                        item.playbackUrl,
+                    )
                 } catch (e: Exception) {
                     Log.w("AnimeDownload", "Could not remove cached HLS ${item.id}", e)
                 }
@@ -385,7 +393,6 @@ object DownloadManager {
             kotlinx.coroutines.currentCoroutineContext().ensureActive()
             attempt++
             if (attempt > MAX_RETRIES) throw e
-            temp?.takeIf { it.exists() }?.delete()
             item.status = DownloadStatus.RETRYING
             item.error = e.message
             persist()
@@ -399,10 +406,11 @@ object DownloadManager {
             if (items.none { it.id == item.id } || item.status != DownloadStatus.DOWNLOADING) {
                 throw DownloadCancelledException()
             }
-            val isHls = item.videoType == ani.sanin.parsers.VideoType.M3U8
-            val size = if (isHls) item.downloadedBytes else temp.length()
-            if (!isHls && size <= 0L) throw DownloadException("Downloaded file is empty")
-            val locator = if (isHls) {
+            val isAdaptive = item.videoType == ani.sanin.parsers.VideoType.M3U8 ||
+                item.videoType == ani.sanin.parsers.VideoType.DASH
+            val size = if (isAdaptive) item.downloadedBytes else temp.length()
+            if (!isAdaptive && size <= 0L) throw DownloadException("Downloaded file is empty")
+            val locator = if (isAdaptive) {
                 DownloadHlsCache.locator(item.id)
             } else {
                 DownloadStorageHelper.commit(appContext, item, temp)
@@ -420,17 +428,17 @@ object DownloadManager {
             notifier.completed(item)
             Log.i("AnimeDownload", "saved ${item.mediaName} ep${item.episodeNumber} ($size bytes) -> $locator")
         } catch (e: DownloadCancelledException) {
-            temp?.takeIf { it.exists() }?.delete()
+            if (items.none { it.id == item.id }) {
+                Downloader.cleanup(appContext, item)
+            }
             if (items.any { it.id == item.id }) {
                 item.status = DownloadStatus.PAUSED
                 persist()
                 publish()
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
-            temp?.takeIf { it.exists() }?.delete()
             throw e
         } catch (e: Exception) {
-            temp?.takeIf { it.exists() }?.delete()
             item.status = DownloadStatus.ERROR
             item.error = e.message ?: "Download failed"
             persist()
@@ -465,9 +473,12 @@ object DownloadManager {
                 thumbPath = item.thumbPath,
                 logoPath = item.logoPath,
                 videoType = item.videoType,
-                sourceUrl = if (item.videoType == ani.sanin.parsers.VideoType.M3U8) item.url else null,
-                playbackUrl = if (item.videoType == ani.sanin.parsers.VideoType.M3U8) item.offlinePlaybackUrl else null,
-                headers = if (item.videoType == ani.sanin.parsers.VideoType.M3U8) item.headers else emptyMap(),
+                sourceUrl = if (item.videoType == ani.sanin.parsers.VideoType.M3U8 ||
+                    item.videoType == ani.sanin.parsers.VideoType.DASH) item.url else null,
+                playbackUrl = if (item.videoType == ani.sanin.parsers.VideoType.M3U8 ||
+                    item.videoType == ani.sanin.parsers.VideoType.DASH) item.offlinePlaybackUrl else null,
+                headers = if (item.videoType == ani.sanin.parsers.VideoType.M3U8 ||
+                    item.videoType == ani.sanin.parsers.VideoType.DASH) item.headers else emptyMap(),
             ),
         )
         persistCompleted()

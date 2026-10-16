@@ -13,6 +13,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -57,10 +58,8 @@ class Downloader(
             Log.i(TAG, "download finished url=${item.url} size=${temp.length()}")
             return temp
         } catch (error: Throwable) {
-            // The manager only receives the temp file after a successful return. Without cleanup
-            // here, a pause/cancel or final network failure can strand partial files indefinitely.
-            temp.delete()
-            for (part in 0 until 8) File("${temp.path}.part$part").delete()
+            // Direct-file partials are retained for a verified Range resume. Segmented downloads
+            // remove their own parts on failure; invalid resume responses delete the stale temp.
             throw error
         }
     }
@@ -71,108 +70,104 @@ class Downloader(
         onProgress: (Long, Long, Float) -> Unit,
         isActive: () -> Boolean,
     ) = withContext(Dispatchers.IO) {
-        val request = Request.Builder()
-            .url(item.url)
-            .apply { item.headers.forEach { (k, v) -> addHeader(k, v) } }
-            .build()
+        val existingBytes = temp.takeIf { it.exists() }?.length() ?: 0L
+        val probedTotal = resolveLength(item)
+        val total = probedTotal.takeIf { it in 1 until MAX_DOWNLOAD_BYTES } ?: 0L
+        val segments = PrefManager.getVal<Int>(PrefName.DownloadSegments).coerceIn(1, 8)
 
-        val call = client.newCall(request)
-        currentCoroutineContext().job.invokeOnCompletion { cause ->
-            if (cause is CancellationException) call.cancel()
-        }
-        val response = call.execute()
-        response.use { res ->
-            if (!res.isSuccessful) throw DownloadException("HTTP ${res.code} for ${item.url}")
-            val body = res.body ?: throw DownloadException("Empty response body")
-            // Chunked/streaming responses return -1 here, which used to leave the progress bar
-            // stuck on the indeterminate loop. Ask the server for the length before streaming.
-            // Only a server-provided length enables segmented (multi-connection) downloads; a
-            // provider estimate must never be used to split ranges, or a wrong estimate would
-            // truncate the file.
-            var serverTotal = body.contentLength()
-            if (serverTotal <= 0L) serverTotal = resolveLength(item)
-            val total = if (serverTotal > 0L && serverTotal < 21474836480L) serverTotal else 0L
-
-            val segments = PrefManager.getVal<Int>(PrefName.DownloadSegments).coerceIn(1, 8)
-            if (serverTotal > 0L && total >= MIN_SEGMENT_SIZE && segments > 1 && isActive()) {
-                Log.i(TAG, "trying $segments range segments for ${item.id}, total=$total")
-                // Close the initial full-file GET before opening range requests. Leaving it open
-                // wastes a connection and can make the host throttle the parallel requests.
-                res.close()
-                try {
-                    downloadSegments(item, temp, total, segments, onProgress, isActive)
-                    return@withContext
-                } catch (e: DownloadCancelledException) {
-                    throw e
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.w(TAG, "segmented download failed, retrying as single stream: ${e.message}")
-                    downloadSingle(item, temp, total, onProgress, isActive)
-                    return@withContext
-                }
-            }
-
-            body.byteStream().use { input ->
-                temp.outputStream().use { output ->
-                    val buffer = ByteArray(64 * 1024)
-                    var read: Int
-                    var done = 0L
-                    while (input.read(buffer).also { read = it } != -1) {
-                        if (!isActive()) {
-                            temp.delete()
-                            throw DownloadCancelledException()
-                        }
-                        output.write(buffer, 0, read)
-                        done += read
-                        onProgress(done, total, -1f)
-                    }
-                }
+        // Segmented files aren't resumable without a manifest. Only use them on a clean temp
+        // and after the server confirms the exact byte-range protocol.
+        if (existingBytes == 0L && total >= MIN_SEGMENT_SIZE && segments > 1 && isActive() &&
+            supportsRanges(item, total)
+        ) {
+            Log.i(TAG, "trying $segments verified range segments for \${item.id}, total=$total")
+            try {
+                downloadSegments(item, temp, total, segments, onProgress, isActive)
+                return@withContext
+            } catch (e: DownloadCancelledException) {
+                throw e
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "segmented download failed; restarting as a single stream: \${e.message}")
+                temp.delete()
+                for (part in 0 until 8) File("\${temp.path}.part$part").delete()
             }
         }
+        downloadSingle(item, temp, total, onProgress, isActive)
     }
 
+    /** Resume a partial file only when the origin confirms the requested byte offset. */
     private suspend fun downloadSingle(
         item: DownloadItem,
         temp: File,
-        total: Long,
+        knownTotal: Long,
         onProgress: (Long, Long, Float) -> Unit,
         isActive: () -> Boolean,
     ) = withContext(Dispatchers.IO) {
-        val request = Request.Builder()
-            .url(item.url)
-            .apply { item.headers.forEach { (k, v) -> addHeader(k, v) } }
-            .build()
-        val call = client.newCall(request)
-        currentCoroutineContext().job.invokeOnCompletion { cause ->
+        var offset = temp.takeIf { it.exists() }?.length() ?: 0L
+        val builder = Request.Builder().url(item.url).apply {
+            item.headers.forEach { (k, v) -> addHeader(k, v) }
+        }
+        if (offset > 0L) builder.header("Range", "bytes=$offset-")
+        val call = client.newCall(builder.build())
+        val job = currentCoroutineContext().job
+        val cancellation = job.invokeOnCompletion { cause ->
             if (cause is CancellationException) call.cancel()
         }
-        call.execute().use { res ->
-            if (!res.isSuccessful) throw DownloadException("HTTP ${res.code} for ${item.url}")
-            val body = res.body ?: throw DownloadException("Empty response body")
-            body.byteStream().use { input ->
-                temp.outputStream().use { output ->
-                    val buffer = ByteArray(64 * 1024)
-                    var read: Int
-                    var done = 0L
-                    while (input.read(buffer).also { read = it } != -1) {
-                        if (!isActive()) {
-                            temp.delete()
-                            throw DownloadCancelledException()
+        try {
+            call.execute().use { res ->
+                val range = parseContentRange(res.header("Content-Range"))
+                if (offset > 0L && res.code == 206) {
+                    if (range == null || range.first != offset ||
+                        (knownTotal > 0L && range.total != knownTotal)
+                    ) {
+                        temp.delete()
+                        throw DownloadException("Invalid resume Content-Range for byte $offset")
+                    }
+                } else if (res.code == 200) {
+                    // Server ignored Range (or this is a fresh request): truncate, never append.
+                    offset = 0L
+                } else if (!res.isSuccessful) {
+                    throw DownloadException("HTTP \${res.code} for \${item.url}")
+                } else if (offset > 0L && res.code != 206) {
+                    temp.delete()
+                    throw DownloadException("Server did not honour resume Range (HTTP \${res.code})")
+                } else if (res.code == 206 && range == null) {
+                    throw DownloadException("Invalid Content-Range on partial response")
+                }
+
+                val body = res.body ?: throw DownloadException("Empty response body")
+                val actualTotal = range?.total?.takeIf { it > 0L }
+                    ?: knownTotal.takeIf { it > 0L }
+                    ?: body.contentLength().takeIf { it > 0L }?.let { it + offset }
+                    ?: 0L
+                body.byteStream().use { input ->
+                    temp.parentFile?.mkdirs()
+                    java.io.FileOutputStream(temp, offset > 0L).use { output ->
+                        val buffer = ByteArray(64 * 1024)
+                        var read: Int
+                        var done = offset
+                        while (input.read(buffer).also { read = it } != -1) {
+                            if (!isActive()) throw DownloadCancelledException()
+                            output.write(buffer, 0, read)
+                            done += read
+                            onProgress(done, actualTotal, -1f)
                         }
-                        output.write(buffer, 0, read)
-                        done += read
-                        onProgress(done, total, -1f)
+                        output.fd.sync()
                     }
                 }
+                val finalLength = temp.length()
+                if (actualTotal > 0L && finalLength != actualTotal) {
+                    throw DownloadException("Incomplete download: $finalLength of $actualTotal bytes")
+                }
+                if (finalLength <= 0L) throw DownloadException("Downloaded file is empty")
             }
+        } finally {
+            cancellation.dispose()
         }
     }
 
-    /**
-     * IDM-style acceleration: splits the server-confirmed byte range into `segments` chunks and
-     * pulls each one over its own Range request into a `.partN` file, then merges them in order.
-     */
     private suspend fun downloadSegments(
         item: DownloadItem,
         temp: File,
@@ -210,13 +205,23 @@ class Downloader(
                         if (cause is CancellationException) call.cancel()
                     }
                     call.execute().use { res ->
-                        if (res.code != 206) {
-                            throw DownloadException("HTTP ${res.code} for range $start-$end")
+                        val range = parseContentRange(res.header("Content-Range"))
+                        if (res.code != 206 || range == null || range.first != start ||
+                            range.last != end || range.total != total
+                        ) {
+                            throw DownloadException(
+                                "Invalid range response: HTTP ${res.code}, " +
+                                    "Content-Range=${res.header("Content-Range")}",
+                            )
                         }
                         val rangeBody = res.body
                             ?: throw DownloadException("Empty range response body")
+                        if (rangeBody.contentLength() >= 0L &&
+                            rangeBody.contentLength() != end - start + 1L
+                        ) throw DownloadException("Wrong range body length for segment $i")
                         rangeBody.byteStream().use { input ->
                             RandomAccessFile(part, "rw").use { raf ->
+                                raf.setLength(0L)
                                 val buffer = ByteArray(64 * 1024)
                                 var read: Int
                                 while (input.read(buffer).also { read = it } != -1) {
@@ -255,6 +260,7 @@ class Downloader(
             }
         } finally {
             scope.cancel()
+            jobs.joinAll()
         }
 
         val err = failure.get()
@@ -269,6 +275,11 @@ class Downloader(
             }
         }
         cleanup()
+        if (temp.length() != total) {
+            val actual = temp.length()
+            temp.delete()
+            throw DownloadException("Merged file length $actual != expected $total")
+        }
         onProgress(total, total, -1f)
         Log.i(TAG, "segmented download done: $segments ranges -> ${temp.length()} bytes")
     }
@@ -277,6 +288,18 @@ class Downloader(
      * Best-effort size probe (HEAD, then a 1-byte range GET) used only when the actual download
      * response has no Content-Length. Returns -1 when the size genuinely cannot be determined.
      */
+    private data class ParsedRange(val first: Long, val last: Long, val total: Long)
+
+    private fun parseContentRange(value: String?): ParsedRange? {
+        val match = CONTENT_RANGE.matchEntire(value?.trim().orEmpty()) ?: return null
+        val first = match.groupValues[1].toLongOrNull() ?: return null
+        val last = match.groupValues[2].toLongOrNull() ?: return null
+        val total = match.groupValues[3].toLongOrNull() ?: return null
+        if (first < 0L || last < first || total <= last) return null
+        return ParsedRange(first, last, total)
+    }
+
+    /** Trust only a successful HEAD length or a valid one-byte 206 probe. */
     private fun resolveLength(item: DownloadItem): Long {
         val head = probeLength(item, head = true)
         if (head > 0L) return head
@@ -286,34 +309,49 @@ class Downloader(
     private fun probeLength(item: DownloadItem, head: Boolean): Long = try {
         val builder = Request.Builder().url(item.url)
         item.headers.forEach { (k, v) -> builder.addHeader(k, v) }
-        if (head) {
-            builder.head()
-        } else {
-            builder.get().addHeader("Range", "bytes=0-0")
-        }
+        if (head) builder.head() else builder.get().header("Range", "bytes=0-0")
         client.newCall(builder.build()).execute().use { res ->
-            // Content-Range: bytes 0-0/12345 gives the full size on a range response.
-            val fromRange = res.header("Content-Range")
-                ?.substringAfter('/', "")
-                ?.takeIf { it.isNotBlank() && it != "*" }
-                ?.toLongOrNull()
-            val fromHeader = res.header("Content-Length")?.toLongOrNull()
-            val fromBody = res.body?.contentLength() ?: -1L
-            maxOf(fromRange ?: -1L, fromHeader ?: -1L, fromBody)
+            if (head) {
+                if (!res.isSuccessful) return -1L
+                res.header("Content-Length")?.toLongOrNull()?.takeIf { it > 0L } ?: -1L
+            } else {
+                val range = parseContentRange(res.header("Content-Range"))
+                if (res.code == 206 && range?.first == 0L && range.last == 0L) range.total else -1L
+            }
         }
     } catch (_: Exception) {
         -1L
+    }
+
+    private fun supportsRanges(item: DownloadItem, total: Long): Boolean = try {
+        val builder = Request.Builder().url(item.url).get().header("Range", "bytes=0-0")
+        item.headers.forEach { (k, v) -> builder.addHeader(k, v) }
+        client.newCall(builder.build()).execute().use { res ->
+            val range = parseContentRange(res.header("Content-Range"))
+            res.code == 206 && range?.first == 0L && range.last == 0L && range.total == total &&
+                (res.body?.contentLength() ?: -1L).let { it == -1L || it == 1L }
+        }
+    } catch (_: Exception) {
+        false
     }
 
     private suspend fun downloadHls(
         item: DownloadItem,
         onProgress: (Long, Long, Float) -> Unit,
         isActive: () -> Boolean,
-    ) = HlsRemuxer.download(context, item, onProgress, isActive)
+    ) = HlsRemuxer.download(context, item, client, onProgress, isActive)
 
     companion object {
         private const val TAG = "AnimeDownload"
         private const val MIN_SEGMENT_SIZE = 1024L * 1024L
+        private const val MAX_DOWNLOAD_BYTES = 21474836480L
+        private val CONTENT_RANGE = Regex("""bytes (\d+)-(\d+)/(\d+)""")
+
+        fun cleanup(context: Context, item: DownloadItem) {
+            val temp = DownloadStorageHelper.tempFile(context, item)
+            temp.delete()
+            for (part in 0 until 8) File("${temp.path}.part$part").delete()
+        }
 
         fun defaultClient(): OkHttpClient {
             // OkHttp defaults to five concurrent requests per host. That silently caps a user

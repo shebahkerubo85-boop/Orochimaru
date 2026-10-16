@@ -12,7 +12,8 @@ internal object HlsRemuxer {
     suspend fun download(
         context: Context,
         item: DownloadItem,
+        client: okhttp3.OkHttpClient,
         onProgress: (downloaded: Long, total: Long, fraction: Float) -> Unit,
         isActive: () -> Boolean,
-    ) = DownloadHlsCache.download(context, item, onProgress, isActive)
+    ) = DownloadHlsCache.download(context, item, client, onProgress, isActive)
 }

@@ -23,7 +23,7 @@ const val DOWNLOADED_SERVER_NAME = "Downloaded"
 fun DownloadedItem.playbackUri(): String {
     if (path.startsWith(DownloadHlsCache.LOCATOR_PREFIX)) {
         return playbackUrl ?: sourceUrl
-            ?: throw IllegalStateException("Downloaded HLS source URL is missing")
+            ?: throw IllegalStateException("Downloaded adaptive source URL is missing")
     }
     val p = path
     return if (p.startsWith("content://") || p.startsWith("file://")) p
@@ -32,14 +32,14 @@ fun DownloadedItem.playbackUri(): String {
 
 /**
  * Wraps a finished download as a [VideoExtractor]. Direct files use their local file/SAF URI;
- * HLS downloads keep their original playlist URL and are opened through the persistent cache-only
- * Media3 data source so they continue to work without a network connection.
+ * HLS/DASH downloads use their selected manifest URL and the persistent cache-only Media3 data
+ * source so they continue to work without a network connection.
  */
 fun DownloadedItem.toOfflineExtractor(): VideoExtractor {
-    val isHlsCache = path.startsWith(DownloadHlsCache.LOCATOR_PREFIX)
+    val isAdaptiveCache = path.startsWith(DownloadHlsCache.LOCATOR_PREFIX)
     val video = Video(
         quality = null,
-        format = if (isHlsCache) VideoType.M3U8 else (videoType ?: VideoType.CONTAINER),
+        format = if (isAdaptiveCache) (videoType ?: VideoType.M3U8) else (videoType ?: VideoType.CONTAINER),
         file = ani.sanin.FileUrl(playbackUri(), headers.orEmpty()),
         size = sizeBytes.takeIf { it > 0 }?.toDouble(),
     )

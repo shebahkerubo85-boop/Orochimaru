@@ -66,7 +66,8 @@ object DownloadStorageHelper {
     fun tempFile(context: Context, item: DownloadItem): File {
         val dir = File(context.cacheDir, TEMP_DIR).apply { mkdirs() }
         val ext = extensionFor(item)
-        return File(dir, sanitize(item.fileName) + "_" + System.currentTimeMillis() + ".$ext")
+        // Stable ID path permits verified Range resume across retries and process restarts.
+        return File(dir, sanitize(item.id) + ".$ext.part")
     }
 
     /** Download root for the current mode, or null when SHARED is selected but not configured. */

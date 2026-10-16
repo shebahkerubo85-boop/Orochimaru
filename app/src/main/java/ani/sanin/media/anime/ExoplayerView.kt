@@ -2253,12 +2253,12 @@ class ExoplayerView :
                 setDefaultRequestProperties(requestHeaders)
             }
         val defaultDataSourceFactory = DefaultDataSource.Factory(this, httpDataSourceFactory)
-        val isOfflineHlsDownload =
-            media.format == "LOCAL" && video?.format == VideoType.M3U8
-        cacheFactory = if (isOfflineHlsDownload) {
-            // Completed HLS downloads must never fall through to the network. The manifest,
-            // selected variant, encryption keys (when present), and media segments were stored
-            // by HlsDownloader in this same persistent cache.
+        val isOfflineAdaptiveDownload =
+            media.format == "LOCAL" &&
+                (video?.format == VideoType.M3U8 || video?.format == VideoType.DASH)
+        cacheFactory = if (isOfflineAdaptiveDownload) {
+            // Completed HLS/DASH downloads must never fall through to the network. Their manifests,
+            // initialization data, keys (when present), and media segments live in this cache.
             DownloadHlsCache.offlineDataSourceFactory(this)
         } else {
             CacheDataSource.Factory().apply {
@@ -2307,7 +2307,7 @@ class ExoplayerView :
         // stuck in BUFFERING with no network activity and no error.  CS3
         // already builds its live source without a cache.
         val contentDataSourceFactory: DataSource.Factory =
-            if (isOfflineHlsDownload) cacheFactory
+            if (isOfflineAdaptiveDownload) cacheFactory
             else if (isDeclaredLiveStream()) defaultDataSourceFactory else cacheFactory
 
         assMediaSourceFactory = DefaultMediaSourceFactory(contentDataSourceFactory, extractorsFactory)
@@ -2395,12 +2395,6 @@ class ExoplayerView :
             .setUri(video!!.file.url)
             .setMimeType(mimeType)
             .setSubtitleConfigurations(sub)
-        if (isOfflineHlsDownload) {
-            // Match the single rendition downloaded by DownloadHlsCache.
-            mediaItemBuilder.setStreamKeys(
-                listOf(StreamKey(HlsMultivariantPlaylist.GROUP_INDEX_VARIANT, 0)),
-            )
-        }
 
         // A MediaItem only counts as live once it carries a LiveConfiguration
         // (Timeline.Window.isLive() is literally "liveConfiguration != null").
