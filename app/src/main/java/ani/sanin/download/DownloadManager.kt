@@ -108,7 +108,20 @@ object DownloadManager {
         val existing = items.firstOrNull {
             it.mediaId == item.mediaId && it.episodeNumber == item.episodeNumber
         }
-        if (existing != null) return
+        if (existing != null) {
+            // A repeated request for the same resolved source is a natural retry/resume action.
+            // Never silently replace an active transfer or swap its URL underneath the worker.
+            if (existing.id == item.id &&
+                (existing.status == DownloadStatus.PAUSED || existing.status == DownloadStatus.ERROR)
+            ) {
+                existing.status = DownloadStatus.QUEUED
+                existing.error = null
+                persist()
+                publish()
+                pump()
+            }
+            return
+        }
 
         items.add(item)
         persist()
