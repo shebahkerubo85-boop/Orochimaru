@@ -11,10 +11,12 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewOutlineProvider
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.TextView
 import ani.sanin.getThemeColor
+import androidx.core.graphics.ColorUtils
 import ani.sanin.ui.GlassPill
 import ani.sanin.ui.GlassStripLayout
 import com.google.android.material.R
@@ -59,7 +61,7 @@ class LibraryStatusPill @JvmOverloads constructor(
 
     init {
         orientation = HORIZONTAL
-        GlassPill.applyContainer(this)
+        applyNeumorphicContainer()
         val inset = dp(6f)
         setPadding(inset, inset, inset, inset)
 
@@ -341,6 +343,56 @@ class LibraryStatusPill @JvmOverloads constructor(
         }
         row.getChildAt(0).nextFocusLeftId = nextFocusLeftId
         row.getChildAt(row.childCount - 1).nextFocusRightId = nextFocusRightId
+    }
+
+    /**
+     * Experimental neumorphic capsule treatment, scoped to the Library status pill.
+     * Uses a restrained surface gradient, a fine light/dark rim and elevation in both themes;
+     * the existing travelling selection indicator and scroll/focus behaviour remain unchanged.
+     */
+    private fun applyNeumorphicContainer() {
+        val themed = GlassPill.themedContext(context)
+        val dark = GlassPill.isNight(context)
+        val surface = themed.getThemeColor(R.attr.colorSurface)
+        val radius = GlassPill.radiusPx(context)
+        val top = if (dark) {
+            ColorUtils.blendARGB(surface, Color.WHITE, 0.075f)
+        } else {
+            ColorUtils.blendARGB(surface, Color.WHITE, 0.72f)
+        }
+        val bottom = if (dark) {
+            ColorUtils.blendARGB(surface, Color.BLACK, 0.12f)
+        } else {
+            ColorUtils.blendARGB(surface, Color.BLACK, 0.045f)
+        }
+        val rim = if (dark) {
+            ColorUtils.setAlphaComponent(Color.WHITE, 0x24)
+        } else {
+            ColorUtils.setAlphaComponent(Color.WHITE, 0xD8)
+        }
+        val edge = if (dark) {
+            ColorUtils.setAlphaComponent(Color.BLACK, 0x66)
+        } else {
+            ColorUtils.setAlphaComponent(Color.BLACK, 0x20)
+        }
+        val fill = GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(top, surface, bottom),
+        ).apply {
+            cornerRadius = radius
+            setStroke(dp(1f), rim)
+        }
+        val shadowEdge = GradientDrawable().apply {
+            setColor(Color.TRANSPARENT)
+            cornerRadius = radius
+            setStroke(dp(1f), edge)
+        }
+        background = android.graphics.drawable.LayerDrawable(
+            arrayOf(fill, shadowEdge),
+        )
+        clipToOutline = true
+        elevation = dp(if (dark) 4f else 7f).toFloat()
+        outlineProvider = ViewOutlineProvider.BACKGROUND
     }
 
     private fun themed() = GlassPill.themedContext(context)
