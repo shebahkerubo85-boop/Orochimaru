@@ -375,7 +375,7 @@ class DownloadsActivity : AppCompatActivity() {
 
         fun bindActive(item: DownloadItem) {
             b.root.setOnClickListener { toggleGroup(item.mediaId) }
-            b.episodeThumb.loadImage(item.thumbPath ?: item.thumbnail ?: item.cover)
+            b.episodeThumb.loadImage(item.cover ?: item.thumbnail ?: item.thumbPath)
             b.episodeTitle.text = episodeLabel(item.episodeNumber, item.episodeTitle)
             b.episodeMeta.text = metaLabel(item.serverName, item.quality)
             b.episodeMeta.visibility = if (b.episodeMeta.text.isBlank()) View.GONE else View.VISIBLE
@@ -412,7 +412,7 @@ class DownloadsActivity : AppCompatActivity() {
 
         fun bindDone(item: DownloadedItem) {
             b.root.setOnClickListener { playDownload(item) }
-            b.episodeThumb.loadImage(item.thumbPath ?: item.thumbnail ?: item.cover)
+            b.episodeThumb.loadImage(item.cover ?: item.thumbnail ?: item.thumbPath)
             b.episodeTitle.text = episodeLabel(item.episodeNumber, item.episodeTitle)
             b.episodeMeta.visibility = View.GONE
             b.episodeSize.text = formatSize(item.sizeBytes)
