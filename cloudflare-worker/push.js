@@ -1,39 +1,54 @@
-/**
- * Orochimaru push relay.
- *
- *  POST /subscribe    { token, anilist?: number[], tmdb?: number[] }
- *  POST /unsubscribe  { token }
- *  GET  /health
- *  GET  /count
- *  GET  /debug?key=<admin>   (diagnostics, no secrets returned)
- *
- *  scheduled() runs every 15 minutes: looks for episodes that just aired for the
- *  shows each device follows and sends an FCM message. Subscribers are processed
- *  in slices (see SLICE_SUBS/CURSOR_KEY) so each invocation stays within the
- *  Workers Free per-invocation limits; a full cycle covers everyone over several
- *  ticks.
- *
- * Configuration is read from KV key `cfg:config` (see README notes). Values may also
- * come from env bindings (FCM_PROJECT_ID / FCM_CLIENT_EMAIL / FCM_PRIVATE_KEY /
- * ADMIN_KEY / TMDB_API_KEY) as a fallback. Binding: SUBS (KV namespace PUSH_SUBS).
- */
+// Sanin push relay (Cloudflare Worker).
+//
+//  POST /subscribe    { token, anilist: [ids], tmdb: [ids] }
+//  POST /unsubscribe  { token }
+//  GET  /health
+//  GET  /count
+//  GET  /debug?key=<admin>
+//  GET  /sweep?key=<admin>
+//  GET  /resync?key=<admin>          (backfill FCM topic subscriptions)
+//  GET  /test?key=<admin>[&token=]   (manual push)
+//
+// Design (see docs below): notifications are delivered through FCM *topics*,
+// one topic per followed show, so a single message reaches every follower and
+// cost does not grow with the number of users. AniList is polled through a
+// *global* airing feed (all episodes airing in the current window) rather than
+// per-subscriber, so a sweep stays cheap no matter how many people subscribe.
+//
+// Config comes from KV `cfg:config` (projectId/clientEmail/privateKey/adminKey/
+// tmdbKey/anilistProxy) with env bindings as fallback. Bindings: SUBS (KV),
+// DB (D1).
+//
+// AniList blocks Cloudflare Workers' egress IPs, so GraphQL requests are relayed
+// via ANILIST_PROXY (a non-Cloudflare host; see anilist-proxy/).
 
 const ANILIST_ENDPOINT = "https://graphql.anilist.co";
-const WINDOW_BACK = 12 * 3600; // seconds of airing history to scan
-const WINDOW_FWD = 30 * 60;
-const TMDB_WINDOW_DAYS = 3;
-const ID_BATCH = 50;
+const FCM_SEND = "https://fcm.googleapis.com/v1/projects";
 
-// Sharding so a single invocation stays within the Workers Free limits
-// (50 external subrequests, 10 ms CPU). State is stored in D1 (`subs` + `meta`),
-// not KV: KV's free plan caps writes/lists at 1000/day, which this sweep would
-// exhaust on its own. Each cron tick handles one slice of subscribers and
-// advances a cursor, so a full cycle covers everyone across several ticks.
-const SLICE_SUBS = 20; // subscribers handled per invocation
-const MAX_ANILIST_IDS = 300; // AniList IDs queried per invocation (6 batches)
-const MAX_TMDB_FETCHES = 30; // TMDB lookups per invocation
-const MAX_SENDS = 12; // FCM sends per invocation
-const CURSOR_KEY = "meta:cursor";
+// Topic naming. One topic per show; FCM fans a single send out to all followers.
+const TOPIC_ANIME = "anime-";
+const TOPIC_TV = "tv-";
+
+// AniList sweep window. We only look at the slice of time since the previous run
+// (plus a small forward margin), so each tick processes a handful of entries
+// instead of every tracked show.
+const AIRING_LOOKAHEAD = 90; // seconds past "now" to include
+const AIRING_MAX_LOOKBACK = 6 * 3600; // clamp if the worker was offline
+const ANILIST_PAGE = 100;
+const MAX_ANILIST_PAGES = 3;
+
+// TMDB has no global "just aired" feed, so we poll tracked shows, but only when
+// their next episode is due (or the cached data is stale), and we cache the last
+// episode so a show is only re-fetched on a real change.
+const MAX_TMDB_CHECKS = 15;
+const TMDB_STALE = 12 * 3600;
+const TMDB_WINDOW_DAYS = 3;
+
+const MAX_TOPIC_SENDS = 30; // FCM topic messages per sweep
+const TOPIC_CALL_BUDGET = 35; // topic subscribe/unsubscribe calls per request
+const SENT_KEEP = 3 * 86400; // dedupe rows retained
+
+const ANILIST_SINCE_KEY = "anilistSince";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -47,6 +62,10 @@ function json(body, status = 200) {
     headers: { "Content-Type": "application/json", ...CORS },
   });
 }
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ---------------------------------------------------------------- auth
 
 function b64url(bytes) {
   let s = "";
@@ -88,8 +107,9 @@ async function signJwt(payload, privateKeyPem) {
 
 // One access token per isolate; refreshed a minute before it expires.
 let cachedAccess = { value: null, exp: 0 };
-
 let cfgCache = null;
+let anilistProxy = "";
+let lastAniListError = null;
 
 async function loadConfig(env) {
   if (cfgCache) return cfgCache;
@@ -143,20 +163,77 @@ async function getAccessToken(cfg) {
   return cachedAccess.value;
 }
 
-/** Returns "ok", "dead" (token no longer registered) or "error". */
-async function sendFcm(cfg, token, payload) {
+// ---------------------------------------------------------------- topics
+
+function topicFor(kind, id) {
+  return (kind === "a" ? TOPIC_ANIME : TOPIC_TV) + id;
+}
+
+// Returns "ok", "dead" (registration no longer valid) or "error".
+async function topicSubscribe(cfg, token, topic) {
   const access = await getAccessToken(cfg);
   const res = await fetch(
-    `https://fcm.googleapis.com/v1/projects/${cfg.projectId}/messages:send`,
+    `${FCM_SEND}/${cfg.projectId}/registrations/${encodeURIComponent(token)}` +
+      `/topicSubscriptions?topic_name=${encodeURIComponent(topic)}`,
     {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${access}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ message: { token, ...payload } }),
+      headers: { Authorization: `Bearer ${access}`, "Content-Type": "application/json" },
+      body: "{}",
     },
   );
+  if (res.ok || res.status === 409) return "ok"; // 409 = already subscribed
+  const text = await res.text();
+  if (res.status === 404 || /UNREGISTERED|INVALID_REGISTRATION|NOT_FOUND/i.test(text)) {
+    return "dead";
+  }
+  console.log(`topicSubscribe ${res.status}: ${text}`);
+  return "error";
+}
+
+async function topicUnsubscribe(cfg, token, name) {
+  const access = await getAccessToken(cfg);
+  const res = await fetch(
+    `${FCM_SEND}/${cfg.projectId}/registrations/${encodeURIComponent(token)}/topicSubscriptions/${encodeURIComponent(name)}`,
+    {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${access}`, "Content-Type": "application/json" },
+      body: "{}",
+    },
+  );
+  if (res.ok || res.status === 404) return "ok";
+  const text = await res.text();
+  if (/UNREGISTERED|INVALID_REGISTRATION/.test(text)) return "dead";
+  console.log(`topicUnsubscribe ${res.status}: ${text}`);
+  return "error";
+}
+
+// Deliver one message to a topic; FCM fans it out to every subscriber.
+async function sendTopic(cfg, topic, payload) {
+  const access = await getAccessToken(cfg);
+  const res = await fetch(`${FCM_SEND}/${cfg.projectId}/messages:send`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${access}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ message: { topic, ...payload } }),
+  });
+  if (res.ok) return true;
+  console.log(`sendTopic ${topic} ${res.status}: ${await res.text()}`);
+  return false;
+}
+
+/** Deliver one message straight to a registration token (admin /test). */
+async function sendToken(cfg, token, payload) {
+  const access = await getAccessToken(cfg);
+  const res = await fetch(`${FCM_SEND}/${cfg.projectId}/messages:send`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${access}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ message: { token, ...payload } }),
+  });
   if (res.ok) return "ok";
   const text = await res.text();
   if (res.status === 404 || /UNREGISTERED|INVALID_REGISTRATION|NOT_FOUND/.test(text)) {
@@ -188,32 +265,7 @@ function notificationPayload(title, body, image, data) {
 
 // ---------------------------------------------------------------- AniList
 
-let lastAniListError = null;
-
-// AniList outright blocks Cloudflare Workers' shared egress IPs (403 "You have
-// been manually blocked"; AniList staff: "Most Cloudflare Workers have been
-// blocked"). When ANILIST_PROXY is set, GraphQL requests are sent there so they
-// leave from a non-Cloudflare IP. The relay just forwards the POST body to
-// https://graphql.anilist.co and returns the response verbatim.
-let anilistProxy = "";
-
-async function queryAiring(min, max, ids) {
-  const query = `query ($min: Int, $max: Int, $ids: [Int]) {
-    Page(page: 1, perPage: 100) {
-      airingSchedules(airingAt_greater: $min, airingAt_lesser: $max, mediaId_in: $ids, sort: TIME) {
-        mediaId
-        episode
-        airingAt
-        media {
-          id
-          status
-          episodes
-          title { romaji english native }
-          coverImage { large }
-        }
-      }
-    }
-  }`;
+async function anilistPost(body) {
   const init = {
     method: "POST",
     headers: {
@@ -221,7 +273,7 @@ async function queryAiring(min, max, ids) {
       Accept: "application/json",
       "User-Agent": "Sanin-Push/1.0 (+https://github.com/Shippunn/sanin)",
     },
-    body: JSON.stringify({ query, variables: { min, max, ids } }),
+    body: JSON.stringify(body),
   };
   const endpoint = anilistProxy || ANILIST_ENDPOINT;
   const ATTEMPTS = 3;
@@ -232,152 +284,209 @@ async function queryAiring(min, max, ids) {
     } catch (e) {
       lastAniListError = `fetch: ${e}`;
       if (attempt < ATTEMPTS) {
-        await new Promise((r) => setTimeout(r, 400 * attempt));
+        await sleep(400 * attempt);
         continue;
       }
-      console.log(`AniList fetch failed: ${e}`);
-      return [];
+      return null;
     }
     if (res.status === 403 || res.status === 429 || res.status >= 500) {
       lastAniListError = `http ${res.status}`;
       if (attempt < ATTEMPTS) {
-        await new Promise((r) => setTimeout(r, 400 * attempt));
+        await sleep(400 * attempt);
         continue;
       }
-      console.log(`AniList ${res.status}: ${await res.text()}`);
-      return [];
+      console.log(`AniList ${res.status}`);
+      return null;
     }
     if (!res.ok) {
       lastAniListError = `http ${res.status}`;
-      console.log(`AniList ${res.status}`);
-      return [];
+      return null;
     }
-    const json = await res.json();
-    if (json.errors) {
-      lastAniListError = JSON.stringify(json.errors);
-      console.log(`AniList errors: ${lastAniListError}`);
-      return [];
+    const jsonBody = await res.json();
+    if (jsonBody.errors) {
+      lastAniListError = JSON.stringify(jsonBody.errors);
+      return null;
     }
     lastAniListError = null;
-    return json.data?.Page?.airingSchedules || [];
+    return jsonBody.data;
   }
-  return [];
+  return null;
 }
 
-async function anilistHits(min, max, ids) {
-  const out = [];
-  for (let i = 0; i < ids.length; i += ID_BATCH) {
-    const chunk = ids.slice(i, i + ID_BATCH);
-    out.push(...(await queryAiring(min, max, chunk)));
-  }
-  return out;
+// Global feed: every episode airing in [from, to], newest-last, paginated.
+async function airingRange(from, to, page) {
+  const query = `query ($page: Int, $perPage: Int, $from: Int, $to: Int) {
+    Page(page: $page, perPage: $perPage) {
+      pageInfo { hasNextPage }
+      airingSchedules(airingAt_greater: $from, airingAt_lesser: $to, sort: TIME) {
+        mediaId
+        episode
+        airingAt
+        media { title { romaji english native } coverImage { large } }
+      }
+    }
+  }`;
+  const data = await anilistPost({
+    query,
+    variables: { page, perPage: ANILIST_PAGE, from, to },
+  });
+  if (!data) return { list: [], hasNext: false };
+  return {
+    list: data.Page?.airingSchedules || [],
+    hasNext: Boolean(data.Page?.pageInfo?.hasNextPage),
+  };
 }
 
 // ---------------------------------------------------------------- TMDB
 
-async function tmdbHits(cfg, ids, max = 40) {
-  if (!cfg.tmdbKey || ids.length === 0) return [];
-  const out = [];
-  const cutoff = new Date(Date.now() - TMDB_WINDOW_DAYS * 86400_000)
-    .toISOString()
-    .slice(0, 10);
-  for (const id of ids.slice(0, max)) {
-    try {
-      const res = await fetch(
-        `https://api.themoviedb.org/3/tv/${id}?api_key=${cfg.tmdbKey}&language=en-US`,
-      );
-      if (!res.ok) continue;
-      const show = await res.json();
-      const ep = show.last_episode_to_air;
-      if (!ep || !ep.air_date || ep.air_date < cutoff) continue;
-      out.push({
-        id,
-        name: show.name,
-        poster: show.poster_path
-          ? `https://image.tmdb.org/t/p/w500${show.poster_path}`
-          : "",
-        season: ep.season_number,
-        episode: ep.episode_number,
-        episodeTitle: ep.name || "",
-        airDate: ep.air_date,
-      });
-    } catch (e) {
-      console.log(`tmdb ${id}: ${e}`);
-    }
-  }
-  return out;
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+async function tvLookup(cfg, id) {
+  const res = await fetch(
+    `https://api.themoviedb.org/3/tv/${id}?api_key=${cfg.tmdbKey}&language=en-US`,
+  );
+  if (!res.ok) return null;
+  const show = await res.json();
+  const ep = show.last_episode_to_air || null;
+  const next = show.next_episode_to_air || null;
+  return {
+    name: show.name,
+    poster: show.poster_path
+      ? `https://image.tmdb.org/t/p/w500${show.poster_path}`
+      : "",
+    season: ep ? ep.season_number : null,
+    episode: ep ? ep.episode_number : null,
+    airDate: ep ? ep.air_date : null,
+    episodeTitle: ep ? ep.name || "" : "",
+    nextAir: next ? next.air_date : null,
+  };
 }
 
 // ---------------------------------------------------------------- storage
-//
-// Subscription state lives in D1 (table `subs`), not KV. KV's free plan caps
-// writes and lists at 1000/day, which the every-2-minutes sweep blew through
-// regardless of subscriber count. D1's free plan allows ~100k row writes and
-// 5M row reads per day, so the sweep scales to hundreds of users.
 
-function rowToSub(r) {
-  let a = [];
-  let m = [];
-  let n = {};
+function parseJson(raw, fallback) {
   try {
-    a = JSON.parse(r.anilist) || [];
+    const v = JSON.parse(raw);
+    return v == null ? fallback : v;
   } catch {
-    /* corrupt, treat as none */
+    return fallback;
   }
-  try {
-    m = JSON.parse(r.tmdb) || [];
-  } catch {
-    /* corrupt, treat as none */
-  }
-  try {
-    n = JSON.parse(r.noted) || {};
-  } catch {
-    /* corrupt, treat as none */
-  }
-  return { token: r.token, key: `sub:${r.token}`, a, m, n, c: r.created };
 }
 
-async function loadSubs(env, after, limit) {
-  const stmt = after
-    ? env.DB.prepare(
-        "SELECT token, anilist, tmdb, noted, created FROM subs WHERE token > ? ORDER BY token LIMIT ?",
-      ).bind(after, limit)
-    : env.DB.prepare(
-        "SELECT token, anilist, tmdb, noted, created FROM subs ORDER BY token LIMIT ?",
-      ).bind(limit);
-  const { results } = await stmt.all();
-  return (results || []).map(rowToSub);
+async function getMeta(env, k) {
+  const row = await env.DB.prepare("SELECT v FROM meta WHERE k = ?").bind(k).first();
+  return row ? row.v : null;
 }
 
-async function countSubs(env) {
-  const row = await env.DB.prepare("SELECT COUNT(*) AS c FROM subs").first();
-  return row ? row.c : 0;
+async function setMeta(env, k, v) {
+  await env.DB.prepare(
+    "INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v",
+  )
+    .bind(k, v)
+    .run();
+}
+
+// Set of media ids with at least one follower, per kind.
+async function loadFollows(env) {
+  const { results } = await env.DB.prepare(
+    "SELECT kind, media_id FROM follow WHERE n > 0",
+  ).all();
+  const a = new Set();
+  const t = new Set();
+  for (const r of results || []) (r.kind === "a" ? a : t).add(r.media_id);
+  return { a, t };
+}
+
+async function followAdd(env, kind, ids) {
+  if (!ids.length) return;
+  await env.DB.batch(
+    ids.map((id) =>
+      env.DB.prepare(
+        "INSERT INTO follow (kind, media_id, n) VALUES (?, ?, 1) " +
+          "ON CONFLICT(kind, media_id) DO UPDATE SET n = n + 1",
+      ).bind(kind, id),
+    ),
+  );
+}
+
+async function followRemove(env, kind, ids) {
+  if (!ids.length) return;
+  await env.DB.batch(
+    ids.map((id) =>
+      env.DB.prepare(
+        "UPDATE follow SET n = MAX(0, n - 1) WHERE kind = ? AND media_id = ?",
+      ).bind(kind, id),
+    ),
+  );
+}
+
+async function followDiff(env, kind, prev, next) {
+  const p = new Set(prev);
+  const n = new Set(next);
+  await followAdd(env, kind, next.filter((x) => !p.has(x)));
+  await followRemove(env, kind, prev.filter((x) => !n.has(x)));
+}
+
+async function sentHas(env, ref) {
+  const row = await env.DB.prepare("SELECT 1 FROM sent WHERE ref = ?").bind(ref).first();
+  return Boolean(row);
+}
+
+async function markSent(env, ref) {
+  await env.DB.prepare("INSERT OR IGNORE INTO sent (ref, ts) VALUES (?, ?)")
+    .bind(ref, Math.floor(Date.now() / 1000))
+    .run();
+}
+
+async function pruneSent(env) {
+  await env.DB.prepare("DELETE FROM sent WHERE ts < ?")
+    .bind(Math.floor(Date.now() / 1000) - SENT_KEEP)
+    .run();
+}
+
+async function dueTvShows(env, limit) {
+  const stale = Math.floor(Date.now() / 1000) - TMDB_STALE;
+  const { results } = await env.DB.prepare(
+    "SELECT f.media_id AS id, t.season AS season, t.episode AS episode, " +
+      "t.next_air_date AS next_air, t.checked_at AS checked_at " +
+      "FROM follow f LEFT JOIN tv t ON t.id = f.media_id " +
+      "WHERE f.kind = 't' AND f.n > 0 AND (t.id IS NULL OR t.checked_at < ?1 " +
+      "OR (t.next_air_date IS NOT NULL AND t.next_air_date <= ?2)) " +
+      "ORDER BY COALESCE(t.checked_at, 0) ASC LIMIT ?3",
+  )
+    .bind(stale, today(), limit)
+    .all();
+  return results || [];
+}
+
+async function saveTv(env, id, info) {
+  await env.DB.prepare(
+    "INSERT INTO tv (id, season, episode, air_date, next_air_date, checked_at) " +
+      "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET " +
+      "season = excluded.season, episode = excluded.episode, air_date = excluded.air_date, " +
+      "next_air_date = excluded.next_air_date, checked_at = excluded.checked_at",
+  )
+    .bind(id, info.season, info.episode, info.airDate, info.nextAir, Math.floor(Date.now() / 1000))
+    .run();
 }
 
 async function getSub(env, token) {
-  return env.DB.prepare("SELECT noted, created FROM subs WHERE token = ?")
+  return env.DB.prepare(
+    "SELECT anilist, tmdb, tsynced, created FROM subs WHERE token = ?",
+  )
     .bind(token)
     .first();
 }
 
-async function upsertSub(env, token, anilist, tmdb, noted, created) {
+async function putSub(env, token, anilist, tmdb, tsynced, created) {
   await env.DB.prepare(
-    "INSERT INTO subs (token, anilist, tmdb, noted, created) VALUES (?, ?, ?, ?, ?) " +
-      "ON CONFLICT(token) DO UPDATE SET anilist = excluded.anilist, tmdb = excluded.tmdb, noted = excluded.noted",
+    "INSERT INTO subs (token, anilist, tmdb, noted, tsynced, created) VALUES (?, ?, ?, '{}', ?, ?) " +
+      "ON CONFLICT(token) DO UPDATE SET anilist = excluded.anilist, tmdb = excluded.tmdb, " +
+      "tsynced = excluded.tsynced",
   )
-    .bind(
-      token,
-      JSON.stringify(anilist),
-      JSON.stringify(tmdb),
-      JSON.stringify(noted),
-      created,
-    )
-    .run();
-}
-
-async function setNoted(env, token, noted) {
-  await env.DB.prepare("UPDATE subs SET noted = ? WHERE token = ?")
-    .bind(JSON.stringify(noted), token)
+    .bind(token, JSON.stringify(anilist), JSON.stringify(tmdb), JSON.stringify(tsynced), created)
     .run();
 }
 
@@ -385,191 +494,158 @@ async function deleteSub(env, token) {
   await env.DB.prepare("DELETE FROM subs WHERE token = ?").bind(token).run();
 }
 
-// ---------------------------------------------------------------- cron
+// Reconcile a token's FCM topic subscriptions with its desired show list.
+// Returns the set of topics we believe the token is now subscribed to (topics
+// we could not change within the per-request budget are left for the next sync).
+async function syncTopics(cfg, token, alreadySynced, desired, budget = TOPIC_CALL_BUDGET) {
+  const desiredSet = new Set(desired);
+  const synced = new Set();
+  let calls = 0;
 
-// Sweep progress cursor: p = KV list page cursor, a = AniList id window offset,
-// t = TMDB id window offset. Windows rotate so every subscriber's shows are
-// eventually checked while each invocation stays within the Free plan budget.
-function freshCursor() {
-  return { p: "", a: 0, t: 0 };
-}
-
-async function readCursor(env) {
-  const row = await env.DB.prepare("SELECT v FROM meta WHERE k = ?")
-    .bind(CURSOR_KEY)
-    .first();
-  if (!row || !row.v) return freshCursor();
-  try {
-    const v = JSON.parse(row.v);
-    return {
-      p: typeof v.p === "string" ? v.p : "",
-      a: Number.isInteger(v.a) ? v.a : 0,
-      t: Number.isInteger(v.t) ? v.t : 0,
-    };
-  } catch {
-    // Legacy plain-string cursor from an earlier deploy.
-    return { p: row.v.startsWith("sub:") ? row.v : "", a: 0, t: 0 };
+  for (const topic of alreadySynced) {
+    if (desiredSet.has(topic)) {
+      synced.add(topic);
+      continue;
+    }
+    if (calls >= budget) {
+      synced.add(topic); // retry the removal on the next sync
+      continue;
+    }
+    calls++;
+    const r = await topicUnsubscribe(cfg, token, topic);
+    if (r === "dead") return { synced, dead: true };
+    if (r === "ok") continue; // dropped
+    synced.add(topic); // failed; keep and retry later
   }
+
+  for (const topic of desired) {
+    if (synced.has(topic)) continue;
+    if (calls >= budget) break;
+    calls++;
+    const r = await topicSubscribe(cfg, token, topic);
+    if (r === "dead") return { synced, dead: true };
+    if (r === "ok") synced.add(topic);
+  }
+
+  return { synced, dead: false };
 }
 
-async function writeCursor(env, c) {
-  await env.DB.prepare(
-    "INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v",
-  )
-    .bind(CURSOR_KEY, JSON.stringify(c))
-    .run();
+// ---------------------------------------------------------------- sweep
+
+function topicName(kind, id) {
+  return (kind === "a" ? TOPIC_ANIME : TOPIC_TV) + id;
+}
+
+async function sweepAniList(env, cfg, followed, budget) {
+  const now = Math.floor(Date.now() / 1000);
+  let since = parseInt((await getMeta(env, ANILIST_SINCE_KEY)) || "", 10);
+  if (!Number.isFinite(since) || since < now - AIRING_MAX_LOOKBACK) {
+    since = now - 300;
+  }
+  const to = now + AIRING_LOOKAHEAD;
+
+  const aired = [];
+  for (let page = 1; page <= MAX_ANILIST_PAGES; page++) {
+    const { list, hasNext } = await airingRange(since, to, page);
+    aired.push(...list);
+    if (!hasNext) break;
+  }
+  await setMeta(env, ANILIST_SINCE_KEY, String(to));
+
+  let sent = 0;
+  for (const a of aired) {
+    if (!a || !(a.episode > 0)) continue;
+    if (!followed.a.has(a.mediaId)) continue;
+    const ref = `a:${a.mediaId}:${a.episode}`;
+    if (await sentHas(env, ref)) continue;
+    if (sent >= budget) break;
+    const title =
+      a.media?.title?.english || a.media?.title?.romaji || a.media?.title?.native || "New episode";
+    const image = a.media?.coverImage?.large || "";
+    const ok = await sendTopic(
+      cfg,
+      topicName("a", a.mediaId),
+      notificationPayload(`New episode of ${title}`, `Episode ${a.episode} is out now`, image, {
+        type: "airing",
+        source: "anilist",
+        mediaId: a.mediaId,
+        episode: a.episode,
+      }),
+    );
+    if (ok) {
+      await markSent(env, ref);
+      sent++;
+    }
+    if (sent >= budget) break;
+  }
+  return { aired: aired.length, sent };
+}
+
+async function sweepTmdb(env, cfg, budget) {
+  if (!cfg.tmdbKey) return { checked: 0, sent: 0 };
+  const cutoff = new Date(Date.now() - TMDB_WINDOW_DAYS * 86400_000)
+    .toISOString()
+    .slice(0, 10);
+  const rows = await dueTvShows(env, MAX_TMDB_CHECKS);
+
+  let checked = 0;
+  let sent = 0;
+  for (const row of rows) {
+    const info = await tvLookup(cfg, row.id);
+    checked++;
+    if (!info) continue;
+
+    const prevKnown = row.checked_at != null;
+    const changed =
+      prevKnown && (info.season !== row.season || info.episode !== row.episode);
+    const fresh = info.airDate && info.airDate >= cutoff;
+
+    await saveTv(env, row.id, info);
+
+    if (!changed || !fresh || !(info.episode > 0)) continue;
+    const ref = `t:${row.id}:${info.season}x${info.episode}`;
+    if (await sentHas(env, ref)) continue;
+    if (sent >= budget) break;
+
+    const ok = await sendTopic(
+      cfg,
+      topicName("t", row.id),
+      notificationPayload(
+        info.name || "New episode",
+        `S${info.season}E${info.episode}${info.episodeTitle ? ` - ${info.episodeTitle}` : ""}`,
+        info.poster,
+        {
+          type: "airing",
+          source: "tmdb",
+          tmdbId: row.id,
+          season: info.season,
+          episode: info.episode,
+        },
+      ),
+    );
+    if (ok) {
+      await markSent(env, ref);
+      sent++;
+    }
+  }
+  return { checked, sent };
 }
 
 async function runSweep(env) {
   const cfg = await loadConfig(env);
+  await pruneSent(env);
 
-  const state = await readCursor(env);
-  const subs = await loadSubs(env, state.p || "", SLICE_SUBS);
-
-  if (subs.length === 0) {
-    if (state.p) await writeCursor(env, freshCursor());
-    return { subs: 0, sent: 0, dead: 0 };
-  }
-
-  const endReached = subs.length < SLICE_SUBS;
-  const lastToken = subs[subs.length - 1].token;
-
-  const allAnilist = [...new Set(subs.flatMap((s) => s.a || []))];
-  const allTmdb = [...new Set(subs.flatMap((s) => s.m || []))];
-
-  const now = Math.floor(Date.now() / 1000);
-  const anilistIds = allAnilist.slice(state.a, state.a + MAX_ANILIST_IDS);
-  const tmdbIds = allTmdb.slice(state.t, state.t + MAX_TMDB_FETCHES);
-  lastAniListError = null;
-  const airing = anilistIds.length
-    ? await anilistHits(now - WINDOW_BACK, now + WINDOW_FWD, anilistIds)
-    : [];
-  const shows = await tmdbHits(cfg, tmdbIds);
-
-  let sent = 0;
-  const dead = [];
-  let processedAll = true;
-
-  for (const sub of subs) {
-    const noted = sub.n || {};
-    const nextNoted = { ...noted };
-    const jobs = [];
-    const followedA = new Set(sub.a || []);
-    const followedM = new Set(sub.m || []);
-
-    for (const a of airing) {
-      if (!followedA.has(a.mediaId)) continue;
-      const prev = noted[`a${a.mediaId}`] || 0;
-      if (a.episode <= prev) continue;
-      const title =
-        a.media?.title?.english || a.media?.title?.romaji || a.media?.title?.native || "New episode";
-      jobs.push({
-        note: [`a${a.mediaId}`, a.episode],
-        payload: notificationPayload(
-          "New episode available",
-          `${title} · Episode ${a.episode}`,
-          a.media?.coverImage?.large || "",
-          {
-            type: "airing",
-            source: "anilist",
-            mediaId: a.mediaId,
-            episode: a.episode,
-            title,
-            cover: a.media?.coverImage?.large || "",
-          },
-        ),
-      });
-    }
-
-    for (const show of shows) {
-      if (!followedM.has(show.id)) continue;
-      const key = `t${show.id}`;
-      const val = `S${show.season}E${show.episode}`;
-      if (noted[key] === val) continue;
-      const label = show.episodeTitle ? ` (${show.episodeTitle})` : "";
-      jobs.push({
-        note: [key, val],
-        payload: notificationPayload(
-          "New episode available",
-          `${show.name} · S${show.season}E${show.episode}${label}`,
-          show.poster,
-          {
-            type: "airing",
-            source: "tmdb",
-            tmdbId: show.id,
-            season: show.season,
-            episode: show.episode,
-            title: show.name,
-            cover: show.poster,
-          },
-        ),
-      });
-    }
-
-    if (jobs.length === 0) continue;
-
-    // Out of send budget: stop here without advancing past this subscriber so
-    // its remaining jobs are retried on the next tick.
-    if (sent >= MAX_SENDS) {
-      processedAll = false;
-      break;
-    }
-
-    const toSend = jobs.slice(0, MAX_SENDS - sent);
-    let subDead = false;
-    for (const job of toSend) {
-      const r = await sendFcm(cfg, sub.t, job.payload);
-      if (r === "dead") {
-        subDead = true;
-        break;
-      }
-      if (r === "ok") {
-        sent++;
-        nextNoted[job.note[0]] = job.note[1];
-      }
-    }
-
-    if (subDead) {
-      dead.push(sub.token);
-    } else {
-      // Persist progress for exactly the jobs that were sent; anything not sent
-      // stays unnoted and is retried next tick without duplication.
-      await setNoted(env, sub.token, nextNoted);
-    }
-  }
-
-  for (const token of dead) await deleteSub(env, token);
-
-  // If the send budget cut the slice short, retry the same page and windows.
-  // Otherwise advance the AniList/TMDB windows, and only move to the next page
-  // once both windows have been fully swept (already-sent jobs are suppressed
-  // via each subscriber's `n`).
-  let next;
-  if (!processedAll) {
-    next = state;
-  } else {
-    const a = state.a + MAX_ANILIST_IDS;
-    const t = state.t + MAX_TMDB_FETCHES;
-    const anilistDone = a >= allAnilist.length;
-    const tmdbDone = t >= allTmdb.length;
-    if (anilistDone && tmdbDone) {
-      next = { p: endReached ? "" : lastToken, a: 0, t: 0 };
-    } else {
-      next = { p: state.p || "", a: anilistDone ? 0 : a, t: tmdbDone ? 0 : t };
-    }
-  }
-  await writeCursor(env, next);
+  const followed = await loadFollows(env);
+  const anilist = await sweepAniList(env, cfg, followed, MAX_TOPIC_SENDS);
+  const tmdb = await sweepTmdb(env, cfg, MAX_TOPIC_SENDS - anilist.sent);
 
   return {
-    subs: subs.length,
-    sent,
-    dead: dead.length,
-    airing: airing.length,
-    anilist: !anilistIds.length
-      ? "skip"
-      : lastAniListError
-        ? `error: ${lastAniListError}`
-        : "ok",
+    follows: { anilist: followed.a.size, tv: followed.t.size },
+    airing: anilist.aired,
+    anilistSent: anilist.sent,
+    tmdbChecked: tmdb.checked,
+    tmdbSent: tmdb.sent,
+    anilist: lastAniListError ? `error: ${lastAniListError}` : "ok",
   };
 }
 
@@ -594,7 +670,7 @@ export default {
         return json({ error: "bad json" }, 400);
       }
       const token = typeof body.token === "string" ? body.token.trim() : "";
-      if (!token || token.length < 100 || token.length > 512) {
+      if (!token || token.length < 80 || token.length > 600) {
         return json({ error: "bad token" }, 400);
       }
       const anilist = Array.isArray(body.anilist)
@@ -604,22 +680,37 @@ export default {
         ? [...new Set(body.tmdb.filter((x) => Number.isInteger(x)))]
         : [];
 
+      const cfg = await loadConfig(env);
       const existing = await getSub(env, token);
-      let noted = {};
-      let created = 0;
-      if (existing) {
-        try {
-          noted = JSON.parse(existing.noted) || {};
-        } catch {
-          /* start fresh */
-        }
-        created = existing.created || 0;
-      } else {
-        created = Math.floor(Date.now() / 1000);
+      const prevA = existing ? parseJson(existing.anilist, []) : [];
+      const prevM = existing ? parseJson(existing.tmdb, []) : [];
+      const alreadySynced = existing && existing.tsynced ? parseJson(existing.tsynced, []) : [];
+      const created = existing && existing.created ? existing.created : Math.floor(Date.now() / 1000);
+
+      await followDiff(env, "a", prevA, anilist);
+      await followDiff(env, "t", prevM, tmdb);
+
+      const desired = [
+        ...anilist.map((id) => topicName("a", id)),
+        ...tmdb.map((id) => topicName("t", id)),
+      ];
+      const { synced, dead } = await syncTopics(cfg, token, alreadySynced, desired);
+
+      if (dead) {
+        await followRemove(env, "a", anilist);
+        await followRemove(env, "t", tmdb);
+        await deleteSub(env, token);
+        return json({ ok: true, dead: true });
       }
 
-      await upsertSub(env, token, anilist, tmdb, noted, created);
-      return json({ ok: true, anilist: anilist.length, tmdb: tmdb.length });
+      await putSub(env, token, anilist, tmdb, [...synced], created);
+      return json({
+        ok: true,
+        anilist: anilist.length,
+        tmdb: tmdb.length,
+        topics: synced.size,
+        pending: desired.length - synced.size,
+      });
     }
 
     if (request.method === "POST" && url.pathname === "/unsubscribe") {
@@ -630,16 +721,27 @@ export default {
         return json({ error: "bad json" }, 400);
       }
       const token = typeof body.token === "string" ? body.token.trim() : "";
-      if (token) await deleteSub(env, token);
+      if (!token) return json({ ok: true });
+      const cfg = await loadConfig(env);
+      const existing = await getSub(env, token);
+      if (existing) {
+        const a = parseJson(existing.anilist, []);
+        const m = parseJson(existing.tmdb, []);
+        await followRemove(env, "a", a);
+        await followRemove(env, "t", m);
+        const synced = parseJson(existing.tsynced, []);
+        const { dead } = await syncTopics(cfg, token, synced, []);
+        void dead;
+      }
+      await deleteSub(env, token);
       return json({ ok: true });
     }
 
     if (request.method === "GET" && url.pathname === "/count") {
-      return json({ subscriptions: await countSubs(env) });
+      const row = await env.DB.prepare("SELECT COUNT(*) AS c FROM subs").first();
+      return json({ subscriptions: row ? row.c : 0 });
     }
 
-    // Diagnostics for the maintainer: checks FCM auth and the AniList query
-    // without sending anything. Requires ?key= equal to the admin key.
     if (request.method === "GET" && url.pathname === "/debug") {
       const cfg = await loadConfig(env);
       if (cfg.adminKey && url.searchParams.get("key") !== cfg.adminKey) {
@@ -664,18 +766,62 @@ export default {
       }
       try {
         const now = Math.floor(Date.now() / 1000);
-        const sample = await queryAiring(now - WINDOW_BACK, now + WINDOW_FWD, [1]);
-        out.anilist = `${sample.length} schedules${
+        const { list } = await airingRange(now - 3600, now + AIRING_LOOKAHEAD, 1);
+        out.anilist = `${list.length} airing${
           lastAniListError ? ` (last error: ${lastAniListError})` : ""
         }`;
       } catch (e) {
         out.anilist = String(e.message || e);
       }
-      out.subscriptions = await countSubs(env);
+      const subs = await env.DB.prepare("SELECT COUNT(*) AS c FROM subs").first();
+      const follows = await env.DB.prepare(
+        "SELECT COUNT(*) AS c FROM follow WHERE n > 0",
+      ).first();
+      out.subscriptions = subs ? subs.c : 0;
+      out.follows = follows ? follows.c : 0;
       return json(out);
     }
 
-    // Runs the notification sweep on demand (admin only).
+    // Backfill/repair FCM topic subscriptions for stored subscribers.
+    if (request.method === "GET" && url.pathname === "/resync") {
+      const cfg = await loadConfig(env);
+      if (cfg.adminKey && url.searchParams.get("key") !== cfg.adminKey) {
+        return json({ error: "forbidden" }, 403);
+      }
+      // One subscriber per request: a single token may follow dozens of shows,
+      // and Workers Free caps subrequests at 50 per invocation.
+      const after = url.searchParams.get("after") || "";
+      const { results } = await env.DB.prepare(
+        "SELECT token, anilist, tmdb, tsynced FROM subs WHERE token > ? ORDER BY token LIMIT 1",
+      )
+        .bind(after)
+        .all();
+      const r = (results || [])[0];
+      if (!r) return json({ done: true, next: null });
+
+      const desired = [
+        ...parseJson(r.anilist, []).map((id) => topicName("a", id)),
+        ...parseJson(r.tmdb, []).map((id) => topicName("t", id)),
+      ];
+      const already = parseJson(r.tsynced, []);
+      const res = await syncTopics(cfg, r.token, already, desired);
+      if (res.dead) {
+        await deleteSub(env, r.token);
+        return json({ dead: true, next: r.token });
+      }
+      await env.DB.prepare("UPDATE subs SET tsynced = ? WHERE token = ?")
+        .bind(JSON.stringify([...res.synced]), r.token)
+        .run();
+      const pending = desired.length - res.synced.size;
+      return json({
+        token: String(r.token).slice(0, 12),
+        topics: res.synced.size,
+        pending,
+        next: pending > 0 ? after || "" : r.token,
+        done: false,
+      });
+    }
+
     if (
       (request.method === "GET" || request.method === "POST") &&
       url.pathname === "/sweep"
@@ -684,34 +830,40 @@ export default {
       if (cfg.adminKey && url.searchParams.get("key") !== cfg.adminKey) {
         return json({ error: "forbidden" }, 403);
       }
-      const result = await runSweep(env);
-      return json(result);
+      return json(await runSweep(env));
     }
 
-    // Manual test push (admin only). Sends a notification to every subscriber,
-    // or a single one via ?token=. Handy for verifying FCM end-to-end.
     if (request.method === "GET" && url.pathname === "/test") {
       const cfg = await loadConfig(env);
       if (cfg.adminKey && url.searchParams.get("key") !== cfg.adminKey) {
         return json({ error: "forbidden" }, 403);
       }
       const only = url.searchParams.get("token");
-      const subs = only ? [{ token: only }] : await loadSubs(env, "", 1000);
-      const results = [];
-      for (const sub of subs) {
-        const r = await sendFcm(
-          cfg,
-          sub.token,
-          notificationPayload(
-            "Sanin push test",
-            "If you can see this, notifications are working.",
-            "",
-            { type: "test" },
-          ),
-        );
-        results.push({ token: String(sub.token).slice(0, 16), result: r });
+      const topic = url.searchParams.get("topic");
+      const payload = notificationPayload(
+        "Sanin push test",
+        "If you can see this, notifications are working.",
+        "",
+        { type: "test" },
+      );
+      if (topic) {
+        const ok = await sendTopic(cfg, topic, payload);
+        return json({ topic, ok });
       }
-      return json({ count: subs.length, sent: results });
+      if (only) {
+        return json({ token: only.slice(0, 16), result: await sendToken(cfg, only, payload) });
+      }
+      const { results } = await env.DB.prepare(
+        "SELECT token FROM subs ORDER BY token LIMIT 1000",
+      ).all();
+      const sent = [];
+      for (const r of results || []) {
+        sent.push({
+          token: String(r.token).slice(0, 16),
+          result: await sendToken(cfg, r.token, payload),
+        });
+      }
+      return json({ count: sent.length, sent });
     }
 
     return json({ error: "not found" }, 404);
