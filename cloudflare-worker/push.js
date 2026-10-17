@@ -25,9 +25,10 @@ const TMDB_WINDOW_DAYS = 3;
 const ID_BATCH = 50;
 
 // Sharding so a single invocation stays within the Workers Free limits
-// (50 external subrequests, 10 ms CPU, 1000 KV ops per invocation). Each cron
-// tick handles one slice of subscribers and advances a cursor, so a full cycle
-// covers everyone across several ticks.
+// (50 external subrequests, 10 ms CPU). State is stored in D1 (`subs` + `meta`),
+// not KV: KV's free plan caps writes/lists at 1000/day, which this sweep would
+// exhaust on its own. Each cron tick handles one slice of subscribers and
+// advances a cursor, so a full cycle covers everyone across several ticks.
 const SLICE_SUBS = 20; // subscribers handled per invocation
 const MAX_ANILIST_IDS = 300; // AniList IDs queried per invocation (6 batches)
 const MAX_TMDB_FETCHES = 30; // TMDB lookups per invocation
@@ -104,7 +105,9 @@ async function loadConfig(env) {
     privateKey: kv.privateKey || env.FCM_PRIVATE_KEY || "",
     adminKey: kv.adminKey || env.ADMIN_KEY || "",
     tmdbKey: kv.tmdbKey || env.TMDB_API_KEY || "",
+    anilistProxy: kv.anilistProxy || env.ANILIST_PROXY || "",
   };
+  anilistProxy = cfg.anilistProxy;
   cfgCache = cfg;
   return cfg;
 }
@@ -185,6 +188,15 @@ function notificationPayload(title, body, image, data) {
 
 // ---------------------------------------------------------------- AniList
 
+let lastAniListError = null;
+
+// AniList outright blocks Cloudflare Workers' shared egress IPs (403 "You have
+// been manually blocked"; AniList staff: "Most Cloudflare Workers have been
+// blocked"). When ANILIST_PROXY is set, GraphQL requests are sent there so they
+// leave from a non-Cloudflare IP. The relay just forwards the POST body to
+// https://graphql.anilist.co and returns the response verbatim.
+let anilistProxy = "";
+
 async function queryAiring(min, max, ids) {
   const query = `query ($min: Int, $max: Int, $ids: [Int]) {
     Page(page: 1, perPage: 100) {
@@ -202,21 +214,54 @@ async function queryAiring(min, max, ids) {
       }
     }
   }`;
-  const res = await fetch(ANILIST_ENDPOINT, {
+  const init = {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "User-Agent": "Sanin-Push/1.0 (+https://github.com/Shippunn/sanin)",
+    },
     body: JSON.stringify({ query, variables: { min, max, ids } }),
-  });
-  if (!res.ok) {
-    console.log(`AniList ${res.status}: ${await res.text()}`);
-    return [];
+  };
+  const endpoint = anilistProxy || ANILIST_ENDPOINT;
+  const ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+    let res;
+    try {
+      res = await fetch(endpoint, init);
+    } catch (e) {
+      lastAniListError = `fetch: ${e}`;
+      if (attempt < ATTEMPTS) {
+        await new Promise((r) => setTimeout(r, 400 * attempt));
+        continue;
+      }
+      console.log(`AniList fetch failed: ${e}`);
+      return [];
+    }
+    if (res.status === 403 || res.status === 429 || res.status >= 500) {
+      lastAniListError = `http ${res.status}`;
+      if (attempt < ATTEMPTS) {
+        await new Promise((r) => setTimeout(r, 400 * attempt));
+        continue;
+      }
+      console.log(`AniList ${res.status}: ${await res.text()}`);
+      return [];
+    }
+    if (!res.ok) {
+      lastAniListError = `http ${res.status}`;
+      console.log(`AniList ${res.status}`);
+      return [];
+    }
+    const json = await res.json();
+    if (json.errors) {
+      lastAniListError = JSON.stringify(json.errors);
+      console.log(`AniList errors: ${lastAniListError}`);
+      return [];
+    }
+    lastAniListError = null;
+    return json.data?.Page?.airingSchedules || [];
   }
-  const json = await res.json();
-  if (json.errors) {
-    console.log(`AniList errors: ${JSON.stringify(json.errors)}`);
-    return [];
-  }
-  return json.data?.Page?.airingSchedules || [];
+  return [];
 }
 
 async function anilistHits(min, max, ids) {
@@ -264,28 +309,80 @@ async function tmdbHits(cfg, ids, max = 40) {
 }
 
 // ---------------------------------------------------------------- storage
+//
+// Subscription state lives in D1 (table `subs`), not KV. KV's free plan caps
+// writes and lists at 1000/day, which the every-2-minutes sweep blew through
+// regardless of subscriber count. D1's free plan allows ~100k row writes and
+// 5M row reads per day, so the sweep scales to hundreds of users.
 
-async function allSubs(env) {
-  const subs = [];
-  let cursor;
-  do {
-    const page = await env.SUBS.list({
-      prefix: "sub:",
-      limit: 1000,
-      cursor,
-    });
-    for (const key of page.keys) {
-      const raw = await env.SUBS.get(key.name);
-      if (!raw) continue;
-      try {
-        subs.push({ key: key.name, ...JSON.parse(raw) });
-      } catch {
-        /* unreadable entry, ignore */
-      }
-    }
-    cursor = page.list_complete ? undefined : page.cursor;
-  } while (cursor);
-  return subs;
+function rowToSub(r) {
+  let a = [];
+  let m = [];
+  let n = {};
+  try {
+    a = JSON.parse(r.anilist) || [];
+  } catch {
+    /* corrupt, treat as none */
+  }
+  try {
+    m = JSON.parse(r.tmdb) || [];
+  } catch {
+    /* corrupt, treat as none */
+  }
+  try {
+    n = JSON.parse(r.noted) || {};
+  } catch {
+    /* corrupt, treat as none */
+  }
+  return { token: r.token, key: `sub:${r.token}`, a, m, n, c: r.created };
+}
+
+async function loadSubs(env, after, limit) {
+  const stmt = after
+    ? env.DB.prepare(
+        "SELECT token, anilist, tmdb, noted, created FROM subs WHERE token > ? ORDER BY token LIMIT ?",
+      ).bind(after, limit)
+    : env.DB.prepare(
+        "SELECT token, anilist, tmdb, noted, created FROM subs ORDER BY token LIMIT ?",
+      ).bind(limit);
+  const { results } = await stmt.all();
+  return (results || []).map(rowToSub);
+}
+
+async function countSubs(env) {
+  const row = await env.DB.prepare("SELECT COUNT(*) AS c FROM subs").first();
+  return row ? row.c : 0;
+}
+
+async function getSub(env, token) {
+  return env.DB.prepare("SELECT noted, created FROM subs WHERE token = ?")
+    .bind(token)
+    .first();
+}
+
+async function upsertSub(env, token, anilist, tmdb, noted, created) {
+  await env.DB.prepare(
+    "INSERT INTO subs (token, anilist, tmdb, noted, created) VALUES (?, ?, ?, ?, ?) " +
+      "ON CONFLICT(token) DO UPDATE SET anilist = excluded.anilist, tmdb = excluded.tmdb, noted = excluded.noted",
+  )
+    .bind(
+      token,
+      JSON.stringify(anilist),
+      JSON.stringify(tmdb),
+      JSON.stringify(noted),
+      created,
+    )
+    .run();
+}
+
+async function setNoted(env, token, noted) {
+  await env.DB.prepare("UPDATE subs SET noted = ? WHERE token = ?")
+    .bind(JSON.stringify(noted), token)
+    .run();
+}
+
+async function deleteSub(env, token) {
+  await env.DB.prepare("DELETE FROM subs WHERE token = ?").bind(token).run();
 }
 
 // ---------------------------------------------------------------- cron
@@ -298,10 +395,12 @@ function freshCursor() {
 }
 
 async function readCursor(env) {
-  const raw = await env.SUBS.get(CURSOR_KEY);
-  if (!raw) return freshCursor();
+  const row = await env.DB.prepare("SELECT v FROM meta WHERE k = ?")
+    .bind(CURSOR_KEY)
+    .first();
+  if (!row || !row.v) return freshCursor();
   try {
-    const v = JSON.parse(raw);
+    const v = JSON.parse(row.v);
     return {
       p: typeof v.p === "string" ? v.p : "",
       a: Number.isInteger(v.a) ? v.a : 0,
@@ -309,39 +408,31 @@ async function readCursor(env) {
     };
   } catch {
     // Legacy plain-string cursor from an earlier deploy.
-    return { p: raw.startsWith("sub:") ? raw : "", a: 0, t: 0 };
+    return { p: row.v.startsWith("sub:") ? row.v : "", a: 0, t: 0 };
   }
 }
 
 async function writeCursor(env, c) {
-  await env.SUBS.put(CURSOR_KEY, JSON.stringify(c));
+  await env.DB.prepare(
+    "INSERT INTO meta (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v",
+  )
+    .bind(CURSOR_KEY, JSON.stringify(c))
+    .run();
 }
 
 async function runSweep(env) {
   const cfg = await loadConfig(env);
 
   const state = await readCursor(env);
-  const page = await env.SUBS.list({
-    prefix: "sub:",
-    limit: SLICE_SUBS,
-    cursor: state.p || undefined,
-  });
+  const subs = await loadSubs(env, state.p || "", SLICE_SUBS);
 
-  if (page.keys.length === 0) {
+  if (subs.length === 0) {
     if (state.p) await writeCursor(env, freshCursor());
     return { subs: 0, sent: 0, dead: 0 };
   }
 
-  const subs = [];
-  for (const key of page.keys) {
-    const raw = await env.SUBS.get(key.name);
-    if (!raw) continue;
-    try {
-      subs.push({ key: key.name, ...JSON.parse(raw) });
-    } catch {
-      /* unreadable entry, ignore */
-    }
-  }
+  const endReached = subs.length < SLICE_SUBS;
+  const lastToken = subs[subs.length - 1].token;
 
   const allAnilist = [...new Set(subs.flatMap((s) => s.a || []))];
   const allTmdb = [...new Set(subs.flatMap((s) => s.m || []))];
@@ -349,6 +440,7 @@ async function runSweep(env) {
   const now = Math.floor(Date.now() / 1000);
   const anilistIds = allAnilist.slice(state.a, state.a + MAX_ANILIST_IDS);
   const tmdbIds = allTmdb.slice(state.t, state.t + MAX_TMDB_FETCHES);
+  lastAniListError = null;
   const airing = anilistIds.length
     ? await anilistHits(now - WINDOW_BACK, now + WINDOW_FWD, anilistIds)
     : [];
@@ -438,15 +530,15 @@ async function runSweep(env) {
     }
 
     if (subDead) {
-      dead.push(sub.key);
+      dead.push(sub.token);
     } else {
       // Persist progress for exactly the jobs that were sent; anything not sent
       // stays unnoted and is retried next tick without duplication.
-      await env.SUBS.put(sub.key, JSON.stringify({ ...sub, key: undefined, n: nextNoted }));
+      await setNoted(env, sub.token, nextNoted);
     }
   }
 
-  for (const key of dead) await env.SUBS.delete(key);
+  for (const token of dead) await deleteSub(env, token);
 
   // If the send budget cut the slice short, retry the same page and windows.
   // Otherwise advance the AniList/TMDB windows, and only move to the next page
@@ -461,14 +553,24 @@ async function runSweep(env) {
     const anilistDone = a >= allAnilist.length;
     const tmdbDone = t >= allTmdb.length;
     if (anilistDone && tmdbDone) {
-      next = { p: page.list_complete ? "" : page.cursor || "", a: 0, t: 0 };
+      next = { p: endReached ? "" : lastToken, a: 0, t: 0 };
     } else {
       next = { p: state.p || "", a: anilistDone ? 0 : a, t: tmdbDone ? 0 : t };
     }
   }
   await writeCursor(env, next);
 
-  return { subs: subs.length, sent, dead: dead.length };
+  return {
+    subs: subs.length,
+    sent,
+    dead: dead.length,
+    airing: airing.length,
+    anilist: !anilistIds.length
+      ? "skip"
+      : lastAniListError
+        ? `error: ${lastAniListError}`
+        : "ok",
+  };
 }
 
 // ---------------------------------------------------------------- http
@@ -502,25 +604,21 @@ export default {
         ? [...new Set(body.tmdb.filter((x) => Number.isInteger(x)))]
         : [];
 
-      const existingRaw = await env.SUBS.get(`sub:${token}`);
+      const existing = await getSub(env, token);
       let noted = {};
       let created = 0;
-      if (existingRaw) {
+      if (existing) {
         try {
-          const existing = JSON.parse(existingRaw);
-          noted = existing.n || {};
-          created = existing.c || 0;
+          noted = JSON.parse(existing.noted) || {};
         } catch {
           /* start fresh */
         }
+        created = existing.created || 0;
       } else {
         created = Math.floor(Date.now() / 1000);
       }
 
-      await env.SUBS.put(
-        `sub:${token}`,
-        JSON.stringify({ t: token, a: anilist, m: tmdb, n: noted, c: created }),
-      );
+      await upsertSub(env, token, anilist, tmdb, noted, created);
       return json({ ok: true, anilist: anilist.length, tmdb: tmdb.length });
     }
 
@@ -532,13 +630,12 @@ export default {
         return json({ error: "bad json" }, 400);
       }
       const token = typeof body.token === "string" ? body.token.trim() : "";
-      if (token) await env.SUBS.delete(`sub:${token}`);
+      if (token) await deleteSub(env, token);
       return json({ ok: true });
     }
 
     if (request.method === "GET" && url.pathname === "/count") {
-      const subs = await allSubs(env);
-      return json({ subscriptions: subs.length });
+      return json({ subscriptions: await countSubs(env) });
     }
 
     // Diagnostics for the maintainer: checks FCM auth and the AniList query
@@ -567,25 +664,61 @@ export default {
       try {
         const now = Math.floor(Date.now() / 1000);
         const sample = await queryAiring(now - WINDOW_BACK, now + WINDOW_FWD, [1]);
-        out.anilist = `ok (${sample.length} schedules for media 1)`;
+        out.anilist = `${sample.length} schedules${
+          lastAniListError ? ` (last error: ${lastAniListError})` : ""
+        }`;
       } catch (e) {
         out.anilist = String(e.message || e);
       }
-      out.subscriptions = (await allSubs(env)).length;
+      out.subscriptions = await countSubs(env);
       return json(out);
+    }
+
+    // Runs the notification sweep on demand (admin only).
+    if (
+      (request.method === "GET" || request.method === "POST") &&
+      url.pathname === "/sweep"
+    ) {
+      const cfg = await loadConfig(env);
+      if (cfg.adminKey && url.searchParams.get("key") !== cfg.adminKey) {
+        return json({ error: "forbidden" }, 403);
+      }
+      const result = await runSweep(env);
+      return json(result);
+    }
+
+    // Manual test push (admin only). Sends a notification to every subscriber,
+    // or a single one via ?token=. Handy for verifying FCM end-to-end.
+    if (request.method === "GET" && url.pathname === "/test") {
+      const cfg = await loadConfig(env);
+      if (cfg.adminKey && url.searchParams.get("key") !== cfg.adminKey) {
+        return json({ error: "forbidden" }, 403);
+      }
+      const only = url.searchParams.get("token");
+      const subs = only ? [{ token: only }] : await loadSubs(env, "", 1000);
+      const results = [];
+      for (const sub of subs) {
+        const r = await sendFcm(
+          cfg,
+          sub.token,
+          notificationPayload(
+            "Sanin push test",
+            "If you can see this, notifications are working.",
+            "",
+            { type: "test" },
+          ),
+        );
+        results.push({ token: String(sub.token).slice(0, 16), result: r });
+      }
+      return json({ count: subs.length, sent: results });
     }
 
     return json({ error: "not found" }, 404);
   },
 
   async scheduled(_event, env) {
-    try {
-      const result = await runSweep(env);
-      console.log(`sweep: ${JSON.stringify(result)}`);
-      return result;
-    } catch (e) {
-      console.log(`sweep failed: ${e}`);
-      throw e;
-    }
+    const result = await runSweep(env);
+    console.log(`sweep: ${JSON.stringify(result)}`);
+    return result;
   },
 };
