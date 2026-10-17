@@ -244,7 +244,9 @@ class MediaAdaptor(
                 val media = mediaList?.get(position)
                 if (media != null) {
                     b.itemCompactImage.loadImage(media.cover)
-                    blurImage(b.itemCompactBanner, media.banner ?: media.cover)
+                    // List cards use sharp source-provided landscape artwork, never blurred posters or logo art.
+                    b.itemCompactBanner.setImageDrawable(null)
+                    if (!media.banner.isNullOrBlank()) b.itemCompactBanner.loadImage(media.banner)
                     val showBottom1 = cachedCardTitlePosition != 0
                     val showScore1 = shouldShowTopBadge(1) && (media.userScore > 0 || (media.meanScore ?: 0) > 0)
                     val showAiring1 = shouldShowTopBadge(2) && media.status == currActivity()!!.getString(R.string.status_releasing)
