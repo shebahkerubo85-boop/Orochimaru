@@ -22,6 +22,12 @@ use those), then point the worker at it.
 
 > Use the Node.js runtime (default). Vercel **Edge** functions run on
 > Cloudflare's network and will be blocked.
+>
+> The `package.json` (`"type": "module"`) is required so Vercel treats
+> `api/anilist.js` as ESM; without it the `export default` fails at runtime.
+>
+> Use the **production** alias (`https://<project>.vercel.app`). Per-deployment
+> URLs are behind Vercel Authentication and return `401`.
 
 ## Option B — Deno Deploy
 

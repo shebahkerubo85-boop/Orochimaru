@@ -648,6 +648,7 @@ export default {
       const out = {
         fcm: "skipped",
         anilist: null,
+        proxy: anilistProxy || "(direct)",
         tmdb: Boolean(cfg.tmdbKey),
         cfg: {
           projectSet: Boolean(cfg.projectId),
