@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="8dp"
-    app:cardBackgroundColor="@color/nav_bg"
+    app:cardBackgroundColor="@color/bg"
     app:cardCornerRadius="28dp">
 
     <ImageView
@@ -21,20 +21,23 @@
         android:id="@+id/imageView"
         android:layout_width="match_parent"
         android:layout_height="153dp"
-        app:srcCompat="@drawable/linear_gradient_nav"
+        app:srcCompat="@drawable/gradient_media_list_blend"
         tools:ignore="ContentDescription" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="horizontal"
-        android:padding="8dp">
+        android:paddingStart="4dp"
+        android:paddingTop="4dp"
+        android:paddingEnd="4dp"
+        android:paddingBottom="4dp">
 
         <FrameLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:clipToPadding="false"
-            android:padding="8dp">
+            android:padding="2dp">
 
             <androidx.cardview.widget.CardView
                 android:id="@+id/itemCompactCard"
@@ -152,9 +155,13 @@
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="bottom"
+            android:layout_gravity="center_vertical"
+            android:layout_weight="1"
             android:orientation="vertical"
-            android:padding="8dp">
+            android:paddingStart="10dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="4dp">
 
             <TextView
                 android:id="@+id/itemCompactTitle"
@@ -163,8 +170,8 @@
                 android:ellipsize="end"
                 android:fontFamily="@font/poppins_semi_bold"
                 android:maxLines="3"
-                android:textColor="@android:color/white"
-                android:textSize="15dp"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="14sp"
                 android:transitionName="mediaTitle"
                 tools:ignore="SpUsage"
                 tools:text="@string/slogan" />
@@ -178,7 +185,8 @@
                     android:id="@+id/itemCompactTotal"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textSize="14dp"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="11sp"
                     tools:ignore="SpUsage,TextContrastCheck"
                     tools:text="/??" />
 
@@ -188,7 +196,8 @@
                     android:layout_height="wrap_content"
                     android:alpha="0.66"
                     android:text="@string/eps"
-                    android:textSize="14dp"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="11sp"
                     tools:ignore="SpUsage" />
 
             </LinearLayout>
