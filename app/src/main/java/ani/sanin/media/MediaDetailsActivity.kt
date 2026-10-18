@@ -353,6 +353,24 @@ class MediaDetailsActivity : AppCompatActivity() {
         fun selectTab(idx: Int, animate: Boolean = true) {
             selected = idx
             updateMediaNavIconTints(selected, animate)
+
+            // Watch uses the banner image itself at a fixed 14% opacity (86% dim),
+            // rather than the full-screen darkening overlay. Restore the original
+            // preference-driven appearance for Info and Comments.
+            if (idx == 1) {
+                if (bannerTransparency > 0f) {
+                    binding.mediaBg?.alpha = 0.14f
+                }
+                binding.mediaDarkenOverlay?.visibility = View.GONE
+            } else {
+                binding.mediaBg?.alpha = bannerTransparency
+                binding.mediaBgGradient?.alpha = bannerTransparency
+                binding.mediaDarkenOverlay?.setBackgroundColor(bannerFallbackColor())
+                binding.mediaDarkenOverlay?.alpha = 1f - bannerTransparency
+                binding.mediaDarkenOverlay?.visibility =
+                    if (bannerTransparency > 0f) View.VISIBLE else View.GONE
+            }
+
             val container = binding.mediaTabContent
             val parent = container?.parent as? View
             parent?.layoutParams = (parent?.layoutParams as? ViewGroup.MarginLayoutParams)?.apply {
