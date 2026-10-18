@@ -1875,7 +1875,11 @@ class ExoplayerView :
         } else if (isTmdbContent) {
             !incognito && showProgressDialog && Simkl.token != null
         } else {
-            !incognito && showProgressDialog && Anilist.userid != null &&
+            // Anime is tracked by the selected tracker: MAL in rescue mode, AniList otherwise.
+            val trackerLoggedIn =
+                if (PrefManager.getVal<Boolean>(PrefName.RescueMode)) MAL.token != null
+                else Anilist.userid != null
+            !incognito && showProgressDialog && trackerLoggedIn &&
                 if (media.isAdult) PrefManager.getVal(PrefName.UpdateForHPlayer) else true
         }
         if (shouldShowDialog) {
@@ -3858,8 +3862,11 @@ class ExoplayerView :
                 }
             }
         }
-        // Simkl scrobble for TMDB content (id < 0) AND anime content (id > 0, AniList)
-        if (!isLiveStream() && Simkl.token != null) {
+        // Simkl scrobble for TMDB movie/tv content ONLY (synthetic id < 0).
+        // Anime is tracked exclusively on AniList/MAL — never Simkl.
+        val incognito = PrefManager.getVal(PrefName.Incognito)
+        val simklProgressEnabled = PrefManager.getCustomVal("${media.id}_save_progress", true)
+        if (!isLiveStream() && Simkl.token != null && media.id < 0 && !incognito && simklProgressEnabled) {
             // Capture player position on the main thread before switching to IO
             val playerCurrentPosition = if (::exoPlayer.isInitialized) exoPlayer.currentPosition else 0L
             val playerDuration = if (::exoPlayer.isInitialized) exoPlayer.duration else 0L
@@ -3868,80 +3875,42 @@ class ExoplayerView :
                 val parts = epStr?.split("E") ?: emptyList()
                 val season = if (parts.size == 2) parts[0].removePrefix("S").toIntOrNull() else null
                 val episode = epStr?.substringAfter("E")?.toIntOrNull()
-                if (media.id < 0) {
-                    // TMDB content: resolve from SyntheticSession
-                    val session = TmdbStreamResolver.sessionFor(media.id) ?: return@launch
-                    val d = session.detail
-                    val title = d.displayTitle
-                    val year = d.year.toIntOrNull()
-                    val tmdbId = d.id
-                    val imdbId = d.externalIds?.imdbId
-                    val type = if (session.mediaType == "tv") "tv" else "movie"
-                    if (isPlaying) {
-                        Logger.log("Simkl: scrobbleStart type=$type title=$title s=$season e=$episode")
-                        Simkl.scrobbleStart(type, title, year, tmdbId, imdbId, season, episode)
-                        if (!simklAddedToWatchlist) {
-                            val currentStatus = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                Simkl.getMediaStatus(type, tmdbId = tmdbId, imdbId = imdbId)
-                            }
-                            if (currentStatus != "completed" && currentStatus != "dropped") {
-                                simklAddedToWatchlist = true
-                                Logger.log("Simkl: addToWatchlist type=$type tmdb=$tmdbId (was $currentStatus)")
-                                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                    Simkl.addToWatchlist(type, tmdbId, imdbId)
-                                }
-                            } else {
-                                simklAddedToWatchlist = true
-                                Logger.log("Simkl: skipping addToWatchlist, already $currentStatus")
-                            }
+                // TMDB content: resolve from SyntheticSession
+                val session = TmdbStreamResolver.sessionFor(media.id) ?: return@launch
+                val d = session.detail
+                val title = d.displayTitle
+                val year = d.year.toIntOrNull()
+                val tmdbId = d.id
+                val imdbId = d.externalIds?.imdbId
+                val type = if (session.mediaType == "tv") "tv" else "movie"
+                if (isPlaying) {
+                    Logger.log("Simkl: scrobbleStart type=$type title=$title s=$season e=$episode")
+                    Simkl.scrobbleStart(type, title, year, tmdbId, imdbId, season, episode)
+                    if (!simklAddedToWatchlist) {
+                        val currentStatus = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            Simkl.getMediaStatus(type, tmdbId = tmdbId, imdbId = imdbId)
                         }
-                    } else {
-                        Logger.log("Simkl: scrobbleStop type=$type title=$title s=$season e=$episode")
-                        Simkl.scrobbleStop(type, title, year, tmdbId, imdbId, season, episode)
-                        val pos = playerCurrentPosition
-                        val dur = playerDuration
-                        if (dur > 0 && pos.toFloat() / dur.toFloat() > PrefManager.getVal<Float>(PrefName.WatchPercentage)) {
-                            Logger.log("Simkl: addToHistory on scrobbleStop (pos=$pos/dur=$dur)")
-                            Simkl.addToHistory(type, title, year, tmdbId, imdbId, season, episode)
-                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                Refresh.all()
+                        if (currentStatus != "completed" && currentStatus != "dropped") {
+                            simklAddedToWatchlist = true
+                            Logger.log("Simkl: addToWatchlist type=$type tmdb=$tmdbId (was $currentStatus)")
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                Simkl.addToWatchlist(type, tmdbId, imdbId)
                             }
+                        } else {
+                            simklAddedToWatchlist = true
+                            Logger.log("Simkl: skipping addToWatchlist, already $currentStatus")
                         }
                     }
                 } else {
-                    // Anime content: track via AniList ID on Simkl
-                    val title = media.userPreferredName
-                    val anilistId = media.id
-                    val type = if (media.format?.uppercase() == "MOVIE") "movie" else "tv"
-                    if (isPlaying) {
-                        Logger.log("Simkl: scrobbleStart(anilist) type=$type title=$title anilist=$anilistId s=$season e=$episode")
-                        Simkl.scrobbleStart(type, title, null, anilistId = anilistId, season = season, episode = episode)
-                        if (!simklAddedToWatchlist) {
-                            val currentStatus = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                Simkl.getMediaStatus(type, anilistId = anilistId)
-                            }
-                            if (currentStatus != "completed" && currentStatus != "dropped") {
-                                simklAddedToWatchlist = true
-                                Logger.log("Simkl: addToWatchlist(anilist) type=$type anilist=$anilistId (was $currentStatus)")
-                                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                    Simkl.addToWatchlist(type, anilistId = anilistId)
-                                }
-                            } else {
-                                simklAddedToWatchlist = true
-                                Logger.log("Simkl: skipping addToWatchlist(anilist), already $currentStatus")
-                            }
-                        }
-                    } else {
-                        Logger.log("Simkl: scrobbleStop(anilist) type=$type title=$title anilist=$anilistId s=$season e=$episode")
-                        Simkl.scrobbleStop(type, title, null, anilistId = anilistId, season = season, episode = episode)
-                        val pos = playerCurrentPosition
-                        val dur = playerDuration
-                        if (dur > 0 && pos.toFloat() / dur.toFloat() > PrefManager.getVal<Float>(PrefName.WatchPercentage)) {
-                            Logger.log("Simkl: addToHistory(anilist) type=$type anilist=$anilistId")
-                            Simkl.addToHistory(type, title, null, anilistId = anilistId, season = season, episode = episode)
-                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                Refresh.all()
-                            }
+                    Logger.log("Simkl: scrobbleStop type=$type title=$title s=$season e=$episode")
+                    Simkl.scrobbleStop(type, title, year, tmdbId, imdbId, season, episode)
+                    val pos = playerCurrentPosition
+                    val dur = playerDuration
+                    if (dur > 0 && pos.toFloat() / dur.toFloat() > PrefManager.getVal<Float>(PrefName.WatchPercentage)) {
+                        Logger.log("Simkl: addToHistory on scrobbleStop (pos=$pos/dur=$dur)")
+                        Simkl.addToHistory(type, title, year, tmdbId, imdbId, season, episode)
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            Refresh.all()
                         }
                     }
                 }
@@ -4552,12 +4521,17 @@ class ExoplayerView :
     private fun isDeclaredLiveStream(): Boolean =
         isTmdbMovieMode() && TmdbStreamResolver.sessionFor(media.id)?.isLive == true
 
+    // A stream counts as live only when the plugin declared it (LiveStreamLoadResponse)
+    // or the player confirmed a settled dynamic window (see onTimelineChanged).
+    // `Player.isCurrentMediaItemDynamic` is intentionally NOT consulted directly: on
+    // some VOD HLS/DASH manifests ExoPlayer briefly reports a still-loading window as
+    // dynamic, which used to flip VOD titles into live mode (red LIVE badge, hidden
+    // position/duration, live-edge seeking) for the whole session.
     private fun isLiveStream(): Boolean =
         isTmdbMovieMode() &&
             (
                 isDeclaredLiveStream() ||
-                    liveDetectedFromPlayer ||
-                    (::exoPlayer.isInitialized && !exoPlayer.isReleased && exoPlayer.isCurrentMediaItemDynamic)
+                    liveDetectedFromPlayer
                 )
 
     private fun logLiveEvent(message: String, level: Int = Log.INFO) {
@@ -4838,7 +4812,15 @@ class ExoplayerView :
             val windowIndex = exoPlayer.currentMediaItemIndex
                 .takeIf { it in 0 until timeline.windowCount } ?: 0
             timeline.getWindow(windowIndex, window)
-            if (window.isDynamic) {
+            // `isDynamic` is also briefly true while an HLS/DASH manifest is still
+            // loading (duration unknown), which used to latch VOD titles into live
+            // mode permanently. Only treat it as a real live window once the
+            // manifest has resolved (duration known), unless the plugin already
+            // declared the stream live.
+            val settledLiveWindow =
+                window.isDynamic &&
+                    (isDeclaredLiveStream() || window.durationMs != C.TIME_UNSET)
+            if (settledLiveWindow) {
                 val detected = !liveDetectedFromPlayer
                 if (detected) {
                     liveDetectedFromPlayer = true
@@ -4916,7 +4898,8 @@ class ExoplayerView :
 
         // TMDB content (synthetic id < 0): track on Simkl
         if (media.id < 0) {
-            if (episodeLength <= 0f || incognito || Simkl.token == null) return
+            val saveProgress = PrefManager.getCustomVal("${media.id}_save_progress", true)
+            if (episodeLength <= 0f || incognito || Simkl.token == null || !saveProgress) return
             val currentPos = exoPlayer.currentPosition
             val episodeEnd = currentPos / episodeLength > PrefManager.getVal<Float>(PrefName.WatchPercentage)
             if (episodeEnd) {
@@ -4959,7 +4942,11 @@ class ExoplayerView :
                         PrefName.WatchPercentage,
                     )
         val episode0 = currentEpisodeIndex == 0 && PrefManager.getVal(PrefName.ChapterZeroPlayer)
-        if (!incognito && (episodeEnd || episode0) && Anilist.userid != null
+        // Gate on the tracker actually selected for anime (MAL in rescue mode, else AniList).
+        val trackerReady =
+            if (PrefManager.getVal<Boolean>(PrefName.RescueMode)) MAL.token != null
+            else Anilist.userid != null
+        if (!incognito && (episodeEnd || episode0) && trackerReady
         ) {
             if (PrefManager.getCustomVal(
                     "${media.id}_save_progress",
@@ -4977,29 +4964,6 @@ class ExoplayerView :
             }
         }
         maybeHandleSubscriptionAfterEpisodeCompletion(episodeEnd, incognito)
-        
-        // Simkl tracking for anime content (positive AniList id)
-        if (media.id > 0 && Simkl.token != null && !incognito && episodeEnd) {
-            val alreadyTracked = PrefManager.getCustomVal("${media.id}_simkl_tracked_${media.anime?.selectedEpisode}", false)
-            if (!alreadyTracked) {
-                PrefManager.setCustomVal("${media.id}_simkl_tracked_${media.anime?.selectedEpisode}", true)
-                val title = media.userPreferredName
-                val anilistId = media.id
-                val type = if (media.format?.uppercase() == "MOVIE") "movie" else "tv"
-                val epStr = media.anime?.selectedEpisode
-                val parts = epStr?.split("E") ?: emptyList()
-                val season = if (parts.size == 2) parts[0].removePrefix("S").toIntOrNull() else null
-                val episode = epStr?.substringAfter("E")?.toIntOrNull()
-                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                    Logger.log("Simkl: addToHistory(anilist) type=$type title=$title anilist=$anilistId s=$season e=$episode")
-                    Simkl.addToHistory(type, title, null, anilistId = anilistId, season = season, episode = episode)
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        toast("${title} marked as watched on Simkl")
-                        Refresh.all()
-                    }
-                }
-            }
-        }
     }
 
     private var lastSubscriptionPromptEpisode: String? = null

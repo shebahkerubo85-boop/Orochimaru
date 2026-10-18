@@ -278,6 +278,9 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
                 aniListCheck.isChecked = false
                 PrefManager.setVal(PrefName.SelectedMediaType, 0)
                 PrefManager.setVal(PrefName.SelectedTracker, 1)
+                // MAL is the active anime tracker in rescue mode; selecting it here
+                // must actually switch tracking to MAL (AniList stays the linked mirror).
+                PrefManager.setVal(PrefName.RescueMode, true)
                 (activity as? MainActivity)?.setContentMode("anime")
                 collapseSection(animeExpanded, animeArrow)
                 updateCollapsedFocusChain()

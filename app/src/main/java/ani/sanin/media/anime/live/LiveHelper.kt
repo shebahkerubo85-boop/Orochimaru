@@ -40,10 +40,18 @@ object LiveHelper {
             ) {
                 super.onPositionDiscontinuity(oldPosition, newPosition, reason)
                 val timeAheadOfLive = liveManager.getTimeAheadOfLive(newPosition.positionMs)
-
-                // Seek back to the optimal live spot
+                // Previously this seeked the playhead back to the "optimal live
+                // spot" whenever it was more than 100ms ahead. That fires on every
+                // discontinuity, and each forced seek re-buffers the stream — worst
+                // near the live edge, which is exactly where users drag the bar.
+                // ExoPlayer's native live handling (MediaItem.LiveConfiguration +
+                // DefaultLiveSpeedControl) now owns edge correction, so this is a
+                // no-op kept only for logging.
                 if (timeAheadOfLive > 100) {
-                    player.seekTo(newPosition.positionMs - timeAheadOfLive)
+                    debugWarning(
+                        "Live position ${newPosition.positionMs} is ${timeAheadOfLive}ms ahead of the live edge; " +
+                            "leaving correction to ExoPlayer"
+                    )
                 }
             }
         }
