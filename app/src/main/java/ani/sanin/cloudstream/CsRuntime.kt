@@ -12,6 +12,7 @@ import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.plugins.BasePlugin
 import com.lagradost.cloudstream3.plugins.Plugin
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
+import com.lagradost.cloudstream3.utils.extractorApis
 import dalvik.system.PathClassLoader
 import java.io.File
 import java.io.InputStreamReader
@@ -37,16 +38,6 @@ object CsRuntime {
     /** Details of the most recent load failure (exception class + message), if any. */
     var lastError: String? = null
         private set
-
-    /**
-     * Cached "fresh" settings openers, keyed by source id. The first time a
-     * source's settings are opened we re-instantiate the plugin against a live
-     * activity (freshSettingsOpener) — that dex-loads and re-runs the plugin's
-     * load(), which is slow (seconds). Keep that bound opener so subsequent taps
-     * reuse it and the sheet appears instantly instead of re-loading every time
-     * (mirrors Zangetsu, whose plugins are loaded once against a real activity).
-     */
-    private val settingsOpeners = mutableMapOf<String, (android.content.Context) -> Unit>()
 
     @Synchronized
     fun load(context: Context, source: CsInstalledSource): Boolean {
@@ -131,14 +122,25 @@ object CsRuntime {
      * a MaterialComponents theme — NOT the busy, Material3 theme main activity,
      * which crashes a plugin's BottomSheetDialog (ComponentDialog NPE).
      *
-     * Some plugins (e.g. StremioX) capture the hosting `Activity` at `load()` time
-     * and reuse it inside openSettings. Our plugins are load()ed against the
-     * application context, so that captured activity is null and the sheet never
-     * shows. To fix it we re-instantiate the plugin with [activity] as its load
-     * context — so its openSettings captures a real activity — then immediately
-     * undo the duplicate MainAPI registration that re-loading causes (we only want
-     * the freshly-bound openSettings). Falls back to the already-loaded plugin's
-     * opener for plugins that bind the activity at call time.
+     * Two things force us to re-instantiate the plugin against the LIVE activity
+     * on every open instead of reusing an opener cached earlier:
+     *
+     *  - Fragment/BottomSheet plugins (Ultima, CNCVerse, ...) capture their host
+     *    Activity's `supportFragmentManager` inside `load()` and later call
+     *    `DialogFragment.show(fm)`. Every settings tap creates a NEW
+     *    [CloudStreamSettingsActivity], so an opener cached from a previous one
+     *    points at a destroyed FragmentManager and throws
+     *    `IllegalStateException: FragmentManager has been destroyed`.
+     *  - Plugins built against an Activity context often only populate
+     *    [Plugin.openSettings] inside `load(activity)`; loading them against the
+     *    application context (as [load] does) leaves it null, which used to be
+     *    mistaken for "this plugin has no settings".
+     *
+     * Re-instantiating re-runs the plugin's `load()`, so the duplicate MainAPI /
+     * ExtractorApi registrations it makes are dropped again by
+     * [freshSettingsOpener] — we only want the freshly-bound opener. If the fresh
+     * bind fails we fall back to the already-loaded plugin's opener for plugins
+     * that bind the activity at call time instead of at load time.
      */
     fun openSettingsFor(
         context: Context,
@@ -149,32 +151,26 @@ object CsRuntime {
             if (!load(context, source)) return null
         }
         val plugin = plugins[source.id] as? Plugin ?: return null
-        val cached = plugin.openSettings ?: return null
+        val act = activity ?: (context as? AppCompatActivity)
+
+        val fresh = act?.let { live ->
+            runCatching { freshSettingsOpener(context, source, live) }
+                .onFailure { t ->
+                    Log.e(TAG, "Fresh settings bind failed for ${source.name}", t)
+                    lastError = "Fresh settings bind failed: ${t.message}"
+                }
+                .getOrNull()
+        }
+        val bound = fresh ?: run {
+            Log.w(TAG, "Falling back to loaded plugin.openSettings for ${source.name} (fresh bind null/failed); resources=${plugin.resources != null}")
+            lastError = if (fresh == null && plugin.openSettings == null) "No settings opener bound" else lastError
+            plugin.openSettings
+        } ?: return null
 
         return { ctx ->
-            val act = activity ?: throw IllegalStateException(
-                "No live AppCompatActivity to host ${source.name} settings"
-            )
-
-            // Bind the plugin against a live activity ONCE and cache it. Only the
-            // first tap pays the cost of re-instantiating + re-loading the plugin;
-            // later taps reuse the bound opener (instant sheet, like Zangetsu).
-            val invoke: (android.content.Context) -> Unit =
-                settingsOpeners.getOrPut(source.id) {
-                    runCatching { freshSettingsOpener(context, source, act) }
-                        .onFailure {
-                            Log.e(TAG, "Falling back to cached opener for ${source.name} (fresh bind failed)", it)
-                        }
-                        .getOrNull() ?: cached
-                }
-
             try {
-                invoke(act)
+                bound(ctx)
             } catch (t: Throwable) {
-                // Fresh-bound openers hold a reference to the FIRST activity that
-                // hosted them. If that sheet was dismissed/rotated, rebind once so
-                // a later tap still works, then rethrow for the toast.
-                settingsOpeners.remove(source.id)
                 Log.e(TAG, "Plugin ${source.name} failed to open settings", t)
                 throw t
             }
@@ -182,8 +178,14 @@ object CsRuntime {
     }
 
     /** Re-instantiate the plugin in [file] against [activity] and return its
-     *  freshly-bound `openSettings`, undoing the duplicate MainAPI registration
-     *  (we only want the opener, not a second copy of every provider). */
+     *  freshly-bound `openSettings`, undoing the duplicate MainAPI/ExtractorApi
+     *  registration re-running `load()` causes (we only want the opener, not a
+     *  second copy of every provider).
+     *
+     *  The undo runs in a `finally` so a plugin that throws mid-`load()` still
+     *  can't leave half-registered providers behind. Removal is by identity, not
+     *  by `filename`: both copies of a provider carry the same `sourcePlugin`, so
+     *  filename-based cleanup would evict the original registrations too. */
     private fun freshSettingsOpener(
         context: Context,
         source: CsInstalledSource,
@@ -191,6 +193,10 @@ object CsRuntime {
     ): ((android.content.Context) -> Unit)? {
         val file = CsRepos.installedFile(context, source)
         if (!file.exists()) return null
+        // Same read-only requirement as load(): Android 8+ refuses writable dex files.
+        if (!file.setReadOnly()) {
+            Log.e(TAG, "Failed to set read-only on ${file.name}")
+        }
 
         val loader = PathClassLoader(file.absolutePath, context.classLoader)
         val manifest = loader.getResourceAsStream("manifest.json")?.use { stream ->
@@ -199,22 +205,48 @@ object CsRuntime {
             }
         } ?: return null
         val className = manifest.pluginClassName ?: return null
-        val instance = loader.loadClass(className).getDeclaredConstructor().newInstance() as? Plugin
-            ?: return null
-        instance.filename = file.absolutePath
-        if (manifest.requiresResources) {
-            instance.resources = buildPluginResources(context, file)
-        }
+
         val providers = APIHolder.allProviders
-        val before = synchronized(providers) { providers.toList() }
-        instance.load(activity) // binds openSettings against the real activity
-        synchronized(providers) {
-            providers.filter { it !in before }.forEach { dup ->
-                providers.remove(dup)
-                runCatching { APIHolder.removePluginMapping(dup) }
+        val extractors = extractorApis
+        // Snapshot BEFORE the constructor runs: providers register in init blocks.
+        val beforeProviders = providers.withLock { providers.toList() }
+        val beforeExtractors = extractors.withLock { extractors.toList() }
+
+        var instance: Plugin? = null
+        try {
+            val created = loader.loadClass(className).getDeclaredConstructor().newInstance() as? Plugin
+                ?: return null
+            instance = created
+            created.filename = file.absolutePath
+            if (manifest.requiresResources) {
+                created.resources = buildPluginResources(context, file)
+                Log.d(TAG, "Built plugin resources for ${source.name} (pkg=${manifest.name}, hasRes=${created.resources!=null})")
+            } else {
+                Log.d(TAG, "No resources required for ${source.name}")
+            }
+            // load() may set openSettings and THEN throw (e.g. a plugin that also
+            // kicks off a network call). Swallow it: the authoritative copy of this
+            // plugin was already loaded successfully by load(), and an opener set
+            // before the throw is still worth keeping — reporting "has no settings"
+            // would be wrong. The invoke site catches whatever the opener raises.
+            runCatching { created.load(activity) } // binds openSettings against the real activity
+                .onFailure { t ->
+                    Log.e(TAG, "Plugin ${source.name} load() failed during settings bind", t)
+                }
+        } finally {
+            providers.withLock {
+                providers.filter { it !in beforeProviders }.forEach { dup ->
+                    providers.remove(dup)
+                    runCatching { APIHolder.removePluginMapping(dup) }
+                }
+            }
+            extractors.withLock {
+                extractors.filter { it !in beforeExtractors }.forEach { dup ->
+                    extractors.remove(dup)
+                }
             }
         }
-        return instance.openSettings
+        return instance?.openSettings
     }
 
     private fun buildPluginResources(context: Context, file: File): Resources {
@@ -235,6 +267,5 @@ object CsRuntime {
             runCatching { plugin.beforeUnload() }
         }
         apis.remove(sourceId)
-        settingsOpeners.remove(sourceId)
     }
 }

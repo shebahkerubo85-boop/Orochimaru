@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import android.content.Intent
+import android.util.Log
 import android.widget.Toast
 import com.lagradost.cloudstream3.CommonActivity
 
@@ -84,22 +85,29 @@ class CloudStreamSettingsActivity : AppCompatActivity() {
             val opener = runCatching { CsRuntime.openSettingsFor(this, source) }
             if (opener.isFailure) {
                 val t = opener.exceptionOrNull()!!
-                val detail = t.stackTraceToString().lineSequence().take(2).joinToString(" | ")
-                Toast.makeText(this, "Failed to open settings: ${t.message} ($detail)", Toast.LENGTH_LONG).show()
+                Log.e(TAG, "Failed to open ${source.name} settings", t)
+                Toast.makeText(this, "Couldn't open ${source.name} settings", Toast.LENGTH_SHORT).show()
                 finish()
                 return
             }
             val invoke = opener.getOrNull()
             if (invoke == null) {
-                // Plugin exposes no openSettings — nothing to configure. Tell the
-                // user instead of silently doing nothing.
-                Toast.makeText(this, "${source.name} is not configurable", Toast.LENGTH_SHORT).show()
+                // Either the plugin exposes no openSettings at all, or the plugin
+                // itself never loaded — say which, instead of always blaming
+                // "not configurable" for what is really a load failure.
+                val loadError = if (CsRuntime.isLoaded(source.id)) null else CsRuntime.lastError
+                val message = if (loadError != null) {
+                    "Failed to load ${source.name}: $loadError"
+                } else {
+                    "${source.name} has no settings"
+                }
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
                 finish()
                 return
             }
             val shown = runCatching { invoke(this); true }.getOrElse { t ->
-                val detail = t.stackTraceToString().lineSequence().take(2).joinToString(" | ")
-                Toast.makeText(this, "Failed to open settings: ${t.message} ($detail)", Toast.LENGTH_LONG).show()
+                Log.e(TAG, "Failed to open ${source.name} settings", t)
+                Toast.makeText(this, "Couldn't open ${source.name} settings", Toast.LENGTH_SHORT).show()
                 false
             }
             if (!shown) finish()
@@ -117,6 +125,7 @@ class CloudStreamSettingsActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_SOURCE_ID = "sourceId"
+        private const val TAG = "CloudStreamSettings"
 
         fun intent(context: android.content.Context, sourceId: String): Intent =
             Intent(context, CloudStreamSettingsActivity::class.java)
