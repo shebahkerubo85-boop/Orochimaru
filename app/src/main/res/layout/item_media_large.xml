@@ -24,7 +24,8 @@
         android:id="@+id/imageView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:srcCompat="@drawable/gradient_media_list_blend"
+        android:scaleType="fitXY"
+        android:src="@drawable/gradient_media_list_blend"
         tools:ignore="ContentDescription" />
 
     <LinearLayout
@@ -177,6 +178,7 @@
                 android:singleLine="false"
                 android:breakStrategy="simple"
                 android:hyphenationFrequency="none"
+                android:lines="2"
                 android:maxLines="2"
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="13sp"
