@@ -84,7 +84,8 @@
         android:focusable="true"
         android:focusableInTouchMode="false"
         android:descendantFocusability="afterDescendants"
-        android:clipToOutline="true">
+        android:visibility="gone"
+        android:clipToOutline="false">
 
         <ani.sanin.ui.components.SnakeNavRailView
             android:id="@+id/tmdbNavPillBg"

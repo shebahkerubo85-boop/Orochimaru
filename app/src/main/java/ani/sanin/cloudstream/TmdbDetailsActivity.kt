@@ -293,9 +293,14 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
     }
 
     fun hideNavPills() {
-        shell.tmdbNavPills?.let { frame ->
-            frame.visibility = View.GONE
+        shell.tmdbNavPills?.visibility = View.GONE
+        // Unlike the main activity rail, this is a temporary overlay. Return focus
+        // to the active tab's content whenever it is dismissed.
+        val focusTarget = when (selectedPill) {
+            TAB_INFO, TAB_WATCH -> shell.tmdbDetailFragmentContainer
+            else -> shell.tmdbCommentsPlaceholder
         }
+        focusTarget.requestFocus()
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
@@ -998,9 +1003,8 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
     private fun onNavPillClick(idx: Int) {
         if (tmdbNavPill?.isCollapsed == true) {
             tmdbNavPill?.setCollapsed(false)
-        } else {
-            selectTab(idx)
         }
+        selectTab(idx)
         val landscape = resources.configuration.orientation ==
             android.content.res.Configuration.ORIENTATION_LANDSCAPE
         if (landscape) hideNavPills()

@@ -83,25 +83,40 @@ object NavPillCustomizer {
         val height = getHeightDp()
         val iconSize = getIconSizeDp()
 
-        val pillHeightPx = (height * density).toInt()
-        val iconPaddingPx = (computeIconPadding(height, iconSize) * density).toInt()
+        val pillSizePx = (height * density).toInt()
         val spacingPx = (fixedSpacingDp * density).toInt()
-
         val isHorizontal = pillList.orientation == LinearLayout.HORIZONTAL
+
         if (isHorizontal) {
             pillList.setPadding(spacingPx, pillList.paddingTop, spacingPx, pillList.paddingBottom)
         } else {
             pillList.setPadding(pillList.paddingLeft, spacingPx, pillList.paddingRight, spacingPx)
+            // On the TV rail, Pill Height controls horizontal thickness only. Preserve each
+            // item's existing vertical height so changing the setting never stretches the
+            // rail downwards or changes the D-pad distance between tabs.
+            (pillList.parent as? View)?.let { rail ->
+                val railLp = rail.layoutParams
+                if (railLp != null && railLp.width != pillSizePx) {
+                    railLp.width = pillSizePx
+                    rail.layoutParams = railLp
+                }
+            }
         }
 
         for (i in 0 until pillList.childCount) {
             val child = pillList.getChildAt(i)
             if (child is ImageButton) {
                 val lp = child.layoutParams
-                // Pills are always square: width tracks height in both orientations.
-                lp.width = pillHeightPx
-                lp.height = pillHeightPx
+                if (isHorizontal) {
+                    lp.width = pillSizePx
+                    lp.height = pillSizePx
+                } else {
+                    lp.width = pillSizePx
+                    // Keep XML's per-item height in vertical mode (normally 44dp).
+                }
                 child.layoutParams = lp
+                val contentSizeDp = if (isHorizontal) height else minOf(height, 44)
+                val iconPaddingPx = (computeIconPadding(contentSizeDp, iconSize) * density).toInt()
                 applyIconSettings(child, iconPaddingPx)
             }
         }

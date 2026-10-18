@@ -414,9 +414,8 @@ class MediaDetailsActivity : AppCompatActivity() {
         fun onNavPillClick(idx: Int) {
             if (mediaNavPill?.isCollapsed == true) {
                 mediaNavPill?.setCollapsed(false)
-            } else {
-                selectTab(idx)
             }
+            selectTab(idx)
             hideNavPills()
         }
 
@@ -544,9 +543,9 @@ class MediaDetailsActivity : AppCompatActivity() {
         // throw away the user's place in an extension's source settings. Just resync visibility.
         syncExtensionPrefsUi()
         binding.navPillBg?.live = PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.LiveSideRail)
-        if (PrefManager.getVal<Boolean>(PrefName.SideRailPersist)) {
-            showNavPills()
-        }
+        // Media-detail rails are summonable overlays, not persistent navigation.
+        // Resume with the rail dismissed even if the main app rail is configured to persist.
+        hideNavPills()
         binding.mediaTabContent?.post { binding.mediaTabContent?.requestFocus() }
     }
 
@@ -636,10 +635,11 @@ class MediaDetailsActivity : AppCompatActivity() {
     }
 
     fun hideNavPills() {
-        if (PrefManager.getVal<Boolean>(PrefName.SideRailPersist)) return
         binding.mediaNavPills?.visibility = View.GONE
-        val focusTarget = binding.mediaTabContent
-            ?: if (selected == 0) binding.mediaInfoFragmentContainer else binding.mediaRightPanel
+        val focusTarget = when (selected) {
+            0 -> binding.mediaInfoFragmentContainer
+            else -> binding.mediaTabContent ?: binding.mediaRightPanel
+        }
         focusTarget?.requestFocus()
     }
 

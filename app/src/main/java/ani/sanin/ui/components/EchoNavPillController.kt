@@ -649,7 +649,10 @@ class EchoNavPillController(
             GlassEffectManager.removeGlass(it)
             it.setBackgroundResource(android.R.color.transparent)
         }
-        container.clipToOutline = true
+        // The vertical TV rail's focus ring intentionally extends beyond the icon
+        // button bounds. Do not let the shared pill outline clip that ring; horizontal
+        // phone pills keep their existing rounded clipping.
+        container.clipToOutline = !isVerticalRail()
         applySharedContainerGlass()
     }
 
