@@ -48,10 +48,10 @@ object LiveHelper {
                 // DefaultLiveSpeedControl) now owns edge correction, so this is a
                 // no-op kept only for logging.
                 if (timeAheadOfLive > 100) {
-                    debugWarning(
+                    debugWarning {
                         "Live position ${newPosition.positionMs} is ${timeAheadOfLive}ms ahead of the live edge; " +
                             "leaving correction to ExoPlayer"
-                    )
+                    }
                 }
             }
         }

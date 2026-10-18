@@ -3864,7 +3864,7 @@ class ExoplayerView :
         }
         // Simkl scrobble for TMDB movie/tv content ONLY (synthetic id < 0).
         // Anime is tracked exclusively on AniList/MAL — never Simkl.
-        val incognito = PrefManager.getVal(PrefName.Incognito)
+        val incognito = PrefManager.getVal<Boolean>(PrefName.Incognito)
         val simklProgressEnabled = PrefManager.getCustomVal("${media.id}_save_progress", true)
         if (!isLiveStream() && Simkl.token != null && media.id < 0 && !incognito && simklProgressEnabled) {
             // Capture player position on the main thread before switching to IO
