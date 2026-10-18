@@ -247,48 +247,20 @@ class MediaAdaptor(
                     // List cards use sharp source-provided landscape artwork, never blurred posters or logo art.
                     b.itemCompactBanner.setImageDrawable(null)
                     if (!media.banner.isNullOrBlank()) b.itemCompactBanner.loadImage(media.banner)
-                    val showBottom1 = cachedCardTitlePosition != 0
-                    val showScore1 = shouldShowTopBadge(1) && (media.userScore > 0 || (media.meanScore ?: 0) > 0)
-                    val showAiring1 = shouldShowTopBadge(2) && media.status == currActivity()!!.getString(R.string.status_releasing)
-                    b.itemCompactScoreBG.isVisible = showScore1 || showAiring1
-                    b.itemCompactScore.text =
-                        ((if (media.userScore == 0) (media.meanScore
-                            ?: 0) else media.userScore) / 10.0).toString()
-                    b.itemCompactScore.isVisible = showScore1
-                    b.itemCompactScoreBG.findViewById<View>(R.id.itemCompactBroadcast).isVisible = showAiring1
-                    b.itemCompactScoreBG.findViewById<View>(R.id.imageView2)?.isVisible = showScore1
+                    // List layout is a fixed design and intentionally ignores card appearance preferences.
+                    b.itemCompactScoreBG.visibility = View.GONE
+                    b.itemCompactBroadcast.visibility = View.GONE
+                    b.itemCompactScore.visibility = View.GONE
+                    b.itemCompactImageOverlay.visibility = View.GONE
+                    b.itemCompactClearlogo.visibility = View.GONE
+                    b.itemCompactOverlayTitle.visibility = View.GONE
+                    b.itemCompactTitle.visibility = View.VISIBLE
                     b.itemCompactTitle.text = media.userPreferredName
-
-                    // Sub/Dub badge (hidden under bottom-overlay titles)
-                    if (showBottom1 && shouldShowBottomBadge(1)) {
-                        val badge1 = b.root.findViewById<View>(R.id.subDubBadge)
-                        if (badge1 != null) {
-                            SubDubCache.get(media.nameRomaji, activity.lifecycleScope, media.id) { info ->
-                                bindSubDubBadge(badge1, info, media)
-                            }
-                        }
-                    } else {
-                        b.root.findViewById<View>(R.id.subDubBadge)?.visibility = View.GONE
-                    }
-                    if (showBottom1 && shouldShowBottomBadge(2)) {
-                        val pb1 = b.root.findViewById<View>(R.id.progressBadge)
-                        if (pb1 != null) bindProgressBadge(pb1, media)
-                    } else {
-                        b.root.findViewById<View>(R.id.progressBadge)?.visibility = View.GONE
-                    }
-
-                    val largeStyleRadius = when (rawCardStyle) {
-                        4 -> 24f
-                        6 -> 4f
-                        else -> cardRoundness
-                    }
-                    b.itemCompactCard.radius = largeStyleRadius
-                    // Adapt pill position to card radius so it doesn't get cropped
-                    b.itemCompactScoreBG.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                        val m = (largeStyleRadius * 0.3f).toInt().coerceAtLeast(4)
-                        topMargin = m
-                        marginEnd = m
-                    }
+                    b.itemCompactCard.radius = 9f
+                    b.itemCompactBanner.setImageDrawable(null)
+                    if (!media.banner.isNullOrBlank()) b.itemCompactBanner.loadImage(media.banner)
+                    b.root.findViewById<View>(R.id.subDubBadge)?.visibility = View.GONE
+                    b.root.findViewById<View>(R.id.progressBadge)?.visibility = View.GONE
                     if (media.anime != null) {
                         val itemTotal = " " + if ((media.anime.totalEpisodes
                                 ?: 0) != 1
