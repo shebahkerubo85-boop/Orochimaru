@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <gradient
-        android:type="linear"
-        android:angle="0"
-        android:startColor="@color/bg"
-        android:centerColor="@color/bg"
-        android:centerX="0.52"
-        android:endColor="@android:color/transparent" />
+    <gradient android:type="linear" android:angle="0">
+        <item android:color="@android:color/transparent" android:offset="0.0" />
+        <item android:color="@android:color/transparent" android:offset="0.75" />
+        <item android:color="@color/bg" android:offset="1.0" />
+    </gradient>
 </shape>
