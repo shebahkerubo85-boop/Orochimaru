@@ -543,11 +543,13 @@ class MediaDetailsActivity : AppCompatActivity() {
         // throw away the user's place in an extension's source settings. Just resync visibility.
         syncExtensionPrefsUi()
         binding.navPillBg?.live = PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.LiveSideRail)
-        // Keep the configured initial visibility when returning to media info. The pill
-        // still dismisses after a tab is chosen; SideRailPersist only restores it on resume.
+        // On phones, preserve the horizontal media pill's existing visibility behavior:
+        // only explicitly restore it when persistent rails are enabled. Do not forcibly hide
+        // the portrait pill on every resume. TV/landscape media rails remain summonable overlays.
+        val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
         if (PrefManager.getVal<Boolean>(PrefName.SideRailPersist)) {
             showNavPills()
-        } else {
+        } else if (!isPortrait) {
             hideNavPills()
         }
         binding.mediaTabContent?.post { binding.mediaTabContent?.requestFocus() }
