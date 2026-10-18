@@ -543,9 +543,13 @@ class MediaDetailsActivity : AppCompatActivity() {
         // throw away the user's place in an extension's source settings. Just resync visibility.
         syncExtensionPrefsUi()
         binding.navPillBg?.live = PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.LiveSideRail)
-        // Media-detail rails are summonable overlays, not persistent navigation.
-        // Resume with the rail dismissed even if the main app rail is configured to persist.
-        hideNavPills()
+        // Keep the configured initial visibility when returning to media info. The pill
+        // still dismisses after a tab is chosen; SideRailPersist only restores it on resume.
+        if (PrefManager.getVal<Boolean>(PrefName.SideRailPersist)) {
+            showNavPills()
+        } else {
+            hideNavPills()
+        }
         binding.mediaTabContent?.post { binding.mediaTabContent?.requestFocus() }
     }
 
