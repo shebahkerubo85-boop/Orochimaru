@@ -628,10 +628,6 @@ class TmdbWatchFragment : Fragment() {
                 TmdbSubscriptionHelper.delete(mediaId)
                 updateNotifyIcon()
                 toast(getString(R.string.tmdb_watch_notify_off))
-                // Remove from Simkl watchlist so cross-device subs clear.
-                lifecycleScope.launch {
-                    TmdbSubscriptionHelper.unsyncFromSimkl(mediaId, mediaType)
-                }
             } else {
                 // Save locally with show metadata and seed last-notified
                 // to the current last aired episode so we don't re-notify
@@ -654,10 +650,6 @@ class TmdbWatchFragment : Fragment() {
                 )
                 updateNotifyIcon()
                 toast(getString(R.string.tmdb_watch_notify_on))
-                // Also add to Simkl watchlist for cross-device persistence.
-                lifecycleScope.launch {
-                    TmdbSubscriptionHelper.syncToSimkl(mediaId, mediaType)
-                }
             }
         }
         FocusEffectUtil.applyFocusListener(h.tmdbWatchNotify)

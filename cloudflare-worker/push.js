@@ -565,7 +565,7 @@ async function sweepAniList(env, cfg, followed, budget) {
     const ok = await sendTopic(
       cfg,
       topicName("a", a.mediaId),
-      notificationPayload(`New episode of ${title}`, `Episode ${a.episode} is out now`, image, {
+      notificationPayload(title, `Episode ${a.episode}`, image, {
         type: "airing",
         source: "anilist",
         mediaId: a.mediaId,

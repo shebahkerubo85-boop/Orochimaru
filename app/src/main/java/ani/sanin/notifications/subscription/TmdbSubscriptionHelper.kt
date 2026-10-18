@@ -1,17 +1,12 @@
 package ani.sanin.notifications.subscription
 
-import ani.sanin.connections.simkl.Simkl
 import ani.sanin.settings.saving.PrefManager
-import ani.sanin.util.Logger
 
 /**
  * TMDB (movie/tv) subscriptions for new-episode notifications.
  *
- * Subscriptions are stored two ways so they survive across devices:
- *  - locally (always), so the bell reflects state even offline / not logged in
- *  - on Simkl as "watching" watchlist entries (when logged in) so a fresh
- *    install or second device picks them up, and the notification worker
- *    merges Simkl's watchlist into the set it checks.
+ * The bell is the only way in: subscriptions are stored locally here and
+ * pushed to the relay. Library / Simkl "watching" status never auto-subscribes.
  */
 class TmdbSubscriptionHelper {
     companion object {
@@ -94,55 +89,6 @@ class TmdbSubscriptionHelper {
                 )
             )
             ani.sanin.notifications.push.PushSync.sync()
-        }
-
-        /** Add the item to Simkl's watchlist as "watching" (best-effort, fire). */
-        suspend fun syncToSimkl(id: Int, type: String) {
-            try {
-                Simkl.addToWatchlist(type, tmdbId = id)
-            } catch (e: Exception) {
-                Logger.log("TmdbSubscriptionHelper.syncToSimkl add failed: ${e.message}")
-            }
-        }
-
-        /** Remove the item from Simkl's watchlist (best-effort, fire). */
-        suspend fun unsyncFromSimkl(id: Int, type: String) {
-            try {
-                Simkl.removeFromList(type, tmdbId = id)
-            } catch (e: Exception) {
-                Logger.log("TmdbSubscriptionHelper.unsyncFromSimkl remove failed: ${e.message}")
-            }
-        }
-
-        /**
-         * Cross-device import: merge Simkl "watching" shows into the local
-         * subscription set (when logged in) so a fresh install / second device
-         * keeps notifying for shows that were subscribed elsewhere.
-         */
-        suspend fun importFromSimkl(): Int {
-            if (!Simkl.getSavedToken()) return 0
-            val shows = try { Simkl.getShowLibrary() } catch (e: Exception) { emptyList() }
-            var added = 0
-            val local = getSubscriptions().toMutableMap()
-            shows.filter { it.status?.lowercase() in setOf("watching", "current", "paused", "hold", "plantowatch", "notinteresting") }
-                .forEach { item ->
-                    val tmdbId = item.ids?.tmdb ?: return@forEach
-                    val title = item.title ?: return@forEach
-                    // Preserve existing last-notified episode; only fill gaps.
-                    val existing = local[tmdbId]
-                    if (existing != null) return@forEach
-                    val poster = item.poster
-                    local[tmdbId] = TmdbSubscriptionItem(
-                        id = tmdbId,
-                        name = title,
-                        type = "tv",
-                        image = poster,
-                        banner = poster
-                    )
-                    added++
-                }
-            if (added > 0) PrefManager.setCustomVal(SUBSCRIPTIONS, local)
-            return added
         }
     }
 }

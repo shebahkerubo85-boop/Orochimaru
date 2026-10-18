@@ -82,8 +82,14 @@ class AnilistNotificationTask : Task {
                                 }
                                 if (!allowed) return@forEach
 
-                                val content = ActivityItemBuilder.getContent(it)
-                                val notification = createNotification(context, content, it.id)
+                                val mediaTitle = it.media?.title?.english ?: it.media?.title?.romaji
+                                val content = if (it.notificationType == NotificationType.AIRING.value) {
+                                    "${context.getString(R.string.episode)} ${it.episode}"
+                                } else {
+                                    ActivityItemBuilder.getContent(it)
+                                }
+                                val title = mediaTitle ?: "AniList"
+                                val notification = createNotification(context, title, content, it.id)
                                 if (ActivityCompat.checkSelfPermission(
                                         context,
                                         Manifest.permission.POST_NOTIFICATIONS
@@ -146,10 +152,10 @@ class AnilistNotificationTask : Task {
 
     private fun createNotification(
         context: Context,
+        title: String,
         content: String,
         notificationId: Int? = null
     ): android.app.Notification {
-        val title = "New Anilist Notification"
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             putExtra("FRAGMENT_TO_LOAD", "NOTIFICATIONS")

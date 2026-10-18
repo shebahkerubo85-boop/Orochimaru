@@ -12,7 +12,6 @@ import androidx.core.app.NotificationManagerCompat
 import ani.sanin.App
 import ani.sanin.FileUrl
 import ani.sanin.R
-import ani.sanin.connections.simkl.Simkl
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.cloudstream.TmdbDetailsActivity
 import ani.sanin.connections.anilist.UrlMedia
@@ -53,7 +52,7 @@ class SubscriptionNotificationTask : Task {
                     val notificationManager = NotificationManagerCompat.from(context)
 
                     // ── TMDB (movie/tv) subscriptions ──
-                    // Merge local subs with Simkl "watching" shows (cross-device).
+                    // Explicit bell subscriptions only (no library/Simkl auto-merge).
                     runCatching {
                         newSubscriptionCount += checkTmdbSubscriptions(context, notificationManager)
                     }.onFailure {
@@ -227,9 +226,8 @@ class SubscriptionNotificationTask : Task {
 
     // ── TMDB (movie/tv) subscription checking ──
     //
-    // Builds a merged set of:
-    //  1. Local subscriptions (TmdbSubscriptionHelper) — always present
-    //  2. Simkl "watching" shows (when logged in) — for cross-device sync
+    // Only explicit bell subscriptions (TmdbSubscriptionHelper) are checked.
+    // Library / Simkl "watching" status never auto-subscribes.
     //
     // For each TV show, fetches TMDB detail and compares lastEpisodeToAir
     // with the locally stored last-notified episode.  On first encounter
@@ -241,34 +239,10 @@ class SubscriptionNotificationTask : Task {
         context: Context,
         notificationManager: NotificationManagerCompat
     ): Int {
+        // Only the bell (explicit subscriptions) triggers notifications. Library
+        // / Simkl "watching" status is deliberately NOT merged in, so adding a
+        // show to a list never silently enables notifications.
         val subs = TmdbSubscriptionHelper.getSubscriptions().toMutableMap()
-        // Cross-device: pull Simkl watching shows into the local map (no-op for
-        // already-known items since we merge by tmdb id and preserve existing
-        // lastSeason/lastEpisode).
-        if (Simkl.getSavedToken()) {
-            try {
-                val simklShows = Simkl.getShowLibrary()
-                val simklWatching = simklShows.filter {
-                    it.status?.lowercase() in setOf("watching", "current") && it.ids?.tmdb != null && it.show != null
-                }
-                for (item in simklWatching) {
-                    val tmdbId = item.ids!!.tmdb!!
-                    if (!subs.containsKey(tmdbId)) {
-                        val img = item.poster?.let { if (it.startsWith("http")) it else "https://simkl.in/posters/${it}_m.jpg" }
-                        subs[tmdbId] = TmdbSubscriptionHelper.Companion.TmdbSubscriptionItem(
-                            id = tmdbId,
-                            name = item.title ?: "Unknown",
-                            type = "tv",
-                            image = img,
-                            banner = img
-                        )
-                        Logger.log("SubscriptionNotificationTask(TMDB): imported Simkl watching '${item.title}' (tmdb=$tmdbId)")
-                    }
-                }
-            } catch (e: Exception) {
-                Logger.log("SubscriptionNotificationTask: Simkl show library fetch failed: ${e.message}")
-            }
-        }
 
         if (subs.isEmpty()) return 0
         Logger.log("SubscriptionNotificationTask: checking ${subs.size} TMDB subscriptions")
