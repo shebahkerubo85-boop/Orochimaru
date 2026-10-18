@@ -2,7 +2,9 @@
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
     <gradient android:type="linear" android:angle="0">
         <item android:color="@android:color/transparent" android:offset="0.0" />
-        <item android:color="@android:color/transparent" android:offset="0.75" />
-        <item android:color="@color/bg" android:offset="1.0" />
+        <item android:color="#26000000" android:offset="0.12" />
+        <item android:color="#80000000" android:offset="0.28" />
+        <item android:color="#E6000000" android:offset="0.45" />
+        <item android:color="#E6000000" android:offset="1.0" />
     </gradient>
 </shape>
