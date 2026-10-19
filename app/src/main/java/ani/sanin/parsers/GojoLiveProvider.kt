@@ -8,13 +8,12 @@ import ani.sanin.util.Logger
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.IOException
 import java.security.MessageDigest
 import java.security.SecureRandom
 import javax.crypto.Cipher
@@ -25,11 +24,16 @@ import javax.crypto.spec.SecretKeySpec
  * GojoLive (https://gojolive.site) — an AniList-metadata frontend.
  *
  * Metadata (search / titles / episode counts) comes from the public AniList GraphQL API.
- * Streams are pulled from the same embeds the site uses, resolved locally:
+ * Streams come from the same embeds the site uses:
  *
- *   - MegaPlay  -> megaplay.buzz/stream/{ani|mal}/{id}/{ep}/{sub|dub}  (via [EmbedRouter])
- *   - Vidnest   -> new.vidnest.fun/aniwave_hls/{id}/{ep}/{sub|dub}     (AES-GCM encrypted JSON)
- *   - Anitaku   -> new.vidnest.fun/hianime/anime/{id}/{ep}/{sub|dub}/hd-2 (AES-GCM encrypted JSON)
+ *   - MegaPlay  -> megaplay.buzz/stream/{ani|mal}/{id}/{ep}/{sub|dub}       (via [EmbedRouter])
+ *   - Vidnest   -> new.vidnest.fun/aniwave_hls/{id}/{ep}/{sub|dub}         (AES-GCM encrypted JSON)
+ *   - Anitaku   -> new.vidnest.fun/hianime/anime/{id}/{ep}/{sub|dub}/hd-2  (AES-GCM encrypted JSON)
+ *
+ * All three are listed *lazily*: [loadVideoServers] does no network, so the server sheet fills
+ * instantly with placeholders, then each row is resolved independently in Phase 2
+ * (via [getVideoExtractor]). A slow embed (MegaPlay downloads a large JS bundle) therefore
+ * only delays its own row instead of blocking the whole sheet.
  *
  * Only English sub/dub audio is surfaced (the site defaults to sub), matching the request.
  */
@@ -42,14 +46,7 @@ class GojoLiveProvider : NativeAnimeParser() {
     override val defaultBaseUrl = "https://gojolive.site"
     override val knownServers = listOf("MegaPlay", "Vidnest", "Anitaku")
 
-    // ---- endpoints / constants ----
     private val aniListUrl = "https://graphql.anilist.co"
-    private val vidnestBase = "https://new.vidnest.fun"
-    private val vidnestReferer = "https://vidnest.fun/"
-    private val megaPlayReferer = "https://megaplay.buzz/"
-    private val megaPlayOrigin = "https://megaplay.buzz"
-    private val vidnestSecret = "F9k2mR8vL4qP7wY1zN0fG3bS6tH5jC8d_x4R7vN2mP9qL1"
-    private val rng = SecureRandom()
 
     // ============================================================
     //  Search / autoSearch (AniList GraphQL)
@@ -188,7 +185,7 @@ class GojoLiveProvider : NativeAnimeParser() {
         }
         // Fallback: anizip episode map (reflects actually-aired episodes)
         runCatching {
-            val json = get("https://api.ani.zip/mappings?anilist_id=$anilistId", "$baseUrl/")
+            val json = get("https://api.ani.zip/mappings?anilist_id=$anilistId", "$defaultBaseUrl/")
             val eps = (Mapper.json.parseToJsonElement(json) as? JsonObject)?.get("episodes")?.jsonObject
                 ?: return@runCatching
             val max = eps.keys.mapNotNull { it.toIntOrNull() }.maxOrNull()
@@ -200,7 +197,7 @@ class GojoLiveProvider : NativeAnimeParser() {
     private fun currentAudio(): String = if (selectDub) "dub" else "sub"
 
     // ============================================================
-    //  Video servers
+    //  Video servers (all lazy — no network here)
     // ============================================================
 
     override suspend fun loadVideoServers(episodeLink: String, extra: Map<String, String>?, sEpisode: SEpisode): List<VideoServer> {
@@ -208,44 +205,21 @@ class GojoLiveProvider : NativeAnimeParser() {
         val idMal = extra?.get("idMal")?.toIntOrNull()
         val ep = extra?.get("num")?.toIntOrNull() ?: episodeLink.toIntOrNull() ?: return emptyList()
         val audio = extra?.get("audio")?.takeIf { it.isNotBlank() } ?: currentAudio()
-        return withContext(Dispatchers.IO) {
-            Logger.log("$name loadVideoServers: AniList $anilistId ep $ep ($audio) idMal=$idMal")
-            // MegaPlay is returned lazily: resolving it fetches megaplay.buzz plus its large
-            // app.main.js bundle, which can exceed the sheet's patience and (because the fetch
-            // is not cancellable) block the whole server list. Its embed is resolved later in
-            // getVideoExtractor() (Phase 2), so a slow MegaPlay never stalls the other servers.
-            val megaPlay = megaPlayLazyServer(anilistId, idMal, ep, audio)
-            val jobs = listOf(
-                async {
-                    runCatching {
-                        vidnestServer(
-                            "Vidnest", anilistId, ep, audio,
-                            "/aniwave_hls/$anilistId/$ep/$audio", vidnestReferer
-                        )
-                    }.onFailure { Logger.log("$name Vidnest failed: ${it.message}") }.getOrNull()
-                },
-                async {
-                    runCatching {
-                        vidnestServer(
-                            "Anitaku", anilistId, ep, audio,
-                            "/hianime/anime/$anilistId/$ep/$audio/hd-2", megaPlayReferer
-                        )
-                    }.onFailure { Logger.log("$name Anitaku failed: ${it.message}") }.getOrNull()
-                }
-            )
-            val servers = listOfNotNull(megaPlay) + jobs.awaitAll().filterNotNull()
-            Logger.log("$name: ep $ep ($audio) -> ${servers.size} server(s): ${servers.joinToString { it.name }}")
-            servers
-        }
+        Logger.log("$name loadVideoServers: AniList $anilistId ep $ep ($audio) idMal=$idMal -> listing lazily")
+        val servers = listOf(
+            megaPlayLazy(anilistId, idMal, ep, audio),
+            vidnestLazy("Vidnest", "/aniwave_hls/$anilistId/$ep/$audio", VIDNEST_REFERER, anilistId, idMal, ep, audio),
+            vidnestLazy("Anitaku", "/hianime/anime/$anilistId/$ep/$audio/hd-2", MEGAPLAY_REFERER, anilistId, idMal, ep, audio)
+        )
+        Logger.log("$name: ep $ep ($audio) -> ${servers.size} lazily-listed server(s): ${servers.joinToString { it.name }}")
+        return servers
     }
 
-    /**
-     * MegaPlay is listed lazily (no network in Phase 1). The actual embed is resolved by
-     * [GojoLiveMegaPlayExtractor] via [EmbedRouter]/[MegaPlayExtractor] during Phase 2.
-     */
-    private fun megaPlayLazyServer(anilistId: Int, idMal: Int?, ep: Int, audio: String): VideoServer {
-        val embed = "$megaPlayOrigin/stream/ani/$anilistId/$ep/$audio"
+    /** Lightweight MegaPlay entry resolved by [GojoLiveMegaPlayExtractor] in Phase 2. */
+    private fun megaPlayLazy(anilistId: Int, idMal: Int?, ep: Int, audio: String): VideoServer {
+        val embed = "$MEGAPLAY_ORIGIN/stream/ani/$anilistId/$ep/$audio"
         val extraData = mutableMapOf(
+            "kind" to "megaplay",
             "anilistId" to anilistId.toString(),
             "idMal" to (idMal?.toString() ?: ""),
             "num" to ep.toString(),
@@ -254,171 +228,234 @@ class GojoLiveProvider : NativeAnimeParser() {
         return VideoServer("MegaPlay", embed, extraData)
     }
 
-    override suspend fun getVideoExtractor(server: VideoServer): VideoExtractor {
-        return if (server.name == "MegaPlay") GojoLiveMegaPlayExtractor(server)
-        else NativeVideoExtractor(server)
-    }
-
-    /**
-     * Vidnest / Anitaku both come from new.vidnest.fun and return a `{v:2,d,n}` AES-GCM envelope.
-     * The decrypted payload holds `sources[]` (m3u8), `tracks[]` (subs) and intro/outro.
-     */
-    private suspend fun vidnestServer(
+    /** Lightweight Vidnest/Anitaku entry resolved by [GojoLiveVidnestExtractor] in Phase 2. */
+    private fun vidnestLazy(
         name: String,
-        anilistId: Int,
-        ep: Int,
-        audio: String,
         path: String,
-        defaultReferer: String
-    ): VideoServer? {
-        val url = "$vidnestBase$path?_n=${vidnestNonce()}"
-        val body = get(url, vidnestReferer, "application/json,*/*")
-        val root = Mapper.json.parseToJsonElement(body) as? JsonObject
-            ?: throw IllegalStateException("not json")
-
-        val payload = if ((root["v"] as? JsonPrimitive)?.intOrNull == 2 && root["d"] != null) {
-            val d = (root["d"] as? JsonPrimitive)?.contentOrNull ?: throw IllegalStateException("no d")
-            val n = (root["n"] as? JsonPrimitive)?.contentOrNull.orEmpty()
-            vidnestDecrypt(d, n) ?: throw IllegalStateException("decrypt failed")
-        } else {
-            root
-        }
-
-        val sources = payload["sources"]?.jsonArray ?: payload["multiSrc"]?.jsonArray
-        val first = sources?.firstOrNull() as? JsonObject ?: throw IllegalStateException("no sources")
-        val streamUrl = (first["file"] as? JsonPrimitive)?.contentOrNull
-            ?: (first["url"] as? JsonPrimitive)?.contentOrNull
-            ?: throw IllegalStateException("no stream url")
-
-        // Some CDNs are picky about Referer. MegaPlay-CDN hosts (megap.*/shiora) want
-        // megaplay.buzz; Vidnest returns an explicit referer per source.
-        val srcReferer = (first["referer"] as? JsonPrimitive)?.contentOrNull
-        val isMegaCdn = streamUrl.contains("megap.", true) || streamUrl.contains("shiora", true)
-        val referer = when {
-            isMegaCdn -> megaPlayReferer
-            !srcReferer.isNullOrBlank() -> srcReferer
-            else -> defaultReferer
-        }
-
-        val extraData = mutableMapOf("referer" to referer)
-        if (isMegaCdn) extraData["origin"] = megaPlayOrigin
-
-        val subs = payload["tracks"]?.jsonArray?.mapNotNull { t ->
-            val o = t as? JsonObject ?: return@mapNotNull null
-            val f = (o["file"] as? JsonPrimitive)?.contentOrNull ?: (o["url"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null
-            val lang = (o["label"] as? JsonPrimitive)?.contentOrNull ?: (o["kind"] as? JsonPrimitive)?.contentOrNull ?: "en"
-            SubData(f, lang)
-        } ?: emptyList()
-        addCommonExtras(extraData, subs, parseSkip(payload["intro"]), parseSkip(payload["outro"]))
-
-        Logger.log("$saveName $name OK: ep $ep ($audio) server=${(first["server"] as? JsonPrimitive)?.contentOrNull} -> ${streamUrl.take(80)}")
-        return VideoServer(name, streamUrl, extraData)
+        defaultReferer: String,
+        anilistId: Int,
+        idMal: Int?,
+        ep: Int,
+        audio: String
+    ): VideoServer {
+        val extraData = mutableMapOf(
+            "kind" to "vidnest",
+            "path" to path,
+            "referer" to defaultReferer,
+            "anilistId" to anilistId.toString(),
+            "idMal" to (idMal?.toString() ?: ""),
+            "num" to ep.toString(),
+            "audio" to audio
+        )
+        return VideoServer(name, "$VIDNEST_BASE$path", extraData)
     }
 
-    private fun addCommonExtras(
-        extraData: MutableMap<String, String>,
-        subtitles: List<SubData>,
-        intro: Pair<Double, Double>?,
-        outro: Pair<Double, Double>?
-    ) {
-        if (subtitles.isNotEmpty()) {
-            val json = subtitles.joinToString(",") {
-                "{\"url\":\"${it.url.replace("\"", "\\\"")}\",\"language\":\"${it.language}\",\"type\":\"${it.type}\"}"
-            }
-            extraData["subtitles"] = "[$json]"
+    override suspend fun getVideoExtractor(server: VideoServer): VideoExtractor =
+        when (server.extraData?.get("kind")) {
+            "megaplay" -> GojoLiveMegaPlayExtractor(server)
+            "vidnest" -> GojoLiveVidnestExtractor(server)
+            else -> NativeVideoExtractor(server)
         }
-        intro?.let { (s, e) -> extraData["intro"] = "{\"start\":$s,\"end\":$e}" }
-        outro?.let { (s, e) -> extraData["outro"] = "{\"start\":$s,\"end\":$e}" }
-    }
+}
 
-    private fun parseSkip(v: JsonElement?): Pair<Double, Double>? {
-        val a = v as? JsonArray ?: return null
-        if (a.size < 2) return null
-        fun num(el: JsonElement?): Double? = when (el) {
-            is JsonPrimitive -> el.doubleOrNull ?: el.contentOrNull?.toDoubleOrNull()
-            else -> null
-        }
-        val s = num(a.getOrNull(0)) ?: return null
-        val e = num(a.getOrNull(1)) ?: return null
-        return if (e > s) s to e else null
-    }
+/* ================================================================
+   Shared constants & helpers
+   ================================================================ */
 
-    // ============================================================
-    //  Vidnest AES-GCM envelope
-    // ============================================================
+private const val VIDNEST_BASE = "https://new.vidnest.fun"
+private const val VIDNEST_REFERER = "https://vidnest.fun/"
+private const val MEGAPLAY_ORIGIN = "https://megaplay.buzz"
+private const val MEGAPLAY_REFERER = "https://megaplay.buzz/"
+private const val VIDNEST_SECRET = "F9k2mR8vL4qP7wY1zN0fG3bS6tH5jC8d_x4R7vN2mP9qL1"
+private val GOJO_RNG = SecureRandom()
 
-    private fun vidnestNonce(): String {
-        val bytes = ByteArray(16).also { rng.nextBytes(it) }
-        return Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
-    }
-
-    /** key = SHA-256(nonce|secret); payload = iv(12) || ciphertext || tag(16). */
-    private fun vidnestDecrypt(d: String, nonce: String): JsonObject? {
-        val raw = try {
-            Base64.decode(d, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
-        } catch (_: Exception) {
-            return null
-        }
-        if (raw.size <= 28) return null
-        val key = MessageDigest.getInstance("SHA-256")
-            .digest("$nonce|$vidnestSecret".toByteArray(Charsets.UTF_8))
-        return try {
-            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, raw, 0, 12))
-            val plain = cipher.doFinal(raw, 12, raw.size - 12)
-            Mapper.json.parseToJsonElement(String(plain, Charsets.UTF_8)) as? JsonObject
-        } catch (e: Exception) {
-            Logger.log("$name vidnest decrypt failed: ${e.message}")
-            null
-        }
+private fun gojoGet(url: String, referer: String?, accept: String = "application/json, */*"): String {
+    val request = Request.Builder().url(url)
+        .header("User-Agent", NativeAnimeParser.USER_AGENT)
+        .apply { referer?.let { header("Referer", it) } }
+        .header("Accept", accept)
+        .get().build()
+    return okHttpClient.newCall(request).execute().use { response ->
+        val body = response.body?.string().orEmpty()
+        if (!response.isSuccessful) throw IOException("HTTP ${response.code} for $url")
+        body
     }
 }
 
+private fun vidnestNonce(): String {
+    val bytes = ByteArray(16).also { GOJO_RNG.nextBytes(it) }
+    return Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+}
+
+/** key = SHA-256(nonce|secret); payload = iv(12) || ciphertext || tag(16). */
+private fun vidnestDecrypt(d: String, nonce: String): JsonObject? {
+    val raw = try {
+        Base64.decode(d, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+    } catch (_: Exception) {
+        return null
+    }
+    if (raw.size <= 28) return null
+    val key = MessageDigest.getInstance("SHA-256")
+        .digest("$nonce|$VIDNEST_SECRET".toByteArray(Charsets.UTF_8))
+    return try {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, raw, 0, 12))
+        val plain = cipher.doFinal(raw, 12, raw.size - 12)
+        Mapper.json.parseToJsonElement(String(plain, Charsets.UTF_8)) as? JsonObject
+    } catch (e: Exception) {
+        Logger.log("GojoLive vidnest decrypt failed: ${e.message}")
+        null
+    }
+}
+
+private fun addCommonExtras(
+    extraData: MutableMap<String, String>,
+    subtitles: List<SubData>,
+    intro: Pair<Double, Double>?,
+    outro: Pair<Double, Double>?
+) {
+    if (subtitles.isNotEmpty()) {
+        val json = subtitles.joinToString(",") {
+            "{\"url\":\"${it.url.replace("\"", "\\\"")}\",\"language\":\"${it.language}\",\"type\":\"${it.type}\"}"
+        }
+        extraData["subtitles"] = "[$json]"
+    }
+    intro?.let { (s, e) -> extraData["intro"] = "{\"start\":$s,\"end\":$e}" }
+    outro?.let { (s, e) -> extraData["outro"] = "{\"start\":$s,\"end\":$e}" }
+}
+
+private fun parseSkip(v: JsonElement?): Pair<Double, Double>? {
+    val a = v as? JsonArray ?: return null
+    if (a.size < 2) return null
+    fun num(el: JsonElement?): Double? = when (el) {
+        is JsonPrimitive -> el.doubleOrNull ?: el.contentOrNull?.toDoubleOrNull()
+        else -> null
+    }
+    val s = num(a.getOrNull(0)) ?: return null
+    val e = num(a.getOrNull(1)) ?: return null
+    return if (e > s) s to e else null
+}
+
+/* ================================================================
+   Lazy extractors (Phase 2)
+   ================================================================ */
+
 /**
- * Resolves a GojoLive MegaPlay embed (megaplay.buzz) on demand, then reuses
- * [NativeVideoExtractor] for HLS parsing, subtitles and intro/outro.
- *
- * Tries the AniList-id route first, then the MAL-id route. Because the underlying
- * [EmbedRouter] fetch is blocking (and downloads megaplay.buzz's app.main.js), this runs in
- * Phase 2 where a slow resolve only delays this one row instead of the whole server list.
+ * Resolves a MegaPlay embed on demand via [EmbedRouter] (megaplay.buzz + its app.main.js
+ * bundle), then reuses [NativeVideoExtractor] for HLS parsing, subtitles and intro/outro.
+ * Tries the AniList-id route first, then the MAL-id route.
  */
 class GojoLiveMegaPlayExtractor(override val server: VideoServer) : VideoExtractor() {
 
     override suspend fun extract(): VideoContainer {
         val extra = server.extraData
-        val ep = extra?.get("num")
+        val ep = extra?.get("num").orEmpty()
         val audio = extra?.get("audio")?.takeIf { it.isNotBlank() } ?: "sub"
         val idMal = extra?.get("idMal")?.takeIf { it.isNotBlank() }
         val embeds = buildList {
             add(server.embed.url)
-            if (!idMal.isNullOrBlank() && !ep.isNullOrBlank()) {
+            if (!idMal.isNullOrBlank() && ep.isNotBlank()) {
                 add("$MEGAPLAY_ORIGIN/stream/mal/$idMal/$ep/$audio")
             }
         }
+        val started = System.currentTimeMillis()
         for (embed in embeds) {
+            Logger.log("GojoLive MegaPlay: resolving ep $ep ($audio) -> $embed")
             val res = runCatching { EmbedRouter.resolve(embed, "$MEGAPLAY_ORIGIN/") }.getOrNull()
             val url = res?.urls?.firstOrNull()
             if (res == null || url.isNullOrBlank()) {
-                Logger.log("GojoLive MegaPlay(lazy): no url for $embed")
+                Logger.log(
+                    "GojoLive MegaPlay: no url for $embed after " +
+                        "${System.currentTimeMillis() - started}ms"
+                )
                 continue
             }
-            val out = mutableMapOf("referer" to (res.headers["Referer"] ?: "$MEGAPLAY_ORIGIN/"))
+            val out = mutableMapOf("referer" to (res.headers["Referer"] ?: MEGAPLAY_REFERER))
             res.headers["Origin"]?.takeIf { it.isNotBlank() }?.let { out["origin"] = it }
-            if (res.subtitles.isNotEmpty()) {
-                val json = res.subtitles.joinToString(",") {
-                    "{\"url\":\"${it.url.replace("\"", "\\\"")}\",\"language\":\"${it.language}\",\"type\":\"${it.type}\"}"
-                }
-                out["subtitles"] = "[$json]"
-            }
-            res.intro?.let { (s, e) -> out["intro"] = "{\"start\":$s,\"end\":$e}" }
-            res.outro?.let { (s, e) -> out["outro"] = "{\"start\":$s,\"end\":$e}" }
-            Logger.log("GojoLive MegaPlay(lazy) OK: $embed -> ${url.take(80)}")
+            addCommonExtras(out, res.subtitles, res.intro, res.outro)
+            Logger.log(
+                "GojoLive MegaPlay: OK ep $ep ($audio) -> ${url.take(80)} " +
+                    "subs=${res.subtitles.size} in ${System.currentTimeMillis() - started}ms"
+            )
             return NativeVideoExtractor(VideoServer(server.name, url, out)).extract()
         }
+        Logger.log("GojoLive MegaPlay: FAILED ep $ep ($audio) after ${System.currentTimeMillis() - started}ms")
         return VideoContainer(emptyList())
     }
+}
 
-    private companion object {
-        const val MEGAPLAY_ORIGIN = "https://megaplay.buzz"
+/**
+ * Resolves a Vidnest/Anitaku embed on demand: requests the `{v:2,d,n}` AES-GCM envelope from
+ * new.vidnest.fun, decrypts it, and reuses [NativeVideoExtractor] for HLS parsing,
+ * subtitles and intro/outro.
+ */
+class GojoLiveVidnestExtractor(override val server: VideoServer) : VideoExtractor() {
+
+    override suspend fun extract(): VideoContainer {
+        val extra = server.extraData ?: return VideoContainer(emptyList())
+        val path = extra["path"] ?: return VideoContainer(emptyList())
+        val defaultReferer = extra["referer"] ?: VIDNEST_REFERER
+        val ep = extra["num"].orEmpty()
+        val audio = extra["audio"] ?: "sub"
+        val url = "$VIDNEST_BASE$path?_n=${vidnestNonce()}"
+        val started = System.currentTimeMillis()
+        Logger.log("GojoLive ${server.name}: resolving ep $ep ($audio) -> ${url.take(100)}")
+        return try {
+            val body = gojoGet(url, VIDNEST_REFERER)
+            val root = Mapper.json.parseToJsonElement(body) as? JsonObject
+                ?: throw IllegalStateException("not json (${body.take(80)})")
+
+            val encV = (root["v"] as? JsonPrimitive)?.intOrNull
+            val payload = if (encV == 2 && root["d"] != null) {
+                val d = (root["d"] as? JsonPrimitive)?.contentOrNull ?: throw IllegalStateException("no d")
+                val n = (root["n"] as? JsonPrimitive)?.contentOrNull.orEmpty()
+                vidnestDecrypt(d, n) ?: throw IllegalStateException("decrypt failed")
+            } else {
+                root
+            }
+
+            val sources = payload["sources"]?.jsonArray ?: payload["multiSrc"]?.jsonArray
+            val first = sources?.firstOrNull() as? JsonObject ?: throw IllegalStateException("no sources")
+            val streamUrl = (first["file"] as? JsonPrimitive)?.contentOrNull
+                ?: (first["url"] as? JsonPrimitive)?.contentOrNull
+                ?: throw IllegalStateException("no stream url")
+
+            // Some CDNs are picky about Referer. MegaPlay-CDN hosts (megap.*/shiora) want
+            // megaplay.buzz; Vidnest returns an explicit referer per source.
+            val srcReferer = (first["referer"] as? JsonPrimitive)?.contentOrNull
+            val isMegaCdn = streamUrl.contains("megap.", true) || streamUrl.contains("shiora", true)
+            val referer = when {
+                isMegaCdn -> MEGAPLAY_REFERER
+                !srcReferer.isNullOrBlank() -> srcReferer
+                else -> defaultReferer
+            }
+            val out = mutableMapOf("referer" to referer)
+            if (isMegaCdn) out["origin"] = MEGAPLAY_ORIGIN
+
+            val subs = payload["tracks"]?.jsonArray?.mapNotNull { t ->
+                val o = t as? JsonObject ?: return@mapNotNull null
+                val f = (o["file"] as? JsonPrimitive)?.contentOrNull
+                    ?: (o["url"] as? JsonPrimitive)?.contentOrNull
+                    ?: return@mapNotNull null
+                val lang = (o["label"] as? JsonPrimitive)?.contentOrNull
+                    ?: (o["kind"] as? JsonPrimitive)?.contentOrNull ?: "en"
+                SubData(f, lang)
+            } ?: emptyList()
+            addCommonExtras(out, subs, parseSkip(payload["intro"]), parseSkip(payload["outro"]))
+
+            val sourceName = (first["server"] as? JsonPrimitive)?.contentOrNull
+            val host = runCatching { java.net.URI(streamUrl).host }.getOrNull()
+            Logger.log(
+                "GojoLive ${server.name}: OK ep $ep ($audio) source=$sourceName host=$host " +
+                    "referer=$referer subs=${subs.size} in ${System.currentTimeMillis() - started}ms"
+            )
+            NativeVideoExtractor(VideoServer(server.name, streamUrl, out)).extract()
+        } catch (e: Exception) {
+            Logger.log(
+                "GojoLive ${server.name}: FAILED ep $ep ($audio) after " +
+                    "${System.currentTimeMillis() - started}ms - ${e.message}"
+            )
+            VideoContainer(emptyList())
+        }
     }
 }
