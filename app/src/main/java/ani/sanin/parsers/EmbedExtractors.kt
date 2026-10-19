@@ -678,13 +678,31 @@ object MegaPlayExtractor {
         val scriptUrls = Regex("""<script[^>]+src=["']([^"']+)["']""", RegexOption.IGNORE_CASE)
             .findAll(pageHtml).map { runCatching { java.net.URL(java.net.URL(embedUrl), it.groupValues[1]).toString() }.getOrNull() }
             .filterNotNull().toList()
-        val scripts = scriptUrls.mapNotNull { url ->
-            runCatching { rawGet(url, mapOf("User-Agent" to UA, "Referer" to embedUrl)) }.getOrNull()
+        // Fetch scripts lazily and stop at the first one carrying the sources route + the
+        // AES-CBC key/IV. Previously *every* script was downloaded before searching
+        // (jw_player.js 113KB, e1-player.min.js 69KB, app.main.js, ...), so on slow/throttled
+        // networks those extra fetches timed out and RetryInterceptor retried them, stalling
+        // extraction. The bundle that actually matters (newclient.min.js) is small and first.
+        val orderedScriptUrls = scriptUrls.sortedBy { url ->
+            when {
+                url.contains("newclient", ignoreCase = true) -> 0
+                url.contains("app.main", ignoreCase = true) -> 1
+                else -> 2
+            }
         }
-        val targetScript = scripts.find { it.contains("getSources", ignoreCase = true) && it.contains("AES-CBC", ignoreCase = true) }
-            ?: throw IllegalStateException("megaplay script not found")
+        var targetScript: String? = null
+        for (scriptUrl in orderedScriptUrls) {
+            val body = runCatching { rawGet(scriptUrl, mapOf("User-Agent" to UA, "Referer" to embedUrl)) }.getOrNull()
+                ?: continue
+            if (body.contains("getSources", ignoreCase = true) && body.contains("AES-CBC", ignoreCase = true)) {
+                Logger.log("MegaPlay: matched script ${scriptUrl.substringAfterLast('/')} (${body.length} chars)")
+                targetScript = body
+                break
+            }
+        }
+        val script = targetScript ?: throw IllegalStateException("megaplay script not found")
 
-        val route = getRoute(targetScript)
+        val route = getRoute(script)
         val srcHeaders = mapOf("User-Agent" to UA, "Referer" to embedUrl, "X-Requested-With" to "XMLHttpRequest", "Accept" to "application/json,*/*")
         val srcUrl = "$origin/$route?id=$fileId&id=$fileId"
         val srcJson = runCatching { rawGet(srcUrl, srcHeaders) }.let { runCatching { Mapper.json.parseToJsonElement(it.getOrThrow()) as? JsonObject }.getOrNull() }
@@ -694,7 +712,7 @@ object MegaPlayExtractor {
         if (resolvedUrl == null) {
             val enc = srcJson?.let { (it["enc"] as? JsonPrimitive)?.contentOrNull }
             if (enc != null) {
-                resolvedUrl = decryptSource(enc, targetScript)
+                resolvedUrl = decryptSource(enc, script)
             }
         }
 
