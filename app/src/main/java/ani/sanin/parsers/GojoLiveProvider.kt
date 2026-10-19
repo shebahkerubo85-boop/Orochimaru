@@ -210,61 +210,53 @@ class GojoLiveProvider : NativeAnimeParser() {
         val audio = extra?.get("audio")?.takeIf { it.isNotBlank() } ?: currentAudio()
         return withContext(Dispatchers.IO) {
             Logger.log("$name loadVideoServers: AniList $anilistId ep $ep ($audio) idMal=$idMal")
-            val jobs = buildList {
-                add(async {
-                    runCatching { megaPlayServer(anilistId, idMal, ep, audio) }
-                        .onFailure { Logger.log("$name MegaPlay failed: ${it.message}") }
-                        .getOrNull()
-                })
-                add(async {
+            // MegaPlay is returned lazily: resolving it fetches megaplay.buzz plus its large
+            // app.main.js bundle, which can exceed the sheet's patience and (because the fetch
+            // is not cancellable) block the whole server list. Its embed is resolved later in
+            // getVideoExtractor() (Phase 2), so a slow MegaPlay never stalls the other servers.
+            val megaPlay = megaPlayLazyServer(anilistId, idMal, ep, audio)
+            val jobs = listOf(
+                async {
                     runCatching {
                         vidnestServer(
                             "Vidnest", anilistId, ep, audio,
                             "/aniwave_hls/$anilistId/$ep/$audio", vidnestReferer
                         )
                     }.onFailure { Logger.log("$name Vidnest failed: ${it.message}") }.getOrNull()
-                })
-                add(async {
+                },
+                async {
                     runCatching {
                         vidnestServer(
                             "Anitaku", anilistId, ep, audio,
                             "/hianime/anime/$anilistId/$ep/$audio/hd-2", megaPlayReferer
                         )
                     }.onFailure { Logger.log("$name Anitaku failed: ${it.message}") }.getOrNull()
-                })
-            }
-            val servers = jobs.awaitAll().filterNotNull()
+                }
+            )
+            val servers = listOfNotNull(megaPlay) + jobs.awaitAll().filterNotNull()
             Logger.log("$name: ep $ep ($audio) -> ${servers.size} server(s): ${servers.joinToString { it.name }}")
             servers
         }
     }
 
     /**
-     * MegaPlay is handled by the shared [EmbedRouter]/[MegaPlayExtractor]. Tries the AniList-id
-     * route first, then the MAL-id route.
+     * MegaPlay is listed lazily (no network in Phase 1). The actual embed is resolved by
+     * [GojoLiveMegaPlayExtractor] via [EmbedRouter]/[MegaPlayExtractor] during Phase 2.
      */
-    private suspend fun megaPlayServer(anilistId: Int, idMal: Int?, ep: Int, audio: String): VideoServer? {
-        val embeds = buildList {
-            add("$megaPlayOrigin/stream/ani/$anilistId/$ep/$audio")
-            idMal?.let { add("$megaPlayOrigin/stream/mal/$it/$ep/$audio") }
-        }
-        for (embed in embeds) {
-            try {
-                val res = EmbedRouter.resolve(embed, "$baseUrl/")
-                val url = res.urls.firstOrNull()
-                if (url.isNullOrBlank()) {
-                    Logger.log("$name MegaPlay: no url for $embed")
-                    continue
-                }
-                val extraData = mutableMapOf("referer" to megaPlayReferer, "origin" to megaPlayOrigin)
-                addCommonExtras(extraData, res.subtitles, res.intro, res.outro)
-                Logger.log("$name MegaPlay OK: $embed -> ${url.take(80)}")
-                return VideoServer("MegaPlay", url, extraData)
-            } catch (e: Exception) {
-                Logger.log("$name MegaPlay embed $embed error: ${e.message}")
-            }
-        }
-        return null
+    private fun megaPlayLazyServer(anilistId: Int, idMal: Int?, ep: Int, audio: String): VideoServer {
+        val embed = "$megaPlayOrigin/stream/ani/$anilistId/$ep/$audio"
+        val extraData = mutableMapOf(
+            "anilistId" to anilistId.toString(),
+            "idMal" to (idMal?.toString() ?: ""),
+            "num" to ep.toString(),
+            "audio" to audio
+        )
+        return VideoServer("MegaPlay", embed, extraData)
+    }
+
+    override suspend fun getVideoExtractor(server: VideoServer): VideoExtractor {
+        return if (server.name == "MegaPlay") GojoLiveMegaPlayExtractor(server)
+        else NativeVideoExtractor(server)
     }
 
     /**
@@ -379,5 +371,54 @@ class GojoLiveProvider : NativeAnimeParser() {
             Logger.log("$name vidnest decrypt failed: ${e.message}")
             null
         }
+    }
+}
+
+/**
+ * Resolves a GojoLive MegaPlay embed (megaplay.buzz) on demand, then reuses
+ * [NativeVideoExtractor] for HLS parsing, subtitles and intro/outro.
+ *
+ * Tries the AniList-id route first, then the MAL-id route. Because the underlying
+ * [EmbedRouter] fetch is blocking (and downloads megaplay.buzz's app.main.js), this runs in
+ * Phase 2 where a slow resolve only delays this one row instead of the whole server list.
+ */
+class GojoLiveMegaPlayExtractor(override val server: VideoServer) : VideoExtractor() {
+
+    override suspend fun extract(): VideoContainer {
+        val extra = server.extraData
+        val ep = extra?.get("num")
+        val audio = extra?.get("audio")?.takeIf { it.isNotBlank() } ?: "sub"
+        val idMal = extra?.get("idMal")?.takeIf { it.isNotBlank() }
+        val embeds = buildList {
+            add(server.embed.url)
+            if (!idMal.isNullOrBlank() && !ep.isNullOrBlank()) {
+                add("$MEGAPLAY_ORIGIN/stream/mal/$idMal/$ep/$audio")
+            }
+        }
+        for (embed in embeds) {
+            val res = runCatching { EmbedRouter.resolve(embed, "$MEGAPLAY_ORIGIN/") }.getOrNull()
+            val url = res?.urls?.firstOrNull()
+            if (res == null || url.isNullOrBlank()) {
+                Logger.log("GojoLive MegaPlay(lazy): no url for $embed")
+                continue
+            }
+            val out = mutableMapOf("referer" to (res.headers["Referer"] ?: "$MEGAPLAY_ORIGIN/"))
+            res.headers["Origin"]?.takeIf { it.isNotBlank() }?.let { out["origin"] = it }
+            if (res.subtitles.isNotEmpty()) {
+                val json = res.subtitles.joinToString(",") {
+                    "{\"url\":\"${it.url.replace("\"", "\\\"")}\",\"language\":\"${it.language}\",\"type\":\"${it.type}\"}"
+                }
+                out["subtitles"] = "[$json]"
+            }
+            res.intro?.let { (s, e) -> out["intro"] = "{\"start\":$s,\"end\":$e}" }
+            res.outro?.let { (s, e) -> out["outro"] = "{\"start\":$s,\"end\":$e}" }
+            Logger.log("GojoLive MegaPlay(lazy) OK: $embed -> ${url.take(80)}")
+            return NativeVideoExtractor(VideoServer(server.name, url, out)).extract()
+        }
+        return VideoContainer(emptyList())
+    }
+
+    private companion object {
+        const val MEGAPLAY_ORIGIN = "https://megaplay.buzz"
     }
 }
