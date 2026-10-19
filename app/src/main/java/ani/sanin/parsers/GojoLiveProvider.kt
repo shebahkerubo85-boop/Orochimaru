@@ -90,7 +90,7 @@ class GojoLiveProvider : NativeAnimeParser() {
                 val m = root?.get("data")?.jsonObject?.get("Media")?.jsonObject
                 m?.let { buildShow(it) }
             } catch (e: Exception) {
-                Logger.log("$name autoSearch (AniList $id) error: ${e.message}")
+                Logger.log("$name autoSearch (AniList ${mediaObj.id}) error: ${e.message}")
                 null
             }
         }
@@ -319,7 +319,7 @@ class GojoLiveProvider : NativeAnimeParser() {
         } ?: emptyList()
         addCommonExtras(extraData, subs, parseSkip(payload["intro"]), parseSkip(payload["outro"]))
 
-        Logger.log("$name $name OK: ep $ep ($audio) server=${(first["server"] as? JsonPrimitive)?.contentOrNull} -> ${streamUrl.take(80)}")
+        Logger.log("$saveName $name OK: ep $ep ($audio) server=${(first["server"] as? JsonPrimitive)?.contentOrNull} -> ${streamUrl.take(80)}")
         return VideoServer(name, streamUrl, extraData)
     }
 
