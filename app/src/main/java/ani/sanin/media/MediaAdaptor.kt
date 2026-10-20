@@ -794,47 +794,18 @@ class MediaAdaptor(
         val subCount = badge.findViewById<TextView>(R.id.subDubSubCount)
         val dubIcon = badge.findViewById<android.view.View>(R.id.subDubDubIcon)
         val dubCount = badge.findViewById<TextView>(R.id.subDubDubCount)
-        val totalCount = badge.findViewById<TextView>(R.id.subDubTotalCount)
         val dividerMid = badge.findViewById<android.view.View>(R.id.subDubDividerMid)
-        val dividerTotal = badge.findViewById<android.view.View>(R.id.subDubDividerTotal)
 
-        if (info == null || !info.hasData) {
-            // Data not available (yet/at all) — show ~ placeholders, never vanish
-            subIcon.visibility = View.VISIBLE
-            subCount.visibility = View.VISIBLE
-            subCount.text = "~"
-            dubIcon.visibility = View.VISIBLE
-            dubCount.visibility = View.VISIBLE
-            dubCount.text = "~"
-            totalCount.visibility = View.VISIBLE
-            totalCount.text = "~"
-            dividerMid.visibility = View.VISIBLE
-            dividerTotal.visibility = View.VISIBLE
-            return
-        }
+        // Always both halves: "sub | dub", with ~ placeholders for missing/zero data.
+        subIcon.visibility = View.VISIBLE
+        subCount.visibility = View.VISIBLE
+        subCount.text = (info?.sub ?: 0).takeIf { it > 0 }?.toString() ?: "~"
 
-        val showSub = info.sub > 0
-        val showDub = info.dub > 0
-        val showTotal = info.total > 0
+        dubIcon.visibility = View.VISIBLE
+        dubCount.visibility = View.VISIBLE
+        dubCount.text = (info?.dub ?: 0).takeIf { it > 0 }?.toString() ?: "~"
 
-        if (!showSub && !showDub && !showTotal) { badge.visibility = View.GONE; return }
-
-        subIcon.visibility = if (showSub) View.VISIBLE else View.GONE
-        subCount.visibility = if (showSub) View.VISIBLE else View.GONE
-        subCount.text = if (showSub) info.sub.toString() else "~"
-
-        dubIcon.visibility = if (showDub) View.VISIBLE else View.GONE
-        dubCount.visibility = if (showDub) View.VISIBLE else View.GONE
-        dubCount.text = if (showDub) info.dub.toString() else "~"
-
-        totalCount.visibility = if (showTotal) View.VISIBLE else View.GONE
-        totalCount.text = if (showTotal) info.total.toString() else "~"
-
-        // Dividers only separate real sections; no dub means just "sub | total" side by side.
-        // midDivider: visible whenever there are 2+ visible sections (sub|total or sub|dub)
-        val sectionsVisible = listOf(showSub, showDub, showTotal).count { it }
-        dividerMid.visibility = if (sectionsVisible >= 2) View.VISIBLE else View.GONE
-        dividerTotal.visibility = if (showDub) View.VISIBLE else View.GONE
+        dividerMid.visibility = View.VISIBLE
     }
 
     private fun shouldShowTopBadge(flag: Int): Boolean =

@@ -60,22 +60,4 @@
         tools:ignore="SpUsage"
         tools:text="12" />
 
-    <View
-        android:id="@+id/subDubDividerTotal"
-        android:layout_width="1dp"
-        android:layout_height="12dp"
-        android:layout_marginStart="5dp"
-        android:layout_marginEnd="5dp"
-        android:background="#66FFFFFF" />
-
-    <TextView
-        android:id="@+id/subDubTotalCount"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:fontFamily="@font/poppins_bold"
-        android:textColor="@android:color/white"
-        android:textSize="10sp"
-        tools:ignore="SpUsage"
-        tools:text="37" />
-
 </LinearLayout>
