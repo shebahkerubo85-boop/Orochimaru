@@ -497,12 +497,16 @@ object Tmdb {
         return runCatching { json.decodeFromString<TmdbDetail>(body).genres }.getOrDefault(emptyList())
     }
 
-    suspend fun search(query: String, page: Int = 1): List<TmdbMedia> {
+    suspend fun search(query: String, page: Int = 1): List<TmdbMedia> =
+        searchPage(query, page).results
+
+    /** Multi-search results with the API total retained for live suggestion headers. */
+    suspend fun searchPage(query: String, page: Int = 1): TmdbPage<TmdbMedia> {
         val body = get("/search/multi", "query" to query, "page" to page.toString())
-            ?: return emptyList()
-        return runCatching { json.decodeFromString<TmdbPage<TmdbMedia>>(body).results }
-            .getOrDefault(emptyList())
-            .filter { it.mediaType != "person" }
+            ?: return TmdbPage(page = page)
+        val response = runCatching { json.decodeFromString<TmdbPage<TmdbMedia>>(body) }
+            .getOrDefault(TmdbPage(page = page))
+        return response.copy(results = response.results.filter { it.mediaType != "person" })
     }
 
     suspend fun trending(mediaType: String = "all", timeWindow: String = "week"): List<TmdbMedia> {

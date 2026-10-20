@@ -141,6 +141,20 @@
             </LinearLayout>
     </LinearLayout>
 
+    <!-- Live title suggestions, with a clear DPAD focus target for every row. -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/tmdbSearchSuggestions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:background="?attr/colorSurface"
+        android:clipToPadding="false"
+        android:elevation="8dp"
+        android:overScrollMode="never"
+        android:visibility="gone"
+        tools:listitem="@layout/item_tmdb_suggestion" />
+
     <!-- Source/plugin chips (TMDB, MovieBox, etc.) -->
     <HorizontalScrollView
         android:id="@+id/tmdbSearchPluginScroll"
