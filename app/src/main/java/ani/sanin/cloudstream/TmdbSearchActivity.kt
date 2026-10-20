@@ -145,7 +145,7 @@ class TmdbSearchActivity : AppCompatActivity() {
                     if (request != suggestionRequest || binding.tmdbSearchInput.text.toString().trim() != query) return@launch
                     activeSuggestionQuery = query
                     suggestionAdapter.submit(query, suggestions, totalResults)
-                    binding.tmdbSearchSuggestions.isVisible = result.isNotEmpty()
+                    binding.tmdbSearchSuggestions.isVisible = suggestions.isNotEmpty()
                     binding.tmdbSearchHistory.isVisible = false
                     binding.tmdbSearchHistoryLabel.isVisible = false
                     binding.tmdbSearchGrid.isVisible = false
