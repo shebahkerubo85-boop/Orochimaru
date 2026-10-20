@@ -87,6 +87,9 @@ class TmdbSearchActivity : AppCompatActivity() {
             }
         }
         FocusEffectUtil.applyFocusListener(binding.tmdbSearchKeyboardToggle)
+        FocusEffectUtil.applyFocusListener(
+            binding.tmdbSearchInput, binding.tmdbSearchInputLayout, borderDp = 2.5f
+        )
 
         binding.tmdbSearchInput.setOnKeyListener { _, keyCode, event ->
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN &&
