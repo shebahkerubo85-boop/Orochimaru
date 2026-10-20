@@ -106,19 +106,15 @@ class SearchAdapter(
             binding.searchBar.startIconDrawable = startIconDrawable
         }
 
-        var adult = activity.aniMangaResult.isAdult
-
         binding.searchBarText.removeTextChangedListener(textWatcher)
         binding.searchBarText.setText(activity.aniMangaResult.search)
 
         LensButtonBackground.apply(binding.searchFilter)
         LensButtonBackground.apply(binding.clearHistory)
-        LensButtonBackground.apply(binding.searchAdultCheck)
         LensButtonBackground.apply(binding.searchResultGrid)
         LensButtonBackground.apply(binding.searchResultList)
 
         FocusEffectUtil.applyFocusListener(
-            binding.searchAdultCheck,
             binding.clearHistory,
             binding.searchFilter,
             binding.searchResultGrid,
@@ -129,8 +125,6 @@ class SearchAdapter(
         binding.searchFilter.nextFocusLeftId = R.id.searchBarText
         binding.searchFilter.nextFocusRightId = R.id.searchKeyboardToggle
         binding.searchKeyboardToggle.nextFocusLeftId = R.id.searchFilter
-        binding.clearHistory.nextFocusRightId = R.id.searchAdultCheck
-        binding.searchAdultCheck.nextFocusLeftId = R.id.clearHistory
 
         binding.searchFilter.setOnClickListener {
             SearchFilterBottomDialog.newInstance().show(activity.supportFragmentManager, "dialog")
@@ -213,7 +207,6 @@ class SearchAdapter(
             activity.aniMangaResult.apply {
                 search =
                     if (binding.searchBarText.text.toString() != "") binding.searchBarText.text.toString() else null
-                isAdult = adult
             }
             if (binding.searchBarText.text.toString().equals("hentai", true)) {
                 openLinkInBrowser("https://www.youtube.com/watch?v=GgJrEOo0QoA")
@@ -269,28 +262,6 @@ class SearchAdapter(
             activity.style = 1
             PrefManager.setVal(PrefName.SearchStyle, 1)
             activity.recycler()
-        }
-
-        fun updateAdultTint(on: Boolean) {
-            binding.searchAdultCheck.imageTintList = ColorStateList.valueOf(
-                if (on) FocusEffectUtil.getPrimaryColor(activity)
-                else activity.getThemeColor(com.google.android.material.R.attr.colorOnSurface)
-            )
-        }
-        binding.searchAdultCheck.apply {
-            if (Anilist.adult) {
-                visibility = View.VISIBLE
-                binding.searchAdultLabel.visibility = View.VISIBLE
-                updateAdultTint(adult)
-                setOnClickListener {
-                    adult = !adult
-                    updateAdultTint(adult)
-                    searchTitle()
-                }
-            } else {
-                visibility = View.GONE
-                binding.searchAdultLabel.visibility = View.GONE
-            }
         }
 
         binding.searchBarText.post {

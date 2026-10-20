@@ -77,6 +77,19 @@
             tools:ignore="ContentDescription" />
     </LinearLayout>
 
+    <!-- Legacy view-binding compatibility; adult filtering now lives in the filter dialog. -->
+    <ImageButton
+        android:id="@+id/searchAdultCheck"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/searchAdultLabel"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone" />
+
     <!-- Recent-search utility. Adult filtering is in the filter dialog. -->
     <LinearLayout
         android:layout_width="match_parent"
