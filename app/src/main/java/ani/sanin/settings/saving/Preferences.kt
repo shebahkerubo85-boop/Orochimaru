@@ -83,6 +83,7 @@ enum class PrefName(val data: Pref) {
     SelectedTracker(Pref(Location.Protected, Int::class, 0)),  // 0=AniList, 1=MAL, 2=Simkl
 
     AnimeSourcesOrder(Pref(Location.General, List::class, listOf<String>())),
+    ProvidersOrder(Pref(Location.General, List::class, listOf<String>())),
     EnabledProviders(Pref(Location.General, Set::class, setOf<String>())),
     SortedAnimeSH(Pref(Location.General, List::class, listOf<SearchHistory>())),
     SortedCharacterSH(Pref(Location.General, List::class, listOf<SearchHistory>())),

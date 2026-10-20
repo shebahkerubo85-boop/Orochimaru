@@ -440,6 +440,8 @@
     <string name="current_page">Current Page</string>
     <string name="dubbed">Dubbed</string>
     <string name="subbed">Subbed</string>
+    <string name="provider_language_english">English</string>
+    <string name="provider_language_spanish">Spanish</string>
     <string name="prefer_dub">Prefer Dubbed Anime</string>
     <string name="none">None</string>
     <string name="selected_dns">Selected DNS</string>

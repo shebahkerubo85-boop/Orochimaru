@@ -33,7 +33,21 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:clipToPadding="false"
+        android:descendantFocusability="afterDescendants"
+        android:focusable="true"
         android:padding="16dp"
         android:paddingTop="8dp" />
+
+    <TextView
+        android:id="@+id/reorderMessage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/poppins_bold"
+        android:gravity="center"
+        android:padding="12dp"
+        android:text="Press UP/DOWN to reorder, ENTER to confirm"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="14sp"
+        android:visibility="gone" />
 
 </LinearLayout>

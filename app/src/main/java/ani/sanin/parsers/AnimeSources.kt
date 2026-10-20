@@ -10,27 +10,43 @@ import kotlinx.coroutines.flow.first
 object AnimeSources : WatchSources() {
     override var list: List<Lazier<BaseParser>> = emptyList()
     var pinnedAnimeSources: List<String> = emptyList()
+    var providersOrder: List<String> = emptyList()
     var isInitialized = false
 
     val allNativeParsers by lazy {
         listOf(
-            AniVaultProvider(),
-            AniBdProvider(),
+            ReanimeProvider(),
+            GojoLiveProvider(),
+            AniWavesProvider(),
             AnimeGGProvider(),
-            AniZoneProvider(),
-            SenshiProvider(),
+            AnimeJLProvider(),
             LatanimeProvider(),
             AnimeAV1Provider(),
-            AnimeJLProvider(),
-            ReanimeProvider(),
-            AniWavesProvider(),
-            GojoLiveProvider(),
         )
     }
 
+    private val englishProviderNames = setOf("animegg", "AniWaves", "Reanime", "GojoLive")
+
+    fun isEnglishProvider(saveName: String): Boolean = saveName in englishProviderNames
+
+    // All native providers in the user's saved order (unpinned keep their default order after
+    // the pinned ones). Providers always render before extensions in the watch tab.
+    val orderedNativeParsers: List<NativeAnimeParser>
+        get() = allNativeParsers.sortedBy { parser ->
+            providersOrder.indexOf(parser.saveName).let { if (it < 0) Int.MAX_VALUE else it }
+        }
+
     val nativeParsers: List<NativeAnimeParser> get() {
         val enabled = PrefManager.getVal<Set<String>>(PrefName.EnabledProviders)
-        return allNativeParsers.filter { it.saveName in enabled }
+        return orderedNativeParsers.filter { it.saveName in enabled }
+    }
+
+    // Persist the new provider arrangement and rebuild the cached parser list so the watch tab
+    // picks it up immediately (same mechanism the extensions screen uses for its order).
+    fun reorderProviders(names: List<String>) {
+        PrefManager.setVal(PrefName.ProvidersOrder, names)
+        providersOrder = names
+        rebuildNativeParsers()
     }
 
     override val nativeNames: List<String> get() = nativeParsers.map { it.name }
@@ -50,6 +66,9 @@ object AnimeSources : WatchSources() {
     suspend fun init(fromExtensions: StateFlow<List<AnimeExtension.Installed>>) {
         pinnedAnimeSources =
             PrefManager.getNullableVal<List<String>>(PrefName.AnimeSourcesOrder, null)
+                ?: emptyList()
+        providersOrder =
+            PrefManager.getNullableVal<List<String>>(PrefName.ProvidersOrder, null)
                 ?: emptyList()
 
         val initialExtensions = fromExtensions.first()
