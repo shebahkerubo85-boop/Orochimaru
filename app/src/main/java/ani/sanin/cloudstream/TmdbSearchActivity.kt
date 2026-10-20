@@ -7,6 +7,10 @@ import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.text.Editable
+import android.text.TextWatcher
+import android.widget.TextView
+import android.graphics.Typeface
 import android.view.inputmethod.EditorInfo
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
@@ -18,6 +22,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.color.MaterialColors
 import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.tmdb.TmdbMedia
+import ani.sanin.connections.anilist.Anilist
+import ani.sanin.media.Media
+import ani.sanin.databinding.ItemTmdbSuggestionBinding
 import ani.sanin.cloudstream.TmdbCards
 import ani.sanin.databinding.ActivityTmdbSearchBinding
 import ani.sanin.databinding.ItemTmdbCardBinding
@@ -27,6 +34,8 @@ import ani.sanin.ui.LensButtonBackground
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.TvKeyboardUtil
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.google.android.material.chip.Chip
@@ -42,7 +51,14 @@ class TmdbSearchActivity : AppCompatActivity() {
     private val pluginAdapter = PluginSearchAdapter { item -> openPluginDetails(item) }
     private var selectedPluginApi: com.lagradost.cloudstream3.MainAPI? = null
     private var selectedPluginSource: CsInstalledSource? = null
-    private val historyAdapter = HistoryAdapter { query -> runSearch(query) }
+    private val historyAdapter = HistoryAdapter { query -> binding.tmdbSearchInput.setText(query); runSearch(query) }
+    private var suggestionJob: Job? = null
+    private var suggestionRequest = 0
+    private var activeSuggestionQuery = ""
+    private val suggestionAdapter = SuggestionAdapter(
+        onSeeAll = { query -> binding.tmdbSearchInput.setText(query); runSearch(query) },
+        onSelect = { media -> binding.tmdbSearchInput.setText(media.displayTitle); openDetails(media) }
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,6 +70,9 @@ class TmdbSearchActivity : AppCompatActivity() {
         binding.tmdbSearchGrid.layoutManager = GridLayoutManager(this, cols)
         binding.tmdbSearchGrid.adapter = adapter
         TmdbCards.applyGridSpan(binding.tmdbSearchGrid)
+        binding.tmdbSearchSuggestions.layoutManager = LinearLayoutManager(this)
+        binding.tmdbSearchSuggestions.adapter = suggestionAdapter
+        binding.tmdbSearchSuggestions.isVisible = false
 
         binding.tmdbSearchBack.setOnClickListener { finish() }
         FocusEffectUtil.applyFocusListener(binding.tmdbSearchBack)
@@ -80,11 +99,75 @@ class TmdbSearchActivity : AppCompatActivity() {
             } else false
         }
 
+        binding.tmdbSearchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                val query = s?.toString()?.trim().orEmpty()
+                suggestionJob?.cancel()
+                if (query.length < 2) {
+                    binding.tmdbSearchSuggestions.isVisible = false
+                    showHistory()
+                    return
+                }
+                if (query.equals(activeSuggestionQuery, true)) {
+                    binding.tmdbSearchSuggestions.isVisible = false
+                    return
+                }
+                suggestionJob = lifecycleScope.launch {
+                    delay(300)
+                    val request = ++suggestionRequest
+                    val result = withContext(Dispatchers.IO) {
+                        val tmdb = runCatching { Tmdb.search(query) }.getOrDefault(emptyList()).take(10)
+                        val aniList = if (tmdb.isNotEmpty()) runCatching {
+                            Anilist.query.searchAniManga(
+                                type = "ANIME", perPage = 10, search = query, isAdult = false
+                            )?.results.orEmpty()
+                        }.getOrDefault(emptyList()) else emptyList()
+                        tmdb.map { media ->
+                            val normalized = media.displayTitle.trim().lowercase()
+                            val match = aniList.firstOrNull { candidate ->
+                                listOf(candidate.name, candidate.nameRomaji, candidate.userPreferredName)
+                                    .filterNotNull().any { it.trim().lowercase() == normalized }
+                            } ?: aniList.firstOrNull { candidate ->
+                                listOf(candidate.name, candidate.nameRomaji, candidate.userPreferredName)
+                                    .filterNotNull().any { title ->
+                                        title.trim().lowercase().contains(normalized) ||
+                                            normalized.contains(title.trim().lowercase())
+                                    }
+                            }
+                            SuggestionItem(media, match)
+                        }
+                    }
+                    if (request != suggestionRequest || binding.tmdbSearchInput.text.toString().trim() != query) return@launch
+                    activeSuggestionQuery = query
+                    suggestionAdapter.submit(query, result)
+                    binding.tmdbSearchSuggestions.isVisible = result.isNotEmpty()
+                    binding.tmdbSearchHistory.isVisible = false
+                    binding.tmdbSearchHistoryLabel.isVisible = false
+                    binding.tmdbSearchGrid.isVisible = false
+                    binding.tmdbSearchResultLayout.isVisible = false
+                }
+            }
+            override fun afterTextChanged(s: Editable?) = Unit
+        })
+
+        binding.tmdbSearchInput.setOnKeyListener { _, keyCode, event ->
+            if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN &&
+                event.action == KeyEvent.ACTION_DOWN && binding.tmdbSearchSuggestions.isVisible
+            ) {
+                binding.tmdbSearchSuggestions.post {
+                    binding.tmdbSearchSuggestions.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
+                }
+                true
+            } else false
+        }
+
         binding.tmdbSearchInput.setOnEditorActionListener { _, actionId, event ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH ||
                 (event != null && event.keyCode == KeyEvent.KEYCODE_ENTER)
             ) {
                 val q = binding.tmdbSearchInput.text.toString().trim()
+                binding.tmdbSearchSuggestions.isVisible = false
                 if (q.isNotEmpty()) runSearch(q)
                 true
             } else false
@@ -223,6 +306,9 @@ class TmdbSearchActivity : AppCompatActivity() {
     }
 
     private fun runSearch(query: String) {
+        suggestionJob?.cancel()
+        binding.tmdbSearchSuggestions.isVisible = false
+        activeSuggestionQuery = query
         addHistory(query)
         binding.tmdbSearchHistoryLabel.isVisible = false
         binding.tmdbSearchHistory.isVisible = false
@@ -321,6 +407,82 @@ class TmdbSearchActivity : AppCompatActivity() {
                 .putExtra(TmdbDetailsActivity.ARG_PLUGIN_SOURCE, sourceId)
                 .putExtra(TmdbDetailsActivity.ARG_PLUGIN_URL, item.url)
         )
+    }
+
+    data class SuggestionItem(val tmdb: TmdbMedia, val anilist: Media?)
+
+    class SuggestionAdapter(
+        private val onSeeAll: (String) -> Unit,
+        private val onSelect: (TmdbMedia) -> Unit
+    ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+        private var query: String = ""
+        private var items: List<SuggestionItem> = emptyList()
+        fun submit(search: String, results: List<SuggestionItem>) {
+            query = search
+            items = results
+            notifyDataSetChanged()
+        }
+        override fun getItemViewType(position: Int) = if (position == 0) 0 else 1
+        override fun getItemCount() = if (items.isEmpty()) 0 else items.size + 1
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+            if (viewType == 0) {
+                val density = parent.resources.displayMetrics.density
+                val container = android.widget.LinearLayout(parent.context).apply {
+                    orientation = android.widget.LinearLayout.VERTICAL
+                    isFocusable = true
+                    isClickable = true
+                    setPadding((20 * density).toInt(), 0, (20 * density).toInt(), 0)
+                    addView(TextView(context).apply {
+                        tag = "label"
+                        textSize = 14f
+                        typeface = Typeface.DEFAULT_BOLD
+                        setPadding(0, (14 * density).toInt(), 0, (14 * density).toInt())
+                    })
+                    addView(View(context).apply {
+                        setBackgroundColor(com.google.android.material.color.MaterialColors.getColor(
+                            this, com.google.android.material.R.attr.colorOutlineVariant
+                        ))
+                        layoutParams = android.widget.LinearLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT, (1 * density).toInt().coerceAtLeast(1)
+                        )
+                    })
+                }
+                FocusEffectUtil.applyFocusListener(container, borderDp = 2.5f, cornerRadiusPx = 18f * density)
+                return HeaderVH(container)
+            }
+            return RowVH(ItemTmdbSuggestionBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+        }
+        override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+            if (holder is HeaderVH) {
+                val label = holder.itemView.findViewWithTag<TextView>("label")
+                label.text = "See all (${items.size})"
+                label.setTextColor(com.google.android.material.color.MaterialColors.getColor(
+                    label, com.google.android.material.R.attr.colorPrimary
+                ))
+                holder.itemView.setOnClickListener { onSeeAll(query) }
+                return
+            }
+            val row = holder as RowVH
+            val item = items[position - 1]
+            val tmdb = item.tmdb
+            val ani = item.anilist
+            row.binding.suggestionTitle.text = ani?.userPreferredName?.takeIf { it.isNotBlank() } ?: tmdb.displayTitle
+            val kind = if (tmdb.type == "movie") "Movie" else "TV"
+            val status = ani?.status?.replace('_', ' ')?.lowercase()?.replaceFirstChar { it.uppercase() }
+            val episodes = ani?.anime?.totalEpisodes?.let { "$it eps" }
+            val year = ani?.startDate?.year?.toString()?.takeIf { it != "0" }
+                ?: tmdb.year.takeIf { it.isNotBlank() }
+            row.binding.suggestionMeta.text = listOfNotNull(kind, status, episodes, year).joinToString(" · ")
+            val poster = tmdb.posterPath?.let { Tmdb.imageUrl(it, 300) }
+            row.binding.suggestionPoster.loadImage(poster, 300)
+            row.binding.root.setOnClickListener { onSelect(tmdb) }
+            FocusEffectUtil.applyFocusListener(
+                row.binding.root, borderDp = 2.5f,
+                cornerRadiusPx = 14f * row.binding.root.resources.displayMetrics.density
+            )
+        }
+        class HeaderVH(view: View) : RecyclerView.ViewHolder(view)
+        class RowVH(val binding: ItemTmdbSuggestionBinding) : RecyclerView.ViewHolder(binding.root)
     }
 
     class PluginSearchAdapter(
