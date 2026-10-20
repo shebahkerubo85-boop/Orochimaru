@@ -148,9 +148,9 @@ class MediaAdaptor(
      */
     private fun bindMediaCover(image: ImageView, media: Media, position: Int) {
         image.loadImage(media.cover)
-        val type = media.tmdbType ?: return
         image.tag = media.id
         tmdbArtworkJobs[position]?.cancel()
+        val type = media.tmdbType ?: return
         tmdbArtworkJobs[position] = activity.lifecycleScope.launch {
             val detail = runCatching { Tmdb.detail(type, media.id) }.getOrNull()
             val posterUrl = detail?.posterPath?.let { Tmdb.imageUrl(it, 500) }
