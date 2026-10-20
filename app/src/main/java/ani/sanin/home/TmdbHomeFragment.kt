@@ -703,7 +703,7 @@ class TmdbHomeFragment : Fragment() {
             // Simkl returns a poster identifier, not necessarily a URL. The shared
             // MediaAdaptor loads cover/banner directly, unlike the home rail which
             // calls Simkl.imageUrl itself. Normalize both here for See All grid/list.
-            cover = Simkl.imageUrl(poster, "m"),
+            cover = Simkl.imageUrl(poster),
             banner = Simkl.imageUrl(poster, "w"),
             format = type.uppercase(),
             tmdbType = type

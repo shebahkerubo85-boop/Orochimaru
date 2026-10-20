@@ -139,6 +139,26 @@ class MediaAdaptor(
 
     private var logoJobs = mutableMapOf<Int, Job>()
     private var backdropJobs = mutableMapOf<Int, Job>()
+    private var tmdbArtworkJobs = mutableMapOf<Int, Job>()
+
+    /**
+     * The See All screen shares this adapter between AniList and TMDB/Simkl items.
+     * TMDB items must resolve artwork through TMDB IDs; AniZip IDs are AniList IDs,
+     * so querying AniZip with a TMDB ID cannot reliably supply their landscape art.
+     */
+    private fun bindMediaCover(image: ImageView, media: Media, position: Int) {
+        image.loadImage(media.cover)
+        val type = media.tmdbType ?: return
+        image.tag = media.id
+        tmdbArtworkJobs[position]?.cancel()
+        tmdbArtworkJobs[position] = activity.lifecycleScope.launch {
+            val detail = runCatching { Tmdb.detail(type, media.id) }.getOrNull()
+            val posterUrl = detail?.posterPath?.let { Tmdb.imageUrl(it, 500) }
+            if (!posterUrl.isNullOrBlank() && image.tag == media.id) {
+                image.loadImage(posterUrl)
+            }
+        }
+    }
 
 
 
@@ -176,7 +196,7 @@ class MediaAdaptor(
                 val b = (holder as MediaViewHolder).binding
                 val media = mediaList?.getOrNull(position)
                 if (media != null) {
-                    b.itemCompactImage.loadImage(media.cover)
+                    bindMediaCover(b.itemCompactImage, media, position)
                     val cardSize = cachedCardSize
                     val finalW = (102 * cardSize).toInt()
                     val finalH = (154 * cardSize).toInt()
@@ -243,7 +263,7 @@ class MediaAdaptor(
                 val b = (holder as MediaLargeViewHolder).binding
                 val media = mediaList?.get(position)
                 if (media != null) {
-                    b.itemCompactImage.loadImage(media.cover)
+                    bindMediaCover(b.itemCompactImage, media, position)
                     // List cards use sharp source-provided landscape artwork, never blurred posters or logo art.
                     b.itemCompactBanner.setImageDrawable(null)
                     if (!media.banner.isNullOrBlank()) b.itemCompactBanner.loadImage(media.banner)
@@ -288,7 +308,7 @@ class MediaAdaptor(
                 if (media != null) {
 
                     val bannerAnimations = cachedBannerAnimations
-                    b.itemCompactImage.loadImage(media.cover)
+                    bindMediaCover(b.itemCompactImage, media, position)
                     if (bannerAnimations)
                         b.itemCompactBanner.setTransitionGenerator(
                             RandomTransitionGenerator(
@@ -351,7 +371,7 @@ class MediaAdaptor(
                 val media = mediaList?.get(position)
                 if (media != null) {
                     val bannerAnimations = cachedBannerAnimations
-                    b.itemCompactImage.loadImage(media.cover)
+                    bindMediaCover(b.itemCompactImage, media, position)
                     if (bannerAnimations)
                         b.itemCompactBanner.setTransitionGenerator(
                             RandomTransitionGenerator(
@@ -606,10 +626,15 @@ class MediaAdaptor(
             b.itemCompactScoreBG.findViewById<View>(R.id.imageView2)?.isVisible = showScoreL
 
             b.itemCompactImage.scaleType = ImageView.ScaleType.CENTER_CROP
-            b.itemCompactImage.loadImage(media.cover)
+            bindMediaCover(b.itemCompactImage, media, position)
             backdropJobs[position]?.cancel()
             backdropJobs[position] = activity.lifecycleScope.launch(Dispatchers.IO) {
-                val backdropUrl = AniZip.getBackdropUrl(media.id)
+                val backdropUrl = if (!media.tmdbType.isNullOrBlank()) {
+                    val detail = runCatching { Tmdb.detail(media.tmdbType!!, media.id) }.getOrNull()
+                    detail?.backdropPath?.let { Tmdb.imageUrl(it, 780) }
+                } else {
+                    AniZip.getBackdropUrl(media.id)
+                }
                 if (backdropUrl != null) {
                     withContext(Dispatchers.Main) {
                         b.itemCompactImage.loadImage(backdropUrl)
@@ -624,7 +649,11 @@ class MediaAdaptor(
                     b.itemCompactTitleBelow.visibility = View.GONE
                     logoJobs[position]?.cancel()
                     logoJobs[position] = activity.lifecycleScope.launch(Dispatchers.Main) {
-                        val logoUrl = LogoApi.getLogoUrl(media.id)
+                        val logoUrl = if (!media.tmdbType.isNullOrBlank()) {
+                            runCatching { Tmdb.logoUrl(media.tmdbType!!, media.id) }.getOrNull()
+                        } else {
+                            LogoApi.getLogoUrl(media.id)
+                        }
                         if (!logoUrl.isNullOrBlank()) {
                             b.itemCompactClearlogo.visibility = View.VISIBLE
                             b.itemCompactClearlogo.loadImage(logoUrl)
