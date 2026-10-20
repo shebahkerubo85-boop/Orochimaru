@@ -168,7 +168,8 @@ class TmdbLibraryFragment : Fragment() {
             binding.tmdbLibAvatar.loadImage(libAvatarUrl)
         }
         binding.tmdbLibAvatar.setOnClickListener {
-            openSimklProfile()
+            FocusEffectUtil.spinOnTouch(binding.tmdbLibAvatar)
+            (activity as? ani.sanin.MainActivity)?.toggleRightRail()
         }
     }
 

@@ -354,12 +354,7 @@ class MainActivity : AppCompatActivity() {
             Simkl.getSavedToken()
             loadAvatar()
             binding.mainUserAvatarContainer.setOnClickListener {
-                if (!binding.mainDrawer.isDrawerOpen(Gravity.END)) {
-                    populateRightRail()
-                    binding.mainDrawer.openDrawer(Gravity.END)
-                } else {
-                    binding.mainDrawer.closeDrawer(Gravity.END)
-                }
+                toggleRightRail()
             }
             binding.mainCalendarContainer.setOnClickListener {
                 ContextCompat.startActivity(
@@ -1250,6 +1245,16 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         })
+    }
+
+    /** Opens the account side rail, or closes it when already open. Shared by both Library modes. */
+    fun toggleRightRail() {
+        if (!binding.mainDrawer.isDrawerOpen(Gravity.END)) {
+            populateRightRail()
+            binding.mainDrawer.openDrawer(Gravity.END)
+        } else {
+            binding.mainDrawer.closeDrawer(Gravity.END)
+        }
     }
 
     private fun populateRightRail() {

@@ -197,7 +197,7 @@ class LibraryFragment : Fragment() {
         }
         binding.listAvatar.setOnClickListener {
             FocusEffectUtil.spinOnTouch(binding.listAvatar)
-            openProfile()
+            (activity as? ani.sanin.MainActivity)?.toggleRightRail()
         }
 
         setupFocusChain()
