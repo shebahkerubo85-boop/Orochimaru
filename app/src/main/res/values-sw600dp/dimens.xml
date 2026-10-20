@@ -13,8 +13,8 @@
     <dimen name="banner_modern_meta_text">12sp</dimen>
     <dimen name="banner_modern_meta_gap">8dp</dimen>
     <integer name="banner_modern_synopsis_lines">3</integer>
-    <!-- Classic banner: large screens stay at the portrait height. -->
-    <dimen name="banner_classic_height">300dp</dimen>
+    <!-- Classic banner: preserve the portrait height on large screens. -->
+    <dimen name="banner_classic_height">255dp</dimen>
     <dimen name="banner_classic_logo_width">300dp</dimen>
     <dimen name="banner_classic_logo_height">82dp</dimen>
     <dimen name="banner_classic_watch_height">38dp</dimen>
