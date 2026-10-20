@@ -1,6 +1,7 @@
 package ani.sanin.cloudstream
 
 import android.content.Intent
+import android.app.AlertDialog
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.KeyEvent
@@ -148,11 +149,34 @@ class TmdbSearchActivity : AppCompatActivity() {
                     if (request != suggestionRequest || binding.tmdbSearchInput.text.toString().trim() != query) return@launch
                     activeSuggestionQuery = query
                     suggestionAdapter.submit(query, suggestions, totalResults)
-                    binding.tmdbSearchSuggestions.isVisible = suggestions.isNotEmpty()
+                    binding.tmdbSearchSuggestions.isVisible = false
                     binding.tmdbSearchHistory.isVisible = false
                     binding.tmdbSearchHistoryLabel.isVisible = false
                     binding.tmdbSearchGrid.isVisible = false
                     binding.tmdbSearchResultLayout.isVisible = false
+                    if (suggestions.isNotEmpty()) {
+                        val labels = suggestions.map { item ->
+                            val title = item.anilist?.userPreferredName?.takeIf { it.isNotBlank() } ?: item.tmdb.displayTitle
+                            val kind = if (item.tmdb.type == "movie") "Movie" else "TV"
+                            val year = item.anilist?.startDate?.year?.toString()?.takeIf { it != "0" } ?: item.tmdb.year
+                            listOf(title, kind, year).filter { it.isNotBlank() }.joinToString(" · ")
+                        } + "See all results for ‘$query’ ($totalResults)"
+                        AlertDialog.Builder(this@TmdbSearchActivity)
+                            .setTitle("Suggestions")
+                            .setItems(labels.toTypedArray()) { dialog, which ->
+                                dialog.dismiss()
+                                if (which == suggestions.size) {
+                                    binding.tmdbSearchInput.setText(query)
+                                    runSearch(query)
+                                } else {
+                                    val selected = suggestions[which].tmdb
+                                    binding.tmdbSearchInput.setText(selected.displayTitle)
+                                    openDetails(selected)
+                                }
+                            }.setOnCancelListener {
+                                if (binding.tmdbSearchInput.text.toString().trim() == query) showHistory()
+                            }.show()
+                    }
                 }
             }
             override fun afterTextChanged(s: Editable?) = Unit

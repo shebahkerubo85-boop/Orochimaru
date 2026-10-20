@@ -2,6 +2,7 @@ package ani.sanin.media
 
 import android.annotation.SuppressLint
 import android.content.res.ColorStateList
+import android.app.AlertDialog
 import android.graphics.drawable.Drawable
 import android.text.Editable
 import android.text.TextWatcher
@@ -14,6 +15,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import ani.sanin.App.Companion.context
 import ani.sanin.R
 import ani.sanin.connections.anilist.Anilist
+import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.anilist.AnilistSearch.SearchType
 import ani.sanin.databinding.ItemSearchHeaderBinding
 import ani.sanin.getThemeColor
@@ -28,12 +30,19 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
 
 class SearchAdapter(
     activity: SearchActivity,
     private val type: SearchType,
     binding: ItemSearchHeaderBinding
 ) : HeaderInterface(activity, binding) {
+
+    private var suggestionJob: Job? = null
+    private var suggestionDialog: AlertDialog? = null
+    private var suggestionRequest = 0
+    private var choosingSuggestion = false
 
     private fun updateFilterTextViewDrawable() {
         val filterDrawable = when (activity.aniMangaResult.sort) {
@@ -216,21 +225,46 @@ class SearchAdapter(
 
         textWatcher = object : TextWatcher {
             override fun afterTextChanged(s: Editable) {}
-
             override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
-
             override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
-                if (s.toString().isBlank()) {
+                val query = s.toString().trim()
+                suggestionJob?.cancel()
+                suggestionRequest++
+                if (choosingSuggestion) { choosingSuggestion = false; return }
+                if (query.isBlank()) {
+                    suggestionDialog?.dismiss(); suggestionDialog = null
                     activity.emptyMediaAdapter()
-                    CoroutineScope(Dispatchers.IO).launch {
-                        delay(200)
-                        activity.runOnUiThread {
-                            setHistoryVisibility(true)
-                        }
+                    CoroutineScope(Dispatchers.IO).launch { delay(200); activity.runOnUiThread { setHistoryVisibility(true) } }
+                    return
+                }
+                setHistoryVisibility(false)
+                if (query.length < 2 || activity.searchType != SearchType.ANIME) return
+                val request = suggestionRequest
+                suggestionJob = activity.lifecycleScope.launch {
+                    delay(350)
+                    val rows = withContext(Dispatchers.IO) {
+                        val tmdb = runCatching { Tmdb.searchPage(query).results.take(8) }.getOrDefault(emptyList())
+                        val ani = runCatching { Anilist.query.searchAniManga(type = "ANIME", perPage = 15, search = query, isAdult = activity.aniMangaResult.isAdult)?.results.orEmpty() }.getOrDefault(emptyList())
+                        val used = mutableSetOf<Int>()
+                        tmdb.map { item ->
+                            val title = item.displayTitle.trim(); val normalized = title.lowercase()
+                            val match = ani.firstOrNull { candidate -> candidate.id !in used && listOf(candidate.name, candidate.nameRomaji, candidate.userPreferredName).filterNotNull().any { it.trim().equals(normalized, true) } }
+                                ?: ani.firstOrNull { candidate -> candidate.id !in used && listOf(candidate.name, candidate.nameRomaji, candidate.userPreferredName).filterNotNull().any { it.trim().contains(normalized, true) || normalized.contains(it.trim(), true) } }
+                            if (match != null) used.add(match.id)
+                            (match?.userPreferredName?.takeIf { it.isNotBlank() } ?: title) + "  ·  " + (item.year.ifBlank { if (item.type == "movie") "Movie" else "TV" })
+                        }.distinct()
                     }
-                } else {
-                    setHistoryVisibility(false)
-                    searchTitle()
+                    if (request != suggestionRequest || binding.searchBarText.text.toString().trim() != query || rows.isEmpty()) return@launch
+                    suggestionDialog?.dismiss()
+                    val choices = rows + "See all results for ‘$query’"
+                    suggestionDialog = AlertDialog.Builder(activity).setTitle("Suggestions").setItems(choices.toTypedArray()) { dialog, which ->
+                        choosingSuggestion = true
+                        binding.searchBarText.setText(if (which == rows.size) query else rows[which].substringBefore("  ·  "))
+                        binding.searchBarText.setSelection(binding.searchBarText.text.length)
+                        dialog.dismiss(); searchTitle()
+                    }.setOnCancelListener { suggestionDialog = null }.create()
+                    suggestionDialog?.setOnDismissListener { suggestionDialog = null }
+                    suggestionDialog?.show()
                 }
             }
         }
@@ -247,7 +281,7 @@ class SearchAdapter(
                 else -> false
             }
         }
-        binding.searchBar.setEndIconOnClickListener { searchTitle() }
+        binding.searchBar.setEndIconOnClickListener { suggestionJob?.cancel(); suggestionDialog?.dismiss(); searchTitle() }
 
         binding.searchResultGrid.setOnClickListener {
             it.alpha = 1f
