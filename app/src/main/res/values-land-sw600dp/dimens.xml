@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Keep the large-screen Classic banner at 300dp only in landscape. -->
+    <dimen name="banner_classic_height">300dp</dimen>
+</resources>
