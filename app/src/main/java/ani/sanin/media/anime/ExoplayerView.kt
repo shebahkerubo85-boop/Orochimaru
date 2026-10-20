@@ -2652,15 +2652,28 @@ class ExoplayerView :
                 var lastPosition: Long = 0
 
                 override fun onCues(cueGroup: CueGroup) {
-                    val libassActive = assHandler?.hasTracks() == true || subtitle?.type == SubtitleType.ASS
+                    // libass only owns rendering while an ASS/SSA track is the *currently
+                    // selected* text track. hasTracks() stays true forever once any ASS
+                    // sidecar has been parsed, so keying off it swallowed every SRT/VTT cue.
+                    val selectedTextMime = exoPlayer.currentTracks.groups
+                        .firstOrNull { it.type == TRACK_TYPE_TEXT && it.isSelected }
+                        ?.getTrackFormat(0)?.sampleMimeType
+                    val libassActive = selectedTextMime == MimeTypes.TEXT_SSA ||
+                        selectedTextMime == "text/x-ass" ||
+                        (selectedTextMime?.contains("ssa", ignoreCase = true) == true)
+                    val newCueTexts = cueGroup.cues.map { it.text.toString() ?: "" }
                     if (libassActive) {
                         exoSubtitleView.visibility = View.GONE
                         customSubtitleView.visibility = View.GONE
                         customSubtitleView.text = ""
+                        if (newCueTexts.any { it.isNotBlank() }) {
+                            Logger.log("onCues: libass owns render (sel=$selectedTextMime), dropping ${newCueTexts.size} cue(s)")
+                        }
                         return
                     }
-
-                    val newCueTexts = cueGroup.cues.map { it.text.toString() ?: "" }
+                    if (newCueTexts.any { it.isNotBlank() }) {
+                        Logger.log("onCues: ${newCueTexts.size} cue(s) sel=$selectedTextMime vis=${exoSubtitleView.visibility}")
+                    }
                     val currentPosition = exoPlayer.currentPosition
 
                     // Store cues for sync dialog with timestamps

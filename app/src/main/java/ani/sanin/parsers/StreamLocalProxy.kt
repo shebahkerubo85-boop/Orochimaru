@@ -547,6 +547,12 @@ object StreamLocalProxy {
             val isText = contentType.startsWith("text/") || contentType.contains("subrip")
             if (isText || mask == null) {
                 val bytes = upstream.readBytes()
+                if (mask == null && isText) {
+                    Logger.log(
+                        "StreamLocalProxy: sub served ${bytes.size}B ct=$contentType head=" +
+                            bytes.take(40).toByteArray().decodeToString(throwOnInvalidSequence = false).replace('\n', ' ')
+                    )
+                }
                 writeResponse(socket, "200 OK", contentType, null, bytes.size.toLong())
                 socket.getOutputStream().use { out -> out.write(bytes) }
                 return
