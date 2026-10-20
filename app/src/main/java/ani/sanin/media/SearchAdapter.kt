@@ -240,7 +240,7 @@ class SearchAdapter(
                 setHistoryVisibility(false)
                 if (query.length < 2 || activity.searchType != SearchType.ANIME) return
                 val request = suggestionRequest
-                suggestionJob = activity.lifecycleScope.launch {
+                suggestionJob = CoroutineScope(Dispatchers.Main).launch {
                     delay(350)
                     val rows = withContext(Dispatchers.IO) {
                         val tmdb = runCatching { Tmdb.searchPage(query).results.take(8) }.getOrDefault(emptyList())
