@@ -537,13 +537,40 @@ object FlixcloudExtractor {
             val m = asMap(s) ?: return@forEach
             val u = asString(jsGet(m, "url")) ?: asString(jsGet(m, "file")) ?: return@forEach
             val lang = asString(jsGet(m, "label")) ?: asString(jsGet(m, "language")) ?: asString(jsGet(m, "lang")) ?: "en"
-            subs.add(SubData(StreamLocalProxy.proxyUrl(u, "$FLIX/", FLIX, subtitle = true), lang))
+            val type = flixSubtitleType(asString(jsGet(m, "format")) ?: asString(jsGet(m, "type")), u)
+            subs.add(SubData(StreamLocalProxy.proxyUrl(u, "$FLIX/", FLIX, subtitle = true), lang, type))
         }
+        Logger.log(
+            "Flixcloud: ${subs.size} subtitle(s) " +
+                subs.joinToString { "${it.language} -> ${it.type}" }
+        )
         EmbedResult(
             urls = listOf(proxied),
             subtitles = subs,
             headers = mapOf("Referer" to "$FLIX/", "Origin" to FLIX, "User-Agent" to UA)
         )
+    }
+
+    /**
+     * Resolve the subtitle format string ("ass"/"srt"/"vtt") that the native subtitle pipeline maps to a
+     * SubtitleType. flixcloud declares it in `format`; fall back to the upstream URL extension otherwise.
+     * Never inferred from the proxied URL — StreamLocalProxy serves every subtitle as ".../stream",
+     * which drops the extension and used to make every track look like WebVTT.
+     */
+    private fun flixSubtitleType(declared: String?, url: String): String {
+        when (declared?.lowercase()?.substringBefore(';')?.trim()) {
+            "ass", "ssa" -> return "ass"
+            "srt" -> return "srt"
+            "vtt", "webvtt" -> return "vtt"
+        }
+        val path = runCatching { URI(url).path ?: "" }
+            .getOrDefault(url.substringBefore('?'))
+            .lowercase()
+        return when {
+            path.endsWith(".ass") || path.endsWith(".ssa") -> "ass"
+            path.endsWith(".srt") -> "srt"
+            else -> "vtt"
+        }
     }
 
     /** Derive the 32-byte playlist XOR key from the embed wasm (`_c()` copies 2000..2064). */

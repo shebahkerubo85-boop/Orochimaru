@@ -2181,6 +2181,10 @@ class ExoplayerView :
                     .setLanguage(subtitleLanguageCode)
                     .setLabel(subtitle.language)
                     .build()
+            Logger.log(
+                "ExoplayerView: ext sub[$index] '${subtitle.language}' type=${subtitle.type} " +
+                    "mime=$subtitleMime host=${runCatching { URI(resolvedSubtitleUrl).host }.getOrNull()}"
+            )
         }
 
         // 2. Online Subtitles (Stremio/Wyzie)
