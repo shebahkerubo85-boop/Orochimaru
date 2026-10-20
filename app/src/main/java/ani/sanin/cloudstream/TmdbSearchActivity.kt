@@ -117,13 +117,14 @@ class TmdbSearchActivity : AppCompatActivity() {
                     delay(300)
                     val request = ++suggestionRequest
                     val result = withContext(Dispatchers.IO) {
-                        val tmdb = runCatching { Tmdb.search(query) }.getOrDefault(emptyList()).take(10)
+                        val tmdbPage = runCatching { Tmdb.searchPage(query) }.getOrNull()
+                        val tmdb = tmdbPage?.results.orEmpty().take(10)
                         val aniList = if (tmdb.isNotEmpty()) runCatching {
                             Anilist.query.searchAniManga(
                                 type = "ANIME", perPage = 10, search = query, isAdult = false
                             )?.results.orEmpty()
                         }.getOrDefault(emptyList()) else emptyList()
-                        tmdb.map { media ->
+                        val suggestions = tmdb.map { media ->
                             val normalized = media.displayTitle.trim().lowercase()
                             val match = aniList.firstOrNull { candidate ->
                                 listOf(candidate.name, candidate.nameRomaji, candidate.userPreferredName)
@@ -137,10 +138,13 @@ class TmdbSearchActivity : AppCompatActivity() {
                             }
                             SuggestionItem(media, match)
                         }
+                        (tmdbPage?.totalResults ?: suggestions.size) to suggestions
                     }
+                    val totalResults = result.first
+                    val suggestions = result.second
                     if (request != suggestionRequest || binding.tmdbSearchInput.text.toString().trim() != query) return@launch
                     activeSuggestionQuery = query
-                    suggestionAdapter.submit(query, result)
+                    suggestionAdapter.submit(query, suggestions, totalResults)
                     binding.tmdbSearchSuggestions.isVisible = result.isNotEmpty()
                     binding.tmdbSearchHistory.isVisible = false
                     binding.tmdbSearchHistoryLabel.isVisible = false
@@ -406,9 +410,11 @@ class TmdbSearchActivity : AppCompatActivity() {
     ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         private var query: String = ""
         private var items: List<SuggestionItem> = emptyList()
-        fun submit(search: String, results: List<SuggestionItem>) {
+        private var totalResults: Int = 0
+        fun submit(search: String, results: List<SuggestionItem>, total: Int) {
             query = search
             items = results
+            totalResults = total
             notifyDataSetChanged()
         }
         override fun getItemViewType(position: Int) = if (position == 0) 0 else 1
@@ -444,7 +450,7 @@ class TmdbSearchActivity : AppCompatActivity() {
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
             if (holder is HeaderVH) {
                 val label = holder.itemView.findViewWithTag<TextView>("label")
-                label.text = "See all (${items.size})"
+                label.text = "See all (${totalResults.coerceAtLeast(items.size)})"
                 label.setTextColor(com.google.android.material.color.MaterialColors.getColor(
                     label, com.google.android.material.R.attr.colorPrimary
                 ))
