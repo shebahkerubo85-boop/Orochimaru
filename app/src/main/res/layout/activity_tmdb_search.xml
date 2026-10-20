@@ -19,7 +19,10 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_margin="16dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="12dp"
+            android:layout_marginBottom="8dp"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
@@ -103,58 +106,6 @@
                 tools:ignore="ContentDescription" />
         </LinearLayout>
 
-<!-- Clear history, centred -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:gravity="center_horizontal"
-            android:orientation="horizontal">
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:gravity="center_horizontal"
-                android:orientation="vertical">
-
-                <ImageButton
-                    android:id="@+id/tmdbSearchClearHistory"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
-                    android:background="@null"
-                    android:contentDescription="@string/clear_history"
-                    android:focusable="true"
-                    android:padding="11dp"
-                    app:srcCompat="@drawable/ic_round_history_24"
-                    app:tint="?attr/colorOnSurface" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:alpha="0.65"
-                    android:fontFamily="@font/poppins_semi_bold"
-                    android:text="@string/clear_history"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textSize="10sp" />
-</LinearLayout>
-            </LinearLayout>
-    </LinearLayout>
-
-    <!-- Live title suggestions, with a clear DPAD focus target for every row. -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/tmdbSearchSuggestions"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        android:background="?attr/colorSurface"
-        android:clipToPadding="false"
-        android:elevation="8dp"
-        android:overScrollMode="never"
-        android:visibility="gone"
-        tools:listitem="@layout/item_tmdb_suggestion" />
-
     <!-- Source/plugin chips (TMDB, MovieBox, etc.) -->
     <HorizontalScrollView
         android:id="@+id/tmdbSearchPluginScroll"
@@ -173,6 +124,67 @@
             app:singleLine="true"
             app:singleSelection="false" />
     </HorizontalScrollView>
+
+<!-- Recent-search utility -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="4dp"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="8dp"
+            android:paddingEnd="12dp">
+
+            <ImageButton
+                android:id="@+id/tmdbSearchClearHistory"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/clear_history"
+                android:focusable="true"
+                android:padding="10dp"
+                app:srcCompat="@drawable/ic_round_history_24"
+                app:tint="?attr/colorOnSurface" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:fontFamily="@font/poppins_semi_bold"
+                android:text="@string/clear_history"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="12sp" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:alpha="0.55"
+                android:text="@string/search_history"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+    <!-- Live title suggestions, with a clear DPAD focus target for every row. -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/tmdbSearchSuggestions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:background="?attr/colorSurface"
+        android:clipToPadding="false"
+        android:elevation="8dp"
+        android:overScrollMode="never"
+        android:visibility="gone"
+        tools:listitem="@layout/item_tmdb_suggestion" />
 
     <!-- Search results label + grid/list toggle -->
     <LinearLayout

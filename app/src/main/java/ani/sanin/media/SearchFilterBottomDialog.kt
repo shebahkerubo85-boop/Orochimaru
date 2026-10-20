@@ -45,7 +45,8 @@ class SearchFilterBottomDialog : BottomSheetDialogFragment() {
         FocusEffectUtil.applyFocusListener(
             binding.resetSearchFilter,
             binding.countryFilter,
-            binding.sortByFilter
+            binding.sortByFilter,
+            binding.searchAdultToggle
         )
         return binding.root
     }
@@ -101,6 +102,8 @@ class SearchFilterBottomDialog : BottomSheetDialogFragment() {
 
     private fun resetSearchFilter() {
         activity.aniMangaResult.sort = null
+        activity.aniMangaResult.isAdult = false
+        if (_binding != null) binding.searchAdultToggle.isChecked = false
         binding.sortByFilter.setImageResource(R.drawable.ic_round_filter_alt_24)
         startBounceZoomAnimation(binding.sortByFilter)
         activity.aniMangaResult.countryOfOrigin = null
@@ -142,6 +145,12 @@ class SearchFilterBottomDialog : BottomSheetDialogFragment() {
         exGenres = activity.aniMangaResult.excludedGenres ?: mutableListOf()
         selectedTags = activity.aniMangaResult.tags ?: mutableListOf()
         exTags = activity.aniMangaResult.excludedTags ?: mutableListOf()
+        binding.searchAdultToggle.visibility = if (Anilist.adult) View.VISIBLE else View.GONE
+        binding.searchAdultToggle.isChecked = activity.aniMangaResult.isAdult
+        binding.searchAdultToggle.setOnCheckedChangeListener { _, checked ->
+            activity.aniMangaResult.isAdult = checked
+            activity.search()
+        }
         setSortByFilterImage()
 
         binding.resetSearchFilter.setOnClickListener {
