@@ -151,17 +151,6 @@ class TmdbSearchActivity : AppCompatActivity() {
             override fun afterTextChanged(s: Editable?) = Unit
         })
 
-        binding.tmdbSearchInput.setOnKeyListener { _, keyCode, event ->
-            if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN &&
-                event.action == KeyEvent.ACTION_DOWN && binding.tmdbSearchSuggestions.isVisible
-            ) {
-                binding.tmdbSearchSuggestions.post {
-                    binding.tmdbSearchSuggestions.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
-                }
-                true
-            } else false
-        }
-
         binding.tmdbSearchInput.setOnEditorActionListener { _, actionId, event ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH ||
                 (event != null && event.keyCode == KeyEvent.KEYCODE_ENTER)
