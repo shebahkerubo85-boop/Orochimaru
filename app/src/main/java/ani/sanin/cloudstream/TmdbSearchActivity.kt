@@ -435,7 +435,7 @@ class TmdbSearchActivity : AppCompatActivity() {
                     })
                     addView(View(context).apply {
                         setBackgroundColor(com.google.android.material.color.MaterialColors.getColor(
-                            this, com.google.android.material.R.attr.colorOutlineVariant
+                            this, com.google.android.material.R.attr.colorOutline
                         ))
                         layoutParams = android.widget.LinearLayout.LayoutParams(
                             ViewGroup.LayoutParams.MATCH_PARENT, (1 * density).toInt().coerceAtLeast(1)
