@@ -12,6 +12,7 @@ import android.view.View
 import ani.sanin.R
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
+import ani.sanin.ui.GlassPill
 
 object FocusEffectUtil {
 
@@ -156,18 +157,18 @@ object FocusEffectUtil {
     }
 
     fun getPrimaryColor(context: android.content.Context): Int {
-        val ta: TypedArray = context.theme.obtainStyledAttributes(intArrayOf(com.google.android.material.R.attr.colorPrimary))
+        // Views inflated under AppBar/Material overlays can resolve an unset colorPrimary to
+        // Material's default purple. Resolve the app's runtime theme from its owning Activity.
+        val themedContext = GlassPill.themedContext(context)
+        val ta: TypedArray = themedContext.theme.obtainStyledAttributes(
+            intArrayOf(com.google.android.material.R.attr.colorPrimary)
+        )
         val color = ta.getColor(0, Color.WHITE)
         ta.recycle()
         return color
     }
 
-    private fun getPrimaryColor(v: View): Int {
-        val ta: TypedArray = v.context.theme.obtainStyledAttributes(intArrayOf(com.google.android.material.R.attr.colorPrimary))
-        val color = ta.getColor(0, Color.WHITE)
-        ta.recycle()
-        return color
-    }
+    private fun getPrimaryColor(v: View): Int = getPrimaryColor(v.context)
 
     private fun applyBorder(v: View, isCircular: Boolean = false, borderDp: Float = 3f, borderColor: Int? = null, cornerRadii: FloatArray? = null, cornerRadiusPx: Float? = null) {
         val primaryColor = borderColor ?: getPrimaryColor(v)

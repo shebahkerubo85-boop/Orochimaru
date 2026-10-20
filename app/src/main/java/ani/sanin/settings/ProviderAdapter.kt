@@ -4,7 +4,6 @@ import android.animation.Animator
 import android.animation.ObjectAnimator
 import android.content.res.ColorStateList
 import android.graphics.Color
-import android.util.TypedValue
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -19,6 +18,8 @@ import ani.sanin.databinding.ItemProviderBinding
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.util.FocusEffectUtil
+import ani.sanin.ui.GlassPill
+import ani.sanin.getThemeColor
 
 class ProviderAdapter(
     private val items: MutableList<ProviderItem>,
@@ -81,14 +82,14 @@ class ProviderAdapter(
     }
 
     private fun tintArrows(b: ItemProviderBinding, active: Boolean) {
-        val typedValue = TypedValue()
-        b.root.context.theme.resolveAttribute(
-            if (active) android.R.attr.colorPrimary
-            else com.google.android.material.R.attr.colorOnSurface,
-            typedValue, true
-        )
-        b.providerDragUpArrow.setColorFilter(typedValue.data)
-        b.providerDragDownArrow.setColorFilter(typedValue.data)
+        val themedContext = GlassPill.themedContext(b.root.context)
+        val color = if (active) {
+            FocusEffectUtil.getPrimaryColor(themedContext)
+        } else {
+            themedContext.getThemeColor(com.google.android.material.R.attr.colorOnSurface)
+        }
+        b.providerDragUpArrow.setColorFilter(color)
+        b.providerDragDownArrow.setColorFilter(color)
     }
 
     private fun bindReorder(holder: ViewHolder) {
@@ -167,13 +168,12 @@ class ProviderAdapter(
 
     private fun showIdle(b: ItemProviderBinding, pos: Int) {
         b.providerActionIcon.setImageResource(R.drawable.ic_download_24)
-        val typedValue = TypedValue()
-        b.providerActionIcon.context.theme.resolveAttribute(android.R.attr.colorPrimary, typedValue, true)
-        b.providerActionIcon.imageTintList = ColorStateList.valueOf(typedValue.data)
+        val primary = FocusEffectUtil.getPrimaryColor(b.providerActionIcon.context)
+        b.providerActionIcon.imageTintList = ColorStateList.valueOf(primary)
         b.providerActionIcon.visibility = View.VISIBLE
         b.providerProgress.visibility = View.GONE
         b.providerProgress.progress = 0
-        b.providerProgress.progressTintList = ColorStateList.valueOf(typedValue.data)
+        b.providerProgress.progressTintList = ColorStateList.valueOf(primary)
         b.providerActionIcon.setOnClickListener { startDownload(b, pos) }
     }
 
@@ -185,7 +185,9 @@ class ProviderAdapter(
     private fun showEnabled(b: ItemProviderBinding, pos: Int) {
         b.providerActionIcon.setImageResource(R.drawable.ic_round_delete_24)
         b.providerActionIcon.rotation = 0f
-        b.providerActionIcon.imageTintList = ColorStateList.valueOf(Color.parseColor("#FFCF6679"))
+        b.providerActionIcon.imageTintList = ColorStateList.valueOf(
+            FocusEffectUtil.getPrimaryColor(b.providerActionIcon.context)
+        )
         b.providerActionIcon.visibility = View.VISIBLE
         b.providerProgress.visibility = View.GONE
         b.providerProgress.progress = 0
