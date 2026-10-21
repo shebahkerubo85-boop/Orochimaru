@@ -496,6 +496,7 @@ class TmdbWatchFragment : Fragment() {
         }
         sources.forEachIndexed { index, source ->
             val chip = LayoutInflater.from(requireContext()).inflate(R.layout.item_tmdb_chip, h.tmdbWatchSourceChips, false) as Chip
+            chip.id = View.generateViewId()
             chip.text = source.name
             chip.isCheckable = true
             chip.isClickable = true
@@ -534,6 +535,7 @@ class TmdbWatchFragment : Fragment() {
                 h.tmdbWatchSeasonChips.removeAllViews()
                 seasons.forEach { season ->
                     val chip = LayoutInflater.from(requireContext()).inflate(R.layout.item_tmdb_chip, h.tmdbWatchSeasonChips, false) as Chip
+                    chip.id = View.generateViewId()
                     chip.text = "Season ${season.seasonNumber}"
                     chip.isCheckable = true
                     chip.isClickable = true
@@ -717,32 +719,80 @@ class TmdbWatchFragment : Fragment() {
         val leftViews = left.map { h.root.findViewById<View>(it) }
         val rightViews = right.map { h.root.findViewById<View>(it) }
 
-        // Left column vertical order; Left left unset so the host opens the nav pill.
+        val sourceChips = (0 until h.tmdbWatchSourceChips.childCount)
+            .mapNotNull { h.tmdbWatchSourceChips.getChildAt(it) as? Chip }
+        val firstSource = sourceChips.firstOrNull()
+        val lastSource = sourceChips.lastOrNull()
+        val selectedSource = sourceChips.firstOrNull { it.isChecked } ?: firstSource
+        val sourceTarget = selectedSource?.id ?: firstSource?.id ?: R.id.tmdbWatchSourceChips
+        val rightSourceTarget = lastSource?.id ?: sourceTarget
+
+        val seasonChips = (0 until h.tmdbWatchSeasonChips.childCount)
+            .mapNotNull { h.tmdbWatchSeasonChips.getChildAt(it) as? Chip }
+        val firstSeason = seasonChips.firstOrNull()
+
+        h.tmdbWatchSourceScroll.isFocusable = false
+        h.tmdbWatchSourceScroll.isFocusableInTouchMode = false
+        h.tmdbWatchSourceChips.isFocusable = false
+        h.tmdbWatchSourceChips.isFocusableInTouchMode = false
+        h.tmdbWatchSeasonScroll.isFocusable = false
+        h.tmdbWatchSeasonScroll.isFocusableInTouchMode = false
+        h.tmdbWatchSeasonChips.isFocusable = false
+        h.tmdbWatchSeasonChips.isFocusableInTouchMode = false
+
         leftViews.forEachIndexed { i, v ->
             v.nextFocusUpId = left[(i - 1 + left.size) % left.size]
             v.nextFocusDownId = left[(i + 1) % left.size]
             v.nextFocusLeftId = View.NO_ID
-            v.nextFocusRightId = R.id.tmdbWatchSourceChips
+            v.nextFocusRightId = sourceTarget
         }
-        // Centre: chips row Left → left clay top, Right → right clay top.
+        sourceChips.forEachIndexed { idx, chip ->
+            chip.nextFocusLeftId = if (idx == 0) R.id.tmdbWatchRefresh else sourceChips[idx - 1].id
+            chip.nextFocusRightId = if (idx == sourceChips.lastIndex) R.id.tmdbWatchAppearance else sourceChips[idx + 1].id
+            chip.nextFocusUpId = View.NO_ID
+            chip.nextFocusDownId = if (h.tmdbWatchSeasonScroll.isVisible && firstSeason != null) {
+                firstSeason.id
+            } else if (h.tmdbWatchContinueCard.isVisible) {
+                R.id.tmdbWatchContinueCard
+            } else {
+                R.id.tmdbWatchRecycler
+            }
+        }
+        h.tmdbWatchSourceScroll.nextFocusLeftId = R.id.tmdbWatchRefresh
+        h.tmdbWatchSourceScroll.nextFocusRightId = R.id.tmdbWatchAppearance
+        h.tmdbWatchSourceScroll.nextFocusDownId =
+            if (h.tmdbWatchSeasonScroll.isVisible) R.id.tmdbWatchSeasonChips
+            else if (h.tmdbWatchContinueCard.isVisible) R.id.tmdbWatchContinueCard
+            else R.id.tmdbWatchRecycler
         h.tmdbWatchSourceChips.nextFocusLeftId = R.id.tmdbWatchRefresh
         h.tmdbWatchSourceChips.nextFocusRightId = R.id.tmdbWatchAppearance
-        // Centre flows down: source chips → season chips (if shown) → episode cards.
-        h.tmdbWatchSourceChips.nextFocusDownId =
-            if (h.tmdbWatchSeasonScroll.isVisible) R.id.tmdbWatchSeasonChips else R.id.tmdbWatchRecycler
-        h.tmdbWatchSeasonChips.nextFocusUpId = R.id.tmdbWatchSourceChips
-        h.tmdbWatchSeasonChips.nextFocusDownId = R.id.tmdbWatchRecycler
-        h.tmdbWatchSeasonChips.nextFocusLeftId = R.id.tmdbWatchRefresh
-        h.tmdbWatchSeasonChips.nextFocusRightId = R.id.tmdbWatchAppearance
+        h.tmdbWatchSourceChips.nextFocusDownId = h.tmdbWatchSourceScroll.nextFocusDownId
 
-        // Right column: Right is trapped on the column; Left returns to the chips.
+        if (seasonChips.isNotEmpty()) {
+            seasonChips.forEachIndexed { idx, chip ->
+                chip.nextFocusLeftId = if (idx == 0) R.id.tmdbWatchRefresh else seasonChips[idx - 1].id
+                chip.nextFocusRightId = if (idx == seasonChips.lastIndex) R.id.tmdbWatchAppearance else seasonChips[idx + 1].id
+                chip.nextFocusUpId = sourceTarget
+                chip.nextFocusDownId = if (h.tmdbWatchContinueCard.isVisible) R.id.tmdbWatchContinueCard else R.id.tmdbWatchRecycler
+            }
+            h.tmdbWatchSeasonScroll.nextFocusLeftId = R.id.tmdbWatchRefresh
+            h.tmdbWatchSeasonScroll.nextFocusRightId = R.id.tmdbWatchAppearance
+            h.tmdbWatchSeasonScroll.nextFocusUpId = R.id.tmdbWatchSourceChips
+            h.tmdbWatchSeasonScroll.nextFocusDownId =
+                if (h.tmdbWatchContinueCard.isVisible) R.id.tmdbWatchContinueCard else R.id.tmdbWatchRecycler
+            h.tmdbWatchSeasonChips.nextFocusLeftId = R.id.tmdbWatchRefresh
+            h.tmdbWatchSeasonChips.nextFocusRightId = R.id.tmdbWatchAppearance
+            h.tmdbWatchSeasonChips.nextFocusUpId = R.id.tmdbWatchSourceChips
+            h.tmdbWatchSeasonChips.nextFocusDownId =
+                if (h.tmdbWatchContinueCard.isVisible) R.id.tmdbWatchContinueCard else R.id.tmdbWatchRecycler
+        }
+
         rightViews.forEachIndexed { i, v ->
             v.nextFocusUpId = right[(i - 1 + right.size) % right.size]
             v.nextFocusDownId = right[(i + 1) % right.size]
-            v.nextFocusLeftId = R.id.tmdbWatchSourceChips
+            v.nextFocusLeftId = rightSourceTarget
             v.nextFocusRightId = right[i]
         }
-        // Bottom of both columns → continue card when present, else episode list.
         val down = if (h.tmdbWatchContinueCard.isVisible) R.id.tmdbWatchContinueCard else R.id.tmdbWatchRecycler
         h.tmdbWatchNotify.nextFocusDownId = down
         h.tmdbWatchFaq.nextFocusDownId = down

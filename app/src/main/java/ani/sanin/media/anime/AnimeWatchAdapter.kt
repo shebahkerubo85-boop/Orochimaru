@@ -223,6 +223,7 @@ class AnimeWatchAdapter(
         val screenWidth = fragment.screenWidth.px
         displayNames.filter { !it.startsWith("───") }.forEachIndexed { _, name ->
             val chip = LayoutInflater.from(chipGroup.context).inflate(R.layout.item_chip, chipGroup, false) as Chip
+            chip.id = View.generateViewId()
             chip.text = name
             chip.isCheckable = true
             chip.isClickable = true
@@ -356,34 +357,50 @@ class AnimeWatchAdapter(
         val leftViews = left.map { binding.root.findViewById<View>(it) }
         val rightViews = right.map { binding.root.findViewById<View>(it) }
 
-        // Left column vertical order; Left is left unset so the host opens the
-        // nav pill (no focusable to the left), Right bounces to the centre chips.
+        val pillChips = (0 until binding.mediaSourceChipGroupPill.childCount)
+            .mapNotNull { binding.mediaSourceChipGroupPill.getChildAt(it) as? Chip }
+        val firstPill = pillChips.firstOrNull()
+        val lastPill = pillChips.lastOrNull()
+        val selectedPill = pillChips.firstOrNull { it.isChecked } ?: firstPill
+        val pillTarget = selectedPill?.id ?: firstPill?.id ?: R.id.mediaSourcePillScroll
+        val rightPillTarget = lastPill?.id ?: pillTarget
+
+        binding.mediaSourcePillScroll.isFocusable = false
+        binding.mediaSourcePillScroll.isFocusableInTouchMode = false
+        binding.mediaSourceChipGroupPill.isFocusable = false
+        binding.mediaSourceChipGroupPill.isFocusableInTouchMode = false
+
         leftViews.forEachIndexed { i, v ->
             v.nextFocusUpId = left[(i - 1 + left.size) % left.size]
             v.nextFocusDownId = left[(i + 1) % left.size]
             v.nextFocusLeftId = View.NO_ID
-            v.nextFocusRightId = R.id.mediaSourcePillScroll
+            v.nextFocusRightId = pillTarget
         }
-        // From the centre row, Left → top of left clay, Right → top of right clay.
+        pillChips.forEachIndexed { idx, chip ->
+            chip.nextFocusLeftId = if (idx == 0) R.id.mediaSourceRefresh else pillChips[idx - 1].id
+            chip.nextFocusRightId = if (idx == pillChips.lastIndex) R.id.mediaSourceLayout else pillChips[idx + 1].id
+            chip.nextFocusUpId = View.NO_ID
+            chip.nextFocusDownId = if (binding.animeSourceDubbedCont.isVisible) R.id.animeSourceDubbed else R.id.mediaSourceRecycler
+        }
         binding.mediaSourcePillScroll.nextFocusLeftId = R.id.mediaSourceRefresh
         binding.mediaSourcePillScroll.nextFocusRightId = R.id.mediaSourceLayout
-        // Centre column flows down: chips → sub/dub toggle → episode cards.
         binding.mediaSourcePillScroll.nextFocusDownId =
-            if (binding.animeSourceDubbedCont.isVisible) R.id.animeSourceDubbed
-            else R.id.mediaSourceRecycler
-        binding.animeSourceDubbed.nextFocusUpId = R.id.mediaSourcePillScroll
+            if (binding.animeSourceDubbedCont.isVisible) R.id.animeSourceDubbed else R.id.mediaSourceRecycler
+        binding.mediaSourceChipGroupPill.nextFocusLeftId = R.id.mediaSourceRefresh
+        binding.mediaSourceChipGroupPill.nextFocusRightId = R.id.mediaSourceLayout
+        binding.mediaSourceChipGroupPill.nextFocusDownId = binding.mediaSourcePillScroll.nextFocusDownId
+
+        binding.animeSourceDubbed.nextFocusUpId = pillTarget
         binding.animeSourceDubbed.nextFocusDownId = R.id.mediaSourceRecycler
-        binding.animeSourceDubbed.nextFocusLeftId = R.id.mediaSourcePillScroll
+        binding.animeSourceDubbed.nextFocusLeftId = pillTarget
         binding.animeSourceDubbed.nextFocusRightId = R.id.mediaSourceSearch
 
-        // Right column: Right is trapped (stays on the column); Left returns to chips.
         rightViews.forEachIndexed { i, v ->
             v.nextFocusUpId = right[(i - 1 + right.size) % right.size]
             v.nextFocusDownId = right[(i + 1) % right.size]
-            v.nextFocusLeftId = R.id.mediaSourcePillScroll
+            v.nextFocusLeftId = rightPillTarget
             v.nextFocusRightId = right[i]
         }
-        // Bell → continue card (when present) else first episode card.
         syncContinueFocus(binding)
     }
 
