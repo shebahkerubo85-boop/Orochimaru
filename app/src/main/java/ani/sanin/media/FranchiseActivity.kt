@@ -454,7 +454,9 @@ class FranchiseActivity : AppCompatActivity() {
         bindListStatus(row, entry)
         bindInfo(row, entry)
 
-        // The whole poster is the tap target, as on the row it came from.
+        // The whole poster is the tap target, as on the row it came from. Touch only: the
+        // poster is kept out of the pad's path in the layout, so the pad walks the "i"
+        // buttons down the screen instead of stopping on every picture.
         row.franchiseRowCard.setSafeOnClickListener {
             openEntry(entry, MediaDetailsActivity.INFO_TAB)
         }
@@ -539,8 +541,9 @@ class FranchiseActivity : AppCompatActivity() {
      *
      * Carries the calendar's focus treatment, circular border and all, because that is what the
      * user reaches for on a dpad and a square ring round a round button reads as a mistake. It is
-     * also the one control here that is *only* a dpad target in practice: the card and the list
-     * button are both perfectly good touch targets without being focused, and the "i" is a
+     * also the only control in a row the pad can land on: the poster and the list chip are kept
+     * out of the pad's path in the layout, because a focus ring round a picture and a chip that
+     * opens a dialog halfway down the screen are both things nobody asked for. The "i" is a
      * 30dp circle inside a poster, which is exactly the sort of thing a directional pad needs to
      * be told about.
      */

@@ -53,12 +53,21 @@
         android:layout_height="wrap_content"
         android:layout_marginEnd="@dimen/franchise_row_gap">
 
+        <!--
+          The poster: a tap target, and deliberately not a dpad target.
+
+          The "i" drawn over it is the row's only focusable control, and it opens the same
+          screen this card opens, so a focus ring round the whole poster would be a second
+          way into something the reader can already reach — and the ring round a picture is
+          a thing that reads as a broken selection rather than as a control. It stays
+          clickable, so a touch on the artwork still opens the entry.
+        -->
         <androidx.cardview.widget.CardView
             android:id="@+id/franchiseRowCard"
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:clickable="true"
-            android:focusable="true"
+            android:focusable="false"
             android:focusableInTouchMode="false"
             app:cardBackgroundColor="#1A000000"
             app:cardCornerRadius="@dimen/franchise_card_corner"
@@ -196,6 +205,11 @@
           there is no number here to disagree with the poster's. Outlined rather than filled
           because it is a command, not a label, and because the filled version of this control is
           already on the entry's own screen.
+
+          Not focusable. The "i" over the poster is the only thing the pad lands on in a row,
+          and a list chip in the pad's path is a dialog nobody asked for: the pad would walk
+          into the editor on its way down the screen. It stays clickable, so a touch on it
+          still opens the editor, which is what a chip is for.
         -->
         <Button
             android:id="@+id/franchiseRowListStatus"
@@ -204,6 +218,7 @@
             android:layout_height="@dimen/franchise_list_status_height"
             android:layout_marginTop="@dimen/franchise_list_status_top"
             android:ellipsize="end"
+            android:focusable="false"
             android:fontFamily="@font/poppins_bold"
             android:insetTop="0dp"
             android:insetBottom="0dp"
