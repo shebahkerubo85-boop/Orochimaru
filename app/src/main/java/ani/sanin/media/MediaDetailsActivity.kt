@@ -391,6 +391,11 @@ class MediaDetailsActivity : AppCompatActivity() {
                     binding.mediaTabContent?.let {
                         showWatchTab(it, animate)
                         it.requestFocus()
+                        // Prefer the selected source chip over "first focusable".
+                        it.post {
+                            if (::watchFragment.isInitialized && watchFragment.isAdded)
+                                watchFragment.focusSelectedSourceChip()
+                        }
                     }
                 }
                 2 -> {
@@ -552,7 +557,11 @@ class MediaDetailsActivity : AppCompatActivity() {
         } else if (!isPortrait) {
             hideNavPills()
         }
-        binding.mediaTabContent?.post { binding.mediaTabContent?.requestFocus() }
+        binding.mediaTabContent?.post {
+            val chipFocused = ::watchFragment.isInitialized && watchFragment.isAdded &&
+                    watchFragment.focusSelectedSourceChip()
+            if (!chipFocused) binding.mediaTabContent?.requestFocus()
+        }
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {

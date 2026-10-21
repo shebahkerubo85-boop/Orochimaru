@@ -9,6 +9,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.core.view.doOnLayout
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -517,6 +518,7 @@ class TmdbWatchFragment : Fragment() {
                 isResolving = false
                 setSourceStatus(getString(R.string.tmdb_watch_sources))
                 refreshChips(h.tmdbWatchSourceChips)
+                centerOn(h.tmdbWatchSourceScroll, chip)
                 episodeAdapter.submitEpisodes(episodesOrMovie())
                 if (nowChecked) refreshSelected() else autoSearchOnOpen()
             }
@@ -546,6 +548,7 @@ class TmdbWatchFragment : Fragment() {
                     chip.setOnClickListener {
                         selectedSeason = season.seasonNumber
                         refreshChips(h.tmdbWatchSeasonChips)
+                        centerOn(h.tmdbWatchSeasonScroll, chip)
                         loadEpisodesForSeason()
                     }
                     FocusEffectUtil.applyFocusListener(chip)
@@ -677,6 +680,105 @@ class TmdbWatchFragment : Fragment() {
         FocusEffectUtil.applyFocusListener(h.tmdbWatchContinueCard)
 
         h.tmdbWatchEpisodeCount.text = "${episodesOrMovie().size} ${getString(R.string.episodes).trim()}"
+
+        wireHeaderFocusChain(h)
+
+        // Entry focus: once the header is attached and laid out inside the episode
+        // recycler, move focus from the generic first-focusable (back/refresh) onto
+        // the selected source chip and pre-scroll both chip rows to centre it.
+        // Never steal focus that already sits on a chip or outside this fragment
+        // (nav-pill overlay, episode grid, etc.).
+        h.root.doOnLayout {
+            if (!isAdded || !binding.root.isShown) return@doOnLayout
+            val headerFocus = h.root.findFocus()
+            val fragFocus = binding.root.findFocus()
+            val entryFocus = (headerFocus != null && headerFocus !is Chip) ||
+                    fragFocus === binding.tmdbWatchBack ||
+                    fragFocus === binding.tmdbWatchScrollTop ||
+                    (fragFocus == null && activity is TmdbWatchActivity)
+            if (entryFocus) focusSelectedSourceChip()
+        }
+    }
+
+    /**
+     * Focus chain for the TMDB watch header.
+     * Source/season chips (centre) ↔ left clay (refresh…notify) ↔ right clay (appearance…faq).
+     * Right clay is a trap: Right stays inside it; entry lands on the top button.
+     */
+    private fun wireHeaderFocusChain(h: ItemTmdbWatchHeaderBinding) {
+        val left = arrayOf(
+            R.id.tmdbWatchRefresh, R.id.tmdbWatchSettings,
+            R.id.tmdbWatchGlobe, R.id.tmdbWatchNotify
+        )
+        val right = arrayOf(
+            R.id.tmdbWatchAppearance, R.id.tmdbWatchSort,
+            R.id.tmdbWatchDownload, R.id.tmdbWatchFaq
+        )
+        val leftViews = left.map { h.root.findViewById<View>(it) }
+        val rightViews = right.map { h.root.findViewById<View>(it) }
+
+        // Left column vertical order; Left left unset so the host opens the nav pill.
+        leftViews.forEachIndexed { i, v ->
+            v.nextFocusUpId = left[(i - 1 + left.size) % left.size]
+            v.nextFocusDownId = left[(i + 1) % left.size]
+            v.nextFocusLeftId = View.NO_ID
+            v.nextFocusRightId = R.id.tmdbWatchSourceChips
+        }
+        // Centre: chips row Left → left clay top, Right → right clay top.
+        h.tmdbWatchSourceChips.nextFocusLeftId = R.id.tmdbWatchRefresh
+        h.tmdbWatchSourceChips.nextFocusRightId = R.id.tmdbWatchAppearance
+        // Centre flows down: source chips → season chips (if shown) → episode cards.
+        h.tmdbWatchSourceChips.nextFocusDownId =
+            if (h.tmdbWatchSeasonScroll.isVisible) R.id.tmdbWatchSeasonChips else R.id.tmdbWatchRecycler
+        h.tmdbWatchSeasonChips.nextFocusUpId = R.id.tmdbWatchSourceChips
+        h.tmdbWatchSeasonChips.nextFocusDownId = R.id.tmdbWatchRecycler
+        h.tmdbWatchSeasonChips.nextFocusLeftId = R.id.tmdbWatchRefresh
+        h.tmdbWatchSeasonChips.nextFocusRightId = R.id.tmdbWatchAppearance
+
+        // Right column: Right is trapped on the column; Left returns to the chips.
+        rightViews.forEachIndexed { i, v ->
+            v.nextFocusUpId = right[(i - 1 + right.size) % right.size]
+            v.nextFocusDownId = right[(i + 1) % right.size]
+            v.nextFocusLeftId = R.id.tmdbWatchSourceChips
+            v.nextFocusRightId = right[i]
+        }
+        // Bottom of both columns → continue card when present, else episode list.
+        val down = if (h.tmdbWatchContinueCard.isVisible) R.id.tmdbWatchContinueCard else R.id.tmdbWatchRecycler
+        h.tmdbWatchNotify.nextFocusDownId = down
+        h.tmdbWatchFaq.nextFocusDownId = down
+    }
+
+    /** Scroll [scroll] so [chip] sits at its horizontal centre, once laid out. */
+    private fun centerOn(scroll: android.widget.HorizontalScrollView, chip: Chip) {
+        chip.doOnLayout {
+            val w = scroll.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
+            scroll.scrollTo(((chip.left - w / 2) + (chip.width / 2)).coerceAtLeast(0), 0)
+        }
+    }
+
+    private fun centerCheckedChip(
+        scroll: android.widget.HorizontalScrollView,
+        group: com.google.android.material.chip.ChipGroup
+    ) {
+        val checked = (0 until group.childCount)
+            .mapNotNull { group.getChildAt(it) as? Chip }
+            .firstOrNull { it.isChecked } ?: return
+        centerOn(scroll, checked)
+    }
+
+    /**
+     * Watch-screen entry: centre both chip rows and focus the selected source chip.
+     * Returns true when a checked chip exists so hosts skip their generic container focus.
+     */
+    fun focusSelectedSourceChip(): Boolean {
+        if (!::headerBinding.isInitialized || view == null || !binding.root.isShown) return false
+        centerCheckedChip(headerBinding.tmdbWatchSourceScroll, headerBinding.tmdbWatchSourceChips)
+        centerCheckedChip(headerBinding.tmdbWatchSeasonScroll, headerBinding.tmdbWatchSeasonChips)
+        val target = (0 until headerBinding.tmdbWatchSourceChips.childCount)
+            .mapNotNull { headerBinding.tmdbWatchSourceChips.getChildAt(it) as? Chip }
+            .firstOrNull { it.isChecked } ?: return false
+        target.requestFocus()
+        return true
     }
 
     private fun refreshChips(group: com.google.android.material.chip.ChipGroup) {

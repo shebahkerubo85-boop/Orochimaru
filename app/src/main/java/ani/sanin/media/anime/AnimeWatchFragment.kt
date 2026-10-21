@@ -561,6 +561,10 @@ class AnimeWatchFragment : Fragment() {
         reload()
     }
 
+    /** Watch-tab entry: focus + centre the selected source chip (host activity calls this). */
+    fun focusSelectedSourceChip(): Boolean =
+        if (::headerAdapter.isInitialized) headerAdapter.focusSelectedSourceChip() else false
+
     fun onChipClicked(i: Int, s: Int, e: Int) {
         media.selected!!.chip = i
         start = s

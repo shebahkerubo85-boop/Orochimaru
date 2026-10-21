@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.widget.ImageButton
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.InsetDrawable
 import android.graphics.drawable.LayerDrawable
 import android.os.Build
 import android.util.TypedValue
@@ -175,6 +176,27 @@ object FocusEffectUtil {
         val borderWidthPx = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP, borderDp, v.resources.displayMetrics
         ).toInt()
+
+        // Chips draw their pill inside their padding (Material chip expands the
+        // touch target beyond the visible shape). A full-bounds foreground ring
+        // therefore looks oversized. Draw the ring inset to the chip's visual
+        // bounds with a stadium radius so it hugs the pill exactly.
+        if (v is com.google.android.material.chip.Chip && !isCircular) {
+            val chipDrawable = chipFocusRing(v, borderWidthPx, primaryColor)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                savedForegrounds[v] = v.foreground
+                v.foreground = chipDrawable
+            } else {
+                val originalBg = v.background
+                savedBackgrounds[v] = originalBg
+                v.setBackgroundDrawable(LayerDrawable(arrayOf(
+                    originalBg ?: GradientDrawable().apply { setColor(Color.TRANSPARENT) },
+                    chipDrawable
+                )))
+            }
+            return
+        }
+
         var cardRadius = if (v is androidx.cardview.widget.CardView) v.radius else 0f
         if (cardRadius == 0f && v is com.google.android.material.chip.Chip) {
             cardRadius = v.chipCornerRadius
@@ -222,6 +244,32 @@ object FocusEffectUtil {
             )
             v.setBackgroundDrawable(LayerDrawable(layers))
         }
+    }
+
+    /**
+     * Focus ring that follows a [com.google.android.material.chip.Chip]'s pill exactly.
+     *
+     * Material draws the chip's pill inset by half its stroke width; the ring mirrors
+     * that inset around a fully-rounded [GradientDrawable], so it sits on the visible
+     * outline instead of the raw (touch-target) view bounds.
+     */
+    private fun chipFocusRing(
+        chip: com.google.android.material.chip.Chip,
+        borderWidthPx: Int,
+        color: Int,
+    ): Drawable {
+        val shape = GradientDrawable().apply {
+            setShape(GradientDrawable.RECTANGLE)
+            setColor(Color.TRANSPARENT)
+            setStroke(borderWidthPx, color)
+            // Clamps to half the drawn height → a perfect pill regardless of the
+            // inset applied below, matching the Material chip outline.
+            cornerRadius = 100000f
+        }
+        // Material draws the chip pill inset by half its own stroke width; match that
+        // so the focus ring sits exactly on the visible outline.
+        val inset = (chip.chipStrokeWidth / 2f).toInt().coerceAtLeast(0)
+        return InsetDrawable(shape, inset, inset, inset, inset)
     }
 
     private fun removeBorder(v: View) {

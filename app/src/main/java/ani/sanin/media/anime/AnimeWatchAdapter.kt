@@ -10,6 +10,7 @@ import android.widget.LinearLayout
 import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.getString
 import androidx.core.content.ContextCompat.startActivity
+import androidx.core.view.doOnLayout
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
@@ -271,7 +272,14 @@ class AnimeWatchAdapter(
             chipRowFocused = true
             chipGroup.post {
                 if (!chipGroup.hasFocus() && chipGroup.childCount > 0) {
-                    chipGroup.getChildAt(0).requestFocus()
+                    // Land on the selected (checked) chip, not the first one, and
+                    // pre-scroll the row so it sits centred — no D-pad scrolling needed.
+                    val target = (0 until chipGroup.childCount)
+                        .mapNotNull { chipGroup.getChildAt(it) as? Chip }
+                        .firstOrNull { it.isChecked }
+                        ?: chipGroup.getChildAt(0)
+                    target.requestFocus()
+                    centerOn(binding.mediaSourcePillScroll, target)
                 }
             }
         }
@@ -297,18 +305,13 @@ class AnimeWatchAdapter(
         FocusEffectUtil.applyFocusListener(binding.mediaSourceDownload, binding.mediaSourceDownload, true)
         FocusEffectUtil.applyFocusListener(binding.mediaSourceFaq, binding.mediaSourceFaq, true)
         FocusEffectUtil.applyFocusListener(binding.animeSourceDubbed, binding.animeSourceDubbed, true)
-        binding.animeSourceDubbed.nextFocusUpId = R.id.mediaSourceSettings
-        binding.animeSourceDubbed.nextFocusRightId = R.id.mediaSourceSearch
-        binding.mediaSourceSettings.nextFocusDownId = R.id.animeSourceDubbed
         FocusEffectUtil.applyFocusListener(binding.mediaSourceSubscribe, binding.mediaSourceSubscribe, true)
         FocusEffectUtil.applyFocusListener(binding.sourceContinue)
-        binding.mediaSourceSubscribe.nextFocusDownId = R.id.ScrollTop
-        binding.mediaSourceLayout.nextFocusDownId = R.id.ScrollTop
-        binding.mediaSourceSort.nextFocusDownId = R.id.ScrollTop
-        binding.mediaSourceDownload.nextFocusDownId = R.id.ScrollTop
-        binding.mediaSourceFaq.nextFocusDownId = R.id.ScrollTop
-        binding.animeSourceDubbed.nextFocusDownId = R.id.ScrollTop
-        binding.faqbutton.nextFocusDownId = R.id.ScrollTop
+
+        // ── Focus chain (landscape rail layout) ─────────────────────────────
+        // Chips (centre) → Left clay (top=refresh … bell) → Down → Chips/continue.
+        // Right clay is a focus trap: entering lands on mediaSourceLayout, Right is held.
+        wireFocusChain(binding)
 
         // Icons
 
@@ -334,6 +337,66 @@ class AnimeWatchAdapter(
 
         // Episode Handling
         handleEpisodes()
+    }
+
+    /**
+     * Focus chain for the landscape rail header.
+     * Chips (centre) ↔ left clay (refresh…bell) ↔ right clay (layout…faq).
+     * Right clay is a trap: Right stays inside it; entry lands on the top button.
+     */
+    private fun wireFocusChain(binding: ItemMediaSourceBinding) {
+        val left = arrayOf(
+            R.id.mediaSourceRefresh, R.id.mediaSourceSettings,
+            R.id.mediaSourceWebview, R.id.mediaSourceSubscribe
+        )
+        val right = arrayOf(
+            R.id.mediaSourceLayout, R.id.mediaSourceSort,
+            R.id.mediaSourceDownload, R.id.mediaSourceFaq
+        )
+        val leftViews = left.map { binding.root.findViewById<View>(it) }
+        val rightViews = right.map { binding.root.findViewById<View>(it) }
+
+        // Left column vertical order; Left is left unset so the host opens the
+        // nav pill (no focusable to the left), Right bounces to the centre chips.
+        leftViews.forEachIndexed { i, v ->
+            v.nextFocusUpId = left[(i - 1 + left.size) % left.size]
+            v.nextFocusDownId = left[(i + 1) % left.size]
+            v.nextFocusLeftId = View.NO_ID
+            v.nextFocusRightId = R.id.mediaSourcePillScroll
+        }
+        // From the centre row, Left → top of left clay, Right → top of right clay.
+        binding.mediaSourcePillScroll.nextFocusLeftId = R.id.mediaSourceRefresh
+        binding.mediaSourcePillScroll.nextFocusRightId = R.id.mediaSourceLayout
+        // Centre column flows down: chips → sub/dub toggle → episode cards.
+        binding.mediaSourcePillScroll.nextFocusDownId =
+            if (binding.animeSourceDubbedCont.isVisible) R.id.animeSourceDubbed
+            else R.id.mediaSourceRecycler
+        binding.animeSourceDubbed.nextFocusUpId = R.id.mediaSourcePillScroll
+        binding.animeSourceDubbed.nextFocusDownId = R.id.mediaSourceRecycler
+        binding.animeSourceDubbed.nextFocusLeftId = R.id.mediaSourcePillScroll
+        binding.animeSourceDubbed.nextFocusRightId = R.id.mediaSourceSearch
+
+        // Right column: Right is trapped (stays on the column); Left returns to chips.
+        rightViews.forEachIndexed { i, v ->
+            v.nextFocusUpId = right[(i - 1 + right.size) % right.size]
+            v.nextFocusDownId = right[(i + 1) % right.size]
+            v.nextFocusLeftId = R.id.mediaSourcePillScroll
+            v.nextFocusRightId = right[i]
+        }
+        // Bell → continue card (when present) else first episode card.
+        syncContinueFocus(binding)
+    }
+
+    /**
+     * Point the bell (bottom of left clay) and the right-column bottom at the
+     * continue card when it is visible, otherwise at the episode list itself
+     * (which auto-focuses its first card).
+     */
+    private fun syncContinueFocus(binding: ItemMediaSourceBinding) {
+        val down = if (binding.sourceContinue.isVisible) R.id.sourceContinue else R.id.mediaSourceRecycler
+        binding.mediaSourceSubscribe.nextFocusDownId = down
+        val faq = binding.root.findViewById<View>(R.id.mediaSourceFaq)
+        if (faq != null) faq.nextFocusDownId = down
     }
 
     fun subscribeButton(enabled: Boolean) {
@@ -393,16 +456,37 @@ class AnimeWatchAdapter(
                     select = chip
                 }
             }
-            if (select != null)
-                binding.mediaWatchChipScroll.apply {
-                    post {
-                        scrollTo(
-                            (select.left - screenWidth / 2) + (select.width / 2),
-                            0
-                        )
-                    }
-                }
+            // Pre-scroll the range row to the selected chip. Chip `left` values are
+            // only valid after layout, so defer via doOnLayout instead of post{}.
+            val sel = select
+            if (sel != null) centerOn(binding.mediaWatchChipScroll, sel)
         }
+    }
+
+    /** Scroll [scroller] so [target] lands at its horizontal centre, once laid out. */
+    private fun centerOn(scroller: android.widget.HorizontalScrollView, target: View) {
+        val screenWidth = fragment.screenWidth.px
+        target.doOnLayout {
+            scroller.scrollTo(
+                ((target.left - screenWidth / 2) + (target.width / 2)).coerceAtLeast(0),
+                0
+            )
+        }
+    }
+
+    /**
+     * Focus + centre the checked source chip on watch-tab entry.
+     * Returns false when the row/data isn't available (host keeps its generic focus).
+     */
+    fun focusSelectedSourceChip(): Boolean {
+        val binding = _binding ?: return false
+        if (!binding.root.isShown || !binding.mediaSourcePillScroll.isShown) return false
+        val target = (0 until binding.mediaSourceChipGroupPill.childCount)
+            .mapNotNull { binding.mediaSourceChipGroupPill.getChildAt(it) as? Chip }
+            .firstOrNull { it.isChecked } ?: return false
+        target.requestFocus()
+        centerOn(binding.mediaSourcePillScroll, target)
+        return true
     }
 
     fun clearChips() {
@@ -447,6 +531,7 @@ class AnimeWatchAdapter(
                 var continueEp = matchingKey ?: ""
                 if (episodes.contains(continueEp)) {
                     binding.sourceContinue.visibility = View.VISIBLE
+                    _binding?.let { syncContinueFocus(it) }
                     handleProgress(
                         binding.itemMediaProgressCont,
                         binding.itemMediaProgress,
@@ -551,6 +636,7 @@ class AnimeWatchAdapter(
                 }
             } else {
                 binding.sourceContinue.visibility = View.GONE
+                _binding?.let { syncContinueFocus(it) }
                 binding.sourceNotFound.visibility = View.GONE
                 binding.faqbutton.visibility = View.GONE
                 clearChips()

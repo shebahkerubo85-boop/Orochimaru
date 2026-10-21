@@ -300,7 +300,12 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
             TAB_INFO, TAB_WATCH -> shell.tmdbDetailFragmentContainer
             else -> shell.tmdbCommentsPlaceholder
         }
-        focusTarget.requestFocus()
+        val watch = if (selectedPill == TAB_WATCH) {
+            supportFragmentManager.findFragmentByTag(TAG_WATCH) as? TmdbWatchFragment
+        } else null
+        if (watch?.isAdded != true || !watch.focusSelectedSourceChip()) {
+            focusTarget.requestFocus()
+        }
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
@@ -1024,7 +1029,14 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
                 binding.root.visibility = View.GONE
                 shell.tmdbCommentsPlaceholder.visibility = View.GONE
                 showWatch()
-                shell.tmdbDetailFragmentContainer.requestFocus()
+                // Land on the selected source chip once the watch header is laid
+                // out; fall back to the raw container if it isn't ready yet.
+                shell.tmdbDetailFragmentContainer.post {
+                    val watch = supportFragmentManager.findFragmentByTag(TAG_WATCH) as? TmdbWatchFragment
+                    if (watch?.isAdded != true || !watch.focusSelectedSourceChip()) {
+                        shell.tmdbDetailFragmentContainer.requestFocus()
+                    }
+                }
             }
             2 -> {
                 binding.root.visibility = View.GONE

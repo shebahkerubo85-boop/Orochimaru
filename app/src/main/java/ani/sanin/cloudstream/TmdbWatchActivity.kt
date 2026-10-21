@@ -55,5 +55,12 @@ class TmdbWatchActivity : AppCompatActivity(), TmdbWatchFragment.Host {
                 )
                 .commit()
         }
+
+        container.post {
+            val watch = supportFragmentManager.findFragmentByTag(TAG_WATCH) as? TmdbWatchFragment
+            if (watch?.isAdded != true || !watch.focusSelectedSourceChip()) {
+                container.requestFocus()
+            }
+        }
     }
 }
