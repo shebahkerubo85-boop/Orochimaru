@@ -274,4 +274,28 @@
 
     </com.google.android.material.textfield.TextInputLayout>
 
+    <!--
+      Why the row is empty, when it is.
+
+      An empty row under a search bar is ambiguous: the reader cannot tell a search that
+      matched nothing from a row that has not loaded yet. This line says which it is, and it
+      sits under the bar rather than over the cards so the row itself stays readable.
+    -->
+    <TextView
+        android:id="@+id/tmdbFranchiseMessage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
+        android:alpha="0.7"
+        android:fontFamily="@font/poppins"
+        android:gravity="center_horizontal"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="13sp"
+        android:visibility="gone"
+        tools:text="No franchise matches that"
+        tools:visibility="visible" />
+
 </LinearLayout>

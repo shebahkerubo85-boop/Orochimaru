@@ -11,6 +11,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.animation.OvershootInterpolator
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
 import androidx.core.view.updatePaddingRelative
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -25,6 +26,7 @@ import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.anilist.AnilistAnimeViewModel
 import ani.sanin.connections.anilist.getUserId
 import ani.sanin.databinding.FragmentAnimeBinding
+import ani.sanin.databinding.ItemAnimePageBinding
 import ani.sanin.connections.anilist.AniMangaSearchResults
 import ani.sanin.connections.kitsu.Kitsu
 import androidx.core.app.ActivityOptionsCompat
@@ -78,6 +80,23 @@ class AnimeFragment : Fragment() {
     private var animeFranchiseSearch: InlineSearchBar? = null
 
     /**
+     * True while a batch of seeds is being resolved into cards.
+     *
+     * The row is fed by the AniList titles, so it starts out empty and fills as its seeds
+     * resolve. This says whether that work is still going on, which is what tells an empty
+     * row that is about to fill apart from an empty row that has nothing coming.
+     */
+    private var animeFranchiseResolving = false
+
+    /**
+     * The page item's binding, once it has been inflated.
+     *
+     * Null before that, and the row's state can be updated before it: the AniList page can
+     * land before the page item is bound, and the row's own state does not wait for it.
+     */
+    private var animePageBinding: ItemAnimePageBinding? = null
+
+    /**
      * Counts ranking requests, so only the newest one may write to the row.
      *
      * Without it, picking Trending and then Most Popular quickly can let the trending reply
@@ -115,6 +134,7 @@ class AnimeFragment : Fragment() {
         )
         if (snapshot.isEmpty()) {
             adaptor.submit(emptyList())
+            updateAnimeFranchiseState()
             Logger.log("Franchise(anime) publish: no results at all, submitted empty row")
             return
         }
@@ -162,6 +182,8 @@ class AnimeFragment : Fragment() {
             return
         }
         Logger.log("Franchise(anime) publish: resolving ${claimed.size} seeds ${claimed.map { it.id }}")
+        animeFranchiseResolving = true
+        updateAnimeFranchiseState()
 
         // A placeholder for every seed that has relations, published before a single request
         // goes out. This is pure work on data the AniList page already carries, so the row has
@@ -176,6 +198,7 @@ class AnimeFragment : Fragment() {
         if (stubNames.isNotEmpty()) {
             // Keyed by name, not by seed id: upsert replaces by the name a card went out under.
             adaptor.upsert(stubByName)
+            updateAnimeFranchiseState()
             Logger.log("Franchise(anime) published ${stubNames.size} placeholder cards immediately")
         }
 
@@ -215,6 +238,8 @@ class AnimeFragment : Fragment() {
                 )
             }
             adaptor.markDone(claimed.map { it.id })
+            animeFranchiseResolving = false
+            updateAnimeFranchiseState()
             Logger.log("Franchise(anime) built row of ${adaptor.currentCards().size} cards from ${claimed.size} seeds")
             // Re-sort once everything has landed so the row ends in the user's chosen order.
             // The incremental upserts above append in resolution order, which is arrival order.
@@ -348,12 +373,63 @@ class AnimeFragment : Fragment() {
             bar = binding.animeFranchiseSearchBar,
             field = binding.animeFranchiseSearchText,
             onQueryChanged = { query -> adaptor.setQuery(query) },
-            onQuerySettled = {
-                if (adaptor.takeSearchMiss()) {
-                    activity?.let { snackString(R.string.franchise_search_empty, it) }
-                }
-            },
+            onQuerySettled = { updateAnimeFranchiseState() },
+            onOpened = { scrollAnimeFranchiseHeaderIntoView() },
         )
+        updateAnimeFranchiseState()
+    }
+
+    /**
+     * Says what the row is doing: still loading, empty, or filtered down to nothing.
+     *
+     * An empty row under its own title is ambiguous, and a reader who scrolled down before
+     * the cards landed had no way to tell "still loading" from "there is nothing here" — so
+     * the section looked like it did not exist and had to be found again later. The spinner
+     * says the first, the line under the search bar says the second and the third.
+     */
+    private fun updateAnimeFranchiseState() {
+        val adaptor = animeFranchiseAdapter ?: return
+        val binding = animePageBinding ?: return
+        val cards = adaptor.currentCards()
+        val loading = cards.isEmpty() && animeFranchiseStillLoading()
+        binding.animeFranchiseProgress.isVisible = loading
+        val message = when {
+            adaptor.isSearchMissed() -> R.string.franchise_search_empty
+            cards.isEmpty() && !loading -> R.string.franchise_none
+            else -> null
+        }
+        binding.animeFranchiseMessage.isVisible = message != null
+        if (message != null) binding.animeFranchiseMessage.setText(message)
+    }
+
+    /**
+     * Whether more cards can still land in the row.
+     *
+     * True while a batch of seeds is resolving, while no AniList page has arrived at all, and
+     * while the AniList list can still grow. The row is fed by that list, so an empty row is
+     * not the same thing as a finished one.
+     */
+    private fun animeFranchiseStillLoading(): Boolean =
+        animeFranchiseResolving ||
+            model.aniMangaSearchResults.results.isEmpty() ||
+            model.aniMangaSearchResults.hasNextPage
+
+    /**
+     * Puts the franchise header at the top of the screen.
+     *
+     * Opening the search bar pushes the row down by the bar's own height, so the results the
+     * reader is looking for get pushed out of view by the very control that is meant to find
+     * them. Scrolling the header back up puts the bar and the results together in view.
+     */
+    private fun scrollAnimeFranchiseHeaderIntoView() {
+        val rv = binding.animePageRecyclerView
+        val header = animePageBinding?.animeFranchiseHeader ?: return
+        val rvTop = IntArray(2)
+        val headerTop = IntArray(2)
+        rv.getLocationInWindow(rvTop)
+        header.getLocationInWindow(headerTop)
+        val delta = headerTop[1] - rvTop[1]
+        if (delta > 0) rv.smoothScrollBy(0, -delta)
     }
 
     /**
@@ -416,6 +492,7 @@ class AnimeFragment : Fragment() {
         // pill and direction button would be left with no listeners at all.
         animeFranchiseSortWired = false
         animeFranchiseAdapter = null
+        animePageBinding = null
         animeFranchiseSearch?.release()
         animeFranchiseSearch = null
         animeFranchiseSortGeneration++
@@ -522,6 +599,9 @@ class AnimeFragment : Fragment() {
                 model.aniMangaSearchResults.onList = it.onList
                 model.aniMangaSearchResults.hasNextPage = it.hasNextPage
                 model.aniMangaSearchResults.page = it.page
+                // After the paging state is set, not before: whether the row is still waiting
+                // on the list depends on it, so the row's own state is read once it is true.
+                updateAnimeFranchiseState()
                 if (it.hasNextPage)
                     progressAdaptor.bar?.visibility = View.VISIBLE
                 else {
@@ -583,6 +663,7 @@ class AnimeFragment : Fragment() {
             if (i) {
                 // Only now does AnimePageAdapter hold an inflated binding for the page item, so
                 // this is the first point the header's controls exist to be wired.
+                animePageBinding = animePageAdapter.binding
                 setupAnimeFranchiseSort()
                 model.getUpdated().observe(viewLifecycleOwner) {
                     if (it != null) {

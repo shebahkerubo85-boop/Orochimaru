@@ -160,6 +160,25 @@ class TmdbExploreFragment : Fragment() {
     private var franchiseLoading = false
 
     /**
+     * Whether the row is waiting on a source that can still fill it.
+     *
+     * Separate from [franchiseLoading], which is about requests: this is about what the
+     * reader sees. The row is only "loading" while it is empty and a source is on its way,
+     * so a batch that pages more cards onto a row that already has some does not turn the
+     * spinner back on beside cards that are already there.
+     */
+    private var franchiseRowLoading = false
+
+    /**
+     * Whether the row has ever been asked for cards.
+     *
+     * Until it has, "the row is empty" says nothing about the source — the source has not
+     * been asked. The row's own message is held back until it has, so it cannot report an
+     * empty row that is really a row that has not started.
+     */
+    private var franchiseLoadStarted = false
+
+    /**
      * Which source the cards currently in the row came from.
      *
      * The sort dialog's callback fires for the single-entry toggle as well as for a sort pick,
@@ -953,12 +972,50 @@ class TmdbExploreFragment : Fragment() {
             bar = page.tmdbFranchiseSearchBar,
             field = page.tmdbFranchiseSearchText,
             onQueryChanged = { query -> franchiseAdapter.setQuery(query) },
-            onQuerySettled = {
-                if (franchiseAdapter.takeSearchMiss()) {
-                    activity?.let { snackString(R.string.franchise_search_empty, it) }
-                }
-            },
+            onQuerySettled = { updateFranchiseState() },
+            onOpened = { scrollTmdbFranchiseHeaderIntoView() },
         )
+        updateFranchiseState()
+    }
+
+    /**
+     * Says what the row is doing: still loading, empty, or filtered down to nothing.
+     *
+     * An empty row under its own title is ambiguous, and a reader who scrolled down before
+     * the cards landed had no way to tell "still loading" from "there is nothing here" — so
+     * the section looked like it did not exist and had to be found again later. The spinner
+     * says the first, the line under the search bar says the second and the third.
+     */
+    private fun updateFranchiseState() {
+        val page = pageBinding ?: return
+        val cards = allFranchiseCards
+        val loading = cards.isEmpty() && franchiseRowLoading
+        page.tmdbFranchiseProgress.isVisible = loading
+        val message = when {
+            franchiseAdapter.isSearchMissed() -> R.string.franchise_search_empty
+            cards.isEmpty() && !loading && franchiseLoadStarted -> R.string.franchise_none
+            else -> null
+        }
+        page.tmdbFranchiseMessage.isVisible = message != null
+        if (message != null) page.tmdbFranchiseMessage.setText(message)
+    }
+
+    /**
+     * Puts the franchise header at the top of the screen.
+     *
+     * Opening the search bar pushes the row down by the bar's own height, so the results the
+     * reader is looking for get pushed out of view by the very control that is meant to find
+     * them. Scrolling the header back up puts the bar and the results together in view.
+     */
+    private fun scrollTmdbFranchiseHeaderIntoView() {
+        val page = pageBinding ?: return
+        val rv = binding.tmdbExploreRecyclerView
+        val rvTop = IntArray(2)
+        val headerTop = IntArray(2)
+        rv.getLocationInWindow(rvTop)
+        page.tmdbFranchiseHeader.getLocationInWindow(headerTop)
+        val delta = headerTop[1] - rvTop[1]
+        if (delta > 0) rv.smoothScrollBy(0, -delta)
     }
 
     /**
@@ -1027,6 +1084,9 @@ class TmdbExploreFragment : Fragment() {
         franchiseAdapter.submit(
             FranchiseSorter.apply(allFranchiseCards, franchisePrefs(), allFranchiseCards)
         )
+        // The first card ends the row's waiting: the spinner only belongs on a row that is
+        // still empty.
+        updateFranchiseState()
         return fresh.size
     }
 
@@ -1113,6 +1173,7 @@ class TmdbExploreFragment : Fragment() {
             franchiseSkip = 0
             franchiseHasMore = true
             allFranchiseCards = emptyList()
+            franchiseLoadStarted = true
         }
         val skip = franchiseSkip
         viewLifecycleOwner.lifecycleScope.launch {
@@ -1227,15 +1288,19 @@ class TmdbExploreFragment : Fragment() {
     }
 
     /**
-     * Shows or hides the row's loading bar.
+     * Records whether the row is waiting on a source, and says so.
      *
      * The row had no loading state at all, so a slow source and a source that returned nothing
      * looked identical from the tab. The bar lives in the row's own header rather than in a
-     * list item, so it costs no layout and no adapter swap. A null guard covers a chip change
-     * landing before the page has bound.
+     * list item, so it costs no layout and no adapter swap.
+     *
+     * The bar only shows while the row is empty: a batch that pages more cards onto a row that
+     * already has some is not a row that is loading, and a spinner turning beside cards that
+     * are already there says otherwise.
      */
     private fun setFranchiseProgress(loading: Boolean) {
-        pageBinding?.tmdbFranchiseProgress?.isVisible = loading
+        franchiseRowLoading = loading
+        updateFranchiseState()
     }
 
     /**

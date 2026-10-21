@@ -541,6 +541,7 @@
     <string name="franchise_search">Search franchises</string>
     <string name="franchise_search_hint">Search franchises</string>
     <string name="franchise_search_empty">No franchise matches that</string>
+    <string name="franchise_none">No franchises here yet</string>
 
     <!-- Franchise screen. -->
     <string name="franchise_screen_title">Franchise</string>

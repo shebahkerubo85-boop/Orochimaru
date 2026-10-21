@@ -37,6 +37,7 @@ class InlineSearchBar(
     private val field: EditText,
     private val onQueryChanged: (String) -> Unit,
     private val onQuerySettled: (String) -> Unit = {},
+    private val onOpened: ((Int) -> Unit)? = null,
 ) {
 
     /** True while the bar is open. */
@@ -102,6 +103,10 @@ class InlineSearchBar(
      * The height is animated rather than set, so the content below slides down instead of
      * jumping. The field only takes focus once the bar has finished growing, because a field
      * that is focused while its container is still at zero height gets no keyboard.
+     *
+     * The owner is told the bar's height once it is open, because the bar pushes whatever is
+     * below it down by that much: a row of results that was in view before the bar opened
+     * would otherwise be pushed out of view by the very control that is meant to find it.
      */
     fun expand() {
         if (isExpanded) return
@@ -121,6 +126,7 @@ class InlineSearchBar(
                     bar.alpha = 1f
                     field.requestFocus()
                     TvKeyboardUtil.showKeyboardDelayed(field)
+                    onOpened?.invoke(barHeightPx())
                 }
             })
         }.start()

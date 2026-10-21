@@ -45,9 +45,6 @@ class FranchiseAdaptor(
     /** The text the row is filtered by. Blank means no filter. */
     private var query: String = ""
 
-    /** Set when a query empties the row, and read once by whoever wants to say so. */
-    private var searchMissed = false
-
     private val lock = Any()
 
     /**
@@ -92,7 +89,6 @@ class FranchiseAdaptor(
         franchises.clear()
         allFranchises.clear()
         query = ""
-        searchMissed = false
         notifyDataSetChanged()
     }
 
@@ -128,10 +124,6 @@ class FranchiseAdaptor(
     private fun publish() {
         val previous = synchronized(lock) { franchises.toList() }
         val next = synchronized(lock) { allFranchises.filter { matchesQuery(it) } }
-        // The flag latches while the query matches nothing, so a caller can say so once
-        // rather than working it out from every keystroke.
-        if (query.isNotBlank() && next.isEmpty()) searchMissed = true
-        else if (next.isNotEmpty()) searchMissed = false
         if (previous == next) return
         val diff = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
             override fun getOldListSize() = previous.size
@@ -151,20 +143,50 @@ class FranchiseAdaptor(
         diff.dispatchUpdatesTo(this)
     }
 
-    /** Whether a card's name matches the row's query. */
-    private fun matchesQuery(card: Franchise) =
-        query.isBlank() || card.name.contains(query, ignoreCase = true)
+    /**
+     * Whether a card's name matches the row's query.
+     *
+     * By word, not by exact string. A reader who has typed "super" is asking for "Superman"
+     * and "Supernatural" — the names they can see — and a search that only found whole words
+     * would tell them nothing matches while the name they are looking at is right there.
+     *
+     * So a word of the name starting with the query is a match, and so is the query appearing
+     * anywhere in the name, which keeps a fragment typed into the middle of a word working.
+     * Separators are folded to spaces first, so "superman the" finds "Superman: The Animated
+     * Series" as well as "Superman: The Brave and the Bold".
+     */
+    private fun matchesQuery(card: Franchise): Boolean {
+        if (query.isBlank()) return true
+        val name = normalise(card.name)
+        val wanted = normalise(query)
+        if (wanted.isEmpty()) return true
+        if (name.contains(wanted)) return true
+        return name.split(' ').any { it.startsWith(wanted) }
+    }
 
     /**
-     * Whether the last query emptied the row, read once and then forgotten.
+     * Folds a name or a query into the shape the search compares them in.
      *
-     * A caller that wants to say "nothing matches that" takes it here rather than working it
-     * out from the query, so the row is the only thing that knows what it is showing.
+     * Lower case, and every run of punctuation or space turned into a single space, so that
+     * two names that differ only in how they are punctuated are the same name to a reader.
      */
-    fun takeSearchMiss(): Boolean {
-        val missed = searchMissed
-        searchMissed = false
-        return missed
+    private fun normalise(value: String) = value.lowercase()
+        .replace(NON_WORD, " ")
+        .trim()
+        .replace(WHITESPACE, " ")
+
+    /**
+     * Whether the query emptied a row that had cards to show.
+     *
+     * Only a *miss*, and only when the row actually holds something: a row with no cards at
+     * all is empty for its own reasons, and telling the reader that their search matched
+     * nothing would blame the search for a row that had nothing in it to begin with.
+     *
+     * Asked rather than latched, because the row is the only thing that knows what it is
+     * showing, and a latch would have to be kept in step with every change to the row.
+     */
+    fun isSearchMissed(): Boolean = synchronized(lock) {
+        query.isNotBlank() && allFranchises.isNotEmpty() && franchises.isEmpty()
     }
 
     /**
@@ -432,6 +454,17 @@ fun RecyclerView.onNearEnd(threshold: Int = 2, onNearEnd: () -> Unit) {
             if (dy <= 0) return
             // Read inside the callback rather than captured: the layout manager is set by the
             // caller, which for one of the two pages happens after this is wired up.
+        /**
+         * Anything that is not a letter or a digit ends a word.
+         *
+         * Used to fold a name into its words, so a search can be matched against the start of
+         * one of them rather than against the whole string.
+         */
+        private val NON_WORD = Regex("[^\\p{L}\\p{N}]+")
+
+        /** A run of spaces, left behind by the folding above. */
+        private val WHITESPACE = Regex(" +")
+
             val manager = recyclerView.layoutManager as? LinearLayoutManager ?: return
             val last = manager.findLastVisibleItemPosition()
             val end = manager.itemCount - 1

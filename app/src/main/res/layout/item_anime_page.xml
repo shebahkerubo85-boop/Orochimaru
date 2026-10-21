@@ -527,6 +527,27 @@
 
         </LinearLayout>
 
+        <!--
+          Shown while the row is still loading.
+
+          The row is fed by the AniList titles, so it starts empty and fills as the seeds
+          resolve. Without a spinner the section was an empty gap under its own title, and a
+          reader who scrolled down before the cards landed had no way to tell "still loading"
+          from "there is nothing here" — so the section looked like it did not exist.
+
+          It is a small spinner in the header rather than one over the cards: the reader can
+          keep scrolling past it while it turns.
+        -->
+        <ProgressBar
+            android:id="@+id/animeFranchiseProgress"
+            style="?android:attr/progressBarStyleSmall"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginEnd="8dp"
+            android:indeterminate="true"
+            android:visibility="gone"
+            tools:ignore="UnusedAttribute" />
+
         <!-- Same sort pill and direction control as the movie row; see the header there. -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/animeFranchiseSortPill"
@@ -600,5 +621,29 @@
             tools:ignore="LabelFor,TextContrastCheck" />
 
     </com.google.android.material.textfield.TextInputLayout>
+
+    <!--
+      Why the row is empty, when it is.
+
+      An empty row under a search bar is ambiguous: the reader cannot tell a search that
+      matched nothing from a row that has not loaded yet. This line says which it is, and it
+      sits under the bar rather than over the cards so the row itself stays readable.
+    -->
+    <TextView
+        android:id="@+id/animeFranchiseMessage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
+        android:alpha="0.7"
+        android:fontFamily="@font/poppins"
+        android:gravity="center_horizontal"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="13sp"
+        android:visibility="gone"
+        tools:text="No franchise matches that"
+        tools:visibility="visible" />
 
 </LinearLayout>
