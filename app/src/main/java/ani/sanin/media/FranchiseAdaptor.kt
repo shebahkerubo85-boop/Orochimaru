@@ -3,6 +3,7 @@ package ani.sanin.media
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.DiffUtil
@@ -19,11 +20,11 @@ import ani.sanin.util.FocusEffectUtil
 /**
  * Adapter for the franchise cards that replace the Popular list on both Explore pages.
  *
- * A card is one [Franchise]. The banner is a fixed 152dp band regardless of how many entries
- * the franchise has, and the poster row sits on it holding as many entries as the measured
- * width suits. Entries beyond that are counted in a "+N" cell rather than clipped off the
- * edge: the row does not scroll, so a poster running out of view would promise somewhere to
- * go that does not exist.
+ * A card is one [Franchise]. The banner is a band that starts at 152dp and is grown in code
+ * so that the posters sitting on it keep a poster's shape, and the poster row sits on it
+ * holding as many entries as the measured width suits. Entries beyond that are counted in a
+ * "+N" cell rather than clipped off the edge: the row does not scroll, so a poster running
+ * out of view would promise somewhere to go that does not exist.
  */
 class FranchiseAdaptor(
     private val onBannerClick: (Franchise, View) -> Unit = { _, _ -> },
@@ -299,6 +300,10 @@ class FranchiseAdaptor(
         private fun fillRow(row: ViewGroup, franchise: Franchise) {
             val available = row.width
             if (available <= 0) return
+            // The band's height is measured to work out how much room the poster has, so a
+            // row that has not been laid out yet cannot be filled: the height would be read
+            // as a poster that needs all of the band's space.
+            if (row.height <= 0) return
 
             // The holder may have been recycled for a different franchise between the bind
             // and this posted runnable. Filling now would put one card's posters under
@@ -312,10 +317,43 @@ class FranchiseAdaptor(
             val cells = cellCount(available, row)
             if (cells <= 0) return
 
-            val cellWidth = ((available - gap * (cells - 1)) / cells).toInt()
+            var cellWidth = ((available - gap * (cells - 1)) / cells).toInt()
             if (cellWidth <= 0) return
 
             val inflater = LayoutInflater.from(row.context)
+            val band = binding.franchiseBand
+            // Everything in the band that is not the poster row: the title and the gaps
+            // around it. Measured rather than restated, so this file does not hold a second
+            // copy of the layout's spacing and the two can never drift apart.
+            val titleSpace = (band.height - row.height).coerceAtLeast(0)
+            // The year sits under the poster and takes its height from the text, so the
+            // poster gets what is left of the cell.
+            val yearHeight = measureYearHeight(inflater, row)
+            val posterHeight = (row.height - yearHeight).coerceAtLeast(0)
+
+            // A poster is a portrait. A cell that is not one crops the artwork into a shape
+            // it was never meant to be, and that is what a wide screen used to do to every
+            // poster in the row: the cell's width follows the screen, the height follows the
+            // band, and on a landscape screen the two are nowhere near each other.
+            //
+            // The width is the screen's to decide, so the height is the band's to give: the
+            // band grows until the poster is the shape a poster is.
+            var bandHeight = band.height +
+                (cellWidth * POSTER_HEIGHT_PARTS / POSTER_WIDTH_PARTS - posterHeight)
+
+            val cap = (row.resources.displayMetrics.heightPixels * MAX_BAND_FRACTION).toInt()
+            if (bandHeight > cap) {
+                // A card may not take over the view. Past the cap the poster keeps its
+                // shape and the row gives up the width it can no longer fill, leaving the
+                // key art to show rather than stretching the poster back out of shape.
+                bandHeight = cap
+                val cappedPoster = (cap - titleSpace - yearHeight).coerceAtLeast(0)
+                cellWidth = cappedPoster * POSTER_WIDTH_PARTS / POSTER_HEIGHT_PARTS
+            }
+            band.updateLayoutParams<FrameLayout.LayoutParams> {
+                height = bandHeight
+            }
+
             for (entry in franchise.entries.take(cells)) {
                 val cell: ItemFranchisePosterBinding = ItemFranchisePosterBinding.inflate(
                     inflater,
@@ -343,6 +381,23 @@ class FranchiseAdaptor(
             // so a count is the truth where a sliver would be a broken promise.
             val hidden = franchise.entries.size - cells
             if (hidden > 0) addOverflow(inflater, row, hidden, cellWidth, gap, franchise)
+        }
+
+        /**
+         * The height of the year under a poster, measured on its own.
+         *
+         * The poster takes what the year leaves of the cell, so the poster's height cannot
+         * be known until the year has been measured. Measuring the text on its own is
+         * enough: a year is one short line, so its height does not depend on the width it
+         * is given, and the font scale is already in it.
+         */
+        private fun measureYearHeight(inflater: LayoutInflater, row: ViewGroup): Int {
+            val cell = ItemFranchisePosterBinding.inflate(inflater, row, false)
+            cell.posterYear.measure(
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+            )
+            return cell.posterYear.measuredHeight
         }
 
         /**
@@ -379,14 +434,14 @@ class FranchiseAdaptor(
         }
 
         /**
-         * How many cells the row can hold without distorting a poster.
+         * How many cells the row can hold.
          *
-         * Derived from the measured width rather than fixed, because the poster's height is
-         * already spoken for by the card's band and width is the only thing left to give. A
-         * fixed count that suits a portrait phone produces squat, over-wide posters in
-         * landscape — and the poster cannot simply grow to match, because it is using the
-         * band's whole height already. Dividing by a target cell width instead keeps every
-         * cell near the shape the band's height implies, at any screen size.
+         * Derived from the measured width rather than fixed, because a fixed count cannot be
+         * right at more than one screen width. The divisor is the width a poster of the
+         * band's height implies, so a wider screen asks for more cells rather than for
+         * wider ones — and the count is capped, because past that the posters are too many
+         * to read at a glance, and a franchise with a dozen entries is better served by a
+         * "+9" than by twelve thumbnails.
          */
         private fun cellCount(available: Int, row: View): Int {
             val target = TARGET_CELL_DP.dpToPx(row)
@@ -399,6 +454,17 @@ class FranchiseAdaptor(
         (this * view.resources.displayMetrics.density).toInt()
 
     companion object {
+        /**
+         * Anything that is not a letter or a digit ends a word.
+         *
+         * Used to fold a name into its words, so a search can be matched against the start of
+         * one of them rather than against the whole string.
+         */
+        private val NON_WORD = Regex("[^\\p{L}\\p{N}]+")
+
+        /** A run of spaces, left behind by the folding above. */
+        private val WHITESPACE = Regex(" +")
+
         /**
          * Spacing between poster cells, in dp. Applied as a trailing margin so the last
          * cell's trailing space falls outside the visible run.
@@ -433,6 +499,28 @@ class FranchiseAdaptor(
          * band's own height lives in the layout, not here.
          */
         const val TARGET_CELL_DP = 73
+
+        /**
+         * A poster is two parts wide to three parts tall.
+         *
+         * The cell's width is the screen's to decide, so this is the ratio the band has to
+         * make the height fit. Anything that is not a portrait crops the artwork.
+         */
+        const val POSTER_WIDTH_PARTS = 2
+
+        /** The other half of the poster's ratio, to three parts tall. */
+        const val POSTER_HEIGHT_PARTS = 3
+
+        /**
+         * The tallest a card may be, as a fraction of the screen's height.
+         *
+         * The band's height follows the row's width, so a wide screen asks for a tall card.
+         * Left unchecked that is a card taller than half the view, with the list pushed off
+         * the bottom of it, so the band is held to a share of the screen instead: past
+         * this the posters keep their shape and the row gives up the width it can no longer
+         * fill, and the key art shows through.
+         */
+        const val MAX_BAND_FRACTION = 0.45
     }
 }
 
@@ -454,17 +542,6 @@ fun RecyclerView.onNearEnd(threshold: Int = 2, onNearEnd: () -> Unit) {
             if (dy <= 0) return
             // Read inside the callback rather than captured: the layout manager is set by the
             // caller, which for one of the two pages happens after this is wired up.
-        /**
-         * Anything that is not a letter or a digit ends a word.
-         *
-         * Used to fold a name into its words, so a search can be matched against the start of
-         * one of them rather than against the whole string.
-         */
-        private val NON_WORD = Regex("[^\\p{L}\\p{N}]+")
-
-        /** A run of spaces, left behind by the folding above. */
-        private val WHITESPACE = Regex(" +")
-
             val manager = recyclerView.layoutManager as? LinearLayoutManager ?: return
             val last = manager.findLastVisibleItemPosition()
             val end = manager.itemCount - 1
