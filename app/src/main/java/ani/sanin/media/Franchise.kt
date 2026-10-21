@@ -12,20 +12,27 @@ import ani.sanin.R
 /**
  * What kind of entry this is, for the screen's filter pill.
  *
- * These are the categories a reader actually distinguishes, not the source's raw enum. AniList
- * reports a dozen [ani.sanin.connections.anilist.api.MediaFormat] and
- * [ani.sanin.connections.anilist.api.MediaRelation] values; mapping them down to five keeps the
- * pill from becoming a taxonomy.
+ * Each format the sources actually report gets its own category, so the pill can offer
+ * "TV", "ONA", "OVA", "Special", "Movie" and the reader can filter to exactly the kind
+ * they mean. AniList reports a dozen [ani.sanin.connections.anilist.api.MediaFormat] and
+ * [ani.sanin.connections.anilist.api.MediaRelation] values; the ones that are not an anime
+ * format (MANGA/NOVEL/MUSIC) fold away, and everything else keeps its own chip.
  *
- * [SEQUENCE] is the main line. [SIDE_STORY] covers OVAs, specials and shorts — things that
- * exist alongside the main line rather than continuing it. [SPIN_OFF] is separate because it
- * reads as "different show, same world", which is how people describe a Spider-Man film versus
- * a Naruto OVA.
+ * [SEQUENCE] is a legacy bucket kept for the Trakt/TMDB side, which does not know a format
+ * beyond "movie or show"; it reads as the plain series line. [SPIN_OFF] and [SIDE_STORY]
+ * come from relation type rather than format: a spin-off film is a movie by format but a
+ * spin-off by relation, and the relation is the distinction the pill exists to draw.
  */
 enum class FranchiseType {
+    /** A TV series (AniList `TV`), or a Trakt/TMDB show with no finer format. */
     SEQUENCE,
-    MOVIE,
+
+    TV,
+    TV_SHORT,
+    ONA,
     OVA,
+    SPECIAL,
+    MOVIE,
     SIDE_STORY,
     SPIN_OFF,
     ;
@@ -37,10 +44,32 @@ enum class FranchiseType {
      */
     fun labelRes() = when (this) {
         SEQUENCE -> R.string.franchise_filter_series
-        MOVIE -> R.string.franchise_filter_movie
+        TV -> R.string.franchise_filter_tv
+        TV_SHORT -> R.string.franchise_filter_tv_short
+        ONA -> R.string.franchise_filter_ona
         OVA -> R.string.franchise_filter_ova
+        SPECIAL -> R.string.franchise_filter_special
+        MOVIE -> R.string.franchise_filter_movie
         SIDE_STORY -> R.string.franchise_filter_side_story
         SPIN_OFF -> R.string.franchise_filter_spin_off
+    }
+
+    /**
+     * The breakdown plural for this category, e.g. "3 OVAs".
+     *
+     * Null for [SEQUENCE], which is reported through [R.plurals.franchise_count_series] by
+     * the same label it shows, so the two never drift.
+     */
+    fun countRes() = when (this) {
+        SEQUENCE -> R.plurals.franchise_count_series
+        TV -> R.plurals.franchise_count_tv
+        TV_SHORT -> R.plurals.franchise_count_tv_short
+        ONA -> R.plurals.franchise_count_ona
+        OVA -> R.plurals.franchise_count_ova
+        SPECIAL -> R.plurals.franchise_count_special
+        MOVIE -> R.plurals.franchise_count_movies
+        SIDE_STORY -> R.plurals.franchise_count_side_story
+        SPIN_OFF -> R.plurals.franchise_count_spin_off
     }
 
     companion object {
@@ -51,9 +80,12 @@ enum class FranchiseType {
          * anime franchise and would only mean the source sent something unexpected.
          */
         fun fromFormat(format: String?): FranchiseType? = when (format) {
-            "TV", "TV_SHORT", "ONA" -> SEQUENCE
+            "TV" -> TV
+            "TV_SHORT" -> TV_SHORT
+            "ONA" -> ONA
+            "OVA" -> OVA
+            "SPECIAL" -> SPECIAL
             "MOVIE" -> MOVIE
-            "OVA", "SPECIAL" -> SIDE_STORY
             "ONE_SHOT" -> SIDE_STORY
             else -> null
         }
@@ -66,7 +98,8 @@ enum class FranchiseType {
          * distinction the pill exists to draw.
          */
         fun fromRelation(relation: String?): FranchiseType? = when (relation) {
-            "SPIN_OFF", "SIDE_STORY" -> SPIN_OFF
+            "SPIN_OFF" -> SPIN_OFF
+            "SIDE_STORY" -> SIDE_STORY
             "PREQUEL", "SEQUEL", "PARENT", "SUMMARY", "COMPILATION", "ALTERNATIVE" -> SEQUENCE
             else -> null
         }

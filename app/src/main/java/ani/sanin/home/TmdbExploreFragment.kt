@@ -51,6 +51,8 @@ import ani.sanin.media.FranchiseActivity
 import ani.sanin.media.FranchiseAdaptor
 import ani.sanin.media.FranchiseListPrefs
 import ani.sanin.media.FranchiseSort
+import ani.sanin.media.FranchiseType
+import ani.sanin.ui.InlineSearchBar
 import ani.sanin.media.showFranchiseSortDialog
 import ani.sanin.media.read
 import ani.sanin.media.FranchiseSorter
@@ -127,6 +129,9 @@ class TmdbExploreFragment : Fragment() {
      * cards themselves follow the type chip like the rails do.
      */
     private lateinit var franchiseAdapter: FranchiseAdaptor
+
+    /** The row's own search, held so a page rebind can close it. */
+    private var franchiseSearch: InlineSearchBar? = null
 
     /**
      * Every card the source returned, unsorted and unfiltered.
@@ -216,6 +221,8 @@ class TmdbExploreFragment : Fragment() {
         // adapters would hand a new page the previous view's list.
         rowAdapters.clear()
         rowMedia.clear()
+        franchiseSearch?.release()
+        franchiseSearch = null
         pageBound = false
         bannerTitleShown = false
         super.onDestroyView()
@@ -770,6 +777,9 @@ class TmdbExploreFragment : Fragment() {
         }
         // The Franchise section's first card sits under the last rail.
         page.tmdbFranchiseHeader.nextFocusUpId = aboveId
+        // The row's search button is a child of that header, and a child does not inherit
+        // its parent's next-focus, so it is given the same target on its own.
+        page.tmdbFranchiseSearch.nextFocusUpId = aboveId
     }
 
     /**
@@ -923,6 +933,33 @@ class TmdbExploreFragment : Fragment() {
         page.tmdbFranchiseSortPill.setSafeOnClickListener { openFranchiseSortDialog() }
         page.tmdbFranchiseSortDirection.setSafeOnClickListener { invertFranchiseSort() }
         updateFranchiseSortUi()
+
+        setupFranchiseSearch()
+    }
+
+    /**
+     * The row's own search: a lens button beside the title that opens a bar under it.
+     *
+     * The search filters the cards the row already holds, so it costs nothing: no request is
+     * made for it and clearing it brings the whole row back.
+     */
+    private fun setupFranchiseSearch() {
+        // The same page view is wired once. A new one means the old bar belongs to a view
+        // that is gone, so it is released rather than left listening.
+        if (franchiseSearch?.button === page.tmdbFranchiseSearch) return
+        franchiseSearch?.release()
+        franchiseSearch = InlineSearchBar(
+            button = page.tmdbFranchiseSearch,
+            bar = page.tmdbFranchiseSearchBar,
+            field = page.tmdbFranchiseSearchText,
+            onQueryChanged = { query -> franchiseAdapter.setQuery(query) },
+            onQuerySettled = {
+                if (franchiseAdapter.takeSearchMiss()) {
+                    val activity = activity ?: return@onQuerySettled
+                    snackString(R.string.franchise_search_empty, activity)
+                }
+            },
+        )
     }
 
     /**
@@ -1210,13 +1247,27 @@ class TmdbExploreFragment : Fragment() {
     private fun openFranchise(card: Franchise, view: View) {
         view.transitionName = FRANCHISE_TRANSITION
         startActivity(
-            FranchiseActivity.intent(requireContext(), card),
+            FranchiseActivity.intent(requireContext(), card, preselectTypeFor(selectedType)),
             ActivityOptionsCompat.makeSceneTransitionAnimation(
                 requireActivity(),
                 view,
                 FRANCHISE_TRANSITION,
             ).toBundle()
         )
+    }
+
+    /**
+     * The category a franchise opened from the current chip should land on.
+     *
+     * The Movie chip's franchises are all films and the TV show chip's are all seasons, so the
+     * filter that matches the chip is the one the reader is already in; landing on All would
+     * hide the choice they just made. Animation mixes films and shows, so All is the only
+     * honest answer there.
+     */
+    private fun preselectTypeFor(type: ExploreType): FranchiseType? = when (type) {
+        ExploreType.MOVIE -> FranchiseType.MOVIE
+        ExploreType.TV -> FranchiseType.SEQUENCE
+        ExploreType.ANIMATION -> null
     }
 
     // ---- Navigation: banner click + watch both open the TMDB screens ----

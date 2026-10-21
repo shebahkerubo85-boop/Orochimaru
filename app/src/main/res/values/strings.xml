@@ -538,13 +538,20 @@
     <string name="franchise_randomized">Shuffled</string>
     <string name="franchise_sort_dialog_title">Sort franchises</string>
     <string name="franchise_show_single_entry">Show single item entries</string>
+    <string name="franchise_search">Search franchises</string>
+    <string name="franchise_search_hint">Search franchises</string>
+    <string name="franchise_search_empty">No franchise matches that</string>
 
     <!-- Franchise screen. -->
     <string name="franchise_screen_title">Franchise</string>
     <string name="franchise_filter_all">All</string>
     <string name="franchise_filter_series">Series</string>
-    <string name="franchise_filter_movie">Movie</string>
+    <string name="franchise_filter_tv">TV</string>
+    <string name="franchise_filter_tv_short">TV Short</string>
+    <string name="franchise_filter_ona">ONA</string>
     <string name="franchise_filter_ova">OVA</string>
+    <string name="franchise_filter_special">Special</string>
+    <string name="franchise_filter_movie">Movie</string>
     <string name="franchise_filter_side_story">Side story</string>
     <string name="franchise_filter_spin_off">Spin-off</string>
     <!--
@@ -578,6 +585,22 @@
     <plurals name="franchise_count_ova">
         <item quantity="one">%1$d OVA</item>
         <item quantity="other">%1$d OVAs</item>
+    </plurals>
+    <plurals name="franchise_count_tv">
+        <item quantity="one">%1$d TV series</item>
+        <item quantity="other">%1$d TV series</item>
+    </plurals>
+    <plurals name="franchise_count_tv_short">
+        <item quantity="one">%1$d TV short</item>
+        <item quantity="other">%1$d TV shorts</item>
+    </plurals>
+    <plurals name="franchise_count_ona">
+        <item quantity="one">%1$d ONA</item>
+        <item quantity="other">%1$d ONAs</item>
+    </plurals>
+    <plurals name="franchise_count_special">
+        <item quantity="one">%1$d special</item>
+        <item quantity="other">%1$d specials</item>
     </plurals>
     <plurals name="franchise_count_side_story">
         <item quantity="one">%1$d side story</item>

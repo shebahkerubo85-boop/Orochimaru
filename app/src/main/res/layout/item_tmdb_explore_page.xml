@@ -132,14 +132,42 @@
         android:orientation="horizontal"
         android:visibility="invisible">
 
-        <TextView
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:fontFamily="@font/poppins_bold"
-            android:padding="8dp"
-            android:text="@string/row_franchise"
-            android:textSize="16sp" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_bold"
+                android:padding="8dp"
+                android:text="@string/row_franchise"
+                android:textSize="16sp" />
+
+            <!--
+              The search for this row, as a lens button beside the title.
+
+              The title itself is not focusable, so the button is the first thing to the right
+              of it in the D-pad line, which is where a reader looks for it.
+            -->
+            <ImageButton
+                android:id="@+id/tmdbFranchiseSearch"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="4dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/franchise_search"
+                android:focusable="true"
+                android:focusableInTouchMode="false"
+                android:padding="7dp"
+                app:srcCompat="@drawable/ic_round_search_24"
+                app:tint="?attr/colorOnSurface"
+                tools:ignore="ImageContrastCheck" />
+
+        </LinearLayout>
 
         <!--
           Shown while the Franchise source is in flight.
@@ -205,4 +233,45 @@
             tools:ignore="ImageContrastCheck" />
 
     </LinearLayout>
+
+    <!--
+      The row's own search, revealed under the header by the lens button.
+
+      It sits between the header and the cards rather than over them, so opening it pushes the
+      cards down instead of hiding them. The cards are a separate adapter in the fragment's
+      ConcatAdapter, so this is the last thing in the page and the row follows it.
+    -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/tmdbFranchiseSearchBar"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
+        android:visibility="gone"
+        app:boxBackgroundColor="@color/bg"
+        app:boxBackgroundMode="outline"
+        app:boxCornerRadiusBottomEnd="28dp"
+        app:boxCornerRadiusBottomStart="28dp"
+        app:boxCornerRadiusTopEnd="28dp"
+        app:boxCornerRadiusTopStart="28dp"
+        app:endIconDrawable="@drawable/ic_round_search_24"
+        app:hintAnimationEnabled="true">
+
+        <AutoCompleteTextView
+            android:id="@+id/tmdbFranchiseSearchText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/poppins_bold"
+            android:hint="@string/franchise_search_hint"
+            android:imeOptions="actionSearch"
+            android:inputType="text"
+            android:nextFocusUp="@id/tmdbFranchiseSearch"
+            android:padding="8dp"
+            android:selectAllOnFocus="true"
+            android:textSize="14sp"
+            tools:ignore="LabelFor,TextContrastCheck" />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
 </LinearLayout>

@@ -78,6 +78,17 @@ class FranchiseActivity : AppCompatActivity() {
     /** The category being shown, or null for All. */
     private var selectedType: FranchiseType? = null
 
+    /**
+     * The category to land on, when the screen was opened from a tab that already knows.
+     *
+     * The TMDB Explore tab has a Movie / TV show / Animation chip, and a franchise opened from
+     * it is all films or all seasons, so the filter that matches the chip is the one the reader
+     * is already in. Landing on All instead would quietly undo the choice they just made.
+     * Null means All, which is the only honest answer when the entries are mixed (Animation)
+     * or when this franchise has no entry of the wanted category.
+     */
+    private var preselectType: FranchiseType? = null
+
     /** How many entries the franchise has before any filter, for the "3 of 12" count. */
     private var totalEntries = 0
 
@@ -99,6 +110,12 @@ class FranchiseActivity : AppCompatActivity() {
             return
         }
         franchise = card
+
+        // Read before the pill is built: the wanted category decides which tab is selected, and
+        // the tab list itself is built from the entries.
+        preselectType = intent.getStringExtra(EXTRA_PRESELECT_TYPE)?.let { name ->
+            FranchiseType.entries.firstOrNull { it.name == name }
+        }
 
         binding = ActivityFranchiseBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -128,9 +145,16 @@ class FranchiseActivity : AppCompatActivity() {
             onTabSelected = { selectFilter(it) },
         )
         rebuildPillTabs()
+        applyPreselect()
         buildRows(ordered)
 
-        if (ordered.any { it.synopsis.isNullOrBlank() } && ordered.any { it.anilistId != null }) {
+        // Enrich when there is something to gain: an entry missing its synopsis OR its
+        // category (the filter pill reads `type`), and at least one AniList id to match on.
+        // A Kitsu card now carries a type up front, but enrichment can still refine it
+        // (e.g. a SPECIAL that AniList reports as OVA) and fills air date/score/runtime.
+        if (ordered.any { it.synopsis.isNullOrBlank() || it.type == null } &&
+            ordered.any { it.anilistId != null }
+        ) {
             enrichFromAnilist()
         }
         loadLogoArt(card)
@@ -248,6 +272,22 @@ class FranchiseActivity : AppCompatActivity() {
         refilter()
     }
 
+    /**
+     * Lands on the wanted category, when this franchise has one.
+     *
+     * The tab has to exist before it can be selected, and the tabs are built from the entries,
+     * so a franchise with nothing of the wanted category keeps All rather than showing a
+     * selection that filters nothing. Index 0 is All and the categories follow it in the order
+     * the entries introduce them, so the wanted category's index is one past its place in
+     * [availableTypes].
+     */
+    private fun applyPreselect() {
+        val wanted = preselectType ?: return
+        val index = availableTypes.indexOf(wanted)
+        if (index < 0) return
+        selectFilter(index + 1)
+    }
+
     /** Rebuilds the rows for the current filter. */
     private fun refilter() {
         val all = franchise?.let { orderedEntries(it) } ?: return
@@ -329,16 +369,9 @@ class FranchiseActivity : AppCompatActivity() {
 
     /** "2 movies": one category's share of the count. */
     private fun typeCountPart(type: FranchiseType, count: Int): String {
-        val res = when (type) {
-            FranchiseType.MOVIE -> R.plurals.franchise_count_movies
-            FranchiseType.SEQUENCE -> R.plurals.franchise_count_series
-            FranchiseType.OVA -> R.plurals.franchise_count_ova
-            FranchiseType.SIDE_STORY -> R.plurals.franchise_count_side_story
-            FranchiseType.SPIN_OFF -> R.plurals.franchise_count_spin_off
-        }
         return getString(
             R.string.franchise_count_part,
-            resources.getQuantityString(res, count, count),
+            resources.getQuantityString(type.countRes(), count, count),
         )
     }
 
@@ -648,15 +681,27 @@ class FranchiseActivity : AppCompatActivity() {
         /** Intent extra carrying the pressed [Franchise]. Serializable, matching [Media]. */
         const val EXTRA_FRANCHISE = "franchise"
 
+        /**
+         * Intent extra carrying the category the pill should land on.
+         *
+         * A [FranchiseType] name rather than the type itself, so the extra stays a plain string
+         * and cannot drag a serializable enum along with it. A name that no longer exists is
+         * simply ignored, which is what happens when a category is renamed.
+         */
+        const val EXTRA_PRESELECT_TYPE = "franchise_preselect_type"
+
         private const val LIST_DIALOG_TAG = "franchise_list_dialog"
 
         /**
          * Builds the intent that opens this screen.
          *
          * @param franchise the card that was pressed.
+         * @param preselect the category to land on, or null for All. It is only honoured when
+         *   the franchise actually has entries of that category.
          */
-        fun intent(context: Context, franchise: Franchise) =
+        fun intent(context: Context, franchise: Franchise, preselect: FranchiseType? = null) =
             Intent(context, FranchiseActivity::class.java)
                 .putExtra(EXTRA_FRANCHISE, franchise as Serializable)
+                .putExtra(EXTRA_PRESELECT_TYPE, preselect?.name)
     }
 }

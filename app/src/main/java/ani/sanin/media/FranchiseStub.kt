@@ -88,5 +88,10 @@ object FranchiseStub {
         sortYear = startDate?.year,
         posterUrl = cover,
         title = userPreferredName.ifBlank { name.orEmpty() },
+        // Format classifies the entry for the franchise filter pill; the relation
+        // (when present) wins, so a SPIN_OFF/SIDE_STORY film reads as a spin-off
+        // rather than a plain movie. Same fold the AniList enrichment uses.
+        type = relation?.substringBefore('\n')?.trim()?.let { FranchiseType.fromRelation(it) }
+            ?: FranchiseType.fromFormat(format?.uppercase(java.util.Locale.US)),
     )
 }

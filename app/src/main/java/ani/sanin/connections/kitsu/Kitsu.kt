@@ -2,6 +2,7 @@ package ani.sanin.connections.kitsu
 
 import ani.sanin.connections.anilist.api.FuzzyDate
 import ani.sanin.media.Franchise
+import ani.sanin.media.FranchiseType
 import ani.sanin.util.Logger
 import ani.sanin.media.FranchiseEntry
 import ani.sanin.media.Media
@@ -563,6 +564,10 @@ object Kitsu {
             title = title,
             synopsis = synopsis ?: description,
             anilistId = anilistId,
+            // Kitsu reports the format on showType ("TV", "movie", "OVA", "ONA",
+            // "special") with subtype as the more specific kind. Fold to the pill's
+            // categories here so an entry has one even before AniList enrichment.
+            type = FranchiseType.fromFormat((showType ?: subtype)?.uppercase(java.util.Locale.US)),
         )
     }
 

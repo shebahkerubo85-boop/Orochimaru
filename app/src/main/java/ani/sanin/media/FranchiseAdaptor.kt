@@ -29,7 +29,24 @@ class FranchiseAdaptor(
     private val onBannerClick: (Franchise, View) -> Unit = { _, _ -> },
 ) : RecyclerView.Adapter<FranchiseAdaptor.FranchiseViewHolder>() {
 
+    /** The cards on screen, which is the queried subset of [allFranchises]. */
     private val franchises = ArrayList<Franchise>()
+
+    /**
+     * Every card the row knows about, whether or not the query shows it.
+     *
+     * The search filters what is *drawn*, not what the row knows: a card that the query hides
+     * is still in the row, and clearing the query brings it back. Filtering the backing list
+     * instead would throw the hidden cards away, and the row would have to fetch them all over
+     * again to show them once more.
+     */
+    private val allFranchises = ArrayList<Franchise>()
+
+    /** The text the row is filtered by. Blank means no filter. */
+    private var query: String = ""
+
+    /** Set when a query empties the row, and read once by whoever wants to say so. */
+    private var searchMissed = false
 
     private val lock = Any()
 
@@ -73,45 +90,92 @@ class FranchiseAdaptor(
         seedsInFlight.clear()
         seedsSettled.clear()
         franchises.clear()
+        allFranchises.clear()
+        query = ""
+        searchMissed = false
         notifyDataSetChanged()
     }
 
     fun submit(newFranchises: List<Franchise>) {
-        // Diffed rather than notifyDataSetChanged. A blanket invalidation rebinds every visible
-        // card, and each rebind re-runs loadImage on the banner and every poster, so the row
-        // visibly re-flashes on each batch and on each sort. The diff only touches the cards that
-        // actually moved or changed, which is what lets a batch append progressively without the
-        // row strobing as it fills.
-        //
-        // Name is the identity because the row has no id to use: `upsert` already keys on it, and
-        // it is unique per row by construction there.
+        synchronized(lock) {
+            allFranchises.clear()
+            allFranchises.addAll(newFranchises)
+        }
+        publish()
+    }
+
+    /**
+     * Filters the row by name.
+     *
+     * A blank query shows everything again. The name is the only thing a reader can search a
+     * franchise by — the card has no other text — and matching on it is case-insensitive
+     * because a reader types "spiderman" for "Spider-Man".
+     */
+    fun setQuery(value: String) {
+        val trimmed = value.trim()
+        if (query == trimmed) return
+        query = trimmed
+        publish()
+    }
+
+    /**
+     * Republishes the row: the queried subset of every card the row knows about.
+     *
+     * Diffed rather than notifyDataSetChanged, for the same reason [submit] is: a blanket
+     * invalidation rebinds every visible card, and each rebind re-runs loadImage on the banner
+     * and every poster, so the row visibly re-flashes.
+     */
+    private fun publish() {
         val previous = synchronized(lock) { franchises.toList() }
-        if (previous == newFranchises) return
+        val next = synchronized(lock) { allFranchises.filter { matchesQuery(it) } }
+        // The flag latches while the query matches nothing, so a caller can say so once
+        // rather than working it out from every keystroke.
+        if (query.isNotBlank() && next.isEmpty()) searchMissed = true
+        else if (next.isNotEmpty()) searchMissed = false
+        if (previous == next) return
         val diff = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
             override fun getOldListSize() = previous.size
-            override fun getNewListSize() = newFranchises.size
+            override fun getNewListSize() = next.size
             override fun areItemsTheSame(oldPos: Int, newPos: Int) = previous[oldPos].name
-                .equals(newFranchises[newPos].name, ignoreCase = true)
+                .equals(next[newPos].name, ignoreCase = true)
 
             override fun areContentsTheSame(oldPos: Int, newPos: Int) =
-                previous[oldPos] == newFranchises[newPos]
+                previous[oldPos] == next[newPos]
         })
         synchronized(lock) {
             franchises.clear()
-            franchises.addAll(newFranchises)
+            franchises.addAll(next)
         }
         // Dispatched after the backing list is swapped, never inside the lock: the dispatch
         // synchronously calls back into getItemCount and getItemViewType.
         diff.dispatchUpdatesTo(this)
     }
 
+    /** Whether a card's name matches the row's query. */
+    private fun matchesQuery(card: Franchise) =
+        query.isBlank() || card.name.contains(query, ignoreCase = true)
+
     /**
-     * The cards currently on screen, in order.
+     * Whether the last query emptied the row, read once and then forgotten.
+     *
+     * A caller that wants to say "nothing matches that" takes it here rather than working it
+     * out from the query, so the row is the only thing that knows what it is showing.
+     */
+    fun takeSearchMiss(): Boolean {
+        val missed = searchMissed
+        searchMissed = false
+        return missed
+    }
+
+    /**
+     * The cards the row knows about, in order.
      *
      * A snapshot so the sort controls can re-order the row without holding their own copy: the
-     * loader appends as pages land, and a second list would go stale behind it.
+     * loader appends as pages land, and a second list would go stale behind it. The full set
+     * rather than the queried subset, so a sort re-orders every card and the query still has
+     * something to filter afterwards.
      */
-    fun currentCards(): List<Franchise> = synchronized(lock) { franchises.toList() }
+    fun currentCards(): List<Franchise> = synchronized(lock) { allFranchises.toList() }
 
     /**
      * Swaps provisional cards for their finished ones and appends anything genuinely new.
@@ -128,42 +192,34 @@ class FranchiseAdaptor(
      */
     fun upsert(replacements: Map<String, Franchise>) {
         if (replacements.isEmpty()) return
-        val changed = mutableListOf<Int>()
-        val inserted = mutableListOf<Int>()
         synchronized(lock) {
             val at = HashMap<String, Int>()
-            franchises.forEachIndexed { index, card -> at.putIfAbsent(card.name.lowercase(), index) }
-            val merged = ArrayList(franchises)
+            allFranchises.forEachIndexed { index, card -> at.putIfAbsent(card.name.lowercase(), index) }
+            val merged = ArrayList(allFranchises)
             replacements.forEach { (provisionalName, card) ->
                 val position = at.remove(provisionalName.lowercase())
                 val key = card.name.lowercase()
                 if (position == null) {
                     if (at.putIfAbsent(key, merged.size) == null) {
                         merged.add(card)
-                        inserted += merged.size - 1
                     }
                 } else {
                     at.putIfAbsent(key, position)
-                    // Only a card that actually changed is reported. A stub re-published under
-                    // its own name is common while a batch resolves, and reporting it as changed
+                    // Only a card that actually changed is written back. A stub re-published
+                    // under its own name is common while a batch resolves, and rewriting it
                     // would rebind — and re-flash — a card that is already showing correctly.
                     if (merged[position] != card) {
                         merged[position] = card
-                        changed += position
                     }
                 }
             }
-            franchises.clear()
-            franchises.addAll(merged)
+            allFranchises.clear()
+            allFranchises.addAll(merged)
         }
-        // Reported per item rather than as one blanket invalidation, which is what turned a
-        // resolving batch into a strobe: the row holds several cards that are already correct
-        // while the rest are still being upgraded.
-        //
-        // Inserts go out first and in ascending order, because RecyclerView replays the
-        // positions it is told about and out-of-order inserts land in the wrong place.
-        inserted.sorted().forEach { notifyItemInserted(it) }
-        changed.forEach { notifyItemChanged(it) }
+        // The diff reports the inserts and the rebinds on its own, and only for the cards that
+        // really moved: the row holds several cards that are already correct while the rest are
+        // still being upgraded.
+        publish()
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = FranchiseViewHolder(

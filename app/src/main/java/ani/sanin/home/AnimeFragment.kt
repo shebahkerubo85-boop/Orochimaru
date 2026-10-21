@@ -40,6 +40,7 @@ import ani.sanin.media.read
 import ani.sanin.media.FranchiseSorter
 import ani.sanin.media.FranchiseStub
 import ani.sanin.media.onNearEnd
+import ani.sanin.ui.InlineSearchBar
 import ani.sanin.setSafeOnClickListener
 import ani.sanin.media.MediaAdaptor
 import ani.sanin.media.ProgressAdapter
@@ -72,6 +73,9 @@ class AnimeFragment : Fragment() {
 
     /** The header listeners are attached once; `ready` can fire again on a rebind. */
     private var animeFranchiseSortWired = false
+
+    /** The row's own search, held so the page can close it when the row is rebuilt. */
+    private var animeFranchiseSearch: InlineSearchBar? = null
 
     /**
      * Counts ranking requests, so only the newest one may write to the row.
@@ -125,6 +129,9 @@ class AnimeFragment : Fragment() {
             )
             animeFranchiseCursor = 0
             adaptor.clear()
+            // The row behind the search is a new one, so a query left in the field would be
+            // filtering cards that are gone.
+            animeFranchiseSearch?.clearQuery()
         }
         if (animeFranchiseCursor >= snapshot.size) {
             Logger.log("Franchise(anime) publish: cursor $animeFranchiseCursor already covers ${snapshot.size}, nothing to do")
@@ -282,6 +289,10 @@ class AnimeFragment : Fragment() {
      * at a time, and Trending and Most Popular need AniList to rank them.
      */
     private fun setupAnimeFranchiseSort() {
+        // The search is wired before the guard below, because the page's view can be replaced
+        // while the sort's listeners stay valid: a new view needs a new bar, the same view
+        // does not need a second one.
+        animeFranchiseAdapter?.let { setupAnimeFranchiseSearch(it) }
         if (animeFranchiseSortWired) return
         // The pill and direction button live in the page item layout AnimePageAdapter inflates,
         // so they are reached through *its* binding, not the fragment's and not the franchise
@@ -318,6 +329,32 @@ class AnimeFragment : Fragment() {
         }
 
         updatePill()
+    }
+
+    /**
+     * The row's own search: a lens button beside the title that opens a bar under it.
+     *
+     * The search filters the cards the row already holds, so it costs nothing: no request is
+     * made for it and clearing it brings the whole row back.
+     */
+    private fun setupAnimeFranchiseSearch(adaptor: FranchiseAdaptor) {
+        val binding = animePageAdapter.binding
+        // The same page view is wired once. A new one means the old bar belongs to a view
+        // that is gone, so it is released rather than left listening.
+        if (animeFranchiseSearch?.button === binding.animeFranchiseSearch) return
+        animeFranchiseSearch?.release()
+        animeFranchiseSearch = InlineSearchBar(
+            button = binding.animeFranchiseSearch,
+            bar = binding.animeFranchiseSearchBar,
+            field = binding.animeFranchiseSearchText,
+            onQueryChanged = { query -> adaptor.setQuery(query) },
+            onQuerySettled = {
+                if (adaptor.takeSearchMiss()) {
+                    val activity = activity ?: return@onQuerySettled
+                    snackString(R.string.franchise_search_empty, activity)
+                }
+            },
+        )
     }
 
     /**
@@ -380,6 +417,8 @@ class AnimeFragment : Fragment() {
         // pill and direction button would be left with no listeners at all.
         animeFranchiseSortWired = false
         animeFranchiseAdapter = null
+        animeFranchiseSearch?.release()
+        animeFranchiseSearch = null
         animeFranchiseSortGeneration++
         // The cursor tracks how far this row's adapter has been fed, and the adapter is going
         // away with the view. Kept, the fresh adapter would be told the first titles had already
