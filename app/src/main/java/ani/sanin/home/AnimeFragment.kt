@@ -350,8 +350,7 @@ class AnimeFragment : Fragment() {
             onQueryChanged = { query -> adaptor.setQuery(query) },
             onQuerySettled = {
                 if (adaptor.takeSearchMiss()) {
-                    val activity = activity ?: return@onQuerySettled
-                    snackString(R.string.franchise_search_empty, activity)
+                    activity?.let { snackString(R.string.franchise_search_empty, it) }
                 }
             },
         )

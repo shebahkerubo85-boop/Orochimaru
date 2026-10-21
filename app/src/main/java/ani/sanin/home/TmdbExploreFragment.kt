@@ -955,8 +955,7 @@ class TmdbExploreFragment : Fragment() {
             onQueryChanged = { query -> franchiseAdapter.setQuery(query) },
             onQuerySettled = {
                 if (franchiseAdapter.takeSearchMiss()) {
-                    val activity = activity ?: return@onQuerySettled
-                    snackString(R.string.franchise_search_empty, activity)
+                    activity?.let { snackString(R.string.franchise_search_empty, it) }
                 }
             },
         )
