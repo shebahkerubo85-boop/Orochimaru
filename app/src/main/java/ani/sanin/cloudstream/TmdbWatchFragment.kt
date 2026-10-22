@@ -5,9 +5,11 @@ import android.graphics.ColorMatrixColorFilter
 import android.content.Intent
 import android.os.Bundle
 import android.text.TextUtils
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import androidx.fragment.app.Fragment
 import androidx.core.view.doOnLayout
 import androidx.core.view.isVisible
@@ -85,6 +87,8 @@ class TmdbWatchFragment : Fragment() {
         const val ARG_PLUGIN_SOURCE = "pluginSource"
         const val ARG_PLUGIN_URL = "pluginUrl"
         private const val EPISODE_CAP = 24
+        /** The header is the first item of the adapter; episodes follow. */
+        private const val HEADER_ITEM_COUNT = 1
 
         fun newInstance(
             mediaType: String,
@@ -729,7 +733,6 @@ class TmdbWatchFragment : Fragment() {
 
         val seasonChips = (0 until h.tmdbWatchSeasonChips.childCount)
             .mapNotNull { h.tmdbWatchSeasonChips.getChildAt(it) as? Chip }
-        val firstSeason = seasonChips.firstOrNull()
 
         h.tmdbWatchSourceScroll.isFocusable = false
         h.tmdbWatchSourceScroll.isFocusableInTouchMode = false
@@ -750,41 +753,24 @@ class TmdbWatchFragment : Fragment() {
             chip.nextFocusLeftId = if (idx == 0) R.id.tmdbWatchRefresh else sourceChips[idx - 1].id
             chip.nextFocusRightId = if (idx == sourceChips.lastIndex) R.id.tmdbWatchAppearance else sourceChips[idx + 1].id
             chip.nextFocusUpId = View.NO_ID
-            chip.nextFocusDownId = if (h.tmdbWatchSeasonScroll.isVisible && firstSeason != null) {
-                firstSeason.id
-            } else if (h.tmdbWatchContinueCard.isVisible) {
-                R.id.tmdbWatchContinueCard
-            } else {
-                R.id.tmdbWatchRecycler
-            }
         }
         h.tmdbWatchSourceScroll.nextFocusLeftId = R.id.tmdbWatchRefresh
         h.tmdbWatchSourceScroll.nextFocusRightId = R.id.tmdbWatchAppearance
-        h.tmdbWatchSourceScroll.nextFocusDownId =
-            if (h.tmdbWatchSeasonScroll.isVisible) R.id.tmdbWatchSeasonChips
-            else if (h.tmdbWatchContinueCard.isVisible) R.id.tmdbWatchContinueCard
-            else R.id.tmdbWatchRecycler
         h.tmdbWatchSourceChips.nextFocusLeftId = R.id.tmdbWatchRefresh
         h.tmdbWatchSourceChips.nextFocusRightId = R.id.tmdbWatchAppearance
-        h.tmdbWatchSourceChips.nextFocusDownId = h.tmdbWatchSourceScroll.nextFocusDownId
 
         if (seasonChips.isNotEmpty()) {
             seasonChips.forEachIndexed { idx, chip ->
                 chip.nextFocusLeftId = if (idx == 0) R.id.tmdbWatchRefresh else seasonChips[idx - 1].id
                 chip.nextFocusRightId = if (idx == seasonChips.lastIndex) R.id.tmdbWatchAppearance else seasonChips[idx + 1].id
                 chip.nextFocusUpId = sourceTarget
-                chip.nextFocusDownId = if (h.tmdbWatchContinueCard.isVisible) R.id.tmdbWatchContinueCard else R.id.tmdbWatchRecycler
             }
             h.tmdbWatchSeasonScroll.nextFocusLeftId = R.id.tmdbWatchRefresh
             h.tmdbWatchSeasonScroll.nextFocusRightId = R.id.tmdbWatchAppearance
             h.tmdbWatchSeasonScroll.nextFocusUpId = R.id.tmdbWatchSourceChips
-            h.tmdbWatchSeasonScroll.nextFocusDownId =
-                if (h.tmdbWatchContinueCard.isVisible) R.id.tmdbWatchContinueCard else R.id.tmdbWatchRecycler
             h.tmdbWatchSeasonChips.nextFocusLeftId = R.id.tmdbWatchRefresh
             h.tmdbWatchSeasonChips.nextFocusRightId = R.id.tmdbWatchAppearance
             h.tmdbWatchSeasonChips.nextFocusUpId = R.id.tmdbWatchSourceChips
-            h.tmdbWatchSeasonChips.nextFocusDownId =
-                if (h.tmdbWatchContinueCard.isVisible) R.id.tmdbWatchContinueCard else R.id.tmdbWatchRecycler
         }
 
         rightViews.forEachIndexed { i, v ->
@@ -793,9 +779,137 @@ class TmdbWatchFragment : Fragment() {
             v.nextFocusLeftId = rightSourceTarget
             v.nextFocusRightId = right[i]
         }
-        val down = if (h.tmdbWatchContinueCard.isVisible) R.id.tmdbWatchContinueCard else R.id.tmdbWatchRecycler
-        h.tmdbWatchNotify.nextFocusDownId = down
-        h.tmdbWatchFaq.nextFocusDownId = down
+
+        syncHeaderDownTargets(h)
+
+        // The episode cards are children of the list, so there is no id a
+        // nextFocusDownId could point at: the hop from the header into the list
+        // is made by a key listener instead.
+        applyDownIntoEpisodes(
+            h.tmdbWatchSourceScroll,
+            h.tmdbWatchSourceChips,
+            h.tmdbWatchSeasonScroll,
+            h.tmdbWatchSeasonChips,
+            h.tmdbWatchContinueCard,
+            h.tmdbWatchNotify,
+            h.tmdbWatchFaq,
+            *sourceChips.toTypedArray(),
+            *seasonChips.toTypedArray(),
+        )
+    }
+
+    /**
+     * Vertical focus targets of the TMDB header.
+     *
+     * Source chips → season chips → continue card → episode list. The episode
+     * cards are children of the list, so there is no id a nextFocusDownId could
+     * point at: the last hop is made by a key listener (see
+     * [applyDownIntoEpisodes]).
+     */
+    private fun syncHeaderDownTargets(h: ItemTmdbWatchHeaderBinding) {
+        val sourceChips = (0 until h.tmdbWatchSourceChips.childCount)
+            .mapNotNull { h.tmdbWatchSourceChips.getChildAt(it) as? Chip }
+        val seasonChips = (0 until h.tmdbWatchSeasonChips.childCount)
+            .mapNotNull { h.tmdbWatchSeasonChips.getChildAt(it) as? Chip }
+        val firstSeason = seasonChips.firstOrNull()
+        val continueId = if (h.tmdbWatchContinueCard.isVisible) R.id.tmdbWatchContinueCard else View.NO_ID
+
+        sourceChips.forEach { chip ->
+            chip.nextFocusDownId = if (h.tmdbWatchSeasonScroll.isVisible && firstSeason != null) {
+                firstSeason.id
+            } else {
+                continueId
+            }
+        }
+        h.tmdbWatchSourceScroll.nextFocusDownId =
+            if (h.tmdbWatchSeasonScroll.isVisible) R.id.tmdbWatchSeasonChips else continueId
+        h.tmdbWatchSourceChips.nextFocusDownId = h.tmdbWatchSourceScroll.nextFocusDownId
+        seasonChips.forEach { it.nextFocusDownId = continueId }
+        h.tmdbWatchSeasonScroll.nextFocusDownId = continueId
+        h.tmdbWatchSeasonChips.nextFocusDownId = continueId
+        h.tmdbWatchNotify.nextFocusDownId = continueId
+        h.tmdbWatchFaq.nextFocusDownId = continueId
+    }
+
+    /**
+     * Down from the header into the episode list.
+     *
+     * The listener only steps in when the view has no explicit down target of
+     * its own, so the normal chain (source chips → season chips → continue card)
+     * keeps working as it is.
+     */
+    private fun applyDownIntoEpisodes(vararg views: View?) {
+        for (view in views) {
+            view ?: continue
+            view.setOnKeyListener { v, keyCode, event ->
+                if (keyCode != KeyEvent.KEYCODE_DPAD_DOWN || event.action != KeyEvent.ACTION_DOWN) {
+                    return@setOnKeyListener false
+                }
+                if (v.nextFocusDownId != View.NO_ID) return@setOnKeyListener false
+                focusFirstEpisode()
+            }
+        }
+    }
+
+    /**
+     * Move focus to the first episode card.
+     *
+     * Episode cards are children of the list, so there is no id a
+     * nextFocusDownId could point at. The list is scrolled to the first episode
+     * and the card is focused once it has been laid out.
+     */
+    private fun focusFirstEpisode(): Boolean {
+        if (!::binding.isInitialized) return false
+        val recycler = binding.tmdbWatchRecycler
+        val adapter = recycler.adapter ?: return false
+        if (adapter.itemCount <= HEADER_ITEM_COUNT) return false
+        for (i in 0 until recycler.childCount) {
+            val child = recycler.getChildAt(i)
+            if (recycler.getChildAdapterPosition(child) >= HEADER_ITEM_COUNT) {
+                child.requestFocus()
+                return true
+            }
+        }
+        recycler.scrollToPosition(HEADER_ITEM_COUNT)
+        focusEpisodeAfterLayout(recycler)
+        return true
+    }
+
+    /** Focus the first episode card once the list has laid it out. */
+    private fun focusEpisodeAfterLayout(recycler: RecyclerView) {
+        val focus = {
+            recycler.findViewHolderForAdapterPosition(HEADER_ITEM_COUNT)
+                ?.itemView?.requestFocus()
+        }
+        val observer = recycler.viewTreeObserver
+        if (!observer.isAlive) {
+            recycler.post { focus() }
+            return
+        }
+        observer.addOnPreDrawListener(
+            object : ViewTreeObserver.OnPreDrawListener {
+                override fun onPreDraw(): Boolean {
+                    val obs = recycler.viewTreeObserver
+                    if (obs.isAlive) obs.removeOnPreDrawListener(this)
+                    recycler.post { focus() }
+                    return true
+                }
+            }
+        )
+    }
+
+    /**
+     * View that takes focus when the user presses Up from the first episode:
+     * the season chips or the continue card.
+     */
+    private fun episodeUpTargetId(): Int {
+        if (!::headerBinding.isInitialized) return View.NO_ID
+        val h = headerBinding
+        val seasonChips = (0 until h.tmdbWatchSeasonChips.childCount)
+            .mapNotNull { h.tmdbWatchSeasonChips.getChildAt(it) as? Chip }
+        return seasonChips.firstOrNull()?.id
+            ?: if (h.tmdbWatchContinueCard.isVisible) R.id.tmdbWatchContinueCard
+            else View.NO_ID
     }
 
     /** Scroll [scroll] so [chip] sits at its horizontal centre, once laid out. */
@@ -931,7 +1045,7 @@ class TmdbWatchFragment : Fragment() {
                     snackString("Progress set to $cumulativeEp")
                 }
             }
-        })
+        }, { episodeUpTargetId() })
         binding.tmdbWatchRecycler.adapter = episodeAdapter
         // Header is a fixed first item owned by the adapter.
         episodeAdapter.setHeader(headerBinding.root)
@@ -1347,6 +1461,7 @@ class TmdbWatchFragment : Fragment() {
         val max = PrefManager.getNullableCustomVal("${syntheticId}_${epKey}_max", 0L, Long::class.java) ?: 0L
         if (pos <= 0 || max <= 0) {
             h.tmdbWatchContinueCard.isVisible = false
+            syncHeaderDownTargets(h)
             return
         }
         val detail = detail ?: return
@@ -1365,6 +1480,9 @@ class TmdbWatchFragment : Fragment() {
         val emptyParams = h.tmdbWatchContinueProgressEmpty.layoutParams as LinearLayout.LayoutParams
         emptyParams.weight = 1f - div
         h.tmdbWatchContinueProgressEmpty.layoutParams = emptyParams
+        // The continue card just appeared: the rows above it now have to point
+        // down to it.
+        syncHeaderDownTargets(h)
     }
 
     private fun openWatch(type: String, id: Int) {
@@ -1377,7 +1495,9 @@ class TmdbWatchFragment : Fragment() {
         private var style: Int,
         private var items: List<TmdbEpisode>,
         private val onClick: (TmdbEpisode) -> Unit,
-        private val onLongClick: (Int) -> Unit = {}
+        private val onLongClick: (Int) -> Unit = {},
+        /** View that takes focus when the user presses Up from the first episode. */
+        private val firstEpisodeUpTarget: () -> Int = { View.NO_ID }
     ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
         private var header: View? = null
@@ -1436,7 +1556,11 @@ class TmdbWatchFragment : Fragment() {
 
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
             if (getItemViewType(position) == 0) return
-            val ep = items[position - (if (header != null) 1 else 0)]
+            val epIndex = position - (if (header != null) 1 else 0)
+            val ep = items[epIndex]
+            // Up from the first episode goes back to the header row above it
+            // (season chips or the continue card).
+            if (epIndex == 0) holder.itemView.nextFocusUpId = firstEpisodeUpTarget()
             val title = ep.name?.takeIf { it.isNotBlank() } ?: "Episode ${ep.episodeNumber}"
             val date = ep.airDate.orEmpty()
             val image = Tmdb.imageUrl(ep.stillPath, 500)

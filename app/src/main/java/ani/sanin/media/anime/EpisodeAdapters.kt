@@ -141,7 +141,9 @@ class EpisodeAdapter(
         } ?: ""
 
         if (position == 0) {
-            holder.itemView.nextFocusUpId = R.id.mediaSourcePillScroll
+            // Up from the first episode goes back to the header row above it
+            // (range chips, continue card or the dub switch).
+            holder.itemView.nextFocusUpId = fragment.episodeUpTargetId()
         }
         if (position == arr.size - 1) {
             holder.itemView.nextFocusDownId = R.id.ScrollTop

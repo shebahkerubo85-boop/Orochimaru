@@ -1,6 +1,7 @@
 package ani.sanin.media.anime
 
 import android.content.Intent
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -380,18 +381,13 @@ class AnimeWatchAdapter(
             chip.nextFocusLeftId = if (idx == 0) R.id.mediaSourceRefresh else pillChips[idx - 1].id
             chip.nextFocusRightId = if (idx == pillChips.lastIndex) R.id.mediaSourceLayout else pillChips[idx + 1].id
             chip.nextFocusUpId = View.NO_ID
-            chip.nextFocusDownId = if (binding.animeSourceDubbedCont.isVisible) R.id.animeSourceDubbed else R.id.mediaSourceRecycler
         }
         binding.mediaSourcePillScroll.nextFocusLeftId = R.id.mediaSourceRefresh
         binding.mediaSourcePillScroll.nextFocusRightId = R.id.mediaSourceLayout
-        binding.mediaSourcePillScroll.nextFocusDownId =
-            if (binding.animeSourceDubbedCont.isVisible) R.id.animeSourceDubbed else R.id.mediaSourceRecycler
         binding.mediaSourceChipGroupPill.nextFocusLeftId = R.id.mediaSourceRefresh
         binding.mediaSourceChipGroupPill.nextFocusRightId = R.id.mediaSourceLayout
-        binding.mediaSourceChipGroupPill.nextFocusDownId = binding.mediaSourcePillScroll.nextFocusDownId
 
         binding.animeSourceDubbed.nextFocusUpId = pillTarget
-        binding.animeSourceDubbed.nextFocusDownId = R.id.mediaSourceRecycler
         binding.animeSourceDubbed.nextFocusLeftId = pillTarget
         binding.animeSourceDubbed.nextFocusRightId = R.id.mediaSourceSearch
 
@@ -401,19 +397,83 @@ class AnimeWatchAdapter(
             v.nextFocusLeftId = rightPillTarget
             v.nextFocusRightId = right[i]
         }
-        syncContinueFocus(binding)
+
+        // The episode list has no id of its own (its cards are RecyclerView
+        // children), so the hop from the header into the list is made by a key
+        // listener instead of a nextFocusDownId.
+        applyDownIntoEpisodes(
+            binding.mediaSourcePillScroll,
+            binding.mediaSourceChipGroupPill,
+            binding.animeSourceDubbed,
+            binding.sourceContinue,
+            binding.mediaSourceSearch,
+            binding.mediaSourceSubscribe,
+            binding.root.findViewById(R.id.mediaSourceFaq),
+            *pillChips.toTypedArray(),
+        )
+
+        syncDownTargets(binding)
     }
 
     /**
-     * Point the bell (bottom of left clay) and the right-column bottom at the
-     * continue card when it is visible, otherwise at the episode list itself
-     * (which auto-focuses its first card).
+     * Vertical focus targets of the header.
+     *
+     * Centre column: source chips → dub switch → continue card → episode range
+     * chips. The episode list sits below the header and has no id to point at,
+     * so that last hop is made by a key listener (see [applyDownIntoEpisodes]).
      */
-    private fun syncContinueFocus(binding: ItemMediaSourceBinding) {
-        val down = if (binding.sourceContinue.isVisible) R.id.sourceContinue else R.id.mediaSourceRecycler
-        binding.mediaSourceSubscribe.nextFocusDownId = down
-        val faq = binding.root.findViewById<View>(R.id.mediaSourceFaq)
-        if (faq != null) faq.nextFocusDownId = down
+    private fun syncDownTargets(binding: ItemMediaSourceBinding) {
+        val pillChips = (0 until binding.mediaSourceChipGroupPill.childCount)
+            .mapNotNull { binding.mediaSourceChipGroupPill.getChildAt(it) as? Chip }
+        val rangeChips = (0 until binding.mediaSourceChipGroup.childCount)
+            .mapNotNull { binding.mediaSourceChipGroup.getChildAt(it) as? Chip }
+        val continueId = if (binding.sourceContinue.isVisible) R.id.sourceContinue else View.NO_ID
+        val dubId = if (binding.animeSourceDubbedCont.isVisible) R.id.animeSourceDubbed else View.NO_ID
+        val belowChips = if (dubId != View.NO_ID) dubId else continueId
+
+        pillChips.forEach { it.nextFocusDownId = belowChips }
+        binding.mediaSourcePillScroll.nextFocusDownId = belowChips
+        binding.mediaSourceChipGroupPill.nextFocusDownId = belowChips
+        binding.animeSourceDubbed.nextFocusDownId = continueId
+        binding.sourceContinue.nextFocusDownId = rangeChips.firstOrNull()?.id ?: View.NO_ID
+        rangeChips.forEach { it.nextFocusUpId = continueId }
+        binding.mediaSourceSearch.nextFocusDownId = continueId
+        binding.mediaSourceSubscribe.nextFocusDownId = continueId
+        binding.root.findViewById<View>(R.id.mediaSourceFaq)?.nextFocusDownId = continueId
+    }
+
+    /**
+     * Down from the header into the episode list.
+     *
+     * The listener only steps in when the view has no explicit down target of
+     * its own, so the normal chain (chips → dub switch → continue card → range
+     * chips) keeps working as it is.
+     */
+    private fun applyDownIntoEpisodes(vararg views: View?) {
+        for (view in views) {
+            view ?: continue
+            view.setOnKeyListener { v, keyCode, event ->
+                if (keyCode != KeyEvent.KEYCODE_DPAD_DOWN || event.action != KeyEvent.ACTION_DOWN) {
+                    return@setOnKeyListener false
+                }
+                if (v.nextFocusDownId != View.NO_ID) return@setOnKeyListener false
+                fragment.focusFirstEpisode()
+            }
+        }
+    }
+
+    /**
+     * View that takes focus when the user presses Up from the first episode:
+     * the episode range chips, the continue card or the dub switch.
+     */
+    fun episodeUpTargetId(): Int {
+        val binding = _binding ?: return View.NO_ID
+        val rangeChips = (0 until binding.mediaSourceChipGroup.childCount)
+            .mapNotNull { binding.mediaSourceChipGroup.getChildAt(it) as? Chip }
+        return rangeChips.firstOrNull()?.id
+            ?: if (binding.sourceContinue.isVisible) R.id.sourceContinue
+            else if (binding.animeSourceDubbedCont.isVisible) R.id.animeSourceDubbed
+            else View.NO_ID
     }
 
     fun subscribeButton(enabled: Boolean) {
@@ -436,6 +496,7 @@ class AnimeWatchAdapter(
         if (binding != null) {
             val screenWidth = fragment.screenWidth.px
             var select: Chip? = null
+            val created = mutableListOf<View>()
             for (position in arr.indices) {
                 val last = if (position + 1 == arr.size) names.size else (limit * (position + 1))
                 val chip =
@@ -444,6 +505,9 @@ class AnimeWatchAdapter(
                         binding.mediaSourceChipGroup,
                         false
                     ).root
+                // Runtime id: the inflated layout has none, and the focus chain
+                // needs to point at a single chip of this row.
+                chip.id = View.generateViewId()
                 chip.isCheckable = true
                 chip.isFocusable = true
                 fun selected() {
@@ -468,11 +532,16 @@ class AnimeWatchAdapter(
                     fragment.onChipClicked(position, limit * (position), last - 1)
                 }
                 binding.mediaSourceChipGroup.addView(chip)
+                created.add(chip)
                 if (selected == position) {
                     selected()
                     select = chip
                 }
             }
+            // The range row sits between the continue card and the episode list,
+            // so Down from it has to reach the list.
+            applyDownIntoEpisodes(*created.toTypedArray())
+            syncDownTargets(binding)
             // Pre-scroll the range row to the selected chip. Chip `left` values are
             // only valid after layout, so defer via doOnLayout instead of post{}.
             val sel = select
@@ -508,6 +577,7 @@ class AnimeWatchAdapter(
 
     fun clearChips() {
         _binding?.mediaSourceChipGroup?.removeAllViews()
+        _binding?.let { syncDownTargets(it) }
     }
 
     fun handleEpisodes() {
@@ -530,6 +600,7 @@ class AnimeWatchAdapter(
                 if (media.userProgress != null && media.userProgress!!.toFloat() >= maxAvailableEp && (media.userProgress ?: 0) >= appEp) {
                     binding.sourceContinue.visibility = View.GONE
                     binding.sourceProgressBar.visibility = View.GONE
+                    _binding?.let { syncDownTargets(it) }
                     return
                 }
                 val targetEpNum = (if (anilistEp > appEp) anilistEp else appEp).toFloat()
@@ -548,7 +619,7 @@ class AnimeWatchAdapter(
                 var continueEp = matchingKey ?: ""
                 if (episodes.contains(continueEp)) {
                     binding.sourceContinue.visibility = View.VISIBLE
-                    _binding?.let { syncContinueFocus(it) }
+                    _binding?.let { syncDownTargets(it) }
                     handleProgress(
                         binding.itemMediaProgressCont,
                         binding.itemMediaProgress,
@@ -602,6 +673,7 @@ class AnimeWatchAdapter(
                     }
                 } else {
                     binding.sourceContinue.visibility = View.GONE
+                    _binding?.let { syncDownTargets(it) }
                 }
 
                 binding.sourceProgressBar.visibility = View.GONE
@@ -653,7 +725,7 @@ class AnimeWatchAdapter(
                 }
             } else {
                 binding.sourceContinue.visibility = View.GONE
-                _binding?.let { syncContinueFocus(it) }
+                _binding?.let { syncDownTargets(it) }
                 binding.sourceNotFound.visibility = View.GONE
                 binding.faqbutton.visibility = View.GONE
                 clearChips()

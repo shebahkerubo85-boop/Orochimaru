@@ -11,6 +11,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.annotation.OptIn
@@ -565,6 +566,66 @@ class AnimeWatchFragment : Fragment() {
     fun focusSelectedSourceChip(): Boolean =
         if (::headerAdapter.isInitialized) headerAdapter.focusSelectedSourceChip() else false
 
+    /**
+     * Move focus to the first episode card.
+     *
+     * Episode cards are children of the list, so there is no id a
+     * nextFocusDownId could point at. The list is scrolled to the first episode
+     * and the card is focused once it has been laid out.
+     */
+    fun focusFirstEpisode(): Boolean {
+        val recycler = _binding?.mediaSourceRecycler ?: return false
+        val adapter = recycler.adapter ?: return false
+        if (adapter.itemCount <= HEADER_ITEM_COUNT) return false
+        for (i in 0 until recycler.childCount) {
+            val child = recycler.getChildAt(i)
+            if (recycler.getChildAdapterPosition(child) >= HEADER_ITEM_COUNT) {
+                child.requestFocus()
+                return true
+            }
+        }
+        recycler.scrollToPosition(HEADER_ITEM_COUNT)
+        focusEpisodeAfterLayout(recycler)
+        return true
+    }
+
+    /** Focus the first episode card once the list has laid it out. */
+    private fun focusEpisodeAfterLayout(recycler: RecyclerView) {
+        val focus = {
+            recycler.findViewHolderForAdapterPosition(HEADER_ITEM_COUNT)
+                ?.itemView?.requestFocus()
+        }
+        val observer = recycler.viewTreeObserver
+        if (!observer.isAlive) {
+            recycler.post { focus() }
+            return
+        }
+        observer.addOnPreDrawListener(
+            object : ViewTreeObserver.OnPreDrawListener {
+                override fun onPreDraw(): Boolean {
+                    val obs = recycler.viewTreeObserver
+                    if (obs.isAlive) obs.removeOnPreDrawListener(this)
+                    recycler.post { focus() }
+                    return true
+                }
+            }
+        )
+    }
+
+    /**
+     * View that takes focus when the user presses Up from the first episode:
+     * the episode range chips, the continue card or the dub switch.
+     */
+    fun episodeUpTargetId(): Int =
+        if (::headerAdapter.isInitialized) headerAdapter.episodeUpTargetId() else View.NO_ID
+
+    /** Re-point the first episode at the row above it after the header changed. */
+    private fun refreshEpisodeUpTarget() {
+        val recycler = _binding?.mediaSourceRecycler ?: return
+        val holder = recycler.findViewHolderForAdapterPosition(HEADER_ITEM_COUNT) ?: return
+        holder.itemView.nextFocusUpId = episodeUpTargetId()
+    }
+
     fun onChipClicked(i: Int, s: Int, e: Int) {
         media.selected!!.chip = i
         start = s
@@ -750,6 +811,7 @@ class AnimeWatchFragment : Fragment() {
 
             headerAdapter.handleEpisodes()
             episodeAdapter.refreshCache()
+            refreshEpisodeUpTarget()
             Logger.log("Watch: reload header+cache")
 
             val watchSources = model.watchSources
@@ -821,6 +883,8 @@ class AnimeWatchFragment : Fragment() {
     }
 
     companion object {
+        /** The header is the first item of the concat adapter; episodes follow. */
+        const val HEADER_ITEM_COUNT = 1
         const val ACTION_DOWNLOAD_STARTED = "ani.sanin.ACTION_DOWNLOAD_STARTED"
         const val ACTION_DOWNLOAD_FINISHED = "ani.sanin.ACTION_DOWNLOAD_FINISHED"
         const val ACTION_DOWNLOAD_FAILED = "ani.sanin.ACTION_DOWNLOAD_FAILED"
