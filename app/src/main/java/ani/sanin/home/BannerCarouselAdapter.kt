@@ -151,12 +151,14 @@ class BannerCarouselAdapter(
                 .placeholder(R.color.bg_black)
                 .error(R.drawable.ic_round_person_24)
                 .apply(loadOptions)
+                .let { request -> if (isClassicBanner()) request.centerCrop() else request }
                 .into(holder.bannerBg)
             Glide.with(holder.itemView.context)
                 .load(imageUrl)
                 .placeholder(R.color.bg_black)
                 .error(R.drawable.ic_round_person_24)
                 .apply(loadOptions)
+                .let { request -> if (isClassicBanner()) request.centerCrop() else request }
                 .listener(object : RequestListener<Drawable> {
                     override fun onResourceReady(
                         resource: Drawable, model: Any, target: Target<Drawable>,
@@ -421,6 +423,7 @@ class BannerCarouselAdapter(
                 .placeholder(R.color.bg_black)
                 .error(R.drawable.ic_round_person_24)
                 .apply(bannerLoadOptions(BANNER_TYPE_MODERN))
+                .centerCrop()
                 .into(holder.bannerBg)
         } else {
             holder.bannerBg.isVisible = false
