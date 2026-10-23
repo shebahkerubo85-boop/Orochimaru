@@ -505,6 +505,13 @@ object Tmdb {
             .filter { it.mediaType != "person" }
     }
 
+    /** Full metadata for a movie or TV result, used when a catalogue source has no tracker data. */
+    suspend fun detail(mediaType: String, id: Int): TmdbDetail? {
+        if (mediaType != TYPE_MOVIE && mediaType != TYPE_TV) return null
+        val body = get("/$mediaType/$id") ?: return null
+        return runCatching { json.decodeFromString<TmdbDetail>(body) }.getOrNull()
+    }
+
     suspend fun trending(mediaType: String = "all", timeWindow: String = "week"): List<TmdbMedia> {
         val body = get("/trending/$mediaType/$timeWindow") ?: return emptyList()
         return runCatching { json.decodeFromString<TmdbPage<TmdbMedia>>(body).results }
