@@ -329,11 +329,7 @@ object AnimeCatalogueHome {
         val upcoming = runCatching {
             Tmdb.exploreRow(Tmdb.ExploreRow.UPCOMING, "tv")
         }.getOrDefault(emptyList())
-        val ongoing = runCatching {
-            Tmdb.exploreRow(Tmdb.ExploreRow.LATEST_RELEASE, "tv")
-        }.getOrDefault(emptyList())
         val candidates = linkedMapOf(
-            "Ongoing" to ongoing,
             "Trending" to trending,
             "Popular" to popular,
             "Upcoming" to upcoming,
