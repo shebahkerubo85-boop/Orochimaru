@@ -107,11 +107,11 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Anime expanded section - fixed height, content scrolls if needed -->
+    <!-- Anime expanded section - wraps its rows so the catalogue picker is reachable -->
     <LinearLayout
         android:id="@+id/sheetAnimeExpanded"
         android:layout_width="match_parent"
-        android:layout_height="120dp"
+        android:layout_height="wrap_content"
         android:orientation="vertical"
         android:visibility="gone">
 
