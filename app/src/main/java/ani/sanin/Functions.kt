@@ -192,16 +192,27 @@ fun View.bannerCardSizePx(maxHeightFraction: Float = 0.55f): Pair<Int, Int> {
     val density = dm.density
     val screenW = dm.widthPixels / density
     val screenH = dm.heightPixels / density
+    val landscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val finalH: Float
     val finalW: Float
-    if (isModernBanner()) {
-        // Modern keeps its own cinematic dimensions.
+    if (landscape) {
+        // Every landscape banner type matches Compact's responsive height.
+        // Portrait retains each banner type's existing dimensions.
+        val maxH = (screenH - statusBarHeight / density) * maxHeightFraction
+        val naturalH = screenW * 9f / 16f
+        if (naturalH <= maxH) {
+            finalW = screenW
+            finalH = naturalH
+        } else {
+            finalH = maxH
+            finalW = maxH * 16f / 9f
+        }
+    } else if (isModernBanner()) {
+        // Modern keeps its existing cinematic portrait dimensions.
         finalH = resources.getDimension(R.dimen.banner_modern_height) / density
         finalW = screenW
     } else if (isClassicBanner()) {
-        // Classic: full-width strip, no left empty bar. The height comes from a
-        // resource so portrait can be taller and landscape shorter for the same
-        // banner type; see banner_classic_height in values/ and values-land/.
+        // Classic keeps its existing portrait dimensions.
         finalH = resources.getDimension(R.dimen.banner_classic_height) / density
         finalW = screenW
     } else {
