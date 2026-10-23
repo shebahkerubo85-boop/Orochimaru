@@ -32,9 +32,8 @@ import kotlin.math.abs
 /**
  * One card in a catalogue-driven Anime home section.
  *
- * [media] is set when the item already carries an AniList title (native providers
- * resolve through AniList), so a click can open the normal detail screen without
- * another lookup. Extension items leave it null and resolve lazily on click.
+ * [media] is optional tracker metadata. Catalogue-only entries use a synthetic Media id;
+ * their info tab can be enriched from TMDB without making catalogue loading depend on AniList.
  */
 data class CatalogueItem(
     val response: ShowResponse,
@@ -350,7 +349,8 @@ object AnimeCatalogueHome {
             "Popular" to popular,
             "Upcoming" to upcoming,
         )
-        only.mapNotNull { section ->
+        val keyOf: (String) -> String = { it.lowercase().filter { ch -> ch.isLetterOrDigit() } }
+        val titlesBySection = only.mapNotNull { section ->
             val source = candidates[section] ?: return@mapNotNull null
             val titles = source.asSequence()
                 .filter { it.type == "tv" || it.type == "movie" }
@@ -358,14 +358,35 @@ object AnimeCatalogueHome {
                 .map { it.displayTitle }
                 .filter { it.isNotBlank() }
                 .distinct()
-                .take(PER_SECTION * 2)
+                .take(PER_SECTION)
                 .toList()
-            val resolved = mutableListOf<CatalogueItem>()
-            for (title in titles) {
-                if (resolved.size >= PER_SECTION) break
-                runCatching { resolve(title) }.getOrNull()?.let(resolved::add)
-            }
-            if (resolved.isEmpty()) null else CatalogueRow(section, resolved)
+            if (titles.isEmpty()) null else section to titles
+        }.toMap()
+
+        // A title may appear in several TMDB lists. Resolve it only once, with a small
+        // concurrency cap so a fallback does not flood an extension with duplicate searches.
+        val uniqueTitles = titlesBySection.values.flatten().distinctBy(keyOf)
+        val gate = Semaphore(4)
+        val resolvedByTitle = coroutineScope {
+            uniqueTitles.map { title ->
+                async(Dispatchers.IO) {
+                    val item = try {
+                        gate.withPermit { resolve(title) }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Logger.log("Catalogue: TMDB fallback resolution failed for '$title': ${e.message}")
+                        null
+                    }
+                    keyOf(title) to item
+                }
+            }.awaitAll().toMap()
+        }
+        titlesBySection.mapNotNull { (section, titles) ->
+            val items = titles.mapNotNull { resolvedByTitle[keyOf(it)] }
+                .distinctBy { it.response.link }
+                .take(PER_SECTION)
+            if (items.isEmpty()) null else CatalogueRow(section, items)
         }
     }
 
