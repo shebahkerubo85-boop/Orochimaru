@@ -18,6 +18,7 @@ import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.mal.MAL
 import ani.sanin.connections.simkl.Simkl
 import ani.sanin.loadImage
+import ani.sanin.util.Logger
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.customAlertDialog
 import ani.sanin.settings.saving.PrefManager
@@ -464,6 +465,7 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
                     adapter.setChecked(pos)
                     PrefManager.setVal(PrefName.AnimeCatalogueSource, id)
                     val name = adapter.getItemNameFor(pos)
+                    Logger.log("Catalogue picker: selected id='$id' name='$name'")
                     animeCatalogueNameView.text = name
                     (activity as? MainActivity)?.setContentMode("anime")
                 }

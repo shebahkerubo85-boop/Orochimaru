@@ -20,6 +20,7 @@ import android.view.animation.LayoutAnimationController
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
@@ -66,6 +67,7 @@ import ani.sanin.media.user.ListActivity
 import ani.sanin.navBarHeight
 import ani.sanin.openLinkInBrowser
 import ani.sanin.profile.ProfileActivity
+import ani.sanin.px
 import ani.sanin.setSafeOnClickListener
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.setSlideIn
@@ -82,6 +84,7 @@ import ani.sanin.tryWithSuspend
 import ani.sanin.util.Logger
 import ani.sanin.util.customAlertDialog
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
@@ -99,6 +102,12 @@ class HomeFragment : Fragment() {
     private var navBannerSlotA = true
     private var homeBannerItems: List<Media> = emptyList()
     private var homeBannerLogos: Map<Int, String?> = emptyMap()
+
+    /** True when the tracker sheet points Home at an extension/native catalogue. */
+    private var catalogueMode = false
+
+    /** The in-flight catalogue load, cancelled when a new load starts. */
+    private var catalogueJob: Job? = null
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -112,7 +121,8 @@ class HomeFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val scope = lifecycleScope
-        Logger.log("HomeFragment")
+        catalogueMode = AnimeCatalogueHome.isCatalogueSource(AnimeCatalogueHome.savedSourceId())
+        Logger.log("HomeFragment: catalogueMode=$catalogueMode source='${AnimeCatalogueHome.savedSourceId()}'")
         fun load() {
             Logger.log("Loading HomeFragment")
             if (activity != null && _binding != null) lifecycleScope.launch(Dispatchers.Main) {
@@ -248,13 +258,17 @@ class HomeFragment : Fragment() {
         binding.homeRefresh.setSlingshotDistance(height + 128)
         binding.homeRefresh.setProgressViewEndTarget(false, height + 128)
         binding.homeRefresh.setOnRefreshListener {
-            Refresh.activity[1]!!.postValue(true)
+            if (catalogueMode) loadCatalogue() else Refresh.activity[1]!!.postValue(true)
         }
+        binding.homeCatalogueRefresh.setOnRefreshListener { loadCatalogue() }
 
         //UserData
         binding.homeUserDataProgressBar.visibility = View.VISIBLE
         binding.homeUserDataContainer.visibility = View.GONE
-        if (model.loaded) {
+        if (catalogueMode) {
+            applyCatalogueMode()
+            loadCatalogue()
+        } else if (model.loaded) {
             load()
         }
         //List Images
@@ -579,6 +593,14 @@ class HomeFragment : Fragment() {
             }
 
         live.observe(viewLifecycleOwner) { shouldRefresh ->
+            if (catalogueMode) {
+                if (shouldRefresh && binding.homeCatalogueSections.childCount == 0 &&
+                    catalogueJob?.isActive != true
+                ) {
+                    loadCatalogue()
+                }
+                return@observe
+            }
             if (!running && shouldRefresh) {
                 running = true
                 scope.launch {
@@ -1403,15 +1425,151 @@ class HomeFragment : Fragment() {
     private fun homeOverlayScoreText(media: Media): String? =
         media.meanScore?.let { "$it%" }
 
+    // --------------------------------------------------------------- catalogue
+
+    private fun applyCatalogueMode() {
+        binding.homeRefresh.visibility = View.GONE
+        binding.homeCatalogueRefresh.visibility = View.VISIBLE
+    }
+
+    private fun loadCatalogue() {
+        val sourceId = AnimeCatalogueHome.savedSourceId()
+        Logger.log("HomeCatalogue: loading source '$sourceId'")
+        catalogueJob?.cancel()
+        binding.homeCatalogueRefresh.isRefreshing = true
+        catalogueJob = viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val rows = withContext(Dispatchers.IO) {
+                    try {
+                        AnimeCatalogueHome.loadRows(sourceId)
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Logger.log("HomeCatalogue: load threw for '$sourceId'")
+                        Logger.log(e)
+                        emptyList()
+                    }
+                }
+                if (_binding == null) return@launch
+                Logger.log(
+                    "HomeCatalogue: '$sourceId' produced ${rows.size} rows " +
+                        "(${rows.sumOf { it.items.size }} items)"
+                )
+                renderCatalogueRows(sourceId, rows)
+            } finally {
+                if (_binding != null) binding.homeCatalogueRefresh.isRefreshing = false
+            }
+        }
+    }
+
+    private fun renderCatalogueRows(sourceId: String, rows: List<CatalogueRow>) {
+        if (_binding == null) return
+        val ctx = requireContext()
+        binding.homeCatalogueSections.removeAllViews()
+        if (rows.isEmpty()) {
+            val label = when {
+                sourceId.startsWith("native:", true) -> sourceId.substringAfter(':')
+                sourceId.startsWith("ext:", true) -> sourceId.substringAfter(':')
+                else -> sourceId
+            }
+            Logger.log("HomeCatalogue: no rows for '$sourceId' (label '$label')")
+            binding.homeCatalogueSections.addView(TextView(ctx).apply {
+                text = "Couldn't load the catalogue from $label.\n" +
+                    "Check that the source works and your connection, then pull to refresh."
+                setPadding(48, 48, 48, 48)
+                textSize = 15f
+                alpha = 0.7f
+                setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            })
+            return
+        }
+        rows.forEach { row ->
+            val mediaToItem = LinkedHashMap<Int, CatalogueItem>()
+            val medias = ArrayList<Media>()
+            row.items.forEach { item ->
+                val display = AnimeCatalogueHome.displayMedia(sourceId, item)
+                mediaToItem[display.id] = item
+                medias.add(display)
+            }
+            val header = TextView(ctx).apply {
+                text = row.title
+                setPadding(24, 14, 24, 8)
+                textSize = 16f
+                setTypeface(android.graphics.Typeface.DEFAULT_BOLD)
+                setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            }
+            val recycler = RecyclerView(ctx).apply {
+                layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
+                adapter = MediaAdaptor(
+                    0,
+                    medias,
+                    requireActivity(),
+                    onItemClickOverride = { media ->
+                        val item = mediaToItem[media.id]
+                        val act = activity as? AppCompatActivity
+                        if (item != null && act != null) {
+                            AnimeCatalogueHome.openItem(
+                                act,
+                                sourceId,
+                                item,
+                                onFailed = { snackString(getString(R.string.no_results_found)) },
+                            ) { resolved ->
+                                ContextCompat.startActivity(
+                                    ctx,
+                                    Intent(ctx, ani.sanin.media.MediaDetailsActivity::class.java)
+                                        .putExtra("media", resolved)
+                                        .putExtra("anime", true),
+                                    null
+                                )
+                            }
+                            true
+                        } else false
+                    }
+                )
+                isNestedScrollingEnabled = false
+                overScrollMode = View.OVER_SCROLL_NEVER
+                setPadding(24, 0, 24, 0)
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { bottomMargin = 11f.px }
+            }
+            binding.homeCatalogueSections.addView(header)
+            binding.homeCatalogueSections.addView(recycler)
+        }
+    }
+
     override fun onResume() {
-        if (!model.loaded) Refresh.activity[1]!!.postValue(true)
         super.onResume()
+        if (_binding == null) return
+        val wasCatalogue = catalogueMode
+        catalogueMode = AnimeCatalogueHome.isCatalogueSource(AnimeCatalogueHome.savedSourceId())
+        if (catalogueMode != wasCatalogue) {
+            Logger.log("HomeFragment: catalogue mode changed to $catalogueMode")
+            if (catalogueMode) {
+                applyCatalogueMode()
+                loadCatalogue()
+            } else {
+                binding.homeCatalogueRefresh.visibility = View.GONE
+                binding.homeRefresh.visibility = View.VISIBLE
+                if (!model.loaded) Refresh.activity[1]!!.postValue(true)
+            }
+            return
+        }
+        if (catalogueMode) {
+            applyCatalogueMode()
+            if (binding.homeCatalogueSections.childCount == 0 && catalogueJob?.isActive != true) {
+                loadCatalogue()
+            }
+            return
+        }
+        if (!model.loaded) Refresh.activity[1]!!.postValue(true)
         reapplyHomeLayout()
     }
 
     /** Re-applies home section visibility/order from prefs without refetching data. */
     private fun reapplyHomeLayout() {
-        if (_binding == null || PrefManager.getVal(PrefName.RescueMode)) return
+        if (_binding == null || catalogueMode || PrefManager.getVal(PrefName.RescueMode)) return
         val homeLayoutShow = PrefManager.getVal<List<Boolean>>(PrefName.HomeLayout)
         val order = PrefManager.getVal<List<Int>>(PrefName.HomeLayoutOrder)
         if (order.isEmpty()) return
@@ -1437,6 +1595,7 @@ class HomeFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        catalogueJob?.cancel()
         bannerAutoScrollHandler?.removeCallbacksAndMessages(null)
         bannerSnapHelper.attachToRecyclerView(null)
         _binding = null

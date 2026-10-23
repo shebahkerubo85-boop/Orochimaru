@@ -83,60 +83,111 @@ object AnimeCatalogueHome {
      * Empty/failed sections are dropped rather than rendered blank.
      */
     suspend fun loadRows(sourceId: String): List<CatalogueRow> {
-        if (!isCatalogueSource(sourceId)) return emptyList()
+        Logger.log("Catalogue: loadRows('$sourceId')")
+        if (!isCatalogueSource(sourceId)) {
+            Logger.log("Catalogue: '$sourceId' is not a catalogue source")
+            return emptyList()
+        }
         if (sourceId.startsWith("ext:", true)) {
             val name = sourceId.substringAfter(':')
             val parser = resolveExtension(name)
             if (parser == null) {
-                Logger.log("Catalogue: extension '$name' not found")
+                Logger.log(
+                    "Catalogue: extension '$name' not found " +
+                        "(known sources=${AnimeSources.list.size})"
+                )
                 return emptyList()
             }
-            return ordered(loadExtensionRows(parser))
+            Logger.log("Catalogue: extension '$name' resolved to '${parser.name}'")
+            val rows = ordered(loadExtensionRows(parser))
+            Logger.log("Catalogue: extension '$name' returned ${rows.size} rows")
+            return rows
         }
         if (sourceId.startsWith("native:", true)) {
             val saveName = sourceId.substringAfter(':')
             val parser = AnimeSources.allNativeParsers.firstOrNull { it.saveName == saveName }
             if (parser == null) {
-                Logger.log("Catalogue: native provider '$saveName' not found")
+                Logger.log(
+                    "Catalogue: native provider '$saveName' not found " +
+                        "(known=${AnimeSources.allNativeParsers.size})"
+                )
                 return emptyList()
             }
-            return ordered(loadNativeRows(parser))
+            Logger.log("Catalogue: native '$saveName' resolved to '${parser.name}'")
+            val rows = ordered(loadNativeRows(parser))
+            Logger.log("Catalogue: native '$saveName' returned ${rows.size} rows")
+            return rows
         }
+        Logger.log("Catalogue: unsupported source id '$sourceId'")
         return emptyList()
     }
 
     private fun ordered(rows: List<CatalogueRow>): List<CatalogueRow> {
+        rows.forEach { Logger.log("Catalogue: section '${it.title}' -> ${it.items.size} items") }
         val byTitle = rows.filter { it.items.isNotEmpty() }.associateBy { it.title }
-        return SECTION_ORDER.mapNotNull { byTitle[it] }.ifEmpty { rows.filter { it.items.isNotEmpty() } }
+        val ordered = SECTION_ORDER.mapNotNull { byTitle[it] }
+            .ifEmpty { rows.filter { it.items.isNotEmpty() } }
+        if (ordered.isEmpty()) Logger.log("Catalogue: every section was empty after ordering")
+        return ordered
     }
 
     private fun resolveExtension(name: String): DynamicAnimeParser? {
-        val parser = runCatching {
-            AnimeSources.list.firstOrNull { it.name == name }?.get?.value
-        }.getOrNull()
+        val source = AnimeSources.list.firstOrNull { it.name == name }
+        if (source == null) {
+            Logger.log("Catalogue: no source named '$name' in the source list")
+            return null
+        }
+        val parser = runCatching { source.get?.value }.getOrElse {
+            Logger.log("Catalogue: failed to instantiate extension '$name'")
+            Logger.log(it)
+            null
+        }
+        if (parser !is DynamicAnimeParser) {
+            Logger.log(
+                "Catalogue: source '$name' is " +
+                    "${parser?.javaClass?.simpleName ?: "null"}, not a dynamic extension"
+            )
+        }
         return parser as? DynamicAnimeParser
     }
 
     private fun catalogueSourceOf(parser: DynamicAnimeParser): AnimeCatalogueSource? {
-        val sources = runCatching { parser.extension.sources }.getOrNull() ?: return null
-        return sources.getOrNull(parser.sourceLanguage) as? AnimeCatalogueSource
+        val sources = runCatching { parser.extension.sources }.getOrElse {
+            Logger.log("Catalogue: '${parser.name}' exposed no source list")
+            Logger.log(it)
+            return null
+        }
+        val chosen = sources.getOrNull(parser.sourceLanguage) as? AnimeCatalogueSource
             ?: sources.filterIsInstance<AnimeCatalogueSource>().firstOrNull()
+        Logger.log(
+            "Catalogue: '${parser.name}' sources=${sources.size} " +
+                "lang=${parser.sourceLanguage} chosen=${chosen?.name ?: "none"}"
+        )
+        return chosen
     }
 
     // ---------------------------------------------------------------- extensions
 
     private suspend fun loadExtensionRows(parser: DynamicAnimeParser): List<CatalogueRow> =
         withContext(Dispatchers.IO) {
-            val source = catalogueSourceOf(parser) ?: return@withContext emptyList()
-            Logger.log("Catalogue: loading extension '${parser.name}'")
+            val source = catalogueSourceOf(parser) ?: run {
+                Logger.log("Catalogue: '${parser.name}' has no catalogue source")
+                return@withContext emptyList()
+            }
+            Logger.log("Catalogue: loading extension '${parser.name}' via '${source.name}'")
 
             val popular1 = page(source) { it.getPopularAnime(1) }
             val popular2 = page(source) { it.getPopularAnime(2) }
             val latest = if (source.supportsLatest) {
                 page(source) { it.getLatestUpdates(1) }
             } else {
+                Logger.log("Catalogue: '${source.name}' does not support latest")
                 emptyList()
             }
+            Logger.log(
+                "Catalogue: '${source.name}' popular1=${popular1.size} " +
+                    "popular2=${popular2.size} latest=${latest.size}"
+            )
 
             val ongoingByStatus = (popular1 + latest)
                 .filter { it.status == SAnime.ONGOING }
@@ -156,6 +207,11 @@ object AnimeCatalogueHome {
             val basePool = (popular1 + popular2 + latest + ongoing + upcoming)
                 .distinctBy { it.url }
             val recommended = basePool.shuffled().take(PER_SECTION)
+            Logger.log(
+                "Catalogue: '${source.name}' ongoing=${ongoing.size} " +
+                    "upcoming=${upcoming.size} trending=${trending.size} " +
+                    "recommended=${recommended.size}"
+            )
 
             listOf(
                 CatalogueRow("Ongoing", ongoing.take(PER_SECTION).map { it.toItem() }),
@@ -171,7 +227,11 @@ object AnimeCatalogueHome {
         source: AnimeCatalogueSource,
         block: suspend (AnimeCatalogueSource) -> AnimesPage,
     ): List<SAnime> = runCatching { block(source).animes }.getOrElse {
-        Logger.log("Catalogue: section fetch failed on '${source.name}': ${it.message}")
+        Logger.log(
+            "Catalogue: section fetch failed on '${source.name}': " +
+                "${it.javaClass.simpleName}: ${it.message}"
+        )
+        Logger.log(it)
         emptyList()
     }
 
@@ -203,7 +263,11 @@ object AnimeCatalogueHome {
         return runCatching {
             source.getSearchAnime(1, "", AnimeFilterList(filters.toList())).animes
         }.getOrElse {
-            Logger.log("Catalogue: status search failed on '${source.name}': ${it.message}")
+            Logger.log(
+                "Catalogue: status search failed on '${source.name}': " +
+                    "${it.javaClass.simpleName}: ${it.message}"
+            )
+            Logger.log(it)
             emptyList()
         }
     }
@@ -258,7 +322,9 @@ object AnimeCatalogueHome {
             }
 
             lists.map { (title, media) ->
-                CatalogueRow(title, resolveThrough(parser, media))
+                val resolved = resolveThrough(parser, media)
+                Logger.log("Catalogue: native '${parser.name}' '$title' ${media.size} -> ${resolved.size}")
+                CatalogueRow(title, resolved)
             }
         }
 
@@ -277,7 +343,8 @@ object AnimeCatalogueHome {
             adultOnly = adultOnly,
         )?.results ?: emptyList()
     }.getOrElse {
-        Logger.log("Catalogue: AniList section failed: ${it.message}")
+        Logger.log("Catalogue: AniList section failed: ${it.javaClass.simpleName}: ${it.message}")
+        Logger.log(it)
         emptyList()
     }
 

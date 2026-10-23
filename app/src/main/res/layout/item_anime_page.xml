@@ -183,7 +183,6 @@
 
 
     <LinearLayout
-        android:id="@+id/animeMoviesSection"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
@@ -283,7 +282,6 @@
 
 
     <LinearLayout
-        android:id="@+id/animeTopRatedSection"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
@@ -382,7 +380,6 @@
     </FrameLayout>
 
     <LinearLayout
-        android:id="@+id/animeMostFavSection"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
@@ -648,14 +645,5 @@
         android:visibility="gone"
         tools:text="No franchise matches that"
         tools:visibility="visible" />
-
-
-    <!-- Populated only when a non-tracker catalogue source is picked in the tracker sheet. -->
-    <LinearLayout
-        android:id="@+id/animeCatalogueSections"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:visibility="gone" />
 
 </LinearLayout>

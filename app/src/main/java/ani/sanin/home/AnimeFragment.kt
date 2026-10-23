@@ -10,9 +10,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.OvershootInterpolator
-import android.widget.LinearLayout
-import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updatePaddingRelative
@@ -47,8 +44,6 @@ import ani.sanin.media.FranchiseStub
 import ani.sanin.media.onNearEnd
 import ani.sanin.ui.InlineSearchBar
 import ani.sanin.setSafeOnClickListener
-import ani.sanin.getThemeColor
-import ani.sanin.media.Media
 import ani.sanin.media.MediaAdaptor
 import ani.sanin.media.ProgressAdapter
 import ani.sanin.media.SearchActivity
@@ -60,7 +55,6 @@ import ani.sanin.snackString
 import ani.sanin.statusBarHeight
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -102,12 +96,6 @@ class AnimeFragment : Fragment() {
      */
     private var animePageBinding: ItemAnimePageBinding? = null
 
-    /** True when the tracker sheet points the Anime home at an extension/native catalogue. */
-    private var catalogueMode = false
-
-    /** The in-flight catalogue load, cancelled when the user refreshes again. */
-    private var catalogueJob: Job? = null
-
     /**
      * Counts ranking requests, so only the newest one may write to the row.
      *
@@ -137,7 +125,6 @@ class AnimeFragment : Fragment() {
      *   own cards instead of rebuilding every card already on screen.
      */
     private fun publishFranchises(adaptor: FranchiseAdaptor, trigger: String) {
-        if (catalogueMode) return
         // Snapshot on the main thread: `results` keeps growing as later pages land, and
         // reading it from a background thread would race that mutation.
         val snapshot = model.aniMangaSearchResults.results.toList()
@@ -521,8 +508,6 @@ class AnimeFragment : Fragment() {
 
         val scope = viewLifecycleOwner.lifecycleScope
 
-        catalogueMode = AnimeCatalogueHome.isCatalogueSource(AnimeCatalogueHome.savedSourceId())
-
         var height = statusBarHeight
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             val displayCutout = activity?.window?.decorView?.rootWindowInsets?.displayCutout
@@ -575,7 +560,7 @@ class AnimeFragment : Fragment() {
         // tail of this list, so this is the gesture that pages it; the cursor makes a repeat
         // call before the next page has landed a no-op rather than a double claim.
         binding.animePageRecyclerView.onNearEnd {
-            if (!catalogueMode) publishFranchises(franchiseAdaptor, trigger = "scroll")
+            publishFranchises(franchiseAdaptor, trigger = "scroll")
         }
 
         var visible = false
@@ -679,41 +664,33 @@ class AnimeFragment : Fragment() {
                 // Only now does AnimePageAdapter hold an inflated binding for the page item, so
                 // this is the first point the header's controls exist to be wired.
                 animePageBinding = animePageAdapter.binding
-                if (catalogueMode) {
-                    // Neither the AniList franchise row nor its endless pager belongs here.
-                    adapter.removeAdapter(franchiseAdaptor)
-                    adapter.removeAdapter(progressAdaptor)
-                    applyCatalogueMode()
-                    loadCatalogue()
-                } else {
-                    setupAnimeFranchiseSort()
-                    model.getUpdated().observe(viewLifecycleOwner) {
-                        if (it != null) {
-                            animePageAdapter.updateRecent(MediaAdaptor(0, it, requireActivity()), it)
-                        }
+                setupAnimeFranchiseSort()
+                model.getUpdated().observe(viewLifecycleOwner) {
+                    if (it != null) {
+                        animePageAdapter.updateRecent(MediaAdaptor(0, it, requireActivity()), it)
                     }
-                    model.getMovies().observe(viewLifecycleOwner) {
-                        if (it != null) {
-                            animePageAdapter.updateMovies(MediaAdaptor(0, it, requireActivity()), it)
-                        }
+                }
+                model.getMovies().observe(viewLifecycleOwner) {
+                    if (it != null) {
+                        animePageAdapter.updateMovies(MediaAdaptor(0, it, requireActivity()), it)
                     }
-                    model.getTopRated().observe(viewLifecycleOwner) {
-                        if (it != null) {
-                            animePageAdapter.updateTopRated(MediaAdaptor(0, it, requireActivity()), it)
-                        }
+                }
+                model.getTopRated().observe(viewLifecycleOwner) {
+                    if (it != null) {
+                        animePageAdapter.updateTopRated(MediaAdaptor(0, it, requireActivity()), it)
                     }
-                    model.getMostFav().observe(viewLifecycleOwner) {
-                        if (it != null) {
-                            animePageAdapter.updateMostFav(MediaAdaptor(0, it, requireActivity()), it)
-                        }
-                    }
-                    model.getTrending().observe(viewLifecycleOwner) {
-                        if (it != null) {
-                            animePageAdapter.updateTrending(it)
-                        }
+                }
+                model.getMostFav().observe(viewLifecycleOwner) {
+                    if (it != null) {
+                        animePageAdapter.updateMostFav(MediaAdaptor(0, it, requireActivity()), it)
                     }
                 }
                 animePageAdapter.updateHeight()
+                model.getTrending().observe(viewLifecycleOwner) {
+                    if (it != null) {
+                        animePageAdapter.updateTrending(it)
+                    }
+                }
                 binding.animePageScrollTop.translationY = -(navBarHeight).toFloat()
             }
         }
@@ -748,12 +725,6 @@ class AnimeFragment : Fragment() {
             if (it && !running) {
                 running = true
                 scope.launch {
-                    if (catalogueMode) {
-                        loadCatalogue()
-                        live.postValue(false)
-                        running = false
-                        return@launch
-                    }
                     withContext(Dispatchers.IO) {
                         val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
                         if (rescueMode) {
@@ -796,108 +767,6 @@ class AnimeFragment : Fragment() {
         }
     }
 
-    /** Hides the tracker-driven AniList page and reveals the catalogue container. */
-    private fun applyCatalogueMode() {
-        val b = animePageBinding ?: return
-        b.animeSeasons.visibility = View.GONE
-        b.root.findViewById<View>(R.id.trendingContainer)?.visibility = View.GONE
-        b.animeRecentlyContainer.visibility = View.GONE
-        b.animeMoviesSection.visibility = View.GONE
-        b.animeTopRatedSection.visibility = View.GONE
-        b.animeMostFavSection.visibility = View.GONE
-        b.animeFranchiseHeader.visibility = View.GONE
-        b.animeFranchiseMessage.visibility = View.GONE
-        b.animeCatalogueSections.visibility = View.VISIBLE
-        animeFranchiseAdapter?.submit(emptyList())
-    }
-
-    /** Fetches and renders the catalogue sections for the selected source. */
-    private fun loadCatalogue() {
-        val sourceId = AnimeCatalogueHome.savedSourceId()
-        catalogueJob?.cancel()
-        binding.animeRefresh.isRefreshing = true
-        catalogueJob = viewLifecycleOwner.lifecycleScope.launch {
-            try {
-                val rows = withContext(Dispatchers.IO) { AnimeCatalogueHome.loadRows(sourceId) }
-                if (_binding == null) return@launch
-                renderCatalogueRows(rows)
-            } finally {
-                if (_binding != null) binding.animeRefresh.isRefreshing = false
-            }
-        }
-    }
-
-    private fun renderCatalogueRows(rows: List<CatalogueRow>) {
-        val b = animePageBinding ?: return
-        val ctx = requireContext()
-        val sourceId = AnimeCatalogueHome.savedSourceId()
-        b.animeCatalogueSections.removeAllViews()
-        if (rows.isEmpty()) {
-            b.animeCatalogueSections.addView(TextView(ctx).apply {
-                text = getString(R.string.no_results_found)
-                setPadding(48, 48, 48, 48)
-                textSize = 15f
-                alpha = 0.7f
-                setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
-            })
-            return
-        }
-        rows.forEach { row ->
-            val mediaToItem = LinkedHashMap<Int, CatalogueItem>()
-            val medias = ArrayList<Media>()
-            row.items.forEach { item ->
-                val display = AnimeCatalogueHome.displayMedia(sourceId, item)
-                mediaToItem[display.id] = item
-                medias.add(display)
-            }
-            val header = TextView(ctx).apply {
-                text = row.title
-                setPadding(24, 14, 24, 8)
-                textSize = 16f
-                setTypeface(android.graphics.Typeface.DEFAULT_BOLD)
-                setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
-            }
-            val recycler = RecyclerView(ctx).apply {
-                layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
-                adapter = MediaAdaptor(
-                    0,
-                    medias,
-                    requireActivity(),
-                    onItemClickOverride = { media ->
-                        val item = mediaToItem[media.id]
-                        val act = activity as? AppCompatActivity
-                        if (item != null && act != null) {
-                            AnimeCatalogueHome.openItem(
-                                act,
-                                sourceId,
-                                item,
-                                onFailed = { snackString(getString(R.string.no_results_found)) },
-                            ) { resolved ->
-                                ContextCompat.startActivity(
-                                    ctx,
-                                    Intent(ctx, ani.sanin.media.MediaDetailsActivity::class.java)
-                                        .putExtra("media", resolved)
-                                        .putExtra("anime", true),
-                                    null
-                                )
-                            }
-                            true
-                        } else false
-                    }
-                )
-                isNestedScrollingEnabled = false
-                overScrollMode = View.OVER_SCROLL_NEVER
-                setPadding(24, 0, 24, 0)
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply { bottomMargin = 11f.px }
-            }
-            b.animeCatalogueSections.addView(header)
-            b.animeCatalogueSections.addView(recycler)
-        }
-    }
-
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         if (::animePageAdapter.isInitialized) {
@@ -906,7 +775,7 @@ class AnimeFragment : Fragment() {
     }
 
     override fun onResume() {
-        if (!catalogueMode && !model.loaded) Refresh.activity[this.hashCode()]!!.postValue(true)
+        if (!model.loaded) Refresh.activity[this.hashCode()]!!.postValue(true)
         if (this::animePageAdapter.isInitialized && _binding != null) {
             // The banner type is changed on the settings screen, so the change
             // is only visible when the user comes back here. Rebuilding just the
@@ -914,16 +783,6 @@ class AnimeFragment : Fragment() {
             animePageAdapter.refreshBannerTypeIfChanged()
             binding.root.requestApplyInsets()
             binding.root.requestLayout()
-        }
-        if (catalogueMode && this::animePageAdapter.isInitialized && _binding != null) {
-            // A banner rebuild rebinds the page item, which restores the AniList-only
-            // sections; re-hide them and refill the catalogue if the rebind emptied it.
-            applyCatalogueMode()
-            if (animePageBinding != null && catalogueJob?.isActive != true &&
-                animePageBinding?.animeCatalogueSections?.childCount == 0
-            ) {
-                loadCatalogue()
-            }
         }
         super.onResume()
     }
