@@ -152,8 +152,10 @@ class FranchiseActivity : AppCompatActivity() {
         // category (the filter pill reads `type`), and at least one AniList id to match on.
         // A Kitsu card now carries a type up front, but enrichment can still refine it
         // (e.g. a SPECIAL that AniList reports as OVA) and fills air date/score/runtime.
-        if (ordered.any { it.synopsis.isNullOrBlank() || it.type == null } &&
-            ordered.any { it.anilistId != null }
+        if (ordered.any { it.anilistId != null } &&
+            ordered.any {
+                it.listStatus == null || it.synopsis.isNullOrBlank() || it.type == null
+            }
         ) {
             enrichFromAnilist()
         }
