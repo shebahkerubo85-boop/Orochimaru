@@ -34,6 +34,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.ConcatAdapter
@@ -1491,7 +1492,8 @@ class HomeFragment : Fragment() {
                 mediaToItem[display.id] = item
                 medias.add(display)
             }
-            val header = TextView(ctx).apply {
+            val gridFallback = row.title.isBlank()
+            val header = if (gridFallback) null else TextView(ctx).apply {
                 text = row.title
                 setPadding(24, 14, 24, 8)
                 textSize = 16f
@@ -1499,7 +1501,8 @@ class HomeFragment : Fragment() {
                 setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
             }
             val recycler = RecyclerView(ctx).apply {
-                layoutManager = LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
+                layoutManager = if (gridFallback) GridLayoutManager(ctx, 3) else
+                    LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false)
                 adapter = MediaAdaptor(
                     0,
                     medias,
@@ -1534,7 +1537,7 @@ class HomeFragment : Fragment() {
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 ).apply { bottomMargin = 11f.px }
             }
-            binding.homeCatalogueSections.addView(header)
+            header?.let(binding.homeCatalogueSections::addView)
             binding.homeCatalogueSections.addView(recycler)
         }
     }
