@@ -347,7 +347,6 @@ object AnimeCatalogueHome {
             "Trending" to trending,
             "Popular" to popular,
             "Upcoming" to upcoming,
-            "Recommended" to (trending + popular).distinctBy { "${it.type}:${it.id}" }.shuffled(),
         )
         only.mapNotNull { section ->
             val source = candidates[section] ?: return@mapNotNull null
