@@ -137,9 +137,11 @@ class TmdbBannerCarouselAdapter(
                 else android.widget.ImageView.ScaleType.FIT_CENTER
             Glide.with(ctx).load(imageUrl).placeholder(R.color.bg_black).error(R.drawable.ic_round_person_24)
                 .apply(loadOptions)
+                .let { request -> if (isClassicBanner()) request.centerCrop() else request }
                 .into(holder.bannerBg)
             Glide.with(ctx).load(imageUrl).placeholder(R.color.bg_black).error(R.drawable.ic_round_person_24)
                 .apply(loadOptions)
+                .let { request -> if (isClassicBanner()) request.centerCrop() else request }
                 .into(bannerImage ?: holder.bannerBg)
         } else {
             bannerImage?.isVisible = false
@@ -431,6 +433,7 @@ class TmdbBannerCarouselAdapter(
             Glide.with(ctx).load(imageUrl).placeholder(R.color.bg_black)
                 .error(R.drawable.ic_round_person_24)
                 .apply(bannerLoadOptions(BANNER_TYPE_MODERN))
+                .centerCrop()
                 .into(holder.bannerBg)
         } else {
             holder.bannerBg.isVisible = false
