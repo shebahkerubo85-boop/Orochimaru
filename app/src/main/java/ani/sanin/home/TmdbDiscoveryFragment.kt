@@ -670,7 +670,7 @@ class TmdbDiscoveryFragment : Fragment() {
             holder.binding.tmdbCardYear.text = item.year
             holder.binding.tmdbCardPoster.setOnClickListener { onOpen(item) }
             holder.binding.root.setOnClickListener { onOpen(item) }
-            FocusEffectUtil.applyFocusListener(holder.binding.tmdbCardPoster)
+            FocusEffectUtil.applyFocusListener(holder.binding.tmdbCardPoster, holder.binding.tmdbCard)
         }
         override fun getItemCount(): Int = items.size
         class VH(val binding: ItemTmdbCardBinding) : RecyclerView.ViewHolder(binding.root)
