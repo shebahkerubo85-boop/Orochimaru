@@ -920,7 +920,7 @@ class AnimeFragment : Fragment() {
             // sections; re-hide them and refill the catalogue if the rebind emptied it.
             applyCatalogueMode()
             if (animePageBinding != null && catalogueJob?.isActive != true &&
-                binding.animeCatalogueSections.childCount == 0
+                animePageBinding?.animeCatalogueSections?.childCount == 0
             ) {
                 loadCatalogue()
             }
