@@ -379,8 +379,7 @@ class FranchiseAdaptor(
             // Whatever did not fit is named rather than clipped. A poster running off the
             // row's edge reads as somewhere to keep scrolling, and this row does not scroll,
             // so a count is the truth where a sliver would be a broken promise.
-            val hidden = franchise.entries.size - cells
-            if (hidden > 0) addOverflow(inflater, row, hidden, cellWidth, gap, franchise)
+            // No synthetic +N card; show franchise entries only.
         }
 
         /**
