@@ -59,6 +59,8 @@ class MediaAdaptor(
     private val viewPager: ViewPager2? = null,
     private val fav: Boolean = false,
     private val isOtherUser: Boolean = false,
+    /** Optional click hook; returning true consumes the click instead of opening details. */
+    private val onItemClickOverride: ((Media) -> Boolean)? = null,
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     private var rawCardStyle = 0
     private var isLandscape = false
@@ -725,6 +727,7 @@ class MediaAdaptor(
     fun clicked(position: Int, itemCompactImage: ImageView?, bitmap: Bitmap? = null) {
         if ((mediaList?.size ?: 0) > position && position != -1) {
             val media = mediaList?.get(position)
+            if (media != null && onItemClickOverride?.invoke(media) == true) return
             if (bitmap != null) MediaSingleton.bitmap = bitmap
             if (media?.tmdbType != null) {
                 ContextCompat.startActivity(

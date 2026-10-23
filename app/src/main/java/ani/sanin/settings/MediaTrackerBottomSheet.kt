@@ -23,6 +23,7 @@ import ani.sanin.util.customAlertDialog
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.MainActivity
+import ani.sanin.parsers.AnimeSources
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
 class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
@@ -55,6 +56,9 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
         val pluginRowInner = v.findViewById<View>(R.id.sheetMoviePluginRowInner)
         val pluginNameView = v.findViewById<TextView>(R.id.sheetMoviePluginName)
         val pluginArrow = v.findViewById<View>(R.id.sheetMoviePluginArrow)
+        val animeCatalogueRowInner = v.findViewById<View>(R.id.sheetAnimeCatalogueRowInner)
+        val animeCatalogueNameView = v.findViewById<TextView>(R.id.sheetAnimeCatalogueName)
+        val animeCatalogueArrow = v.findViewById<View>(R.id.sheetAnimeCatalogueArrow)
 
         // Card banner/scrim/profile/tracker icon views
         val animeBanner = v.findViewById<ImageView>(R.id.sheetAnimeBanner)
@@ -82,7 +86,9 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             aniListCheck.nextFocusUpId = animeButton.id
             aniListCheck.nextFocusDownId = malCheck.id
             malCheck.nextFocusUpId = aniListCheck.id
-            malCheck.nextFocusDownId = View.NO_ID
+            malCheck.nextFocusDownId = animeCatalogueRowInner.id
+            animeCatalogueRowInner.nextFocusUpId = malCheck.id
+            animeCatalogueRowInner.nextFocusDownId = View.NO_ID
             movieButton.nextFocusUpId = View.NO_ID
             movieButton.nextFocusDownId = View.NO_ID
         }
@@ -248,6 +254,15 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             event.action == KeyEvent.ACTION_DOWN &&
                 keyCode == KeyEvent.KEYCODE_DPAD_UP && simklCheck.requestFocus().let { true }
         }
+        FocusEffectUtil.applyFocusListener(animeCatalogueRowInner)
+        animeCatalogueRowInner.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                malCheck.requestFocus()
+                true
+            } else {
+                false
+            }
+        }
 
         // --- Tracker checkboxes → instant mode switch ---
         aniListCheck.setOnClickListener {
@@ -321,7 +336,7 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             // Dialog layout: [List header] [Simkl] [divider] [Plugin header] [plug 1..n]
             // so Simkl is position 1 and plugin i (>=1) is position i + 3.
             val adapterPos = if (currentIdx == 0) 1 else currentIdx + 3
-            val picker = SourcePickerAdapter(requireContext(), pluginNames, adapterPos)
+            val picker = SourcePickerAdapter(requireContext(), pluginNames, adapterPos, headerSecond = "Plugin")
             requireContext().customAlertDialog().apply {
                 setTitle(R.string.home_metadata)
                 setWidthPx((240 * requireContext().resources.displayMetrics.density).toInt())
@@ -360,6 +375,126 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
         pluginRowInner.setOnClickListener { showSourcePicker() }
         pluginNameView.setOnClickListener { showSourcePicker() }
         pluginArrow.setOnClickListener { showSourcePicker() }
+
+        // --- Anime catalogue source picker (AniList/MAL + native providers + extensions) ---
+        fun findCheckedPos(names: ArrayList<String>, ids: ArrayList<String>, savedCat: String, trackerId: String): Int {
+            if (savedCat.isNotBlank()) {
+                val idx = ids.indexOfFirst { it.equals(savedCat, ignoreCase = true) }
+                if (idx >= 0) return idx
+            }
+            val idx = ids.indexOfFirst { it.equals(trackerId, ignoreCase = true) }
+            return if (idx >= 0) idx else if (names.isNotEmpty()) 1 else 0
+        }
+
+        fun showAnimeCataloguePicker() {
+            val savedTracker = PrefManager.getVal<Int>(PrefName.SelectedTracker)
+            val trackerName = if (savedTracker == 1) "MAL" else "AniList"
+            val trackerId = if (savedTracker == 1) "mal" else "anilist"
+
+            val catalogueNames = mutableListOf<String>()
+            val catalogueIds = mutableListOf<String>()
+            // List header entry (tracker)
+            catalogueNames.add(trackerName)
+            catalogueIds.add(trackerId)
+
+            // Only enabled providers can back the catalogue; the rest are not in the
+            // watch tab's source list, so offering them here would route nowhere.
+            AnimeSources.nativeParsers.forEach { parser ->
+                val name = parser.name
+                if (name.isNotBlank() && !catalogueNames.contains(name)) {
+                    catalogueNames.add(name)
+                    catalogueIds.add("native:${parser.saveName}")
+                }
+            }
+
+            // AniYomi extensions as catalogue sources
+            try {
+                AnimeSources.list.forEach { lazy ->
+                    val name = lazy.name
+                    if (name.isNotBlank() && name != "Local" && !catalogueNames.contains(name)) {
+                        catalogueNames.add(name)
+                        catalogueIds.add("ext:$name")
+                    }
+                }
+            } catch (_: Exception) {}
+
+            val savedCat = PrefManager.getVal<String>(PrefName.AnimeCatalogueSource)
+            var currentIdx = 0
+            if (savedCat.isNotBlank()) {
+                val found = catalogueIds.indexOfFirst { it.equals(savedCat, ignoreCase = true) }
+                if (found >= 0) currentIdx = found
+            }
+            animeCatalogueNameView.text = catalogueNames.getOrNull(currentIdx) ?: trackerName
+
+            // Layout: [List header] [tracker/native...] [divider] [Extensions header] [extensions...]
+            // Put extensions after divider+header
+            val namesWithStructure = ArrayList<String>()
+            val idsWithStructure = ArrayList<String>()
+            namesWithStructure.add("List") // header marker
+            idsWithStructure.add("__HEADER_LIST__")
+            // Add tracker + natives in first group
+            for (i in catalogueIds.indices) {
+                val id = catalogueIds[i]
+                if (id.startsWith("ext:")) continue
+                namesWithStructure.add(catalogueNames[i])
+                idsWithStructure.add(catalogueIds[i])
+            }
+            namesWithStructure.add("__DIVIDER__")
+            idsWithStructure.add("__DIVIDER__")
+            namesWithStructure.add("Extensions")
+            idsWithStructure.add("__HEADER_EXT__")
+            for (i in catalogueIds.indices) {
+                val id = catalogueIds[i]
+                if (id.startsWith("ext:")) {
+                    namesWithStructure.add(catalogueNames[i])
+                    idsWithStructure.add(catalogueIds[i])
+                }
+            }
+
+            val adapter = SourcePickerAdapterStructured(requireContext(), namesWithStructure, idsWithStructure, findCheckedPos(namesWithStructure, idsWithStructure, savedCat, trackerId))
+            requireContext().customAlertDialog().apply {
+                setTitle(R.string.source)
+                setWidthPx((240 * requireContext().resources.displayMetrics.density).toInt())
+                attach { d ->
+                    d.listView?.choiceMode = android.widget.ListView.CHOICE_MODE_NONE
+                }
+                singleChoiceAdapter(adapter, adapter.checkedPosition) { pos ->
+                    val id = adapter.getItemIdFor(pos)
+                    if (id == "__HEADER_LIST__" || id == "__HEADER_EXT__" || id == "__DIVIDER__") return@singleChoiceAdapter
+                    adapter.setChecked(pos)
+                    PrefManager.setVal(PrefName.AnimeCatalogueSource, id)
+                    val name = adapter.getItemNameFor(pos)
+                    animeCatalogueNameView.text = name
+                    (activity as? MainActivity)?.setContentMode("anime")
+                }
+                show()
+            }
+        }
+
+        // Set initial anime catalogue name
+        val savedTrackerInit = PrefManager.getVal<Int>(PrefName.SelectedTracker)
+        val savedCatInit = PrefManager.getVal<String>(PrefName.AnimeCatalogueSource)
+        val trackerNameInit = if (savedTrackerInit == 1) "MAL" else "AniList"
+        if (savedCatInit.isBlank()) {
+            animeCatalogueNameView.text = trackerNameInit
+        } else {
+            if (savedCatInit.equals("anilist", true) || savedCatInit.equals("mal", true)) {
+                // A tracker id means "follow the tracker", so the label is whichever
+                // tracker is active now, not the one that happened to be saved.
+                animeCatalogueNameView.text = trackerNameInit
+            } else if (savedCatInit.startsWith("native:")) {
+                val sn = savedCatInit.substringAfter("native:")
+                val pn = AnimeSources.allNativeParsers.firstOrNull { it.saveName == sn }?.name ?: sn
+                animeCatalogueNameView.text = pn
+            } else if (savedCatInit.startsWith("ext:")) {
+                animeCatalogueNameView.text = savedCatInit.substringAfter("ext:")
+            } else {
+                animeCatalogueNameView.text = savedCatInit
+            }
+        }
+        animeCatalogueRowInner.setOnClickListener { showAnimeCataloguePicker() }
+        animeCatalogueNameView.setOnClickListener { showAnimeCataloguePicker() }
+        animeCatalogueArrow.setOnClickListener { showAnimeCataloguePicker() }
 
         // --- Restore checkbox state (but always start collapsed) ---
         when (savedTracker) {
@@ -407,6 +542,112 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
     }
 }
 
+private class SourcePickerAdapterStructured(
+    private val context: Context,
+    private val names: ArrayList<String>,
+    private val ids: ArrayList<String>,
+    var checkedPosition: Int
+) : android.widget.BaseAdapter() {
+    companion object {
+        private const val TYPE_ROW = 0
+        private const val TYPE_DIVIDER = 1
+        private const val TYPE_HEADER = 2
+    }
+
+    private fun newRadioIndicator(): android.graphics.drawable.Drawable? {
+        val a = context.obtainStyledAttributes(intArrayOf(android.R.attr.listChoiceIndicatorSingle))
+        return try {
+            a.getDrawable(0)?.mutate()
+        } finally {
+            a.recycle()
+        }
+    }
+
+    private fun bindRadioState(row: android.widget.CheckedTextView, checked: Boolean) {
+        row.isChecked = checked
+        val d = row.compoundDrawables?.getOrNull(0) ?: return
+        d.setState(
+            if (checked) intArrayOf(android.R.attr.state_checked)
+            else intArrayOf(-android.R.attr.state_checked)
+        )
+        d.setBounds(0, 0, d.intrinsicWidth.coerceAtLeast(1), d.intrinsicHeight.coerceAtLeast(1))
+    }
+
+    private val rowMaxWidth = (context.resources.displayMetrics.density * 280).toInt()
+
+    fun setChecked(position: Int) {
+        if (position == checkedPosition) return
+        checkedPosition = position
+        notifyDataSetChanged()
+    }
+
+    fun getItemIdFor(position: Int): String = if (position in ids.indices) ids[position] else ""
+    fun getItemNameFor(position: Int): String = if (position in names.indices) names[position] else ""
+
+    override fun getCount(): Int = names.size
+    override fun getItem(position: Int): Any = names[position]
+    override fun getItemId(position: Int): Long = position.toLong()
+    override fun getViewTypeCount(): Int = 3
+    override fun getItemViewType(position: Int): Int = when (ids[position]) {
+        "__HEADER_LIST__", "__HEADER_EXT__" -> TYPE_HEADER
+        "__DIVIDER__" -> TYPE_DIVIDER
+        else -> TYPE_ROW
+    }
+    override fun isEnabled(position: Int): Boolean = when (ids[position]) {
+        "__HEADER_LIST__", "__HEADER_EXT__", "__DIVIDER__" -> false
+        else -> true
+    }
+
+    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+        val primary = context.getThemeColor(com.google.android.material.R.attr.colorPrimary)
+        return when (ids[position]) {
+            "__HEADER_LIST__", "__HEADER_EXT__" -> {
+                val header = convertView as? TextView ?: TextView(context).apply {
+                    gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                    textSize = 12f
+                    setTypeface(Typeface.DEFAULT_BOLD)
+                    isEnabled = false
+                }
+                header.text = if (ids[position] == "__HEADER_LIST__") "List" else "Extensions"
+                header.setTextColor(primary)
+                val dp = context.resources.displayMetrics.density
+                header.setPadding(
+                    (dp * 20).toInt(),
+                    if (ids[position] == "__HEADER_EXT__") (dp * 12).toInt() else 0,
+                    (dp * 8).toInt(),
+                    0
+                )
+                header
+            }
+            "__DIVIDER__" -> {
+                View(context).apply {
+                    layoutParams = ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        (context.resources.displayMetrics.density * 1).toInt().coerceAtLeast(1)
+                    )
+                    background = android.graphics.drawable.ColorDrawable(0x2BFFFFFF)
+                }
+            }
+            else -> {
+                val row = convertView as? CheckedTextView
+                    ?: CheckedTextView(context).apply {
+                        setCompoundDrawablesWithIntrinsicBounds(newRadioIndicator(), null, null, null)
+                        compoundDrawablePadding = (context.resources.displayMetrics.density * 2).toInt()
+                        gravity = Gravity.CENTER_VERTICAL
+                    }
+                row.setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+                row.text = names[position]
+                row.maxWidth = rowMaxWidth
+                row.ellipsize = android.text.TextUtils.TruncateAt.END
+                row.setSingleLine(true)
+                row.setPadding(0, 0, 0, 0)
+                bindRadioState(row, position == checkedPosition)
+                row
+            }
+        }
+    }
+}
+
 /**
  * Source picker rows for the dialog. Layout:
  *   position 0  -> "List" section header (small, primary color, left aligned)
@@ -418,7 +659,8 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
 private class SourcePickerAdapter(
     private val context: Context,
     private val names: List<String>,
-    checkedPosition: Int
+    checkedPosition: Int,
+    private val headerSecond: String = "Plugin"
 ) : android.widget.BaseAdapter() {
 
     companion object {
@@ -518,7 +760,7 @@ private class SourcePickerAdapter(
                     setTypeface(Typeface.DEFAULT_BOLD)
                     isEnabled = false
                 }
-                header.text = if (position == 0) "List" else "Plugin"
+                header.text = if (position == 0) "List" else headerSecond
                 header.setTextColor(primary)
                 val dp = context.resources.displayMetrics.density
                 header.setPadding(
