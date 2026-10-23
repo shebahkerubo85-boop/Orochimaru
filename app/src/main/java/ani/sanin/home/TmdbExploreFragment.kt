@@ -1,6 +1,7 @@
 package ani.sanin.home
 
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Handler
@@ -20,6 +21,7 @@ import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.chip.Chip
 import ani.sanin.R
 import ani.sanin.bannerCardSizePx
 import ani.sanin.cloudstream.StreamingServicesAdapter
