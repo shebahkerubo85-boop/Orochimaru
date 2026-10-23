@@ -128,8 +128,10 @@ object AnimeCatalogueHome {
     private fun ordered(rows: List<CatalogueRow>): List<CatalogueRow> {
         rows.forEach { Logger.log("Catalogue: section '${it.title}' -> ${it.items.size} items") }
         val byTitle = rows.filter { it.items.isNotEmpty() }.associateBy { it.title }
-        val ordered = SECTION_ORDER.mapNotNull { byTitle[it] }
-            .ifEmpty { rows.filter { it.items.isNotEmpty() } }
+        val ordered = (
+            SECTION_ORDER.mapNotNull { byTitle[it] } +
+                rows.filter { it.items.isNotEmpty() && it.title !in SECTION_ORDER }
+            ).take(10)
         if (ordered.isEmpty()) Logger.log("Catalogue: every section was empty after ordering")
         return ordered
     }
@@ -210,6 +212,7 @@ object AnimeCatalogueHome {
             val basePool = (popular1 + popular2 + latest + ongoing + upcoming)
                 .distinctBy { it.url }
             val recommended = basePool.shuffled().take(PER_SECTION)
+            val extraRows = loadFilterRows(source, existingTitles = SECTION_ORDER.toSet())
             Logger.log(
                 "Catalogue: '${source.name}' ongoing=${ongoing.size} " +
                     "upcoming=${upcoming.size} trending=${trending.size} " +
@@ -223,7 +226,7 @@ object AnimeCatalogueHome {
                 CatalogueRow("Popular", popular1.take(PER_SECTION).map { it.toItem() }),
                 CatalogueRow("Upcoming", upcoming.take(PER_SECTION).map { it.toItem() }),
                 CatalogueRow("Recommended", recommended.map { it.toItem() }),
-            )
+            ) + extraRows
         }
 
     private suspend fun page(
@@ -293,13 +296,19 @@ object AnimeCatalogueHome {
     private suspend fun loadNativeRows(parser: NativeAnimeParser): List<CatalogueRow> =
         withContext(Dispatchers.IO) {
             Logger.log("Catalogue: loading native '${parser.name}' from TMDB")
-            val rows = tmdbRows { title ->
+            val resolve: suspend (String) -> CatalogueItem? = { title ->
                 runCatching { parser.search(title).firstOrNull()?.let { it.toItem() } }
                     .onFailure { Logger.log("Catalogue: native search failed for '$title': ${it.message}") }
                     .getOrNull()
             }
-            Logger.log("Catalogue: native '${parser.name}' returned ${rows.size} TMDB-backed rows")
-            rows
+            val rows = tmdbRows(resolve)
+            if (rows.isNotEmpty()) {
+                Logger.log("Catalogue: native '${parser.name}' returned ${rows.size} TMDB-backed rows")
+                rows
+            } else {
+                val grid = tmdbGrid(resolve)
+                if (grid.isEmpty()) emptyList() else listOf(CatalogueRow("", grid.take(100)))
+            }
         }
 
     /**
@@ -352,6 +361,65 @@ object AnimeCatalogueHome {
             }
             if (resolved.isEmpty()) null else CatalogueRow(section, resolved)
         }
+    }
+
+    /**
+     * Extra extension-supported categories are derived only from actual genre/category
+     * filters exposed by that source. The API has no arbitrary named-section contract,
+     * so we do not invent shelves from unrelated filters.
+     */
+    private suspend fun loadFilterRows(
+        source: AnimeCatalogueSource,
+        existingTitles: Set<String>,
+    ): List<CatalogueRow> = withContext(Dispatchers.IO) {
+        val filters = runCatching { source.getFilterList() }.getOrNull() ?: return@withContext emptyList()
+        val categoryFilter = filters.firstOrNull { filter ->
+            filter is AnimeFilter.Select<*> &&
+                listOf("genre", "category", "type").any { filter.name.lowercase().contains(it) }
+        } as? AnimeFilter.Select<*> ?: return@withContext emptyList()
+        val values = categoryFilter.values.mapIndexedNotNull { index, value ->
+            if (index == categoryFilter.state || value.toString().isBlank() ||
+                value.toString().contains("all", true) || value.toString().contains("select", true)
+            ) null else index to value.toString()
+        }.take(4)
+        values.mapNotNull { (index, label) ->
+            val copy = runCatching { source.getFilterList() }.getOrNull() ?: return@mapNotNull null
+            val target = copy.firstOrNull { it.name == categoryFilter.name } as? AnimeFilter.Select<*>
+                ?: return@mapNotNull null
+            target.state = index
+            val items = runCatching {
+                source.getSearchAnime(1, "", AnimeFilterList(copy.toList())).animes
+                    .distinctBy { it.url }.take(PER_SECTION).map { it.toItem() }
+            }.getOrDefault(emptyList())
+            val title = label.trim().replaceFirstChar { it.uppercase() }
+            if (items.isEmpty() || title in existingTitles) null else CatalogueRow(title, items)
+        }
+    }
+
+    private suspend fun loadExtensionGrid(parser: DynamicAnimeParser): List<CatalogueItem> =
+        withContext(Dispatchers.IO) {
+            val source = catalogueSourceOf(parser) ?: return@withContext emptyList()
+            val items = (page(source) { it.getPopularAnime(1) } +
+                page(source) { it.getPopularAnime(2) } +
+                if (source.supportsLatest) page(source) { it.getLatestUpdates(1) } else emptyList())
+                .distinctBy { it.url }.take(100).map { it.toItem() }
+            items
+        }
+
+    private suspend fun tmdbGrid(
+        resolve: suspend (String) -> CatalogueItem?,
+    ): List<CatalogueItem> = withContext(Dispatchers.IO) {
+        val candidates = (runCatching { Tmdb.popular(1) }.getOrDefault(emptyList()) +
+            runCatching { Tmdb.trending("tv", "week") }.getOrDefault(emptyList()))
+            .distinctBy { "${it.type}:${it.id}" }
+        val result = mutableListOf<CatalogueItem>()
+        for (candidate in candidates) {
+            if (result.size >= 100) break
+            val title = candidate.displayTitle
+            if (title.isBlank()) continue
+            runCatching { resolve(title) }.getOrNull()?.let(result::add)
+        }
+        result.distinctBy { it.response.link }.take(100)
     }
 
     private suspend fun searchExtension(
