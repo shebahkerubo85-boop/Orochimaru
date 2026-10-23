@@ -10,6 +10,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import ani.sanin.R
 import ani.sanin.connections.anilist.Anilist
+import ani.sanin.connections.anilist.api.FuzzyDate
+import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.connections.mal.MAL
 import ani.sanin.currContext
 import ani.sanin.media.anime.Episode
@@ -85,7 +87,13 @@ class MediaDetailsViewModel : ViewModel() {
             loading = true
             val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
             viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                if (m.id == 0 && m.format?.startsWith("LOCAL") == true) {
+                if (m.id < 0) {
+                    // Negative ids identify catalogue-only synthetic entries. Never send
+                    // these IDs to AniList; enrich the info tab from an exact TMDB title match.
+                    media.postValue(m)
+                    enrichTmdbCatalogueMedia(m)
+                    media.postValue(m)
+                } else if (m.id == 0 && m.format?.startsWith("LOCAL") == true) {
                     m.folderName = m.folderName ?: m.name
                     media.postValue(m)
 
@@ -184,7 +192,7 @@ class MediaDetailsViewModel : ViewModel() {
             }
         }
 
-        if (!PrefManager.getVal<Boolean>(PrefName.RescueMode)) {
+        if (m.id >= 0 && !PrefManager.getVal<Boolean>(PrefName.RescueMode)) {
             viewModelScope.launch(Dispatchers.IO) {
                 try {
                     if (m.idIMDB == null) {
@@ -194,6 +202,52 @@ class MediaDetailsViewModel : ViewModel() {
                     ani.sanin.util.Logger.log(e)
                 }
             }
+        }
+    }
+
+    private suspend fun enrichTmdbCatalogueMedia(media: Media) {
+        val title = media.name?.takeIf { it.isNotBlank() } ?: media.userPreferredName
+        if (title.isBlank()) return
+        val normalize: (String) -> String = {
+            it.lowercase().filter(Char::isLetterOrDigit)
+        }
+        val wanted = normalize(title)
+        if (wanted.isBlank()) return
+
+        val match = runCatching { Tmdb.search(title) }
+            .onFailure { Logger.log("Catalogue TMDB search failed for '$title': ${it.message}") }
+            .getOrDefault(emptyList())
+            .asSequence()
+            .filter { it.type == "tv" || it.type == "movie" }
+            .filter { normalize(it.displayTitle) == wanted }
+            .sortedByDescending { it.voteCount }
+            .firstOrNull() ?: return
+
+        val detail = runCatching { Tmdb.detail(match.type, match.id) }
+            .onFailure { Logger.log("Catalogue TMDB detail failed for '$title': ${it.message}") }
+            .getOrNull() ?: return
+
+        media.cover = media.cover ?: Tmdb.imageUrl(detail.posterPath)
+        media.banner = media.banner ?: Tmdb.imageUrl(detail.backdropPath, 1280)
+        if (media.description.isNullOrBlank()) {
+            media.description = detail.overview?.takeIf { it.isNotBlank() }
+        }
+        if (media.status.isNullOrBlank()) {
+            media.status = detail.status?.takeIf { it.isNotBlank() }
+        }
+        // "TV" is the synthetic placeholder format; replace it with the matched TMDB type.
+        if (media.format.isNullOrBlank() || media.format == "TV") {
+            media.format = if (match.type == "tv") "TV" else "MOVIE"
+        }
+        media.tmdbType = media.tmdbType ?: match.type
+        if (media.meanScore == null && detail.voteAverage > 0) {
+            media.meanScore = (detail.voteAverage * 10).toInt()
+        }
+        if (media.genres.isEmpty()) media.genres = ArrayList(detail.genres.map { it.name })
+        val year = (detail.releaseDate ?: detail.firstAirDate).orEmpty().take(4).toIntOrNull()
+        if (media.startDate == null && year != null) media.startDate = FuzzyDate(year = year)
+        if (media.shareLink.isNullOrBlank()) {
+            media.shareLink = "https://www.themoviedb.org/${match.type}/${match.id}"
         }
     }
 

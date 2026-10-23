@@ -2,7 +2,7 @@ package ani.sanin.home
 
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import ani.sanin.connections.anilist.Anilist
+import ani.sanin.connections.tmdb.Tmdb
 import ani.sanin.media.anime.Anime
 import ani.sanin.media.Media
 import ani.sanin.media.Selected
@@ -32,9 +32,8 @@ import kotlin.math.abs
 /**
  * One card in a catalogue-driven Anime home section.
  *
- * [media] is set when the item already carries an AniList title (native providers
- * resolve through AniList), so a click can open the normal detail screen without
- * another lookup. Extension items leave it null and resolve lazily on click.
+ * [media] is optional tracker metadata. Catalogue-only entries use a synthetic Media id;
+ * their info tab can be enriched from TMDB without making catalogue loading depend on AniList.
  */
 data class CatalogueItem(
     val response: ShowResponse,
@@ -99,7 +98,10 @@ object AnimeCatalogueHome {
                 return emptyList()
             }
             Logger.log("Catalogue: extension '$name' resolved to '${parser.name}'")
-            val rows = ordered(loadExtensionRows(parser))
+            val nativeRows = loadExtensionRows(parser)
+            val rows = ordered(withTmdbFallback(nativeRows) { title ->
+                searchExtension(parser, title)
+            })
             Logger.log("Catalogue: extension '$name' returned ${rows.size} rows")
             return rows
         }
@@ -125,8 +127,10 @@ object AnimeCatalogueHome {
     private fun ordered(rows: List<CatalogueRow>): List<CatalogueRow> {
         rows.forEach { Logger.log("Catalogue: section '${it.title}' -> ${it.items.size} items") }
         val byTitle = rows.filter { it.items.isNotEmpty() }.associateBy { it.title }
-        val ordered = SECTION_ORDER.mapNotNull { byTitle[it] }
-            .ifEmpty { rows.filter { it.items.isNotEmpty() } }
+        val ordered = (
+            SECTION_ORDER.mapNotNull { byTitle[it] } +
+                rows.filter { it.items.isNotEmpty() && it.title !in SECTION_ORDER }
+            ).take(10)
         if (ordered.isEmpty()) Logger.log("Catalogue: every section was empty after ordering")
         return ordered
     }
@@ -207,6 +211,7 @@ object AnimeCatalogueHome {
             val basePool = (popular1 + popular2 + latest + ongoing + upcoming)
                 .distinctBy { it.url }
             val recommended = basePool.shuffled().take(PER_SECTION)
+            val extraRows = loadFilterRows(source, existingTitles = SECTION_ORDER.toSet())
             Logger.log(
                 "Catalogue: '${source.name}' ongoing=${ongoing.size} " +
                     "upcoming=${upcoming.size} trending=${trending.size} " +
@@ -220,7 +225,7 @@ object AnimeCatalogueHome {
                 CatalogueRow("Popular", popular1.take(PER_SECTION).map { it.toItem() }),
                 CatalogueRow("Upcoming", upcoming.take(PER_SECTION).map { it.toItem() }),
                 CatalogueRow("Recommended", recommended.map { it.toItem() }),
-            )
+            ) + extraRows
         }
 
     private suspend fun page(
@@ -284,85 +289,178 @@ object AnimeCatalogueHome {
     // ------------------------------------------------------------------- natives
 
     /**
-     * Native providers are search-only, so their sections come from AniList lists
-     * resolved through the provider's own search. Only titles the provider can
-     * actually serve survive.
+     * Native providers are search-only, so TMDB supplies discovery lists and each title
+     * is resolved through the selected provider. The catalogue never queries AniList.
      */
     private suspend fun loadNativeRows(parser: NativeAnimeParser): List<CatalogueRow> =
         withContext(Dispatchers.IO) {
-            Logger.log("Catalogue: loading native '${parser.name}'")
-            val adultOnly = PrefManager.getVal<Boolean>(PrefName.AdultOnly)
-            val lists = coroutineScope {
-                val ongoing = async {
-                    query(Anilist.sortBy[1], status = "RELEASING", adultOnly = adultOnly)
+            Logger.log("Catalogue: loading native '${parser.name}' from TMDB")
+            val resolve: suspend (String) -> CatalogueItem? = { title ->
+                val wanted = title.lowercase().filter { ch -> ch.isLetterOrDigit() }
+                runCatching {
+                    parser.search(title).firstOrNull {
+                        it.name.lowercase().filter { ch -> ch.isLetterOrDigit() } == wanted
+                    }?.let { CatalogueItem(response = it) }
                 }
-                val latest = async {
-                    query(Anilist.sortBy[3], status = "RELEASING", adultOnly = adultOnly)
-                }
-                val trending = async {
-                    query(Anilist.sortBy[2], adultOnly = adultOnly)
-                }
-                val popular = async {
-                    query(Anilist.sortBy[1], adultOnly = adultOnly)
-                }
-                val upcoming = async {
-                    query(Anilist.sortBy[1], status = "NOT_YET_RELEASED", adultOnly = adultOnly)
-                }
-                val recommended = async {
-                    query(Anilist.sortBy[1], page = 2, adultOnly = adultOnly)
-                }
-                listOf(
-                    "Ongoing" to ongoing.await(),
-                    "Latest Episodes" to latest.await(),
-                    "Trending" to trending.await(),
-                    "Popular" to popular.await(),
-                    "Upcoming" to upcoming.await(),
-                    "Recommended" to recommended.await(),
-                )
+                    .onFailure { Logger.log("Catalogue: native search failed for '$title': ${it.message}") }
+                    .getOrNull()
             }
-
-            lists.map { (title, media) ->
-                val resolved = resolveThrough(parser, media)
-                Logger.log("Catalogue: native '${parser.name}' '$title' ${media.size} -> ${resolved.size}")
-                CatalogueRow(title, resolved)
+            val rows = tmdbRows(resolve)
+            if (rows.isNotEmpty()) {
+                Logger.log("Catalogue: native '${parser.name}' returned ${rows.size} TMDB-backed rows")
+                rows
+            } else {
+                val grid = tmdbGrid(resolve)
+                if (grid.isEmpty()) emptyList() else listOf(CatalogueRow("", grid.take(100)))
             }
         }
 
-    private suspend fun query(
-        sort: String,
-        status: String? = null,
-        page: Int? = null,
-        adultOnly: Boolean,
-    ): List<Media> = runCatching {
-        Anilist.query.searchAniManga(
-            type = "ANIME",
-            page = page,
-            perPage = PER_SECTION,
-            sort = sort,
-            status = status,
-            adultOnly = adultOnly,
-        )?.results ?: emptyList()
-    }.getOrElse {
-        Logger.log("Catalogue: AniList section failed: ${it.javaClass.simpleName}: ${it.message}")
-        Logger.log(it)
-        emptyList()
+    /**
+     * Fill only missing/empty baseline sections from TMDB. Every result is resolved through
+     * the chosen playback provider, so a title without a playable source is never shown.
+     */
+    private suspend fun withTmdbFallback(
+        rows: List<CatalogueRow>,
+        resolve: suspend (String) -> CatalogueItem?,
+    ): List<CatalogueRow> {
+        val existing = rows.associateBy { it.title }
+        val needsFallback = SECTION_ORDER.filter { existing[it]?.items.isNullOrEmpty() }
+        if (needsFallback.isEmpty()) return rows.take(10)
+        val fallback = tmdbRows(resolve, needsFallback.toSet())
+        return (rows.filter { it.items.isNotEmpty() } + fallback)
+            .distinctBy { it.title }
+            .take(10)
     }
 
-    private suspend fun resolveThrough(
-        parser: NativeAnimeParser,
-        media: List<Media>,
-    ): List<CatalogueItem> = coroutineScope {
-        val gate = Semaphore(3)
-        media.map { item ->
-            async(Dispatchers.IO) {
-                gate.withPermit {
-                    val name = item.mainName() ?: return@withPermit null
-                    val match = runCatching { parser.search(name).firstOrNull() }.getOrNull()
-                        ?: return@withPermit null
-                    CatalogueItem(response = match, media = item)
+    private suspend fun tmdbRows(
+        resolve: suspend (String) -> CatalogueItem?,
+        only: Set<String> = SECTION_ORDER.toSet(),
+    ): List<CatalogueRow> = withContext(Dispatchers.IO) {
+        // TMDB has no latest-episodes feed, so never fake that section.
+        val trending = runCatching { Tmdb.trending("tv", "week") }.getOrDefault(emptyList())
+        val popular = runCatching { Tmdb.popular(1) }.getOrDefault(emptyList())
+        val upcoming = runCatching {
+            Tmdb.exploreRow(Tmdb.ExploreRow.UPCOMING, "tv")
+        }.getOrDefault(emptyList())
+        val ongoing = runCatching { Tmdb.onTheAir() }.getOrDefault(emptyList())
+        val candidates = linkedMapOf(
+            "Ongoing" to ongoing,
+            "Trending" to trending,
+            "Popular" to popular,
+            "Upcoming" to upcoming,
+        )
+        val keyOf: (String) -> String = { it.lowercase().filter { ch -> ch.isLetterOrDigit() } }
+        val titlesBySection = only.mapNotNull { section ->
+            val source = candidates[section] ?: return@mapNotNull null
+            val titles = source.asSequence()
+                .filter { it.type == "tv" || it.type == "movie" }
+                .distinctBy { "${it.type}:${it.id}" }
+                .map { it.displayTitle }
+                .filter { it.isNotBlank() }
+                .distinct()
+                .take(PER_SECTION)
+                .toList()
+            if (titles.isEmpty()) null else section to titles
+        }.toMap()
+
+        // A title may appear in several TMDB lists. Resolve it only once, with a small
+        // concurrency cap so a fallback does not flood an extension with duplicate searches.
+        val uniqueTitles = titlesBySection.values.flatten().distinctBy(keyOf)
+        val gate = Semaphore(4)
+        val resolvedByTitle = coroutineScope {
+            uniqueTitles.map { title ->
+                async(Dispatchers.IO) {
+                    val item = try {
+                        gate.withPermit { resolve(title) }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Logger.log("Catalogue: TMDB fallback resolution failed for '$title': ${e.message}")
+                        null
+                    }
+                    keyOf(title) to item
                 }
-            }
-        }.awaitAll().filterNotNull()
+            }.awaitAll().toMap()
+        }
+        titlesBySection.mapNotNull { (section, titles) ->
+            val items = titles.mapNotNull { resolvedByTitle[keyOf(it)] }
+                .distinctBy { it.response.link }
+                .take(PER_SECTION)
+            if (items.isEmpty()) null else CatalogueRow(section, items)
+        }
+    }
+
+    /**
+     * Extra extension-supported categories are derived only from actual genre/category
+     * filters exposed by that source. The API has no arbitrary named-section contract,
+     * so we do not invent shelves from unrelated filters.
+     */
+    private suspend fun loadFilterRows(
+        source: AnimeCatalogueSource,
+        existingTitles: Set<String>,
+    ): List<CatalogueRow> = withContext(Dispatchers.IO) {
+        val filters = runCatching { source.getFilterList() }.getOrNull() ?: return@withContext emptyList()
+        val categoryFilter = filters.firstOrNull { filter ->
+            filter is AnimeFilter.Select<*> &&
+                listOf("genre", "category", "type").any { filter.name.lowercase().contains(it) }
+        } as? AnimeFilter.Select<*> ?: return@withContext emptyList()
+        val values = categoryFilter.values.mapIndexedNotNull { index, value ->
+            if (index == categoryFilter.state || value.toString().isBlank() ||
+                value.toString().contains("all", true) || value.toString().contains("select", true)
+            ) null else index to value.toString()
+        }.take(4)
+        values.mapNotNull { (index, label) ->
+            val copy = runCatching { source.getFilterList() }.getOrNull() ?: return@mapNotNull null
+            val target = copy.firstOrNull { it.name == categoryFilter.name } as? AnimeFilter.Select<*>
+                ?: return@mapNotNull null
+            target.state = index
+            val items = runCatching {
+                source.getSearchAnime(1, "", AnimeFilterList(copy.toList())).animes
+                    .distinctBy { it.url }.take(PER_SECTION).map { it.toItem() }
+            }.getOrDefault(emptyList())
+            val title = label.trim().replaceFirstChar { it.uppercase() }
+            if (items.isEmpty() || title in existingTitles) null else CatalogueRow(title, items)
+        }
+    }
+
+    private suspend fun loadExtensionGrid(parser: DynamicAnimeParser): List<CatalogueItem> =
+        withContext(Dispatchers.IO) {
+            val source = catalogueSourceOf(parser) ?: return@withContext emptyList()
+            val items = (page(source) { it.getPopularAnime(1) } +
+                page(source) { it.getPopularAnime(2) } +
+                if (source.supportsLatest) page(source) { it.getLatestUpdates(1) } else emptyList())
+                .distinctBy { it.url }.take(100).map { it.toItem() }
+            items
+        }
+
+    private suspend fun tmdbGrid(
+        resolve: suspend (String) -> CatalogueItem?,
+    ): List<CatalogueItem> = withContext(Dispatchers.IO) {
+        val candidates = (runCatching { Tmdb.popular(1) }.getOrDefault(emptyList()) +
+            runCatching { Tmdb.trending("tv", "week") }.getOrDefault(emptyList()))
+            .distinctBy { "${it.type}:${it.id}" }
+        val result = mutableListOf<CatalogueItem>()
+        for (candidate in candidates) {
+            if (result.size >= 100) break
+            val title = candidate.displayTitle
+            if (title.isBlank()) continue
+            runCatching { resolve(title) }.getOrNull()?.let(result::add)
+        }
+        result.distinctBy { it.response.link }.take(100)
+    }
+
+    private suspend fun searchExtension(
+        parser: DynamicAnimeParser,
+        title: String,
+    ): CatalogueItem? {
+        val source = catalogueSourceOf(parser) ?: return null
+        val results = runCatching {
+            source.getSearchAnime(1, title, AnimeFilterList()).animes
+        }.getOrDefault(emptyList())
+        val normalize: (String) -> String = { it.lowercase().filter { ch -> ch.isLetterOrDigit() } }
+        val wanted = normalize(title)
+        val result = results.firstOrNull { normalize(it.title) == wanted } ?: return null
+        return result.toItem()
     }
 
     // ------------------------------------------------------------------- routing
@@ -422,16 +520,11 @@ object AnimeCatalogueHome {
             return
         }
         activity.lifecycleScope.launch {
+            // Catalogue navigation must remain usable when AniList is degraded.
+            // The selected provider response is enough to open the detail/player flow.
             val media = item.media ?: withContext(Dispatchers.IO) {
-                runCatching {
-                    Anilist.query.searchAniManga(
-                        type = "ANIME",
-                        perPage = 1,
-                        search = item.response.name,
-                        adultOnly = PrefManager.getVal(PrefName.AdultOnly),
-                    )?.results?.firstOrNull()
-                }.getOrNull()
-            } ?: withContext(Dispatchers.IO) { item.response.toSyntheticMedia(sourceId) }
+                item.response.toSyntheticMedia(sourceId)
+            }
 
             withContext(Dispatchers.IO) {
                 runCatching {

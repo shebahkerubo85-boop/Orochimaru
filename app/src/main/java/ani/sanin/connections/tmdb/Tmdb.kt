@@ -511,6 +511,14 @@ object Tmdb {
             .getOrDefault(emptyList())
     }
 
+    /** TV series with episodes airing within the current on-air window. */
+    suspend fun onTheAir(page: Int = 1): List<TmdbMedia> {
+        val body = get("/tv/on_the_air", "page" to page.toString()) ?: return emptyList()
+        return runCatching { json.decodeFromString<TmdbPage<TmdbMedia>>(body).results }
+            .getOrDefault(emptyList())
+            .filter { it.posterPath != null }
+    }
+
     suspend fun discover(
         mediaType: String = "movie",
         genres: String? = null,
