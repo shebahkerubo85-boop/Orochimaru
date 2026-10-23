@@ -429,16 +429,11 @@ object AnimeCatalogueHome {
             return
         }
         activity.lifecycleScope.launch {
+            // Catalogue navigation must remain usable when AniList is degraded.
+            // The selected provider response is enough to open the detail/player flow.
             val media = item.media ?: withContext(Dispatchers.IO) {
-                runCatching {
-                    Anilist.query.searchAniManga(
-                        type = "ANIME",
-                        perPage = 1,
-                        search = item.response.name,
-                        adultOnly = PrefManager.getVal(PrefName.AdultOnly),
-                    )?.results?.firstOrNull()
-                }.getOrNull()
-            } ?: withContext(Dispatchers.IO) { item.response.toSyntheticMedia(sourceId) }
+                item.response.toSyntheticMedia(sourceId)
+            }
 
             withContext(Dispatchers.IO) {
                 runCatching {
