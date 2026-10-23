@@ -224,7 +224,7 @@ object AnilistFranchiseRanks {
             Injekt.get<Anilist>()
                 .executeQuery<Query.Page>(
                     """{ Page(page:1, perPage:${chunk.size}){media(id_in:[${chunk.joinToString(",")}], type:ANIME, isAdult:false){id format averageScore duration description startDate{year month day} title{romaji english userPreferred} mediaListEntry{status progress score(format:POINT_100)} } } }""",
-                    useToken = false,
+                    useToken = true,
                 )
                 ?.data?.page?.media.orEmpty()
         }
