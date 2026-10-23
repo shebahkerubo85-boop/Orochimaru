@@ -1,7 +1,6 @@
 package ani.sanin.home
 
 import android.content.Intent
-import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Handler
@@ -36,6 +35,7 @@ import ani.sanin.databinding.ItemExploreRowBinding
 import ani.sanin.databinding.ItemTmdbExplorePageBinding
 import ani.sanin.databinding.LayoutTrendingBinding
 import ani.sanin.getThemeColor
+import ani.sanin.loadImage
 import ani.sanin.isClassicBanner
 import ani.sanin.isModernBanner
 import ani.sanin.is3DBanner
@@ -66,7 +66,6 @@ import ani.sanin.setSlideUp
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.sizeBannerCard
 import ani.sanin.util.FocusEffectUtil
-import com.google.android.material.chip.Chip
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -209,6 +208,7 @@ class TmdbExploreFragment : Fragment() {
 
     private var trendingMedia: List<TmdbMedia> = emptyList()
     private var bannerAdapter: BannerCarouselAdapter? = null
+    private var bannerLogos: Map<Int, String?> = emptyMap()
     private var bannerAdapterType = -1
     private var bannerSnap: PagerSnapHelper? = null
     private var bannerScrollListener: RecyclerView.OnScrollListener? = null
@@ -330,6 +330,7 @@ class TmdbExploreFragment : Fragment() {
         rv.nextFocusDownId = R.id.tmdbExploreTypeScroll
 
         val bannerMedia = media.map { it.toExploreMedia() }
+        bannerLogos = emptyMap()
         bannerAdapter = BannerCarouselAdapter(
             items = bannerMedia,
             scope = CoroutineScope(Dispatchers.Main),
@@ -424,8 +425,10 @@ class TmdbExploreFragment : Fragment() {
                 val type = media.tmdbType ?: return@limitedAsyncMap null
                 media.id to runCatching { Tmdb.logoUrl(type, media.id) }.getOrNull()
             }.mapNotNull { it }.toMap()
-            if (logos.isEmpty() || _binding == null) return@launch
+            if (_binding == null) return@launch
+            bannerLogos = logos
             bannerAdapter?.updateUrls(emptyMap(), logos)
+            updateTrendingOverlayForCurrent()
         }
     }
 
@@ -553,46 +556,65 @@ class TmdbExploreFragment : Fragment() {
         if (!overlay.isVisible) return
         val title = trendingBinding.trendingOverlayTitle
         val logo = trendingBinding.trendingOverlayLogo
-        // The TMDB page shows the title (TMDB backdrops have no clearlogo here), so the
-        // title TextView stays visible and the logo slot stays empty.
-        logo.isVisible = false
-        title.isVisible = true
-        title.text = media.displayTitle
+        val logoUrl = bannerLogos[media.id]
+        if (!logoUrl.isNullOrBlank()) {
+            logo.isVisible = true
+            title.isVisible = false
+            logo.loadImage(logoUrl)
+        } else {
+            logo.isVisible = false
+            logo.setImageDrawable(null)
+            title.isVisible = true
+            title.text = media.displayTitle
+        }
+        title.maxLines = 2
+
+        // Keep each metadata value in its own compact pill. A single Material Chip
+        // containing the whole metadata string inherited the component's touch-target
+        // sizing and stretched the row, which looked distorted in landscape.
         val chips = trendingBinding.trendingOverlayChips
         chips.removeAllViews()
-        val meta = buildString {
-            if (media.voteAverage > 0) {
-                append("★ ").append(String.format(java.util.Locale.US, "%.1f", media.voteAverage))
-                append("  •  ")
-            }
-            if (media.year.isNotBlank()) append(media.year).append("  •  ")
-            append(media.type.replaceFirstChar { it.uppercase() })
+        if (media.voteAverage > 0) {
+            addOverlayChip(chips, "★ " + String.format(java.util.Locale.US, "%.1f", media.voteAverage))
         }
-        addOverlayChip(chips, meta)
+        if (media.year.isNotBlank()) addOverlayChip(chips, media.year)
+        addOverlayChip(chips, media.type.replaceFirstChar { it.uppercase() })
+
         val genres = trendingBinding.trendingOverlayGenres
         genres.removeAllViews()
-        genres.isVisible = false
+        Tmdb.genreNames(media).take(4).forEach { addOverlayChip(genres, it) }
+        genres.isVisible = genres.childCount > 0
+
         val synopsis = trendingBinding.trendingOverlaySynopsis
+        val landscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        synopsis.maxLines = if (landscape) 2 else 3
         val desc = media.overview?.takeIf { it.isNotBlank() }
         synopsis.isVisible = !isModernBanner() && desc != null
         if (desc != null) synopsis.text = desc
     }
 
     private fun addOverlayChip(container: ViewGroup, text: String) {
-        val chip = Chip(container.context).apply {
+        val ctx = container.context
+        val density = ctx.resources.displayMetrics.density
+        val chip = android.widget.TextView(ctx).apply {
             this.text = text
-            isClickable = false
-            isCheckable = false
+            setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnBackground))
+            textSize = 12f
+            setBackgroundResource(R.drawable.tag_chip_bg)
+            setPadding(
+                (10 * density).toInt(),
+                (4 * density).toInt(),
+                (10 * density).toInt(),
+                (4 * density).toInt()
+            )
+            maxLines = 1
             isFocusable = false
-            chipStrokeWidth = 0f
-            setTextColor(container.context.getThemeColor(android.R.attr.textColorPrimary))
-            chipBackgroundColor = ColorStateList.valueOf(0x33FFFFFF)
         }
         val lp = ViewGroup.MarginLayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
-        lp.marginEnd = (6 * chip.resources.displayMetrics.density).toInt()
+        lp.marginEnd = (6 * density).toInt()
         chip.layoutParams = lp
         container.addView(chip)
     }

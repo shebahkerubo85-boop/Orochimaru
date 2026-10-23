@@ -390,6 +390,12 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             ?.replace(Regex("<.*?>"), "")
             ?.replace(Regex("\\s+"), " ")
             ?.trim()
+        // Keep the landscape side panel to two synopsis lines so it aligns with the
+        // compact banner's fixed-height composition; portrait retains its existing limit.
+        synopsis.maxLines = if (
+            trendingBinding.root.resources.configuration.orientation ==
+                Configuration.ORIENTATION_LANDSCAPE
+        ) 2 else 3
         // Large type: title + chips only, no synopsis.
         if (isClassicBanner()) {
             synopsis.isVisible = false
