@@ -26,6 +26,7 @@ import com.bumptech.glide.request.target.Target
 import ani.sanin.R
 import ani.sanin.isClassicBanner
 import ani.sanin.is3DBanner
+import ani.sanin.bannerCardSizePx
 import ani.sanin.apply3DBannerTransforms
 import ani.sanin.BannerCylinderLayoutManager
 import ani.sanin.connections.anilist.Anilist
@@ -645,7 +646,14 @@ private const val MODERN_CONTENT_WIDTH_FRACTION = 0.58f
  */
 internal fun applyModernMetrics(root: View, description: TextView?) {
     val res = root.resources
-    val height = res.getDimensionPixelSize(R.dimen.banner_modern_height)
+    val height = if (res.configuration.orientation ==
+        android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    ) {
+        // Match Compact's responsive landscape height instead of forcing 300dp.
+        root.bannerCardSizePx(0.65f).second
+    } else {
+        res.getDimensionPixelSize(R.dimen.banner_modern_height)
+    }
     val lp = root.layoutParams
     if (lp != null && lp.height != height) {
         lp.height = height
