@@ -190,7 +190,7 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                     ),
                     SubscreenBuilder.Entry(
                         title = "Banner Type",
-                        desc = "Compact keeps the narrow card; Classic uses the logo, Watch Now and chips; Modern is a cinematic banner with synopsis and poster",
+                        desc = "Pick your banner type for both Home and Explore",
                         choice = SubscreenBuilder.Choice(
                             title = "Banner Type",
                             options = arrayOf("Compact", "Classic", "Modern"),
