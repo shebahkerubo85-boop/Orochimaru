@@ -297,7 +297,10 @@ object AnimeCatalogueHome {
         withContext(Dispatchers.IO) {
             Logger.log("Catalogue: loading native '${parser.name}' from TMDB")
             val resolve: suspend (String) -> CatalogueItem? = { title ->
-                runCatching { parser.search(title).firstOrNull()?.let { it.toItem() } }
+                val wanted = title.lowercase().filter(Char::isLetterOrDigit)
+                runCatching { parser.search(title).firstOrNull {
+                    it.name.lowercase().filter(Char::isLetterOrDigit) == wanted
+                }?.toItem() }
                     .onFailure { Logger.log("Catalogue: native search failed for '$title': ${it.message}") }
                     .getOrNull()
             }
@@ -338,7 +341,9 @@ object AnimeCatalogueHome {
         val upcoming = runCatching {
             Tmdb.exploreRow(Tmdb.ExploreRow.UPCOMING, "tv")
         }.getOrDefault(emptyList())
+        val ongoing = runCatching { Tmdb.onTheAir() }.getOrDefault(emptyList())
         val candidates = linkedMapOf(
+            "Ongoing" to ongoing,
             "Trending" to trending,
             "Popular" to popular,
             "Upcoming" to upcoming,
@@ -430,9 +435,9 @@ object AnimeCatalogueHome {
         val results = runCatching {
             source.getSearchAnime(1, title, AnimeFilterList()).animes
         }.getOrDefault(emptyList())
-        val result = results.firstOrNull { it.title.equals(title, ignoreCase = true) }
-            ?: results.firstOrNull()
-            ?: return null
+        val normalize: (String) -> String = { it.lowercase().filter(Char::isLetterOrDigit) }
+        val wanted = normalize(title)
+        val result = results.firstOrNull { normalize(it.title) == wanted } ?: return null
         return result.toItem()
     }
 
