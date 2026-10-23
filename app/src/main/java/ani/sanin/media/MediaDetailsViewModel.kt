@@ -227,17 +227,28 @@ class MediaDetailsViewModel : ViewModel() {
             .onFailure { Logger.log("Catalogue TMDB detail failed for '$title': ${it.message}") }
             .getOrNull() ?: return
 
-        media.cover = Tmdb.imageUrl(detail.posterPath) ?: media.cover
-        media.banner = Tmdb.imageUrl(detail.backdropPath, 1280) ?: media.banner
-        media.description = detail.overview?.takeIf { it.isNotBlank() } ?: media.description
-        media.status = detail.status?.takeIf { it.isNotBlank() } ?: media.status
-        media.format = if (match.type == "tv") "TV" else "MOVIE"
-        media.tmdbType = match.type
-        media.meanScore = (detail.voteAverage * 10).toInt().takeIf { it > 0 } ?: media.meanScore
-        media.genres = ArrayList(detail.genres.map { it.name })
+        media.cover = media.cover ?: Tmdb.imageUrl(detail.posterPath)
+        media.banner = media.banner ?: Tmdb.imageUrl(detail.backdropPath, 1280)
+        if (media.description.isNullOrBlank()) {
+            media.description = detail.overview?.takeIf { it.isNotBlank() }
+        }
+        if (media.status.isNullOrBlank()) {
+            media.status = detail.status?.takeIf { it.isNotBlank() }
+        }
+        // "TV" is the synthetic placeholder format; replace it with the matched TMDB type.
+        if (media.format.isNullOrBlank() || media.format == "TV") {
+            media.format = if (match.type == "tv") "TV" else "MOVIE"
+        }
+        media.tmdbType = media.tmdbType ?: match.type
+        if (media.meanScore == null && detail.voteAverage > 0) {
+            media.meanScore = (detail.voteAverage * 10).toInt()
+        }
+        if (media.genres.isEmpty()) media.genres = ArrayList(detail.genres.map { it.name })
         val year = (detail.releaseDate ?: detail.firstAirDate).orEmpty().take(4).toIntOrNull()
-        if (year != null) media.startDate = FuzzyDate(year = year)
-        media.shareLink = "https://www.themoviedb.org/${match.type}/${match.id}"
+        if (media.startDate == null && year != null) media.startDate = FuzzyDate(year = year)
+        if (media.shareLink.isNullOrBlank()) {
+            media.shareLink = "https://www.themoviedb.org/${match.type}/${match.id}"
+        }
     }
 
     private suspend fun enrichRescueModeDetails(media: Media) {
