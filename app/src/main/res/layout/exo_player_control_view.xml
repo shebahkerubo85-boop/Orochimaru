@@ -384,6 +384,14 @@
                             tools:text="Episode 12: The Battle" />
 
                     <ImageButton
+                        android:id="@+id/exo_rotate"
+                        android:layout_width="1dp"
+                        android:layout_height="1dp"
+                        android:visibility="gone"
+                        android:focusable="false"
+                        android:importantForAccessibility="no" />
+
+                    <ImageButton
                         android:id="@+id/exo_audio"
                         android:layout_width="1dp"
                         android:layout_height="1dp"
