@@ -297,7 +297,7 @@
     <string name="ui">User Interface</string>
     <string name="home_settings">Home Settings</string>
     <string name="home_banner_mode">Home Banner Mode</string>
-    <string name="home_banner_mode_desc">Change the style of the home screen banner</string>
+    <string name="home_banner_mode_desc">Your banner the way you like it</string>
     <string name="discover">Discover</string>
     <string name="no_media_found">No media found</string>
     <string name="home_banner_carousel">Carousel</string>
