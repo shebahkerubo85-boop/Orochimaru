@@ -14,7 +14,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.lifecycleScope
 import ani.sanin.R
 import ani.sanin.cloudstream.TmdbDetailsActivity
+import ani.sanin.cloudstream.TmdbListDialogFragment
 import ani.sanin.connections.anilist.AnilistFranchiseRanks
+import ani.sanin.connections.simkl.Simkl
 import ani.sanin.connections.LogoApi
 import ani.sanin.databinding.ActivityFranchiseBinding
 import ani.sanin.databinding.ItemFranchiseEntryBinding
@@ -96,6 +98,29 @@ class FranchiseActivity : AppCompatActivity() {
     private var pillTabs = mutableStateOf<List<LibraryStatusTab>>(emptyList())
     private var pillSelected = mutableIntStateOf(0)
 
+    /** User status per AniList id, loaded for this franchise's entries only. */
+    private val anilistStatuses = HashMap<Int, String>()
+
+    /** Simkl status per TMDB id, loaded for this franchise's entries only. */
+    private val simklStatuses = HashMap<Int, String>()
+
+    /** The row bindings currently on screen, paired with [shownEntries] for status refreshes. */
+    private val rowBindings = ArrayList<ItemFranchiseEntryBinding>()
+    private var shownEntries: List<FranchiseEntry> = emptyList()
+
+    /** When the statuses were last read, to avoid refetching on the resume that follows open. */
+    private var lastStatusLoadAt = 0L
+
+    override fun onResume() {
+        super.onResume()
+        // Re-read the statuses of the entries on this screen after returning from a detail
+        // screen or list editor, but not for the resume that immediately follows onCreate.
+        if (lastStatusLoadAt == 0L) return
+        if (shownEntries.isEmpty()) return
+        if (System.currentTimeMillis() - lastStatusLoadAt < STATUS_REFRESH_DEBOUNCE_MS) return
+        loadListStatuses(shownEntries)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ThemeManager(this).applyTheme()
@@ -155,7 +180,11 @@ class FranchiseActivity : AppCompatActivity() {
         if (ordered.any { it.synopsis.isNullOrBlank() || it.type == null } &&
             ordered.any { it.anilistId != null }
         ) {
+            // Statuses are read once the enriched entries are bound, since enrichment can be
+            // what supplies the AniList id a status is keyed on.
             enrichFromAnilist()
+        } else {
+            loadListStatuses(ordered)
         }
         loadLogoArt(card)
     }
@@ -307,8 +336,10 @@ class FranchiseActivity : AppCompatActivity() {
     private fun buildRows(ordered: List<FranchiseEntry>) {
         val container = binding.franchiseRows
         container.removeAllViews()
+        rowBindings.clear()
 
         val shown = ordered.filter { matches(it) }
+        shownEntries = shown
         binding.franchiseEmpty.isVisible = shown.isEmpty()
         binding.franchiseProgress.isVisible = false
 
@@ -327,6 +358,7 @@ class FranchiseActivity : AppCompatActivity() {
             val row = ItemFranchiseEntryBinding.inflate(layoutInflater, container, false)
             bindRow(row, entry, index)
             container.addView(row.root)
+            rowBindings.add(row)
         }
     }
 
@@ -521,18 +553,87 @@ class FranchiseActivity : AppCompatActivity() {
     /**
      * The list-status chip, matching the info tab's control.
      *
-     * Shows the live status when the title is on the list and "Add to List" when it is not. The
-     * status is read from the enriched detail rather than fetched per row, because the chip is on
-     * every card and a request each would be the N+1 this screen must not have.
+     * Anime entries read AniList's user status; TMDB entries read Simkl's, exactly as the two
+     * info tabs do. Statuses are loaded once when this screen opens, for the entries on it, so
+     * neither source is asked about titles the reader never opened.
      */
     private fun bindListStatus(row: ItemFranchiseEntryBinding, entry: FranchiseEntry) {
-        row.franchiseRowListStatus.text = entry.listStatus ?: getString(R.string.add_list)
+        row.franchiseRowListStatus.text = statusLabel(entry) ?: getString(R.string.add_list)
         row.franchiseRowListStatus.setSafeOnClickListener {
-            if (entry.anilistId == null) {
-                snackString(getString(R.string.franchise_load_failed))
-            } else {
-                showListEditor(entry.anilistId)
+            when {
+                entry.anilistId != null -> showListEditor(entry.anilistId)
+                entry.tmdbId != null -> showSimklListEditor(entry)
+                else -> snackString(getString(R.string.franchise_load_failed))
             }
+        }
+    }
+
+    /** The localised label for an entry's status, or null when it is not on any list. */
+    private fun statusLabel(entry: FranchiseEntry): String? {
+        val raw = when {
+            entry.anilistId != null -> anilistStatuses[entry.anilistId] ?: entry.listStatus
+            entry.tmdbId != null -> simklStatuses[entry.tmdbId]
+            else -> entry.listStatus
+        } ?: return null
+
+        val labels = resources.getStringArray(R.array.status_anime)
+        val index = if (entry.anilistId != null) {
+            resources.getStringArray(R.array.status).indexOf(raw)
+        } else {
+            TmdbListDialogFragment.simklStatusToIndex(raw)
+        }
+        return labels.getOrNull(index)
+    }
+
+    /**
+     * Loads list statuses for the entries on this screen only.
+     *
+     * One batched AniList query for the anime ids, and one Simkl library read each for movies
+     * and shows on the TMDB side. Nothing is prefetched for other franchises or other screens.
+     */
+    private fun loadListStatuses(entries: List<FranchiseEntry>) {
+        lastStatusLoadAt = System.currentTimeMillis()
+        val anilistIds = entries.mapNotNull { it.anilistId }.distinct()
+        if (anilistIds.isNotEmpty()) {
+            lifecycleScope.launch {
+                val statuses = withContext(Dispatchers.IO) {
+                    AnilistFranchiseRanks.franchiseListStatuses(anilistIds)
+                } ?: return@launch
+                anilistStatuses.clear()
+                anilistStatuses.putAll(statuses)
+                refreshStatusChips()
+            }
+        }
+
+        val tmdbIds = entries.filter { it.anilistId == null }
+            .mapNotNull { it.tmdbId }
+            .distinct()
+        if (tmdbIds.isNotEmpty()) {
+            lifecycleScope.launch {
+                val statuses = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val items = Simkl.getMovieLibrary() + Simkl.getShowLibrary()
+                        val map = HashMap<Int, String>()
+                        items.forEach { item ->
+                            val ids = item.ids ?: return@forEach
+                            val status = item.status ?: return@forEach
+                            ids.tmdb?.let { map[it] = status }
+                        }
+                        map
+                    }.getOrNull()
+                } ?: return@launch
+                simklStatuses.clear()
+                simklStatuses.putAll(statuses)
+                refreshStatusChips()
+            }
+        }
+    }
+
+    /** Rewrites the visible chips in place, so a status refresh does not scroll the screen. */
+    private fun refreshStatusChips() {
+        rowBindings.forEachIndexed { index, row ->
+            val entry = shownEntries.getOrNull(index) ?: return@forEachIndexed
+            bindListStatus(row, entry)
         }
     }
 
@@ -584,7 +685,34 @@ class FranchiseActivity : AppCompatActivity() {
                 isAdult = false,
             )
         )
-        MediaListDialogFragment().show(fm, LIST_DIALOG_TAG)
+        MediaListDialogFragment().apply {
+            onSaved = { loadListStatuses(shownEntries) }
+        }.show(fm, LIST_DIALOG_TAG)
+    }
+
+    /**
+     * Opens the Simkl list editor for a TMDB entry.
+     *
+     * The same sheet the TMDB info tab opens, so a change made here writes the same fields and
+     * comes back through the same callback.
+     */
+    private fun showSimklListEditor(entry: FranchiseEntry) {
+        val tmdbId = entry.tmdbId ?: return
+        val fm = supportFragmentManager
+        if (fm.findFragmentByTag(LIST_DIALOG_TAG) != null) return
+
+        TmdbListDialogFragment.newInstance(
+            type = entry.tmdbType ?: "movie",
+            tmdbId = tmdbId,
+            imdbId = null,
+            anilistId = null,
+            title = entry.title,
+            year = entry.sortYear,
+            cover = entry.posterUrl,
+            totalEpisodes = null,
+        ).apply {
+            onSaved = { loadListStatuses(shownEntries) }
+        }.show(fm, LIST_DIALOG_TAG)
     }
 
     /**
@@ -673,6 +801,7 @@ class FranchiseActivity : AppCompatActivity() {
             updated.mapNotNull { it.type }.forEach { availableTypes.add(it) }
             rebuildPillTabs()
             buildRows(updated)
+            loadListStatuses(updated)
         }
     }
 
@@ -694,6 +823,9 @@ class FranchiseActivity : AppCompatActivity() {
         const val EXTRA_PRESELECT_TYPE = "franchise_preselect_type"
 
         private const val LIST_DIALOG_TAG = "franchise_list_dialog"
+
+        /** Suppresses the resume refetch right after the initial load on open. */
+        private const val STATUS_REFRESH_DEBOUNCE_MS = 1500L
 
         /**
          * Builds the intent that opens this screen.

@@ -49,6 +49,9 @@ class MediaListDialogFragment : DialogFragment() {
     private var _binding: BottomSheetMediaListBinding? = null
     private val binding get() = _binding!!
 
+    /** Called after a save or delete lands, so the caller can refresh its own status chip. */
+    var onSaved: (() -> Unit)? = null
+
     override fun onStart() {
         super.onStart()
         dialog?.window?.let { w ->
@@ -366,6 +369,7 @@ class MediaListDialogFragment : DialogFragment() {
                             }
                             requireActivity().startActivity(intent)
                         }
+                        onSaved?.invoke()
                         dismissAllowingStateLoss()
                     }
                 }
@@ -375,6 +379,7 @@ class MediaListDialogFragment : DialogFragment() {
                         media?.deleteFromList(scope, onSuccess = {
                             Refresh.all()
                             snackString(getString(R.string.deleted_from_list))
+                            onSaved?.invoke()
                             dismissAllowingStateLoss()
                         }, onError = { e ->
                             withContext(Dispatchers.Main) {

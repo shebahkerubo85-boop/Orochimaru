@@ -290,6 +290,31 @@ object AnilistFranchiseRanks {
         trending = null
     }
 
+    /**
+     * Statuses for the given AniList ids, fetched with the user's token only for the franchise
+     * screen. One batched request for the ids on screen, no cache.
+     */
+    suspend fun franchiseListStatuses(ids: List<Int>): Map<Int, String>? {
+        if (ids.isEmpty()) return emptyMap()
+        return try {
+            ids.distinct().chunked(MAX_IDS_PER_QUERY).flatMap { chunk ->
+                Injekt.get<Anilist>()
+                    .executeQuery<Query.Page>(
+                        """{ Page(page:1, perPage:${chunk.size}){media(id_in:[${chunk.joinToString(",")}], type:ANIME, isAdult:false){id mediaListEntry{status} } } }""",
+                        useToken = true,
+                        cache = 0,
+                    )
+                    ?.data?.page?.media.orEmpty()
+            }.mapNotNull { m ->
+                val status = m.mediaListEntry?.status?.toString()
+                if (status.isNullOrBlank()) null else m.id to status
+            }.toMap()
+        } catch (e: Exception) {
+            Logger.log(e)
+            null
+        }
+    }
+
     /** AniList's documented ceiling for `id_in` in one query. */
     private const val MAX_IDS_PER_QUERY = 50
 }

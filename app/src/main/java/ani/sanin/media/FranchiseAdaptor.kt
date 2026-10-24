@@ -9,8 +9,6 @@ import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import ani.sanin.R
-import ani.sanin.databinding.ItemFranchiseOverflowBinding
 import ani.sanin.databinding.ItemFranchisePosterBinding
 import ani.sanin.databinding.ItemMediaFranchiseBinding
 import ani.sanin.loadImage
@@ -22,9 +20,8 @@ import ani.sanin.util.FocusEffectUtil
  *
  * A card is one [Franchise]. The banner is a band that starts at 152dp and is grown in code
  * so that the posters sitting on it keep a poster's shape, and the poster row sits on it
- * holding as many entries as the measured width suits. Entries beyond that are counted in a
- * "+N" cell rather than clipped off the edge: the row does not scroll, so a poster running
- * out of view would promise somewhere to go that does not exist.
+ * holding as many entries as the measured width suits. Entries beyond that are simply not
+ * drawn; the full order is reached on the franchise screen.
  */
 class FranchiseAdaptor(
     private val onBannerClick: (Franchise, View) -> Unit = { _, _ -> },
@@ -375,12 +372,6 @@ class FranchiseAdaptor(
                 }
                 row.addView(cell.root)
             }
-
-            // Whatever did not fit is named rather than clipped. A poster running off the
-            // row's edge reads as somewhere to keep scrolling, and this row does not scroll,
-            // so a count is the truth where a sliver would be a broken promise.
-            val hidden = franchise.entries.size - cells
-            if (hidden > 0) addOverflow(inflater, row, hidden, cellWidth, gap, franchise)
         }
 
         /**
@@ -401,52 +392,17 @@ class FranchiseAdaptor(
         }
 
         /**
-         * The "+N" cell, standing in the slot a poster would have taken.
-         *
-         * Opens the franchise screen like the banner does, and hands the callback the banner
-         * rather than itself: the shared element is the artwork the screen grows out of, so
-         * morphing out of a number would be a morph from nowhere.
-         */
-        private fun addOverflow(
-            inflater: LayoutInflater,
-            row: ViewGroup,
-            hidden: Int,
-            cellWidth: Int,
-            gap: Int,
-            franchise: Franchise,
-        ) {
-            val more = ItemFranchiseOverflowBinding.inflate(inflater, row, false)
-            val context = row.context
-            more.franchiseOverflow.text = context.getString(R.string.franchise_more_entries, hidden)
-            more.franchiseOverflow.contentDescription =
-                context.getString(R.string.franchise_more_entries_desc, hidden)
-            more.root.updateLayoutParams<LinearLayout.LayoutParams> {
-                width = cellWidth
-                height = ViewGroup.LayoutParams.MATCH_PARENT
-                marginEnd = gap
-            }
-            // The overflow cell is informational inside the banner, not a separate focus target.
-            // Opening the franchise remains available through the whole-banner focus target.
-            more.root.isFocusable = false
-            more.root.isFocusableInTouchMode = false
-            more.root.isClickable = false
-            row.addView(more.root)
-        }
-
-        /**
          * How many cells the row can hold.
          *
          * Derived from the measured width rather than fixed, because a fixed count cannot be
          * right at more than one screen width. The divisor is the width a poster of the
          * band's height implies, so a wider screen asks for more cells rather than for
-         * wider ones — and the count is capped, because past that the posters are too many
-         * to read at a glance, and a franchise with a dozen entries is better served by a
-         * "+9" than by twelve thumbnails.
+         * wider ones. Only whole cells are ever built, so none is clipped at the edge.
          */
         private fun cellCount(available: Int, row: View): Int {
             val target = TARGET_CELL_DP.dpToPx(row)
             if (target <= 0) return 0
-            return (available / target).coerceIn(MIN_CELLS, MAX_CELLS)
+            return (available / target).coerceAtLeast(MIN_CELLS)
         }
     }
 
@@ -470,15 +426,6 @@ class FranchiseAdaptor(
          * cell's trailing space falls outside the visible run.
          */
         const val GAP_DP = 1
-
-        /**
-         * Most cells that will ever be built, whatever the width.
-         *
-         * A ceiling on density rather than a count: past this the posters are too small for
-         * their year to read, and a franchise with a dozen entries is better served by a "+9"
-         * than by twelve thumbnails.
-         */
-        const val MAX_CELLS = 6
 
         /**
          * Fewest cells that will ever be built.
