@@ -291,8 +291,8 @@ object AnilistFranchiseRanks {
     }
 
     /**
-     * Statuses for the given AniList ids, fetched with the user's token only for the franchise
-     * screen. One batched request for the ids on screen, no cache.
+     * Statuses for the AniList ids belonging to the franchise currently open.
+     * One batched request for this screen's ids only; never fetches the user's entire list.
      */
     suspend fun franchiseListStatuses(ids: List<Int>): Map<Int, String>? {
         if (ids.isEmpty()) return emptyMap()
@@ -305,9 +305,9 @@ object AnilistFranchiseRanks {
                         cache = 0,
                     )
                     ?.data?.page?.media.orEmpty()
-            }.mapNotNull { m ->
-                val status = m.mediaListEntry?.status?.toString()
-                if (status.isNullOrBlank()) null else m.id to status
+            }.mapNotNull { media ->
+                val status = media.mediaListEntry?.status?.toString()
+                if (status.isNullOrBlank()) null else media.id to status
             }.toMap()
         } catch (e: Exception) {
             Logger.log(e)

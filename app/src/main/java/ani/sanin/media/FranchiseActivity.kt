@@ -593,6 +593,8 @@ class FranchiseActivity : AppCompatActivity() {
      */
     private fun loadListStatuses(entries: List<FranchiseEntry>) {
         lastStatusLoadAt = System.currentTimeMillis()
+
+        // Only request AniList statuses for ids in this franchise. No account-wide list scan.
         val anilistIds = entries.mapNotNull { it.anilistId }.distinct()
         if (anilistIds.isNotEmpty()) {
             lifecycleScope.launch {
