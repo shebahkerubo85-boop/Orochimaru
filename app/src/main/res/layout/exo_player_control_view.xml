@@ -359,83 +359,6 @@
                     tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
 
                 <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="center_vertical"
-                    android:orientation="vertical">
-
-                    <RelativeLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="48dp"
-                        android:layout_marginBottom="-10dp">
-
-                        <TextView
-                            android:id="@+id/exo_ep_sel_text"
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:layout_alignWithParentIfMissing="true"
-                            android:gravity="center_vertical"
-                            android:fontFamily="@font/poppins_bold"
-                            android:singleLine="true"
-                            android:ellipsize="end"
-                            android:textColor="@color/bg_white"
-                            android:textSize="14sp"
-                            tools:text="Episode 12: The Battle" />
-
-                    <ImageButton
-                        android:id="@+id/exo_rotate"
-                        android:layout_width="1dp"
-                        android:layout_height="1dp"
-                        android:visibility="gone"
-                        android:focusable="false"
-                        android:importantForAccessibility="no" />
-
-                    <ImageButton
-                        android:id="@+id/exo_audio"
-                        android:layout_width="1dp"
-                        android:layout_height="1dp"
-                        android:visibility="gone"
-                        android:focusable="false"
-                        android:importantForAccessibility="no" />
-
-                    <ImageButton
-                        android:id="@+id/exo_pip"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:focusable="false"
-                        android:visibility="gone"
-                        android:backgroundTint="#00FFFFFF"
-                        android:src="@drawable/ic_round_picture_in_picture_alt_24"
-                        app:tint="#fff"
-                        tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
-
-                        <ani.sanin.SpinnerNoSwipe
-                            android:id="@+id/exo_ep_sel"
-                            android:layout_width="match_parent"
-                            android:layout_height="48dp"
-                            android:background="@null"
-                            android:entries="@array/tips"
-                            android:popupBackground="@drawable/round_corner"
-                            android:visibility="invisible"
-                            tools:ignore="SpeakableTextPresentCheck" />
-                    </RelativeLayout>
-
-                    <TextView
-                        android:id="@+id/exo_anime_title"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:alpha="0.75"
-                        android:fontFamily="@font/poppins"
-                        android:singleLine="false"
-                        android:textColor="@color/bg_white"
-                        android:textSize="12sp"
-                        tools:ignore="TextContrastCheck"
-                        tools:text="@string/popular_anime" />
-
-                </LinearLayout>
-
-                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical"
@@ -523,6 +446,83 @@
                         tools:ignore="TextContrastCheck"
                         tools:text="720x1080" />
                 </LinearLayout>
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center_vertical"
+                    android:orientation="vertical">
+
+                    <RelativeLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginBottom="-10dp">
+
+                        <TextView
+                            android:id="@+id/exo_ep_sel_text"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:layout_alignWithParentIfMissing="true"
+                            android:gravity="center_vertical"
+                            android:fontFamily="@font/poppins_bold"
+                            android:singleLine="true"
+                            android:ellipsize="end"
+                            android:textColor="@color/bg_white"
+                            android:textSize="14sp"
+                            tools:text="Episode 12: The Battle" />
+
+                    <ImageButton
+                        android:id="@+id/exo_rotate"
+                        android:layout_width="1dp"
+                        android:layout_height="1dp"
+                        android:visibility="gone"
+                        android:focusable="false"
+                        android:importantForAccessibility="no" />
+
+                    <ImageButton
+                        android:id="@+id/exo_audio"
+                        android:layout_width="1dp"
+                        android:layout_height="1dp"
+                        android:visibility="gone"
+                        android:focusable="false"
+                        android:importantForAccessibility="no" />
+
+                    <ImageButton
+                        android:id="@+id/exo_pip"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:focusable="false"
+                        android:visibility="gone"
+                        android:backgroundTint="#00FFFFFF"
+                        android:src="@drawable/ic_round_picture_in_picture_alt_24"
+                        app:tint="#fff"
+                        tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
+
+                        <ani.sanin.SpinnerNoSwipe
+                            android:id="@+id/exo_ep_sel"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:background="@null"
+                            android:entries="@array/tips"
+                            android:popupBackground="@drawable/round_corner"
+                            android:visibility="invisible"
+                            tools:ignore="SpeakableTextPresentCheck" />
+                    </RelativeLayout>
+
+                    <TextView
+                        android:id="@+id/exo_anime_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:alpha="0.75"
+                        android:fontFamily="@font/poppins"
+                        android:singleLine="false"
+                        android:textColor="@color/bg_white"
+                        android:textSize="12sp"
+                        tools:ignore="TextContrastCheck"
+                        tools:text="@string/popular_anime" />
+
+                </LinearLayout>
+
             </LinearLayout>
         </FrameLayout>
 

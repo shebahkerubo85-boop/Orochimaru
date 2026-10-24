@@ -979,7 +979,7 @@ class ExoplayerView :
             R.id.exo_fast_forward_button, R.id.exo_fast_rewind_button,
             R.id.exo_fast_forward_button_cont, R.id.exo_fast_rewind_button_cont,
             R.id.exo_skip_timestamp,
-            R.id.exo_ep_sel_btn, R.id.exo_tracks,
+            R.id.exo_ep_sel_btn, R.id.exo_tracks, R.id.exo_autoplay,
         ).forEach { id ->
             playerView.findViewById<View>(id)?.apply {
                 isFocusable = true
@@ -1004,11 +1004,20 @@ class ExoplayerView :
         }
         playerView.post { exoPlay.requestFocus() }
 
-        // Focus chain: back → speed → ep_sel_btn
-        //                 ↑              ↓
-        //            prev ← play → next
-        exoBack.nextFocusRightId = R.id.exo_prev_ep
-        exoBack.nextFocusLeftId = R.id.exo_ep_sel_btn
+        // D-pad order follows the redesigned layout: top controls, playback row,
+        // then the lower subtitle/server and aspect/episodes controls.
+        val tracksButton = playerView.findViewById<View>(R.id.exo_tracks)
+        val autoplayButton = playerView.findViewById<View>(R.id.exo_autoplay)
+        tracksButton.nextFocusLeftId = R.id.exo_back
+        tracksButton.nextFocusRightId = R.id.exo_settings
+        exoSettings.nextFocusLeftId = R.id.exo_tracks
+        exoSettings.nextFocusRightId = R.id.exo_playback_speed
+        exoSpeed.nextFocusLeftId = R.id.exo_settings
+        exoSpeed.nextFocusRightId = R.id.exo_autoplay
+        autoplayButton.nextFocusLeftId = R.id.exo_playback_speed
+        autoplayButton.nextFocusRightId = R.id.exo_back
+        exoBack.nextFocusRightId = R.id.exo_tracks
+        exoBack.nextFocusLeftId = R.id.exo_autoplay
         playerView.findViewById<View>(R.id.exo_prev_ep).nextFocusLeftId = R.id.exo_back
         playerView.findViewById<View>(R.id.exo_prev_ep).nextFocusRightId = androidx.media3.ui.R.id.exo_play
         exoPlay.nextFocusLeftId = R.id.exo_prev_ep
@@ -1016,6 +1025,7 @@ class ExoplayerView :
         playerView.findViewById<View>(R.id.exo_next_ep).nextFocusLeftId = androidx.media3.ui.R.id.exo_play
         exoPlay.nextFocusUpId = R.id.exo_ep_sel_btn
         exoSpeed.nextFocusDownId = androidx.media3.ui.R.id.exo_play
+        autoplayButton.nextFocusDownId = androidx.media3.ui.R.id.exo_play
         episodeTitleBtn.nextFocusDownId = androidx.media3.ui.R.id.exo_play
 
         val progressBar = playerView.findViewById<DefaultTimeBar>(androidx.media3.ui.R.id.exo_progress)
@@ -1024,7 +1034,7 @@ class ExoplayerView :
         exoPlay.nextFocusDownId = androidx.media3.ui.R.id.exo_progress
         playerView.findViewById<View>(R.id.exo_prev_ep).nextFocusDownId = androidx.media3.ui.R.id.exo_progress
         playerView.findViewById<View>(R.id.exo_next_ep).nextFocusDownId = androidx.media3.ui.R.id.exo_progress
-        val bottomIds = listOf(R.id.exo_settings, R.id.exo_source, R.id.exo_sub, R.id.exo_audio, R.id.exo_screen, R.id.exo_rotate)
+        val bottomIds = listOf(R.id.exo_source, R.id.exo_sub, R.id.exo_screen, R.id.exo_ep_sel_btn)
         for (id in bottomIds) {
             playerView.findViewById<View>(id)?.nextFocusUpId = androidx.media3.ui.R.id.exo_progress
         }
@@ -1039,8 +1049,9 @@ class ExoplayerView :
         skipTimeButton.nextFocusRightId = R.id.exo_screen
         skipTimeButton.nextFocusLeftId = R.id.exo_skip_op_ed
         skipTimeButton.nextFocusUpId = R.id.exo_ep_sel_btn
-        playerView.findViewById<View>(R.id.exo_rotate).nextFocusUpId = R.id.exo_skip
         playerView.findViewById<View>(R.id.exo_screen).nextFocusUpId = R.id.exo_skip
+        playerView.findViewById<View>(R.id.exo_ep_sel_btn).nextFocusLeftId = R.id.exo_screen
+        playerView.findViewById<View>(R.id.exo_ep_sel_btn).nextFocusUpId = R.id.exo_play
         progressBar.setOnFocusChangeListener { _, hasFocus ->
             if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.SeekBarAnimations)) {
                 progressBar.animate().scaleY(if (hasFocus) 2.5f else 1f).setDuration(150).start()
@@ -1070,7 +1081,7 @@ class ExoplayerView :
                         R.id.exo_audio, R.id.exo_screen, R.id.exo_rotate, R.id.exo_skip_op_ed,
                         R.id.exo_back, R.id.exo_skip, R.id.exo_next_ep, R.id.exo_prev_ep,
                         R.id.exo_fast_forward_button, R.id.exo_fast_rewind_button,
-                        R.id.exo_skip_timestamp, R.id.exo_ep_sel_btn
+                        R.id.exo_skip_timestamp, R.id.exo_ep_sel_btn, R.id.exo_tracks, R.id.exo_autoplay
                     )
                     if (currentFocus?.id !in controllerButtonIds) {
                         exoPlay.requestFocus()
