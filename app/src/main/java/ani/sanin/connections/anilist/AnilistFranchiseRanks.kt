@@ -291,24 +291,43 @@ object AnilistFranchiseRanks {
     }
 
     /**
-     * Statuses for the given AniList ids, fetched with the user's token only for the franchise
-     * screen. One batched request for the ids on screen, no cache.
+     * AniList list statuses for franchise entries.
+     *
+     * Kitsu franchise entries do not always have AniList ids. Reading only `id_in` therefore
+     * misses titles already on the user's list and makes them look like "Add to List". Read the
+     * authenticated user's anime list once and index each entry by both media id and all known
+     * title variants. Exact ids always take precedence in the caller; normalized titles cover
+     * entries that originated in Kitsu without an AniList mapping.
      */
-    suspend fun franchiseListStatuses(ids: List<Int>): Map<Int, String>? {
-        if (ids.isEmpty()) return emptyMap()
+    data class FranchiseListStatuses(
+        val byId: Map<Int, String>,
+        val byTitle: Map<String, String>,
+    )
+
+    suspend fun franchiseListStatuses(): FranchiseListStatuses? {
+        val userId = Anilist.userid ?: return null
         return try {
-            ids.distinct().chunked(MAX_IDS_PER_QUERY).flatMap { chunk ->
-                Injekt.get<Anilist>()
-                    .executeQuery<Query.Page>(
-                        """{ Page(page:1, perPage:${chunk.size}){media(id_in:[${chunk.joinToString(",")}], type:ANIME, isAdult:false){id mediaListEntry{status} } } }""",
-                        useToken = true,
-                        cache = 0,
-                    )
-                    ?.data?.page?.media.orEmpty()
-            }.mapNotNull { m ->
-                val status = m.mediaListEntry?.status?.toString()
-                if (status.isNullOrBlank()) null else m.id to status
-            }.toMap()
+            val collection = Injekt.get<Anilist>()
+                .executeQuery<Query.MediaListCollection>(
+                    """{ MediaListCollection(userId: $userId, type: ANIME){ lists{ entries{ status media{id title{romaji english userPreferred}} } } } }""",
+                    useToken = true,
+                    cache = 0,
+                )
+                ?.data?.mediaListCollection
+                ?: return null
+
+            val byId = HashMap<Int, String>()
+            val byTitle = HashMap<String, String>()
+            collection.lists.orEmpty().flatMap { it.entries.orEmpty() }.forEach { item ->
+                val status = item.status?.toString()?.takeIf { it.isNotBlank() } ?: return@forEach
+                val media = item.media ?: return@forEach
+                media.id?.let { byId[it] = status }
+                titlesOf(media.title).forEach { title ->
+                    val key = normalize(title)
+                    if (key.isNotEmpty()) byTitle.putIfAbsent(key, status)
+                }
+            }
+            FranchiseListStatuses(byId, byTitle)
         } catch (e: Exception) {
             Logger.log(e)
             null

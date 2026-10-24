@@ -101,6 +101,9 @@ class FranchiseActivity : AppCompatActivity() {
     /** User status per AniList id, loaded for this franchise's entries only. */
     private val anilistStatuses = HashMap<Int, String>()
 
+    /** Fallback statuses for Kitsu franchise entries that do not carry an AniList id. */
+    private val anilistTitleStatuses = HashMap<String, String>()
+
     /** Simkl status per TMDB id, loaded for this franchise's entries only. */
     private val simklStatuses = HashMap<Int, String>()
 
@@ -571,7 +574,8 @@ class FranchiseActivity : AppCompatActivity() {
     /** The localised label for an entry's status, or null when it is not on any list. */
     private fun statusLabel(entry: FranchiseEntry): String? {
         val raw = when {
-            entry.anilistId != null -> anilistStatuses[entry.anilistId] ?: entry.listStatus
+            entry.anilistId != null -> anilistStatuses[entry.anilistId] ?: anilistTitleStatuses[normalizeStatusTitle(entry.title)] ?: entry.listStatus
+            entry.tmdbId == null -> anilistTitleStatuses[normalizeStatusTitle(entry.title)] ?: entry.listStatus
             entry.tmdbId != null -> simklStatuses[entry.tmdbId]
             else -> entry.listStatus
         } ?: return null
@@ -593,19 +597,23 @@ class FranchiseActivity : AppCompatActivity() {
      */
     private fun loadListStatuses(entries: List<FranchiseEntry>) {
         lastStatusLoadAt = System.currentTimeMillis()
-        val anilistIds = entries.mapNotNull { it.anilistId }.distinct()
-        if (anilistIds.isNotEmpty()) {
+
+        // Kitsu franchise entries often have no AniList id. Read the authenticated user's anime
+        // list and match by title as a fallback, while retaining exact-id matching where possible.
+        if (entries.any { it.tmdbId == null }) {
             lifecycleScope.launch {
                 val statuses = withContext(Dispatchers.IO) {
-                    AnilistFranchiseRanks.franchiseListStatuses(anilistIds)
+                    AnilistFranchiseRanks.franchiseListStatuses()
                 } ?: return@launch
                 anilistStatuses.clear()
-                anilistStatuses.putAll(statuses)
+                anilistStatuses.putAll(statuses.byId)
+                anilistTitleStatuses.clear()
+                anilistTitleStatuses.putAll(statuses.byTitle)
                 refreshStatusChips()
             }
         }
 
-        val tmdbIds = entries.filter { it.anilistId == null }
+        val tmdbIds = entries.filter { it.tmdbId != null }
             .mapNotNull { it.tmdbId }
             .distinct()
         if (tmdbIds.isNotEmpty()) {
@@ -628,6 +636,10 @@ class FranchiseActivity : AppCompatActivity() {
             }
         }
     }
+
+    /** Mirrors AniList title matching for franchise entries without a source id. */
+    private fun normalizeStatusTitle(title: String): String =
+        title.lowercase().filter { it.isLetterOrDigit() }
 
     /** Rewrites the visible chips in place, so a status refresh does not scroll the screen. */
     private fun refreshStatusChips() {
