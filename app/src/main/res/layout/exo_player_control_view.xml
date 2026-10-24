@@ -110,7 +110,7 @@
 
                     <LinearLayout
                         android:layout_width="wrap_content"
-                        android:layout_height="40dp"
+                        android:layout_height="48dp"
                         android:id="@+id/pillBottomLeft"
                         android:background="@drawable/bg_tv_pill"
                         android:focusable="false"
@@ -173,7 +173,7 @@
 
                     <LinearLayout
                         android:layout_width="wrap_content"
-                        android:layout_height="40dp"
+                        android:layout_height="48dp"
                         android:id="@+id/pillBottomRight"
                         android:background="@drawable/bg_tv_pill"
                         android:focusable="false"
@@ -422,7 +422,7 @@
 
                     <LinearLayout
                         android:layout_width="wrap_content"
-                        android:layout_height="40dp"
+                        android:layout_height="48dp"
                         android:id="@+id/pillTopRight"
                         android:background="@drawable/bg_tv_pill"
                         android:focusable="false"
