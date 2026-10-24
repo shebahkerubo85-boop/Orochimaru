@@ -293,7 +293,7 @@ class ExoplayerView :
     private lateinit var videoInfo: TextView
     private lateinit var episodeTitle: Spinner
     private lateinit var episodeTitleText: TextView
-    private lateinit var episodeTitleBtn: ImageButton
+    private lateinit var episodeTitleBtn: View
     private lateinit var episodeDrawer: DrawerLayout
     private lateinit var episodeDrawerContent: View
     private lateinit var episodeDrawerList: RecyclerView
@@ -631,6 +631,15 @@ class ExoplayerView :
         episodeTitle = playerView.findViewById(R.id.exo_ep_sel)
         episodeTitleText = playerView.findViewById(R.id.exo_ep_sel_text)
         episodeTitleBtn = playerView.findViewById(R.id.exo_ep_sel_btn)
+
+        // Independent animated switch, backed by the existing autoplay preference.
+        playerView.findViewById<android.widget.CompoundButton>(R.id.exo_autoplay).apply {
+            isChecked = PrefManager.getVal<Boolean>(PrefName.AutoPlay)
+            setOnCheckedChangeListener { _, enabled ->
+                PrefManager.setVal(PrefName.AutoPlay, enabled)
+                Logger.log("Player: AUTOPLAY toggled — enabled=$enabled")
+            }
+        }
 
         // Apply WrapButtons pill style to control button groups
         applyWrapButtonsStyle()
