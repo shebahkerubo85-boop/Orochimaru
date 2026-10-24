@@ -1945,6 +1945,23 @@ class ExoplayerView :
         // OLED is now window background — no overlay to hide
     }
 
+    /**
+     * Keep the stacked episode control previewing the next item in the current
+     * episode list. Episode thumbnails are optional, so leave the front card
+     * clean when the source does not provide one or there is no next episode.
+     */
+    private fun updateNextEpisodeThumbnail() {
+        val thumbnail = playerView.findViewById<ImageView>(R.id.exo_next_episode_thumbnail)
+        val nextKey = episodeArr.getOrNull(currentEpisodeIndex + 1)
+        val url = nextKey?.let { episodes[it]?.thumb?.url }?.takeIf { it.isNotBlank() }
+        if (url != null) {
+            Glide.with(this).load(url).centerCrop().into(thumbnail)
+        } else {
+            Glide.with(this).clear(thumbnail)
+            thumbnail.setImageResource(android.R.color.transparent)
+        }
+    }
+
     private fun onEpisodeReady(ep: Episode) {
         hideSystemBars()
         episode = ep
@@ -1958,6 +1975,7 @@ class ExoplayerView :
             episodeTitle.setSelection(currentEpisodeIndex)
         }
         episodeTitleText.text = episodeTitleArr.getOrElse(currentEpisodeIndex) { "" }
+        updateNextEpisodeThumbnail()
         if (isInitialized) releasePlayer()
         playbackPosition = if (changingServer) {
             PrefManager.getCustomVal("${media.id}_${ep.number}", 0L)
