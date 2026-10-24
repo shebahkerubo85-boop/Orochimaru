@@ -67,7 +67,7 @@ class DiscoveryStandardCardAdapter(
         }
         holder.itemView.setOnClickListener { onClick(item) }
         holder.binding.tmdbCardPoster.setOnClickListener { onClick(item) }
-        FocusEffectUtil.applyFocusListener(holder.binding.tmdbCardPoster)
+        FocusEffectUtil.applyFocusListener(holder.binding.tmdbCardPoster, holder.itemView)
     }
 
     override fun getItemCount(): Int = items.size
