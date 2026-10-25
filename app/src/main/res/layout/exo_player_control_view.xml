@@ -104,6 +104,7 @@
                     android:layout_marginStart="8dp"
                     android:layout_marginEnd="8dp"
                     android:layout_marginBottom="5dp"
+                    android:clipChildren="false"
                     android:gravity="bottom"
                     android:orientation="horizontal"
                     app:layout_constraintBottom_toBottomOf="parent">
@@ -193,12 +194,14 @@
                         android:layout_height="50dp"
                         android:layout_marginStart="8dp"
                         android:layout_marginEnd="2dp"
-                        android:layout_marginBottom="0dp">
-                        <!-- Back peep card (2dp top peep) -->
+                        android:layout_marginBottom="0dp"
+                        android:clipChildren="false">
+                        <!-- Back peep card (6dp top peep) -->
                         <View
                             android:layout_width="80dp"
                             android:layout_height="50dp"
                             android:layout_gravity="top|end"
+                            android:translationY="-4dp"
                             android:background="@drawable/bg_stack_card" />
                         <!-- Front thumbnail card -->
                         <FrameLayout
@@ -358,7 +361,7 @@
                 android:layout_height="wrap_content"
                 android:clipToPadding="false"
                 android:orientation="horizontal"
-                android:gravity="center_vertical"
+                android:gravity="top"
                 android:padding="8dp">
 
                 <ImageButton
@@ -447,46 +450,56 @@
                         tools:text="@string/popular_anime" />
                 </LinearLayout>
 
-                <FrameLayout
-                    android:id="@+id/exo_autoplay"
-                    android:layout_width="48dp"
-                    android:layout_height="24dp"
-                    android:layout_marginStart="3dp"
-                    android:layout_marginEnd="6dp"
-                    android:focusable="true"
-                    android:clickable="true"
-                    android:contentDescription="@string/autoplay"
-                    android:nextFocusLeft="@id/exo_back"
-                    android:nextFocusRight="@id/exo_playback_speed"
-                    android:nextFocusDown="@id/exo_play"
-                    tools:ignore="ContentDescription,FocusWithoutTouchTarget">
 
-                    <View
-                        android:id="@+id/exo_autoplay_track"
-                        android:layout_width="40dp"
-                        android:layout_height="16dp"
-                        android:layout_gravity="center"
-                        android:background="@drawable/bg_autoplay_track" />
-
-                    <ImageView
-                        android:id="@+id/exo_autoplay_thumb"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:contentDescription="@null"
-                        android:src="@drawable/ic_pause_circle_filled_24" />
-                </FrameLayout>
-
-                <View
-                    android:layout_width="1dp"
-                    android:layout_height="26dp"
-                    android:layout_marginHorizontal="4dp"
-                    android:background="#55FFFFFF" />
 
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:gravity="end"
                     android:orientation="vertical">
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <FrameLayout
+                            android:id="@+id/exo_autoplay"
+                            android:layout_width="48dp"
+                            android:layout_height="24dp"
+                            android:layout_marginStart="3dp"
+                            android:layout_marginEnd="6dp"
+                            android:focusable="true"
+                            android:clickable="true"
+                            android:contentDescription="@string/autoplay"
+                            android:nextFocusLeft="@id/exo_back"
+                            android:nextFocusRight="@id/exo_playback_speed"
+                            android:nextFocusDown="@id/exo_play"
+                            tools:ignore="ContentDescription,FocusWithoutTouchTarget">
+
+                            <View
+                                android:id="@+id/exo_autoplay_track"
+                                android:layout_width="40dp"
+                                android:layout_height="16dp"
+                                android:layout_gravity="center"
+                                android:background="@drawable/bg_autoplay_track" />
+
+                            <ImageView
+                                android:id="@+id/exo_autoplay_thumb"
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:contentDescription="@null"
+                                android:src="@drawable/ic_pause_circle_filled_24" />
+                        </FrameLayout>
+
+
+                        <View
+                            android:layout_width="1dp"
+                            android:layout_height="26dp"
+                            android:layout_marginHorizontal="4dp"
+                            android:background="#55FFFFFF" />
+
+
 
                     <LinearLayout
                         android:id="@+id/pillTopRight"
@@ -540,6 +553,8 @@
                             app:tint="@color/bg_white"
                             tools:ignore="ContentDescription" />
                     </LinearLayout>
+                    </LinearLayout>
+
 
                     <TextView
                         android:id="@+id/exo_video_info"
