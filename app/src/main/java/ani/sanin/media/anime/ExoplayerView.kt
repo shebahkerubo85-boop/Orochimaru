@@ -1043,6 +1043,10 @@ class ExoplayerView :
                 FocusEffectUtil.applyFocusListener(it, it, isCircular = it is ImageButton)
             }
         }
+        // Autoplay switch: pill-shaped focus border (half-height = 12dp)
+        playerView.findViewById<View>(R.id.exo_autoplay)?.let {
+            FocusEffectUtil.applyFocusListener(it, cornerRadiusPx = 12f * resources.displayMetrics.density)
+        }
         playerView.post { exoPlay.requestFocus() }
 
         // D-pad order follows the redesigned layout: top controls, playback row,

@@ -103,7 +103,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
                     android:layout_marginEnd="8dp"
-                    android:layout_marginBottom="8dp"
+                    android:layout_marginBottom="5dp"
                     android:gravity="bottom"
                     android:orientation="horizontal"
                     app:layout_constraintBottom_toBottomOf="parent">
@@ -193,11 +193,11 @@
                         android:layout_height="50dp"
                         android:layout_marginStart="8dp"
                         android:layout_marginEnd="2dp"
-                        android:layout_marginBottom="6dp">
-                        <!-- Back peep card (1dp top peep) -->
+                        android:layout_marginBottom="0dp">
+                        <!-- Back peep card (2dp top peep) -->
                         <View
                             android:layout_width="80dp"
-                            android:layout_height="49dp"
+                            android:layout_height="50dp"
                             android:layout_gravity="top|end"
                             android:background="@drawable/bg_stack_card" />
                         <!-- Front thumbnail card -->
@@ -205,7 +205,7 @@
                             android:id="@+id/exo_ep_sel_btn"
                             android:layout_width="80dp"
                             android:layout_height="48dp"
-                            android:layout_gravity="center|start"
+                            android:layout_gravity="bottom|start"
                             android:background="@drawable/bg_stack_card"
                             android:focusable="true"
                             android:clickable="true"
