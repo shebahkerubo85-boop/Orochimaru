@@ -53,10 +53,10 @@ object TheIntroDB {
                 return@tryWithSuspend null
             }
             val stamps = buildList {
-                res.intro?.forEachIndexed { i, seg -> valid(seg, durationSec)?.let { add(it.toStamp("op", "theintrodb-intro-$i")) } }
-                res.recap?.forEachIndexed { i, seg -> valid(seg, durationSec)?.let { add(it.toStamp("recap", "theintrodb-recap-$i")) } }
-                res.credits?.forEachIndexed { i, seg -> valid(seg, durationSec)?.let { add(it.toStamp("ed", "theintrodb-credits-$i")) } }
-                (res.preview ?: res.previews)?.forEachIndexed { i, seg -> valid(seg, durationSec)?.let { add(it.toStamp("other", "theintrodb-preview-$i")) } }
+                res.intro?.forEachIndexed { i, seg -> valid(seg, durationSec)?.let { (s, e) -> add(stamp(s, e, "op", "theintrodb-intro-$i")) } }
+                res.recap?.forEachIndexed { i, seg -> valid(seg, durationSec)?.let { (s, e) -> add(stamp(s, e, "recap", "theintrodb-recap-$i")) } }
+                res.credits?.forEachIndexed { i, seg -> valid(seg, durationSec)?.let { (s, e) -> add(stamp(s, e, "ed", "theintrodb-credits-$i")) } }
+                (res.preview ?: res.previews)?.forEachIndexed { i, seg -> valid(seg, durationSec)?.let { (s, e) -> add(stamp(s, e, "other", "theintrodb-preview-$i")) } }
             }
             Logger.log(
                 "TheIntroDB: FOUND ${stamps.size} stamps for $url " +
@@ -67,19 +67,32 @@ object TheIntroDB {
         }
     }
 
-    private fun valid(seg: Segment, durationSec: Long = 0): Segment? {
-        val ok = seg.startMs >= 0 && seg.endMs > seg.startMs &&
-            (durationSec <= 0 || seg.endMs <= durationSec * 1000 + 5_000)
+    // Normalizes one v4 segment into a validated (startMs, endMs) pair.
+    // Live data quirks: start_ms may be null (intro from offset 0, e.g. Fight
+    // Club), end_ms may be null (credits run to end of video), and empty
+    // 0-0 rows exist — those are dropped instead of trusted.
+    private fun valid(seg: Segment, durationSec: Long): Pair<Long, Long>? {
+        val start = seg.startMs ?: 0L
+        var end = seg.endMs ?: -1L
+        if (end < 0) {
+            if (durationSec <= 0) {
+                Logger.log("TheIntroDB: dropped open-ended segment ${seg.startMs ?: "null"}-null (duration unknown)")
+                return null
+            }
+            end = durationSec * 1000
+        }
+        val maxEnd = if (durationSec > 0) durationSec * 1000 + 30_000 else Long.MAX_VALUE
+        val ok = start >= 0 && end > start && end <= maxEnd
         if (!ok) {
             Logger.log(
                 "TheIntroDB: dropped implausible segment " +
-                    "${seg.startMs}-${seg.endMs}ms (durationSec=$durationSec)"
+                    "${seg.startMs ?: "null"}-${seg.endMs ?: "null"}ms (durationSec=$durationSec)"
             )
         }
-        return if (ok) seg else null
+        return if (ok) start to end else null
     }
 
-    private fun Segment.toStamp(skipType: String, skipId: String) = AniSkip.Stamp(
+    private fun stamp(startMs: Long, endMs: Long, skipType: String, skipId: String) = AniSkip.Stamp(
         interval = AniSkip.AniSkipInterval(startTime = startMs / 1000.0, endTime = endMs / 1000.0),
         skipType = skipType,
         skipId = skipId,
@@ -89,7 +102,7 @@ object TheIntroDB {
     )
 
     @Serializable
-    data class Segment(val start_ms: Long, val end_ms: Long)
+    data class Segment(val start_ms: Long? = null, val end_ms: Long? = null)
 
     @Serializable
     data class Response(
