@@ -274,7 +274,7 @@ class TmdbWatchFragment : Fragment() {
             }
             applyBannerDim()
 
-            val logo = Tmdb.logoUrl(d)
+            val logo = if (PrefManager.getVal(PrefName.UseClearlogoInPosters)) Tmdb.logoUrl(d) else null
             if (logo != null) {
                 binding.tmdbWatchLogo.isVisible = true
                 binding.tmdbWatchLogo.loadImage(logo)
@@ -416,7 +416,7 @@ class TmdbWatchFragment : Fragment() {
             binding.mediaBg?.setImageDrawable(null)
         }
         applyBannerDim()
-        val logo = Tmdb.logoUrl(d)
+        val logo = if (PrefManager.getVal(PrefName.UseClearlogoInPosters)) Tmdb.logoUrl(d) else null
         if (logo != null) {
             binding.tmdbWatchLogo.isVisible = true
             binding.tmdbWatchLogo.loadImage(logo)

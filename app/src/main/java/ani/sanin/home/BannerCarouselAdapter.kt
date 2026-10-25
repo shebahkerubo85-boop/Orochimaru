@@ -13,6 +13,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import ani.sanin.BANNER_TYPE_MODERN
 import ani.sanin.util.BANNER_MAX_WIDTH
 import ani.sanin.util.bannerLoadOptions
@@ -185,7 +187,7 @@ class BannerCarouselAdapter(
         holder.title.isVisible = true
         holder.clearlogo.isVisible = false
         holder.clearlogo.setImageDrawable(null)
-        val logoUrl = logoUrls[media.id]
+        val logoUrl = if (PrefManager.getVal(PrefName.UseClearlogoInPosters)) logoUrls[media.id] else null
         if (!logoUrl.isNullOrBlank()) {
             holder.clearlogo.tag = media.id
             holder.clearlogo.isVisible = true
@@ -440,7 +442,7 @@ class BannerCarouselAdapter(
         }
 
         // --- Logo art, falling back to the title text. ---
-        val logoUrl = logoUrls[media.id]
+        val logoUrl = if (PrefManager.getVal(PrefName.UseClearlogoInPosters)) logoUrls[media.id] else null
         if (!logoUrl.isNullOrBlank()) {
             holder.clearlogo.isVisible = true
             holder.clearlogo.setImageDrawable(null)

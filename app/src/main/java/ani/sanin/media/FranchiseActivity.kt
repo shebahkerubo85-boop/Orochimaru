@@ -206,6 +206,7 @@ class FranchiseActivity : AppCompatActivity() {
      * cropped poster standing in for a wordmark reads as a rendering fault rather than a design.
      */
     private fun loadLogoArt(card: Franchise) {
+        if (!PrefManager.getVal(PrefName.UseClearlogoInPosters)) return
         val logo = card.logoUrl
         if (logo != null) {
             showLogo(logo)

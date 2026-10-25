@@ -379,7 +379,7 @@ class TmdbSearchActivity : AppCompatActivity() {
                     val results = runCatching { ani.sanin.connections.tmdb.Tmdb.search(name) }.getOrNull()
                     val match = results?.firstOrNull() ?: return@launch
                     val backdrop = match.backdropPath?.let { ani.sanin.connections.tmdb.Tmdb.imageUrl(it, 780) }
-                    val logoUrl = runCatching { ani.sanin.connections.tmdb.Tmdb.logoUrl(match.type, match.id) }.getOrNull()
+                    val logoUrl = if (PrefManager.getVal(PrefName.UseClearlogoInPosters)) runCatching { ani.sanin.connections.tmdb.Tmdb.logoUrl(match.type, match.id) }.getOrNull() else null
                     withContext(kotlinx.coroutines.Dispatchers.Main) {
                         if (holder.binding.tmdbCardPoster.tag != item.name) return@withContext
                         if (!backdrop.isNullOrBlank()) b.tmdbCardPoster.loadImage(backdrop)

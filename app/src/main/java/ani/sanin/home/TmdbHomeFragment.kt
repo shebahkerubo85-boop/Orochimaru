@@ -1025,7 +1025,7 @@ class TmdbHomeFragment : Fragment() {
         logoJob?.cancel()
         logoJob = viewLifecycleOwner.lifecycleScope.launch {
             val detail = Tmdb.detail(item.type, item.id)
-            val logo = detail?.let { Tmdb.logoUrl(it) }
+            val logo = if (PrefManager.getVal(PrefName.UseClearlogoInPosters)) detail?.let { Tmdb.logoUrl(it) } else null
             binding.tmdbBannerLogo.isVisible = logo != null
             if (logo != null) {
                 val bannerW = binding.tmdbBannerLogo.maxWidth.coerceIn(200, 400)
@@ -1055,7 +1055,7 @@ class TmdbHomeFragment : Fragment() {
         logoJob?.cancel()
         logoJob = viewLifecycleOwner.lifecycleScope.launch {
             val detail = Tmdb.detail(type, id)
-            val logo = detail?.let { Tmdb.logoUrl(it) }
+            val logo = if (PrefManager.getVal(PrefName.UseClearlogoInPosters)) detail?.let { Tmdb.logoUrl(it) } else null
             binding.tmdbBannerLogo.isVisible = logo != null
             if (logo != null) {
                 val bannerW = binding.tmdbBannerLogo.maxWidth.coerceIn(200, 400)

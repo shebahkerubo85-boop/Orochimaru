@@ -218,7 +218,9 @@ object TmdbCards {
                         logo.setImageDrawable(null)
                     }
                     logoScope.launch {
-                        val url = runCatching { Tmdb.logoUrl(item.type, item.id) }.getOrNull()
+                        val url = if (PrefManager.getVal(PrefName.UseClearlogoInPosters)) {
+                            runCatching { Tmdb.logoUrl(item.type, item.id) }.getOrNull()
+                        } else null
                         val current = logo.tag
                         if (current != token) return@launch
                         binding.root.post {

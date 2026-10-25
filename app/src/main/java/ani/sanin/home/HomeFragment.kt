@@ -1065,7 +1065,7 @@ class HomeFragment : Fragment() {
         b.navBannerCard.setOnClickListener { openNavBannerMedia(media) }
 
         lifecycleScope.launch(Dispatchers.IO) {
-            val logoUrl = ani.sanin.connections.LogoApi.getLogoUrl(media.id)
+            val logoUrl = if (PrefManager.getVal(PrefName.UseClearlogoInPosters)) ani.sanin.connections.LogoApi.getLogoUrl(media.id) else null
             withContext(Dispatchers.Main) {
                 if (_binding == null || navBannerCurrentMediaId != media.id) return@withContext
                 if (logoUrl != null) {

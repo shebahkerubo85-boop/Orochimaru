@@ -16,6 +16,8 @@ import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import ani.sanin.BANNER_TYPE_MODERN
 import ani.sanin.util.BANNER_MAX_WIDTH
 import ani.sanin.util.bannerLoadOptions
@@ -147,7 +149,7 @@ class TmdbBannerCarouselAdapter(
         }
 
         // --- Clearlogo / Title ---
-        val logoUrl = logoUrls[pos]
+        val logoUrl = if (PrefManager.getVal(PrefName.UseClearlogoInPosters)) logoUrls[pos] else null
         if (!logoUrl.isNullOrBlank()) {
             holder.clearlogo.tag = pos
             holder.clearlogo.isVisible = true
@@ -448,7 +450,7 @@ class TmdbBannerCarouselAdapter(
         }
 
         // --- Logo art, falling back to the title text ---
-        val logoUrl = logoUrls[pos]
+        val logoUrl = if (PrefManager.getVal(PrefName.UseClearlogoInPosters)) logoUrls[pos] else null
         if (!logoUrl.isNullOrBlank()) {
             holder.clearlogo.isVisible = true
             holder.clearlogo.setImageDrawable(null)

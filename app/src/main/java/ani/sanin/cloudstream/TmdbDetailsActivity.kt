@@ -337,7 +337,7 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
                 applyBannerHidden()
             }
 
-            val logo = Tmdb.logoUrl(d)
+            val logo = if (PrefManager.getVal(PrefName.UseClearlogoInPosters)) Tmdb.logoUrl(d) else null
             if (logo != null) {
                 binding.mediaInfoLogo.loadImage(logo)
                 binding.mediaInfoLogo.visibility = View.VISIBLE

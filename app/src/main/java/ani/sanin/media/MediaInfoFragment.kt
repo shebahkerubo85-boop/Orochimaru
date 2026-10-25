@@ -190,7 +190,7 @@ class MediaInfoFragment : Fragment() {
                 binding.mediaInfoLogo.visibility = View.GONE
                 binding.mediaInfoTitle.visibility = View.GONE
                 viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
-                    var logoUrl = LogoApi.getLogoUrl(media.id)
+                    var logoUrl = if (PrefManager.getVal(PrefName.UseClearlogoInPosters)) LogoApi.getLogoUrl(media.id) else null
                     if (_binding == null || !isAdded) return@launch
                     if (logoUrl.isNullOrBlank()) {
                         // TMDB fallback: search by title, grab clear logo

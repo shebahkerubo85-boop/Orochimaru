@@ -56,7 +56,7 @@ class SimklContinueWatchingLandscapeAdapter(
             CoroutineScope(Dispatchers.IO).launch {
                 val detail = Tmdb.detail(mediaType, tmdbId)
                 val backdropUrl = detail?.backdropPath?.let { ani.sanin.connections.tmdb.Tmdb.imageUrl(it, 780) }
-                val logoUrl = Tmdb.logoUrl(mediaType, tmdbId)
+                val logoUrl = if (PrefManager.getVal(PrefName.UseClearlogoInPosters)) Tmdb.logoUrl(mediaType, tmdbId) else null
 
                 val isOngoing = when (detail?.status?.lowercase()) {
                     "returning series", "returning", "in production" -> true

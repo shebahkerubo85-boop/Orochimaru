@@ -1639,7 +1639,7 @@ class ExoplayerView :
             pauseGenres.addView(chip)
         }
         lifecycleScope.launch(Dispatchers.Main) {
-            val logoUrl = media.logoUrl ?: LogoApi.getLogoUrl(media.id)
+            val logoUrl = if (PrefManager.getVal(PrefName.UseClearlogoInPosters)) media.logoUrl ?: LogoApi.getLogoUrl(media.id) else null
             if (!logoUrl.isNullOrBlank()) {
                 pauseLogo.visibility = View.VISIBLE
                 pauseTitle.visibility = View.GONE
@@ -4384,8 +4384,6 @@ class ExoplayerView :
         skipTimeButton.visibility = View.VISIBLE
         exoSkip.visibility = View.GONE
         exoRotate.nextFocusUpId = R.id.exo_skip_timestamp
-        exoSkipOpEd.nextFocusRightId = R.id.exo_skip_timestamp
-        exoSkipOpEd.nextFocusUpId = R.id.exo_skip_timestamp
         playerView.findViewById<View>(R.id.exo_ep_sel_btn)?.nextFocusUpId =
             R.id.exo_skip_timestamp
     }
@@ -4401,9 +4399,6 @@ class ExoplayerView :
             }
         }
         exoRotate.nextFocusUpId = R.id.exo_skip
-        exoSkipOpEd.nextFocusRightId = R.id.exo_skip
-        exoSkipOpEd.nextFocusUpId =
-            if (exoSkip.visibility == View.VISIBLE) R.id.exo_skip else androidx.media3.ui.R.id.exo_progress
         playerView.findViewById<View>(R.id.exo_ep_sel_btn)?.nextFocusUpId =
             if (exoSkip.visibility == View.VISIBLE) R.id.exo_skip else androidx.media3.ui.R.id.exo_progress
     }

@@ -67,7 +67,7 @@ class ContinueWatchingLandscapeAdapter(
         holder.clearlogo.visibility = View.GONE
         holder.overlayTitle.visibility = View.GONE
         CoroutineScope(Dispatchers.Main).launch {
-            val logoUrl = LogoApi.getLogoUrl(media.id)
+            val logoUrl = if (PrefManager.getVal(PrefName.UseClearlogoInPosters)) LogoApi.getLogoUrl(media.id) else null
             if (!logoUrl.isNullOrBlank()) {
                 holder.clearlogo.visibility = View.VISIBLE
                 com.bumptech.glide.Glide.with(holder.clearlogo.context)

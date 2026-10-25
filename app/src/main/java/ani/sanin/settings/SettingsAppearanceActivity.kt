@@ -386,6 +386,13 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                             },
                         ) { idx -> PrefManager.setVal(PrefName.UIScale, floatArrayOf(0.75f, 0.85f, 1f, 1.15f, 1.25f)[idx]) },
                     ),
+                    SubscreenBuilder.Entry(
+                        title = "Use Clearlogo in Posters",
+                        desc = "Show the series logo on banners & cards instead of text titles",
+                        switch = PrefManager.getVal<Boolean>(PrefName.UseClearlogoInPosters) to {
+                            PrefManager.setVal(PrefName.UseClearlogoInPosters, it)
+                        },
+                    ),
                 ),
             ),
         ), clear = false) }
