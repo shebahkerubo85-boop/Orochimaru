@@ -1055,8 +1055,8 @@ class ExoplayerView :
         val tracksButton = playerView.findViewById<View>(R.id.exo_tracks)
         val autoplayButton = playerView.findViewById<View>(R.id.exo_autoplay)
         autoplayButton.nextFocusLeftId = R.id.exo_back
-        autoplayButton.nextFocusRightId = androidx.media3.ui.R.id.exo_playback_speed
-        exoSpeed.nextFocusLeftId = R.id.exo_autoplay
+        autoplayButton.nextFocusRightId = R.id.exo_skip_op_ed
+        exoSpeed.nextFocusLeftId = R.id.exo_skip_op_ed
         exoSpeed.nextFocusRightId = R.id.exo_settings
         exoSettings.nextFocusLeftId = androidx.media3.ui.R.id.exo_playback_speed
         exoSettings.nextFocusRightId = R.id.exo_tracks

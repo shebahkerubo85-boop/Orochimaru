@@ -104,7 +104,6 @@
                     android:layout_marginStart="8dp"
                     android:layout_marginEnd="8dp"
                     android:layout_marginBottom="5dp"
-                    android:clipChildren="false"
                     android:gravity="bottom"
                     android:orientation="horizontal"
                     app:layout_constraintBottom_toBottomOf="parent">
@@ -163,45 +162,23 @@
                         android:layout_height="match_parent"
                         android:layout_weight="1" />
 
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="48dp"
-                        android:id="@+id/pillBottomRight"
-                        android:background="@android:color/transparent"
-                        android:focusable="false"
-                        android:clickable="false"
-                        android:orientation="horizontal"
-                        android:paddingStart="1dp"
-                        android:paddingEnd="1dp"
-                        android:paddingTop="0dp"
-                        android:paddingBottom="0dp"
-                        android:gravity="center_vertical">
+                    <View
+                        android:layout_width="1dp"
+                        android:layout_height="26dp"
+                        android:layout_gravity="center_vertical"
+                        android:background="?attr/colorPrimary" />
 
-                        <ImageButton
-                            android:id="@+id/exo_skip_op_ed"
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
-                            android:focusable="true"
-                            android:backgroundTint="#00FFFFFF"
-                            android:src="@drawable/ic_round_play_disabled_24"
-                            android:visibility="gone"
-                            app:tint="#fff"
-                            tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
-
-                    </LinearLayout>
                     <FrameLayout
                         android:layout_width="92dp"
                         android:layout_height="50dp"
                         android:layout_marginStart="8dp"
                         android:layout_marginEnd="2dp"
-                        android:layout_marginBottom="0dp"
-                        android:clipChildren="false">
-                        <!-- Back peep card (6dp top peep) -->
+                        android:layout_marginBottom="0dp">
+                        <!-- Back peep card (2dp top peep) -->
                         <View
                             android:layout_width="80dp"
                             android:layout_height="50dp"
                             android:layout_gravity="top|end"
-                            android:translationY="-4dp"
                             android:background="@drawable/bg_stack_card" />
                         <!-- Front thumbnail card -->
                         <FrameLayout
@@ -473,7 +450,7 @@
                             android:clickable="true"
                             android:contentDescription="@string/autoplay"
                             android:nextFocusLeft="@id/exo_back"
-                            android:nextFocusRight="@id/exo_playback_speed"
+                            android:nextFocusRight="@id/exo_skip_op_ed"
                             android:nextFocusDown="@id/exo_play"
                             tools:ignore="ContentDescription,FocusWithoutTouchTarget">
 
@@ -514,11 +491,25 @@
                         android:paddingEnd="1dp">
 
                         <ImageButton
-                            android:id="@id/exo_playback_speed"
+                            android:id="@+id/exo_skip_op_ed"
                             android:layout_width="48dp"
                             android:layout_height="48dp"
                             android:focusable="true"
                             android:nextFocusLeft="@id/exo_autoplay"
+                            android:nextFocusRight="@id/exo_playback_speed"
+                            android:nextFocusUp="@id/exo_progress"
+                            android:backgroundTint="#00FFFFFF"
+                            android:src="@drawable/ic_skip_24"
+                            android:visibility="gone"
+                            app:tint="#fff"
+                            tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
+
+                        <ImageButton
+                            android:id="@id/exo_playback_speed"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:focusable="true"
+                            android:nextFocusLeft="@id/exo_skip_op_ed"
                             android:nextFocusRight="@id/exo_settings"
                             android:nextFocusDown="@id/exo_play"
                             android:backgroundTint="#00FFFFFF"
