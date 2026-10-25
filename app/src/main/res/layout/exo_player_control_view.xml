@@ -190,35 +190,39 @@
 
                     </LinearLayout>
                     <FrameLayout
-                        android:id="@+id/exo_ep_sel_btn"
                         android:layout_width="92dp"
                         android:layout_height="56dp"
                         android:layout_marginStart="8dp"
-                        android:layout_marginEnd="2dp"
-                        android:focusable="true"
-                        android:clickable="true"
-                        android:contentDescription="@string/episodes"
-                        android:nextFocusLeft="@id/exo_screen"
-                        android:nextFocusUp="@id/exo_play">
+                        android:layout_marginEnd="2dp">
                         <View
                             android:layout_width="72dp"
                             android:layout_height="40dp"
                             android:layout_gravity="top|end"
                             android:background="@drawable/bg_stack_card" />
                         <FrameLayout
+                            android:id="@+id/exo_ep_sel_btn"
                             android:layout_width="80dp"
                             android:layout_height="50dp"
-                            android:layout_gravity="bottom|start">
+                            android:layout_gravity="bottom|start"
+                            android:focusable="true"
+                            android:clickable="true"
+                            android:contentDescription="@string/episodes"
+                            android:nextFocusLeft="@id/exo_screen"
+                            android:nextFocusUp="@id/exo_play">
                             <com.google.android.material.imageview.ShapeableImageView
                                 android:id="@+id/exo_next_episode_thumbnail"
                                 android:layout_width="match_parent"
                                 android:layout_height="match_parent"
                                 android:contentDescription="@null"
-                                android:alpha="0.6"
                                 android:scaleType="centerCrop"
                                 app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.Corner8"
                                 app:strokeColor="#33FFFFFF"
                                 app:strokeWidth="1dp" />
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:background="#40000000"
+                                tools:ignore="UselessParent" />
                             <ImageView
                                 android:layout_width="22dp"
                                 android:layout_height="22dp"
