@@ -5,6 +5,7 @@ import ani.sanin.client
 import ani.sanin.tryWithSuspend
 import ani.sanin.util.Logger
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 // api.theintrodb.org v4 — resolves by tmdb/imdb/tvdb id directly, so it also
@@ -102,7 +103,10 @@ object TheIntroDB {
     )
 
     @Serializable
-    data class Segment(val start_ms: Long? = null, val end_ms: Long? = null)
+    data class Segment(
+        @SerialName("start_ms") val startMs: Long? = null,
+        @SerialName("end_ms") val endMs: Long? = null
+    )
 
     @Serializable
     data class Response(

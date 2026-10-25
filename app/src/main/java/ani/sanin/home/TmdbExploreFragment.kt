@@ -419,7 +419,7 @@ class TmdbExploreFragment : Fragment() {
      */
     private fun loadBannerLogos(bannerMedia: List<Media>) {
         if (bannerMedia.isEmpty()) return
-        if (!PrefManager.getVal(PrefName.UseClearlogoInPosters)) return
+        if (!PrefManager.getVal<Boolean>(PrefName.UseClearlogoInPosters)) return
         viewLifecycleOwner.lifecycleScope.launch {
             val logos = bannerMedia.limitedAsyncMap(concurrency = 6) { media ->
                 val type = media.tmdbType ?: return@limitedAsyncMap null

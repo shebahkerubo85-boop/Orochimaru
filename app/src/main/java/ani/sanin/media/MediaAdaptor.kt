@@ -651,7 +651,7 @@ class MediaAdaptor(
                     b.itemCompactTitleBelow.visibility = View.GONE
                     logoJobs[position]?.cancel()
                     logoJobs[position] = activity.lifecycleScope.launch(Dispatchers.Main) {
-                        val logoUrl = if (!PrefManager.getVal(PrefName.UseClearlogoInPosters)) null
+                        val logoUrl = if (!PrefManager.getVal<Boolean>(PrefName.UseClearlogoInPosters)) null
                         else if (!media.tmdbType.isNullOrBlank()) {
                             runCatching { Tmdb.logoUrl(media.tmdbType!!, media.id) }.getOrNull()
                         } else {
