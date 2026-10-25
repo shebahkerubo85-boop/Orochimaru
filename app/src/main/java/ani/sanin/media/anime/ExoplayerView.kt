@@ -59,6 +59,7 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.math.MathUtils.clamp
+import androidx.core.view.doOnLayout
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
@@ -635,7 +636,7 @@ class ExoplayerView :
         // Compact YouTube-style autoplay toggle, backed by the existing preference.
         playerView.findViewById<View>(R.id.exo_autoplay).apply {
             val thumb = findViewById<ImageView>(R.id.exo_autoplay_thumb)
-            fun renderAutoplay(enabled: Boolean) {
+            fun renderAutoplay(enabled: Boolean, animate: Boolean = false) {
                 isSelected = enabled
                 thumb.setImageResource(
                     if (enabled) R.drawable.ic_play_circle_filled_24
@@ -653,17 +654,29 @@ class ExoplayerView :
                     }
                 )
                 contentDescription = "${context.getString(R.string.autoplay)}: ${if (enabled) "on" else "off"}"
-                if (width == 0 || thumb.width == 0) return
-                val target = (if (enabled) width - thumb.width else 0).toFloat()
-                thumb.animate().translationX(target).setDuration(250).start()
+                fun place() {
+                    if (width > 0 && thumb.width > 0) {
+                        val target = (if (enabled) width - thumb.width else 0).toFloat()
+                        if (animate) {
+                            thumb.animate().translationX(target).setDuration(250).start()
+                        } else {
+                            thumb.translationX = target
+                        }
+                    }
+                }
+                if (width > 0) {
+                    place()
+                } else {
+                    doOnLayout { place() }
+                }
             }
             var enabled = PrefManager.getVal<Boolean>(PrefName.AutoPlay)
             renderAutoplay(enabled)
-            post { renderAutoplay(enabled) }
             setOnClickListener {
                 enabled = !enabled
                 PrefManager.setVal(PrefName.AutoPlay, enabled)
-                renderAutoplay(enabled)
+                renderAutoplay(enabled, animate = true)
+                snackString("${context.getString(R.string.autoplay)} ${if (enabled) "on" else "off"}")
                 Logger.log("Player: AUTOPLAY toggled — enabled=$enabled")
             }
         }
