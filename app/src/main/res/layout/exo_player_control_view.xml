@@ -163,8 +163,8 @@
                         android:layout_weight="1" />
 
                     <View
-                        android:layout_width="1dp"
-                        android:layout_height="26dp"
+                        android:layout_width="2dp"
+                        android:layout_height="48dp"
                         android:layout_gravity="center_vertical"
                         android:background="?attr/colorPrimary" />
 
