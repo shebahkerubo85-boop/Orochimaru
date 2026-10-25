@@ -1074,24 +1074,22 @@ class ExoplayerView :
         exoPlay.nextFocusDownId = androidx.media3.ui.R.id.exo_progress
         playerView.findViewById<View>(R.id.exo_prev_ep).nextFocusDownId = androidx.media3.ui.R.id.exo_progress
         playerView.findViewById<View>(R.id.exo_next_ep).nextFocusDownId = androidx.media3.ui.R.id.exo_progress
-        val bottomIds = listOf(R.id.exo_source, R.id.exo_sub, R.id.exo_screen, R.id.exo_ep_sel_btn)
+        val bottomIds = listOf(R.id.exo_source, R.id.exo_screen, R.id.exo_ep_sel_btn)
         for (id in bottomIds) {
             playerView.findViewById<View>(id)?.nextFocusUpId = androidx.media3.ui.R.id.exo_progress
         }
         val skipView = playerView.findViewById<View>(R.id.exo_skip)
         skipView.nextFocusDownId = R.id.exo_rotate
-        skipView.nextFocusRightId = R.id.exo_screen
+        skipView.nextFocusRightId = R.id.exo_ep_sel_btn
         skipView.nextFocusLeftId = R.id.exo_skip_op_ed
         skipView.nextFocusUpId = R.id.exo_ep_sel_btn
-        playerView.findViewById<View>(R.id.exo_skip_op_ed).nextFocusRightId = R.id.exo_skip
-        playerView.findViewById<View>(R.id.exo_skip_op_ed).nextFocusUpId = R.id.exo_skip
         skipTimeButton.nextFocusDownId = R.id.exo_rotate
-        skipTimeButton.nextFocusRightId = R.id.exo_screen
+        skipTimeButton.nextFocusRightId = R.id.exo_ep_sel_btn
         skipTimeButton.nextFocusLeftId = R.id.exo_skip_op_ed
         skipTimeButton.nextFocusUpId = R.id.exo_ep_sel_btn
         playerView.findViewById<View>(R.id.exo_screen).nextFocusUpId = R.id.exo_skip
         playerView.findViewById<View>(R.id.exo_ep_sel_btn).nextFocusLeftId = R.id.exo_screen
-        playerView.findViewById<View>(R.id.exo_ep_sel_btn).nextFocusUpId = androidx.media3.ui.R.id.exo_play
+        playerView.findViewById<View>(R.id.exo_ep_sel_btn).nextFocusUpId = androidx.media3.ui.R.id.exo_progress
         progressBar.setOnFocusChangeListener { _, hasFocus ->
             if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.SeekBarAnimations)) {
                 progressBar.animate().scaleY(if (hasFocus) 2.5f else 1f).setDuration(150).start()

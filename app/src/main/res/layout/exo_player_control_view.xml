@@ -143,6 +143,16 @@
                             android:src="@drawable/ic_round_source_24"
                             tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
 
+                        <ImageButton
+                            android:id="@+id/exo_screen"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:focusable="true"
+                            android:backgroundTint="#00FFFFFF"
+                            android:src="@drawable/ic_aspect_ratio_filled_24"
+                            android:padding="2dp"
+                            android:contentDescription="Aspect ratio"
+                            tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
 
 
                     </LinearLayout>
@@ -175,17 +185,6 @@
                             android:src="@drawable/ic_round_play_disabled_24"
                             android:visibility="gone"
                             app:tint="#fff"
-                            tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
-
-                        <ImageButton
-                            android:id="@+id/exo_screen"
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
-                            android:focusable="true"
-                            android:backgroundTint="#00FFFFFF"
-                            android:src="@drawable/ic_aspect_ratio_filled_24"
-                            android:padding="2dp"
-                            android:contentDescription="Aspect ratio"
                             tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
 
                     </LinearLayout>
