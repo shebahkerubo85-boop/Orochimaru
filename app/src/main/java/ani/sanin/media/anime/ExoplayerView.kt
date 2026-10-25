@@ -612,7 +612,7 @@ class ExoplayerView :
         // 0.0f (0%) pushes subtitles to the very bottom
         exoSubtitleView?.setBottomPaddingFraction(0.0f)
 
-        exoSpeed = playerView.findViewById(androidx.media3.ui.androidx.media3.ui.R.id.exo_playback_speed)
+        exoSpeed = playerView.findViewById(androidx.media3.ui.R.id.exo_playback_speed)
         exoScreen = playerView.findViewById(R.id.exo_screen)
         exoRotate = playerView.findViewById(R.id.exo_rotate)
         exoBrightness = playerView.findViewById(R.id.exo_brightness)
@@ -975,7 +975,7 @@ class ExoplayerView :
             R.id.exo_audio, R.id.exo_screen, R.id.exo_rotate,
             R.id.exo_skip_op_ed, R.id.exo_back, R.id.exo_skip, R.id.exo_next_ep,
             R.id.exo_prev_ep,
-            androidx.media3.ui.androidx.media3.ui.R.id.exo_playback_speed,
+            androidx.media3.ui.R.id.exo_playback_speed,
             R.id.exo_fast_forward_button, R.id.exo_fast_rewind_button,
             R.id.exo_fast_forward_button_cont, R.id.exo_fast_rewind_button_cont,
             R.id.exo_skip_timestamp,
@@ -992,7 +992,7 @@ class ExoplayerView :
             R.id.exo_audio, R.id.exo_screen, R.id.exo_rotate,
             R.id.exo_skip_op_ed, R.id.exo_back, R.id.exo_skip, R.id.exo_next_ep,
             R.id.exo_prev_ep,
-            androidx.media3.ui.androidx.media3.ui.R.id.exo_playback_speed,
+            androidx.media3.ui.R.id.exo_playback_speed,
             R.id.exo_fast_forward_button, R.id.exo_fast_rewind_button,
             R.id.exo_fast_forward_button_cont, R.id.exo_fast_rewind_button_cont,
             R.id.exo_skip_timestamp,
@@ -1019,14 +1019,14 @@ class ExoplayerView :
         exoBack.nextFocusRightId = R.id.exo_tracks
         exoBack.nextFocusLeftId = R.id.exo_autoplay
         playerView.findViewById<View>(R.id.exo_prev_ep).nextFocusLeftId = R.id.exo_back
-        playerView.findViewById<View>(R.id.exo_prev_ep).nextFocusRightId = androidx.media3.ui.androidx.media3.ui.R.id.exo_play
+        playerView.findViewById<View>(R.id.exo_prev_ep).nextFocusRightId = androidx.media3.ui.R.id.exo_play
         exoPlay.nextFocusLeftId = R.id.exo_prev_ep
         exoPlay.nextFocusRightId = R.id.exo_next_ep
-        playerView.findViewById<View>(R.id.exo_next_ep).nextFocusLeftId = androidx.media3.ui.androidx.media3.ui.R.id.exo_play
+        playerView.findViewById<View>(R.id.exo_next_ep).nextFocusLeftId = androidx.media3.ui.R.id.exo_play
         exoPlay.nextFocusUpId = R.id.exo_ep_sel_btn
-        exoSpeed.nextFocusDownId = androidx.media3.ui.androidx.media3.ui.R.id.exo_play
-        autoplayButton.nextFocusDownId = androidx.media3.ui.androidx.media3.ui.R.id.exo_play
-        episodeTitleBtn.nextFocusDownId = androidx.media3.ui.androidx.media3.ui.R.id.exo_play
+        exoSpeed.nextFocusDownId = androidx.media3.ui.R.id.exo_play
+        autoplayButton.nextFocusDownId = androidx.media3.ui.R.id.exo_play
+        episodeTitleBtn.nextFocusDownId = androidx.media3.ui.R.id.exo_play
 
         val progressBar = playerView.findViewById<DefaultTimeBar>(androidx.media3.ui.R.id.exo_progress)
         progressBar.isFocusable = true
