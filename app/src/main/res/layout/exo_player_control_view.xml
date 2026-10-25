@@ -190,21 +190,22 @@
                     </LinearLayout>
                     <FrameLayout
                         android:layout_width="92dp"
-                        android:layout_height="56dp"
+                        android:layout_height="50dp"
                         android:layout_marginStart="8dp"
-                        android:layout_marginEnd="2dp">
-                        <!-- Back peep card -->
+                        android:layout_marginEnd="2dp"
+                        android:layout_marginBottom="6dp">
+                        <!-- Back peep card (1dp top peep) -->
                         <View
                             android:layout_width="80dp"
-                            android:layout_height="50dp"
+                            android:layout_height="49dp"
                             android:layout_gravity="top|end"
                             android:background="@drawable/bg_stack_card" />
                         <!-- Front thumbnail card -->
                         <FrameLayout
                             android:id="@+id/exo_ep_sel_btn"
                             android:layout_width="80dp"
-                            android:layout_height="50dp"
-                            android:layout_gravity="bottom|start"
+                            android:layout_height="48dp"
+                            android:layout_gravity="center|start"
                             android:background="@drawable/bg_stack_card"
                             android:focusable="true"
                             android:clickable="true"
