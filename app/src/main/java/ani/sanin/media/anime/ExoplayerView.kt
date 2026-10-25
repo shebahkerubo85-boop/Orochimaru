@@ -632,11 +632,19 @@ class ExoplayerView :
         episodeTitleText = playerView.findViewById(R.id.exo_ep_sel_text)
         episodeTitleBtn = playerView.findViewById(R.id.exo_ep_sel_btn)
 
-        // Independent animated switch, backed by the existing autoplay preference.
-        playerView.findViewById<android.widget.CompoundButton>(R.id.exo_autoplay).apply {
-            isChecked = PrefManager.getVal<Boolean>(PrefName.AutoPlay)
-            setOnCheckedChangeListener { _, enabled ->
+        // Compact YouTube-style autoplay toggle, backed by the existing preference.
+        playerView.findViewById<ImageButton>(R.id.exo_autoplay).apply {
+            fun renderAutoplay(enabled: Boolean) {
+                isSelected = enabled
+                alpha = if (enabled) 1f else 0.58f
+                contentDescription = "${context.getString(R.string.autoplay)}: ${if (enabled) "on" else "off"}"
+            }
+            var enabled = PrefManager.getVal<Boolean>(PrefName.AutoPlay)
+            renderAutoplay(enabled)
+            setOnClickListener {
+                enabled = !enabled
                 PrefManager.setVal(PrefName.AutoPlay, enabled)
+                renderAutoplay(enabled)
                 Logger.log("Player: AUTOPLAY toggled — enabled=$enabled")
             }
         }
@@ -1008,15 +1016,15 @@ class ExoplayerView :
         // then the lower subtitle/server and aspect/episodes controls.
         val tracksButton = playerView.findViewById<View>(R.id.exo_tracks)
         val autoplayButton = playerView.findViewById<View>(R.id.exo_autoplay)
-        tracksButton.nextFocusLeftId = R.id.exo_back
-        tracksButton.nextFocusRightId = R.id.exo_settings
-        exoSettings.nextFocusLeftId = R.id.exo_tracks
-        exoSettings.nextFocusRightId = androidx.media3.ui.R.id.exo_playback_speed
-        exoSpeed.nextFocusLeftId = R.id.exo_settings
-        exoSpeed.nextFocusRightId = R.id.exo_autoplay
-        autoplayButton.nextFocusLeftId = androidx.media3.ui.R.id.exo_playback_speed
-        autoplayButton.nextFocusRightId = R.id.exo_back
-        exoBack.nextFocusRightId = R.id.exo_tracks
+        autoplayButton.nextFocusLeftId = R.id.exo_back
+        autoplayButton.nextFocusRightId = androidx.media3.ui.R.id.exo_playback_speed
+        exoSpeed.nextFocusLeftId = R.id.exo_autoplay
+        exoSpeed.nextFocusRightId = R.id.exo_settings
+        exoSettings.nextFocusLeftId = androidx.media3.ui.R.id.exo_playback_speed
+        exoSettings.nextFocusRightId = R.id.exo_tracks
+        tracksButton.nextFocusLeftId = R.id.exo_settings
+        tracksButton.nextFocusRightId = R.id.exo_back
+        exoBack.nextFocusRightId = R.id.exo_ep_sel_text
         exoBack.nextFocusLeftId = R.id.exo_autoplay
         playerView.findViewById<View>(R.id.exo_prev_ep).nextFocusLeftId = R.id.exo_back
         playerView.findViewById<View>(R.id.exo_prev_ep).nextFocusRightId = androidx.media3.ui.R.id.exo_play
