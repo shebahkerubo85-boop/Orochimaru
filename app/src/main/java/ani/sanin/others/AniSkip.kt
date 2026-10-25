@@ -108,6 +108,7 @@ object AniSkip {
             "recap" -> "Recap"
             "mixed-ed" -> "Mixed Ending"
             "mixed-op" -> "Mixed Opening"
+            "other" -> "Preview"
             else -> this
         }
     }

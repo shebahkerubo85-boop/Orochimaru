@@ -12,12 +12,20 @@ object IntroDB {
 
     suspend fun getResult(
         imdbId: String,
-        season: Int,
-        episode: Int
+        season: Int?,
+        episode: Int?,
+        isMovie: Boolean = false
     ): List<AniSkip.Stamp>? {
-        val url =
+        if (!isMovie && (season == null || episode == null)) {
+            Logger.log("IntroDB: movie-mode flag unset and no season/episode, skipping")
+            return null
+        }
+        val url = if (isMovie) {
+            "https://api.introdb.app/segments?imdb_id=$imdbId&is_movie=true"
+        } else {
             "https://api.introdb.app/segments?imdb_id=$imdbId&season=$season&episode=$episode"
-        Logger.log("IntroDB: getResult start imdbId=$imdbId season=$season episode=$episode url=$url")
+        }
+        Logger.log("IntroDB: getResult start imdbId=$imdbId season=$season episode=$episode isMovie=$isMovie url=$url")
         return tryWithSuspend {
             val started = java.lang.System.currentTimeMillis()
             val a = withTimeoutOrNull(10_000L) { client.get(url) }
@@ -37,16 +45,19 @@ object IntroDB {
                 Logger.log("IntroDB: parse error: ${e.message}")
                 return@tryWithSuspend null
             }
+            val epTag = if (isMovie) "imdb-movie" else "$season-$episode"
             val stamps = listOfNotNull(
-                res.intro?.toStamp("op", "introdb-$season-$episode-intro"),
-                res.recap?.toStamp("recap", "introdb-$season-$episode-recap"),
-                res.outro?.toStamp("ed", "introdb-$season-$episode-outro")
+                res.intro?.toStamp("op", "introdb-$epTag-intro"),
+                res.recap?.toStamp("recap", "introdb-$epTag-recap"),
+                res.outro?.toStamp("ed", "introdb-$epTag-outro"),
+                res.postCredits?.toStamp("ed", "introdb-$epTag-postcredits")
             )
             Logger.log(
                 "IntroDB: FOUND ${stamps.size} stamps via api.introdb.app " +
                     "intro=${res.intro?.let { "${it.startSec}-${it.endSec}s" }} " +
                     "recap=${res.recap?.let { "${it.startSec}-${it.endSec}s" }} " +
-                    "outro=${res.outro?.let { "${it.startSec}-${it.endSec}s" }}"
+                    "outro=${res.outro?.let { "${it.startSec}-${it.endSec}s" }} " +
+                    "post=${res.postCredits?.let { "${it.startSec}-${it.endSec}s" }}"
             )
             if (stamps.isEmpty()) null else stamps
         }
@@ -68,7 +79,8 @@ object IntroDB {
         val episode: Int? = null,
         val intro: Segment? = null,
         val recap: Segment? = null,
-        val outro: Segment? = null
+        val outro: Segment? = null,
+        @SerialName("post_credits") val postCredits: Segment? = null
     )
 
     @Serializable

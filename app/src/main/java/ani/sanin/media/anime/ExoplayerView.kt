@@ -4186,8 +4186,6 @@ class ExoplayerView :
     private var lastLoggedStampId: String? = null
 
     private fun maybeLoadTimeStamps(source: String) {
-        // Synthetic TMDB streams use a negative id — no AniSkip timestamps for them.
-        if (media.id < 0) return
         if (!isInitialized || isTimeStampsLoaded || timeStampsLoading) return
         if (!PrefManager.getVal<Boolean>(PrefName.TimeStampsEnabled)) return
         // Rate-limit retries so a transient failure (e.g. on slower TV hardware)
@@ -4202,13 +4200,23 @@ class ExoplayerView :
         val extTimestamps =
             ((extractor?.server?.video?.timestamps ?: emptyList()) +
                 (extractor?.timestamps ?: emptyList())).distinct()
+        val isTmdbMode = media.id < 0
         val episodeNum = media.anime?.selectedEpisode?.trim()?.toIntOrNull()
+        val episodeKey = if (isTmdbMode) {
+            media.anime?.selectedEpisode?.trim()?.takeIf { it.isNotEmpty() }
+        } else {
+            null
+        }
+        val tmdbSession = if (isTmdbMode) TmdbStreamResolver.sessionFor(media.id) else null
+        val isTmdbMovie = isTmdbMovieMode()
         val serverVideo = extractor?.server?.video
         val extServerCount = serverVideo?.timestamps?.size ?: -1
         val extCount = extractor?.timestamps?.size ?: -1
         Logger.log(
             "Player: timestamps attempt for ep '${media.anime?.selectedEpisode}' " +
-                "source=$source episodeNum=$episodeNum malId=${media.idMAL} durMs=$dur durSec=${dur / 1000} " +
+                "source=$source episodeNum=$episodeNum episodeKey=$episodeKey " +
+                "malId=${media.idMAL} durMs=$dur durSec=${dur / 1000} " +
+                "tmdbMode=$isTmdbMode tmdbMovie=$isTmdbMovie imdbId=${media.idIMDB} tmdbId=${tmdbSession?.mediaId} " +
                 "isInitialized=$isInitialized isTimeStampsLoaded=$isTimeStampsLoaded " +
                 "timeStampsLoading=$timeStampsLoading " +
                 "timeStampsEnabled=${PrefManager.getVal<Boolean>(PrefName.TimeStampsEnabled)} " +
@@ -4231,6 +4239,11 @@ class ExoplayerView :
                     dur / 1000,
                     PrefManager.getVal<Boolean>(PrefName.UseProxyForTimeStamps),
                     extTimestamps,
+                    episodeKey = episodeKey,
+                    imdbId = media.idIMDB,
+                    tmdbId = tmdbSession?.mediaId,
+                    isMovie = isTmdbMovie,
+                    tmdbMode = isTmdbMode
                 )
                 Logger.log(
                     "Player: timestamps attempt finished for ep '${media.anime?.selectedEpisode}' " +

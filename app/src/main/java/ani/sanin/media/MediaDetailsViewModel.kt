@@ -21,6 +21,7 @@ import ani.sanin.others.Anify
 import ani.sanin.others.IntroDB
 import ani.sanin.others.Jikan
 import ani.sanin.others.Kitsu
+import ani.sanin.others.TheIntroDB
 import ani.sanin.parsers.AnimeSources
 import ani.sanin.parsers.ShowResponse
 import ani.sanin.parsers.VideoExtractor
@@ -800,69 +801,66 @@ class MediaDetailsViewModel : ViewModel() {
     }
 
     val timeStamps = MutableLiveData<List<AniSkip.Stamp>?>()
-    private val timeStampsMap: MutableMap<Int, List<AniSkip.Stamp>?> = mutableMapOf()
+    private val timeStampsMap: MutableMap<String, List<AniSkip.Stamp>?> = mutableMapOf()
     suspend fun loadTimeStamps(
         malId: Int?,
         episodeNum: Int?,
         duration: Long,
         useProxyForTimeStamps: Boolean,
-        extensionTimestamps: List<eu.kanade.tachiyomi.animesource.model.TimeStamp> = emptyList()
+        extensionTimestamps: List<eu.kanade.tachiyomi.animesource.model.TimeStamp> = emptyList(),
+        episodeKey: String? = null,
+        imdbId: String? = null,
+        tmdbId: Int? = null,
+        isMovie: Boolean = false,
+        tmdbMode: Boolean = false
     ) {
-        episodeNum ?: return
+        val cacheKey = episodeKey ?: episodeNum?.toString() ?: return
         if (duration <= 0 && extensionTimestamps.isEmpty()) return
         ani.sanin.util.Logger.log(
-            "loadTimeStamps: enter episodeNum=$episodeNum malId=$malId duration=$duration " +
+            "loadTimeStamps: enter cacheKey=$cacheKey episodeNum=$episodeNum malId=$malId duration=$duration " +
                 "useProxy=$useProxyForTimeStamps extCount=${extensionTimestamps.size} " +
+                "tmdbMode=$tmdbMode isMovie=$isMovie imdbId=$imdbId tmdbId=$tmdbId " +
                 "selectedEpisode=${media.value?.anime?.selectedEpisode} " +
-                "cacheContainsKey=${timeStampsMap.containsKey(episodeNum)}"
+                "cacheContainsKey=${timeStampsMap.containsKey(cacheKey)}"
         )
-        val currentEpisode = media.value?.anime?.selectedEpisode?.trim()?.toIntOrNull()
-        if (timeStampsMap.containsKey(episodeNum) && !timeStampsMap[episodeNum].isNullOrEmpty()) {
-            if (currentEpisode == episodeNum) timeStamps.postValue(timeStampsMap[episodeNum])
+        val currentEpisode = media.value?.anime?.selectedEpisode?.trim()
+        if (timeStampsMap.containsKey(cacheKey) && !timeStampsMap[cacheKey].isNullOrEmpty()) {
+            if (currentEpisode == cacheKey) timeStamps.postValue(timeStampsMap[cacheKey])
             ani.sanin.util.Logger.log(
-                "loadTimeStamps: cache hit episodeNum=$episodeNum " +
-                    "cached=${timeStampsMap[episodeNum]?.size ?: "null"} currentEpisode=$currentEpisode"
+                "loadTimeStamps: cache hit cacheKey=$cacheKey " +
+                    "cached=${timeStampsMap[cacheKey]?.size ?: "null"} currentEpisode=$currentEpisode"
             )
             return
         }
-        // Extension timestamps (provided by the video source) always take priority
-        // regardless of device; remote skip-time providers only run as a fallback
-        // when the extension has none.
-        var result: List<AniSkip.Stamp>? = if (extensionTimestamps.isNotEmpty()) {
-            extensionTimestamps.map { it.toAniSkipStamp() }
+        // Fixed fallback order (no TV/phone variants):
+        //  TMDB mode: IntroDB (api.introdb.app, imdb) -> TheIntroDB (v4, tmdb/imdb) -> plugin
+        //  Anime mode: plugin -> AniSkip -> IntroDB -> TheIntroDB
+        val keyMatch = Regex("^S(\\d+)E(\\d+)$", RegexOption.IGNORE_CASE).find(episodeKey ?: "")
+        val keySeason = keyMatch?.groupValues?.get(1)?.toIntOrNull()
+        val keyEpisode = keyMatch?.groupValues?.get(2)?.toIntOrNull()
+        val result = if (tmdbMode) {
+            loadIntroDBTimeStamps(episodeNum, imdbId, keySeason, keyEpisode, isMovie)
+                ?: loadTheIntroDB(episodeNum, imdbId, tmdbId, isMovie, keySeason, keyEpisode, duration)
+                ?: extensionTimestamps.takeIf { it.isNotEmpty() }?.map { it.toAniSkipStamp() }
         } else {
-            null
-        }
-        // Remote fallbacks: on TV api.aniskip.com is often unreachable while
-        // api.introdb.app works, so try IntroDB first there; on phones keep
-        // AniSkip first since it has richer data (mixed op/ed, etc.).
-        if (result == null) {
-            val isTv = currContext()?.let { TvKeyboardUtil.isTv(it) } ?: false
-            ani.sanin.util.Logger.log(
-                "loadTimeStamps: remote fallback ordering isTv=$isTv " +
-                    "extension=${extensionTimestamps.size}"
-            )
-            result = if (isTv) {
-                loadIntroDBTimeStamps(episodeNum)
-                    ?: tryAniSkip(malId, episodeNum, duration, useProxyForTimeStamps)
-            } else {
-                tryAniSkip(malId, episodeNum, duration, useProxyForTimeStamps)
-                    ?: loadIntroDBTimeStamps(episodeNum)
-            }
+            extensionTimestamps.takeIf { it.isNotEmpty() }?.map { it.toAniSkipStamp() }
+                ?: tryAniSkip(malId, episodeNum, duration, useProxyForTimeStamps)
+                ?: loadIntroDBTimeStamps(episodeNum)
+                ?: loadTheIntroDB(episodeNum, durationSec = duration)
         }
         if (result != null || duration > 0) {
-            timeStampsMap[episodeNum] = result
+            timeStampsMap[cacheKey] = result
         }
         ani.sanin.util.Logger.log(
-            "loadTimeStamps: result for episodeNum=$episodeNum = ${result?.size ?: "null"} " +
+            "loadTimeStamps: result for cacheKey=$cacheKey = ${result?.size ?: "null"} " +
                 "currentEpisode=${media.value?.anime?.selectedEpisode}"
         )
         // Ignore results for an episode the user already navigated away from,
         // so a slow request can't overwrite a newer episode's timestamps.
-        if (media.value?.anime?.selectedEpisode?.trim()?.toIntOrNull() == episodeNum) {
+        if (currentEpisode == cacheKey) {
             timeStamps.postValue(result)
         } else {
-            ani.sanin.util.Logger.log("loadTimeStamps: dropped stale result for episodeNum=$episodeNum")
+            ani.sanin.util.Logger.log("loadTimeStamps: dropped stale result for cacheKey=$cacheKey")
         }
     }
 
@@ -870,11 +868,12 @@ class MediaDetailsViewModel : ViewModel() {
     // stay uncached so the next first-frame/episode change can retry again.
     private suspend fun tryAniSkip(
         malId: Int?,
-        episodeNum: Int,
+        episodeNum: Int?,
         duration: Long,
         useProxyForTimeStamps: Boolean
     ): List<AniSkip.Stamp>? {
         if (malId == null) return null
+        if (episodeNum == null) return null
         var res = AniSkip.getResult(malId, episodeNum, duration, useProxyForTimeStamps)
         if (res == null) {
             delay(1_500L)
@@ -883,19 +882,62 @@ class MediaDetailsViewModel : ViewModel() {
         return res
     }
 
-    private suspend fun loadIntroDBTimeStamps(episodeNum: Int): List<AniSkip.Stamp>? {
+    private suspend fun loadIntroDBTimeStamps(
+        episodeNum: Int?,
+        imdbOverride: String? = null,
+        seasonOverride: Int? = null,
+        episodeOverride: Int? = null,
+        isMovie: Boolean = false
+    ): List<AniSkip.Stamp>? {
         val currentMedia = media.value ?: return null
-        val imdbId = currentMedia.idIMDB ?: ani.sanin.others.IdMappers.getImdbId(currentMedia.id)
+        val imdbId = imdbOverride
+            ?: currentMedia.idIMDB
+            ?: ani.sanin.others.IdMappers.getImdbId(currentMedia.id)
         if (imdbId == null) {
             Logger.log("loadIntroDBTimeStamps: no imdbId for episodeNum=$episodeNum, skipping")
             return null
         }
-        val seasonEpisode = EpisodeMapper.mapEpisode(currentMedia, episodeNum, null)
+        val seasonEpisode = if (seasonOverride != null && episodeOverride != null) {
+            EpisodeMapper.SeasonEpisode(seasonOverride, episodeOverride)
+        } else {
+            episodeNum?.let { EpisodeMapper.mapEpisode(currentMedia, it, null) } ?: run {
+                Logger.log("loadIntroDBTimeStamps: no season/episode resolvable for episodeNum=$episodeNum")
+                return null
+            }
+        }
         Logger.log(
             "loadIntroDBTimeStamps: querying IntroDB imdbId=$imdbId " +
-                "season=${seasonEpisode.season} episode=${seasonEpisode.episode}"
+                "season=${seasonEpisode.season} episode=${seasonEpisode.episode} isMovie=$isMovie"
         )
-        return IntroDB.getResult(imdbId, seasonEpisode.season, seasonEpisode.episode)
+        return IntroDB.getResult(imdbId, seasonEpisode.season, seasonEpisode.episode, isMovie)
+    }
+
+    private suspend fun loadTheIntroDB(
+        episodeNum: Int?,
+        imdbIdFallback: String? = null,
+        tmdbId: Int? = null,
+        isMovie: Boolean = false,
+        seasonOverride: Int? = null,
+        episodeOverride: Int? = null,
+        durationSec: Long = 0
+    ): List<AniSkip.Stamp>? {
+        val currentMedia = media.value
+        val imdbId = imdbIdFallback
+            ?: currentMedia?.idIMDB
+            ?: currentMedia?.let { ani.sanin.others.IdMappers.getImdbId(it.id) }
+        var season = seasonOverride
+        var episode = episodeOverride
+        if (!isMovie && season == null && episode == null && currentMedia != null && episodeNum != null) {
+            EpisodeMapper.mapEpisode(currentMedia, episodeNum, null)?.let {
+                season = it.season
+                episode = it.episode
+            }
+        }
+        Logger.log(
+            "loadTheIntroDB: querying TheIntroDB imdbId=$imdbId tmdbId=$tmdbId " +
+                "season=$season episode=$episode isMovie=$isMovie durationSec=$durationSec"
+        )
+        return TheIntroDB.getResult(imdbId, tmdbId, season, episode, isMovie, durationSec)
     }
 
     private fun eu.kanade.tachiyomi.animesource.model.TimeStamp.toAniSkipStamp(): AniSkip.Stamp {
