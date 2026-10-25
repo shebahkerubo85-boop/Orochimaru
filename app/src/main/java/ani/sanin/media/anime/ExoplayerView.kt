@@ -633,14 +633,33 @@ class ExoplayerView :
         episodeTitleBtn = playerView.findViewById(R.id.exo_ep_sel_btn)
 
         // Compact YouTube-style autoplay toggle, backed by the existing preference.
-        playerView.findViewById<ImageButton>(R.id.exo_autoplay).apply {
+        playerView.findViewById<View>(R.id.exo_autoplay).apply {
+            val thumb = findViewById<ImageView>(R.id.exo_autoplay_thumb)
             fun renderAutoplay(enabled: Boolean) {
                 isSelected = enabled
-                alpha = if (enabled) 1f else 0.58f
+                thumb.setImageResource(
+                    if (enabled) R.drawable.ic_play_circle_filled_24
+                    else R.drawable.ic_pause_circle_filled_24
+                )
+                thumb.setColorFilter(
+                    if (enabled) {
+                        val tv = TypedValue()
+                        theme.resolveAttribute(
+                            com.google.android.material.R.attr.colorPrimary, tv, true
+                        )
+                        tv.data
+                    } else {
+                        0xFFFFFFFF.toInt()
+                    }
+                )
                 contentDescription = "${context.getString(R.string.autoplay)}: ${if (enabled) "on" else "off"}"
+                if (width == 0 || thumb.width == 0) return
+                val target = (if (enabled) width - thumb.width else 0).toFloat()
+                thumb.animate().translationX(target).setDuration(250).start()
             }
             var enabled = PrefManager.getVal<Boolean>(PrefName.AutoPlay)
             renderAutoplay(enabled)
+            post { renderAutoplay(enabled) }
             setOnClickListener {
                 enabled = !enabled
                 PrefManager.setVal(PrefName.AutoPlay, enabled)
@@ -1954,9 +1973,11 @@ class ExoplayerView :
     }
 
     /**
-     * Keep the stacked episode control previewing the next item in the current
-     * episode list. Episode thumbnails are optional, so leave the front card
-     * clean when the source does not provide one or there is no next episode.
+     * Keep the episode-button stack previewing the next item in the current
+     * episode list: one back card peeking from behind and the front thumbnail
+     * tile. Episode thumbnails are optional, so leave the
+     * tile clean when the source does not provide one or there is no next
+     * episode.
      */
     private fun updateNextEpisodeThumbnail() {
         val thumbnail = playerView.findViewById<ImageView>(R.id.exo_next_episode_thumbnail)
