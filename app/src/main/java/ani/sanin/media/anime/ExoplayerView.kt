@@ -876,6 +876,7 @@ class ExoplayerView :
                     playerView.setExtraAdGroupMarkers(adGroups, playedAdGroups)
                     View.VISIBLE
                 }
+            (exoSkipOpEd.parent as? ViewGroup)?.requestLayout()
         }
 
         exoSkipOpEd.alpha = if (PrefManager.getVal(PrefName.AutoSkipOPED)) 1f else 0.3f
@@ -4233,6 +4234,7 @@ class ExoplayerView :
             lastLoggedStampId = null
             timeStampText.text = ""
             exoSkipOpEd.visibility = View.GONE
+            (exoSkipOpEd.parent as? ViewGroup)?.requestLayout()
             hideSkipTimestampButton()
             updateTimelineUi()
             handler.postDelayed({
@@ -4472,12 +4474,13 @@ class ExoplayerView :
         val btn = playerTracksBtn ?: return
         btn.isVisible = show
         btn.isFocusable = show
+        // Pill background must re-measure when child visibility changes
+        (btn.parent as? ViewGroup)?.requestLayout()
         val epBtn = playerView.findViewById<View>(R.id.exo_ep_sel_btn)
         if (show) {
             epBtn.nextFocusRightId = R.id.exo_tracks
         } else {
             epBtn.nextFocusRightId = View.NO_ID
-            // Never leave focus parked on a view that just disappeared.
             if (btn.hasFocus()) {
                 epBtn.requestFocus()
             }
@@ -4585,6 +4588,7 @@ class ExoplayerView :
         }
         if (!hasExtSubtitles) {
             exoSubtitle.isVisible = subTracks.size > 1 || media.idIMDB != null
+            (exoSubtitle.parent as? ViewGroup)?.requestLayout()
             exoSubtitle.setOnClickListener {
                 subClick()
             }
