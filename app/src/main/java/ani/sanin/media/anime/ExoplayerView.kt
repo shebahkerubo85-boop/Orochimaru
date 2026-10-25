@@ -1953,9 +1953,14 @@ class ExoplayerView :
     private fun updateNextEpisodeThumbnail() {
         val thumbnail = playerView.findViewById<ImageView>(R.id.exo_next_episode_thumbnail)
         val nextKey = episodeArr.getOrNull(currentEpisodeIndex + 1)
-        val url = nextKey?.let { episodes[it]?.thumb?.url }?.takeIf { it.isNotBlank() }
-        if (url != null) {
-            Glide.with(this).load(url).centerCrop().into(thumbnail)
+        val episodeThumbnail = nextKey?.let { episodes[it]?.thumb?.url }?.takeIf { it.isNotBlank() }
+        // Fall back to the show's resolved poster (already populated by the app's
+        // AniList/TMDB/source fallback chain) when an episode thumbnail is absent.
+        val showPoster = media.cover?.takeIf { it.isNotBlank() }
+            ?: media.banner?.takeIf { it.isNotBlank() }
+        val previewUrl = episodeThumbnail ?: showPoster
+        if (previewUrl != null) {
+            Glide.with(this).load(previewUrl).centerCrop().into(thumbnail)
         } else {
             Glide.with(this).clear(thumbnail)
             thumbnail.setImageResource(android.R.color.transparent)
