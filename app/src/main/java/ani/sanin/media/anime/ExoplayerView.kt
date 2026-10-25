@@ -3133,9 +3133,8 @@ class ExoplayerView :
     private fun applyWrapButtonsStyle() {
         val wrapMode = PrefManager.getVal<Int>(PrefName.WrapButtons)
         val pillLeft = playerView.findViewById<View>(R.id.pillBottomLeft)
-        val pillRight = playerView.findViewById<View>(R.id.pillBottomRight)
         val pillTop = playerView.findViewById<View>(R.id.pillTopRight)
-        val pills = listOfNotNull(pillLeft, pillRight, pillTop)
+        val pills = listOfNotNull(pillLeft, pillTop)
         
         when (wrapMode) {
             0 -> { // Off: no pill background
