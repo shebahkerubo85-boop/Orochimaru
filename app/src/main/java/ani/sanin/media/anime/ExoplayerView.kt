@@ -292,6 +292,7 @@ class ExoplayerView :
     private lateinit var timeStampText: TextView
     private lateinit var animeTitle: TextView
     private lateinit var videoInfo: TextView
+    private lateinit var audioLangInfo: TextView
     private lateinit var episodeTitle: Spinner
     private lateinit var episodeTitleText: TextView
     private lateinit var episodeTitleBtn: View
@@ -1087,14 +1088,13 @@ class ExoplayerView :
         skipView.nextFocusDownId = R.id.exo_rotate
         skipView.nextFocusRightId = R.id.exo_ep_sel_btn
         skipView.nextFocusLeftId = R.id.exo_skip_op_ed
-        skipView.nextFocusUpId = R.id.exo_ep_sel_btn
+        skipView.nextFocusUpId = R.id.exo_settings
         skipTimeButton.nextFocusDownId = R.id.exo_rotate
         skipTimeButton.nextFocusRightId = R.id.exo_ep_sel_btn
         skipTimeButton.nextFocusLeftId = R.id.exo_skip_op_ed
-        skipTimeButton.nextFocusUpId = R.id.exo_ep_sel_btn
-        playerView.findViewById<View>(R.id.exo_screen).nextFocusUpId = R.id.exo_skip
+        skipTimeButton.nextFocusUpId = R.id.exo_settings
         playerView.findViewById<View>(R.id.exo_ep_sel_btn).nextFocusLeftId = R.id.exo_screen
-        playerView.findViewById<View>(R.id.exo_ep_sel_btn).nextFocusUpId = androidx.media3.ui.R.id.exo_progress
+        playerView.findViewById<View>(R.id.exo_ep_sel_btn).nextFocusUpId = R.id.exo_skip
         progressBar.setOnFocusChangeListener { _, hasFocus ->
             if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.SeekBarAnimations)) {
                 progressBar.animate().scaleY(if (hasFocus) 2.5f else 1f).setDuration(150).start()
@@ -1605,6 +1605,7 @@ class ExoplayerView :
         episodes = media.anime?.episodes ?: return startMainActivity(this)
 
         videoInfo = playerView.findViewById(R.id.exo_video_info)
+        audioLangInfo = playerView.findViewById(R.id.exo_audio_lang)
 
         model.watchSources = if (media.isAdult) HAnimeSources else AnimeSources
 
@@ -1657,8 +1658,15 @@ class ExoplayerView :
         episodes.forEach {
             val episode = it.value
             val cleanedTitle = MediaNameAdapter.removeEpisodeNumberCompletely(episode.title ?: "")
+            val season = episode.extra?.get("season")
+            val epNumber = episode.extra?.get("episode")
+            val label = if (!season.isNullOrBlank() && !epNumber.isNullOrBlank()) {
+                "Ssn$season Episode $epNumber"
+            } else {
+                "Episode ${episode.number}"
+            }
             episodeTitleArr.add(
-                "Episode ${episode.number}${if (episode.filler) " [Filler]" else ""}${if (cleanedTitle.isNotBlank() && cleanedTitle != "null") ": $cleanedTitle" else ""}",
+                "$label${if (episode.filler) " [Filler]" else ""}${if (cleanedTitle.isNotBlank() && cleanedTitle != "null") ": $cleanedTitle" else ""}",
             )
         }
 
@@ -4056,6 +4064,8 @@ class ExoplayerView :
         // skip button permanently missing.
         maybeLoadTimeStamps("firstFrame")
 
+        updateAudioLanguageInfo()
+
         if (!isLiveStream()) {
             PrefManager.setCustomVal(
                 "${media.id}_${media.anime!!.selectedEpisode}_max",
@@ -4063,20 +4073,25 @@ class ExoplayerView :
             )
         }
 
-        val format = exoPlayer.videoFormat ?: return
-        var height = format.height
-        var width = format.width
-        val rotation = format.rotationDegrees
+        val format = exoPlayer.videoFormat
+        if (format == null || format.height <= 0) {
+            videoInfo.visibility = View.GONE
+        } else {
+            var height = format.height
+            var width = format.width
+            val rotation = format.rotationDegrees
 
-        if (rotation == 90 || rotation == 270) {
-            val temp = width
-            width = height
-            height = temp
+            if (rotation == 90 || rotation == 270) {
+                val temp = width
+                width = height
+                height = temp
+            }
+
+            aspectRatio = Rational(width, height)
+
+            videoInfo.text = getString(R.string.video_quality, height)
+            videoInfo.visibility = View.VISIBLE
         }
-
-        aspectRatio = Rational(width, height)
-
-        videoInfo.text = getString(R.string.video_quality, height)
 
         if (!isLiveStream()) {
             if (exoPlayer.duration < playbackPosition) {
@@ -4370,9 +4385,10 @@ class ExoplayerView :
         skipTimeButton.visibility = View.VISIBLE
         exoSkip.visibility = View.GONE
         exoRotate.nextFocusUpId = R.id.exo_skip_timestamp
-        exoScreen.nextFocusUpId = R.id.exo_skip_timestamp
         exoSkipOpEd.nextFocusRightId = R.id.exo_skip_timestamp
         exoSkipOpEd.nextFocusUpId = R.id.exo_skip_timestamp
+        playerView.findViewById<View>(R.id.exo_ep_sel_btn)?.nextFocusUpId =
+            R.id.exo_skip_timestamp
     }
 
     private fun hideSkipTimestampButton() {
@@ -4386,9 +4402,10 @@ class ExoplayerView :
             }
         }
         exoRotate.nextFocusUpId = R.id.exo_skip
-        exoScreen.nextFocusUpId = R.id.exo_skip
         exoSkipOpEd.nextFocusRightId = R.id.exo_skip
         exoSkipOpEd.nextFocusUpId =
+            if (exoSkip.visibility == View.VISIBLE) R.id.exo_skip else androidx.media3.ui.R.id.exo_progress
+        playerView.findViewById<View>(R.id.exo_ep_sel_btn)?.nextFocusUpId =
             if (exoSkip.visibility == View.VISIBLE) R.id.exo_skip else androidx.media3.ui.R.id.exo_progress
     }
 
@@ -4480,6 +4497,10 @@ class ExoplayerView :
         btn.isFocusable = show
         // Pill background must re-measure when child visibility changes
         (btn.parent as? ViewGroup)?.requestLayout()
+        // Up from the skip controls lands on tracks when available, else settings
+        val skipUpId = if (show) R.id.exo_tracks else R.id.exo_settings
+        playerView.findViewById<View>(R.id.exo_skip)?.nextFocusUpId = skipUpId
+        playerView.findViewById<View>(R.id.exo_skip_timestamp)?.nextFocusUpId = skipUpId
         val epBtn = playerView.findViewById<View>(R.id.exo_ep_sel_btn)
         if (show) {
             epBtn.nextFocusRightId = R.id.exo_tracks
@@ -4597,6 +4618,32 @@ class ExoplayerView :
                 subClick()
             }
         }
+        updateAudioLanguageInfo()
+    }
+
+    private fun updateAudioLanguageInfo() {
+        var language: String? = null
+        exoPlayer.currentTracks.groups.forEach { group ->
+            if (group.type != TRACK_TYPE_AUDIO) return@forEach
+            for (i in 0 until group.length) {
+                if (group.isTrackSelected(i)) {
+                    language = group.getTrackFormat(i).language
+                }
+            }
+        }
+        if (language == null) language = exoPlayer.audioFormat?.language
+
+        val code = language?.trim()?.lowercase(Locale.ROOT)
+        if (code.isNullOrEmpty() || code == "und" || code == "un" || code == "zxx") {
+            audioLangInfo.visibility = View.GONE
+            return
+        }
+
+        val display = Locale.forLanguageTag(code).displayName
+            .takeIf { it.isNotBlank() && !it.equals(code, ignoreCase = true) }
+            ?: code.uppercase(Locale.ROOT)
+        audioLangInfo.text = getString(R.string.video_language, display)
+        audioLangInfo.visibility = View.VISIBLE
     }
 
     private val onChangeSettings =
