@@ -2746,6 +2746,11 @@ class ExoplayerView :
                 var activeSubtitles = ArrayDeque<String>(3)
                 var lastSubtitle: String? = null
                 var lastPosition: Long = 0
+                // CueGroup.presentationTimeUs is period-relative; shifting the
+                // cue timing by the freshest (period ↔ timeline) delta keeps
+                // stored starts comparable against exoPlayer.currentPosition
+                // even across HLS/DASH discontinuities.
+                var lastPeriodShiftMs = 0L
 
                 override fun onCues(cueGroup: CueGroup) {
                     // libass only owns rendering while an ASS/SSA track is the *currently
@@ -2758,12 +2763,9 @@ class ExoplayerView :
                         selectedTextMime == "text/x-ass" ||
                         (selectedTextMime?.contains("ssa", ignoreCase = true) == true)
                     val newCueTexts = cueGroup.cues.map { it.text.toString() ?: "" }
-                    // True presentation time of this cue batch (μs → ms); only
-                    // fall back to wall-clock when the timing is unknown.
-                    val cueStartMs =
-                        if (cueGroup.timeUs != C.TIME_UNSET && cueGroup.timeUs >= 0)
-                            cueGroup.timeUs / 1000
-                        else exoPlayer.currentPosition
+                    // True presentation time of this batch (μs → ms), shifted
+                    // from period-space into timeline space.
+                    val cueStartMs = cueGroup.presentationTimeUs / 1000 + lastPeriodShiftMs
 
                     // Store cues for the sync dialog BEFORE the libass branch:
                     // embedded MKV/MP4 tracks are often ASS/SSA — libass renders
@@ -2777,15 +2779,11 @@ class ExoplayerView :
                             .distinct()
                         if (lines.isNotEmpty()) {
                             val text = lines.joinToString("\n")
-                            val dedupKey = "$cueStartMs|$text"
+                            val dedupKey = "p${cueGroup.presentationTimeUs}|$text"
                             if (dedupKey !in seenCueTexts) {
                                 seenCueTexts.add(dedupKey)
-                                val realDurUs = cueGroup.cues
-                                    .map { it.durationUs }
-                                    .filter { it >= 0 && it != C.TIME_UNSET }
-                                    .maxOrNull()
-                                val durationMs = (realDurUs?.div(1000) ?: 0L).coerceAtLeast(1000L)
-                                    .let { if (realDurUs == null) 3000L else it }
+                                // Media3 Cue carries no duration: backfill the
+                                // previous cue once the next start arrives.
                                 if (storedSyncCues.isNotEmpty() && storedSyncCues.last().durationMs == 3000L) {
                                     val gap = cueStartMs - storedSyncCues.last().startTimeMs
                                     if (gap in 1001..60000) {
@@ -2795,13 +2793,14 @@ class ExoplayerView :
                                     }
                                 }
                                 storedSyncCues.add(
-                                    SyncCue(text = text, startTimeMs = cueStartMs, durationMs = durationMs)
+                                    SyncCue(text = text, startTimeMs = cueStartMs, durationMs = 3000L)
                                 )
                                 storedSyncCues.sortBy { it.startTimeMs }
                                 Logger.log("onCues: stored ${lines.size} line(s) @${cueStartMs}ms total=${storedSyncCues.size}")
                             }
                         }
                     }
+                    lastPeriodShiftMs = exoPlayer.currentPosition - cueGroup.presentationTimeUs / 1000
                     if (libassActive) {
                         exoSubtitleView.visibility = View.GONE
                         customSubtitleView.visibility = View.GONE
