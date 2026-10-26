@@ -29,10 +29,10 @@ coil = "3.3.0"
 biometric = "1.1.0"
 colorpicker = "6b46b49"
 constraintlayout = "2.2.1"
-coreKtx = "1.19.1"
+coreKtx = "1.15.0"
 lifecycleKtx = "2.8.7"
 navigationKtx = "2.8.4"
-workRuntimeKtx = "2.12.0"
+workRuntimeKtx = "2.10.0"
 instancioCore = "5.3.0"
 animeDb = "1.0.0"
 overlappingpanels = "0.1.5"
@@ -45,20 +45,20 @@ firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics-ktx"
 firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 
 # AndroidX Core
-androidx-core = "androidx.core:core-ktx:1.19.1"
-androidx-appcompat = "androidx.appcompat:appcompat:1.8.0"
-androidx-activity = "androidx.activity:activity-ktx:1.13.0"
-androidx-fragment = "androidx.fragment:fragment-ktx:1.9.1"
-androidx-browser = "androidx.browser:browser:1.10.0"
-androidx-swipe = "androidx.swiperefreshlayout:swiperefreshlayout:1.2.0"
+androidx-core = "androidx.core:core-ktx:1.16.0"
+androidx-appcompat = "androidx.appcompat:appcompat:1.7.0"
+androidx-activity = "androidx.activity:activity-ktx:1.10.1"
+androidx-fragment = "androidx.fragment:fragment-ktx:1.8.6"
+androidx-browser = "androidx.browser:browser:1.8.0"
+androidx-swipe = "androidx.swiperefreshlayout:swiperefreshlayout:1.1.0"
 androidx-legacy = "androidx.legacy:legacy-support-v4:1.0.0"
 
-androidx-work = "androidx.work:work-runtime-ktx:2.12.0"
+androidx-work = "androidx.work:work-runtime-ktx:2.10.1"
 androidx-preference = "androidx.preference:preference-ktx:1.2.1"
-androidx-webkit = "androidx.webkit:webkit:1.18.0"
+androidx-webkit = "androidx.webkit:webkit:1.13.0"
 androidx-biometric = "androidx.biometric:biometric:1.1.0"
-mediarouter = "androidx.mediarouter:mediarouter:1.8.1"
-paging = "androidx.paging:paging-runtime-ktx:3.5.3"
+mediarouter = "androidx.mediarouter:mediarouter:1.7.0"
+paging = "androidx.paging:paging-runtime-ktx:3.3.6"
 
 # Kotlin
 kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
@@ -189,10 +189,10 @@ kotlinx-collections-immutable = { module = "org.jetbrains.kotlinx:kotlinx-collec
 palette-ktx = { module = "androidx.palette:palette-ktx", version = "1.0.0" }
 preference-ktx = { module = "androidx.preference:preference-ktx", version = "1.2.1" }
 activity-ktx = { module = "androidx.activity:activity-ktx", version = "1.13.0" }
-fragment-ktx = { module = "androidx.fragment:fragment-ktx", version = "1.9.1" }
+fragment-ktx = { module = "androidx.fragment:fragment-ktx", version = "1.8.9" }
 desugar_jdk_libs_nio = { module = "com.android.tools:desugar_jdk_libs_nio", version = "2.1.5" }
 safefile = { module = "com.github.LagradOst:SafeFile", version = "0.0.8" }
-appcompat = { module = "androidx.appcompat:appcompat", version = "1.8.0" }
+appcompat = { module = "androidx.appcompat:appcompat", version = "1.7.1" }
 tvprovider = { module = "androidx.tvprovider:tvprovider", version = "1.1.0" }
 json = { module = "org.json:json", version = "20260522" }
 
