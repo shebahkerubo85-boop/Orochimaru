@@ -39,10 +39,10 @@ object WyzieSubtitles {
                 }
 
                 var data = fetchWyzie(season, episode)
-                if (data.isEmpty() && season != 1) {
-                    Logger.log("WyzieSubtitles: No subs for S$season:E$episode, trying fallback S1:E$episode")
-                    data = fetchWyzie(1, episode)
-                }
+                if (data.isEmpty()) Logger.log("WyzieSubtitles: no subs for S$season:E$episode")
+                // No season-1 fallback: when S2 has no subs yet, fetching S1's
+                // same episode number returned foreign-episode subtitles and
+                // the user had no way to tell them apart.
                 Logger.log("WyzieSubtitles: Decoded ${data.size} subs")
 
                 // Filter & Sort Logic

@@ -66,45 +66,44 @@ object StremioSubtitles {
 
             if (providers.contains("Wyzie")) {
                 launchProvider("Wyzie") {
-                    WyzieSubtitles.getWyzieSubtitles(imdbId, season, episode)
-                        .map { sub ->
-                            val enrichedLabel = if (sub.displayLabel.equals(sub.language, ignoreCase = true)) {
-                                "${sub.displayLabel} (${sub.format.uppercase()})"
-                            } else {
-                                sub.displayLabel
-                            }
-                            StremioSub(id = sub.id, url = sub.url, lang = sub.displayLabel, source = "wyzie", label = enrichedLabel)
+                    // Wyzie is a TV-episode database: skip it for movies.
+                    val rawSubs = if (isTvSeries) {
+                        WyzieSubtitles.getWyzieSubtitles(imdbId, season, episode)
+                    } else emptyList()
+                    rawSubs.map { sub ->
+                        val enrichedLabel = if (sub.displayLabel.equals(sub.language, ignoreCase = true)) {
+                            "${sub.displayLabel} (${sub.format.uppercase()})"
+                        } else {
+                            sub.displayLabel
                         }
+                        StremioSub(id = sub.id, url = sub.url, lang = sub.displayLabel, source = "wyzie", label = enrichedLabel)
+                    }
                 }
             }
 
             if (providers.contains("Stremio")) {
                 launchProvider("Stremio") {
-                    val urlsToTry = if (!isTvSeries) {
-                        listOf("$BASE_URL/movie/$imdbId.json")
+                    // Exact addressing only. The old fallback list silently returned
+                    // different seasons ("$imdbId:1:$episode" = S1's episode N, or the
+                    // bare absolute form "$imdbId:$episode") when the exact URL came
+                    // up empty — a classic source of wrong-episode subtitles.
+                    val url = if (!isTvSeries) {
+                        "$BASE_URL/movie/$imdbId.json"
                     } else {
-                        listOf(
-                            "$BASE_URL/episode/$imdbId:$season:$episode.json",
-                            "$BASE_URL/episode/$imdbId:1:$episode.json",
-                            "$BASE_URL/episode/$imdbId:$episode.json",
-                            "$BASE_URL/series/$imdbId:$season:$episode.json"
-                        )
+                        "$BASE_URL/episode/$imdbId:$season:$episode.json"
                     }
                     val result = mutableListOf<StremioSub>()
-                    for (url in urlsToTry) {
-                        try {
-                            val request = Request.Builder().url(url).build()
-                            okHttpClient.newCall(request).execute().use { response ->
-                                if (response.isSuccessful && response.body != null) {
-                                    val text = response.body!!.string()
-                                    val data = Mapper.json.decodeFromString<StremioResponse>(text)
-                                    result.addAll(data.subtitles.map { it.copy(source = "stremio") })
-                                    if (data.subtitles.isNotEmpty()) break
-                                }
+                    try {
+                        val request = Request.Builder().url(url).build()
+                        okHttpClient.newCall(request).execute().use { response ->
+                            if (response.isSuccessful && response.body != null) {
+                                val text = response.body!!.string()
+                                val data = Mapper.json.decodeFromString<StremioResponse>(text)
+                                result.addAll(data.subtitles.map { it.copy(source = "stremio") })
                             }
-                        } catch (e: Exception) {
-                            Logger.log("StremioSubtitles(Stremio): url failed $url -> ${e.message}")
                         }
+                    } catch (e: Exception) {
+                        Logger.log("StremioSubtitles(Stremio): url failed $url -> ${e.message}")
                     }
                     result
                 }
@@ -112,25 +111,18 @@ object StremioSubtitles {
 
             if (providers.contains("OpenSubtitles")) {
                 launchProvider("OpenSubtitles") {
-                    OpenSubtitles.search(imdbId, season, episode, queryText)
+                    OpenSubtitles.search(imdbId, season, episode, isTvSeries, queryText)
                 }
             }
 
-            if (providers.contains("SubSource")) {
-                launchProvider("SubSource") {
-                    SubSourceSubtitles.getSubtitles(imdbId, episode, season)
-                        .mapNotNull { sub ->
-                            val downloadUrl = runCatching { SubSourceSubtitles.getDownloadUrl(sub) }.getOrNull()
-                            downloadUrl?.let {
-                                StremioSub(id = it, url = it, lang = sub.lang, source = "subsource")
-                            }
-                        }
-                }
-            }
+            // SubSource's public API (searchMovie/getMovie) now 404s every POST —
+            // the provider can never return results, so it is skipped here until
+            // a replacement endpoint exists.
 
             if (providers.contains("SubDL")) {
                 launchProvider("SubDL") {
-                    SubDLSubtitles.getSubtitles(imdbId, season, episode)
+                    // Movies: 0 codes "not a TV episode" so season/episode params drop out.
+                    SubDLSubtitles.getSubtitles(imdbId, if (isTvSeries) season else 0, if (isTvSeries) episode else 0)
                 }
             }
 

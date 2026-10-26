@@ -205,9 +205,12 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                             list.removeAt(position) // Remove "Search..." button
 
                             Logger.log("SubtitleDialogFragment: fetched ${onlineSubs.size} online subtitles")
-                            if (onlineSubs.isNotEmpty()) {
-                                model.saveFetchedSubtitles("${media.id}-${episodeNum}", onlineSubs)
-                                list.addAll(onlineSubs)
+                                if (onlineSubs.isNotEmpty()) {
+                                    // Use the raw episode key ("6", "S4E6") — with
+                                    // episodeNum (toIntOrNull) every TMDB "SxEy"
+                                    // episode collapsed into the same cache slot.
+                                    model.saveFetchedSubtitles("${media.id}-$selectedEpisode", onlineSubs)
+                                    list.addAll(onlineSubs)
                             } else {
                                 Logger.log("SubtitleDialogFragment: no online subtitles found")
                                      toast("No subtitles found")

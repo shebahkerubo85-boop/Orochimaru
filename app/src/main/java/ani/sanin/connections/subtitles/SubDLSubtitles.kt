@@ -41,7 +41,21 @@ object SubDLSubtitles {
                     val body = response.body?.string() ?: return@withContext emptyList()
                     val result = Mapper.json.decodeFromString<SubDLResponse>(body)
 
-                    result.subtitles?.map { sub ->
+                    // Server-side filtering is requested via season_number/episode_number,
+                    // but the API sometimes still returns releases for other episodes;
+                    // each row carries its own season/episode, so refuse mismatches.
+                    result.subtitles?.filter { sub ->
+                        val badSeason = season > 0 && sub.season != null && sub.season != season
+                        val badEpisode = episode > 0 && sub.episode != null && sub.episode != episode
+                        if (badSeason || badEpisode) {
+                            Logger.log(
+                                "SubDL: dropped mismatching sub " +
+                                    "S${sub.season}E${sub.episode} (want S$season E$episode) " +
+                                    "${(sub.releaseName ?: sub.name ?: "")}"
+                            )
+                        }
+                        !badSeason && !badEpisode
+                    }?.map { sub ->
                         StremioSub(
                             id = sub.url ?: "",
                             url = if (sub.url?.startsWith("http") == true) sub.url!!

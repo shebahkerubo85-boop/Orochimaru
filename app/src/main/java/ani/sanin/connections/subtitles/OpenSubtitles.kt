@@ -9,7 +9,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import java.net.URLEncoder
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -23,17 +22,18 @@ object OpenSubtitles {
 
     const val URL_PREFIX = "opensubtitles://"
 
-    suspend fun search(imdbId: String, season: Int, episode: Int, queryText: String? = null): List<StremioSub> {
+    suspend fun search(imdbId: String, season: Int, episode: Int, isTv: Boolean, queryText: String? = null): List<StremioSub> {
         return withContext(Dispatchers.IO) {
             try {
                 val cleanImdb = imdbId.removePrefix("tt")
-                val urls = mutableListOf<String>()
-                urls.add("$BASE_URL/subtitles?imdb_id=$cleanImdb&episode_number=$episode")
-                if (season > 1) {
-                    urls.add("$BASE_URL/subtitles?imdb_id=$cleanImdb&season_number=$season&episode_number=$episode")
-                }
-                if (!queryText.isNullOrBlank()) {
-                    urls.add("$BASE_URL/subtitles?query=${URLEncoder.encode(queryText, "UTF-8")}&episode_number=$episode")
+                // Exact addressing only. Season-less queries (imdb_id + episode_number)
+                // return subtitles for ANY season's episode N — S02E03, S04E03, S07E03
+                // all match when the user asked for one specific episode — and the old
+                // title-text fallback made matches even fuzzier, so both are gone.
+                val urls = if (isTv) {
+                    listOf("$BASE_URL/subtitles?imdb_id=$cleanImdb&season_number=$season&episode_number=$episode")
+                } else {
+                    listOf("$BASE_URL/subtitles?imdb_id=$cleanImdb")
                 }
 
                 val results = mutableListOf<StremioSub>()
