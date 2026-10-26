@@ -924,7 +924,18 @@ class MediaDetailsViewModel : ViewModel() {
         val currentMedia = media.value
         val imdbId = imdbIdFallback
             ?: currentMedia?.idIMDB
-            ?: currentMedia?.let { ani.sanin.others.IdMappers.getImdbId(it.id) }
+            ?: currentMedia?.let {
+                runCatching { ani.sanin.others.IdMappers.getImdbId(it.id) }.getOrNull()
+            }
+        // Synthetic TMDB media uses a negative id, so only anime-mode (positive
+        // AniList id) media may be resolved through the AniList id mapper.
+        val tvdbId = if ((currentMedia?.id ?: 0) > 0) {
+            currentMedia?.id?.let {
+                runCatching { ani.sanin.others.IdMappers.getIds(it) }.getOrNull()
+            }?.tvdbId?.toLong()
+        } else {
+            null
+        }
         var season = seasonOverride
         var episode = episodeOverride
         if (!isMovie && season == null && episode == null && currentMedia != null && episodeNum != null) {
@@ -934,10 +945,18 @@ class MediaDetailsViewModel : ViewModel() {
             }
         }
         Logger.log(
-            "loadTheIntroDB: querying TheIntroDB imdbId=$imdbId tmdbId=$tmdbId " +
+            "loadTheIntroDB: querying TheIntroDB imdbId=$imdbId tmdbId=$tmdbId tvdbId=$tvdbId " +
                 "season=$season episode=$episode isMovie=$isMovie durationSec=$durationSec"
         )
-        return TheIntroDB.getResult(imdbId, tmdbId, season, episode, isMovie, durationSec)
+        return TheIntroDB.getResult(
+            imdbId = imdbId,
+            tmdbId = tmdbId,
+            tvdbId = tvdbId,
+            season = season,
+            episode = episode,
+            isMovie = isMovie,
+            durationSec = durationSec,
+        )
     }
 
     private fun eu.kanade.tachiyomi.animesource.model.TimeStamp.toAniSkipStamp(): AniSkip.Stamp {
@@ -976,7 +995,7 @@ class MediaDetailsViewModel : ViewModel() {
             ep.extractorsSource = null
             ep.allStreams = false
         }
-        if (ep.extractors?.find{ it.server.name == server } == null) {
+        if (ep.extractors?.find { it.server.name == server || it.isPreferred } == null) {
             Logger.log("Watch: loading single video server '$server' for episode '${ep.number}' source idx=${selected.sourceIndex}")
             if(ep.extractors == null){
                 ep.extractors = mutableListOf(watchSources?.get(selected.sourceIndex)?.let {

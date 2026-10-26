@@ -778,7 +778,11 @@ object TmdbStreamResolver {
             .indexOfFirst { it.label == pickedLabel }
             .coerceAtLeast(0)
         current.selectedExtractor = pickedExtractor.server.name
-        current.selectedVideo = pickedVideoIdx
+        // Plugin links can change between opens; never point past the rendition list.
+        current.selectedVideo = pickedVideoIdx.coerceIn(
+            0,
+            (pickedExtractor.videos.size - 1).coerceAtLeast(0),
+        )
         val title = d.displayTitle
         val media = Media(
             anime = Anime(

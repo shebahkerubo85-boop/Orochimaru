@@ -16,55 +16,64 @@ object TheIntroDB {
     suspend fun getResult(
         imdbId: String? = null,
         tmdbId: Int? = null,
+        tvdbId: Long? = null,
         season: Int?,
         episode: Int?,
         isMovie: Boolean = false,
         durationSec: Long = 0
     ): List<AniSkip.Stamp>? {
-        val idParam = when {
-            tmdbId != null && tmdbId > 0 -> "tmdb_id=$tmdbId"
-            !imdbId.isNullOrBlank() -> "imdb_id=$imdbId"
-            else -> {
-                Logger.log("TheIntroDB: no usable id, skipping")
-                return null
-            }
+        // v4 indexes media by tvdb_id; tmdb_id/imdb_id still resolve, so try
+        // them in order and keep the first id that returns usable segments.
+        val idParams = buildList {
+            if (tvdbId != null && tvdbId > 0) add("tvdb_id=$tvdbId")
+            if (tmdbId != null && tmdbId > 0) add("tmdb_id=$tmdbId")
+            if (!imdbId.isNullOrBlank()) add("imdb_id=$imdbId")
         }
-        var url = "https://api.theintrodb.org/v4/media?$idParam"
-        if (!isMovie && season != null && episode != null) {
-            url += "&season=$season&episode=$episode"
+        if (idParams.isEmpty()) {
+            Logger.log("TheIntroDB: no usable id, skipping")
+            return null
         }
-        Logger.log("TheIntroDB: getResult start url=$url durationSec=$durationSec")
         return tryWithSuspend {
-            val started = java.lang.System.currentTimeMillis()
-            val a = withTimeoutOrNull(10_000L) { client.get(url) }
-            val elapsed = java.lang.System.currentTimeMillis() - started
-            if (a == null) {
-                Logger.log("TheIntroDB: TIMEOUT after ${elapsed}ms for $url")
-                return@tryWithSuspend null
+            for ((attempt, idParam) in idParams.withIndex()) {
+                var url = "https://api.theintrodb.org/v4/media?$idParam"
+                if (!isMovie && season != null && episode != null) {
+                    url += "&season=$season&episode=$episode"
+                }
+                Logger.log("TheIntroDB: getResult start attempt=${attempt + 1}/${idParams.size} url=$url durationSec=$durationSec")
+                val started = java.lang.System.currentTimeMillis()
+                val a = withTimeoutOrNull(10_000L) { client.get(url) }
+                val elapsed = java.lang.System.currentTimeMillis() - started
+                if (a == null) {
+                    // Don't hammer the remaining ids when the network itself is wedged.
+                    Logger.log("TheIntroDB: TIMEOUT after ${elapsed}ms for $url")
+                    return@tryWithSuspend null
+                }
+                Logger.log("TheIntroDB: response code=${a.code} in ${elapsed}ms for $url")
+                if (a.code != 200 || !a.text.trim().startsWith("{")) {
+                    Logger.log("TheIntroDB: non-200 or unexpected body, trying next id")
+                    continue
+                }
+                val res = try {
+                    Mapper.json.decodeFromString<Response>(a.text)
+                } catch (e: Exception) {
+                    Logger.log("TheIntroDB: parse error: ${e.message}")
+                    continue
+                }
+                val stamps = buildList {
+                    res.intro?.forEachIndexed { i, seg -> valid(seg, durationSec)?.let { (s, e) -> add(stamp(s, e, "op", "theintrodb-intro-$i")) } }
+                    res.recap?.forEachIndexed { i, seg -> valid(seg, durationSec)?.let { (s, e) -> add(stamp(s, e, "recap", "theintrodb-recap-$i")) } }
+                    res.credits?.forEachIndexed { i, seg -> valid(seg, durationSec)?.let { (s, e) -> add(stamp(s, e, "ed", "theintrodb-credits-$i")) } }
+                    (res.preview ?: res.previews)?.forEachIndexed { i, seg -> valid(seg, durationSec)?.let { (s, e) -> add(stamp(s, e, "other", "theintrodb-preview-$i")) } }
+                }
+                Logger.log(
+                    "TheIntroDB: FOUND ${stamps.size} stamps for $url " +
+                        "intro=${res.intro?.size ?: "null"} recap=${res.recap?.size ?: "null"} " +
+                        "credits=${res.credits?.size ?: "null"}"
+                )
+                if (stamps.isNotEmpty()) return@tryWithSuspend stamps
             }
-            Logger.log("TheIntroDB: response code=${a.code} in ${elapsed}ms for $url")
-            if (a.code != 200 || !a.text.trim().startsWith("{")) {
-                Logger.log("TheIntroDB: non-200 or unexpected body, skipping")
-                return@tryWithSuspend null
-            }
-            val res = try {
-                Mapper.json.decodeFromString<Response>(a.text)
-            } catch (e: Exception) {
-                Logger.log("TheIntroDB: parse error: ${e.message}")
-                return@tryWithSuspend null
-            }
-            val stamps = buildList {
-                res.intro?.forEachIndexed { i, seg -> valid(seg, durationSec)?.let { (s, e) -> add(stamp(s, e, "op", "theintrodb-intro-$i")) } }
-                res.recap?.forEachIndexed { i, seg -> valid(seg, durationSec)?.let { (s, e) -> add(stamp(s, e, "recap", "theintrodb-recap-$i")) } }
-                res.credits?.forEachIndexed { i, seg -> valid(seg, durationSec)?.let { (s, e) -> add(stamp(s, e, "ed", "theintrodb-credits-$i")) } }
-                (res.preview ?: res.previews)?.forEachIndexed { i, seg -> valid(seg, durationSec)?.let { (s, e) -> add(stamp(s, e, "other", "theintrodb-preview-$i")) } }
-            }
-            Logger.log(
-                "TheIntroDB: FOUND ${stamps.size} stamps for $url " +
-                    "intro=${res.intro?.size ?: "null"} recap=${res.recap?.size ?: "null"} " +
-                    "credits=${res.credits?.size ?: "null"}"
-            )
-            if (stamps.isEmpty()) null else stamps
+            Logger.log("TheIntroDB: no stamps for ${idParams.size} id(s)")
+            null
         }
     }
 

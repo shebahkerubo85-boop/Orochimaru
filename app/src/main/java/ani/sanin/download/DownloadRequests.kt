@@ -9,7 +9,9 @@ import ani.sanin.util.BatteryOptimizations
 
 /** Preferred quality when an episode is downloaded in bulk without an explicit quality pick. */
 fun bestVideoOf(extractor: VideoExtractor): Video? =
-    extractor.videos.maxByOrNull { it.quality ?: 0 } ?: extractor.videos.firstOrNull()
+    extractor.videos.firstOrNull { it.preferred }
+        ?: extractor.videos.maxByOrNull { it.quality ?: 0 }
+        ?: extractor.videos.firstOrNull()
 
 /**
  * Builds the queue entry for one resolved episode/server/quality and enqueues it. The video is

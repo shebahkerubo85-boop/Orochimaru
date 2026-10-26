@@ -2088,7 +2088,14 @@ class ExoplayerView :
             extractor?.onVideoStopped(video)
         }
 
-        val ext = episode.extractors?.filterNotNull()?.find { it.server.name == episode.selectedExtractor }
+        val availableExtractors = episode.extractors?.filterNotNull()
+            ?.filter { it.videos.isNotEmpty() }
+            .orEmpty()
+        // Saved server/quality names can drift between episodes (dynamic bitrate
+        // titles), so fall back to the extension-preferred server, then the first.
+        val ext = availableExtractors.find { it.server.name == episode.selectedExtractor }
+            ?: availableExtractors.firstOrNull { it.isPreferred }
+            ?: availableExtractors.firstOrNull()
         if (ext == null) {
             Logger.log(
                 Log.ERROR,
@@ -2099,6 +2106,8 @@ class ExoplayerView :
         }
         extractor = ext
         video = ext.videos.getOrNull(episode.selectedVideo)
+            ?: ext.videos.firstOrNull { it.preferred }
+            ?: ext.videos.firstOrNull()
         if (video == null) {
             Logger.log(
                 Log.ERROR,
@@ -2106,6 +2115,15 @@ class ExoplayerView :
                     "(videos=${ext.videos.size}) on ep '${episode.number}' — aborting media build"
             )
             return
+        }
+        // Keep the episode in sync with the fallback so the server/quality sheet,
+        // subtitle rail and auto-next all target the stream that is playing.
+        if (episode.selectedExtractor != ext.server.name) {
+            episode.selectedExtractor = ext.server.name
+        }
+        val chosenIndex = ext.videos.indexOf(video)
+        if (chosenIndex >= 0 && episode.selectedVideo != chosenIndex) {
+            episode.selectedVideo = chosenIndex
         }
         val subLanguages =
             arrayOf(
@@ -3060,6 +3078,7 @@ class ExoplayerView :
             }
 
             val freshVideo = freshExt.videos.getOrNull(episode.selectedVideo)
+                ?: freshExt.videos.firstOrNull { it.preferred }
                 ?: freshExt.videos.firstOrNull()
 
             if (freshVideo == null) {

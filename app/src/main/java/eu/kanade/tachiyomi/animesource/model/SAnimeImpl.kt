@@ -2,6 +2,11 @@
 
 package eu.kanade.tachiyomi.animesource.model
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import java.io.ObjectInputStream
+import java.io.ObjectOutputStream
+
 class SAnimeImpl : SAnime {
 
     override lateinit var url: String
@@ -29,4 +34,20 @@ class SAnimeImpl : SAnime {
     override var fetch_type: FetchType = FetchType.Episodes
 
     override var season_number: Double = -1.0
+
+    @Transient
+    override var memo: JsonObject = JsonObject(emptyMap())
+
+    private fun writeObject(out: ObjectOutputStream) {
+        out.defaultWriteObject()
+        out.writeObject(memo.toString())
+    }
+
+    private fun readObject(`in`: ObjectInputStream) {
+        `in`.defaultReadObject()
+        memo = runCatching {
+            val raw = `in`.readObject() as? String ?: "{}"
+            Json.parseToJsonElement(raw) as? JsonObject ?: JsonObject(emptyMap())
+        }.getOrDefault(JsonObject(emptyMap()))
+    }
 }

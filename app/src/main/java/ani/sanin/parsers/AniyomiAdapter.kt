@@ -15,6 +15,7 @@ import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Track
 import eu.kanade.tachiyomi.animesource.model.Video
+import eu.kanade.tachiyomi.animesource.model.copyFrom
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.animesource.online.ParsedAnimeHttpSource
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
@@ -143,7 +144,19 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         } as? AnimeHttpSource ?: (extension.sources[sourceLanguage] as? AnimeCatalogueSource
             ?: return emptyList())
         try {
-            val res = source.getEpisodeList(sAnime)
+            // lib 14+ extensions can stash tokens/state in anime.memo from
+            // getAnimeDetails, which episode parsing then relies on. Mirror the
+            // extension contract and fetch details before the episode list;
+            // failures must never block episode loading.
+            runCatching { source.getAnimeDetails(sAnime) }.getOrNull()?.let { detailed ->
+                runCatching { sAnime.copyFrom(detailed) }
+                sAnime.initialized = true
+            }
+            val res = loadEpisodeListSafe(source, sAnime)
+            if (res.isEmpty()) {
+                Logger.log("loadEpisodes: extension returned no episodes for '${sAnime.title}'")
+                return emptyList()
+            }
 
             val sortedEpisodes = if (res[0].episode_number == -1f) {
                 // Find the number in the string and sort by that number
@@ -194,6 +207,24 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         return emptyList()
     }
 
+    // Newer extension-lib builds can throw linkage errors when the host model
+    // doesn't declare a method the extension links against. Those are Errors,
+    // not Exceptions, so they would escape the caller's try/catch and crash.
+    // Retry once, then fail soft like other episode-loading errors.
+    private suspend fun loadEpisodeListSafe(source: AnimeHttpSource, sAnime: SAnime): List<SEpisode> {
+        return try {
+            source.getEpisodeList(sAnime)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: LinkageError) {
+            Logger.log("loadEpisodes: linkage error (${e::class.java.simpleName}), retrying once: ${e.message}")
+            runCatching { source.getEpisodeList(sAnime) }.getOrDefault(emptyList())
+        } catch (e: NotImplementedError) {
+            Logger.log("loadEpisodes: NotImplementedError, retrying once: ${e.message}")
+            runCatching { source.getEpisodeList(sAnime) }.getOrDefault(emptyList())
+        }
+    }
+
     private fun episodesAreIncrementing(episodes: List<SEpisode>): Boolean {
         val sortedEpisodes = episodes.sortedBy { it.episode_number }
         val takenNumbers = mutableListOf<Float>()
@@ -236,16 +267,24 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
                     GroupedVideoServer(extensionGroupName(base, tag), group, tag)
                 }
                 .filter { !dub || it.audio != MediaNameAdapter.SubDubType.SUB }
-                .sortedWith(compareBy { it.audio.sortRank() })
+                .sortedWith(
+                    compareBy(
+                        { it.audio.sortRank() },
+                        { if (it.videos.any { v -> v.preferred }) 0 else 1 },
+                    )
+                )
                 .map { group ->
-                    val first = group.videos.first()
+                    // Extensions flag one rendition as preferred; keep it first so
+                    // "play server" and bulk download pick it without a dialog.
+                    val ordered = group.videos.sortedByDescending { it.preferred }
+                    val first = ordered.first()
                     VideoServer(
                         name = group.host,
                         embed = FileUrl(first.url),
                         extraData = group.audio.takeUnless { it == MediaNameAdapter.SubDubType.NULL }
                             ?.let { mapOf("audio" to it.name) },
                         video = first,
-                        extraVideos = group.videos.takeIf { it.size > 1 }
+                        extraVideos = ordered.takeIf { it.size > 1 }
                     )
                 }
         } catch (e: Exception) {
@@ -585,7 +624,8 @@ class VideoServerPassthrough(private val videoServer: VideoServer) : VideoExtrac
             number,
             format!!,
             FileUrl(videoUrl, headersMap),
-            null
+            null,
+            preferred = aniVideo.preferred,
         )
     }
 

@@ -17,6 +17,12 @@ abstract class VideoExtractor : Serializable {
     var audioTracks: List<Track> = listOf()
     var timestamps: List<TimeStamp> = listOf()
 
+    /** True when the extension flagged this embed/rendition as its default. */
+    val isPreferred: Boolean
+        get() = server.video?.preferred == true ||
+            videos.any { it.preferred } ||
+            server.extraVideos?.any { it.preferred } == true
+
     /**
      * Extracts videos & subtitles from the `embed`
      *
@@ -67,6 +73,11 @@ data class VideoServer(
     val offline: Boolean = false,
     val extraVideos: List<eu.kanade.tachiyomi.animesource.model.Video>? = null
 ) : Serializable {
+
+    /** True when any rendition of this server was flagged preferred by the extension. */
+    val isPreferred: Boolean
+        get() = video?.preferred == true || extraVideos?.any { it.preferred } == true
+
     constructor(name: String, embedUrl: String, extraData: Map<String, String>? = null)
             : this(name, FileUrl(embedUrl), extraData)
 
@@ -146,6 +157,7 @@ data class Video(
      * **/
     val extraNote: String? = null,
     val drm: DrmInfo? = null,
+    val preferred: Boolean = false,
 ) : Serializable {
 
     constructor(

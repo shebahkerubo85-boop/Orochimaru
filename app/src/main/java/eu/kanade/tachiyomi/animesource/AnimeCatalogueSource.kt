@@ -1,7 +1,9 @@
 package eu.kanade.tachiyomi.animesource
 
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
+import eu.kanade.tachiyomi.animesource.model.AnimeRelation
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
+import eu.kanade.tachiyomi.animesource.model.SAnime
 import rx.Observable
 import tachiyomi.core.util.lang.awaitSingle
 
@@ -16,6 +18,15 @@ interface AnimeCatalogueSource : AnimeSource {
      * Whether the source has support for latest updates.
      */
     val supportsLatest: Boolean
+
+    /**
+     * Get the related anime list for an anime.
+     *
+     * @since extensions-lib 17
+     * @param anime the anime to fetch related anime for.
+     * @return the related anime list for the anime.
+     */
+    override suspend fun getRelatedAnimeList(anime: SAnime): List<AnimeRelation> = emptyList()
 
     /**
      * Get a page with a list of anime.

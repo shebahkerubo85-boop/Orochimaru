@@ -16,7 +16,7 @@ val gitCommitHash = providers.exec {
 
 android {
     namespace = "ani.sanin"
-    compileSdk = 36
+    compileSdk = 37
 
     signingConfigs {
         create("release") {
@@ -241,6 +241,7 @@ dependencies {
     implementation(libs.jsoup)
     implementation(libs.juniversalchardet)
     implementation(libs.kotlinx.collections.immutable)
+    implementation(libs.nanohttpd)
     implementation(libs.palette.ktx)
     implementation(libs.preference.ktx)
     implementation(libs.activity.ktx)

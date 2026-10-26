@@ -146,14 +146,18 @@ abstract class AnimeParser : BaseParser() {
         post: Boolean
     ): VideoExtractor? {
         return tryWithSuspend(post) {
-            loadVideoServers(episodeUrl, extra, sEpisode).apply {
-                find { it.name == serverName }?.also {
-                    return@tryWithSuspend getVideoExtractor(it)?.apply {
-                        load()
-                    }
+            val servers = loadVideoServers(episodeUrl, extra, sEpisode)
+            // Dynamic-bitrate extensions change server/rendition names every
+            // episode, so a saved name may no longer match. Fall back to the
+            // extension's preferred server (then the first) instead of failing.
+            val target = servers.find { it.name == serverName }
+                ?: servers.find { it.isPreferred }
+                ?: servers.firstOrNull()
+            target?.let {
+                getVideoExtractor(it)?.apply {
+                    load()
                 }
             }
-            null
         }
     }
 

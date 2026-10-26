@@ -319,6 +319,8 @@ class SelectorDialogFragment : DialogFragment() {
                     val m = media ?: return
                     val ep = m.anime?.episodes?.getEpisode(episodeName) ?: return
                     val extractor = ep.extractors?.firstOrNull { it.server.name == selectedServerName }
+                        ?: ep.extractors?.firstOrNull { it.isPreferred }
+                        ?: ep.extractors?.firstOrNull()
                         ?: return
                     val video = bestVideoOf(extractor) ?: return
                     DownloadManager.enqueue(m, ep, extractor, video)
@@ -375,18 +377,28 @@ class SelectorDialogFragment : DialogFragment() {
                             }
 
                             fun load() {
-                                val size =
+                                val matchedExtractor =
                                     if (model.watchSources!!.isDownloadedSource(media!!.selected!!.sourceIndex)) {
-                                        ep.extractors?.firstOrNull()?.videos?.size
+                                        ep.extractors?.firstOrNull()
                                     } else {
-                                        ep.extractors?.find { it?.server?.name == selected }?.videos?.size
+                                        ep.extractors?.find { it?.server?.name == selected }
+                                            ?: ep.extractors?.find { it?.isPreferred == true }
+                                            ?: ep.extractors?.firstOrNull()
                                     }
+                                val size = matchedExtractor?.videos?.size
 
-                                if (size != null && size >= media!!.selected!!.video) {
-                                    media!!.anime!!.episodes?.get(media!!.anime!!.selectedEpisode!!)?.selectedExtractor =
-                                        selected
-                                    media!!.anime!!.episodes?.get(media!!.anime!!.selectedEpisode!!)?.selectedVideo =
+                                if (matchedExtractor != null && size != null && size > 0) {
+                                    val chosenVideo = if (media!!.selected!!.video in 0 until size) {
                                         media!!.selected!!.video
+                                    } else {
+                                        0
+                                    }
+                                    media!!.anime!!.episodes?.get(media!!.anime!!.selectedEpisode!!)?.selectedExtractor =
+                                        matchedExtractor.server.name
+                                    media!!.anime!!.episodes?.get(media!!.anime!!.selectedEpisode!!)?.selectedVideo =
+                                        chosenVideo
+                                    media!!.selected!!.server = matchedExtractor.server.name
+                                    model.saveSelected(media!!.id, media!!.selected!!)
                                     startExoplayer(media!!)
                                 } else failToList()
                             }
@@ -394,7 +406,9 @@ class SelectorDialogFragment : DialogFragment() {
                             val cachedFromCurrentSource =
                                 ep.extractorsSource == media!!.selected!!.sourceIndex
                             if (!cachedFromCurrentSource ||
-                                ep.extractors?.filter { it?.server?.name == selected }.isNullOrEmpty()
+                                ep.extractors?.none {
+                                    it?.server?.name == selected || it?.isPreferred == true
+                                } != false
                             ) {
                                 scope.launch{
                                     val success = withContext(Dispatchers.IO){
@@ -568,6 +582,7 @@ class SelectorDialogFragment : DialogFragment() {
                     if (isDownloadMenu == true) {
                         videoSizesLabel(item.videos)?.let { meta.add(it) }
                     }
+                    if (item.isPreferred) meta.add("Preferred")
                     holder.binding.streamMeta.text = meta.filterNotNull().joinToString(" \u00b7 ")
                     holder.binding.streamMeta.visibility =
                         if (meta.filterNotNull().isEmpty()) View.GONE else View.VISIBLE
@@ -620,6 +635,7 @@ class SelectorDialogFragment : DialogFragment() {
             val disabled = disabledServerNames()
             val valid = extractors.orEmpty().toList().filterNotNull()
                 .filter { it.server.name !in disabled }
+                .sortedByDescending { it.isPreferred }
             if (valid.isEmpty()) return
             links.addAll(valid)
             notifyItemRangeInserted(0, links.size)
@@ -628,6 +644,13 @@ class SelectorDialogFragment : DialogFragment() {
         fun performClick(position: Int) {
             try {
                 val extractor = links.getOrNull(position) as? VideoExtractor ?: return
+                // The extension-flagged rendition wins: its quality label can
+                // change between episodes, so a saved label alone is unreliable.
+                val preferredIndex = extractor.videos.indexOfFirst { it.preferred }
+                if (preferredIndex >= 0) {
+                    playVideo(extractor, preferredIndex, remember = false)
+                    return
+                }
                 val options = buildQualityOptions(extractor)
                 if (options.isEmpty()) {
                     playVideo(extractor, 0, remember = false)
@@ -736,7 +759,11 @@ class SelectorDialogFragment : DialogFragment() {
                 binding.urlSize.isVisible = false
             }
             binding.urlNote.visibility = View.VISIBLE
-            binding.urlNote.text = video.format.name
+            binding.urlNote.text = if (video.preferred || extractor.isPreferred) {
+                "${video.format.name} \u2022 Preferred"
+            } else {
+                video.format.name
+            }
             val serverName = extractor.server.name
             val qualityRegex = Regex("\\d{3,4}\\s*p", RegexOption.IGNORE_CASE)
             binding.urlQuality.text = when {
