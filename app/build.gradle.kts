@@ -38,7 +38,7 @@ android {
 
     defaultConfig {
         applicationId = "ani.sanin"
-        minSdk = 24
+        minSdk = 23
         targetSdk = 36
 
         versionName = "3.2.2"
@@ -68,15 +68,15 @@ android {
             isDefault = true
         }
 
-        // Firebase Messaging (BOM 35) requires API 24; Native Media3 HLS download still works.
+        // Native Media3 HLS downloading works with the app's existing API 23 floor.
         create("phone") {
             dimension = "device"
             isDefault = true
-            minSdk = 24
+            minSdk = 23
         }
         create("tv") {
             dimension = "device"
-            minSdk = 24
+            minSdk = 23
         }
     }
 

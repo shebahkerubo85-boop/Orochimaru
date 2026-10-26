@@ -211,7 +211,7 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
     // doesn't declare a method the extension links against. Those are Errors,
     // not Exceptions, so they would escape the caller's try/catch and crash.
     // Retry once, then fail soft like other episode-loading errors.
-    private suspend fun loadEpisodeListSafe(source: AnimeHttpSource, sAnime: SAnime): List<SEpisode> {
+    private suspend fun loadEpisodeListSafe(source: AnimeSource, sAnime: SAnime): List<SEpisode> {
         return try {
             source.getEpisodeList(sAnime)
         } catch (e: kotlinx.coroutines.CancellationException) {

@@ -152,8 +152,6 @@ class ExtensionInstaller(private val context: Context) {
                     .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 if (type is MediaType) {
                     intent.putExtra(EXTRA_EXTENSION_TYPE, type)
-                } else if (type is String) {
-                    intent.putExtra(EXTRA_ADDON_TYPE, type)
                 }
 
                 context.startActivity(intent)
