@@ -394,7 +394,8 @@ class SubtitleSyncDialogFragment : DialogFragment() {
             position: Int,
             payloads: MutableList<Any>
         ) {
-            if (payloads.removeIf { it == PROGRESS_PAYLOAD }) {
+            // RecyclerView hands this list down immutable — never mutate it.
+            if (payloads.any { it == PROGRESS_PAYLOAD }) {
                 val cue = cues[position]
                 val adjustedPos = playerPositionMs - currentOffset
                 val showProgress = adjustedPos in cue.startTimeMs..<(cue.startTimeMs + cue.durationMs)

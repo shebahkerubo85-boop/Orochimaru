@@ -54,6 +54,20 @@ class App : Application() {
         // Installed first: a throw anywhere below in onCreate otherwise happens
         // before anything is listening, and the process just dies with no trace.
         Thread.setDefaultUncaughtExceptionHandler(FinalExceptionHandler())
+        // Chromium allows WebView only in one process per data directory
+        // (crbug.com/558377). This app runs CrashActivity in its own
+        // :error_process, which can also build a WebView — without distinct
+        // data dirs, whichever process initializes WebView second crashes the
+        // app with "Using WebView from more than one process at once". Give
+        // every non-main process its own suffix, as early as possible.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            runCatching {
+                val process = android.app.Application.getProcessName()
+                if (process != null && process != packageName) {
+                    android.webkit.WebView.setDataDirectorySuffix(process.substringAfter(':'))
+                }
+            }
+        }
         PrefManager.init(this)
         ani.sanin.download.DownloadManager.init(this)
 
