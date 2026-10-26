@@ -3174,6 +3174,27 @@ class ExoplayerView :
         PrefManager.setVal(PrefName.SubtitleSyncEnabled, offsetMs != 0L)
     }
 
+    /**
+     * Heuristic initial sync for subtitles loaded while playing mid-show.
+     * Different releases pack different amounts of cold open/recap/credits on
+     * either end, so the mismatch is mostly stationary: align the file's
+     * timeline tail with the video duration and take whatever offset falls
+     * out. Deliberately approximate ("not perfect but a little good") — the
+     * Subtitle Sync dialog remains the fine-tuning tool.
+     *
+     * offset = playerDuration - subtitleLastEnd; applied cue time becomes
+     * (playhead - offset) which matches the equivalent scene in the file's
+     * timeline. 0 = leave unsynced (file and video agree).
+     */
+    private fun autoSyncOffsetFromCues(playheadMs: Long, durationMs: Long, cues: List<SyncCue>): Long {
+        if (cues.isEmpty() || durationMs <= 0 || playheadMs < 180_000L) return 0L
+        val lastEndMs = cues.maxOf { it.startTimeMs + it.durationMs }
+        if (lastEndMs <= 0L) return 0L
+        val offset = durationMs - lastEndMs
+        val abs = kotlin.math.abs(offset)
+        return if (abs in 10_000L..15 * 60_000L) offset else 0L
+    }
+
     // SubtitleSyncHost implementation
     override fun getSyncPlayerPosition(): Long = getPlayerPosition()
     override fun setSubtitleOffset(offsetMs: Long) = applySubtitleOffset(offsetMs)
@@ -3334,6 +3355,9 @@ class ExoplayerView :
 
 
     private fun applyLocalSubtitle(uri: android.net.Uri) {
+        // Capture before any async work — mid-show auto-sync heuristic inputs.
+        val loadPlayheadMs = try { exoPlayer.currentPosition } catch (_: Exception) { 0L }
+        val loadDurationMs = try { exoPlayer.duration } catch (_: Exception) { 0L }
         try {
             val label = "Local Subtitle"
             Logger.log("applyLocalSubtitle: uri=$uri")
@@ -3397,6 +3421,18 @@ class ExoplayerView :
                 val contentString = subtitleBytes.toString(Charsets.UTF_8)
                 val parsedCues = parseSubtitleContent(contentString, formatForParse)
                 storeParsedCues(parsedCues)
+                val autoOffset = autoSyncOffsetFromCues(loadPlayheadMs, loadDurationMs, parsedCues)
+                Logger.log(
+                    "applyLocalSubtitle: autoSync offset=${autoOffset}ms " +
+                        "playhead=$loadPlayheadMs duration=$loadDurationMs cues=${parsedCues.size}"
+                )
+                PrefManager.setVal(PrefName.SubtitleDelay, autoOffset)
+                PrefManager.setVal(PrefName.SubtitleSyncEnabled, autoOffset != 0L)
+                if (autoOffset != 0L) {
+                    snackString(
+                        "Auto-synced subtitles (≈${"%.1f".format(autoOffset / 1000.0)}s) — adjust in Subtitle Sync"
+                    )
+                }
             }
 
             val finalSubUri = android.net.Uri.fromFile(cacheFile)
@@ -3582,6 +3618,9 @@ class ExoplayerView :
         android.util.Log.d("ExoplayerView", "=== applyOnlineSubtitle CALLED ===")
         android.util.Log.d("ExoplayerView", "applyOnlineSubtitle: lang=${subtitle.lang}, url=${subtitle.url}")
         Logger.log("applyOnlineSubtitle: lang=${subtitle.lang}, url=${subtitle.url}")
+        // Capture before the IO launch — mid-show heuristic needs position/duration.
+        val loadPlayheadMs = try { exoPlayer.currentPosition } catch (_: Exception) { 0L }
+        val loadDurationMs = try { exoPlayer.duration } catch (_: Exception) { 0L }
 
         // Download subtitle content first, then apply
         lifecycleScope.launch(Dispatchers.IO) {
@@ -3685,12 +3724,28 @@ class ExoplayerView :
 
                 val parsedCues = parseSubtitleContent(subtitleContent, detectedFormat)
 
+                // Auto-sync when loaded mid-show: estimate a standing offset from
+                // the tail of the cue timeline vs the video duration. Overwrites
+                // any previous global sync offset — fine-tune via Subtitle Sync.
+                val autoOffset = autoSyncOffsetFromCues(loadPlayheadMs, loadDurationMs, parsedCues)
+                Logger.log(
+                    "applyOnlineSubtitle: autoSync offset=${autoOffset}ms " +
+                        "playhead=$loadPlayheadMs duration=$loadDurationMs cues=${parsedCues.size}"
+                )
+                PrefManager.setVal(PrefName.SubtitleDelay, autoOffset)
+                PrefManager.setVal(PrefName.SubtitleSyncEnabled, autoOffset != 0L)
+
                 val label = "${subtitle.source}:${subtitle.lang}"
                 Logger.log("applyOnlineSubtitle: saved ${subtitleFile.absolutePath}, parsed ${parsedCues.size} cues, label=$label, applying")
 
                 withContext(Dispatchers.Main) {
                     storeParsedCues(parsedCues)
                     applySubtitleFromFile(subtitleFile, subtitle.lang, mimeType, label)
+                    if (autoOffset != 0L) {
+                        snackString(
+                            "Auto-synced subtitles (≈${"%.1f".format(autoOffset / 1000.0)}s) — adjust in Subtitle Sync"
+                        )
+                    }
                 }
 
             } catch (e: Exception) {

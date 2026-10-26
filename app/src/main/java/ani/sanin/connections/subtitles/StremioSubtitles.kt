@@ -115,16 +115,11 @@ object StremioSubtitles {
                 }
             }
 
-            // SubSource's public API (searchMovie/getMovie) now 404s every POST —
-            // the provider can never return results, so it is skipped here until
-            // a replacement endpoint exists.
-
-            if (providers.contains("SubDL")) {
-                launchProvider("SubDL") {
-                    // Movies: 0 codes "not a TV episode" so season/episode params drop out.
-                    SubDLSubtitles.getSubtitles(imdbId, if (isTvSeries) season else 0, if (isTvSeries) episode else 0)
-                }
-            }
+            // SubSource's public API (searchMovie/getMovie) now 404s every POST and
+            // SubDL's API key is rejected with 403 not_authorized — neither can
+            // ever return results, so both are skipped until replacement keys/
+            // endpoints exist. Wyzie, Stremio (opensubtitles-v3) and OpenSubtitles.com
+            // were verified live with exact season+episode addressing.
 
             // Keep channel open until every provider coroutine finishes
             jobs.joinAll()

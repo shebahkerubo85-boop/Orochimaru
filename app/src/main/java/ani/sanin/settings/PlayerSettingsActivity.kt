@@ -287,7 +287,7 @@ class PlayerSettingsActivity :
         // No click listener on the header here on purpose: Xpandable already binds
         // its first child, and a second one fought with the animation.
 
-        val allProviders = arrayOf("Wyzie", "Stremio", "OpenSubtitles", "SubSource", "SubDL")
+        val allProviders = arrayOf("Wyzie", "Stremio", "OpenSubtitles")
         val allLanguages = arrayOf("en","ar","pt","es","id","fr","ru","zh","ja","tr","it","de","pl","th","vi","ko")
         val allFullLanguages = arrayOf("English","Arabic","Portuguese","Spanish","Indonesian","French","Russian","Chinese","Japanese","Turkish","Italian","German","Polish","Thai","Vietnamese","Korean")
         val subLanguages = arrayOf("Albanian","Arabic","Bosnian","Bulgarian","Chinese","Croatian","Czech","Danish","Dutch","English","Estonian","Finnish","French","Georgian","German","Greek","Hebrew","Hindi","Indonesian","Irish","Italian","Japanese","Korean","Lithuanian","Luxembourgish","Macedonian","Mongolian","Norwegian","Polish","Portuguese","Punjabi","Romanian","Russian","Serbian","Slovak","Slovenian","Spanish","Turkish","Ukrainian","Urdu","Vietnamese")

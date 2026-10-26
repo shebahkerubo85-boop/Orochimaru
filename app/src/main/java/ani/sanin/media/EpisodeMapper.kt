@@ -63,6 +63,13 @@ object EpisodeMapper {
         }
 
         // STEP 3: For everything else (seasonal shows)
+        Logger.log("EpisodeMapper: Using Prequel Chain (in-season episode)")
+        val chainResult = mapSeasonByPrequelChain(media, episodeNumber)
+        if (chainResult != null) {
+            Logger.log("EpisodeMapper: Prequel-chain mapping found: $chainResult")
+            return chainResult
+        }
+        // Old fallback: season offset only, absolute episode kept as-is
         Logger.log("EpisodeMapper: Using Seasonal Offset")
         val calculatedSeason = getSeasonOffset(media)
         Logger.log("EpisodeMapper: Calculated Season: $calculatedSeason")
@@ -248,7 +255,50 @@ object EpisodeMapper {
     }
 
     /**
-     * LOGIC C: Prequel Counting
+     * Prequel-chain mapping: walks PREQUEL relations to (a) find the media's
+     * real season number and (b) sum episode counts of every earlier season,
+     * so an absolute episode number translates into episode-in-season.
+     * Returns null — and the caller keeps absolute numbering — when a
+     * prequel is unreachable or its episode count is unknown, so results
+     * never get worse than the old behavior.
+     */
+    private suspend fun mapSeasonByPrequelChain(media: Media, absoluteEpisode: Int): SeasonEpisode? {
+        var current = media
+        var season = 1
+        var episodeOffset = 0
+        var safety = 0
+
+        while (safety < 20) {
+            val prequel = current.relations?.find {
+                (it.relation != null && (it.relation == "PREQUEL" || it.relation!!.startsWith("PREQUEL\n"))) &&
+                        (it.format == "TV" || it.format == "TV_SHORT" || it.format == "ONA")
+            } ?: break
+
+            val fetchedPrequel = AnilistQueries().getMedia(prequel.id) ?: break
+            val detailedPrequel = AnilistQueries().mediaDetails(fetchedPrequel)
+            val prequelEpisodes = detailedPrequel.anime?.totalEpisodes ?: 0
+            if (prequelEpisodes <= 0) return null // counts unreliable from here on
+            episodeOffset += prequelEpisodes
+            season++
+            current = detailedPrequel
+            safety++
+        }
+
+        val inSeason = absoluteEpisode - episodeOffset
+        if (inSeason <= 0) {
+            // absolute number belongs to an earlier season than this media's
+            // prequel chain covered — absolute numbering is the best we have
+            return SeasonEpisode(season, absoluteEpisode)
+        }
+        Logger.log(
+            "EpisodeMapper: prequel chain → S$season E$inSeason " +
+                "(abs=$absoluteEpisode offset=$episodeOffset)"
+        )
+        return SeasonEpisode(season, inSeason)
+    }
+
+    /**
+     * STRATEGY MANAGER
      */
     private suspend fun getSeasonOffset(media: Media): Int {
         // Logger.log("EpisodeMapper: Calculating season offset for ${media.userPreferredName} (ID: ${media.id})")
