@@ -43,6 +43,9 @@ data class SyncCue(
     val durationMs: Long = 3000L
 )
 
+/** Payload tag: partial cue rebind that only advances the mini progress bar. */
+private const val PROGRESS_PAYLOAD = "sync_progress"
+
 /**
  * Activity-hosted interface so the sync dialog works in both
  * anime ExoplayerView.
@@ -58,9 +61,16 @@ class SubtitleSyncDialogFragment : DialogFragment() {
     private val binding get() = _binding!!
     val model: MediaDetailsViewModel by activityViewModels()
     private var currentOffset: Long = 0L
+    // Offset in effect when the dialog opened — "Reset" restores this instead
+    // of forcing 0, so a pre-existing (e.g. auto-synced) offset survives.
+    private var openingOffset: Long = 0L
     private var updateJob: Job? = null
     private var adapter: SyncAdapter? = null
     private var prevPlayingIndex: Int = -1
+    // Auto-centering pauses while the user is dragging the cue list (touch)
+    // and while a cue has D-pad focus (TV), resuming after they go idle.
+    private var userScrolling = false
+    private var resumeAutoScrollJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -93,6 +103,7 @@ class SubtitleSyncDialogFragment : DialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         currentOffset = PrefManager.getVal<Long>(PrefName.SubtitleDelay)
+        openingOffset = currentOffset
         setupViews()
         startUpdateLoop()
     }
@@ -104,7 +115,45 @@ class SubtitleSyncDialogFragment : DialogFragment() {
         applyOffset()
     }
 
+    /**
+     * Theme-matched control styling for the sync panel: buttons go solid
+     * black-on-dark / white-on-light with contrast text, and the offset input
+     * is a transparent field outlined in the theme's primary color.
+     */
+    private fun styleSyncControls() {
+        val ctx = requireContext()
+        val dark = ani.sanin.isDarkTheme()
+        val density = ctx.resources.displayMetrics.density
+        val radius = 16f * density
+        val ctrColor = if (dark) Color.BLACK else Color.WHITE
+        val txtColor = if (dark) Color.WHITE else Color.BLACK
+        val inputBg = android.graphics.drawable.GradientDrawable().apply {
+            setShape(android.graphics.drawable.GradientDrawable.RECTANGLE)
+            setColor(Color.TRANSPARENT)
+            setCornerRadius(radius)
+            setStroke(
+                (2f * density).toInt(),
+                FocusEffectUtil.getPrimaryColor(ctx)
+            )
+        }
+        listOf(
+            binding.syncSubtractMore, binding.syncSubtract, binding.syncAdd,
+            binding.syncAddMore, binding.syncCancel, binding.syncReset, binding.syncApply
+        ).forEach { b ->
+            b.background = android.graphics.drawable.GradientDrawable().apply {
+                setShape(android.graphics.drawable.GradientDrawable.RECTANGLE)
+                setColor(ctrColor)
+                setCornerRadius(radius)
+            }
+            b.setTextColor(txtColor)
+        }
+        binding.syncOffsetInput.background = inputBg
+        binding.syncOffsetInput.setTextColor(txtColor)
+        binding.syncOffsetInput.setHintTextColor(0xFF666666.toInt())
+    }
+
     private fun setupViews() {
+        styleSyncControls()
         binding.syncOffsetInput.setText(currentOffset.toString())
         binding.syncOffsetInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -138,6 +187,26 @@ class SubtitleSyncDialogFragment : DialogFragment() {
         binding.syncCancel.setOnClickListener { dismiss() }
 
         binding.subtitleSyncRecycler.layoutManager = LinearLayoutManager(requireContext())
+        binding.subtitleSyncRecycler.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrollStateChanged(rv: RecyclerView, newState: Int) {
+                when (newState) {
+                    RecyclerView.SCROLL_STATE_DRAGGING -> {
+                        // Finger on the list: stop chasing the playing cue.
+                        userScrolling = true
+                        resumeAutoScrollJob?.cancel()
+                    }
+                    RecyclerView.SCROLL_STATE_IDLE -> {
+                        // Resume auto-centering shortly after the list settles.
+                        resumeAutoScrollJob?.cancel()
+                        resumeAutoScrollJob = viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
+                            delay(3000)
+                            userScrolling = false
+                        }
+                    }
+                    else -> {}
+                }
+            }
+        })
 
         val cues = (requireActivity() as? SubtitleSyncHost)?.getSyncCues() ?: emptyList()
 
@@ -147,7 +216,12 @@ class SubtitleSyncDialogFragment : DialogFragment() {
         } else {
             binding.noSubtitlesNotice.isVisible = false
             binding.subtitleSyncRecycler.isVisible = true
-            adapter = SyncAdapter(cues, getPlayerPosition(), onCueClick = ::onCueClicked)
+            adapter = SyncAdapter(
+                cues,
+                getPlayerPosition(),
+                onCueClick = ::onCueClicked,
+                onPlayingIndexChanged = ::onPlayingIndexChanged
+            )
             binding.subtitleSyncRecycler.adapter = adapter
             scrollToCurrentCue()
         }
@@ -210,11 +284,11 @@ class SubtitleSyncDialogFragment : DialogFragment() {
     }
 
     private fun resetOffset() {
-        currentOffset = 0L
-        binding.syncOffsetInput.setText("0")
-        PrefManager.setVal(PrefName.SubtitleDelay, 0L)
-        PrefManager.setVal(PrefName.SubtitleSyncEnabled, false)
-        (requireActivity() as? SubtitleSyncHost)?.setSubtitleOffset(0L)
+        // "Everything to how it was": restore the offset the player had before
+        // this dialog opened, not a hard 0 (it must not wipe an auto-sync).
+        currentOffset = openingOffset
+        binding.syncOffsetInput.setText(currentOffset.toString())
+        (requireActivity() as? SubtitleSyncHost)?.setSubtitleOffset(currentOffset)
         dismiss()
     }
 
@@ -237,9 +311,34 @@ class SubtitleSyncDialogFragment : DialogFragment() {
         val index = cues.indexOfLast { position >= it.startTimeMs }
         if (index >= 0) {
             binding.subtitleSyncRecycler.post {
-                binding.subtitleSyncRecycler.scrollToPosition(index)
+                centerOnIndex(index)
             }
         }
+    }
+
+    /**
+     * Keeps the currently-playing cue centred: the 500ms update loop fires
+     * this whenever the highlighted cue changes, unless the user is actively
+     * scrolling or has D-pad focus on a cue (TV).
+     */
+    private fun onPlayingIndexChanged(index: Int) {
+        if (index < 0) return
+        if (userScrolling) return
+        // TV: while a cue card owns focus the user is navigating by d-pad —
+        // auto-centering would yank the scroll out from under them.
+        if (binding.subtitleSyncRecycler.focusedChild != null) return
+        binding.subtitleSyncRecycler.post {
+            centerOnIndex(index)
+        }
+    }
+
+    private fun centerOnIndex(index: Int) {
+        val recycler = binding.subtitleSyncRecycler
+        val lm = recycler.layoutManager as? LinearLayoutManager ?: return
+        val itemHeight = recycler.getChildAt(0)?.height?.takeIf { it > 0 }
+            ?: (recycler.height / 3).takeIf { it > 0 }
+            ?: 120
+        lm.scrollToPositionWithOffset(index, recycler.height / 2 - itemHeight / 2)
     }
 
     private fun startUpdateLoop() {
@@ -254,6 +353,7 @@ class SubtitleSyncDialogFragment : DialogFragment() {
 
     override fun onDestroy() {
         updateJob?.cancel()
+        resumeAutoScrollJob?.cancel()
         _binding = null
         super.onDestroy()
     }
@@ -261,12 +361,12 @@ class SubtitleSyncDialogFragment : DialogFragment() {
     inner class SyncAdapter(
         private val cues: List<SyncCue>,
         initialPosition: Long,
-        private val onCueClick: (SyncCue) -> Unit = {}
+        private val onCueClick: (SyncCue) -> Unit = {},
+        private val onPlayingIndexChanged: (Int) -> Unit = {}
     ) : RecyclerView.Adapter<CueViewHolder>() {
         private var playerPositionMs: Long = initialPosition
 
         fun updatePlayerPosition(pos: Long) {
-            val oldPos = playerPositionMs
             playerPositionMs = pos
             val adjustedPos = pos - currentOffset
 
@@ -280,6 +380,36 @@ class SubtitleSyncDialogFragment : DialogFragment() {
                 if (prevPlayingIndex >= 0) notifyItemChanged(prevPlayingIndex)
                 if (newPlayingIndex >= 0) notifyItemChanged(newPlayingIndex)
                 prevPlayingIndex = newPlayingIndex
+                if (newPlayingIndex >= 0) onPlayingIndexChanged(newPlayingIndex)
+            } else if (newPlayingIndex >= 0) {
+                // Same cue still playing: refresh just its mini progress bar
+                // via payload rebind, so the bar fills in step with the cue
+                // and the rest of the card (white fill/text/scale) stays put.
+                notifyItemChanged(newPlayingIndex, PROGRESS_PAYLOAD)
+            }
+        }
+
+        override fun onBindViewHolder(
+            holder: CueViewHolder,
+            position: Int,
+            payloads: MutableList<Any>
+        ) {
+            if (payloads.removeIf { it == PROGRESS_PAYLOAD }) {
+                val cue = cues[position]
+                val adjustedPos = playerPositionMs - currentOffset
+                val showProgress = adjustedPos in cue.startTimeMs..<(cue.startTimeMs + cue.durationMs)
+                if (showProgress) {
+                    val progressValue = ((adjustedPos - cue.startTimeMs) * 1000f / cue.durationMs).roundToInt()
+                        .coerceIn(0, 1000)
+                    if (holder.progressBar.progress != progressValue) {
+                        holder.progressBar.progress = progressValue
+                    }
+                } else {
+                    // cue ended between ticks → hand back to the full bind
+                    onBindViewHolder(holder, position)
+                }
+            } else {
+                onBindViewHolder(holder, position)
             }
         }
 
@@ -287,6 +417,11 @@ class SubtitleSyncDialogFragment : DialogFragment() {
             val inflater = LayoutInflater.from(parent.context)
             val itemBinding = ItemSubtitleSyncBinding.inflate(inflater, parent, false)
             applyCardFocus(itemBinding.root, itemBinding.subtitleSyncCard)
+            // playing-cue mini progress bar in the theme's primary color
+            itemBinding.subtitleSyncProgress.progressTintList =
+                android.content.res.ColorStateList.valueOf(
+                    FocusEffectUtil.getPrimaryColor(itemBinding.root.context)
+                )
             return CueViewHolder(itemBinding)
         }
 
@@ -296,7 +431,15 @@ class SubtitleSyncDialogFragment : DialogFragment() {
             val isPlaying = adjustedPos in cue.startTimeMs..<(cue.startTimeMs + cue.durationMs)
 
             holder.textView.text = cue.text
-            holder.textView.setTextColor(if (isPlaying) Color.WHITE else -0x555556)
+            // Playing cue = solid white rounded card with black text; the
+            // d-pad focus border (applyCardFocus foreground) is untouched.
+            if (isPlaying) {
+                holder.cardView.setCardBackgroundColor(Color.WHITE)
+                holder.textView.setTextColor(Color.BLACK)
+            } else {
+                holder.cardView.setCardBackgroundColor(0)
+                holder.textView.setTextColor(-0x555556)
+            }
 
             val showProgress = isPlaying && isPlaying
             holder.progressBar.isVisible = showProgress
@@ -310,10 +453,8 @@ class SubtitleSyncDialogFragment : DialogFragment() {
                 holder.progressBar.progress = 0
             }
 
-            holder.cardView.setCardBackgroundColor(0)
             holder.cardView.setOnClickListener { onCueClick(cue) }
 
-            holder.playingBorder.isVisible = isPlaying
             val root = holder.itemBinding.root
             if (isPlaying) {
                 if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.FocusAnimations)) {
@@ -340,7 +481,6 @@ class SubtitleSyncDialogFragment : DialogFragment() {
         val textView: TextView = itemBinding.subtitleSyncText
         val progressBar: ProgressBar = itemBinding.subtitleSyncProgress
         val cardView: androidx.cardview.widget.CardView = itemBinding.subtitleSyncCard
-        val playingBorder: View = itemBinding.subtitlePlayingBorder
     }
 
     private fun applyCardFocus(focusView: View, borderView: View) {

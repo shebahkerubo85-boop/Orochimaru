@@ -2758,6 +2758,50 @@ class ExoplayerView :
                         selectedTextMime == "text/x-ass" ||
                         (selectedTextMime?.contains("ssa", ignoreCase = true) == true)
                     val newCueTexts = cueGroup.cues.map { it.text.toString() ?: "" }
+                    // True presentation time of this cue batch (μs → ms); only
+                    // fall back to wall-clock when the timing is unknown.
+                    val cueStartMs =
+                        if (cueGroup.timeUs != C.TIME_UNSET && cueGroup.timeUs >= 0)
+                            cueGroup.timeUs / 1000
+                        else exoPlayer.currentPosition
+
+                    // Store cues for the sync dialog BEFORE the libass branch:
+                    // embedded MKV/MP4 tracks are often ASS/SSA — libass renders
+                    // them fine, but the early-return below stopped every cue
+                    // from reaching storedSyncCues, so the sync dialog kept
+                    // saying "no subtitles loaded" while lines were on screen.
+                    synchronized(storedSyncCues) {
+                        val lines = cueGroup.cues
+                            .mapNotNull { it.text?.toString() }
+                            .filter { it.isNotBlank() }
+                            .distinct()
+                        if (lines.isNotEmpty()) {
+                            val text = lines.joinToString("\n")
+                            val dedupKey = "$cueStartMs|$text"
+                            if (dedupKey !in seenCueTexts) {
+                                seenCueTexts.add(dedupKey)
+                                val realDurUs = cueGroup.cues
+                                    .map { it.durationUs }
+                                    .filter { it >= 0 && it != C.TIME_UNSET }
+                                    .maxOrNull()
+                                val durationMs = (realDurUs?.div(1000) ?: 0L).coerceAtLeast(1000L)
+                                    .let { if (realDurUs == null) 3000L else it }
+                                if (storedSyncCues.isNotEmpty() && storedSyncCues.last().durationMs == 3000L) {
+                                    val gap = cueStartMs - storedSyncCues.last().startTimeMs
+                                    if (gap in 1001..60000) {
+                                        val idx = storedSyncCues.size - 1
+                                        storedSyncCues[idx] =
+                                            storedSyncCues[idx].copy(durationMs = gap)
+                                    }
+                                }
+                                storedSyncCues.add(
+                                    SyncCue(text = text, startTimeMs = cueStartMs, durationMs = durationMs)
+                                )
+                                storedSyncCues.sortBy { it.startTimeMs }
+                                Logger.log("onCues: stored ${lines.size} line(s) @${cueStartMs}ms total=${storedSyncCues.size}")
+                            }
+                        }
+                    }
                     if (libassActive) {
                         exoSubtitleView.visibility = View.GONE
                         customSubtitleView.visibility = View.GONE
@@ -2771,21 +2815,6 @@ class ExoplayerView :
                         Logger.log("onCues: ${newCueTexts.size} cue(s) sel=$selectedTextMime vis=${exoSubtitleView.visibility}")
                     }
                     val currentPosition = exoPlayer.currentPosition
-
-                    // Store cues for sync dialog with timestamps
-                    synchronized(storedSyncCues) {
-                        for (cueText in newCueTexts) {
-                            if (cueText.isNotBlank() && cueText !in seenCueTexts) {
-                                seenCueTexts.add(cueText)
-                                storedSyncCues.add(
-                                    SyncCue(
-                                        text = cueText,
-                                        startTimeMs = currentPosition
-                                    )
-                                )
-                            }
-                        }
-                    }
 
                     val subtitleOffset = PrefManager.getVal<Long>(PrefName.SubtitleDelay)
                     val syncEnabled = PrefManager.getVal<Boolean>(PrefName.SubtitleSyncEnabled)
@@ -3172,6 +3201,47 @@ class ExoplayerView :
     fun applySubtitleOffset(offsetMs: Long) {
         PrefManager.setVal(PrefName.SubtitleDelay, offsetMs)
         PrefManager.setVal(PrefName.SubtitleSyncEnabled, offsetMs != 0L)
+        // Render immediately: the custom-sync path only recalculated inside
+        // onCues(), which fires on cue-set changes — after clicking a cue or
+        // Apply the screen kept the stale text until the next cue boundary.
+        refreshSyncRender()
+    }
+
+    /**
+     * Re-evaluates the subtitle-render mode right now (mid-cue), so offset
+     * changes from the sync dialog/cue clicks take effect instantly instead
+     * of waiting for the player's next cue event.
+     */
+    private fun refreshSyncRender() {
+        if (!::exoPlayer.isInitialized) return
+        val subtitleOffset = PrefManager.getVal<Long>(PrefName.SubtitleDelay)
+        val syncEnabled = PrefManager.getVal<Boolean>(PrefName.SubtitleSyncEnabled)
+        val cues = synchronized(storedSyncCues) { storedSyncCues.isNotEmpty() }
+        if (syncEnabled && subtitleOffset != 0L && cues) {
+            // libass owns rendering while an ASS/SSA track is selected (same
+            // rule as onCues) — don't fight it.
+            val selectedTextMime = exoPlayer.currentTracks.groups
+                .firstOrNull { it.type == TRACK_TYPE_TEXT && it.isSelected }
+                ?.getTrackFormat(0)?.sampleMimeType
+            val libassActive = selectedTextMime == MimeTypes.TEXT_SSA ||
+                selectedTextMime == "text/x-ass" ||
+                (selectedTextMime?.contains("ssa", ignoreCase = true) == true)
+            if (libassActive) return
+
+            val pos = exoPlayer.currentPosition
+            val matchingCue = synchronized(storedSyncCues) {
+                (pos - subtitleOffset).let { adjustedPos ->
+                    storedSyncCues.lastOrNull { adjustedPos >= it.startTimeMs }
+                }
+            }
+            exoSubtitleView.visibility = View.GONE
+            customSubtitleView.visibility = View.VISIBLE
+            customSubtitleView.text = matchingCue?.text ?: ""
+        } else if (!PrefManager.getVal<Boolean>(PrefName.TextviewSubtitles)) {
+            // sync reset (offset 0) → back to native rendering
+            customSubtitleView.visibility = View.GONE
+            exoSubtitleView.visibility = View.VISIBLE
+        }
     }
 
     /**
