@@ -1096,6 +1096,10 @@ class MediaDetailsViewModel : ViewModel() {
         fetchedOnlineSubtitles.remove(id)
     }
 
+    fun clearAllFetchedSubtitles() {
+        fetchedOnlineSubtitles.clear()
+    }
+
     private val localSubtitlesMap = mutableMapOf<String, MutableList<Any>>()
 
     fun saveLocalSubtitle(id: String, sub: Any) {
@@ -1128,5 +1132,9 @@ class MediaDetailsViewModel : ViewModel() {
 
     fun clearLocalSubtitles(id: String) {
         localSubtitlesMap.remove(id)
+    }
+
+    fun clearAllLocalSubtitles() {
+        localSubtitlesMap.clear()
     }
 }

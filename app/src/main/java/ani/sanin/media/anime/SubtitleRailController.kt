@@ -467,7 +467,7 @@ class SubtitleRailController(
                 val imdbId = media.idIMDB ?: IdMappers.getImdbId(media.id) ?: return@launch
                 if (media.idIMDB == null) media.idIMDB = imdbId
                 val selectedEpisode = media.anime?.selectedEpisode ?: "1"
-                val episodeNum = selectedEpisode.toIntOrNull() ?: 1
+                val episodeNum = EpisodeMapper.episodeNumberOf(selectedEpisode, episode)
                 val seasonEpisode = EpisodeMapper.mapEpisode(media, episodeNum, episode)
                 Logger.log("SubtitleRail: streaming search imdbId=$imdbId season=${seasonEpisode.season} episode=${seasonEpisode.episode}")
                 val existing = model.getFetchedSubtitles(episodeId)?.toMutableList() ?: mutableListOf()

@@ -112,7 +112,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
             viewLifecycleOwner.lifecycleScope.launch(kotlinx.coroutines.Dispatchers.Main) {
                 val episodeId = "${media.id}-${episode.number}"
                 val selectedEpisode = media.anime?.selectedEpisode ?: "1"
-                val episodeNum = selectedEpisode.toIntOrNull() ?: 1
+                val episodeNum = EpisodeMapper.episodeNumberOf(selectedEpisode, episode)
 
                 val allSubtitles = mutableListOf<Any>()
                 allSubtitles.add(AddLocalSubtitle("+ Add Local Subtitle"))
@@ -178,10 +178,10 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                 val imdbId = media.idIMDB ?: IdMappers.getImdbId(media.id) ?: return@launch
                 val isMovie = media.format == "MOVIE"
                 val selectedEpisode = media.anime?.selectedEpisode ?: "1"
-                val episodeNum = selectedEpisode.toIntOrNull() ?: 1
 
                 // Phase 2: Calculator (Translation) — reads AniZip data from episode.extra (no extra API call)
                 val currentEpisode = media.anime?.episodes?.get(selectedEpisode)
+                val episodeNum = EpisodeMapper.episodeNumberOf(selectedEpisode, currentEpisode)
                 val seasonEpisode = EpisodeMapper.mapEpisode(media, episodeNum, currentEpisode)
                 currentSeasonEpisode = seasonEpisode
                 Logger.log("SubtitleDialogFragment: fetch imdbId=$imdbId ep=$episodeNum season=${seasonEpisode.season} epInSeason=${seasonEpisode.episode}")

@@ -19,7 +19,14 @@ object EpisodeMapper {
     private val episodeCache = HashMap<String, SeasonEpisode>()
 
     suspend fun mapEpisode(media: Media, episodeNumber: Int, episode: Episode? = null): SeasonEpisode {
-        val cacheKey = "${media.id}-$episodeNumber"
+        // Callers that only do toIntOrNull() pass 1 for every TMDB "S1E6" key, so
+        // a bare "${media.id}-$episodeNumber" key collapsed all episodes of a show
+        // into one slot and reused the first-mapped S/E (wrong-episode subtitles).
+        val cacheKey = buildString {
+            append(media.id).append('-').append(episode?.number ?: episodeNumber)
+            episode?.extra?.get("season")?.let { append("-s").append(it) }
+            episode?.extra?.get("episode")?.let { append("-e").append(it) }
+        }
         if (episodeCache.containsKey(cacheKey)) {
             return episodeCache[cacheKey]!!
         }
@@ -27,6 +34,15 @@ object EpisodeMapper {
         episodeCache[cacheKey] = result
         return result
     }
+
+    /** Resolve the numeric episode used for provider lookups. TMDB synthetic keys
+     *  are "S1E6", so a plain toIntOrNull() would fall back to 1. */
+    fun episodeNumberOf(selectedEpisode: String, episode: Episode?): Int =
+        selectedEpisode.toIntOrNull()
+            ?: Regex("""(?i)^S\d+E(\d+)$""").find(selectedEpisode.trim())
+                ?.groupValues?.get(1)?.toIntOrNull()
+            ?: episode?.extra?.get("episode")?.toIntOrNull()
+            ?: 1
 
     /**
      * MAIN FUNCTION

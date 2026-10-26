@@ -411,6 +411,7 @@ class ExoplayerView :
     private var isSeeking = false
     private var isFastForwarding = false
     private var playerErrorRetryCount = 0
+    private var opaqueFormatRetryStage = 0
     private var liveReconnectCount = 0
 
     // Live-stream reconnect + live-edge handling. Cricify/SKTech HLS streams issue
@@ -1687,9 +1688,8 @@ class ExoplayerView :
                     exoPlayer.currentPosition,
                 )
                 val prev = episodeArr[currentEpisodeIndex]
-                // Clear transient subtitle caches for the episode we are leaving
-                val leavingEpisodeId = "${media.id}-${episodeArr[currentEpisodeIndex]}"
-                clearTransientSubtitleCache(leavingEpisodeId)
+                // No subtitle state may survive an episode change.
+                clearAllTransientSubtitleCache()
                 isTimeStampsLoaded = false
                 timeStampsLoading = false
                 lastTimeStampAttempt = 0L
@@ -2219,8 +2219,8 @@ class ExoplayerView :
                      }
                      // Prefetch episode mapping so the subtitle rail doesn't have a visual label pop
                      val selectedEpisodeStr = media.anime?.selectedEpisode ?: "1"
-                     val episodeNum = selectedEpisodeStr.toIntOrNull() ?: 1
                      val currentEpisode = media.anime?.episodes?.get(selectedEpisodeStr)
+                     val episodeNum = EpisodeMapper.episodeNumberOf(selectedEpisodeStr, currentEpisode)
                      EpisodeMapper.mapEpisode(media, episodeNum, currentEpisode)
                  } catch (e: Exception) {
                      e.printStackTrace()
@@ -2676,6 +2676,7 @@ class ExoplayerView :
         exoSubtitleView.visibility = View.GONE
         // Reset the error retry counter so fresh sources get the full retry budget.
         playerErrorRetryCount = 0
+        opaqueFormatRetryStage = 0
         liveReconnectCount = 0
         liveRecoveryFailed = false
 
@@ -3732,14 +3733,14 @@ class ExoplayerView :
     }
 
     /**
-     * Clears the online and local subtitle caches for the given episodeId.
-     * Removes ViewModel in-memory caches and deletes the physical subtitle files
-     * from cacheDir. Source subtitles (from the extractor) are unaffected.
-     * Called on episode change and player exit.
+     * Clears every cached subtitle: the fetched online lists, the local-list
+     * bookkeeping, and all downloaded/copied file caches. Called when an
+     * episode finishes or changes and when the watch tab is left, so no stale
+     * subtitle can leak into another episode.
      */
-    private fun clearTransientSubtitleCache(episodeId: String) {
-        model.clearFetchedSubtitles(episodeId)
-        model.clearLocalSubtitles(episodeId)
+    private fun clearAllTransientSubtitleCache() {
+        model.clearAllFetchedSubtitles()
+        model.clearAllLocalSubtitles()
         try {
             cacheDir.listFiles()?.forEach { file ->
                 if (file.name.startsWith("online_subtitle_") || file.name.startsWith("local_sub_")) {
@@ -3747,7 +3748,7 @@ class ExoplayerView :
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("ExoplayerView", "clearTransientSubtitleCache: error deleting files - ${e.message}")
+            android.util.Log.e("ExoplayerView", "clearAllTransientSubtitleCache: error deleting files - ${e.message}")
         }
     }
 
@@ -4105,6 +4106,11 @@ class ExoplayerView :
             }
         if (shouldPausePlayback && !isLiveStream()) {
             playerView.player?.pause()
+        }
+        // Leaving the watch tab (Home/recents/back, not PiP or a rotation)
+        // must not leave subtitle state behind for the next episode/session.
+        if (shouldPausePlayback && !isChangingConfigurations) {
+            clearAllTransientSubtitleCache()
         }
         super.onStop()
     }
@@ -5077,6 +5083,41 @@ class ExoplayerView :
         }
     }
 
+    /**
+     * Some extensions hand back HLS/DASH manifests behind their own localhost proxy,
+     * or otherwise without a recognisable file extension (e.g. AniPM's SettlarProxy,
+     * which wraps opaque media.settlar.io URLs). The parser can only fall back to
+     * CONTAINER for those, so ExoPlayer picks the progressive extractors and dies with
+     * ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED. Retry the same URL once as HLS, then
+     * once as DASH, before showing a fatal error.
+     */
+    private fun retryOpaqueSource(format: VideoType, errorName: String): Boolean {
+        val current = video ?: return false
+        if (current.format != VideoType.CONTAINER || current.drm != null) return false
+        if (extractor?.audioTracks?.isNotEmpty() == true) return false
+        val url = current.file.url
+        if (!url.startsWith("http://") && !url.startsWith("https://")) return false
+        if (!::assMediaSourceFactory.isInitialized) return false
+        if (!::exoPlayer.isInitialized || exoPlayer.isReleased) return false
+        val mime = when (format) {
+            VideoType.M3U8 -> MimeTypes.APPLICATION_M3U8
+            VideoType.DASH -> MimeTypes.APPLICATION_MPD
+            else -> return false
+        }
+        val item = mediaItem.buildUpon().setMimeType(mime).build()
+        val source = assMediaSourceFactory.createMediaSource(item)
+        val position = exoPlayer.currentPosition.coerceAtLeast(0L)
+        Logger.log(
+            Log.WARN,
+            "Player: $errorName on opaque container — retrying as ${format.name.lowercase()} " +
+                "url=${url.take(140)}"
+        )
+        exoPlayer.setMediaSource(source, position)
+        exoPlayer.prepare()
+        exoPlayer.play()
+        return true
+    }
+
     override fun onPlayerError(error: PlaybackException) {
         val epLabel = media.anime?.selectedEpisode ?: "?"
         if (isLiveStream()) {
@@ -5147,6 +5188,28 @@ class ExoplayerView :
                 } else {
                     playerErrorRetryCount = 0
                     Logger.log(Log.ERROR, "Player: fatal error on ep '$epLabel' (${error.errorCode}) ${error.errorCodeName}: ${error.message}")
+                    toast("Player Error ${error.errorCode} (${error.errorCodeName}) : ${error.message}")
+                    Injekt.get<CrashlyticsInterface>().logException(error)
+                }
+            }
+
+            PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED,
+            PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED,
+            PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED,
+                -> {
+                val nextAdaptive = when (opaqueFormatRetryStage) {
+                    0 -> VideoType.M3U8
+                    1 -> VideoType.DASH
+                    else -> null
+                }
+                if (nextAdaptive != null && retryOpaqueSource(nextAdaptive, error.errorCodeName)) {
+                    opaqueFormatRetryStage++
+                } else {
+                    Logger.log(
+                        Log.ERROR,
+                        "Player: unhandled error on ep '$epLabel' (${error.errorCode}) " +
+                            "${error.errorCodeName}: ${error.message}"
+                    )
                     toast("Player Error ${error.errorCode} (${error.errorCodeName}) : ${error.message}")
                     Injekt.get<CrashlyticsInterface>().logException(error)
                 }
@@ -5230,6 +5293,8 @@ class ExoplayerView :
         }
         if (playbackState == Player.STATE_ENDED) {
             Logger.log("Player: ENDED on ep '$epLabel'")
+            // Episode is over: drop its subtitle caches before any auto-next.
+            if (!isLiveStream()) clearAllTransientSubtitleCache()
             if (!isLiveStream() && PrefManager.getVal(PrefName.AutoPlay)) {
                 val browsingEpisodes =
                     episodeDrawer.isDrawerOpen(episodeDrawerContent) ||
@@ -5411,8 +5476,7 @@ class ExoplayerView :
         if (isInitialized) {
             updateAniProgress()
             // Clear transient subtitle caches and sync cues on player exit
-            val episodeId = "${media.id}-${media.anime?.selectedEpisode ?: ""}"
-            clearTransientSubtitleCache(episodeId)
+            clearAllTransientSubtitleCache()
             synchronized(storedSyncCues) {
                 storedSyncCues.clear()
                 seenCueTexts.clear()
