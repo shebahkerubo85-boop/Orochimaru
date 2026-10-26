@@ -116,17 +116,16 @@ class SubtitleSyncDialogFragment : DialogFragment() {
     }
 
     /**
-     * Theme-matched control styling for the sync panel: buttons go solid
-     * black-on-dark / white-on-light with contrast text, and the offset input
-     * is a transparent field outlined in the theme's primary color.
+     * Sync-panel control styling, hardcoded per request: every button is solid
+     * white with black text (no theme dependency), the offset input keeps its
+     * transparent field with a primary-color outline. Material themes force a
+     * primary backgroundTintList onto buttons, so it is explicitly cleared —
+     * that tint was overriding the white fill.
      */
     private fun styleSyncControls() {
         val ctx = requireContext()
-        val dark = ani.sanin.isDarkTheme()
         val density = ctx.resources.displayMetrics.density
         val radius = 16f * density
-        val ctrColor = if (dark) Color.BLACK else Color.WHITE
-        val txtColor = if (dark) Color.WHITE else Color.BLACK
         val inputBg = android.graphics.drawable.GradientDrawable().apply {
             setShape(android.graphics.drawable.GradientDrawable.RECTANGLE)
             setColor(Color.TRANSPARENT)
@@ -142,13 +141,14 @@ class SubtitleSyncDialogFragment : DialogFragment() {
         ).forEach { b ->
             b.background = android.graphics.drawable.GradientDrawable().apply {
                 setShape(android.graphics.drawable.GradientDrawable.RECTANGLE)
-                setColor(ctrColor)
+                setColor(Color.WHITE)
                 setCornerRadius(radius)
             }
-            b.setTextColor(txtColor)
+            b.backgroundTintList = null
+            b.setTextColor(Color.BLACK)
         }
         binding.syncOffsetInput.background = inputBg
-        binding.syncOffsetInput.setTextColor(txtColor)
+        binding.syncOffsetInput.setTextColor(Color.WHITE)
         binding.syncOffsetInput.setHintTextColor(0xFF666666.toInt())
     }
 
