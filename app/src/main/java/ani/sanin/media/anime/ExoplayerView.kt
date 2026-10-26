@@ -2780,7 +2780,15 @@ class ExoplayerView :
                         if (lines.isNotEmpty()) {
                             val text = lines.joinToString("\n")
                             val dedupKey = "p${cueGroup.presentationTimeUs}|$text"
-                            if (dedupKey !in seenCueTexts) {
+                            // three-way gate: exact (time,text) repeat, a
+                            // re-emitted copy of a line already on screen
+                            // within 15s (extractors re-send the same cue per
+                            // sample → dialog listed it twice), and title-sign
+                            // text lines.
+                            val isWindowRepeat = storedSyncCues.any {
+                                it.text == text && cueStartMs - it.startTimeMs in 0..15_000
+                            }
+                            if (dedupKey !in seenCueTexts && !isWindowRepeat && !isTitleSignCue(text)) {
                                 seenCueTexts.add(dedupKey)
                                 // Media3 Cue carries no duration: backfill the
                                 // previous cue once the next start arrives.
@@ -3367,11 +3375,37 @@ class ExoplayerView :
     }
 
     private fun storeParsedCues(cues: List<SyncCue>) {
+        // Sidecar/embedded tracks carry on-screen "signs" lines that are just
+        // the show's title card — keep them out of the sync dialog store.
+        val usable = cues.filterNot { isTitleSignCue(it.text) }
         synchronized(storedSyncCues) {
             storedSyncCues.clear()
-            storedSyncCues.addAll(cues)
+            storedSyncCues.addAll(usable)
             seenCueTexts.clear()
-            seenCueTexts.addAll(cues.map { it.text })
+            seenCueTexts.addAll(usable.map { it.text })
+        }
+    }
+
+    /**
+     * Some subtitle content is not dialogue at all: title cards and sign
+     * typesetting like "Classroom of the Elite", 「Classroom of the Elite」, or
+     * decorated variants ("8E Classroom of the Elite"). Dropping cues that
+     * reduce to the media's title keeps the sync dialog from showing the
+     * show's name as a fake subtitle line.
+     */
+    private fun isTitleSignCue(rawText: String): Boolean {
+        fun tidy(s: String) = s
+            .replace(Regex("[\\p{Punct}\\s\\u3000\\u300c\\u300d\\u300e\\u300f]"), "")
+            .lowercase(Locale.ROOT)
+        val candidates = listOfNotNull(
+            media.name, media.nameMAL, media.nameRomaji, media.userPreferredName
+        )
+        var text = tidy(rawText)
+        // strip muxer prefixes: "8e", "S01E02", "08", "第3話"
+        text = text.replace(Regex("^(?:s\\d{1,3}e\\d{1,3}|\\d{1,3}e|\\d{1,3}|第\\d+話?)+"), "")
+        return candidates.any { candidate ->
+            val t = tidy(candidate)
+            t.isNotBlank() && (text == t || (text.startsWith(t) && text.length - t.length <= 8))
         }
     }
 
