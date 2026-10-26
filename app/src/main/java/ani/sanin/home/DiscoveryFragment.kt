@@ -51,8 +51,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import java.util.Calendar
 import java.util.concurrent.atomic.AtomicInteger
 import ani.sanin.getThemeColor
@@ -329,7 +329,7 @@ class DiscoveryFragment : Fragment() {
     private var categoryArtwork: Map<String, String?> = emptyMap()
     private val categoryArtworkLoading = HashSet<String>()
     private val categoryArtworkAttempts = HashMap<String, Int>()
-    private val categoryArtworkSelectionMutex = Mutex()
+    private val categoryArtworkSemaphore = Semaphore(4)
     private val reservedCategoryArtworkUrls = HashSet<String>()
     private var allDiscoveryCategories: List<CuratedDiscoveryCategory> = CuratedDiscoveryCategories.all
     private var remainingCategoriesLoaded = false
@@ -410,10 +410,13 @@ class DiscoveryFragment : Fragment() {
         visibleCuratedCategoryCount = CuratedDiscoveryCategories.all.size
         renderedCuratedCategoryCount = 0
         allDiscoveryCategories = CuratedDiscoveryCategories.all
-        categoryArtwork = emptyMap()
+        categoryArtwork = DiscoveryArtworkStore.animePosters(requireContext())
         categoryArtworkLoading.clear()
         categoryArtworkAttempts.clear()
-        synchronized(reservedCategoryArtworkUrls) { reservedCategoryArtworkUrls.clear() }
+        synchronized(reservedCategoryArtworkUrls) {
+            reservedCategoryArtworkUrls.clear()
+            reservedCategoryArtworkUrls.addAll(categoryArtwork.values.filterNotNull())
+        }
         remainingCategoriesLoaded = false
         remainingCategoriesLoading = false
         categoryArtworkGeneration++
@@ -662,7 +665,7 @@ class DiscoveryFragment : Fragment() {
                 val url = tag.url
                 if (!url.isNullOrBlank()) {
                     if (!tag.loaded) {
-                        image.loadImage(url)
+                        image.loadImage(url, dp(82))
                         image.tag = tag.copy(loaded = true)
                     }
                     continue
@@ -689,25 +692,20 @@ class DiscoveryFragment : Fragment() {
                     // successful fetch (even one that yields no poster) is remembered. Caching
                     // failures as "no artwork" was leaving middle cards blank for the whole visit.
                     val resolved = java.util.concurrent.atomic.AtomicBoolean(false)
-                    val poster = categoryArtworkSelectionMutex.withLock {
+                    val poster = categoryArtworkSemaphore.withPermit {
                         // A request from an earlier visit must not reserve a poster in this visit.
-                        if (generation != categoryArtworkGeneration) return@withLock null
-                        val used = synchronized(reservedCategoryArtworkUrls) {
-                            reservedCategoryArtworkUrls.toSet()
-                        }
+                        if (generation != categoryArtworkGeneration) return@withPermit null
                         runCatching {
                             val covers = Kitsu.animeByCategory(slug, page = 1).media
                                 .filter { !it.isAdult }
                                 .mapNotNull { it.cover?.takeIf(String::isNotBlank) }
                                 .distinct()
-                            val picked = covers.filterNot { it in used }.randomOrNull()
-                                ?: covers.randomOrNull()
-                            if (!picked.isNullOrBlank()) {
-                                synchronized(reservedCategoryArtworkUrls) {
-                                    reservedCategoryArtworkUrls.add(picked)
-                                }
+                            synchronized(reservedCategoryArtworkUrls) {
+                                val picked = covers.filterNot { it in reservedCategoryArtworkUrls }
+                                    .randomOrNull() ?: covers.randomOrNull()
+                                if (!picked.isNullOrBlank()) reservedCategoryArtworkUrls.add(picked)
+                                picked
                             }
-                            picked
                         }.onSuccess { resolved.set(true) }.getOrNull()
                     }
                     withContext(Dispatchers.Main) {
@@ -716,6 +714,9 @@ class DiscoveryFragment : Fragment() {
                         if (_binding == null || generation != categoryArtworkGeneration) return@withContext
                         categoryArtworkLoading.remove(slug)
                         if (resolved.get()) {
+                            if (!poster.isNullOrBlank()) {
+                                DiscoveryArtworkStore.putAnime(requireContext(), slug, poster)
+                            }
                             categoryArtwork = categoryArtwork + (slug to poster)
                         }
                         updateCategoryArtworkUrls()
@@ -1040,6 +1041,11 @@ class DiscoveryFragment : Fragment() {
         binding.discoverCategoryStatus.visibility = View.GONE
         renderAnimeCategoryHeader(mediaCount = null)
         binding.discoverScroll.scrollTo(0, 0)
+        if (isTv) {
+            binding.discoverCategoryHeader.post {
+                if (_binding != null) binding.discoverCategoryHeader.getChildAt(0)?.requestFocus()
+            }
+        }
         loadAnimeCategoryPage()
     }
 

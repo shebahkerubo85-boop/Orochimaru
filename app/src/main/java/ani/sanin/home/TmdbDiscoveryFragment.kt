@@ -34,6 +34,7 @@ import ani.sanin.connections.tmdb.TmdbMedia
 import ani.sanin.databinding.FragmentTmdbDiscoveryBinding
 import ani.sanin.databinding.ItemTmdbCardBinding
 import ani.sanin.getThemeColor
+import ani.sanin.isTvDevice
 import ani.sanin.loadImage
 import ani.sanin.reels.ReelFeed
 import ani.sanin.reels.TmdbReelFeed
@@ -86,6 +87,7 @@ class TmdbDiscoveryFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        artworkCache.putAll(DiscoveryArtworkStore.tmdbPosters(requireContext()))
         val dm = resources.displayMetrics
         binding.tmdbDiscoveryGrid.layoutManager = GridLayoutManager(
             requireContext(), TmdbCards.gridSpan(dm.widthPixels / dm.density)
@@ -393,7 +395,7 @@ class TmdbDiscoveryFragment : Fragment() {
                     rotation = if (columnIndex % 2 == 0) -8f else 8f
                     layoutParams = FrameLayout.LayoutParams(dp(72), dp(72), Gravity.CENTER)
                     tag = category.id
-                    artworkCache[category.id]?.let { loadImage(it) }
+                    artworkCache[category.id]?.let { loadImage(it, dp(82)) }
                 }
                 artworkFrame.addView(image)
                 val surface = requireContext().getThemeColor(com.google.android.material.R.attr.colorSurface)
@@ -464,9 +466,7 @@ class TmdbDiscoveryFragment : Fragment() {
                     async(Dispatchers.IO) {
                         categorySemaphore.withPermit {
                             category.id to runCatching {
-                                val items = fetchCategory(category, page = 1)
-                                items.firstOrNull { !it.posterPath.isNullOrBlank() }?.posterPath
-                                    ?.let { Tmdb.imageUrl(it, 342) }
+                                fetchArtworkPoster(category)
                             }.getOrNull()
                         }
                     }
@@ -476,6 +476,9 @@ class TmdbDiscoveryFragment : Fragment() {
             results.forEach { (id, url) ->
                 artworkLoading.remove(id)
                 artworkCache[id] = url
+                if (!url.isNullOrBlank()) {
+                    DiscoveryArtworkStore.putTmdb(requireContext(), id, url)
+                }
             }
             updateArtworkViews()
         }
@@ -493,7 +496,7 @@ class TmdbDiscoveryFragment : Fragment() {
                     val id = image.tag as? String ?: continue
                     val url = artworkCache[id]
                     if (!url.isNullOrBlank() && image.tag != "loaded:$id") {
-                        image.loadImage(url)
+                        image.loadImage(url, dp(82))
                         image.tag = "loaded:$id"
                     }
                 }
@@ -536,6 +539,7 @@ class TmdbDiscoveryFragment : Fragment() {
             setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
         })
         host.addView(header)
+        if (isTvDevice(requireContext())) back.post { back.requestFocus() }
         viewLifecycleOwner.lifecycleScope.launch {
             val items = runCatching { fetchCategory(category, page = 1) }.getOrDefault(emptyList())
             if (_binding == null || selectedCategory?.id != category.id) return@launch
@@ -564,6 +568,23 @@ class TmdbDiscoveryFragment : Fragment() {
         val target = shelvesScrollY
         binding.tmdbDiscoveryScroll.post { if (_binding != null) binding.tmdbDiscoveryScroll.scrollTo(0, target) }
         loadCategoryArtwork()
+    }
+
+    private suspend fun fetchArtworkPoster(category: TmdbDiscoveryCategory): String? {
+        val keyword = resolveKeyword(category)?.toString()
+        val extra = mutableListOf<Pair<String, String>>("include_adult" to "false")
+        category.originalLanguage?.let { extra.add("with_original_language" to it) }
+        suspend fun poster(type: String): String? = Tmdb.discover(
+            mediaType = type,
+            genres = if (keyword == null) category.genres else null,
+            sort = "popularity.desc",
+            keywords = keyword,
+            page = 1,
+            extra = extra
+        ).firstOrNull { !it.posterPath.isNullOrBlank() }
+            ?.posterPath
+            ?.let { Tmdb.imageUrl(it, 342) }
+        return poster("movie") ?: poster("tv")
     }
 
     private suspend fun fetchCategory(category: TmdbDiscoveryCategory, page: Int): List<TmdbMedia> {
@@ -670,7 +691,7 @@ class TmdbDiscoveryFragment : Fragment() {
             holder.binding.tmdbCardYear.text = item.year
             holder.binding.tmdbCardPoster.setOnClickListener { onOpen(item) }
             holder.binding.root.setOnClickListener { onOpen(item) }
-            FocusEffectUtil.applyFocusListener(holder.binding.tmdbCardPoster, holder.itemView)
+            FocusEffectUtil.applyFocusListener(holder.binding.tmdbCardPoster)
         }
         override fun getItemCount(): Int = items.size
         class VH(val binding: ItemTmdbCardBinding) : RecyclerView.ViewHolder(binding.root)
