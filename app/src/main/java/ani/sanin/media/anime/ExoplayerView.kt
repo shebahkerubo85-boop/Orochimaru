@@ -2773,10 +2773,11 @@ class ExoplayerView :
                     // from reaching storedSyncCues, so the sync dialog kept
                     // saying "no subtitles loaded" while lines were on screen.
                     synchronized(storedSyncCues) {
-                        val lines = cueGroup.cues
-                            .mapNotNull { it.text?.toString() }
-                            .filter { it.isNotBlank() }
-                            .distinct()
+                            val lines = cueGroup.cues
+                                .mapNotNull { it.text?.toString() }
+                                .map(::stripSubtitleTagJunk)
+                                .filter { it.isNotBlank() }
+                                .distinct()
                         if (lines.isNotEmpty()) {
                             val text = lines.joinToString("\n")
                             val dedupKey = "p${cueGroup.presentationTimeUs}|$text"
@@ -3410,7 +3411,25 @@ class ExoplayerView :
     }
 
     private fun cleanSubtitleText(text: String): String {
-        return text.replace(Regex("<[^>]+>"), "").trim()
+        return stripSubtitleTagJunk(text.replace(Regex("<[^>]+>"), ""))
+    }
+
+    /**
+     * Sloppy ASS/SSA→SRT/plain-text conversions leak formatting markup as
+     * literal cue text — braced override-tag groups ({\an8}, {\i1}), unbraced
+     * leftovers like "/an8", and hard-break markers ("\N"). Strip them so the
+     * sync dialog and stored cues show only actual subtitle content.
+     */
+    private fun stripSubtitleTagJunk(text: String): String {
+        return text
+            // {\an8}, {\i1}, {\pos(...)} — whole override-tag groups
+            .replace(Regex("\\{[^}]*\\}"), "")
+            // unbraced conversion leftovers: /an8, \an8, "/ an8"
+            .replace(Regex("(?i)[\\\\/]+\\s*an\\d{1,2}\\b"), "")
+            // literal \N hard-break markers → keep as line break
+            .replace(Regex("(?i)[\\\\/]n\\b"), "\n")
+            .replace(Regex("\\s{2,}"), " ")
+            .trim()
     }
 
     private fun subClick() {
