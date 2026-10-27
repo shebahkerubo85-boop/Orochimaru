@@ -208,6 +208,14 @@ class SettingsActivity : AppCompatActivity() {
     override fun onResume() {
         ThemeManager(this).applyTheme()
         super.onResume()
+        // The appearance toggle lives in a child screen, so refresh the rows
+        // that are already attached instead of waiting for a rebind.
+        val hidden = PrefManager.getVal<Boolean>(PrefName.HideSettingsDescriptions)
+        for (i in 0 until binding.settingsRecyclerView.childCount) {
+            SubscreenBuilder.applyDescriptionVisibility(
+                binding.settingsRecyclerView.getChildAt(i), hidden,
+            )
+        }
     }
 
     /** RecyclerView adapter that renders collapsible sections. */
@@ -245,6 +253,7 @@ class SettingsActivity : AppCompatActivity() {
                     text = section.desc
                     visibility = View.VISIBLE
                 } else {
+                    text = ""
                     visibility = View.GONE
                 }
             }
@@ -272,6 +281,7 @@ class SettingsActivity : AppCompatActivity() {
                         text = entry.desc
                         visibility = View.VISIBLE
                     } else {
+                        text = ""
                         visibility = View.GONE
                     }
                 }
@@ -281,6 +291,10 @@ class SettingsActivity : AppCompatActivity() {
             }
 
             holder.items.visibility = if (isExpanded) View.VISIBLE else View.GONE
+            SubscreenBuilder.applyDescriptionVisibility(
+                holder.itemView,
+                PrefManager.getVal<Boolean>(PrefName.HideSettingsDescriptions),
+            )
         }
 
         private fun toggleSection(holder: SectionVH, position: Int) {

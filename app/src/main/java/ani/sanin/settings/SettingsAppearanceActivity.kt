@@ -393,6 +393,14 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                             PrefManager.setVal(PrefName.UseClearlogoInPosters, it)
                         },
                     ),
+                    SubscreenBuilder.Entry(
+                        title = "Hide Setting Descriptions",
+                        desc = "Hide the explanation under every setting",
+                        switch = PrefManager.getVal<Boolean>(PrefName.HideSettingsDescriptions) to { hidden ->
+                            PrefManager.setVal(PrefName.HideSettingsDescriptions, hidden)
+                            SubscreenBuilder.applyDescriptionVisibility(binding.subscreenContent, hidden)
+                        },
+                    ),
                 ),
             ),
         ), clear = false) }

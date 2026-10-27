@@ -12,6 +12,8 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import ani.sanin.R
 import ani.sanin.setSafeOnClickListener
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.customAlertDialog
 import com.google.android.material.materialswitch.MaterialSwitch
@@ -331,6 +333,34 @@ object SubscreenBuilder {
                     )
                 }
                 container.addView(spacer)
+            }
+        }
+
+        applyDescriptionVisibility(
+            container,
+            PrefManager.getVal<Boolean>(PrefName.HideSettingsDescriptions),
+        )
+    }
+
+    /**
+     * Shows or hides every description line already inflated into [root].
+     * Called after building and again when the toggle changes so the current
+     * screen updates without rebuilding (which would drop D-pad focus).
+     */
+    fun applyDescriptionVisibility(root: View, hidden: Boolean) {
+        if (root is TextView) {
+            when (root.id) {
+                R.id.sectionDesc,
+                R.id.switchDesc,
+                R.id.sliderDesc,
+                R.id.entryDesc,
+                R.id.settingsDesc -> root.visibility =
+                    if (hidden || root.text.isBlank()) View.GONE else View.VISIBLE
+            }
+        }
+        if (root is ViewGroup) {
+            for (i in 0 until root.childCount) {
+                applyDescriptionVisibility(root.getChildAt(i), hidden)
             }
         }
     }

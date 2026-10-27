@@ -230,6 +230,8 @@ enum class PrefName(val data: Pref) {
     NavPillShowLabel(Pref(Location.UI, Boolean::class, true)),
     /** When off, banners & cards fall back to the plain text title instead of clearlogo art. */
     UseClearlogoInPosters(Pref(Location.UI, Boolean::class, true)),
+    /** Hides the explanation line under every settings row and category. */
+    HideSettingsDescriptions(Pref(Location.UI, Boolean::class, false)),
     /** False pins the rail expanded, so scrolling never collapses it to fewer icons. */
     NavPillShrinkOnScroll(Pref(Location.UI, Boolean::class, true)),
     BlurUnwatchedEpisodes(Pref(Location.UI, Boolean::class, true)),

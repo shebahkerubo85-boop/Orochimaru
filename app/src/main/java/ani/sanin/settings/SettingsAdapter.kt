@@ -7,6 +7,8 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.databinding.ItemSettingsBinding
 import ani.sanin.databinding.ItemSettingsSwitchBinding
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import ani.sanin.setAnimation
 import ani.sanin.util.FocusEffectUtil
 
@@ -125,6 +127,10 @@ class SettingsAdapter(private val settings: ArrayList<Settings>) :
                 settings.attachToSwitch?.invoke(b)
             }
         }
+        SubscreenBuilder.applyDescriptionVisibility(
+            holder.itemView,
+            PrefManager.getVal<Boolean>(PrefName.HideSettingsDescriptions),
+        )
     }
 
     override fun getItemCount(): Int = settings.size
