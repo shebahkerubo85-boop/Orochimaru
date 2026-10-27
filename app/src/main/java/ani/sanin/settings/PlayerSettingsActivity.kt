@@ -296,7 +296,7 @@ class PlayerSettingsActivity :
 
         val subtitlesEnabled = PrefManager.getVal<Boolean>(PrefName.Subtitles)
         SubscreenBuilder.build(this, binding.tabContent, listOf(
-            SubscreenBuilder.Section("Subtitle", R.drawable.ic_set_overlay, entries = listOf(
+            SubscreenBuilder.Section("General", R.drawable.ic_set_overlay, entries = listOf(
                 SubscreenBuilder.Entry(
                     title = "Subtitles",
                     desc = "Master toggle for all subtitle styling",
@@ -365,7 +365,7 @@ class PlayerSettingsActivity :
                 ),
             )),
 
-            SubscreenBuilder.Section("Advanced", R.drawable.ic_set_misc, entries = listOf(
+            SubscreenBuilder.Section("Display", R.drawable.ic_set_misc, entries = listOf(
                 SubscreenBuilder.Entry(
                     title = getString(R.string.subtitle_font_size),
                     desc = "Adjust subtitle text size",
@@ -503,13 +503,6 @@ class PlayerSettingsActivity :
                     desc = getString(R.string.data_saver_video_desc),
                     switch = PrefManager.getVal<Boolean>(PrefName.DataSaver) to {
                         PrefManager.setVal(PrefName.DataSaver, it)
-                    },
-                ),
-                SubscreenBuilder.Entry(
-                    title = "Group servers by host and language tags",
-                    desc = "Group quality links by host and show SUB/DUB tags in the server sheet",
-                    switch = PrefManager.getVal<Boolean>(PrefName.GroupServersByHostAndLanguageTags) to {
-                        PrefManager.setVal(PrefName.GroupServersByHostAndLanguageTags, it)
                     },
                 ),
                 SubscreenBuilder.Entry(

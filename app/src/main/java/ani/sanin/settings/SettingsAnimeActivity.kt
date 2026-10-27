@@ -35,7 +35,7 @@ class SettingsAnimeActivity : AppCompatActivity() {
             bottomMargin = navBarHeight
         }
         binding.subscreenBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
-        binding.subscreenTitle.text = "Playback"
+        binding.subscreenTitle.text = "Playback & App Behaviour"
         binding.subscreenSubtitle.text = "Player, decoding & sync"
         binding.subscreenIcon.setImageResource(R.drawable.ic_set_video)
 
@@ -65,6 +65,13 @@ class SettingsAnimeActivity : AppCompatActivity() {
                     title = getString(R.string.episode_metadata_source),
                     desc = "AniZip / Kitsu for anime, TMDB / Simkl for movies",
                     onClick = { showEpisodeMetadataDialog() },
+                ),
+                SubscreenBuilder.Entry(
+                    title = "Group servers by host and language tags",
+                    desc = "Group quality links by host and show SUB/DUB tags in the server sheet",
+                    switch = PrefManager.getVal<Boolean>(PrefName.GroupServersByHostAndLanguageTags) to {
+                        PrefManager.setVal(PrefName.GroupServersByHostAndLanguageTags, it)
+                    },
                 ),
             )),
 
