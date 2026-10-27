@@ -36,85 +36,35 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.Serializable
 
-/**
- * The franchise screen: everything in one franchise, in order.
- *
- * ## Shape of the layout
- *
- * Filter pills, then the franchise's own name, then one row per entry where a portrait poster
- * alternates sides with a teaser synopsis. The alternation is what makes the order legible at a
- * glance: a line used to run between the cards to say so, and it was removed, because a
- * primary-coloured curve over a screen that is otherwise flat page colour read as a diagram of
- * the sequence rather than as the sequence itself.
- *
- * ## Rows are not recycled
- *
- * The rows go into a LinearLayout, not a RecyclerView. With the connector gone nothing measures
- * the rows against each other, so a recycling container would be the obvious choice here, and is
- * left for later: a franchise is at most a few dozen entries, the count is in the header, and
- * holding them all costs nothing anyone can see.
- *
- * ## Two sources, one screen
- *
- * The same screen serves anime and movies. A Kitsu-grouped card is enriched from AniList for its
- * synopsis, score and format; a Trakt card carries most of that already. [FranchiseType] folds
- * both vocabularies into the five categories the pill shows, and a filter chip is only added when
- * at least one entry actually has that category — an OVA chip on a franchise with no OVAs would be
- * a dead control.
- */
 class FranchiseActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityFranchiseBinding
 
-    /** Null until the intent's parcel is read; the screen refuses to open without one. */
     private var franchise: Franchise? = null
 
-    /**
-     * The categories currently offered by the pill.
-     *
-     * Derived from the entries rather than fixed, so the row shows only filters that can change
-     * what is on screen. "All" is always present and always first.
-     */
     private val availableTypes = LinkedHashSet<FranchiseType>()
 
-    /** The category being shown, or null for All. */
     private var selectedType: FranchiseType? = null
 
-    /**
-     * The category to land on, when the screen was opened from a tab that already knows.
-     *
-     * The TMDB Explore tab has a Movie / TV show / Animation chip, and a franchise opened from
-     * it is all films or all seasons, so the filter that matches the chip is the one the reader
-     * is already in. Landing on All instead would quietly undo the choice they just made.
-     * Null means All, which is the only honest answer when the entries are mixed (Animation)
-     * or when this franchise has no entry of the wanted category.
-     */
     private var preselectType: FranchiseType? = null
 
-    /** How many entries the franchise has before any filter, for the "3 of 12" count. */
     private var totalEntries = 0
 
-    /** The library status pill is Compose, so its inputs live as Compose state. */
     private var pillTabs = mutableStateOf<List<LibraryStatusTab>>(emptyList())
     private var pillSelected = mutableIntStateOf(0)
 
-    /** User status per AniList id, loaded for this franchise's entries only. */
     private val anilistStatuses = HashMap<Int, String>()
 
-    /** Simkl status per TMDB id, loaded for this franchise's entries only. */
     private val simklStatuses = HashMap<Int, String>()
 
-    /** The row bindings currently on screen, paired with [shownEntries] for status refreshes. */
     private val rowBindings = ArrayList<ItemFranchiseEntryBinding>()
     private var shownEntries: List<FranchiseEntry> = emptyList()
 
-    /** When the statuses were last read, to avoid refetching on the resume that follows open. */
     private var lastStatusLoadAt = 0L
 
     override fun onResume() {
         super.onResume()
-        // Re-read the statuses of the entries on this screen after returning from a detail
-        // screen or list editor, but not for the resume that immediately follows onCreate.
+
         if (lastStatusLoadAt == 0L) return
         if (shownEntries.isEmpty()) return
         if (System.currentTimeMillis() - lastStatusLoadAt < STATUS_REFRESH_DEBOUNCE_MS) return
@@ -128,16 +78,13 @@ class FranchiseActivity : AppCompatActivity() {
 
         val card = intent.getFranchiseExtra(EXTRA_FRANCHISE)
         if (card == null) {
-            // Nothing to show. Finishing here rather than rendering an empty shell means Back
-            // from here lands on Explore instead of on a blank screen.
+
             snackString(getString(R.string.franchise_load_failed))
             finish()
             return
         }
         franchise = card
 
-        // Read before the pill is built: the wanted category decides which tab is selected, and
-        // the tab list itself is built from the entries.
         preselectType = intent.getStringExtra(EXTRA_PRESELECT_TYPE)?.let { name ->
             FranchiseType.entries.firstOrNull { it.name == name }
         }
@@ -149,21 +96,13 @@ class FranchiseActivity : AppCompatActivity() {
         binding.franchiseBack.setSafeOnClickListener { finish() }
         applyWindowInsets()
 
-        // Entries in air-date order, with the curated position winning where the user has asked
-        // for it. The pill and the rows both read this same list, so they cannot disagree.
         val ordered = orderedEntries(card)
         totalEntries = ordered.size
         binding.franchiseEntryCount.text =
             getString(R.string.franchise_entries_count, totalEntries)
 
-        // The categories actually present, in the order the entries first introduce them, which
-        // is the order the pill offers. `add` rather than `+=` because the set is a val: the
-        // pill is rebuilt from scratch whenever the filters change, so nothing is ever cleared
-        // back to a previous value here.
         ordered.mapNotNull { it.type }.forEach { availableTypes.add(it) }
 
-        // The filter row is the same capsule the library status tabs use, so the travelling
-        // selection indicator is identical rather than a per-chip background approximation.
         binding.franchiseFilterPill.bind(
             tabs = pillTabs.value,
             selectedIndex = pillSelected.value,
@@ -173,15 +112,10 @@ class FranchiseActivity : AppCompatActivity() {
         applyPreselect()
         buildRows(ordered)
 
-        // Enrich when there is something to gain: an entry missing its synopsis OR its
-        // category (the filter pill reads `type`), and at least one AniList id to match on.
-        // A Kitsu card now carries a type up front, but enrichment can still refine it
-        // (e.g. a SPECIAL that AniList reports as OVA) and fills air date/score/runtime.
         if (ordered.any { it.synopsis.isNullOrBlank() || it.type == null } &&
             ordered.any { it.anilistId != null }
         ) {
-            // Statuses are read once the enriched entries are bound, since enrichment can be
-            // what supplies the AniList id a status is keyed on.
+
             enrichFromAnilist()
         } else {
             loadListStatuses(ordered)
@@ -189,22 +123,6 @@ class FranchiseActivity : AppCompatActivity() {
         loadLogoArt(card)
     }
 
-    /**
-     * Puts the franchise's wordmark above the name.
-     *
-     * Trakt serves a logo on the card, and it is used as-is. AniList has no logo field at all,
-     * so an anime franchise's wordmark comes from Fanart for the representative entry.
-     * The representative is the last entry, matching where the banner is taken from: for a
-     * series it is the most recent title, which is the one whose branding a reader expects to see.
-     *
-     * Clear art is asked for ahead of the logo because it is the asset that reads as a franchise
-     * banner, but Fanart carries none of it for anime, so the logo is what this actually gets in
-     * practice. Both are tried so a title that does gain clear art is picked up without a further
-     * change.
-     *
-     * A franchise with no logo anywhere simply shows its name. Nothing is substituted, since a
-     * cropped poster standing in for a wordmark reads as a rendering fault rather than a design.
-     */
     private fun loadLogoArt(card: Franchise) {
         if (!PrefManager.getVal<Boolean>(PrefName.UseClearlogoInPosters)) return
         val logo = card.logoUrl
@@ -220,12 +138,6 @@ class FranchiseActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Shows [url] as the header's logo, or leaves the header with just the name.
-     *
-     * Gone rather than an empty box: an ImageView with nothing in it still claims its 56dp and
-     * pushes the name down, so a franchise with no wordmark would sit lower than one that has it.
-     */
     private fun showLogo(url: String?) {
         val logo = binding.franchiseLogo
         if (url.isNullOrBlank()) {
@@ -236,13 +148,6 @@ class FranchiseActivity : AppCompatActivity() {
         logo.loadImage(url)
     }
 
-    /**
-     * Keeps the header clear of the status bar and the last row clear of the navigation bar.
-     *
-     * The activity is edge to edge, so without this the back button sits under the clock and the
-     * final card is half-hidden behind the gesture bar. Done as padding on the two containers
-     * rather than on the root, so the backdrop still runs to the physical edges.
-     */
     private fun applyWindowInsets() {
         ViewCompat.setOnApplyWindowInsetsListener(binding.franchiseRoot) { _, insets ->
             val bars = insets.getInsets(
@@ -254,29 +159,12 @@ class FranchiseActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * The entry order the screen draws.
-     *
-     * Air date is the honest ordering, and the pill is drawn from it. But when the user has
-     * turned on Kitsu's curated ordering, that ordering is better informed than a date sort —
-     * it is the source's own sequence, including for entries whose dates are unknown or wrong —
-     * so it wins, exactly as it does on the row itself.
-     */
     private fun orderedEntries(card: Franchise): List<FranchiseEntry> {
-        // getVal's type parameter appears only in its return type, so a bare val gives the
-        // compiler nothing to infer it from. Every other call site in the app is either in an
-        // if or already annotated, which is why this one was the only one that failed.
+
         val curated: Boolean = PrefManager.getVal(PrefName.KitsuCuratedOrder)
         return if (curated) card.entries else card.sortOrder
     }
 
-    /**
-     * Rebuilds the library pill's tabs: All plus one per category actually present.
-     *
-     * Built from the entries so an OVA tab never appears on a franchise that has none. A filter
-     * that cannot change anything is worse than no filter, because it reads as broken rather
-     * than as absent. Counts are the entry counts per category, matching the library pill's own.
-     */
     private fun rebuildPillTabs() {
         val card = franchise ?: return
         val all = orderedEntries(card)
@@ -295,22 +183,12 @@ class FranchiseActivity : AppCompatActivity() {
         )
     }
 
-    /** Applies the pill's selection; index 0 is All, the rest are [availableTypes] in order. */
     private fun selectFilter(index: Int) {
         selectedType = availableTypes.toList().getOrNull(index - 1)
         pillSelected.value = index
         refilter()
     }
 
-    /**
-     * Lands on the wanted category, when this franchise has one.
-     *
-     * The tab has to exist before it can be selected, and the tabs are built from the entries,
-     * so a franchise with nothing of the wanted category keeps All rather than showing a
-     * selection that filters nothing. Index 0 is All and the categories follow it in the order
-     * the entries introduce them, so the wanted category's index is one past its place in
-     * [availableTypes].
-     */
     private fun applyPreselect() {
         val wanted = preselectType ?: return
         val index = availableTypes.indexOf(wanted)
@@ -318,22 +196,11 @@ class FranchiseActivity : AppCompatActivity() {
         selectFilter(index + 1)
     }
 
-    /** Rebuilds the rows for the current filter. */
     private fun refilter() {
         val all = franchise?.let { orderedEntries(it) } ?: return
         buildRows(all)
     }
 
-    /**
-     * Adds one row per entry that passes the current filter, alternating card sides.
-     *
-     * Filtered-out entries are left out of the layout entirely rather than dimmed in place, so
-     * what is on screen is the sequence and nothing else. What was hidden stays legible from the
-     * count under the title, which reads "3 of 12" while a filter is on, so nothing disappears
-     * without leaving a trace.
-     *
-     * @param ordered every entry, in franchise order.
-     */
     private fun buildRows(ordered: List<FranchiseEntry>) {
         val container = binding.franchiseRows
         container.removeAllViews()
@@ -344,17 +211,8 @@ class FranchiseActivity : AppCompatActivity() {
         binding.franchiseEmpty.isVisible = shown.isEmpty()
         binding.franchiseProgress.isVisible = false
 
-        // The count follows the filter, and then says what the entries it is counting are made
-        // of. "5 entries · 2 movies · 3 series" is one line of arithmetic rather than three
-        // unrelated facts, and every part of it is read off what is on screen, so a filter
-        // narrows the whole line instead of leaving the breakdown describing entries nobody
-        // can see any more.
         binding.franchiseEntryCount.text = entryCountText(shown)
 
-        // Alternation is by position among the *visible* entries, not by franchise index. Keeping
-        // the original index would let two rows in a row land on the same side once a filter
-        // thinned the sequence, and the rhythm of card-left/card-right is what makes the flow
-        // readable; a filter that broke the rhythm would read as a bug.
         shown.forEachIndexed { index, entry ->
             val row = ItemFranchiseEntryBinding.inflate(layoutInflater, container, false)
             bindRow(row, entry, index)
@@ -363,18 +221,9 @@ class FranchiseActivity : AppCompatActivity() {
         }
     }
 
-    /** Whether this entry passes the active filter. */
     private fun matches(entry: FranchiseEntry) =
         selectedType == null || entry.type == selectedType
 
-    /**
-     * The line under the name: how many entries, and what they are.
-     *
-     * Both halves are counted from [shown] rather than from the franchise, so the line always
-     * describes the screen in front of the reader. Under a filter the unfiltered total is still
-     * given, as "3 of 5 entries", because a count that shrinks with no way back to the number
-     * it came from reads as data loss rather than as a filter.
-     */
     private fun entryCountText(shown: List<FranchiseEntry>): String {
         val total = shown.size
         val head = if (selectedType == null) {
@@ -388,19 +237,14 @@ class FranchiseActivity : AppCompatActivity() {
             )
         }
 
-        // Only the categories that are actually present. "0 movies" is arithmetic, not news,
-        // and a franchise of twelve series does not need to be told it has no films.
         val parts = shown.mapNotNull { it.type }
             .groupingBy { it }
             .eachCount()
             .map { (type, count) -> typeCountPart(type, count) }
 
-        // The separator lives in the string, as a leading space on each part, so the join has
-        // no glue of its own and a translator can change the mark without touching this.
         return parts.joinToString(separator = "", prefix = head.toString())
     }
 
-    /** "2 movies": one category's share of the count. */
     private fun typeCountPart(type: FranchiseType, count: Int): String {
         return getString(
             R.string.franchise_count_part,
@@ -408,24 +252,9 @@ class FranchiseActivity : AppCompatActivity() {
         )
     }
 
-    /**
-     * Fills one row and flips it when the index is odd, which is the alternating rhythm.
-     *
-     * The flip is a swap of the two columns inside the row. Nothing about their sizes changes
-     * with it: the poster is a fixed width and the text column takes the rest, so whichever
-     * side a row lands on, the poster is the same poster and the prose gets the same prose.
-     */
     private fun bindRow(row: ItemFranchiseEntryBinding, entry: FranchiseEntry, index: Int) {
         val cardOnLeft = index % 2 == 0
 
-        // The row itself is the parent of the two columns, and it is the root of the inflated
-        // layout, so it exists here whether or not the row has been added to the screen yet.
-        //
-        // `row.franchiseRow.parent` looks like the same thing and is not: bindRow runs before
-        // container.addView, so that parent is still null at this point, and reading it made
-        // this function return before it bound anything at all. It would have been the
-        // container even once attached, which is the rows' container, not the row's — moving
-        // the columns into it would have torn every row apart.
         val parent = row.franchiseRow
         if (cardOnLeft) {
             if (parent.getChildAt(0) !== row.franchiseRowCardHolder) {
@@ -447,73 +276,31 @@ class FranchiseActivity : AppCompatActivity() {
             }
         }
 
-        // The poster, not the banner: the row is a portrait card now, and a wide frame cropped
-        // into one loses the sides of every shot that matters. Fall back to the wide artwork
-        // only for the sources that send a poster for some titles and not others.
         row.franchiseRowBackdrop.loadImage(entry.posterUrl ?: entry.backdropUrl)
 
-        // Rating at the top of the poster. Omitted rather than blanked when the source did not
-        // score the title, because a zero would be a claim and a gap is not.
         row.franchiseRowScore.text = entry.score?.let {
             getString(R.string.franchise_score, it)
         }
         row.franchiseRowScore.isVisible = entry.score != null
 
-        // The year under the info button. The full air date is not shown: with the year already
-        // here in the poster's own column, the date would repeat it a few lines away in a
-        // different typeface for no gain.
         row.franchiseRowYear.text = entry.year
         row.franchiseRowYear.isVisible = entry.year.isNotBlank()
 
-        // The title, and only the title. Not the franchise's wordmark: that is already at
-        // the top of the screen, and a logo in every row says the same thing a dozen times
-        // without telling you which entry this is. Nor the runtime, which used to ride along at the
-        // end of the run: the entry's own screen opens on its own length, so here it was a number
-        // with nothing to be compared against, sitting at the end of a line about something else.
         row.franchiseRowTitle.text = entry.title
 
-        // A teaser, not the text: clamped to the poster's height below, with the full synopsis
-        // behind the info affordance. One entry's length must not stretch its row past the
-        // poster it is sitting beside.
         row.franchiseRowSynopsis.text = entry.synopsis
             ?: getString(R.string.franchise_empty_synopsis)
 
-        // Clamped in code rather than by maxLines in the layout because the limit is "as much as
-        // the poster is tall", which maxLines cannot express: a fixed count would leave a short
-        // poster with a short teaser and a tall one with a clipped teaser, breaking the rhythm
-        // the whole screen depends on.
         clampSynopsisToPoster(row)
 
         bindListStatus(row, entry)
         bindInfo(row, entry)
 
-        // The whole poster is the tap target, as on the row it came from. Touch only: the
-        // poster is kept out of the pad's path in the layout, so the pad walks the "i"
-        // buttons down the screen instead of stopping on every picture.
         row.franchiseRowCard.setSafeOnClickListener {
             openEntry(entry, MediaDetailsActivity.INFO_TAB)
         }
     }
 
-    /**
-     * Caps the teaser at the poster's height.
-     *
-     * The text is measured unclamped to learn how many lines it would take, then re-clamped to
-     * the tallest run that fits beside the poster, with a floor of one line so a teaser is
-     * always readable. Measured in a post because the poster's height is only known after
-     * layout.
-     *
-     * The poster is the ceiling because it is the fixed thing in the row. The text column is
-     * centred against it, so a teaser taller than the poster would not merely crowd it, it
-     * would make the column taller than the row and break the alternation, since every row is
-     * as tall as its tallest column and the sides are what carry the zigzag.
-     *
-     * The title comes off the top of that budget first, along with the gap above the teaser,
-     * so the column finishes level with the poster's foot rather than overshooting it.
-     *
-     * Where a full run would be a near-exact fit, the last line is dropped rather than
-     * ellipsised mid-word: `maxLines` would otherwise leave a line that is mostly whitespace.
-     */
     private fun clampSynopsisToPoster(row: ItemFranchiseEntryBinding) {
         val poster = row.franchiseRowCard
         val title = row.franchiseRowTitle
@@ -530,9 +317,6 @@ class FranchiseActivity : AppCompatActivity() {
             val budget = poster.height - title.height - gap
             val fits = (budget / lineHeight).coerceAtLeast(1)
 
-            // lineCount only means anything after a measure pass, so the unclamped count has to
-            // be taken across a layout: lift the limit, ask for one, and read the count on the
-            // far side of it. Reading it in the same pass would return the old, clamped count.
             text.maxLines = Int.MAX_VALUE
             text.requestLayout()
             text.post {
@@ -541,7 +325,7 @@ class FranchiseActivity : AppCompatActivity() {
                 val needed = text.lineCount
                 val chosen = when {
                     needed <= fits -> fits
-                    // One line short of fitting leaves room for the ellipsis on the same run.
+
                     fits > 1 -> fits - 1
                     else -> 1
                 }
@@ -551,13 +335,6 @@ class FranchiseActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * The list-status chip, matching the info tab's control.
-     *
-     * Anime entries read AniList's user status; TMDB entries read Simkl's, exactly as the two
-     * info tabs do. Statuses are loaded once when this screen opens, for the entries on it, so
-     * neither source is asked about titles the reader never opened.
-     */
     private fun bindListStatus(row: ItemFranchiseEntryBinding, entry: FranchiseEntry) {
         row.franchiseRowListStatus.text = statusLabel(entry) ?: getString(R.string.add_list)
         row.franchiseRowListStatus.setSafeOnClickListener {
@@ -569,7 +346,6 @@ class FranchiseActivity : AppCompatActivity() {
         }
     }
 
-    /** The localised label for an entry's status, or null when it is not on any list. */
     private fun statusLabel(entry: FranchiseEntry): String? {
         val raw = when {
             entry.anilistId != null -> anilistStatuses[entry.anilistId] ?: entry.listStatus
@@ -586,16 +362,9 @@ class FranchiseActivity : AppCompatActivity() {
         return labels.getOrNull(index)
     }
 
-    /**
-     * Loads list statuses for the entries on this screen only.
-     *
-     * One batched AniList query for the anime ids, and one Simkl library read each for movies
-     * and shows on the TMDB side. Nothing is prefetched for other franchises or other screens.
-     */
     private fun loadListStatuses(entries: List<FranchiseEntry>) {
         lastStatusLoadAt = System.currentTimeMillis()
 
-        // Only request AniList statuses for ids in this franchise. No account-wide list scan.
         val anilistIds = entries.mapNotNull { it.anilistId }.distinct()
         if (anilistIds.isNotEmpty()) {
             lifecycleScope.launch {
@@ -632,7 +401,6 @@ class FranchiseActivity : AppCompatActivity() {
         }
     }
 
-    /** Rewrites the visible chips in place, so a status refresh does not scroll the screen. */
     private fun refreshStatusChips() {
         rowBindings.forEachIndexed { index, row ->
             val entry = shownEntries.getOrNull(index) ?: return@forEachIndexed
@@ -640,17 +408,6 @@ class FranchiseActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * The styled circular "i": the entry's own Info tab.
-     *
-     * Carries the calendar's focus treatment, circular border and all, because that is what the
-     * user reaches for on a dpad and a square ring round a round button reads as a mistake. It is
-     * also the only control in a row the pad can land on: the poster and the list chip are kept
-     * out of the pad's path in the layout, because a focus ring round a picture and a chip that
-     * opens a dialog halfway down the screen are both things nobody asked for. The "i" is a
-     * 30dp circle inside a poster, which is exactly the sort of thing a directional pad needs to
-     * be told about.
-     */
     private fun bindInfo(row: ItemFranchiseEntryBinding, entry: FranchiseEntry) {
         row.franchiseRowInfo.setSafeOnClickListener {
             openEntry(entry, MediaDetailsActivity.INFO_TAB)
@@ -663,21 +420,10 @@ class FranchiseActivity : AppCompatActivity() {
         )
     }
 
-    /**
-     * Opens the list editor for one entry.
-     *
-     * Reuses [MediaListDialogFragment] rather than building a second editor: the whole point of
-     * matching the info tab's control is that it opens the same thing.
-     */
     private fun showListEditor(anilistId: Int) {
         val fm = supportFragmentManager
         if (fm.findFragmentByTag(LIST_DIALOG_TAG) != null) return
 
-        // The editor observes the activity's MediaDetailsViewModel rather than taking arguments,
-        // so the media has to be in that ViewModel before the dialog is shown or it renders an
-        // empty sheet. A stub is enough: the ViewModel fetches the rest itself and the stub's
-        // blank title is never drawn, since the sheet is laid out before the fetch lands but the
-        // dialog is only shown with the loaded media.
         val model: MediaDetailsViewModel by viewModels()
         model.loadMedia(
             Media(
@@ -693,12 +439,6 @@ class FranchiseActivity : AppCompatActivity() {
         }.show(fm, LIST_DIALOG_TAG)
     }
 
-    /**
-     * Opens the Simkl list editor for a TMDB entry.
-     *
-     * The same sheet the TMDB info tab opens, so a change made here writes the same fields and
-     * comes back through the same callback.
-     */
     private fun showSimklListEditor(entry: FranchiseEntry) {
         val tmdbId = entry.tmdbId ?: return
         val fm = supportFragmentManager
@@ -718,28 +458,6 @@ class FranchiseActivity : AppCompatActivity() {
         }.show(fm, LIST_DIALOG_TAG)
     }
 
-    /**
-     * Opens this entry's own detail screen — the same screen its own card opens on the home grid.
-     *
-     * Every source that has an in-app detail screen goes to it: a film or a show to
-     * [TmdbDetailsActivity] by TMDB id, anime to [MediaDetailsActivity] by AniList id. Bouncing
-     * out to a browser to read what the app already fetched is a downgrade. Trakt is the
-     * exception — the app has no detail screen of its own for a Trakt entry, so that one opens
-     * the source's own page rather than an unrelated title.
-     *
-     * The one thing that cannot match the home grid is the anime path, and it is a property of
-     * the data rather than of this call. Home already holds the [Media] and passes it whole, so
-     * its screen draws at once; a [FranchiseEntry] carries only an AniList id, so the detail
-     * screen has to fetch the media itself before it draws. That is the same by-id path a dozen
-     * other entry points use — notifications, the calendar, the activity feed — so it is the
-     * app's normal cost for arriving without the object, not something this screen adds.
-     *
-     * A season entry carries its show's id, not the season's, so it lands on the show's page:
-     * [TmdbDetailsActivity] has no season argument, and the show is the honest thing to open.
-     *
-     * @param tab which tab an *anime* entry lands on. Ignored for TMDB, whose screen is opened
-     *   exactly as the home grid opens it and takes no tab argument.
-     */
     private fun openEntry(entry: FranchiseEntry, tab: Int = MediaDetailsActivity.INFO_TAB) {
         entry.anilistId?.let { id ->
             startActivity(
@@ -752,11 +470,7 @@ class FranchiseActivity : AppCompatActivity() {
         }
 
         entry.tmdbId?.let { id ->
-            // Deliberately the same intent the home grid builds in MediaAdaptor.clicked — same
-            // two extras, no tab argument — so tapping a poster here and tapping its card at home
-            // are the same action rather than two that look alike. Naming a tab here would pin it
-            // to Info, which is where it lands anyway, and would quietly diverge from every other
-            // caller the next time the default changed.
+
             startActivity(
                 Intent(this, TmdbDetailsActivity::class.java)
                     .putExtra(TmdbDetailsActivity.ARG_MEDIA_TYPE, entry.tmdbType ?: "movie")
@@ -773,16 +487,6 @@ class FranchiseActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Fills in synopsis, score, format and list status from AniList, then rebinds.
-     *
-     * Only fires when there is something to gain, which the caller checks: a Trakt-backed card
-     * carries all of this already, and a Kitsu card with no AniList ids cannot be enriched at
-     * all. One batched query for the whole screen, not one per entry.
-     *
-     * The order is recomputed rather than taken from the caller, since enrichment can fill in an
-     * air date that changes where an entry sorts.
-     */
     private fun enrichFromAnilist() {
         val card = franchise ?: return
         binding.franchiseProgress.isVisible = true
@@ -790,16 +494,13 @@ class FranchiseActivity : AppCompatActivity() {
             val enriched = withContext(Dispatchers.IO) {
                 AnilistFranchiseRanks.enrich(listOf(card))
             }
-            // enrich() hands back what it was given even when the request failed, but first()
-            // would throw on an empty list rather than degrading, so the fallback is explicit.
+
             val resolved = enriched.firstOrNull() ?: card
             franchise = resolved
 
             val updated = orderedEntries(resolved)
             binding.franchiseProgress.isVisible = false
 
-            // Rebuilt rather than patched in place: enrichment can change an entry's type, which
-            // can change which filters are available, which means the whole row set is stale.
             availableTypes.clear()
             updated.mapNotNull { it.type }.forEach { availableTypes.add(it) }
             rebuildPillTabs()
@@ -813,30 +514,15 @@ class FranchiseActivity : AppCompatActivity() {
         getSerializableExtra(name) as? Franchise
 
     companion object {
-        /** Intent extra carrying the pressed [Franchise]. Serializable, matching [Media]. */
+
         const val EXTRA_FRANCHISE = "franchise"
 
-        /**
-         * Intent extra carrying the category the pill should land on.
-         *
-         * A [FranchiseType] name rather than the type itself, so the extra stays a plain string
-         * and cannot drag a serializable enum along with it. A name that no longer exists is
-         * simply ignored, which is what happens when a category is renamed.
-         */
         const val EXTRA_PRESELECT_TYPE = "franchise_preselect_type"
 
         private const val LIST_DIALOG_TAG = "franchise_list_dialog"
 
-        /** Suppresses the resume refetch right after the initial load on open. */
         private const val STATUS_REFRESH_DEBOUNCE_MS = 1500L
 
-        /**
-         * Builds the intent that opens this screen.
-         *
-         * @param franchise the card that was pressed.
-         * @param preselect the category to land on, or null for All. It is only honoured when
-         *   the franchise actually has entries of that category.
-         */
         fun intent(context: Context, franchise: Franchise, preselect: FranchiseType? = null) =
             Intent(context, FranchiseActivity::class.java)
                 .putExtra(EXTRA_FRANCHISE, franchise as Serializable)
