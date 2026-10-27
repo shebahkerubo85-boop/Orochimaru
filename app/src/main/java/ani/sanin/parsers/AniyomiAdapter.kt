@@ -4,6 +4,8 @@ import android.content.Context
 import ani.sanin.FileUrl
 import ani.sanin.currContext
 import ani.sanin.media.MediaNameAdapter
+import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import ani.sanin.snackString
 import ani.sanin.util.Logger
 import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
@@ -251,6 +253,11 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
 
         return try {
             val videos = getVideoList(source, sEpisode)
+
+            // Preserve the original one-row-per-video behavior when grouping is disabled.
+            if (!PrefManager.getVal<Boolean>(PrefName.GroupServersByHostAndLanguageTags)) {
+                return videos.map { videoToVideoServer(it) }
+            }
 
             // Extensions hand back one Video per quality/server embed. Group the
             // variants of the same hosting server (e.g. "VidPlay - 1080p" +

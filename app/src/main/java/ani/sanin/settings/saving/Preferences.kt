@@ -340,6 +340,7 @@ enum class PrefName(val data: Pref) {
     SmartSourcePersistence(Pref(Location.General, Boolean::class, false)),
     RememberMediaTab(Pref(Location.General, Boolean::class, false)),
     PreferDub(Pref(Location.General, Boolean::class, false)),
+    GroupServersByHostAndLanguageTags(Pref(Location.Player, Boolean::class, true)),
 
     AutoHideTimeout(Pref(Location.Player, Int::class, 5)),
     BufferSize(Pref(Location.Player, Int::class, 64)),

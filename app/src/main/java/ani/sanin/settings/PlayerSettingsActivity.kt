@@ -506,6 +506,13 @@ class PlayerSettingsActivity :
                     },
                 ),
                 SubscreenBuilder.Entry(
+                    title = "Group servers by host and language tags",
+                    desc = "Group quality links by host and show SUB/DUB tags in the server sheet",
+                    switch = PrefManager.getVal<Boolean>(PrefName.GroupServersByHostAndLanguageTags) to {
+                        PrefManager.setVal(PrefName.GroupServersByHostAndLanguageTags, it)
+                    },
+                ),
+                SubscreenBuilder.Entry(
                     title = getString(R.string.timestamps),
                     desc = "Enable segment timestamps, proxy, and skip button",
                     switch = PrefManager.getVal<Boolean>(PrefName.TimeStampsEnabled) to { checked ->

@@ -20,6 +20,7 @@ import ani.sanin.parsers.VideoServer
 import ani.sanin.parsers.DrmInfo
 import ani.sanin.parsers.VideoType
 import ani.sanin.settings.saving.PrefManager
+import ani.sanin.settings.saving.PrefName
 import ani.sanin.util.Logger
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MainAPI
@@ -575,6 +576,33 @@ object TmdbStreamResolver {
     /** Grouped extracts for the synthetic TMDB episode shell: one extractor per
      *  hosting server with its qualities as videos, mirroring anime grouping. */
     fun buildExtractors(links: List<StreamResult.PlayableLink>): List<VideoExtractor> {
+        if (!PrefManager.getVal<Boolean>(PrefName.GroupServersByHostAndLanguageTags)) {
+            val usedNames = HashSet<String>()
+            return links.mapIndexedNotNull { index, link ->
+                if (link.url.isBlank()) return@mapIndexedNotNull null
+                var name = link.label.ifBlank { "Server ${index + 1}" }
+                if (!usedNames.add(name.lowercase())) name = "$name ${usedNames.size + 1}"
+                val headers = HashMap(link.headers).apply {
+                    link.referer?.takeIf { it.isNotBlank() }?.let { put("Referer", it) }
+                }
+                val video = Video(
+                    quality = qualityFromLabel(link.label),
+                    format = videoTypeFor(link.url),
+                    file = FileUrl(link.url, headers),
+                    drm = link.drm,
+                )
+                val audioTracks = link.audioTracks.map { Track(url = it.url, lang = audioLanguage(it)) }
+                object : VideoExtractor() {
+                    override val server = VideoServer(name, "", mapOf("quality" to name))
+                    override suspend fun extract() =
+                        VideoContainer(videos = listOf(video), audioTracks = audioTracks)
+                }.apply {
+                    videos = listOf(video)
+                    this.audioTracks = audioTracks
+                }
+            }
+        }
+
         // Group the plugin's per-quality links under their hosting server (e.g.
         // "VidPlay" with 1080p/720p/360p rows), mirroring how anime sources group
         // servers in the sheet. There is no dub toggle in TMDB mode, so every host
@@ -768,15 +796,18 @@ object TmdbStreamResolver {
         current.allStreams = true
         // Resolve the picked quality to its grouped host card, so the continuity
         // selection keeps both the host and the quality row the user tapped.
+        val groupingEnabled = PrefManager.getVal<Boolean>(PrefName.GroupServersByHostAndLanguageTags)
         val pickedHost = links.firstOrNull { it.label == pickedLabel }?.host
             ?.takeIf { it.isNotBlank() }
             ?: pickedLabel
-        val pickedExtractor = extractors.firstOrNull { it.server.name == pickedHost }
-            ?: extractors.first()
-        val pickedVideoIdx = links
-            .filter { (it.host.ifBlank { it.label }) == pickedHost }
-            .indexOfFirst { it.label == pickedLabel }
-            .coerceAtLeast(0)
+        val pickedExtractor = extractors.firstOrNull {
+            it.server.name == if (groupingEnabled) pickedHost else pickedLabel
+        } ?: extractors.first()
+        val pickedVideoIdx = if (groupingEnabled) {
+            links.filter { (it.host.ifBlank { it.label }) == pickedHost }
+                .indexOfFirst { it.label == pickedLabel }
+                .coerceAtLeast(0)
+        } else 0
         current.selectedExtractor = pickedExtractor.server.name
         // Plugin links can change between opens; never point past the rendition list.
         current.selectedVideo = pickedVideoIdx.coerceIn(
