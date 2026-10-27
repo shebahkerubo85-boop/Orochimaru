@@ -256,7 +256,22 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
 
             // Preserve the original one-row-per-video behavior when grouping is disabled.
             if (!PrefManager.getVal<Boolean>(PrefName.GroupServersByHostAndLanguageTags)) {
-                return videos.map { videoToVideoServer(it) }
+                val usedNames = HashSet<String>()
+                return videos.mapIndexed { index, video ->
+                    val name = video.videoTitle.ifBlank { video.quality.ifBlank { "Server ${index + 1}" } }
+                    var uniqueName = name
+                    var suffix = 2
+                    while (!usedNames.add(uniqueName.lowercase(Locale.ROOT))) {
+                        uniqueName = "$name ${suffix++}"
+                    }
+                    VideoServer(
+                        name = uniqueName,
+                        embed = FileUrl(video.url),
+                        extraData = null,
+                        video = video,
+                        extraVideos = null
+                    )
+                }
             }
 
             // Extensions hand back one Video per quality/server embed. Group the
