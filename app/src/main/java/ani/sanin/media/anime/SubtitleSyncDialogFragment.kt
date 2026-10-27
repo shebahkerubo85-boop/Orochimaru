@@ -52,6 +52,7 @@ private const val PROGRESS_PAYLOAD = "sync_progress"
  */
 interface SubtitleSyncHost {
     fun getSyncPlayerPosition(): Long
+    fun getSubtitleOffset(): Long
     fun setSubtitleOffset(offsetMs: Long)
     fun getSyncCues(): List<SyncCue>
 }
@@ -102,7 +103,7 @@ class SubtitleSyncDialogFragment : DialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        currentOffset = PrefManager.getVal<Long>(PrefName.SubtitleDelay)
+        currentOffset = (requireActivity() as? SubtitleSyncHost)?.getSubtitleOffset() ?: 0L
         openingOffset = currentOffset
         setupViews()
         startUpdateLoop()
@@ -277,8 +278,6 @@ class SubtitleSyncDialogFragment : DialogFragment() {
     }
 
     private fun applyOffset() {
-        PrefManager.setVal(PrefName.SubtitleDelay, currentOffset)
-        PrefManager.setVal(PrefName.SubtitleSyncEnabled, currentOffset != 0L)
         (requireActivity() as? SubtitleSyncHost)?.setSubtitleOffset(currentOffset)
         dismiss()
     }

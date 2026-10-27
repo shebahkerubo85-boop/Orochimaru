@@ -11,6 +11,7 @@ previewseekbarVer = "1.1.1.0"
 markwon = "4.6.2"
 groupie = "2.10.1"
 ass = "0.4.0"
+vad = "2.0.10"
 fuzzy = "1.4.0"
 compose-bom = "2025.06.00"
 androidsvg = "1.4"
@@ -112,6 +113,7 @@ media3-cast = { module = "androidx.media3:media3-cast", version.ref = "exo" }
 previewseekbar-media3 = { module = "com.github.rubensousa:previewseekbar-media3", version.ref = "previewseekbarVer" }
 ass-media = { module = "io.github.peerless2012:ass-media", version.ref = "ass" }
 ass-kt = { module = "io.github.peerless2012:ass-kt", version.ref = "ass" }
+vad-webrtc = { module = "com.github.gkonovalov.android-vad:webrtc", version.ref = "vad" }
 
 # UI
 # Compose

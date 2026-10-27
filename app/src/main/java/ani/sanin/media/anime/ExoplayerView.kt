@@ -205,6 +205,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -320,6 +321,12 @@ class ExoplayerView :
     private var audioLanguages = mutableListOf<Pair<String, String>>()
     private val storedSyncCues = mutableListOf<SyncCue>()
     private val seenCueTexts = mutableSetOf<String>()
+    private val speechRecorder = AudioSpeechRecorder()
+    private var speechRecorderKey: String? = null
+    private var autoSyncJob: Job? = null
+    private var autoSyncCues: List<SyncCue> = emptyList()
+    private var autoSyncCueKey: String? = null
+    private var autoSyncGeneration = 0
 
     companion object {
         var initialized = false
@@ -336,6 +343,8 @@ class ExoplayerView :
         private const val BACK_BUFFER_DURATION_MS = 1000 * 60 * 2
         private const val MAX_PLAYER_ERROR_RETRIES = 1
         private const val MAX_LIVE_RECONNECTS = 3
+        private const val AUTO_SYNC_INTERVAL_MS = 15_000L
+        private const val AUTO_SYNC_MIN_SPEECH_MS = 25_000L
         // Live streams (Cricify/SKTech/PlayZTV): HLS segment URLs expire after a
         // short TTL. Anchor near the live edge with a small target offset
         // (CloudStream uses 5s) so ExoPlayer follows the sliding window natively
@@ -2703,8 +2712,25 @@ class ExoplayerView :
         // Use Media3's built-in renderers only. FFmpeg software decoding is intentionally not
         // bundled; standard hardware decoding and libass subtitle rendering remain available.
         val handler = assHandler!!
-        Logger.log("Libass: Calling DefaultRenderersFactory.withAssSupport()")
-        val renderersFactory = DefaultRenderersFactory(this)
+        val syncKey = currentSubtitleSyncKey()
+        val autoSyncPrefEnabled =
+            PrefManager.getVal<Boolean>(PrefName.SubtitleAutoSyncVad) && !isLiveStream()
+        cancelAutoSyncWatcher()
+        if (speechRecorderKey != syncKey) {
+            speechRecorderKey = syncKey
+            speechRecorder.clearSegments()
+            autoSyncCues = emptyList()
+            autoSyncCueKey = null
+        }
+        val storedSource = if (PrefManager.getVal<String>(PrefName.SubtitleDelayKey) == syncKey) {
+            PrefManager.getVal<String>(PrefName.SubtitleSyncSource)
+        } else {
+            ""
+        }
+        val alreadyHandled = storedSource == "manual" || storedSource == "auto"
+        speechRecorder.setEnabled(autoSyncPrefEnabled && !alreadyHandled)
+        Logger.log("Libass: Calling SubtitleSyncRenderersFactory.withAssSupport()")
+        val renderersFactory = SubtitleSyncRenderersFactory(this, speechRecorder)
             .setEnableDecoderFallback(false)
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
             .withAssSupport(handler)
@@ -2758,6 +2784,12 @@ class ExoplayerView :
             }
             updateLiveBadge()
 
+        }
+
+        if (autoSyncPrefEnabled && !alreadyHandled &&
+            autoSyncCueKey == syncKey && autoSyncCues.isNotEmpty()
+        ) {
+            startAutoSyncWatcher()
         }
 
         exoPlayer.addListener(
@@ -2843,7 +2875,7 @@ class ExoplayerView :
                     }
                     val currentPosition = exoPlayer.currentPosition
 
-                    val subtitleOffset = PrefManager.getVal<Long>(PrefName.SubtitleDelay)
+                    val subtitleOffset = activeSubtitleOffset()
                     val syncEnabled = PrefManager.getVal<Boolean>(PrefName.SubtitleSyncEnabled)
 
                     val useCustomRendering = PrefManager.getVal<Boolean>(PrefName.TextviewSubtitles) ||
@@ -3226,9 +3258,33 @@ class ExoplayerView :
         }
     }
 
-    fun applySubtitleOffset(offsetMs: Long) {
+    /**
+     * A sync offset only ever belongs to the episode it was tuned for. The
+     * preference survives process death, so without the media/episode key the
+     * delay from one episode (or an old auto-sync guess) would silently shift
+     * every later episode.
+     */
+    private fun currentSubtitleSyncKey(): String =
+        "${media.id}-${media.anime?.selectedEpisode ?: ""}"
+
+    private fun activeSubtitleOffset(): Long {
+        if (PrefManager.getVal<String>(PrefName.SubtitleDelayKey) != currentSubtitleSyncKey()) return 0L
+        return PrefManager.getVal<Long>(PrefName.SubtitleDelay)
+    }
+
+    private fun storeSubtitleOffset(offsetMs: Long, source: String = "") {
+        PrefManager.setVal(PrefName.SubtitleDelayKey, currentSubtitleSyncKey())
         PrefManager.setVal(PrefName.SubtitleDelay, offsetMs)
         PrefManager.setVal(PrefName.SubtitleSyncEnabled, offsetMs != 0L)
+        PrefManager.setVal(PrefName.SubtitleSyncSource, source)
+    }
+
+    fun applySubtitleOffset(offsetMs: Long) {
+        // A manual adjustment always owns this episode: stop capture and never
+        // let an in-flight auto result overwrite it.
+        storeSubtitleOffset(offsetMs, "manual")
+        cancelAutoSyncWatcher()
+        speechRecorder.setEnabled(false)
         // Render immediately: the custom-sync path only recalculated inside
         // onCues(), which fires on cue-set changes — after clicking a cue or
         // Apply the screen kept the stale text until the next cue boundary.
@@ -3242,7 +3298,7 @@ class ExoplayerView :
      */
     private fun refreshSyncRender() {
         if (!::exoPlayer.isInitialized) return
-        val subtitleOffset = PrefManager.getVal<Long>(PrefName.SubtitleDelay)
+        val subtitleOffset = activeSubtitleOffset()
         val syncEnabled = PrefManager.getVal<Boolean>(PrefName.SubtitleSyncEnabled)
         val cues = synchronized(storedSyncCues) { storedSyncCues.isNotEmpty() }
         if (syncEnabled && subtitleOffset != 0L && cues) {
@@ -3273,28 +3329,117 @@ class ExoplayerView :
     }
 
     /**
-     * Heuristic initial sync for subtitles loaded while playing mid-show.
-     * Different releases pack different amounts of cold open/recap/credits on
-     * either end, so the mismatch is mostly stationary: align the file's
-     * timeline tail with the video duration and take whatever offset falls
-     * out. Deliberately approximate ("not perfect but a little good") — the
-     * Subtitle Sync dialog remains the fine-tuning tool.
+     * Starts audio-based sync for a freshly loaded subtitle file.
      *
-     * offset = playerDuration - subtitleLastEnd; applied cue time becomes
-     * (playhead - offset) which matches the equivalent scene in the file's
-     * timeline. 0 = leave unsynced (file and video agree).
+     * The offset from a previous file is cleared first because a new file has
+     * its own timeline. ASS/SSA is skipped: libass draws it directly and
+     * ignores the player offset. TTML produces no parsed cues here, so it is
+     * skipped by the size check.
      */
-    private fun autoSyncOffsetFromCues(playheadMs: Long, durationMs: Long, cues: List<SyncCue>): Long {
-        if (cues.isEmpty() || durationMs <= 0 || playheadMs < 180_000L) return 0L
-        val lastEndMs = cues.maxOf { it.startTimeMs + it.durationMs }
-        if (lastEndMs <= 0L) return 0L
-        val offset = durationMs - lastEndMs
-        val abs = kotlin.math.abs(offset)
-        return if (abs in 10_000L..15 * 60_000L) offset else 0L
+    private fun beginSubtitleAutoSync(cues: List<SyncCue>, format: String) {
+        cancelAutoSyncWatcher()
+        autoSyncCues = emptyList()
+        autoSyncCueKey = null
+        val key = currentSubtitleSyncKey()
+        if (speechRecorderKey != key) {
+            // The episode can change before the subtitle download finishes,
+            // so clear here too instead of trusting buildExoplayer's key.
+            speechRecorderKey = key
+            speechRecorder.clearSegments()
+        }
+        storeSubtitleOffset(0L, "")
+        if (format == "ASS" || cues.size < 8 || isLiveStream()) {
+            speechRecorder.setEnabled(false)
+            return
+        }
+        val usable = getSyncCues()
+        if (usable.size < 8) {
+            speechRecorder.setEnabled(false)
+            return
+        }
+        if (!PrefManager.getVal<Boolean>(PrefName.SubtitleAutoSyncVad)) {
+            speechRecorder.setEnabled(false)
+            return
+        }
+        autoSyncCues = usable
+        autoSyncCueKey = currentSubtitleSyncKey()
+        startAutoSyncWatcher()
+    }
+
+    /**
+     * Watches the speech mask while the episode plays and applies at most one
+     * confident offset. It never overwrites a manual setting, and it re-checks
+     * authority after the background correlation returns.
+     */
+    private fun startAutoSyncWatcher() {
+        val key = autoSyncCueKey ?: return
+        if (autoSyncCues.isEmpty()) return
+        cancelAutoSyncWatcher()
+        val generation = autoSyncGeneration
+        speechRecorder.setEnabled(true)
+        autoSyncJob = lifecycleScope.launch {
+            var lastSpeechMs = 0L
+            try {
+                while (isActive) {
+                    delay(AUTO_SYNC_INTERVAL_MS)
+                    if (!PrefManager.getVal<Boolean>(PrefName.SubtitleAutoSyncVad)) break
+                    if (currentSubtitleSyncKey() != key) break
+                    if (hasManualSyncForCurrentEpisode()) break
+                    val segments = speechRecorder.snapshotSegments()
+                    val speechMs = segments.sumOf { it.endMs - it.startMs }
+                    if (speechMs < AUTO_SYNC_MIN_SPEECH_MS) continue
+                    if (speechMs <= lastSpeechMs + 2_000L) continue
+                    lastSpeechMs = speechMs
+                    val result = withContext(Dispatchers.Default) {
+                        SubtitleAudioSync.correlate(autoSyncCues, segments)
+                    } ?: continue
+                    if (!PrefManager.getVal<Boolean>(PrefName.SubtitleAutoSyncVad)) break
+                    if (currentSubtitleSyncKey() != key) break
+                    if (hasManualSyncForCurrentEpisode()) break
+                    storeSubtitleOffset(result.offsetMs, "auto")
+                    refreshSyncRender()
+                    Logger.log(
+                        "SubtitleAutoSync: offset=${result.offsetMs}ms " +
+                            "onset=${"%.2f".format(result.onsetShare)} " +
+                            "presence=${"%.2f".format(result.presenceShare)} " +
+                            "cues=${result.consideredCues}"
+                    )
+                    if (result.offsetMs != 0L) {
+                        snackString(
+                            "Auto-synced subtitles from audio (%+.1fs)"
+                                .format(result.offsetMs / 1000.0)
+                        )
+                    }
+                    break
+                }
+            } finally {
+                if (generation == autoSyncGeneration) {
+                    speechRecorder.setEnabled(false)
+                    autoSyncJob = null
+                }
+            }
+        }
+    }
+
+    /**
+     * The generation counter stops a cancelled watcher's `finally` block from
+     * disabling capture after a new watcher has already started.
+     */
+    private fun cancelAutoSyncWatcher() {
+        autoSyncGeneration++
+        autoSyncJob?.cancel()
+        autoSyncJob = null
+    }
+
+    private fun hasManualSyncForCurrentEpisode(): Boolean {
+        val key = currentSubtitleSyncKey()
+        return PrefManager.getVal<String>(PrefName.SubtitleDelayKey) == key &&
+            PrefManager.getVal<String>(PrefName.SubtitleSyncSource) == "manual"
     }
 
     // SubtitleSyncHost implementation
     override fun getSyncPlayerPosition(): Long = getPlayerPosition()
+    override fun getSubtitleOffset(): Long = activeSubtitleOffset()
     override fun setSubtitleOffset(offsetMs: Long) = applySubtitleOffset(offsetMs)
     // getSyncCues() already matches the interface signature
 
@@ -3497,9 +3642,6 @@ class ExoplayerView :
 
 
     private fun applyLocalSubtitle(uri: android.net.Uri) {
-        // Capture before any async work — mid-show auto-sync heuristic inputs.
-        val loadPlayheadMs = try { exoPlayer.currentPosition } catch (_: Exception) { 0L }
-        val loadDurationMs = try { exoPlayer.duration } catch (_: Exception) { 0L }
         try {
             val label = "Local Subtitle"
             Logger.log("applyLocalSubtitle: uri=$uri")
@@ -3563,18 +3705,15 @@ class ExoplayerView :
                 val contentString = subtitleBytes.toString(Charsets.UTF_8)
                 val parsedCues = parseSubtitleContent(contentString, formatForParse)
                 storeParsedCues(parsedCues)
-                val autoOffset = autoSyncOffsetFromCues(loadPlayheadMs, loadDurationMs, parsedCues)
                 Logger.log(
-                    "applyLocalSubtitle: autoSync offset=${autoOffset}ms " +
-                        "playhead=$loadPlayheadMs duration=$loadDurationMs cues=${parsedCues.size}"
+                    "applyLocalSubtitle: cues=${parsedCues.size} fmt=$formatForParse"
                 )
-                PrefManager.setVal(PrefName.SubtitleDelay, autoOffset)
-                PrefManager.setVal(PrefName.SubtitleSyncEnabled, autoOffset != 0L)
-                if (autoOffset != 0L) {
-                    snackString(
-                        "Auto-synced subtitles (≈${"%.1f".format(autoOffset / 1000.0)}s) — adjust in Subtitle Sync"
-                    )
-                }
+                beginSubtitleAutoSync(parsedCues, formatForParse)
+            } else {
+                // TTML/image tracks are rendered natively. Drop any cues and
+                // offset left over from the previous text file on this episode.
+                storeParsedCues(emptyList())
+                beginSubtitleAutoSync(emptyList(), "unknown")
             }
 
             val finalSubUri = android.net.Uri.fromFile(cacheFile)
@@ -3760,9 +3899,6 @@ class ExoplayerView :
         android.util.Log.d("ExoplayerView", "=== applyOnlineSubtitle CALLED ===")
         android.util.Log.d("ExoplayerView", "applyOnlineSubtitle: lang=${subtitle.lang}, url=${subtitle.url}")
         Logger.log("applyOnlineSubtitle: lang=${subtitle.lang}, url=${subtitle.url}")
-        // Capture before the IO launch — mid-show heuristic needs position/duration.
-        val loadPlayheadMs = try { exoPlayer.currentPosition } catch (_: Exception) { 0L }
-        val loadDurationMs = try { exoPlayer.duration } catch (_: Exception) { 0L }
 
         // Download subtitle content first, then apply
         lifecycleScope.launch(Dispatchers.IO) {
@@ -3866,28 +4002,13 @@ class ExoplayerView :
 
                 val parsedCues = parseSubtitleContent(subtitleContent, detectedFormat)
 
-                // Auto-sync when loaded mid-show: estimate a standing offset from
-                // the tail of the cue timeline vs the video duration. Overwrites
-                // any previous global sync offset — fine-tune via Subtitle Sync.
-                val autoOffset = autoSyncOffsetFromCues(loadPlayheadMs, loadDurationMs, parsedCues)
-                Logger.log(
-                    "applyOnlineSubtitle: autoSync offset=${autoOffset}ms " +
-                        "playhead=$loadPlayheadMs duration=$loadDurationMs cues=${parsedCues.size}"
-                )
-                PrefManager.setVal(PrefName.SubtitleDelay, autoOffset)
-                PrefManager.setVal(PrefName.SubtitleSyncEnabled, autoOffset != 0L)
-
                 val label = "${subtitle.source}:${subtitle.lang}"
                 Logger.log("applyOnlineSubtitle: saved ${subtitleFile.absolutePath}, parsed ${parsedCues.size} cues, label=$label, applying")
 
                 withContext(Dispatchers.Main) {
                     storeParsedCues(parsedCues)
                     applySubtitleFromFile(subtitleFile, subtitle.lang, mimeType, label)
-                    if (autoOffset != 0L) {
-                        snackString(
-                            "Auto-synced subtitles (≈${"%.1f".format(autoOffset / 1000.0)}s) — adjust in Subtitle Sync"
-                        )
-                    }
+                    beginSubtitleAutoSync(parsedCues, detectedFormat)
                 }
 
             } catch (e: Exception) {
@@ -5486,6 +5607,8 @@ class ExoplayerView :
             functionstarted = false
             releasePlayer()
         }
+        cancelAutoSyncWatcher()
+        speechRecorder.release()
 
         super.onDestroy()
         finishAndRemoveTask()

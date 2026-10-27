@@ -355,6 +355,14 @@ class PlayerSettingsActivity :
                         }
                     },
                 ),
+                SubscreenBuilder.Entry(
+                    title = "Auto-sync subtitles (audio)",
+                    desc = "Matches timing to detected speech. Manual sync still wins.",
+                    isEnabled = subtitlesEnabled,
+                    switch = PrefManager.getVal<Boolean>(PrefName.SubtitleAutoSyncVad) to { checked ->
+                        PrefManager.setVal(PrefName.SubtitleAutoSyncVad, checked)
+                    },
+                ),
             )),
 
             SubscreenBuilder.Section("Advanced", R.drawable.ic_set_misc, entries = listOf(
