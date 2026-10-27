@@ -164,7 +164,6 @@ import androidx.core.view.isVisible
 import androidx.core.net.toUri
 import kotlin.time.Duration.Companion.milliseconds
 
-
 var statusBarHeight = 0
 var navBarHeight = 0
 private const val MARKDOWN_IMAGE_MAX_SCREEN_SCALE_FACTOR = 2L
@@ -195,13 +194,11 @@ fun View.bannerCardSizePx(maxHeightFraction: Float = 0.55f): Pair<Int, Int> {
     val finalH: Float
     val finalW: Float
     if (isModernBanner()) {
-        // Modern keeps its own cinematic dimensions.
+
         finalH = resources.getDimension(R.dimen.banner_modern_height) / density
         finalW = screenW
     } else if (isClassicBanner()) {
-        // Classic: full-width strip, no left empty bar. The height comes from a
-        // resource so portrait can be taller and landscape shorter for the same
-        // banner type; see banner_classic_height in values/ and values-land/.
+
         finalH = resources.getDimension(R.dimen.banner_classic_height) / density
         finalW = screenW
     } else {
@@ -218,11 +215,6 @@ fun View.bannerCardSizePx(maxHeightFraction: Float = 0.55f): Pair<Int, Int> {
     return (finalW * density).toInt() to (finalH * density).toInt()
 }
 
-/**
- * Maps attached banner cards onto a shared cylindrical projection.
- * RecyclerView scrolling changes each face's angle; depth controls Z ordering
- * and dimming so the opposite side remains visible through the gaps.
- */
 fun RecyclerView.apply3DBannerTransforms() {
     if (!is3DBanner() || width <= 0 || childCount == 0) return
 
@@ -240,7 +232,6 @@ fun RecyclerView.apply3DBannerTransforms() {
     val spacing = (measuredSpacing.takeIf { it > 1f } ?: fallbackSpacing.toFloat())
         .coerceAtLeast(1f)
 
-    // Eight faces make one complete turn; the extra radius creates visible gaps.
     val anglePerFace = 45f
     val gapPx = 12f * density
     val radius = ((firstChild.width + gapPx) /
@@ -262,16 +253,11 @@ fun RecyclerView.apply3DBannerTransforms() {
         child.translationZ = depth * radius
         child.scaleX = 0.84f + frontness * 0.16f
         child.scaleY = 0.88f + frontness * 0.12f
-        // Back-facing posters stay visible, but clearly sit behind the front poster.
+
         child.alpha = 1f
     }
 }
 
-
-/**
- * Keeps enough off-screen faces attached for the far side of the cylinder to
- * project back into view. Extra layout is only enabled while 3D banners are active.
- */
 class BannerCylinderLayoutManager(
     context: Context,
     orientation: Int,
@@ -408,15 +394,10 @@ fun Activity.setNavigationTheme() {
     }
 }
 
-/**
- * Sets clipToPadding false and sets the combined height of navigation bars as bottom padding.
- *
- * When nesting multiple scrolling views, only call this method on the innermost scrolling view.
- */
 fun ViewGroup.setBaseline(view: View, includeSystemNavBar: Boolean = true) {
     fun updateLayout() {
         val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-        // In landscape, sidebars are vertical. We shouldn't use their height as bottom padding.
+
         val isVerticalSidebar = view.height > view.width && isLandscape
         val baselineHeight = if (view.isVisible && !isVerticalSidebar) view.measuredHeight else 0
 
@@ -557,13 +538,11 @@ open class BottomSheetDialogFragment :
                 com.google.android.material.R.attr.colorSurface
             )
 
-            // Deprecated on Android 15 (API 35)
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                 @Suppress("DEPRECATION")
                 window.navigationBarColor = surfaceColor
             }
 
-            // Match navigation bar icon color to the background
             controller.isAppearanceLightNavigationBars =
                 ColorUtils.calculateLuminance(surfaceColor) > 0.5
         }
@@ -580,7 +559,6 @@ fun isTvDevice(context: Context): Boolean {
     return (context.resources.configuration.uiMode and Configuration.UI_MODE_TYPE_MASK) ==
         Configuration.UI_MODE_TYPE_TELEVISION
 }
-
 
 fun isOnline(context: Context): Boolean {
     val connectivityManager =
@@ -630,7 +608,6 @@ fun startMainActivity(activity: Activity, bundle: Bundle? = null) {
         }
     )
 }
-
 
 class DatePickerFragment(activity: Activity, var date: FuzzyDate = FuzzyDate().getToday()) :
     DialogFragment(),
@@ -702,7 +679,6 @@ class InputFilterMinMax(
     }
 }
 
-
 class ZoomOutPageTransformer :
     ViewPager2.PageTransformer {
     override fun transformPage(view: View, position: Float) {
@@ -742,7 +718,6 @@ fun setAnimation(
         viewToAnimate.startAnimation(anim)
     }
 }
-
 
 class FadingEdgeRecyclerView : RecyclerView {
 
@@ -888,7 +863,6 @@ fun ImageView.loadImage(file: FileUrl?, width: Int = 0, height: Int = 0) {
     }
 }
 
-
 fun ImageView.loadLocalImage(file: File?, size: Int = 0) {
     if (file?.exists() == true) {
         tryWith {
@@ -931,9 +905,8 @@ suspend fun getSize(file: String): Double? {
     return getSize(FileUrl(file))
 }
 
-
 abstract class GesturesListener : GestureDetector.SimpleOnGestureListener() {
-    private var timer: Timer? = null //at class level;
+    private var timer: Timer? = null
     private val delay: Long = 200
 
     override fun onSingleTapUp(e: MotionEvent): Boolean {
@@ -1140,7 +1113,6 @@ fun savePrefs(
     return try {
         val encryptedData = PreferenceKeystore.encryptWithPassword(password, serialized, salt)
 
-        // Combine salt and encrypted data
         val dataToSave = salt + encryptedData
 
         file.writeBytes(dataToSave)
@@ -1366,7 +1338,7 @@ fun toast(res: Int) {
 }
 
 fun snackString(s: String?, activity: Activity? = null, clipboard: String? = null): Snackbar? {
-    try { //I have no idea why this sometimes crashes for some people...
+    try {
         if (s != null) {
             (activity ?: currActivity())?.apply {
                 val snackBar = Snackbar.make(
@@ -1520,25 +1492,6 @@ fun brightnessConverter(it: Float, fromLog: Boolean) =
         else it, 0.001f, 1f
     )
 
-// NOTE:Unused legacy function
-
-//fun checkCountry(context: Context): Boolean {
-//    val telMgr = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-//    return when (telMgr.simState) {
-//        TelephonyManager.SIM_STATE_ABSENT -> {
-//            val tz = TimeZone.getDefault().id
-//            tz.equals("Asia/Kolkata", ignoreCase = true)
-//        }
-//
-//        TelephonyManager.SIM_STATE_READY -> {
-//            val countryCodeValue = telMgr.networkCountryIso
-//            countryCodeValue.equals("in", ignoreCase = true)
-//        }
-//
-//        else -> false
-//    }
-//}
-
 const val INCOGNITO_CHANNEL_ID = 26
 
 @SuppressLint("LaunchActivityFromNotification")
@@ -1600,15 +1553,11 @@ suspend fun View.pop() {
     delay(100.milliseconds)
 }
 
-/** Fixed blur down-sample divisor. 2 halves each axis, so the blur runs on a
- *  quarter of the pixels for a result nobody can tell apart. This used to be a
- *  user-facing choice; it is fixed now to keep the one-knob blur simple. */
 private const val BLUR_SAMPLING = 2
 
 fun blurImage(imageView: ImageView, banner: String?) {
     if (banner != null) {
-        // Clamped because the blur backend rejects a radius above 25 outright,
-        // and the slider only goes that far anyway.
+
         val radius = PrefManager.getVal<Float>(PrefName.BlurStrength).toInt().coerceIn(0, 25)
         val context = imageView.context
         if (!(context as Activity).isDestroyed) {
@@ -1636,23 +1585,14 @@ fun blurImage(imageView: ImageView, banner: String?) {
     }
 }
 
-/** Replaces a colour's alpha channel with [fraction] (0..1), leaving RGB untouched,
- *  so a transparency slider can fade a background without dimming the text on it.
- *  A fully transparent colour means "no background" (the subtitle colour picker's
- *  None option) and is passed through, otherwise it would become a black box. */
 fun Int.withAlphaFraction(fraction: Float): Int {
     if (this == Color.TRANSPARENT) return Color.TRANSPARENT
     val alpha = (fraction.coerceIn(0f, 1f) * 255f).roundToInt()
     return (this and 0x00FFFFFF) or (alpha shl 24)
 }
 
-/** Whether the app is currently rendering its dark theme. Follows the in-app
- *  "Light or Dark" choice (PrefName.DarkMode), not the system uiMode, so banner
- *  overlays tint correctly for a user who forced light or dark. */
 fun isDarkTheme(): Boolean = PrefManager.getVal<Int>(PrefName.DarkMode) == 1
 
-/** Flat surface colour standing in for a hidden banner: black on the dark
- *  theme, white on the light one. */
 fun bannerFallbackColor(): Int = if (isDarkTheme()) Color.BLACK else Color.WHITE
 
 fun Context.getThemeColor(@AttrRes attribute: Int): Int {
@@ -1669,8 +1609,7 @@ fun Context.stripDividerGradient(): GradientDrawable {
         GradientDrawable.Orientation.LEFT_RIGHT,
         intArrayOf(primary, mid, transparent)
     )
-    // The overload accepting color offsets was added in API 29.
-    // Keep the constructor-provided gradient on Android 9 and older to avoid NoSuchMethodError.
+
     if (android.os.Build.VERSION.SDK_INT >= 29) {
         gradient.setColors(intArrayOf(primary, mid, transparent), floatArrayOf(0f, 0.65f, 1f))
     }
@@ -1685,10 +1624,6 @@ fun ImageView.openImage(title: String, image: String) {
     }
 }
 
-/**
- * Attempts to open the link in the app, otherwise copies it to the clipboard
- * @param link the link to open
- */
 fun openOrCopyAnilistLink(link: String) {
     if (link.startsWith("https://anilist.co/anime/") || link.startsWith("https://anilist.co/manga/")) {
         val mangaAnime = link.substringAfter("https://anilist.co/").substringBefore("/")
@@ -1727,10 +1662,6 @@ fun openOrCopyAnilistLink(link: String) {
     }
 }
 
-/**
- * Builds the markwon instance with all the plugins
- * @return the markwon instance
- */
 fun buildMarkwon(
     activity: Context,
     userInputContent: Boolean = true,
@@ -1739,7 +1670,7 @@ fun buildMarkwon(
 ): Markwon {
     val glideContext = fragment?.let { Glide.with(it) } ?: Glide.with(activity)
     val metrics = activity.resources.displayMetrics
-    // Allow modestly larger-than-screen markdown images while preventing oversized bitmap draw crashes.
+
     val maxImageWidth = (metrics.widthPixels.toLong() * MARKDOWN_IMAGE_MAX_SCREEN_SCALE_FACTOR)
         .coerceAtMost(Int.MAX_VALUE.toLong())
         .toInt()
@@ -1816,7 +1747,6 @@ fun buildMarkwon(
         .build()
     return markwon
 }
-
 
 fun getYoutubeId(url: String): String {
     val regex =

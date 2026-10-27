@@ -13,14 +13,13 @@ import kotlinx.coroutines.*
 fun runOnMainThreadNative(@MainThread work: () -> Unit) {
     val mainLooper = Looper.getMainLooper()
     if (mainLooper.isCurrentThread) {
-        // Do the work directly if we already are on the main thread, no need to enqueue it
+
         work()
     } else {
-        // Otherwise post it to the other main thread
+
         Handler(mainLooper).post(work)
     }
 }
-
 
 val workerDispatcher: CoroutineDispatcher = Dispatchers.IO
 internal typealias WorkerThread = androidx.annotation.WorkerThread
@@ -76,11 +75,6 @@ object Coroutines {
         runOnMainThreadNative(work)
     }
 
-    /**
-     * Safe to add and remove how you want
-     * If you want to iterate over the list then you need to do:
-     * list.withLock { code here }
-     */
     fun <T> atomicListOf(vararg items: T): AtomicMutableList<T> {
         return AtomicMutableList(items.toMutableList())
     }

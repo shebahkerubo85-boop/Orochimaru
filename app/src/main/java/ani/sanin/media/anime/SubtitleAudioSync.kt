@@ -18,19 +18,8 @@ import java.nio.ByteOrder
 import kotlin.math.abs
 import kotlin.math.floor
 
-/** A span of detected speech in media time. */
 data class SpeechSegment(val startMs: Long, val endMs: Long)
 
-/**
- * Matches a subtitle timeline to the speech detected in the already-decoded
- * audio.
- *
- * WebRTC VAD gives us a speech mask, not text. That is enough: dialogue cue
- * starts cluster around speech onsets. For each candidate delay we score how
- * many shifted cue starts land on a speech onset and how many still sit over
- * speech. A correct offset produces a sharp, high-scoring peak; a wrong file
- * (different episode/cut) produces a flat landscape, so nothing is applied.
- */
 object SubtitleAudioSync {
     private const val MAX_OFFSET_MS = 10 * 60_000L
     private const val COARSE_STEP_MS = 200L
@@ -57,11 +46,6 @@ object SubtitleAudioSync {
         val consideredCues: Int,
     )
 
-    /**
-     * Scores one candidate offset using only cues that land in the captured
-     * audio window. Counting every cue in the file would drown a short
-     * captured window in uniform noise from cues outside it.
-     */
     private data class Candidate(
         val offsetMs: Long,
         val considered: Int,
@@ -93,8 +77,6 @@ object SubtitleAudioSync {
         if (usableCues.size < MIN_CUES) return null
         val cueStarts = LongArray(usableCues.size) { usableCues[it].startTimeMs }
 
-        // A correct file makes cue starts line up with speech onsets at one
-        // delay. Score every delay on a coarse grid first.
         val coarseCandidates = ArrayList<Candidate>(4096)
         var offset = -MAX_OFFSET_MS
         while (offset <= MAX_OFFSET_MS) {
@@ -112,7 +94,6 @@ object SubtitleAudioSync {
             return null
         }
 
-        // Fine pass around the coarse winner (10 ms resolution).
         var best = coarseBest
         var fineOffset = coarseBest.offsetMs - REFINE_RADIUS_MS
         while (fineOffset <= coarseBest.offsetMs + REFINE_RADIUS_MS) {
@@ -125,8 +106,6 @@ object SubtitleAudioSync {
             fineOffset += REFINE_STEP_MS
         }
 
-        // Reject flat score landscapes: without a clear winner the file is
-        // probably for another episode/cut, so leave the user's file alone.
         val runnerUp = coarseCandidates
             .asSequence()
             .filter { abs(it.offsetMs - best.offsetMs) > 2_000L }
@@ -244,15 +223,6 @@ object SubtitleAudioSync {
     }
 }
 
-/**
- * Captures decoded PCM as a speech mask. It is a pass-through audio
- * processor, so playback is unaffected.
- *
- * Samples are downmixed to mono, resampled to 16 kHz (WebRTC VAD only accepts
- * 8/16/32/48 kHz), and fed to the VAD in 10 ms frames. Frame timestamps are
- * anchored to [AudioProcessor.StreamMetadata.positionOffsetUs] and advanced by
- * consumed samples, so seeking and speed changes keep them in media time.
- */
 @UnstableApi
 class AudioSpeechRecorder {
     private val lock = Any()
@@ -288,8 +258,7 @@ class AudioSpeechRecorder {
         if (value) {
             if (!enabled) rebasePending = true
             enabled = true
-            // Build the native detector off the audio thread so the first
-            // captured frame does not stall playback.
+
             ensureVad()
         } else {
             enabled = false
@@ -360,7 +329,7 @@ class AudioSpeechRecorder {
             format.channelCount != channelCount ||
             format.encoding != encoding
         ) {
-            // Defensive: a format switch should be preceded by onFlush().
+
             streamAnchorMs = currentStreamPositionMs()
             samplesConsumed = 0L
             inputRate = format.sampleRate
@@ -546,7 +515,6 @@ class AudioSpeechRecorder {
     }
 }
 
-/** Pass-through capture stage inserted before silence-skip and Sonic. */
 @UnstableApi
 private class SubtitleSyncAudioProcessor(
     private val recorder: AudioSpeechRecorder,
@@ -578,11 +546,6 @@ private class SubtitleSyncAudioProcessor(
     }
 }
 
-/**
- * Keeps DefaultRenderersFactory's audio renderer but hands it a sink with the
- * capture stage installed. Libass wrapping still delegates renderer creation
- * to this factory, so the audio sink override is preserved.
- */
 @UnstableApi
 class SubtitleSyncRenderersFactory(
     context: Context,

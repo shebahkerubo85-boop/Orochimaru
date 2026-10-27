@@ -3,16 +3,6 @@ package ani.sanin.cloudstream
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-/**
- * Real CloudStream CS3 repo manifest (repo.json):
- * {
- *   "name": "Phisher Repo",
- *   "iconUrl": "...",
- *   "description": "...",
- *   "manifestVersion": 1,
- *   "pluginLists": ["https://.../plugins.json"]
- * }
- */
 @Serializable
 data class CsRepoManifest(
     val name: String,
@@ -22,9 +12,6 @@ data class CsRepoManifest(
     @SerialName("pluginLists") val pluginLists: List<String> = emptyList()
 )
 
-/**
- * One entry from a CS3 plugin list (plugins.json) — a `.cs3` plugin.
- */
 @Serializable
 data class CsSource(
     val url: String,

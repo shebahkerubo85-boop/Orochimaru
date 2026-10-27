@@ -29,8 +29,6 @@ object AnimeSources : WatchSources() {
 
     fun isEnglishProvider(saveName: String): Boolean = saveName in englishProviderNames
 
-    // All native providers in the user's saved order (unpinned keep their default order after
-    // the pinned ones). Providers always render before extensions in the watch tab.
     val orderedNativeParsers: List<NativeAnimeParser>
         get() = allNativeParsers.sortedBy { parser ->
             providersOrder.indexOf(parser.saveName).let { if (it < 0) Int.MAX_VALUE else it }
@@ -41,8 +39,6 @@ object AnimeSources : WatchSources() {
         return orderedNativeParsers.filter { it.saveName in enabled }
     }
 
-    // Persist the new provider arrangement and rebuild the cached parser list so the watch tab
-    // picks it up immediately (same mechanism the extensions screen uses for its order).
     fun reorderProviders(names: List<String>) {
         PrefManager.setVal(PrefName.ProvidersOrder, names)
         providersOrder = names
@@ -89,9 +85,6 @@ object AnimeSources : WatchSources() {
         }
     }
 
-    // Providers can be toggled at runtime (first-time dialog / settings); rebuild the
-    // cached parser list so displayed chips and their indices stay in sync without
-    // requiring an app restart.
     fun rebuildNativeParsers() {
         val extParsers = list.filter { it.name !in nativeNames && it.name != "Local" }
         list = buildList {

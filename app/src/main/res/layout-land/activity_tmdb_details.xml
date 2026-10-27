@@ -72,7 +72,6 @@
         </LinearLayout>
     </FrameLayout>
 
-    <!-- Replicate anime mode landscape pill: vertical rail on the left -->
     <FrameLayout
         android:id="@+id/tmdbNavPills"
         android:layout_width="44dp"

@@ -1,14 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  The TMDB (movie) mode's Explore page: the anime page plus the streaming-services rail.
 
-  This is the content of the page adapter's single item, so it scrolls inside the
-  explore RecyclerView exactly as the anime page does — which is what lets the Franchise
-  cards live in the same ConcatAdapter as this page.
-
-  The rows are five includes of one row layout, so every row has the same title/arrow/
-  rail treatment and there is no fifth copy to forget to update.
--->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -17,15 +8,6 @@
     android:layout_height="wrap_content"
     android:orientation="vertical">
 
-    <!--
-      The same banner the anime explore uses; driven by TmdbMedia instead of AniList.
-
-      Note the chip row below: no fillViewport. fillViewport makes a HorizontalScrollView
-      measure itself at the full width of its parent, which quietly overrides
-      layout_gravity="center_horizontal" and drops the chips to the left edge. The anime
-      season row keeps fillViewport and only looks centred because three long season
-      names happen to fill the width; these three short ones do not.
-    -->
     <include layout="@layout/layout_trending" />
 
     <HorizontalScrollView
@@ -47,7 +29,6 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <!-- Mirrors the season-selector chips exactly so the two pages match. -->
             <com.google.android.material.chip.Chip
                 android:id="@+id/tmdbExploreChipMovie"
                 android:layout_width="wrap_content"
@@ -76,12 +57,6 @@
         </LinearLayout>
     </HorizontalScrollView>
 
-    <!--
-      The streaming-services rail sits 2dp under the type chips. It has no "Streaming
-      Services" header, so the See All that Zangetsu puts beside the title on phone is a
-      trailing card in the rail instead (its TV treatment) — the D-pad walks onto it.
-      This is the extra row the movie page has over the anime page.
-    -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/tmdbExploreStreamingRail"
         android:layout_width="match_parent"
@@ -115,12 +90,6 @@
         android:id="@+id/rowUpcoming"
         layout="@layout/item_explore_row" />
 
-    <!--
-      Franchise is a header only, exactly as in anime mode: the cards themselves are a
-      separate FranchiseAdaptor in the fragment's ConcatAdapter. The old "Include List"
-      switch is gone for now; sort, filter, and content controls go back at the right of
-      this title later.
-    -->
     <LinearLayout
         android:id="@+id/tmdbFranchiseHeader"
         android:layout_width="match_parent"
@@ -147,12 +116,6 @@
                 android:text="@string/row_franchise"
                 android:textSize="16sp" />
 
-            <!--
-              The search for this row, as a lens button beside the title.
-
-              The title itself is not focusable, so the button is the first thing to the right
-              of it in the D-pad line, which is where a reader looks for it.
-            -->
             <ImageButton
                 android:id="@+id/tmdbFranchiseSearch"
                 android:layout_width="30dp"
@@ -169,12 +132,6 @@
 
         </LinearLayout>
 
-        <!--
-          Shown while the Franchise source is in flight.
-
-          The row fetches up to forty Trakt lists, which takes long enough to be worth saying so.
-          Without it a slow source and a source that returned nothing were the same empty row.
-        -->
         <ProgressBar
             android:id="@+id/tmdbFranchiseProgress"
             style="?android:attr/progressBarStyleSmall"
@@ -185,14 +142,6 @@
             android:visibility="gone"
             tools:ignore="UnusedAttribute" />
 
-        <!--
-          Sort pill and direction control sit at the right of the header, as specced.
-
-          The pill shows the selected sort and opens the sort dialog on click; it deliberately has
-          no "Sort" label of its own, since the selected value is what identifies it. The
-          direction control is a separate button rather than part of the pill, because inverting
-          is a distinct action from choosing a sort.
-        -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/tmdbFranchiseSortPill"
             style="@style/Widget.MaterialComponents.Button.TextButton"
@@ -210,15 +159,6 @@
             app:iconSize="18dp"
             tools:ignore="SpUsage" />
 
-        <!--
-  Direction toggle, drawn as the watch tab's sort control (item_tmdb_watch_header.xml):
-  same 30dp box, same icon, same tint, same padding. The row header is compact clay and this
-  sits beside the pill, so the 40dp borderedless variant the pill used to carry overbalanced it.
-
-  Which way this currently points is not drawn here — inverting reports through the snackbar,
-  the same way the watch tab reports its own sort choice, so a static icon is honest rather
-  than stale.
--->
         <ImageView
             android:id="@+id/tmdbFranchiseSortDirection"
             android:layout_width="30dp"
@@ -234,13 +174,6 @@
 
     </LinearLayout>
 
-    <!--
-      The row's own search, revealed under the header by the lens button.
-
-      It sits between the header and the cards rather than over them, so opening it pushes the
-      cards down instead of hiding them. The cards are a separate adapter in the fragment's
-      ConcatAdapter, so this is the last thing in the page and the row follows it.
-    -->
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/tmdbFranchiseSearchBar"
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
@@ -274,13 +207,6 @@
 
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!--
-      Why the row is empty, when it is.
-
-      An empty row under a search bar is ambiguous: the reader cannot tell a search that
-      matched nothing from a row that has not loaded yet. This line says which it is, and it
-      sits under the bar rather than over the cards so the row itself stays readable.
-    -->
     <TextView
         android:id="@+id/tmdbFranchiseMessage"
         android:layout_width="match_parent"

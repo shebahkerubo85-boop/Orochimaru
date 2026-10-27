@@ -33,19 +33,14 @@ data class AniZipMappingIds(
     @SerialName("kitsu_id") val kitsuId: Int? = null,
     @SerialName("themoviedb_id") val tmdbId: String? = null,
     @SerialName("thetvdb_id") val tvdbId: Int? = null,
-    /**
-     * AniList's own format for the entry ("TV", "MOVIE", "OVA", "ONA", …).
-     *
-     * Needed because [tmdbId] is a bare number and TMDB keys movies and shows in separate id
-     * namespaces, so the id alone cannot say which endpoint will answer.
-     */
+
     @SerialName("type") val type: String? = null,
 )
 
 @Serializable
 data class AniZipMappings(
     val images: List<AniZipImage>? = null,
-    // External ids live in the nested "mappings" object of the AniZip payload.
+
     val mappings: AniZipMappingIds? = null,
     @SerialName("episodeCount") val episodeCount: Int? = null,
     val episodes: Map<String, AniZipEpisode>? = null,
@@ -55,33 +50,12 @@ data class AniZipMappings(
     val tvdbId: Int? get() = mappings?.tvdbId
     val type: String? get() = mappings?.type
 
-    /**
-     * Episode entry for a (usually numeric) episode number.
-     *
-     * Carries artwork and scheduling only — air date, runtime, thumbnail. Titles are
-     * deliberately not decoded from this payload; see [AniZipImages] for why.
-     */
     fun episode(number: Int?): AniZipEpisode? {
         if (number == null) return null
         return episodes?.get(number.toString())
     }
 }
 
-/**
- * The artwork AniZip is allowed to supply: a backdrop and a poster.
- *
- * No logo, deliberately. AniZip's `Clearlogo` is proxied from TheTVDB, whose artwork buckets are
- * crowd-uploaded and regularly hold character or key art instead of a wordmark, so a card would
- * show a picture of a person where a title belonged. Wordmarks come from Fanart via `LogoApi`,
- * which both keeps them in a real logo group and tags each one with a language.
- *
- * AniZip is also no longer used for titles, for the same reason it was never a good source of
- * them: the endpoint takes no locale parameter, so there was no way to ask for English and the
- * localized map had to be guessed at. Titles now come from TMDB, then plain text.
- *
- * What AniZip is still used for is mapping an AniList id to the ids other services key on —
- * [tvdbId] in particular, which is how Fanart is reached at all.
- */
 data class AniZipImages(
     val backdropUrl: String? = null,
     val posterUrl: String? = null,
@@ -91,15 +65,11 @@ object AniZip {
     private const val BASE_URL = "https://api.ani.zip"
     private const val MAX_CACHE = 64
 
-    // Small in-memory cache so a notification screen does not re-fetch the
-    // same mapping document for every row (bounded, drop-oldest).
     private val mappingsCache = object : LinkedHashMap<Int, AniZipMappings?>(16, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Int, AniZipMappings?>?): Boolean =
             size > MAX_CACHE
     }
 
-    // Deduplicates concurrent fetches of the same mappings document (several
-    // rows for the same show, or a row being rebound while still loading).
     private val inFlight = HashMap<Int, CompletableDeferred<AniZipMappings?>>()
 
     suspend fun getMappings(anilistId: Int): AniZipMappings? {
@@ -117,10 +87,6 @@ object AniZip {
         synchronized(inFlight) { inFlight.remove(anilistId) }
         mine.complete(parsed)
 
-        // Only cache successful responses; transient failures (rate limits,
-        // timeouts) must be retried on the next bind so thumbnails/titles
-        // eventually resolve instead of being permanently poisoned for the
-        // session.
         if (parsed != null) {
             synchronized(mappingsCache) { mappingsCache[anilistId] = parsed }
         }
@@ -159,10 +125,6 @@ object AniZip {
         return getImages(anilistId).posterUrl
     }
 
-    /**
-     * Try AniZip first; if it has no backdrop, search TMDB by [title] and
-     * return the first TV/movie backdrop URL. Returns null only when both fail.
-     */
     suspend fun getBackdropUrlWithTmdbFallback(
         anilistId: Int,
         title: String?

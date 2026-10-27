@@ -137,7 +137,7 @@ class ActivityMarkdownCreator : AppCompatActivity() {
                             } else {
                                 Anilist.mutation.postActivity(text)
                             }
-                            //"review" -> Anilist.mutation.postReview(text)
+
                             "replyActivity" -> if (isEdit) {
                                 Anilist.mutation.postReply(parentId, text, editId)
                             } else {
@@ -225,7 +225,6 @@ class ActivityMarkdownCreator : AppCompatActivity() {
             }
         }
     }
-
 
     private fun showInputDialog(format: MarkdownFormat, position: Int) {
         val inputLayout = TextInputLayout(this).apply {

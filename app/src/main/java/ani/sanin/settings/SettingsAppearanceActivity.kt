@@ -399,8 +399,6 @@ class SettingsAppearanceActivity : AppCompatActivity() {
         buildSections?.invoke()
     }
 
-    // ─── Helpers ─────────────────────────────────────────────────
-
     private var buildSections: (() -> Unit)? = null
 
     private fun rebuildSubscreen() {
@@ -409,8 +407,6 @@ class SettingsAppearanceActivity : AppCompatActivity() {
 
     private fun glassSwitch(pref: PrefName): Pair<Boolean, (Boolean) -> Unit> =
         PrefManager.getVal<Boolean>(pref) to { v: Boolean -> PrefManager.setVal(pref, v) }
-
-    // ─── Home Screen: toggle + reorder (touch & dpad) ───────────
 
     private val homeSectionTitles = arrayOf(
         "Continue Watching", "Favorite", "Planned", "Missed Sequels", "Recommended"
@@ -467,7 +463,6 @@ class SettingsAppearanceActivity : AppCompatActivity() {
         desc.text = "Show, hide & reorder home feed sections"
         desc.visibility = View.VISIBLE
 
-        // Banner Style row
         val bannerRow = inflater.inflate(R.layout.item_settings_section_entry, items, false)
         bannerRow.findViewById<ImageView>(R.id.entryIcon).setImageResource(R.drawable.ic_set_home)
         bannerRow.findViewById<TextView>(R.id.entryTitle).text = "Banner Style"
@@ -519,11 +514,10 @@ class SettingsAppearanceActivity : AppCompatActivity() {
             order.add(toPos, order.removeAt(fromPos))
             val row = rows.removeAt(fromPos)
             rows.add(toPos, row)
-            items.removeViewAt(fromPos + 1)   // +1 = skip banner row
+            items.removeViewAt(fromPos + 1)
             items.addView(row, toPos + 1)
         }
 
-        // TV: BACK while armed dismisses drag mode instead of leaving the screen.
         val dragDisarm = object : OnBackPressedCallback(false) {
             override fun handleOnBackPressed() {
                 dragRow = null
@@ -559,8 +553,6 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                 switch.isChecked = !switch.isChecked
             }
 
-            // Click handle -> arm drag mode (TV keeps handle focus, dismiss
-            // via BACK or DPAD_RIGHT; phone then drags by touching the row).
             dragHandle.setOnClickListener {
                 val pos = rows.indexOf(row)
                 if (keyboardRow == pos) {
@@ -578,7 +570,6 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                 dragHandle.post { dragHandle.requestFocus() }
             }
 
-            // Dpad reorder while mode active
             dragHandle.setOnKeyListener { _, keyCode, event ->
                 if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
                 val pos = rows.indexOf(row)
@@ -604,8 +595,6 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                 }
             }
 
-            // Phone: once armed, touching anywhere on the row drags it — no
-            // need to keep holding the handle. Release commits the new order.
             row.setOnTouchListener { v, event ->
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
@@ -662,7 +651,6 @@ class SettingsAppearanceActivity : AppCompatActivity() {
 
         items.addView(hint)
 
-        // Expand/collapse like the other settings cards
         var expanded = false
         fun toggleSection() {
             expanded = !expanded
@@ -681,8 +669,6 @@ class SettingsAppearanceActivity : AppCompatActivity() {
         container.addView(sectionView)
     }
 
-
-    // ─── Card Metadata Dialog ─────────────────────────────────
     private fun showOledBackgroundDialog() {
         val initialMode = PrefManager.getVal<Int>(PrefName.OledMode)
         val view = layoutInflater.inflate(R.layout.dialog_oled_background, null)
@@ -707,8 +693,6 @@ class SettingsAppearanceActivity : AppCompatActivity() {
             visibility = View.VISIBLE
         }
 
-        // Only meaningful once a style is picked, so mirror the old
-        // expandSlider behaviour: inert on "Off".
         fun syncSliderEnabled() {
             val enabled = buttons.indexOfFirst { it.id == group.checkedRadioButtonId } != 0
             slider.isEnabled = enabled
@@ -812,7 +796,6 @@ class SettingsAppearanceActivity : AppCompatActivity() {
         val progressCheck = view.findViewById<android.widget.CheckBox>(R.id.metadataProgressCheck)
         val bottomNone = view.findViewById<android.widget.CheckBox>(R.id.metadataBottomNoneCheck)
 
-        // Restore state from prefs
         ratingCheck.isChecked = topPref and 1 != 0
         airingCheck.isChecked = topPref and 2 != 0
         topNone.isChecked = topPref == 0
@@ -820,7 +803,6 @@ class SettingsAppearanceActivity : AppCompatActivity() {
         progressCheck.isChecked = bottomPref == 2
         bottomNone.isChecked = bottomPref == 0
 
-        // ── Top expand/collapse ──
         topRow.setOnClickListener {
             val closingBottom = bottomExpanded.visibility == View.VISIBLE
             if (bottomExpanded.visibility == View.VISIBLE) {
@@ -843,7 +825,6 @@ class SettingsAppearanceActivity : AppCompatActivity() {
             }
         }
 
-        // ── Top checkboxes ──
         ratingCheck.setOnClickListener {
             if (ratingCheck.isChecked) topNone.isChecked = false
             PrefManager.setVal(PrefName.CardMetadataTop,
@@ -859,7 +840,6 @@ class SettingsAppearanceActivity : AppCompatActivity() {
             PrefManager.setVal(PrefName.CardMetadataTop, 0)
         }
 
-        // ── Bottom expand/collapse ──
         bottomRow.setOnClickListener {
             if (topExpanded.visibility == View.VISIBLE) {
                 topExpanded.animate().alpha(0f).setDuration(120).withEndAction {
@@ -880,7 +860,6 @@ class SettingsAppearanceActivity : AppCompatActivity() {
             }
         }
 
-        // ── Bottom checkboxes (single-select + None) ──
         val bottomChecks = listOf(subDubCheck, progressCheck, bottomNone)
 
         fun bottomSync(enabled: Int) {
@@ -923,8 +902,6 @@ class SettingsAppearanceActivity : AppCompatActivity() {
         SubscreenBuilder.Choice(title, labels,
             values.indices.minByOrNull { idx -> kotlin.math.abs(values[idx] - current) } ?: 0
         ) { idx -> onSelect(values[idx]) }
-
-    // ─── Color Pickers ──────────────────────────────────────────
 
     private fun showAccentColorPicker() {
         val labels = arrayOf("Sanin", "Ocean", "Blood", "Lime", "Sun", "Kurama", "Saikou", "Indigo", "Monochrome")

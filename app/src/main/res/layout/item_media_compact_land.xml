@@ -155,5 +155,4 @@
         tools:text="Title"
         tools:visibility="visible" />
 
-
 </LinearLayout>

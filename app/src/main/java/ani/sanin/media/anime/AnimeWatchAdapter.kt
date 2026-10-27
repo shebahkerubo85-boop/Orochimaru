@@ -36,7 +36,7 @@ import ani.sanin.others.LanguageMapper
 import ani.sanin.others.webview.CookieCatcher
 import ani.sanin.parsers.AnimeSources
 import ani.sanin.parsers.DynamicAnimeParser
-// OfflineAnimeParser removed
+
 import ani.sanin.parsers.NativeAnimeParser
 import ani.sanin.parsers.WatchSources
 import ani.sanin.px
@@ -53,7 +53,6 @@ import eu.kanade.tachiyomi.data.notification.Notifications.CHANNEL_SUBSCRIPTION_
 import eu.kanade.tachiyomi.util.system.WebViewUtil
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
-
 
 class AnimeWatchAdapter(
     private val media: Media,
@@ -82,7 +81,7 @@ class AnimeWatchAdapter(
                 null
             )
         }
-        // PreferDub
+
         var changing = false
         binding.animeSourceDubbed.setOnCheckedChangeListener { _, isChecked ->
             binding.animeSourceDubbedText.text =
@@ -92,7 +91,6 @@ class AnimeWatchAdapter(
             if (!changing) fragment.onDubClicked(isChecked)
         }
 
-        // Wrong Title
         binding.mediaSourceSearch.setOnClickListener {
             SourceSearchDialogFragment().show(
                 fragment.requireActivity().supportFragmentManager,
@@ -107,7 +105,6 @@ class AnimeWatchAdapter(
         binding.mediaSourceTitle.isGone = offline
         binding.mediaSourceRefresh.isGone = offline
 
-        // Source Selection — Pills
         val displayNames = watchSources.displayNames.filter { it != "Local" }
         var source =
             media.selected!!.sourceIndex.let { if (it >= watchSources.names.size) 0 else it }
@@ -133,7 +130,6 @@ class AnimeWatchAdapter(
             }
         }
 
-        // Website / Set Cookies
         binding.mediaSourceWebview.setOnClickListener {
             if (!WebViewUtil.supportsWebView(fragment.requireContext())) {
                 toast(R.string.webview_not_installed)
@@ -274,8 +270,7 @@ class AnimeWatchAdapter(
             chipRowFocused = true
             chipGroup.post {
                 if (!chipGroup.hasFocus() && chipGroup.childCount > 0) {
-                    // Land on the selected (checked) chip, not the first one, and
-                    // pre-scroll the row so it sits centred — no D-pad scrolling needed.
+
                     val target = (0 until chipGroup.childCount)
                         .mapNotNull { chipGroup.getChildAt(it) as? Chip }
                         .firstOrNull { it.isChecked }
@@ -286,7 +281,6 @@ class AnimeWatchAdapter(
             }
         }
 
-        // Settings
         binding.mediaSourceSettings.setOnClickListener {
             val parser = watchSources[source]
             when (parser) {
@@ -310,14 +304,8 @@ class AnimeWatchAdapter(
         FocusEffectUtil.applyFocusListener(binding.mediaSourceSubscribe, binding.mediaSourceSubscribe, true)
         FocusEffectUtil.applyFocusListener(binding.sourceContinue)
 
-        // ── Focus chain (landscape rail layout) ─────────────────────────────
-        // Chips (centre) → Left clay (top=refresh … bell) → Down → Chips/continue.
-        // Right clay is a focus trap: entering lands on mediaSourceLayout, Right is held.
         wireFocusChain(binding)
 
-        // Icons
-
-        // Subscribe
         subscribe = MediaDetailsActivity.PopImageButton(
             fragment.lifecycleScope,
             binding.mediaSourceSubscribe,
@@ -337,15 +325,9 @@ class AnimeWatchAdapter(
             openSettings(fragment.requireContext(), CHANNEL_SUBSCRIPTION_CHECK)
         }
 
-        // Episode Handling
         handleEpisodes()
     }
 
-    /**
-     * Focus chain for the landscape rail header.
-     * Chips (centre) ↔ left clay (refresh…bell) ↔ right clay (layout…faq).
-     * Right clay is a trap: Right stays inside it; entry lands on the top button.
-     */
     private fun wireFocusChain(binding: ItemMediaSourceBinding) {
         val left = arrayOf(
             R.id.mediaSourceRefresh, R.id.mediaSourceSettings,
@@ -398,9 +380,6 @@ class AnimeWatchAdapter(
             v.nextFocusRightId = right[i]
         }
 
-        // The episode list has no id of its own (its cards are RecyclerView
-        // children), so the hop from the header into the list is made by a key
-        // listener instead of a nextFocusDownId.
         applyDownIntoEpisodes(
             binding.mediaSourcePillScroll,
             binding.mediaSourceChipGroupPill,
@@ -415,13 +394,6 @@ class AnimeWatchAdapter(
         syncDownTargets(binding)
     }
 
-    /**
-     * Vertical focus targets of the header.
-     *
-     * Centre column: source chips → dub switch → continue card → episode range
-     * chips. The episode list sits below the header and has no id to point at,
-     * so that last hop is made by a key listener (see [applyDownIntoEpisodes]).
-     */
     private fun syncDownTargets(binding: ItemMediaSourceBinding) {
         val pillChips = (0 until binding.mediaSourceChipGroupPill.childCount)
             .mapNotNull { binding.mediaSourceChipGroupPill.getChildAt(it) as? Chip }
@@ -442,13 +414,6 @@ class AnimeWatchAdapter(
         binding.root.findViewById<View>(R.id.mediaSourceFaq)?.nextFocusDownId = continueId
     }
 
-    /**
-     * Down from the header into the episode list.
-     *
-     * The listener only steps in when the view has no explicit down target of
-     * its own, so the normal chain (chips → dub switch → continue card → range
-     * chips) keeps working as it is.
-     */
     private fun applyDownIntoEpisodes(vararg views: View?) {
         for (view in views) {
             view ?: continue
@@ -462,10 +427,6 @@ class AnimeWatchAdapter(
         }
     }
 
-    /**
-     * View that takes focus when the user presses Up from the first episode:
-     * the episode range chips, the continue card or the dub switch.
-     */
     fun episodeUpTargetId(): Int {
         val binding = _binding ?: return View.NO_ID
         val rangeChips = (0 until binding.mediaSourceChipGroup.childCount)
@@ -490,7 +451,6 @@ class AnimeWatchAdapter(
         )
     }
 
-    // Chips
     fun updateChips(limit: Int, names: Array<String>, arr: Array<Int>, selected: Int = 0) {
         val binding = _binding
         if (binding != null) {
@@ -505,8 +465,7 @@ class AnimeWatchAdapter(
                         binding.mediaSourceChipGroup,
                         false
                     ).root
-                // Runtime id: the inflated layout has none, and the focus chain
-                // needs to point at a single chip of this row.
+
                 chip.id = View.generateViewId()
                 chip.isCheckable = true
                 chip.isFocusable = true
@@ -538,18 +497,15 @@ class AnimeWatchAdapter(
                     select = chip
                 }
             }
-            // The range row sits between the continue card and the episode list,
-            // so Down from it has to reach the list.
+
             applyDownIntoEpisodes(*created.toTypedArray())
             syncDownTargets(binding)
-            // Pre-scroll the range row to the selected chip. Chip `left` values are
-            // only valid after layout, so defer via doOnLayout instead of post{}.
+
             val sel = select
             if (sel != null) centerOn(binding.mediaWatchChipScroll, sel)
         }
     }
 
-    /** Scroll [scroller] so [target] lands at its horizontal centre, once laid out. */
     private fun centerOn(scroller: android.widget.HorizontalScrollView, target: View) {
         val screenWidth = fragment.screenWidth.px
         target.doOnLayout {
@@ -560,10 +516,6 @@ class AnimeWatchAdapter(
         }
     }
 
-    /**
-     * Focus + centre the checked source chip on watch-tab entry.
-     * Returns false when the row/data isn't available (host keeps its generic focus).
-     */
     fun focusSelectedSourceChip(): Boolean {
         val binding = _binding ?: return false
         if (!binding.root.isShown || !binding.mediaSourcePillScroll.isShown) return false
@@ -596,7 +548,7 @@ class AnimeWatchAdapter(
                         ?: media.anime?.episodes?.get(key)?.number?.let { MediaNameAdapter.findEpisodeNumber(it) }
                         ?: 0f
                 } ?: episodes.size.toFloat()
-                // If user progress already completed all available episodes, hide continue button
+
                 if (media.userProgress != null && media.userProgress!!.toFloat() >= maxAvailableEp && (media.userProgress ?: 0) >= appEp) {
                     binding.sourceContinue.visibility = View.GONE
                     binding.sourceProgressBar.visibility = View.GONE
@@ -604,7 +556,7 @@ class AnimeWatchAdapter(
                     return
                 }
                 val targetEpNum = (if (anilistEp > appEp) anilistEp else appEp).toFloat()
-                // Find matching episode key in media.anime.episodes (keys can be numbers or labels)
+
                 var matchingKey: String? = episodes.find { key ->
                     val epObj = media.anime.episodes?.get(key)
                     MediaNameAdapter.findEpisodeNumber(key) == targetEpNum ||

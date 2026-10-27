@@ -14,7 +14,6 @@
     android:visibility="gone"
     tools:visibility="visible">
 
-    <!-- Watched: eye icon + count -->
     <ImageView
         android:id="@+id/progressWatchedIcon"
         android:layout_width="10dp"
@@ -42,7 +41,6 @@
         android:layout_marginEnd="5dp"
         android:background="#66FFFFFF" />
 
-    <!-- Released: broadcast icon + count -->
     <ImageView
         android:id="@+id/progressReleasedIcon"
         android:layout_width="10dp"
@@ -62,7 +60,6 @@
         tools:ignore="SpUsage"
         tools:text="12" />
 
-    <!-- TT: text only, hidden when unknown -->
     <View
         android:id="@+id/progressDividerTT"
         android:layout_width="1dp"

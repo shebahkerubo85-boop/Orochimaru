@@ -4,12 +4,6 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import ani.sanin.settings.saving.PrefManager
 
-/**
- * Persists the download queue and the completed-file index.
- *
- * Not huge enough to justify a database, and the app has no Room anyway, so this mirrors the
- * Aniyomi approach: JSON blobs in a dedicated SharedPreferences file ("anime_downloads").
- */
 object DownloadStore {
 
     private const val KEY_QUEUE = "download_queue"

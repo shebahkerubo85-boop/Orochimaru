@@ -1,12 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  One Explore row: a titled horizontal rail with the app's arrow-mark "more" button,
-  which is the same shape the anime rows use (item_anime_page.xml). Included five times
-  by the explore page, once per row, so the rows cannot drift apart from each other.
 
-  The three id-less children are reached through the include's own id, so this file
-  needs no per-row id juggling: binding.rowTrending.rowTitle and so on.
--->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"

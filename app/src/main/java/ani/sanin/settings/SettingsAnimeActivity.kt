@@ -166,7 +166,6 @@ class SettingsAnimeActivity : AppCompatActivity() {
         ))
     }
 
-    // ─── Episode Metadata Source Dialog ─────────────────────────────
     private fun showEpisodeMetadataDialog() {
         val view = layoutInflater.inflate(R.layout.dialog_episode_metadata, null)
 
@@ -183,7 +182,7 @@ class SettingsAnimeActivity : AppCompatActivity() {
         val tmdbCheck = view.findViewById<CheckBox>(R.id.epMetaTmdbCheck)
         val simklCheck = view.findViewById<CheckBox>(R.id.epMetaSimklCheck)
 
-        val metadataApi = PrefManager.getVal<Int>(PrefName.EpisodeMetadataSource) // 0 = Kitsu, 1 = AniZip
+        val metadataApi = PrefManager.getVal<Int>(PrefName.EpisodeMetadataSource)
         anizipCheck.isChecked = metadataApi == 1
         kitsuCheck.isChecked = metadataApi == 0
 
@@ -195,7 +194,6 @@ class SettingsAnimeActivity : AppCompatActivity() {
         anizipRow.setOnClickListener { animeSync(1) }
         kitsuCheck.setOnClickListener { animeSync(0) }
 
-        // Anime expand/collapse
         animeRow.setOnClickListener {
             if (movieExpanded.visibility == View.VISIBLE) {
                 movieExpanded.animate().alpha(0f).setDuration(120).withEndAction {
@@ -219,7 +217,6 @@ class SettingsAnimeActivity : AppCompatActivity() {
         FocusEffectUtil.applyFocusListener(anizipRow)
         FocusEffectUtil.applyFocusListener(kitsuCheck)
 
-        // Movie expand/collapse (UI only, not wired)
         movieRow.setOnClickListener {
             if (animeExpanded.visibility == View.VISIBLE) {
                 animeExpanded.animate().alpha(0f).setDuration(120).withEndAction {

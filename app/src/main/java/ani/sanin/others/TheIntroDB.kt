@@ -8,9 +8,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-// api.theintrodb.org v4 — resolves by tmdb/imdb/tvdb id directly, so it also
-// covers TMDB-mode content that has no MAL id. Reads are anonymous; a Bearer
-// key is only required for submissions.
 object TheIntroDB {
 
     suspend fun getResult(
@@ -22,8 +19,7 @@ object TheIntroDB {
         isMovie: Boolean = false,
         durationSec: Long = 0
     ): List<AniSkip.Stamp>? {
-        // v4 indexes media by tvdb_id; tmdb_id/imdb_id still resolve, so try
-        // them in order and keep the first id that returns usable segments.
+
         val idParams = buildList {
             if (tvdbId != null && tvdbId > 0) add("tvdb_id=$tvdbId")
             if (tmdbId != null && tmdbId > 0) add("tmdb_id=$tmdbId")
@@ -44,7 +40,7 @@ object TheIntroDB {
                 val a = withTimeoutOrNull(10_000L) { client.get(url) }
                 val elapsed = java.lang.System.currentTimeMillis() - started
                 if (a == null) {
-                    // Don't hammer the remaining ids when the network itself is wedged.
+
                     Logger.log("TheIntroDB: TIMEOUT after ${elapsed}ms for $url")
                     return@tryWithSuspend null
                 }
@@ -77,10 +73,6 @@ object TheIntroDB {
         }
     }
 
-    // Normalizes one v4 segment into a validated (startMs, endMs) pair.
-    // Live data quirks: start_ms may be null (intro from offset 0, e.g. Fight
-    // Club), end_ms may be null (credits run to end of video), and empty
-    // 0-0 rows exist — those are dropped instead of trusted.
     private fun valid(seg: Segment, durationSec: Long): Pair<Long, Long>? {
         val start = seg.startMs ?: 0L
         var end = seg.endMs ?: -1L
@@ -106,8 +98,7 @@ object TheIntroDB {
         interval = AniSkip.AniSkipInterval(startTime = startMs / 1000.0, endTime = endMs / 1000.0),
         skipType = skipType,
         skipId = skipId,
-        // episodeLength represents total episode duration; use 0.0 as a sentinel since
-        // TheIntroDB segments don't carry the full episode length
+
         episodeLength = 0.0
     )
 

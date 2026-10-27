@@ -100,8 +100,6 @@ class AnimeWatchFragment : Fragment() {
     private lateinit var headerAdapter: AnimeWatchAdapter
     private lateinit var episodeAdapter: EpisodeAdapter
 
-    // download removed
-
     var screenWidth = 0f
     private var progress = View.VISIBLE
 
@@ -125,8 +123,6 @@ class AnimeWatchFragment : Fragment() {
                 GlassEffectManager.applyGlass(view, GlassComponent.EpisodeDrawer, 0f)
             }
         }
-        // download receiver removed
-
 
         binding.mediaSourceRecycler.updatePadding(bottom = binding.mediaSourceRecycler.paddingBottom + navBarHeight)
         screenWidth = resources.displayMetrics.widthPixels.dp
@@ -153,8 +149,6 @@ class AnimeWatchFragment : Fragment() {
 
         binding.mediaSourceRecycler.layoutManager = gridLayoutManager
 
-        // Laid out visible, so a preference that hides it has to hide it up front rather
-        // than only decline to show it later.
         val hideScrollTop = PrefManager.getVal<Boolean>(PrefName.HideScrollTopButtons)
         if (hideScrollTop) binding.ScrollTop.visibility = View.GONE
 
@@ -211,7 +205,6 @@ class AnimeWatchFragment : Fragment() {
                     }
                 }
 
-                // Add to List button
                 val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
                 fun updateAddToList() {
                     val statuses: Array<String> = resources.getStringArray(R.array.status)
@@ -293,7 +286,7 @@ class AnimeWatchFragment : Fragment() {
                             Logger.log(Log.WARN, "Watch: offline detected, switching to source idx ${model.watchSources!!.list.lastIndex}")
                             media.selected!!.sourceIndex = model.watchSources!!.list.lastIndex
                         }
-                        // Load episodes immediately — don't block on metadata APIs
+
                         model.loadEpisodes(media, media.selected!!.sourceIndex)
                         if (!offline && !isLocal) {
                             launch { model.fetchKitsuEpisodes(media) }
@@ -319,7 +312,6 @@ class AnimeWatchFragment : Fragment() {
                         }
                         media.anime?.episodes = episodes
 
-                        // CHIP GROUP
                         val total = episodes.size
                         val divisions = total.toDouble() / 10
                         start = 0
@@ -463,15 +455,13 @@ class AnimeWatchFragment : Fragment() {
         return "Episode $parsedNumber"
     }
 
-    //implement Multi download
-
     fun multiDelete(episodeNumber: String? = null, n: Int) {
     }
 
     fun onSourceChange(i: Int): AnimeParser {
         cancelLoadEpisodesJob("onSourceChange")
         val oldIdx = media.selected?.sourceIndex ?: -1
-        // Clear stale extractor/server state from all episodes before switching
+
         media.anime?.episodes?.values?.forEach { ep ->
             ep?.selectedExtractor = null
             ep?.selectedVideo = 0
@@ -562,17 +552,9 @@ class AnimeWatchFragment : Fragment() {
         reload()
     }
 
-    /** Watch-tab entry: focus + centre the selected source chip (host activity calls this). */
     fun focusSelectedSourceChip(): Boolean =
         if (::headerAdapter.isInitialized) headerAdapter.focusSelectedSourceChip() else false
 
-    /**
-     * Move focus to the first episode card.
-     *
-     * Episode cards are children of the list, so there is no id a
-     * nextFocusDownId could point at. The list is scrolled to the first episode
-     * and the card is focused once it has been laid out.
-     */
     fun focusFirstEpisode(): Boolean {
         val recycler = _binding?.mediaSourceRecycler ?: return false
         val adapter = recycler.adapter ?: return false
@@ -589,7 +571,6 @@ class AnimeWatchFragment : Fragment() {
         return true
     }
 
-    /** Focus the first episode card once the list has laid it out. */
     private fun focusEpisodeAfterLayout(recycler: RecyclerView) {
         val focus = {
             recycler.findViewHolderForAdapterPosition(HEADER_ITEM_COUNT)
@@ -612,14 +593,9 @@ class AnimeWatchFragment : Fragment() {
         )
     }
 
-    /**
-     * View that takes focus when the user presses Up from the first episode:
-     * the episode range chips, the continue card or the dub switch.
-     */
     fun episodeUpTargetId(): Int =
         if (::headerAdapter.isInitialized) headerAdapter.episodeUpTargetId() else View.NO_ID
 
-    /** Re-point the first episode at the row above it after the header changed. */
     private fun refreshEpisodeUpTarget() {
         val recycler = _binding?.mediaSourceRecycler ?: return
         val holder = recycler.findViewHolderForAdapterPosition(HEADER_ITEM_COUNT) ?: return
@@ -782,12 +758,9 @@ class AnimeWatchFragment : Fragment() {
         )
     }
 
-
-
     @OptIn(UnstableApi::class)
 
     @kotlin.OptIn(DelicateCoroutinesApi::class)
-
 
     @SuppressLint("NotifyDataSetChanged")
     private fun reload() {
@@ -800,7 +773,6 @@ class AnimeWatchFragment : Fragment() {
             val selected = model.loadSelected(media)
             Logger.log("Watch: reload selected")
 
-            // Find latest episode for subscription
             selected.latest =
                 media.anime?.episodes?.values?.maxOfOrNull { it.number.toFloatOrNull() ?: 0f } ?: 0f
             selected.latest =
@@ -883,7 +855,7 @@ class AnimeWatchFragment : Fragment() {
     }
 
     companion object {
-        /** The header is the first item of the concat adapter; episodes follow. */
+
         const val HEADER_ITEM_COUNT = 1
         const val ACTION_DOWNLOAD_STARTED = "ani.sanin.ACTION_DOWNLOAD_STARTED"
         const val ACTION_DOWNLOAD_FINISHED = "ani.sanin.ACTION_DOWNLOAD_FINISHED"

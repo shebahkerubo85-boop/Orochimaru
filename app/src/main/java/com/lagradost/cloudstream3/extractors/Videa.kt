@@ -1,4 +1,4 @@
-// Adapted for CloudStream - taken from https://github.com/vargalex/ResolveURL/blob/fix/videa-resolver-add-cookie/script.module.resolveurl/lib/resolveurl/plugins/videa.py
+
 package com.lagradost.cloudstream3.extractors
 
 import com.lagradost.cloudstream3.app
@@ -6,10 +6,6 @@ import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.base64DecodeArray
 
-/**
- * Extractor for Videa.hu video hosting service
- * Handles encrypted XML responses and redirect chains
- */
 class Videa : ExtractorApi() {
     override val name = "Videa"
     override val mainUrl = "https://videa.hu"
@@ -25,37 +21,35 @@ class Videa : ExtractorApi() {
     ) {
         var currentUrl = url
         var key = ""
-        // Handle redirect loop until we get valid XML
+
         val visitedUrls = mutableSetOf<String>()
         var count = 10
         while (!visitedUrls.contains(currentUrl) && count > 0) {
             visitedUrls += currentUrl
             count -= 1
 
-            val webUrl = getXmlUrl(currentUrl) { cookie -> /* no-op, cookie not used */ } ?: return
+            val webUrl = getXmlUrl(currentUrl) { cookie ->  } ?: return
             val response = app.get(webUrl)
             val body = response.body
             val rawBytes = body.bytes()
             body.close()
 
-            // Check if response starts with XML declaration
             val isXml = rawBytes.size >= 5 &&
-                    rawBytes[0] == 0x3C.toByte() &&  // '<'
-                    rawBytes[1] == 0x3F.toByte() &&  // '?'
-                    rawBytes[2] == 0x78.toByte() &&  // 'x'
-                    rawBytes[3] == 0x6D.toByte() &&  // 'm'
-                    rawBytes[4] == 0x6C.toByte()     // 'l'
+                    rawBytes[0] == 0x3C.toByte() &&
+                    rawBytes[1] == 0x3F.toByte() &&
+                    rawBytes[2] == 0x78.toByte() &&
+                    rawBytes[3] == 0x6D.toByte() &&
+                    rawBytes[4] == 0x6C.toByte()
 
             val videaXml = if (isXml) {
                 rawBytes.decodeToString()
             } else {
-                // Handle encrypted XML response
+
                 val xsHeader = response.headers["X-Videa-Xs"] ?: return
                 key += xsHeader
                 rc4DecryptBytes(rawBytes, key)
             }
 
-            // Check for redirect in XML error
             val redirectMatch = """<error.*?"noembed".*>(.*)</error>""".toRegex().find(videaXml)
 
             if (redirectMatch != null && redirectMatch.groupValues[1] != currentUrl) {
@@ -70,21 +64,19 @@ class Videa : ExtractorApi() {
     private suspend fun getXmlUrl(url: String, cookieCallback: (String) -> Unit = {}): String? {
         val response = app.get(url)
         val size = response.size
-        /* OOM Protection */
+
         if(size != null && size > 5_000_000) {
-            // You tried to use a video here
+
             return null
         }
         val html = response.text
 
-        // Extract sl cookie if present
         response.headers["Set-Cookie"]?.let { cookieHeader ->
             """sl=([^;]+)""".toRegex().find(cookieHeader)?.let {
                 cookieCallback(it.value)
             }
         }
 
-        // Determine if this is a player URL or needs iframe extraction
         val playerUrl = if ("/player" in url) {
             url
         } else {
@@ -92,22 +84,18 @@ class Videa : ExtractorApi() {
             iframeMatch?.let { "$mainUrl${it.groupValues[1]}" } ?: return null
         }
 
-        // Get player page to extract tokens
         val playerResponse = app.get(playerUrl)
         val playerHtml = playerResponse.text
 
-        // Update cookie from player response
         playerResponse.headers["Set-Cookie"]?.let { cookieHeader ->
             """sl=([^;]+)""".toRegex().find(cookieHeader)?.let {
                 cookieCallback(it.value)
             }
         }
 
-        // Extract nonce and generate tokens
         val nonceMatch = """_xt\s*=\s*"([^"]+)""".toRegex().find(playerHtml) ?: return null
         val (s, t, key) = generateTokens(nonceMatch.groupValues[1])
 
-        // Extract video parameter
         val videoParam = when {
             "f=" in playerUrl -> "f=" + playerUrl.substringAfter("f=").substringBefore("&")
             "v=" in playerUrl -> "v=" + playerUrl.substringAfter("v=").substringBefore("&")
@@ -127,7 +115,6 @@ class Videa : ExtractorApi() {
             result += s[i - index]
         }
 
-        // Generate random seed
         val chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
         val randomSeed = (1..8).map { chars.random() }.joinToString("")
 
@@ -144,12 +131,10 @@ class Videa : ExtractorApi() {
             val exp = sourceMatch.groupValues[2]
             var sourceUrl = sourceMatch.groupValues[3]
 
-            // Add https if needed
             if (sourceUrl.startsWith("//")) {
                 sourceUrl = "https:$sourceUrl"
             }
 
-            // Extract hash for this source
             val hashMatch = """<hash_value_$sourceName>([^<]+)<""".toRegex().find(xml)
 
             hashMatch?.let { match ->
@@ -172,7 +157,7 @@ class Videa : ExtractorApi() {
     }
 
     private fun rc4DecryptBytes(encryptedBytes: ByteArray, key: String): String {
-        // Check if data is Base64 encoded
+
         val isBase64 = encryptedBytes.all { byte ->
             val char = byte.toInt() and 0xFF
             char in 32..126 || char == 10 || char == 13
@@ -191,7 +176,6 @@ class Videa : ExtractorApi() {
 
         val keyBytes = key.encodeToByteArray()
 
-        // RC4 key-scheduling algorithm (KSA)
         val s = IntArray(256) { it }
         var j = 0
         for (i in 0..255) {
@@ -199,7 +183,6 @@ class Videa : ExtractorApi() {
             s[i] = s[j].also { s[j] = s[i] }
         }
 
-        // RC4 pseudo-random generation algorithm (PRGA)
         var i = 0
         j = 0
         val result = ByteArray(actualEncryptedBytes.size)

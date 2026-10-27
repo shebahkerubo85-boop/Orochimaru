@@ -59,7 +59,7 @@ class ChartBuilder {
             var aaChartType = passedAaChartType
             var categories = passedCategories
             if (chartType == ChartType.OneDimensional && chartPackets.size != 1) {
-                //need to convert to 2D
+
                 chartType = ChartType.TwoDimensional
                 aaChartType = AAChartType.Column
                 categories = chartPackets[0].names.map { it.toString() }
@@ -205,7 +205,7 @@ class ChartBuilder {
                 enabled(true)
                     .labelFormat = "{name}"
             }
-            // Keep series keys visible and label compact single-series charts directly.
+
             aaOptions.plotOptions?.series?.dataLabels?.enabled(
                 chartType == ChartType.OneDimensional ||
                     (chartPackets.size == 1 && chartPackets.first().names.size <= 12)
@@ -329,7 +329,6 @@ class ChartBuilder {
                     1.0f
                 )
             )
-
 
             aaOptions.chart?.backgroundColor(backgroundStyle.color)
             aaOptions.tooltip?.backgroundColor(

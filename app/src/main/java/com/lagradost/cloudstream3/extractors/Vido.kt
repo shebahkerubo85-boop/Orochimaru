@@ -14,10 +14,10 @@ class Vido : ExtractorApi() {
     override val requiresReferer = true
 
     override suspend fun getUrl(url: String, referer: String?): List<ExtractorLink>? {
-        val methode = app.get(url.replace("/e/", "/embed-")) // fix wiflix and mesfilms
+        val methode = app.get(url.replace("/e/", "/embed-"))
         with(methode) {
             if (!methode.isSuccessful) return null
-            //val quality = unpackedText.lowercase().substringAfter(" height=").substringBefore(" ").toIntOrNull()
+
             srcRegex.find(this.text)?.groupValues?.get(1)?.let { link ->
                 return listOf(
                     newExtractorLink(

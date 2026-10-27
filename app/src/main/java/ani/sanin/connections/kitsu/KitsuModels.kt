@@ -10,13 +10,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
-/**
- * A JSON:API document.
- *
- * `data` is deliberately untyped: Kitsu returns a single object for `/anime/:id` and
- * `/installments/:id` but an array for `/anime?filter[id]=...` and every relationship
- * route. Read it through [dataList] or [dataOne] instead of assuming a shape.
- */
 @Serializable
 data class KitsuDocument(
     @SerialName("data") val data: JsonElement? = null,
@@ -29,13 +22,6 @@ data class KitsuMeta(
     @SerialName("count") val count: Int = 0,
 )
 
-/**
- * `data` as a list, covering both the array form and a lone object.
- *
- * `null: []` is deliberately empty rather than a null resource: a `null` id and a `null`
- * entry mean the same thing to every caller here, and returning an empty list keeps the
- * `?:` chains at each call site readable.
- */
 fun KitsuDocument.dataList(): List<KitsuResource> = when (val d = data) {
     is JsonArray -> d.mapNotNull { element ->
         element.jsonObjectOrNull?.let { kitsuJson.decodeFromJsonElement<KitsuResource>(it) }
@@ -46,26 +32,16 @@ fun KitsuDocument.dataList(): List<KitsuResource> = when (val d = data) {
     else -> emptyList()
 }
 
-/** `data` as a single resource, or null when absent or an array. */
 fun KitsuDocument.dataOne(): KitsuResource? = dataList().firstOrNull()
 
-/** This element as an object, or null when it is a primitive. */
 private val JsonElement.jsonObjectOrNull: JsonObject?
     get() = this as? JsonObject
 
-/**
- * One node of a JSON:API document. Kitsu spreads type, id, attributes and relationships
- * across separate keys, so a single class covers every resource shape this client reads.
- */
 @Serializable
 data class KitsuResource(
     @SerialName("id") val id: String? = null,
     @SerialName("type") val type: String? = null,
-    /**
-     * Left untyped because a resource's attributes depend on its type, and the same client
-     * reads both `anime` and `installment` documents. Decode per type with
-     * [animeAttributes] and [installmentAttributes].
-     */
+
     @SerialName("attributes") val attributes: JsonElement? = null,
     @SerialName("relationships") val relationships: Map<String, KitsuRelationship>? = null,
 )
@@ -73,23 +49,10 @@ data class KitsuResource(
 @Serializable
 data class KitsuRelationship(
     @SerialName("links") val links: KitsuLinks? = null,
-    /**
-     * The related resources, as id objects rather than whole ones.
-     *
-     * Kitsu does not always send these: a mapping's own `item` relationship carries links
-     * only, with nothing to join on, which is why [Kitsu.animeIdsForAnilist] falls back to
-     * positional pairing there. A top-level resource's relationship does include them.
-     */
+
     @SerialName("data") val data: JsonElement? = null,
 )
 
-/**
- * The resource ids in one of this resource's relationships, in response order.
- *
- * A to-many relationship's `data` is an array of id objects and a to-one's is a single
- * such object, so both arities are read here rather than at each call site. An absent
- * relationship and one Kitsu sent as links only both come back empty.
- */
 fun KitsuResource.relationshipIds(name: String): List<String> =
     when (val related = relationships?.get(name)?.data) {
         is JsonArray -> related.mapNotNull { id ->
@@ -104,13 +67,6 @@ data class KitsuLinks(
     @SerialName("related") val related: String? = null,
 )
 
-/**
- * The anime attributes this client reads.
- *
- * Nulls are the norm here: Kitsu returns a null for anything it does not have, and
- * `idMal` in particular is null for many titles, which is why the MAL id cannot be used
- * to bridge AniList to Kitsu. See [Kitsu.franchiseCard].
- */
 @Serializable
 data class KitsuAnimeAttributes(
     @SerialName("canonicalTitle") val canonicalTitle: String? = null,
@@ -149,15 +105,6 @@ data class KitsuCategoryPage(
     val success: Boolean,
 )
 
-/**
- * A Kitsu category, shared by the Discovery chip row and the editorial shelves.
- *
- * Kitsu ships 218 of these, ordered as a tree with a `parent`, but the list route only
- * carries the parent as a link; `include=parent` inlines it and the parent's own title is
- * read back from the document's `included` block. The flat shape carries both the
- * `totalMediaCount` the editorial path reads and the `mediaCount`/`nsfw`/`parent` fields
- * the Discovery chips resolve.
- */
 data class KitsuCategory(
     val id: String,
     val slug: String,
@@ -181,7 +128,6 @@ data class KitsuCategoryAttributes(
     @SerialName("totalMediaCount") val totalMediaCount: Int = 0,
 )
 
-/** Decodes this resource's attributes as a category. Null when they are not. */
 fun KitsuResource.categoryAttributes(): KitsuCategoryAttributes? =
     attributes?.let { kitsuJson.decodeFromJsonElement<KitsuCategoryAttributes>(it) }
 
@@ -192,12 +138,6 @@ data class KitsuTitles(
     @SerialName("ja_jp") val jaJp: String? = null,
 )
 
-/**
- * The installment attributes, which is where Kitsu's curated `position` lives.
- *
- * Unreachable at the moment: every request that serializes an installment resource returns
- * HTTP 500, while the relationship routes return 200. See [Kitsu.curatedOrder].
- */
 @Serializable
 data class KitsuInstallmentAttributes(
     @SerialName("position") val position: Int? = null,
@@ -207,43 +147,27 @@ data class KitsuInstallmentAttributes(
     @SerialName("releaseDate") val releaseDate: String? = null,
 )
 
-/** Decodes this resource's attributes as an anime. Null when they are not. */
 fun KitsuResource.animeAttributes(): KitsuAnimeAttributes? =
     attributes?.let { kitsuJson.decodeFromJsonElement<KitsuAnimeAttributes>(it) }
 
-/** Decodes this resource's attributes as an installment. Null when they are not. */
 fun KitsuResource.installmentAttributes(): KitsuInstallmentAttributes? =
     attributes?.let { kitsuJson.decodeFromJsonElement<KitsuInstallmentAttributes>(it) }
 
-/**
- * A franchise's own title, which is the real franchise name.
- *
- * Preferred over a seed anime's title for [Franchise.name]: Naruto the franchise is called
- * "Naruto" even when the seed is "Naruto: Shippuden".
- */
 @Serializable
 data class KitsuFranchiseAttributes(
     @SerialName("canonicalTitle") val canonicalTitle: String? = null,
     @SerialName("titles") val titles: KitsuTitles? = null,
 )
 
-/** Decodes this resource's attributes as a franchise. Null when they are not. */
 fun KitsuResource.franchiseAttributes(): KitsuFranchiseAttributes? =
     attributes?.let { kitsuJson.decodeFromJsonElement<KitsuFranchiseAttributes>(it) }
 
-/**
- * A mapping row's AniList id.
- *
- * Separate from [KitsuAnimeAttributes] because a mapping is a third resource type, with an
- * `externalId` attribute instead of any anime field.
- */
 @Serializable
 data class KitsuMappingAttributes(
     @SerialName("externalSite") val externalSite: String? = null,
     @SerialName("externalId") val externalId: String? = null,
 )
 
-/** Decodes this resource's attributes as a mapping row. Null when they are not. */
 fun KitsuResource.mappingAttributes(): KitsuMappingAttributes? =
     attributes?.let { kitsuJson.decodeFromJsonElement<KitsuMappingAttributes>(it) }
 

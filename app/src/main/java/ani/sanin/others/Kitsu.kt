@@ -16,7 +16,7 @@ object Kitsu {
         Logger.log("Kitsu : title=${media.mainName()}")
         return try {
             tryWithSuspend {
-                // 1. Try GraphQL Method (Primary Priority)
+
                 var returnedEpisodes: Map<String, Episode>? = null
                 try {
                     val query =
@@ -48,13 +48,13 @@ object Kitsu {
                         "Content-Type" to "application/json",
                         "Accept" to "application/json",
                     )
-                    
+
                     val graphqlRes = client.post(
                         "https://kitsu.io/api/graphql",
                         headers,
                         data = mapOf("query" to query)
                     ).parsed<KitsuGraphQLResponse>()
-                    
+
                     if (graphqlRes.data?.lookupMapping != null) {
                         Logger.log("Kitsu : Used GraphQL Method (1st Priority)")
                         val mapping = graphqlRes.data.lookupMapping
@@ -80,26 +80,23 @@ object Kitsu {
                     return@tryWithSuspend returnedEpisodes
                 }
 
-                // 2. Fallback to REST API Method (Secondary Priority)
-                // Search for Anime by Title
                 val title = URLEncoder.encode(media.mainName(), "utf-8")
                 val searchUrl = "https://kitsu.io/api/edge/anime?filter[text]=$title&page[limit]=1"
                 val searchRes = client.get(searchUrl).parsed<KitsuAnimeSearch>()
-                
+
                 val animeId = searchRes.data?.firstOrNull()?.id ?: return@tryWithSuspend null
                 media.idKitsu = animeId
-                
+
                 Logger.log("Kitsu : Used REST API Method (2nd Priority)")
 
-                // Fetch Episodes with Pagination
                 val allEpisodes = mutableMapOf<String, Episode>()
                 var offset = 0
                 val limit = 20
-                
+
                 while (true) {
                     val episodesUrl = "https://kitsu.io/api/edge/anime/$animeId/episodes?page[limit]=$limit&page[offset]=$offset&sort=number"
                     val episodesRes = client.get(episodesUrl).parsed<KitsuEpisodes>()
-                    
+
                     val pageEpisodes = episodesRes.data?.associate { ep ->
                         val num = ep.attributes?.number?.toString() ?: return@associate null to null
                         val epNum = if (num.endsWith(".0")) num.substringBefore(".") else num
@@ -118,7 +115,7 @@ object Kitsu {
                             )
                         )
                     }?.filterKeys { it != null }?.mapKeys { it.key!! }?.filterValues { it != null }?.mapValues { it.value!! }
-                    
+
                     if (pageEpisodes != null) {
                         allEpisodes.putAll(pageEpisodes)
                     }
@@ -128,7 +125,7 @@ object Kitsu {
                     }
                     offset += limit
                 }
-                
+
                 allEpisodes
             }
         } catch (e: Exception) {

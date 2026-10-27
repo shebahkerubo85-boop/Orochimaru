@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- KEYS -->
+
     <string name="search_providers_list_key">search_providers_list</string>
     <string name="locale_key">app_locale</string>
     <string name="search_types_list_key">search_type_list</string>
@@ -109,7 +109,6 @@
 
     <string name="tv_no_focus_tag">tv_no_focus_tag</string>
 
-    <!-- FORMAT WILL CAUSE CRASH IF APPLIED WRONG -->
     <string name="extra_info_format" formatted="true">%1$d %2$s | %3$s</string>
     <string name="storage_size_format" formatted="true">%1$s • %2$s</string>
     <string name="download_format" formatted="true">%1$s - %2$s</string>

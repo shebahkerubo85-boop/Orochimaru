@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- "Lens" capsule: a faint glass fill with a low-contrast outline, wrapping the show name. -->
+
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <solid android:color="#14FFFFFF" />

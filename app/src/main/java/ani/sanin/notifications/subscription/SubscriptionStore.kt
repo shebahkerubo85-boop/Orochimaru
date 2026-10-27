@@ -11,10 +11,9 @@ data class SubscriptionStore(
     val time: Long = System.currentTimeMillis(),
     val image: String? = "",
     val banner: String? = "",
-    // Present only for movie/tv (TMDB) subscription notifications so the
-    // notification screen can open the right detail screen (TmdbDetailsActivity).
+
     val tmdbType: String? = null,
-    // Extra episode metadata used by the compact episode notification card.
+
     val episodeNumber: Int? = null,
     val episodeTitle: String? = null,
     val thumbnail: String? = null,

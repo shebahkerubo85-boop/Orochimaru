@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Dark base surface -->
+
     <item>
         <shape android:shape="rectangle">
             <solid android:color="#B31A1A2E" />
@@ -9,7 +9,6 @@
         </shape>
     </item>
 
-    <!-- Top-left light inner highlight -->
     <item android:bottom="2dp" android:right="2dp">
         <shape android:shape="rectangle">
             <solid android:color="#1AFFFFFF" />
@@ -17,7 +16,6 @@
         </shape>
     </item>
 
-    <!-- Bottom-right dark inner shadow -->
     <item android:top="2dp" android:left="2dp">
         <shape android:shape="rectangle">
             <solid android:color="#33000000" />

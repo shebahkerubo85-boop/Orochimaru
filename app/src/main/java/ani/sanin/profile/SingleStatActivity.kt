@@ -32,6 +32,6 @@ class SingleStatActivity : AppCompatActivity() {
     }
 
     companion object {
-        var chartOptions: AAOptions? = null  // I cba to pass this through an intent
+        var chartOptions: AAOptions? = null
     }
 }

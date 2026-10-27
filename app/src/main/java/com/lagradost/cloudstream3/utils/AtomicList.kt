@@ -3,12 +3,6 @@ package com.lagradost.cloudstream3.utils
 import kotlinx.atomicfu.locks.SynchronizedObject
 import kotlinx.atomicfu.locks.synchronized
 
-/**
- * A thread-safe list backed by [SynchronizedObject].
- *
- * For iteration, wrap block in [withLock] to hold the lock for the duration:
- *   list.withLock { list.forEach { ... } }
- */
 open class AtomicList<T>(
     private val delegate: List<T> = emptyList(),
 ) : List<T>, SynchronizedObject() {
@@ -26,7 +20,6 @@ open class AtomicList<T>(
     override fun indexOf(element: T): Int = synchronized(this) { delegate.indexOf(element) }
     override fun lastIndexOf(element: T): Int = synchronized(this) { delegate.lastIndexOf(element) }
 
-    // Iterators intentionally NOT synchronized, callers must use withLock { } for safe iteration.
     override fun iterator(): Iterator<T> = delegate.iterator()
     override fun listIterator(): ListIterator<T> = delegate.listIterator()
     override fun listIterator(index: Int): ListIterator<T> = delegate.listIterator(index)
@@ -51,7 +44,6 @@ class AtomicMutableList<T>(
     override fun set(index: Int, element: T): T = synchronized(this) { mutableDelegate.set(index, element) }
     override fun clear() = synchronized(this) { mutableDelegate.clear() }
 
-    // Iterators intentionally NOT synchronized, callers must use withLock { } for safe iteration.
     override fun iterator(): MutableIterator<T> = mutableDelegate.iterator()
     override fun listIterator(): MutableListIterator<T> = mutableDelegate.listIterator()
     override fun listIterator(index: Int): MutableListIterator<T> = mutableDelegate.listIterator(index)

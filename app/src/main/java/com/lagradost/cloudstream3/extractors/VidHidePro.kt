@@ -74,7 +74,7 @@ open class VidHidePro : ExtractorApi() {
             "Origin" to mainUrl,
 	        "User-Agent" to USER_AGENT,
         )
-        
+
         val response = app.get(getEmbedUrl(url), referer = referer)
         val script = if (!getPacked(response.text).isNullOrEmpty()) {
             getAndUnpack(response.text)

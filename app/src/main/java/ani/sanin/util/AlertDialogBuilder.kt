@@ -33,7 +33,6 @@ class AlertDialogBuilder(private val context: Context) {
     private var dismissOnSelect: Boolean = true
     private var fixedWidthPx: Int? = null
 
-    /** Caps the dialog window width, overriding the theme's default min width. */
     fun setWidthPx(widthPx: Int): AlertDialogBuilder {
         this.fixedWidthPx = widthPx
         return this
@@ -155,9 +154,6 @@ class AlertDialogBuilder(private val context: Context) {
         return this
     }
 
-    /** Single-choice item list rendered through a [ListAdapter], so rows can
-     *  be custom (e.g. dividers). The selected adapter position maps straight
-     *  through to [onItemSelected]. */
     fun singleChoiceAdapter(
         adapter: ListAdapter,
         selectedItemIndex: Int,
@@ -183,7 +179,7 @@ class AlertDialogBuilder(private val context: Context) {
     }
 
     fun show() {
-        if (context is Activity && context.isFinishing) return // Ensure context is valid
+        if (context is Activity && context.isFinishing) return
 
         val builder = AlertDialog.Builder(context, R.style.MyPopup)
         if (title != null) builder.setTitle(title)
@@ -256,9 +252,7 @@ class AlertDialogBuilder(private val context: Context) {
             }
         }
         dialog.show()
-        // Must be after show(): before the window is attached to the WindowManager,
-        // setLayout() is dropped and the theme's default width wins, so the dialog
-        // came out full-bleed no matter what width was requested here.
+
         fixedWidthPx?.let { widthPx ->
             dialog.window?.setLayout(widthPx, WindowManager.LayoutParams.WRAP_CONTENT)
         }

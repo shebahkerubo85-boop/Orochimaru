@@ -34,7 +34,6 @@ class Login : AppCompatActivity() {
             return
         }
 
-        // Try query parameter first, then fragment for code
         var code = data.getQueryParameter("code")
         if (code == null) {
             val fragment = data.encodedFragment ?: data.toString()
@@ -89,7 +88,6 @@ class Login : AppCompatActivity() {
                 Log.d(TAG, "fetchUserData returned: user=${user != null}")
                 Log.d(TAG, "Simkl state: name=${Simkl.username}, avatar=${Simkl.avatar?.take(80)} userid=${Simkl.userid}")
 
-                // If fetchUserData failed, try again (might be a timing issue)
                 if (Simkl.username == null || Simkl.username == "") {
                     Log.d(TAG, "Username empty, retrying fetchUserData in 1s...")
                     kotlinx.coroutines.delay(1000)

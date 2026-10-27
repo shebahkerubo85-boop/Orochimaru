@@ -36,7 +36,6 @@ import eu.kanade.tachiyomi.util.system.getSerializableCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-
 class ProfileFragment : Fragment() {
     lateinit var binding: FragmentProfileBinding
     private lateinit var activity: ProfileActivity
@@ -104,7 +103,6 @@ class ProfileFragment : Fragment() {
 
         binding.userInfoContainer.isVisible = user.about != null
 
-
         binding.statsEpisodesWatched.text = user.statistics.anime.episodesWatched.toString()
         binding.statsDaysWatched.text =
             (user.statistics.anime.minutesWatched / (24 * 60)).toString()
@@ -120,7 +118,6 @@ class ProfileFragment : Fragment() {
             binding.profileFavAnime
         )
 
-        // Sanin is anime-first: keep manga out of the profile UI.
         binding.profileFavMangaContainer.visibility = View.GONE
         (binding.statsChaptersRead.parent as? View)?.visibility = View.GONE
         (binding.statsVolumeRead.parent as? View)?.visibility = View.GONE
@@ -136,7 +133,6 @@ class ProfileFragment : Fragment() {
 
         setFavPeople()
 
-        // Activity is part of the profile page now, not a separate navigation tab.
         if (childFragmentManager.findFragmentById(R.id.profileActivityFeedContainer) == null) {
             childFragmentManager.beginTransaction()
                 .replace(

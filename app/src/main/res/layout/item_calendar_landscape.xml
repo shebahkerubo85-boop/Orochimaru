@@ -23,7 +23,6 @@
 
     </androidx.cardview.widget.CardView>
 
-    <!-- Episode title below image, not overlaid -->
     <TextView
         android:id="@+id/calendarLandscapeTitle"
         android:layout_width="match_parent"

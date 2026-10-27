@@ -6,11 +6,11 @@
         <item>@id/cast_button_type_forward_30_seconds</item>
     </array>
     <array name="cast_expanded_controller_control_buttons">
-        <!-- Fake sources button -->
+
         <item>@id/cast_button_type_rewind_30_seconds</item>
         <item>@id/cast_button_type_rewind_30_seconds</item>
         <item>@id/cast_button_type_forward_30_seconds</item>
-        <!-- Actually fake to make the skip op button the same style -->
+
         <item>@id/cast_button_type_forward_30_seconds</item>
     </array>
 
@@ -25,7 +25,6 @@
         <item>@string/show_resolution_key</item>
         <item>@string/show_media_info_key</item>
     </array>
-
 
     <array name="limit_title_pref_names">
         <item>@string/none</item>
@@ -218,7 +217,6 @@
         <item>Monet2</item>
     </string-array>
 
-
     <string-array name="themes_names">
         <item>Oscuro</item>
         <item>Gris</item>
@@ -242,7 +240,6 @@
         <item>SilentBlue</item>
     </string-array>
 
-    <!--https://github.com/videolan/vlc-android/blob/72ccfb93db027b49855760001d1a930fa657c5a8/application/resources/src/main/res/values/arrays.xml#L266-->
     <string-array name="subtitles_encoding_list" tools:ignore="TypographyDashes">
         <item>@string/automatic</item>
         <item>Universal (UTF-8)</item>

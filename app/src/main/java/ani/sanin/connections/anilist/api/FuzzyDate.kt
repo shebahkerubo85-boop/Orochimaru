@@ -12,7 +12,6 @@ data class FuzzyDate(
     @SerialName("day") val day: Int? = null,
 ) : Serializable, Comparable<FuzzyDate> {
 
-
     fun isEmpty(): Boolean {
         return year == null && month == null && day == null
     }
@@ -55,10 +54,6 @@ data class FuzzyDate(
         )
         return values.takeWhile { it is String }.joinToString("-")
     }
-
-//    fun toInt(): Int {
-//        return 10000 * (this.year ?: 0) + 100 * (this.month ?: 0) + (this.day ?: 0)
-//    }
 
     override fun compareTo(other: FuzzyDate): Int = when {
         year != other.year -> (year ?: 0) - (other.year ?: 0)

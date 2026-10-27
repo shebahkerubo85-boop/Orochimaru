@@ -12,19 +12,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
 
-/**
- * Replicates Jackson's ACCEPT_FLOAT_AS_INT behaviour for Int fields.
- * A floating-point JSON number is truncated to Int by dropping the
- * fractional part, exactly like Jackson's default truncation behaviour.
- *
- * Usage:
- *
- *   @Serializable
- *   data class MyData(
- *       @Serializable(with = FloatAsIntSerializer::class)
- *       @SerialName("count") val count: Int = 0,
- *   )
- */
 @Prerelease
 object FloatAsIntSerializer : KSerializer<Int> {
 

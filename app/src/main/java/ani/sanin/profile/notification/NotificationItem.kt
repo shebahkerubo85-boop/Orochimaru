@@ -153,7 +153,7 @@ class NotificationItem(
             NotificationType.ACTIVITY_MESSAGE -> R.drawable.ic_round_remove_red_eye_24
 
             NotificationType.FOLLOWING -> R.drawable.ic_round_person_24
-            
+
             NotificationType.ACTIVITY_MENTION,
             NotificationType.THREAD_COMMENT_MENTION -> R.drawable.ic_round_comment_24
 
@@ -198,7 +198,7 @@ class NotificationItem(
             iconParams.topMargin = 8.toPx
             iconParams.marginEnd = 12.toPx
             binding.notificationTypeIcon.layoutParams = iconParams
-            
+
             binding.notificationCover.visibility = View.GONE
             binding.notificationCoverUser.visibility = View.VISIBLE
             binding.notificationCoverUserContainer.visibility = View.VISIBLE
@@ -222,7 +222,7 @@ class NotificationItem(
             iconParams.topMargin = 16.toPx
             iconParams.marginEnd = 16.toPx
             binding.notificationTypeIcon.layoutParams = iconParams
-            
+
             binding.notificationCover.visibility = View.VISIBLE
             binding.notificationCoverUser.visibility = View.VISIBLE
             binding.notificationCoverUserContainer.visibility = View.GONE

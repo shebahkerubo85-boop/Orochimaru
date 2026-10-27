@@ -117,11 +117,9 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                 val allSubtitles = mutableListOf<Any>()
                 allSubtitles.add(AddLocalSubtitle("+ Add Local Subtitle"))
 
-                // Add any locally-added subtitles (stored separately from online cache)
                 val localSubs = model.getLocalSubtitles(episodeId)
                 allSubtitles.addAll(localSubs)
 
-                // Online subtitle section: populated instantly
                 val cached = model.getFetchedSubtitles(episodeId)
                 if (cached != null) {
                     if (cached.isNotEmpty()) {
@@ -143,7 +141,6 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                 }
                 Logger.log("SubtitleDialogFragment: rows=${allSubtitles.size} (local=${currentExtractor.subtitles.size}, cachedOnline=${cached?.size ?: 0})")
 
-                // Fetch IMDB and Mapping in background so it's ready when users click "Online"
                 launch(kotlinx.coroutines.Dispatchers.IO) {
                     if (media.idIMDB == null) {
                         try {
@@ -153,7 +150,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                     if (currentSeasonEpisode == null) {
                         try {
                             currentSeasonEpisode = EpisodeMapper.mapEpisode(media, episodeNum, episode)
-                            // Update labels visually once loaded
+
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                                 if (_binding != null) binding.subtitlesRecycler.adapter?.notifyDataSetChanged()
                             }
@@ -179,19 +176,14 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                 val isMovie = media.format == "MOVIE"
                 val selectedEpisode = media.anime?.selectedEpisode ?: "1"
 
-                // Phase 2: Calculator (Translation) — reads AniZip data from episode.extra (no extra API call)
                 val currentEpisode = media.anime?.episodes?.get(selectedEpisode)
                 val episodeNum = EpisodeMapper.episodeNumberOf(selectedEpisode, currentEpisode)
                 val seasonEpisode = EpisodeMapper.mapEpisode(media, episodeNum, currentEpisode)
                 currentSeasonEpisode = seasonEpisode
                 Logger.log("SubtitleDialogFragment: fetch imdbId=$imdbId ep=$episodeNum season=${seasonEpisode.season} epInSeason=${seasonEpisode.episode}")
 
-                // Phase 3 & 4: Fetcher & Backup Plan
                 val onlineSubs = mutableListOf<Any>()
 
-                // Unified Fetcher (handles Wyzie & Stremio based on settings)
-                // Use the new signature: getSubtitles(media, season, episode)
-                // Ensure we pass the Media object correctly.
                 val fetchedSubs = StremioSubtitles.getSubtitles(media, seasonEpisode.season, seasonEpisode.episode)
                 onlineSubs.addAll(fetchedSubs)
 
@@ -199,16 +191,14 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                     try {
                         if (_binding == null) return@withContext
                         val validAdapter = binding.subtitlesRecycler.adapter as? SubtitleAdapter ?: return@withContext
-                        // Verify item is still at position (basic check, improved by verifying content)
+
                         if (position < validAdapter.subtitles.size && validAdapter.subtitles[position] == item) {
                             val list = validAdapter.subtitles as MutableList<Any>
-                            list.removeAt(position) // Remove "Search..." button
+                            list.removeAt(position)
 
                             Logger.log("SubtitleDialogFragment: fetched ${onlineSubs.size} online subtitles")
                                 if (onlineSubs.isNotEmpty()) {
-                                    // Use the raw episode key ("6", "S4E6") — with
-                                    // episodeNum (toIntOrNull) every TMDB "SxEy"
-                                    // episode collapsed into the same cache slot.
+
                                     model.saveFetchedSubtitles("${media.id}-$selectedEpisode", onlineSubs)
                                     list.addAll(onlineSubs)
                             } else {
@@ -231,7 +221,6 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
         }
     }
 
-
     inner class SubtitleAdapter(val subtitles: List<Any>) :
         RecyclerView.Adapter<SubtitleAdapter.StreamViewHolder>() {
         inner class StreamViewHolder(val binding: ItemSubtitleTextBinding) :
@@ -251,13 +240,11 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
             val binding = holder.binding
             FocusEffectUtil.applyFocusListener(binding.root)
 
-            // Create alpha background color for highlighted item
             val highlightColor = ColorUtils.setAlphaComponent(
                 PrefManager.getVal<Int>(PrefName.PrimaryColor),
                 60
             )
 
-            // Handle "None" option at position 0
             if (position == 0) {
                 binding.subtitleTitle.setText(R.string.none)
                 model.getMedia().observe(viewLifecycleOwner) { media ->
@@ -289,7 +276,6 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
             val adjustedPosition = position - 1
             val item = subtitles[adjustedPosition]
 
-            // Handle separator
             if (item is String) {
                 binding.subtitleTitle.text = item
                 binding.root.isClickable = false
@@ -297,7 +283,6 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                 return
             }
 
-            // --- ADD LOCAL SUBTITLE ---
             if (item is AddLocalSubtitle) {
                 binding.subtitleTitle.text = item.text
                 binding.root.setCardBackgroundColor(TRANSPARENT)
@@ -309,12 +294,11 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                 return
             }
 
-            // --- SEARCH ONLINE SUBTITLES ---
             if (item is SearchOnlineSubtitles) {
                 binding.subtitleTitle.text = item.text
                 binding.root.setCardBackgroundColor(TRANSPARENT)
                 binding.root.setOnClickListener {
-                    // Prevent double clicks
+
                     if (item.text == "Searching...") return@setOnClickListener
                     Logger.log("SubtitleDialogFragment: Online Subtitle search clicked")
                     fetchOnlineSubtitles(this@SubtitleAdapter, item, adjustedPosition)
@@ -322,7 +306,6 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                 return
             }
 
-            // --- SUBTITLE SYNC ---
             if (item is OpenSubtitleSync) {
                 val ctx = binding.root.context
                 val primary = ctx.getThemeColor(com.google.android.material.R.attr.colorPrimary)
@@ -344,7 +327,6 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                 return
             }
 
-            // --- LOCAL SUBTITLES ---
             if (item is Subtitle) {
                 binding.subtitleTitle.text = when (item.language) {
                     "ja-JP" -> "[ja-JP] Japanese"
@@ -377,7 +359,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                             null,
                             String::class.java
                         )
-                    // Highlight ONLY if the saved preference matches this local subtitle's language
+
                     if (selSubs != item.language) {
                         binding.root.setCardBackgroundColor(TRANSPARENT)
                     } else {
@@ -387,11 +369,9 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
 
                 binding.root.setOnClickListener {
                     Logger.log("SubtitleDialogFragment: local subtitle clicked language=${item.language}")
-                    // Check if this is a custom local subtitle we cached
+
                     if (item.language.startsWith("[Local]")) {
-                        // DO NOT call model.setEpisode() here — that triggers a full player
-                        // rebuild (releasePlayer + initPlayer) which wipes the local sub config
-                        // and makes reApplyLocalSubtitle fail. Just update prefs and re-apply.
+
                         model.getMedia().value?.let { media ->
                             PrefManager.setCustomVal("subLang_${media.id}", item.language)
                         }
@@ -405,7 +385,7 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                             }
                         }
                     } else {
-                        // Standard built-in local subtitle
+
                         Logger.log("SubtitleDialogFragment: built-in subtitle selected index=$adjustedPosition language=${item.language}")
                         episode.selectedSubtitle = adjustedPosition
                         model.setEpisode(episode, "Subtitle")
@@ -424,16 +404,15 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
 
             val seInfo = currentSeasonEpisode?.let { "S${it.season}.E${it.episode}" } ?: ""
 
-            // --- ONLINE SUBTITLES (WYZIE) ---
             if (item is WyzieSub) {
-                // Formatting: [ASS] S2.E5.English
+
                 val format = item.format.uppercase()
                 val label = "[$format] ${if(seInfo.isNotEmpty()) "$seInfo." else ""}${item.displayLabel}"
                 binding.subtitleTitle.text = label
 
                 model.getMedia().observe(viewLifecycleOwner) { media ->
                     val selSubs: String? = PrefManager.getNullableCustomVal("subLang_${media.id}", null, String::class.java)
-                    // Use URL as unique ID for Wyzie
+
                     if (selSubs != "Online:${item.url}") {
                         binding.root.setCardBackgroundColor(TRANSPARENT)
                     } else {
@@ -453,7 +432,6 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                                 PrefManager.setCustomVal("subLang_${media.id}", "Online:${item.url}")
                             }
 
-                            // Convert WyzieSub to StremioSub for compatibility
                             val stremioSub = StremioSub(
                                 id = item.url,
                                 url = item.url,
@@ -470,17 +448,14 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                 return
             }
 
-            // --- ONLINE SUBTITLES (STREMIO) ---
             if (item is StremioSub) {
                 val langName = mapLanguageCode(item.lang)
                 val label = "[ONLINE] ${if(seInfo.isNotEmpty()) "$seInfo." else ""}$langName"
                 binding.subtitleTitle.text = label
 
-                // Check if this online subtitle is currently selected using UNIQUE ID
                 model.getMedia().observe(viewLifecycleOwner) { media ->
                     val selSubs: String? = PrefManager.getNullableCustomVal("subLang_${media.id}", null, String::class.java)
 
-                    // Use subtitle ID to uniquely identify selection
                     if (selSubs != "Online:${item.id}") {
                         binding.root.setCardBackgroundColor(TRANSPARENT)
                     } else {
@@ -497,16 +472,13 @@ class SubtitleDialogFragment : BottomSheetDialogFragment() {
                         if (activity is ExoplayerView) {
                             Logger.log("SubtitleDialogFragment: Activity IS ExoplayerView, calling applyOnlineSubtitle")
 
-                            // 1. Reset the Local Subtitle Selection Index
                             episode.selectedSubtitle = -1
                             model.setEpisode(episode, "Subtitle")
 
-                            // 2. Save the "Online" label WITH unique ID to Preferences
                             model.getMedia().observe(viewLifecycleOwner) { media ->
                                 PrefManager.setCustomVal("subLang_${media.id}", "Online:${item.id}")
                             }
 
-                            // 3. Apply the subtitle
                             activity.applyOnlineSubtitle(item)
                             Logger.log("SubtitleDialogFragment: applyOnlineSubtitle called successfully")
                         } else {

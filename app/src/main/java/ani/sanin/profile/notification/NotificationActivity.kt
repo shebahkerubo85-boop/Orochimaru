@@ -59,7 +59,7 @@ class NotificationActivity : AppCompatActivity() {
     private var commentCount = 0
     private var getOne = -1
     private var isMovieMode = false
-    /** Maps visible-tab index → TabType. */
+
     private lateinit var visibleTabTypes: List<TabType>
 
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -105,7 +105,7 @@ class NotificationActivity : AppCompatActivity() {
 
     private fun setupTabs() {
         val tabs: List<Pair<String, TabType>> = if (isMovieMode) {
-            // Movie/TMDB mode: a single, centrally placed Subscriptions tab.
+
             listOf(getString(R.string.subscriptions) to TabType.SUBSCRIPTION)
         } else {
             buildList {
@@ -132,12 +132,11 @@ class NotificationActivity : AppCompatActivity() {
         if (isMovieMode) {
             binding.notificationTabLayout.tabGravity = TabLayout.GRAVITY_CENTER
         }
-        // Anime mode starts on the Media tab; movie mode has a single tab.
+
         val startTab = if (isMovieMode) 0
         else visibleTabTypes.indexOf(TabType.MEDIA).coerceAtLeast(0)
         binding.notificationTabLayout.getTabAt(startTab)?.select()
     }
-
 
     private fun tomoe(sizeDp: Float, speed: Float, rot: Float, grav: Int): LottieAnimationView {
         val s = (sizeDp * resources.displayMetrics.density).toInt()
@@ -272,11 +271,6 @@ class NotificationActivity : AppCompatActivity() {
         tabRecycler.post { tabRecycler.requestFocus() }
     }
 
-    /**
-     * Episode notifications (compact pill + card) for the Subscriptions tab and
-     * for episode-aired (AIRING/SUBSCRIPTION) items in the Media tab. Everything
-     * else keeps the classic notification card.
-     */
     private fun newNotificationItem(n: Notification, tab: TabType): com.xwray.groupie.Item<*> {
         val isEpisode = tab == TabType.SUBSCRIPTION ||
             (tab == TabType.MEDIA &&
@@ -339,8 +333,7 @@ class NotificationActivity : AppCompatActivity() {
                 ) ?: listOf()
                 list.sortedByDescending { (it.time / 1000L).toInt() }
                     .filter { it.image != null }
-                    // In movie/TMDB mode, only show TMDB sub notifications;
-                    // in anime mode, only show anime sub notifications.
+
                     .filter { if (isMovieMode) it.tmdbType != null else it.tmdbType == null }
                     .map { Notification(it.type, System.currentTimeMillis().toInt(),
                         commentId = it.mediaId, mediaId = it.mediaId,

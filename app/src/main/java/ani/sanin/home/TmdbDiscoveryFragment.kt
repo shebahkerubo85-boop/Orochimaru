@@ -58,7 +58,7 @@ class TmdbDiscoveryFragment : Fragment() {
     private val binding get() = _binding!!
     private val adapter = TmdbGridAdapter { openDetails(it) }
     private var genres: List<TmdbGenre> = emptyList()
-    /** Shelf scroll position captured before a category opens, restored on the way back. */
+
     private var shelvesScrollY = 0
     private var selectedCategory: TmdbDiscoveryCategory? = null
     private val keywordCache = mutableMapOf<String, Int?>()
@@ -76,7 +76,7 @@ class TmdbDiscoveryFragment : Fragment() {
     private val categorySemaphore = Semaphore(3)
 
     private companion object {
-        /** How many titles the trailer rail seeds before the player takes over the feed. */
+
         const val RAIL_MEDIA_COUNT = 12
     }
 
@@ -139,8 +139,7 @@ class TmdbDiscoveryFragment : Fragment() {
 
         binding.tmdbDiscoveryScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
             if (selectedCategory == null) {
-                // Load artwork just ahead of the viewport instead of waiting until the bottom
-                // of the full 150-shelf list.
+
                 val rowsAhead = (scrollY + binding.tmdbDiscoveryScroll.height) / dp(118) + 2
                 val needed = (rowsAhead * 2).coerceAtMost(TmdbDiscoveryCategories.all.size)
                 if (needed > artworkLimit) {
@@ -171,7 +170,6 @@ class TmdbDiscoveryFragment : Fragment() {
             .putExtra(TmdbDetailsActivity.ARG_OPEN_TAB, TmdbDetailsActivity.TAB_INFO))
     }
 
-    /** Loads the trailer reels feed once, then renders the rail of entry-point cards. */
     private fun loadTmdbReelRail() {
         if (tmdbReelLoaded) {
             renderTmdbReelRail()
@@ -185,8 +183,7 @@ class TmdbDiscoveryFragment : Fragment() {
                 }.getOrNull()
             }
             tmdbReelEntries = entries ?: emptyList()
-            // One card per title, in the order each first appears in the mixed feed, so a tap drops
-            // the viewer at that title's first video without breaking the interleave.
+
             val seen = HashSet<String>()
             tmdbReelCards = tmdbReelEntries.mapIndexedNotNull { index, item ->
                 if (seen.add(item.animeTitle)) TmdbReelCard(item.animeTitle, item.key, index) else null
@@ -280,7 +277,6 @@ class TmdbDiscoveryFragment : Fragment() {
         host.addView(scroll)
     }
 
-    /** Opens the vertical reels player at [startIndex], continuing the TMDB trailer feed from there. */
     private fun openTmdbReelPlayer(startIndex: Int) {
         if (tmdbReelEntries.isEmpty() || !isAdded) return
         val intent = Intent(requireContext(), YouTubeShortsPlayerActivity::class.java).apply {
@@ -288,7 +284,7 @@ class TmdbDiscoveryFragment : Fragment() {
                 YouTubeShortsPlayerActivity.EXTRA_VIDEO_IDS,
                 ArrayList(tmdbReelEntries.map { it.key })
             )
-            // The header shows the specific video ("Official Trailer"); the pill shows the title.
+
             putStringArrayListExtra(
                 YouTubeShortsPlayerActivity.EXTRA_TITLES,
                 ArrayList(tmdbReelEntries.map { it.videoName })
@@ -309,7 +305,7 @@ class TmdbDiscoveryFragment : Fragment() {
                 YouTubeShortsPlayerActivity.EXTRA_COVERS,
                 ArrayList(tmdbReelEntries.map { it.cover ?: "" })
             )
-            // The title's TMDB id + media type, so the pill can open TmdbDetailsActivity.
+
             putIntegerArrayListExtra(
                 YouTubeShortsPlayerActivity.EXTRA_TMDB_IDS,
                 ArrayList(tmdbReelEntries.map { it.tmdbId })
@@ -325,10 +321,6 @@ class TmdbDiscoveryFragment : Fragment() {
         startActivity(intent)
     }
 
-    /**
-     * Loads a card's 16:9 artwork with the same 404-safe fallback the anime rail uses, so a title
-     * whose HD thumbnail is missing still shows its standard-quality one.
-     */
     private fun ImageView.loadTmdbReelThumbnail(key: String) {
         val view = this
         Glide.with(view)
@@ -438,7 +430,7 @@ class TmdbDiscoveryFragment : Fragment() {
                     setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
                     setPadding(0, dp(4), 0, 0)
                 })
-                // Mirrored columns: posters face outward; copy faces the centre seam.
+
                 if (columnIndex == 0) {
                     card.addView(artworkFrame)
                     card.addView(textColumn)
@@ -507,7 +499,7 @@ class TmdbDiscoveryFragment : Fragment() {
     private fun openCategory(category: TmdbDiscoveryCategory) {
         selectedCategory = category
         backCallback?.isEnabled = true
-        // Keep where the shelf list was so "All discovery shelves" can land back on it.
+
         shelvesScrollY = binding.tmdbDiscoveryScroll.scrollY
         binding.tmdbDiscoveryScroll.scrollTo(0, 0)
         binding.tmdbDiscoveryGrid.isVisible = true
@@ -564,7 +556,7 @@ class TmdbDiscoveryFragment : Fragment() {
         binding.tmdbDiscoveryGrid.isVisible = false
         adapter.submit(emptyList())
         renderCategories()
-        // Restore the shelf scroll position captured when the category was opened.
+
         val target = shelvesScrollY
         binding.tmdbDiscoveryScroll.post { if (_binding != null) binding.tmdbDiscoveryScroll.scrollTo(0, target) }
         loadCategoryArtwork()

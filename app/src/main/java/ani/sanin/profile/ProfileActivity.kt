@@ -45,7 +45,6 @@ import kotlinx.coroutines.withContext
 import nl.joery.animatedbottombar.AnimatedBottomBar
 import kotlin.math.abs
 
-
 class ProfileActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedListener {
     lateinit var binding: ActivityProfileBinding
     private lateinit var bindingProfileAppBar: ItemProfileAppBarBinding
@@ -204,7 +203,6 @@ class ProfileActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedListene
                     mMaxScrollSize = profileAppBar.totalScrollRange
                     profileAppBar.addOnOffsetChangedListener(context)
 
-
                     profileFollowerCount.text =
                         (respond.data.followerPage?.pageInfo?.total ?: 0).toString()
                     profileFollowerCountContainer.setOnClickListener {
@@ -261,7 +259,6 @@ class ProfileActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedListene
         }
     }
 
-    //Collapsing UI Stuff
     private var isCollapsed = false
     private val percent = 65
     private var mMaxScrollSize = 0

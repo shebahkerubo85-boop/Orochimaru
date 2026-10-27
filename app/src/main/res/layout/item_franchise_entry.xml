@@ -1,34 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  One row of the franchise screen: a portrait poster and the text that belongs to it,
-  alternating sides down the screen.
 
-  Structure:
-
-    poster column  |  3dp  |  text column
-
-  The poster is a fixed width (@dimen/franchise_poster_width) and its height comes from a 2:3
-  ratio, so it is a poster at every screen size instead of a card that grows until it is most
-  of the width. The text column takes the rest with weight, so the column carrying the words is
-  the one that grows. In landscape the poster is narrower still (values-land), because there
-  the height is what limits the screen and the width is free.
-
-  The list-status button hangs 1dp below the poster rather than inside it, and is as wide as
-  the poster. The poster is a picture and a button drawn on a picture covers something; below
-  it, it is its own control, and matching the poster's width makes the pair read as one card
-  rather than as a picture with a chip stuck to it.
-
-  The row carries android:gravity="center_vertical" rather than the text column carrying it,
-  because the row is what is as tall as the poster. Gravity on the column would centre its
-  children inside the column, and the column is only as tall as the text, so the text would sit
-  where it always sat instead of opposite the picture. Gravity on the row centres each column
-  against the row, which the poster's own height sets.
-
-  The order of the two columns is swapped at bind time for odd rows, which is what makes the
-  screen alternate. Nothing here encodes which side a row is on: the weights are fixed because
-  the poster's is not a share of anything, so both columns keep their size in both directions
-  and only their positions change.
--->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -42,26 +13,12 @@
     android:gravity="center_vertical"
     android:orientation="horizontal">
 
-    <!--
-      Poster column. A ConstraintLayout rather than a LinearLayout so the poster can be 2:3
-      from its own width without a second dimension to keep in step, and so the button under it
-      can be pinned to the poster's own two edges rather than guessed at.
-    -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/franchiseRowCardHolder"
         android:layout_width="@dimen/franchise_poster_width"
         android:layout_height="wrap_content"
         android:layout_marginEnd="@dimen/franchise_row_gap">
 
-        <!--
-          The poster: a tap target, and deliberately not a dpad target.
-
-          The "i" drawn over it is the row's only focusable control, and it opens the same
-          screen this card opens, so a focus ring round the whole poster would be a second
-          way into something the reader can already reach — and the ring round a picture is
-          a thing that reads as a broken selection rather than as a control. It stays
-          clickable, so a touch on the artwork still opens the entry.
-        -->
         <androidx.cardview.widget.CardView
             android:id="@+id/franchiseRowCard"
             android:layout_width="0dp"
@@ -90,14 +47,6 @@
                     tools:ignore="ContentDescription"
                     tools:srcCompat="@tools:sample/backgrounds/scenic" />
 
-                <!--
-                  The bottom scrim, under the two marks below it.
-
-                  Never opaque: it only starts the artwork giving way behind the info button and
-                  the year. Placed before them so it is behind them, and given a fixed height
-                  rather than a share of the poster because the marks it is for are a fixed
-                  dp tall whatever the poster is.
-                -->
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="@dimen/franchise_poster_gradient_height"
@@ -105,13 +54,6 @@
                     android:background="@drawable/bg_franchise_poster_gradient"
                     android:importantForAccessibility="no" />
 
-                <!--
-                  The rating, top-start.
-
-                  On a pill rather than bare over the artwork: poster art is arbitrary, so any
-                  fixed position is going to be unreadable on some title or other, and a wash
-                  behind it is the only thing that is not.
-                -->
                 <TextView
                     android:id="@+id/franchiseRowScore"
                     android:layout_width="wrap_content"
@@ -131,14 +73,6 @@
                     tools:text="★ 84"
                     tools:visibility="visible" />
 
-                <!--
-                  The info button and the year, stacked and centred on the poster's middle.
-
-                  Centred as a pair so the i sits directly over the year, which reads as one
-                  mark rather than as a button with a caption somebody left underneath it. The
-                  year is match_parent and centred rather than wrap_content, so a three-digit
-                  year and a four-digit one both land on the same axis as the button.
-                -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -192,25 +126,6 @@
 
         </androidx.cardview.widget.CardView>
 
-        <!--
-          The list status, 1dp under the poster and as wide as it.
-
-          Stretched to the card's own width rather than wrapped round its text. Wrapped, it was
-          a chip floating under the picture, narrower than the thing it belonged to and centred
-          on nothing in particular; full width it reads as the foot of the card, which is what it
-          is, and the row's silhouette becomes one rectangle instead of a poster with a stray
-          label hanging off it.
-
-          Width is 0dp with both edges pinned to the holder, so the two share one measurement:
-          there is no number here to disagree with the poster's. Outlined rather than filled
-          because it is a command, not a label, and because the filled version of this control is
-          already on the entry's own screen.
-
-          Not focusable. The "i" over the poster is the only thing the pad lands on in a row,
-          and a list chip in the pad's path is a dialog nobody asked for: the pad would walk
-          into the editor on its way down the screen. It stays clickable, so a touch on it
-          still opens the editor, which is what a chip is for.
-        -->
         <Button
             android:id="@+id/franchiseRowListStatus"
             style="@style/Widget.Material3.Button.OutlinedButton"
@@ -238,18 +153,6 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!--
-      Text column: the entry's title, then the synopsis.
-
-      The title is the plain title, not the wordmark: the wordmark is already at the top of the
-      screen for the franchise, and repeating a logo inside every row says the same thing a
-      dozen times while telling you nothing about which entry this is. It is also the title on
-      its own, with no runtime after it: the entry's own screen opens on its length, so a number
-      at the end of this line had nothing beside it to be a length of.
-
-      The synopsis carries no background of its own: it sits on the page, which is a flat
-      colour, so what reads on screen is bare text on a bare page.
-    -->
     <LinearLayout
         android:id="@+id/franchiseRowSynopsisHolder"
         android:layout_width="0dp"
@@ -269,15 +172,6 @@
             tools:ignore="SpUsage"
             tools:text="Naruto Shippuden" />
 
-        <!--
-          The teaser.
-
-          No background, deliberately. An earlier version painted the page colour behind it so the
-          connector could pass behind the words, which put a block of flat colour behind every
-          paragraph and read on screen as the line terminating at the synopsis. The connector now
-          runs only through the clear band between one card and the next, so there is nothing to
-          hide and nothing to mask.
-        -->
         <TextView
             android:id="@+id/franchiseRowSynopsis"
             android:layout_width="match_parent"

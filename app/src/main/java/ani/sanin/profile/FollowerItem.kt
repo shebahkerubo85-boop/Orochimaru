@@ -35,8 +35,6 @@ class FollowerItem(
             binding.profileUserName.text = username
             user.avatar?.medium?.let { binding.profileUserAvatar.loadImage(it) }
 
-            //setupFollowButton(binding.followStatusChip)
-
             binding.root.setOnClickListener { clickCallback(user.id) }
 
         } else {

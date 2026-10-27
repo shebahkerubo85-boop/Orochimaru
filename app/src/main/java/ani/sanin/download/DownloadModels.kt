@@ -3,13 +3,6 @@ package ani.sanin.download
 import ani.sanin.parsers.VideoType
 import java.io.Serializable
 
-/**
- * Queue / progress state for a single episode download.
- *
- * The item is fully self-contained: the video url, headers and container type are resolved by
- * the caller from a [ani.sanin.parsers.VideoExtractor] before enqueue, so the engine never has
- * to touch a source or an extension while it is running.
- */
 data class DownloadItem(
     val id: String,
     val mediaId: Int,
@@ -23,8 +16,7 @@ data class DownloadItem(
     val url: String,
     val headers: Map<String, String> = emptyMap(),
     val videoType: VideoType = VideoType.CONTAINER,
-    // Variant playlist selected for the cache-only offline player (master playlists may list
-    // several qualities, but only one rendition is downloaded to save storage and time).
+
     var offlinePlaybackUrl: String? = null,
     val quality: Int? = null,
     val fileName: String,
@@ -34,7 +26,7 @@ data class DownloadItem(
     var totalBytes: Long = 0L,
     var speed: Long = 0L,
     var error: String? = null,
-    // Offline extras captured while preparing (paused-overlay synopsis/chips + small local art).
+
     var synopsis: String? = null,
     var genres: List<String>? = null,
     var thumbPath: String? = null,
@@ -58,9 +50,6 @@ enum class DownloadStatus {
     ERROR,
 }
 
-/**
- * A file that finished downloading and now lives on disk (or behind a SAF uri).
- */
 data class DownloadedItem(
     val id: String,
     val mediaId: Int,
@@ -76,18 +65,16 @@ data class DownloadedItem(
     val genres: List<String>? = null,
     val thumbPath: String? = null,
     val logoPath: String? = null,
-    // HLS downloads live in the persistent Media3 cache, not as a remuxed single file.
+
     val videoType: VideoType? = null,
     val sourceUrl: String? = null,
     val playbackUrl: String? = null,
     val headers: Map<String, String>? = emptyMap(),
 ) : Serializable
 
-/** Where the bytes are actually written. Chosen in Settings → Downloads. */
 enum class DownloadStorage {
-    /** App-private external files dir. Always writable, removed on uninstall. */
+
     APP,
 
-    /** A user picked folder, written through the Storage Access Framework. */
     SHARED,
 }

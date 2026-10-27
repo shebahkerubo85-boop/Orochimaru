@@ -9,34 +9,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.JsonTransformingSerializer
 
-/**
- * Composable deserialize transformer that applies multiple Jackson-equivalent
- * behaviours to specific fields by key. Pass only the sets you need; all
- * default to empty (no-op).
- *
- * Behaviours (applied in order per field):
- *   singleValueAsListKeys ACCEPT_SINGLE_VALUE_AS_ARRAY
- *   emptyStringAsNullKeys ACCEPT_EMPTY_STRING_AS_NULL_OBJECT
- *   emptyArrayAsNullKeys ACCEPT_EMPTY_ARRAY_AS_NULL_OBJECT
- *
- * Usage:
- *
- *   @OptIn(ExperimentalSerializationApi::class) // KeepGeneratedSerializer is an experimental annotation for now
- *   @KeepGeneratedSerializer
- *   @Serializable(with = MyData.Serializer::class)
- *   data class MyData(
- *       @SerialName("title") val title: String? = null,
- *       @SerialName("tags") val tags: List<String>? = null,
- *       @SerialName("meta") val meta: MyMeta? = null,
- *   ) {
- *       object Serializer : JsonTransformSerializer<MyData>(
- *           MyData.generatedSerializer(),
- *           singleValueAsListKeys = setOf("tags"),
- *           emptyStringAsNullKeys = setOf("title", "tags"),
- *           emptyArrayAsNullKeys = setOf("tags", "meta"),
- *       )
- *   }
- */
 @Prerelease
 abstract class JsonTransformSerializer<T : Any>(
     tSerializer: KSerializer<T>,

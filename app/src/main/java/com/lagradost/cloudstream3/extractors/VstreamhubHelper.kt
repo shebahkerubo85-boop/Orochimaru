@@ -19,7 +19,7 @@ class VstreamhubHelper {
             callback: (ExtractorLink) -> Unit
         ) {
             if (url.startsWith(baseUrl)) {
-                // Fetch links
+
                 val doc = app.get(url).document.select("script")
                 doc.forEach {
                     val innerText = it.toString()
@@ -29,7 +29,7 @@ class VstreamhubHelper {
                             val aa = innerText.substring(innerText.indexOf(startString))
                             val linkUrl =
                                 aa.substring(startString.length + 1, aa.indexOf("\",")).trim()
-                            //Log.i(baseName, "Result => (linkUrl) ${linkUrl}")
+
                             val exlink = newExtractorLink(
                                 name = "$baseName m3u8",
                                 source = baseName,
@@ -50,7 +50,7 @@ class VstreamhubHelper {
                                 .removeSurrounding("\"")
                             if (datavid.isNotBlank()) {
                                 loadExtractor(datavid, url, subtitleCallback, callback)
-                                //Log.i(baseName, "Result => (datavid) ${datavid}")
+
                             }
                         }
                     }

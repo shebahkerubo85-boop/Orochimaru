@@ -92,13 +92,11 @@ class AnimeRepoDetailActivity : AppCompatActivity() {
         FocusEffectUtil.applyFocusListener(binding.animeRepoCopy)
         FocusEffectUtil.applyFocusListener(binding.animeRepoDelete)
 
-        // Filter chip
         binding.animeRepoFilterChip.setOnClickListener {
             AnimeTypeFilter.show(this, filterOptions) { refreshList() }
         }
         FocusEffectUtil.applyFocusListener(binding.animeRepoFilterChip)
 
-        // Language chip
         binding.animeRepoLangChip.setOnClickListener {
             val languageOptions =
                 LanguageMapper.Companion.Language.entries.map { entry ->
@@ -123,7 +121,6 @@ class AnimeRepoDetailActivity : AppCompatActivity() {
         }
         FocusEffectUtil.applyFocusListener(binding.animeRepoLangChip)
 
-        // Search icon + inline search bar
         searchAnimator = SearchBarAnimator(
             binding.animeRepoSearchView,
             binding.animeRepoSearchViewText,
@@ -152,7 +149,7 @@ class AnimeRepoDetailActivity : AppCompatActivity() {
             animeExtensionManager.availableExtensionsFlow.collectLatest { available ->
                 allExtensions = available.filter { it.repository == repoUrl }
                 filterOptions = AnimeTypeFilter.optionsFor(allExtensions)
-                // Reset a stale filter (e.g. from another repo) if it no longer applies.
+
                 if (AnimeTypeFilter.current() !in filterOptions) {
                     PrefManager.setVal(PrefName.AnimeTypeFilter, "All")
                 }

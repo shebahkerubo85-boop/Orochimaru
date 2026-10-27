@@ -23,7 +23,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-
 class UsersAdapter(private val user: MutableList<User>, private val grid: Boolean = false) :
     RecyclerView.Adapter<UsersAdapter.UsersViewHolder>() {
 

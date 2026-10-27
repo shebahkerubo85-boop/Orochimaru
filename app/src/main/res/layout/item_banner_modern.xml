@@ -1,11 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Modern banner: full-bleed cinematic strip. The landscape artwork is the
-  background, dimmed by a single overlay drawable (left-to-right wash plus a
-  bottom fade) so the logo, synopsis and actions stay legible without hiding the
-  art. Metadata lives inside the banner on the left; the portrait poster floats
-  on the right.
--->
+
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -49,7 +43,7 @@
         android:layout_gravity="start|center_vertical"
         android:orientation="vertical"
         android:paddingStart="@dimen/banner_modern_content_start"
-        android:paddingEnd="12dp"><!-- width is capped to a fraction of the banner in the adapter -->
+        android:paddingEnd="12dp">
 
         <ImageView
             android:id="@+id/bannerClearlogo"
@@ -116,8 +110,6 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <!-- Long and low, not a tall pill: a min width keeps the bar the
-                 same length whether it says Watch Now or Continue. -->
             <Button
                 android:id="@+id/bannerPlayBtn"
                 android:layout_width="wrap_content"

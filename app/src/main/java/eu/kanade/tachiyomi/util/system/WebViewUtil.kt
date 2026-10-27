@@ -15,8 +15,7 @@ object WebViewUtil {
 
     fun supportsWebView(context: Context): Boolean {
         try {
-            // May throw android.webkit.WebViewFactory$MissingWebViewPackageException if WebView
-            // is not installed
+
             CookieManager.getInstance()
         } catch (e: Throwable) {
             Logger.log(e)
@@ -41,7 +40,6 @@ fun WebView.setDefaultSettings() {
         loadWithOverviewMode = true
         cacheMode = WebSettings.LOAD_DEFAULT
 
-        // Allow zooming
         setSupportZoom(true)
         builtInZoomControls = true
         displayZoomControls = false
@@ -57,15 +55,12 @@ private fun WebView.getWebViewMajorVersion(): Int {
     }
 }
 
-// Based on https://stackoverflow.com/a/29218966
 private fun WebView.getDefaultUserAgentString(): String {
     val originalUA: String = settings.userAgentString
 
-    // Next call to getUserAgentString() will get us the default
     settings.userAgentString = null
     val defaultUserAgentString = settings.userAgentString
 
-    // Revert to original UA string
     settings.userAgentString = originalUA
 
     return defaultUserAgentString

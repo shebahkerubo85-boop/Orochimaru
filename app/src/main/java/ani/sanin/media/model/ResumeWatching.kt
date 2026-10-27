@@ -6,7 +6,6 @@ import kotlinx.serialization.SerialName
 import java.io.IOException
 import java.io.OutputStream
 
-/** Continue-watching entry, persisted per parent title. */
 data class ResumeWatching(
     @JsonProperty("parentId") @SerialName("parentId") val parentId: Int,
     @JsonProperty("episodeId") @SerialName("episodeId") val episodeId: Int?,
@@ -16,7 +15,6 @@ data class ResumeWatching(
     @JsonProperty("isFromDownload") @SerialName("isFromDownload") val isFromDownload: Boolean,
 )
 
-/** A created output file plus its existing length, so writes can resume. */
 data class StreamData(
     private val fileLength: Long,
     val file: SafeFile,
@@ -30,10 +28,6 @@ data class StreamData(
     fun openNew(): OutputStream = file.openOutputStreamOrThrow(false)
 }
 
-/**
- * Creates (or truncates) `<name>.<extension>` inside [baseFile]/[folder] and
- * returns a stream to it. Used for initializing backups.
- */
 @Throws(IOException::class)
 fun setupStream(
     baseFile: SafeFile,

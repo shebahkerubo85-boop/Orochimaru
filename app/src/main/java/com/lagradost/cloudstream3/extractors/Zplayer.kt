@@ -13,12 +13,12 @@ class Zplayer: ZplayerV2() {
 }
 
 class Upstream: ZplayerV2() {
-    override var name: String = "Upstream" //Here 'cause works
+    override var name: String = "Upstream"
     override var mainUrl: String = "https://upstream.to"
 }
 
 class Streamhub2: ZplayerV2() {
-    override var name = "Streamhub" //Here 'cause works
+    override var name = "Streamhub"
     override var mainUrl = "https://streamhub.to"
 }
 

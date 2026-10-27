@@ -24,8 +24,6 @@ open class InternetArchive : ExtractorApi() {
         return "$mainUrl/details/$id"
     }
 
-    // https://archive.org/details/the-the-infected
-    // https://archive.org/details/TheEdgeOfTheEarth
     override suspend fun getUrl(
         url: String,
         referer: String?,

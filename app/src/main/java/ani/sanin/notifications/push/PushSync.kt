@@ -17,12 +17,6 @@ import java.net.URL
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-/**
- * Keeps the push relay worker (cloudflare-worker/push.js) in sync with what this
- * device is following, so new-episode pushes keep arriving while the app is closed.
- *
- * Called on app start, on FCM token refresh and whenever a subscription changes.
- */
 object PushSync {
 
     const val ENDPOINT = "https://sanin-push.shemaus58.workers.dev"

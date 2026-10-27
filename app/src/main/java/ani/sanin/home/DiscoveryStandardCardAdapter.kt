@@ -9,12 +9,6 @@ import ani.sanin.cloudstream.TmdbCards
 import ani.sanin.databinding.ItemTmdbCardBinding
 import ani.sanin.util.FocusEffectUtil
 
-/**
- * Renders discovery results in the app's standard grid card (`item_tmdb_card`) for titles that
- * are not TMDB records, e.g. the anime Discovery categories. It uses the same poster + title
- * layout and card styling as the TMDB grids, minus the TMDB-only extras (rating pill, logo
- * art, watch-progress badge) that have no data behind them here.
- */
 class DiscoveryStandardCardAdapter(
     private val onClick: (Card) -> Unit,
 ) : RecyclerView.Adapter<DiscoveryStandardCardAdapter.VH>() {

@@ -30,7 +30,7 @@ class CalcStack {
                         i++
                     }
                     values.push(value)
-                    i-- // to compensate the additional i++ in the loop
+                    i--
                 }
 
                 else -> {
@@ -52,7 +52,6 @@ class CalcStack {
             val op = ops.pop()
             values.push(applyOp(val1, val2, op))
         }
-
 
         val ans = values.pop()
         expression = ans.toString()
@@ -77,7 +76,6 @@ class CalcStack {
     fun getExpression(): String {
         return expression
     }
-
 
     private fun precedence(op: Char): Int {
         return when (op) {

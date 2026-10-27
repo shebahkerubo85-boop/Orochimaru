@@ -3,8 +3,6 @@ package com.lagradost.cloudstream3.extractors.helper
 import com.lagradost.cloudstream3.utils.StringUtils.decodeUrl
 import com.lagradost.cloudstream3.utils.StringUtils.encodeUrl
 
-// Taken from https://github.com/saikou-app/saikou/blob/b35364c8c2a00364178a472fccf1ab72f09815b4/app/src/main/java/ani/saikou/parsers/anime/NineAnime.kt
-// GNU General Public License v3.0 https://github.com/saikou-app/saikou/blob/main/LICENSE.md
 object NineAnimeHelper {
     private const val nineAnimeKey =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
@@ -15,7 +13,7 @@ object NineAnimeHelper {
             encrypt(
                 cipher(mainKey, encode(text)),
                 nineAnimeKey
-        )//.replace("""=+$""".toRegex(), "")
+        )
         )
     }
 

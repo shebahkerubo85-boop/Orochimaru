@@ -28,10 +28,6 @@ data class EditorialShelfData(
     val placeholderCount: Int = 3
 )
 
-/**
- * Small, TV-friendly editorial rails. Artwork is optional by design: an unavailable
- * image leaves a deliberate poster-shaped placeholder instead of collapsing the card.
- */
 object EditorialShelfRenderer {
     fun render(context: Context, host: LinearLayout, shelves: List<EditorialShelfData>) {
         host.removeAllViews()

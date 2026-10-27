@@ -31,15 +31,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-/**
- * Queue screen. Both tabs group downloads by series into a main card that expands (tap anywhere
- * except the buttons) into the individual episode cards, ordered by episode number.
- *
- * Queue tab:      main card -> looping bar + "done / queued" count + pause/retry lens + red X.
- *                 episode cards -> landscape thumb, title, server·quality, size + progress ring,
- *                 speed, small lens pause/retry + red X.
- * Downloaded tab: main card -> episode count + red X; expanded cards play on tap.
- */
 class DownloadsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityDownloadsBinding
@@ -105,8 +96,6 @@ class DownloadsActivity : AppCompatActivity() {
         binding.downloadsRecycler.visibility = if (rows.isEmpty()) View.GONE else View.VISIBLE
         updatePauseAll(queue)
     }
-
-    // ------------------------------------------------------------- grouping
 
     private fun buildQueueRows(
         queue: List<DownloadItem>,
@@ -198,8 +187,6 @@ class DownloadsActivity : AppCompatActivity() {
         }
     }
 
-    // ------------------------------------------------------------- row model
-
     private sealed class Row {
         data class Group(
             val mediaId: Int,
@@ -217,15 +204,13 @@ class DownloadsActivity : AppCompatActivity() {
 
     private enum class GroupPauseState { NONE, PAUSE, RESUME, RETRY }
 
-    // ------------------------------------------------------------- adapter
-
     private inner class DownloadRowAdapter :
         RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
         private val rows = mutableListOf<Row>()
 
         fun submit(next: List<Row>) {
-            // Keep the old snapshot alive until DiffUtil has finished dispatching callbacks.
+
             val previous = rows.toList()
             val diff = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
                 override fun getOldListSize(): Int = previous.size
@@ -297,8 +282,6 @@ class DownloadsActivity : AppCompatActivity() {
         }
     }
 
-    // ------------------------------------------------------------- holders
-
     private inner class GroupVH(private val b: ItemDownloadGroupBinding) :
         RecyclerView.ViewHolder(b.root) {
 
@@ -312,8 +295,6 @@ class DownloadsActivity : AppCompatActivity() {
             b.groupTitle.text = row.title
             b.groupCount.text = row.subtitle
 
-            // Red X is always present; on the Queue tab it cancels the whole group, on the
-            // Downloaded tab it deletes every finished episode of the series (with confirm).
             if (row.isDownloadedTab) {
                 b.groupProgress.visibility = View.GONE
                 b.groupAction.visibility = View.GONE
@@ -425,15 +406,12 @@ class DownloadsActivity : AppCompatActivity() {
             b.episodeDelete.setOnClickListener { confirmDelete(item) }
         }
 
-        /** Cheap rebind while downloading: only the live fields, never the image. */
         fun bindProgress(item: DownloadItem) {
             b.episodeSize.text = sizeLabel(item)
             b.episodeSpeed.text = statusLabel(item)
-            // INVISIBLE (not GONE) so the play/pause/x buttons never shift when the text is blank.
+
             b.episodeSpeed.visibility = if (b.episodeSpeed.text.isBlank()) View.INVISIBLE else View.VISIBLE
 
-            // Always a determinate ring: it starts empty-ish at the top and sweeps clockwise to a
-            // full circle on completion. Never indeterminate, so it never renders as a spinner.
             val total = item.totalBytes
             val pct = if (total > 0L) {
                 ((item.downloadedBytes * 100) / total).toInt().coerceIn(0, 100)
@@ -447,8 +425,6 @@ class DownloadsActivity : AppCompatActivity() {
             }
         }
     }
-
-    // ------------------------------------------------------------- helpers
 
     private fun episodeLabel(number: String, title: String?): String {
         val label = title?.takeIf { it.isNotBlank() }
@@ -524,7 +500,6 @@ class DownloadsActivity : AppCompatActivity() {
         return if (mb >= 1.0) "${trim(mb, 1)} MB/s" else "${bytesPerSec / 1024} KB/s"
     }
 
-    /** Status line shown where the speed used to sit, e.g. "preparing", "pending", "downloading 5.6 MB/s". */
     private fun statusLabel(item: DownloadItem): String = when (item.status) {
         DownloadStatus.PREPARING -> "preparing"
         DownloadStatus.QUEUED -> "pending"

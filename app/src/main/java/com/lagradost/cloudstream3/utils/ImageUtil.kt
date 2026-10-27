@@ -11,7 +11,6 @@ import androidx.core.graphics.createBitmap
 import coil3.Image
 import coil3.asImage
 
-/// Type safe any image, because THIS IS NOT PYTHON
 sealed class UiImage {
     data class Image(
         val url: String,

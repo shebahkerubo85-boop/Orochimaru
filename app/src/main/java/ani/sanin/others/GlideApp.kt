@@ -18,25 +18,22 @@ import com.bumptech.glide.module.AppGlideModule
 import com.caverock.androidsvg.SVG
 import java.io.InputStream
 
-
 @GlideModule
 class SaninGlideApp : AppGlideModule() {
     @SuppressLint("CheckResult")
     override fun applyOptions(context: Context, builder: GlideBuilder) {
         super.applyOptions(context, builder)
-        val diskCacheSizeBytes = 1024 * 1024 * 100 // 100 MiB
-        // Scale memory cache: 50 MiB on 4 GB+ devices, 20 MiB on 2 GB devices.
-        // On low-RAM devices the old 50 MiB cache combined with simultaneous section
-        // loads in HomeFragment caused OOM kills (no crash screen, just process exit).
+        val diskCacheSizeBytes = 1024 * 1024 * 100
+
         val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE)
             as? android.app.ActivityManager
         val mi = android.app.ActivityManager.MemoryInfo()
         activityManager?.getMemoryInfo(mi)
         val totalMemMb = (mi.totalMem) / (1024 * 1024)
         val memoryCacheSizeBytes = when {
-            totalMemMb >= 4096 -> 1024L * 1024 * 50  // 50 MiB
-            totalMemMb >= 3072 -> 1024L * 1024 * 35  // 35 MiB
-            else               -> 1024L * 1024 * 20  // 20 MiB for ≤2 GB devices
+            totalMemMb >= 4096 -> 1024L * 1024 * 50
+            totalMemMb >= 3072 -> 1024L * 1024 * 35
+            else               -> 1024L * 1024 * 20
         }
         builder.apply {
             setDiskCache(InternalCacheDiskCacheFactory(context, "img", diskCacheSizeBytes.toLong()))

@@ -146,10 +146,7 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         } as? AnimeHttpSource ?: (extension.sources[sourceLanguage] as? AnimeCatalogueSource
             ?: return emptyList())
         try {
-            // lib 14+ extensions can stash tokens/state in anime.memo from
-            // getAnimeDetails, which episode parsing then relies on. Mirror the
-            // extension contract and fetch details before the episode list;
-            // failures must never block episode loading.
+
             runCatching { source.getAnimeDetails(sAnime) }.getOrNull()?.let { detailed ->
                 runCatching { sAnime.copyFrom(detailed) }
                 sAnime.initialized = true
@@ -161,20 +158,19 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
             }
 
             val sortedEpisodes = if (res[0].episode_number == -1f) {
-                // Find the number in the string and sort by that number
+
                 val sortedByStringNumber = res.sortedBy {
                     val matchResult = MediaNameAdapter.findEpisodeNumber(it.name)
                     val number = matchResult ?: Float.MAX_VALUE
-                    it.episode_number = number  // Store the found number in episode_number
+                    it.episode_number = number
                     number
                 }
 
-                // If there is no number, reverse the order and give them an incrementing number
                 var incrementingNumber = 1f
                 sortedByStringNumber.map {
                     if (it.episode_number == Float.MAX_VALUE) {
                         it.episode_number =
-                            incrementingNumber++  // Update episode_number with the incrementing number
+                            incrementingNumber++
                     }
                     it
                 }
@@ -182,13 +178,13 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
                 res.sortedBy { it.episode_number }
             } else {
                 var episodeCounter = 1f
-                // Group by season, sort within each season, and then renumber while keeping episode number 0 as is
+
                 val seasonGroups =
                     res.groupBy { MediaNameAdapter.findSeasonNumber(it.name) ?: 0 }
                 seasonGroups.keys.sortedBy { it }
                     .flatMap { season ->
                         seasonGroups[season]?.sortedBy { it.episode_number }?.map { episode ->
-                            if (episode.episode_number != 0f) { // Skip renumbering for episode number 0
+                            if (episode.episode_number != 0f) {
                                 val potentialNumber =
                                     MediaNameAdapter.findEpisodeNumber(episode.name)
                                 if (potentialNumber != null) {
@@ -209,10 +205,6 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         return emptyList()
     }
 
-    // Newer extension-lib builds can throw linkage errors when the host model
-    // doesn't declare a method the extension links against. Those are Errors,
-    // not Exceptions, so they would escape the caller's try/catch and crash.
-    // Retry once, then fail soft like other episode-loading errors.
     private suspend fun loadEpisodeListSafe(source: AnimeSource, sAnime: SAnime): List<SEpisode> {
         return try {
             source.getEpisodeList(sAnime)
@@ -254,7 +246,6 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         return try {
             val videos = getVideoList(source, sEpisode)
 
-            // Preserve the original one-row-per-video behavior when grouping is disabled.
             if (!PrefManager.getVal<Boolean>(PrefName.GroupServersByHostAndLanguageTags)) {
                 val usedNames = HashSet<String>()
                 return videos.mapIndexed { index, video ->
@@ -274,11 +265,6 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
                 }
             }
 
-            // Extensions hand back one Video per quality/server embed. Group the
-            // variants of the same hosting server (e.g. "VidPlay - 1080p" +
-            // "VidPlay - 720p") into one server card, mirroring how inbuilt
-            // providers group their sources, then tag each group SUB/DUB when the
-            // titles say so. Dub mode hides SUB groups; unknown groups always show.
             val dub = selectDub
             videos.groupBy { video ->
                 val (base, tag) = extensionVideoGroup(video)
@@ -296,8 +282,7 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
                     )
                 )
                 .map { group ->
-                    // Extensions flag one rendition as preferred; keep it first so
-                    // "play server" and bulk download pick it without a dialog.
+
                     val ordered = group.videos.sortedByDescending { it.preferred }
                     val first = ordered.first()
                     VideoServer(
@@ -321,10 +306,6 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         val audio: MediaNameAdapter.SubDubType
     )
 
-    /** The hosting server a quality belongs to: everything before the first
-     *  " - " in the title ("VidPlay - 1080p" -> "VidPlay"). Titles without a
-     *  host prefix keep their whole name so distinct single servers stay on
-     *  their own card. */
     private fun videoHost(video: Video): String {
         val title = video.videoTitle.ifBlank { video.quality }.trim()
         val sep = HOST_SEPARATOR.find(title) ?: return title
@@ -334,10 +315,6 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
 
     private val HOST_AUDIO_TOKEN = Regex("""(?i)\s+[\[(]?(?:dub|dubbed|sub|subbed)s?[)\]]?\s*$""")
 
-    /** (host base, audio) for one extension video. The host base is the " - "
-     *  prefix with any trailing sub/dub token removed ("VidPlay Dub - 1080p" ->
-     *  "VidPlay"); the tag comes from the whole title, so "[SUB]"/"[DUB]"
-     *  suffixes split the same host into two groups. */
     private fun extensionVideoGroup(video: Video): Pair<String, MediaNameAdapter.SubDubType> {
         val host = videoHost(video)
         val tag = audioTagOf(listOf(video))
@@ -352,8 +329,6 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
     private fun extensionGroupName(base: String, tag: MediaNameAdapter.SubDubType): String =
         if (tag != MediaNameAdapter.SubDubType.NULL) "$base ${tag.name}" else base
 
-    /** SUB when every tagged video is subbed, DUB when every tagged video is
-     *  dubbed, NULL for untagged or mixed groups (mixed/unknown always show). */
     private fun audioTagOf(videos: List<Video>): MediaNameAdapter.SubDubType {
         val hasDub = videos.any { EXT_AUDIO_DUB.containsMatchIn(it.videoTitle.ifBlank { it.quality }) }
         val hasSub = videos.any { EXT_AUDIO_SUB.containsMatchIn(it.videoTitle.ifBlank { it.quality }) }
@@ -515,21 +490,19 @@ class DynamicAnimeParser(extension: AnimeExtension.Installed) : AnimeParser() {
         }
     }
 
-
     private fun convertAnimesPageToShowResponse(animesPage: AnimesPage): List<ShowResponse> {
         return animesPage.animes.map { sAnime ->
-            // Extract required fields from sAnime
+
             val name = sAnime.title
             val link = sAnime.url
             val coverUrl = sAnime.thumbnail_url ?: ""
 
-            // Create a new ShowResponse
             ShowResponse(name, link, coverUrl, sAnime)
         }
     }
 
     private fun sEpisodeToEpisode(sEpisode: SEpisode): Episode {
-        //if the float episode number is a whole number, convert it to an int
+
         val episodeNumberInt =
             if (sEpisode.episode_number % 1 == 0f) {
                 sEpisode.episode_number.toInt()
@@ -587,7 +560,7 @@ class VideoServerPassthrough(private val videoServer: VideoServer) : VideoExtrac
                 vidList,
                 subList,
                 audioList,
-                // Carry extension-provided skip timestamps into the player skip system
+
                 timestamps = aniVideos.flatMap { it.timestamps },
             )
         } else {
@@ -596,13 +569,10 @@ class VideoServerPassthrough(private val videoServer: VideoServer) : VideoExtrac
     }
 
     private fun aniVideoToSaiVideo(aniVideo: Video): ani.sanin.parsers.Video {
-        // Prefer the extension-provided resolution; otherwise pull a real
-        // resolution token ("1080p") from the title so stray numbering in
-        // labels like "VidPlay - 2 - 1080p" never becomes "2p".
+
         val number = aniVideo.resolution?.takeIf { it in 100..9999 }
             ?: Regex("""(?i)\b(\d{3,4})\s*p\b""").find(aniVideo.quality)?.groupValues?.get(1)?.toInt()
 
-        // Check for null video URL
         val videoUrl = aniVideo.videoUrl ?: throw Exception("Video URL is null")
 
         var format: VideoType?
@@ -630,7 +600,6 @@ class VideoServerPassthrough(private val videoServer: VideoServer) : VideoExtrac
                 }
             }
 
-            // If the format is still undetermined, log an error
             if (format == null) {
                 Logger.log("Unknown video format: $videoUrl")
                 format = VideoType.CONTAINER
@@ -640,7 +609,6 @@ class VideoServerPassthrough(private val videoServer: VideoServer) : VideoExtrac
         }
         val headersMap: Map<String, String> =
             aniVideo.headers?.toMultimap()?.mapValues { it.value.joinToString() } ?: mapOf()
-
 
         return Video(
             number,

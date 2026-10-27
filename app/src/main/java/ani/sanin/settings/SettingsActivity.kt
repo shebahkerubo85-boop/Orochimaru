@@ -38,7 +38,6 @@ import ani.sanin.themes.ThemeManager
 import ani.sanin.toast
 import ani.sanin.util.FocusEffectUtil
 
-/** A collapsible settings section. */
 private data class SettingsSection(
     val title: String,
     val iconRes: Int,
@@ -47,7 +46,6 @@ private data class SettingsSection(
     val desc: String? = null,
 )
 
-/** An item inside a collapsible section. */
 private data class SectionEntry(
     val title: String,
     val desc: String? = null,
@@ -210,7 +208,6 @@ class SettingsActivity : AppCompatActivity() {
         super.onResume()
     }
 
-    /** RecyclerView adapter that renders collapsible sections. */
     private inner class SectionAdapter(
         private val sections: List<SettingsSection>,
     ) : RecyclerView.Adapter<SectionAdapter.SectionVH>() {
@@ -249,16 +246,13 @@ class SettingsActivity : AppCompatActivity() {
                 }
             }
 
-            // Chevron rotation
             holder.chevron.rotation = if (isExpanded) 180f else 0f
 
-            // Expand / collapse
             holder.header.setOnClickListener {
                 toggleSection(holder, position)
             }
             FocusEffectUtil.applyFocusListener(holder.header)
 
-            // Populate items
             holder.items.removeAllViews()
             val inflater = LayoutInflater.from(this@SettingsActivity)
             section.entries.forEach { entry ->
@@ -287,7 +281,6 @@ class SettingsActivity : AppCompatActivity() {
             val isExpanding = position !in expandedSet
             if (isExpanding) expandedSet.add(position) else expandedSet.remove(position)
 
-            // Animate chevron
             ObjectAnimator.ofFloat(holder.chevron, "rotation",
                 if (isExpanding) 0f else 180f,
                 if (isExpanding) 180f else 0f,

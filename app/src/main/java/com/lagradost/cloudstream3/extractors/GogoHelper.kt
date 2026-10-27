@@ -24,10 +24,6 @@ object GogoHelper {
 
     private val aesCbc = CryptographyProvider.Default.get(AES.CBC)
 
-    /**
-     * @param id base64Decode(show_id) + IV
-     * @return the encryption key
-     */
     private fun getEncryptionKey(id: String): String? {
         return safe {
             id.map {
@@ -36,8 +32,6 @@ object GogoHelper {
         }
     }
 
-    // https://github.com/saikou-app/saikou/blob/45d0a99b8a72665a29a1eadfb38c506b842a29d7/app/src/main/java/ani/saikou/parsers/anime/extractors/GogoCDN.kt#L97
-    // No Licence on the function
     @OptIn(DelicateCryptographyApi::class)
     private suspend fun cryptoHandler(
         string: String,
@@ -58,15 +52,6 @@ object GogoHelper {
         }
     }
 
-    /**
-     * @param iframeUrl something like https://gogoplay4.com/streaming.php?id=XXXXXX
-     * @param mainApiName used for ExtractorLink names and source
-     * @param iv secret iv from site, required non-null if isUsingAdaptiveKeys is off
-     * @param secretKey secret key for decryption from site, required non-null if isUsingAdaptiveKeys is off
-     * @param secretDecryptKey secret key to decrypt the response json, required non-null if isUsingAdaptiveKeys is off
-     * @param isUsingAdaptiveKeys generates keys from IV and ID, see [getEncryptionKey]
-     * @param isUsingAdaptiveData generate encrypt-ajax data based on $("script[data-name='episode']")[0].dataset.value
-     */
     suspend fun extractVidstream(
         iframeUrl: String,
         mainApiName: String,
@@ -74,10 +59,10 @@ object GogoHelper {
         iv: String?,
         secretKey: String?,
         secretDecryptKey: String?,
-        // This could be removed, but i prefer it verbose
+
         isUsingAdaptiveKeys: Boolean,
         isUsingAdaptiveData: Boolean,
-        // If you don't want to re-fetch the document
+
         iframeDocument: Document? = null,
     ) = safeApiCall {
         if ((iv == null || secretKey == null || secretDecryptKey == null) && !isUsingAdaptiveKeys)
@@ -97,7 +82,7 @@ object GogoHelper {
 
         val encryptedId = cryptoHandler(id, foundIv, foundKey)
         val encryptRequestData = if (isUsingAdaptiveData) {
-            // Only fetch the document if necessary
+
             val realDocument = document ?: app.get(iframeUrl).document
             val dataEncrypted = realDocument.select("script[data-name='episode']").attr("data-value")
             val headers = cryptoHandler(dataEncrypted, foundIv, foundKey, false)

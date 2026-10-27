@@ -20,20 +20,8 @@ import android.view.View
 import androidx.core.graphics.ColorUtils
 import ani.sanin.getThemeColor
 
-/**
- * The Aurora capsule from the library status pill, rebuilt as plain drawables so the calendar
- * week strip shares the same look as the Compose pill without being a Compose host.
- *
- * Two pieces:
- *  - [applyContainer]: the capsule itself - the light-mode drop shadow, the white-to-accent
- *    wash and border in light, the faint white wash and top-lit border in dark.
- *  - [applyCell]: one day. Selected paints the accent-brush oval (the indicator); a focused but
- *    unselected day paints only the oval rim; an idle day paints nothing at all.
- */
 object GlassPill {
 
-    /** True when the current theme is the dark palette (the app's Light/Dark setting drives
-     *  AppCompatDelegate night mode, and the theme colours come from values-night). */
     fun isNight(context: Context): Boolean =
         (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
             Configuration.UI_MODE_NIGHT_YES
@@ -41,13 +29,6 @@ object GlassPill {
     private fun dp(context: Context, value: Float): Int =
         (context.resources.displayMetrics.density * value).toInt().coerceAtLeast(1)
 
-    /**
-     * The owning Activity's context. The status pill can sit under an AppBar theme overlay
-     * (fragment_library.xml applies Theme.Sanin.AppBarOverlay to the toolbar), and that overlay
-     * does not carry the accent applied to the Activity at runtime, so colour attrs resolved
-     * from the view context fall back to the Material default (purple). Resolve from the
-     * Activity's own theme instead. No-op when the context already is the Activity.
-     */
     fun themedContext(context: Context): Context {
         var ctx: Context = context
         while (ctx is ContextWrapper) {
@@ -57,14 +38,9 @@ object GlassPill {
         return context
     }
 
-    /** Capsule radius: large enough that Android clamps it to a rounded end. */
     fun radiusPx(context: Context): Float =
         context.resources.displayMetrics.density * 100f
 
-    /**
-     * The library-pill capsule container: fill + 1dp border, and the same light-mode shadow the
-     * lens buttons use. Callers set the inner padding so the oval indicator has its margin.
-     */
     fun applyContainer(view: View) {
         val context = view.context
         val dark = isNight(context)
@@ -72,13 +48,11 @@ object GlassPill {
             .getThemeColor(com.google.android.material.R.attr.colorPrimary)
         val radius = radiusPx(context)
 
-        // Every theme gets the same top-lit capsule: a gradient fill with a rim light stroked
-        // along the outline, brightest along the top edge and fading down the sides.
         val fill: IntArray
         val rimPeak: Int
         if (dark) {
             fill = intArrayOf(0x14FFFFFF, 0x0AFFFFFF, 0x05FFFFFF)
-            // Rim light: white at its brightest along the top, fading down the sides.
+
             rimPeak = ColorUtils.setAlphaComponent(Color.WHITE, 0x61)
         } else {
             fill = intArrayOf(
@@ -86,7 +60,7 @@ object GlassPill {
                 ColorUtils.blendARGB(Color.WHITE, accent, 0.05f),
                 ColorUtils.blendARGB(Color.WHITE, accent, 0.02f),
             )
-            // Light-mode rim light: black at its brightest along the top, fading down the sides.
+
             rimPeak = ColorUtils.setAlphaComponent(Color.BLACK, 0x61)
         }
 
@@ -95,13 +69,6 @@ object GlassPill {
         view.elevation = if (dark) 0f else 6f * view.resources.displayMetrics.density
     }
 
-    /**
-     * The top-lit look on its own: a rounded-rect [fill] with a rim light stroked along its
-     * outline - brightest along the top edge and fading to transparent toward the bottom.
-     * Because it is stroked (not a top band) the light follows the curve onto the sides, and it
-     * is 3dp thick everywhere. Used by the pill capsule and the repo cards, which share the same
-     * lit-top look at different corner radii.
-     */
     fun topLit(context: Context, fill: IntArray, cornerRadiusPx: Float): Drawable {
         val rimPeak = ColorUtils.setAlphaComponent(
             if (isNight(context)) Color.WHITE else Color.BLACK, 0x61
@@ -109,11 +76,6 @@ object GlassPill {
         return topLit(fill, rimPeak, dp(context, 3f), cornerRadiusPx)
     }
 
-    /**
-     * As [topLit] but with an explicit [rimPeak] and rim [thickness] in px. [rimFloor] is the
-     * fraction of [rimPeak]'s alpha kept at the bottom edge instead of fading to fully clear;
-     * a floor keeps the rim visible down the sides of tall cards.
-     */
     fun topLit(
         fill: IntArray,
         rimPeak: Int,
@@ -130,11 +92,6 @@ object GlassPill {
         return LayerDrawable(arrayOf<Drawable>(fillLayer, rimLayer))
     }
 
-    /**
-     * A rounded server-sheet card: the same top-lit rim as the pill, but tinted with the theme
-     * primary and stroked 1dp. One gradient is drawn per card, so a grouped server (a name header
-     * with its quality cards) shares a single gradient while each card keeps its own focus ring.
-     */
     fun applyServerCard(view: View, cornerRadiusDp: Float = 16f) {
         val context = view.context
         val dark = isNight(context)
@@ -159,13 +116,6 @@ object GlassPill {
         view.clipToOutline = true
     }
 
-    /**
-     * One day cell.
-     *
-     * @param selected draws the accent-brush oval indicator, inset from the cell edge so the
-     *   oval keeps a margin inside the capsule.
-     * @param focused draws the same oval as a rim only, so the dpad ring matches the indicator.
-     */
     fun applyCell(view: View, selected: Boolean, focused: Boolean) {
         val context = view.context
         val dark = isNight(context)
@@ -221,11 +171,6 @@ object GlassPill {
         view.elevation = 0f
     }
 
-    /**
-     * The selection indicator on its own, for a strip that draws one travelling capsule behind
-     * its cells instead of a fill per cell. Same accent gradient + border as [applyCell]'s
-     * selected state; the caller supplies the gap by insetting the drawn bounds.
-     */
     fun indicatorDrawable(context: Context): Drawable {
         val dark = isNight(context)
         val accent = themedContext(context)
@@ -265,7 +210,6 @@ object GlassPill {
         return LayerDrawable(arrayOf<Drawable>(fillLayer, rimLayer))
     }
 
-    /** Every layer inset equally, so the oval floats inside its day slot instead of touching it. */
     private fun inset(layers: Array<GradientDrawable>, inset: Int): Drawable {
         val layer = LayerDrawable(layers as Array<Drawable>)
         for (i in layers.indices) layer.setLayerInset(i, inset, inset, inset, inset)
@@ -273,11 +217,6 @@ object GlassPill {
     }
 }
 
-/**
- * Strokes a rounded-rect (capsule) outline with a vertical gradient: [peak] along the top edge
- * fading to transparent toward the bottom. Because it strokes the path it follows the curve onto
- * the sides, [thicknessPx] px thick all the way round. Used for the pill's top-lit rim.
- */
 private class TopLitRimDrawable(
     private val peak: Int,
     private val thicknessPx: Float,

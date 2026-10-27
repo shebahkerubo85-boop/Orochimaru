@@ -45,19 +45,15 @@ data class Video(
     val memo: JsonObject = JsonObject(emptyMap()),
 ) {
 
-    // TODO(1.6): Remove after ext lib bump
     @Deprecated("Use videoTitle instead", ReplaceWith("videoTitle"))
     val quality: String
         get() = videoTitle
 
-    // TODO(1.6): Remove after ext lib bump
     val url: String
         get() = videoPageUrl
 
-    // TODO(1.6): Remove after ext lib bump
     private var videoPageUrl: String = ""
 
-    // TODO(1.6): Remove after ext lib bump
     constructor(
         url: String,
         quality: String,
@@ -75,7 +71,6 @@ data class Video(
         this.videoPageUrl = url
     }
 
-    // TODO(1.6): Remove after ext lib bump
     @Suppress("UNUSED_PARAMETER")
     constructor(
         url: String,
@@ -85,7 +80,6 @@ data class Video(
         headers: Headers? = null,
     ) : this(url, quality, videoUrl, headers)
 
-    // Ext lib 16 constructor
     @Deprecated("Used only for compatibility with ext lib 16, do not use", level = DeprecationLevel.HIDDEN)
     constructor(
         videoUrl: String = "",
@@ -107,7 +101,6 @@ data class Video(
         ffmpegStreamArgs, ffmpegVideoArgs, internalData, initialized, JsonObject(emptyMap()),
     )
 
-    // Ext lib 16 copy video
     @Deprecated("Used only for compatibility with ext lib 16, do not use", level = DeprecationLevel.HIDDEN)
     fun copy(
         videoUrl: String = this.videoUrl,

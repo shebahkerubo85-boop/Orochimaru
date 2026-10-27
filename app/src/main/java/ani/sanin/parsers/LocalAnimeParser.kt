@@ -35,7 +35,6 @@ class LocalAnimeParser : AnimeParser() {
             extraData["animeUrl"] = animeLink
             extraData["episodeUrl"] = sEpisode.url
 
-           // fallback : thumbnail/poster
             val videoUri = localSource.cachedVideoUris[sEpisode.url] ?: localSource.getVideoUri(sEpisode)
             val thumbFileUrl = videoUri?.let { FileUrl(it.toString()) }
 
@@ -134,7 +133,7 @@ class LocalVideoExtractor(
         }
 
         val videoUri = localSource.getVideoUri(sEpisode)
-        
+
         var quality: Int? = null
         if (videoUri != null) {
             currContext()?.let { ctx ->
@@ -144,7 +143,7 @@ class LocalVideoExtractor(
                     val heightStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
                     quality = heightStr?.toIntOrNull()
                 } catch (e: Exception) {
-                    // Ignore metadata ext errors
+
                 } finally {
                     try {
                         retriever.release()
@@ -153,7 +152,6 @@ class LocalVideoExtractor(
             }
         }
 
-        // show resolution
         if (quality != null) {
             videoServer = videoServer.copy(name = "Local - ${quality}p")
         }

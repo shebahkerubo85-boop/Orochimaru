@@ -1,14 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- KEYS DON'T TRANSLATE -->
-    <!-- FORMAT MIGHT TRANSLATE, WILL CAUSE CRASH IF APPLIED WRONG -->
+
     <string name="app_dub_sub_episode_text_format" formatted="true">%1$s Ep %2$d</string>
     <string name="cast_format" formatted="true">Elenco: %s</string>
     <string name="next_episode_format" formatted="true">O episódio %d vai ser lançado em</string>
     <string name="next_episode_time_day_format" formatted="true">%1$dd %2$dh %3$dm</string>
     <string name="next_episode_time_hour_format" formatted="true">%1$dh %2$dm</string>
     <string name="next_episode_time_min_format" formatted="true">%dm</string>
-    <!-- IS NOT NEEDED TO TRANSLATE AS THEY ARE ONLY USED FOR SCREEN READERS AND WONT SHOW UP TO NORMAL USERS -->
+
     <string name="result_poster_img_des">Poster</string>
     <string name="search_poster_img_des">Pôster</string>
     <string name="episode_poster_img_des">Pôster do episódio</string>
@@ -17,7 +16,7 @@
     <string name="go_back_img_des">Voltar</string>
     <string name="home_change_provider_img_des">Alterar provedor</string>
     <string name="preview_background_img_des">Visualizar plano de fundo</string>
-    <!-- TRANSLATE, BUT DON'T FORGET FORMAT -->
+
     <string name="player_speed_text_format" formatted="true">Velocidade (%.2fx)</string>
     <string name="rated_format" formatted="true">Avaliado: %.1f</string>
     <string name="new_update_format" formatted="true">Nova atualização encontrada! \n%1$s → %2$s</string>
@@ -51,7 +50,7 @@
     <string name="reload_error">Tentando conectar novamente…</string>
     <string name="go_back">Volte</string>
     <string name="play_episode">Reproduzir episódio</string>
-    <!--<string name="need_storage">Permirtir baixar episódios</string>-->
+
     <string name="download">Download</string>
     <string name="downloaded">Baixado</string>
     <string name="downloading">Baixando</string>
@@ -196,7 +195,7 @@
     <string name="free_storage">Livre</string>
     <string name="used_storage">Usado</string>
     <string name="app_storage">CloudStream</string>
-    <!--plural-->
+
     <string name="movies">Filmes</string>
     <string name="tv_series">Séries</string>
     <string name="cartoons">Desenhos animados</string>
@@ -207,7 +206,7 @@
     <string name="asian_drama">Dramas Asiáticos</string>
     <string name="livestreams">Transmissões ao vivo</string>
     <string name="others">Outros</string>
-    <!--singular-->
+
     <string name="movies_singular">Filme</string>
     <string name="tv_series_singular">Série</string>
     <string name="cartoons_singular">Desenho Animado</string>
@@ -281,7 +280,7 @@
     <string name="app_theme_settings">Tema do App</string>
     <string name="bottom_title_settings">Local do título do poster</string>
     <string name="bottom_title_settings_des">Coloca o título debaixo do poster</string>
-    <!-- account stuff -->
+
     <string name="example_password">senha123</string>
     <string name="example_username">Nome de usuário</string>
     <string name="example_email">oi@mundo.com</string>
@@ -305,7 +304,7 @@
     <string name="sync_total_episodes_some" formatted="true">/%d</string>
     <string name="authenticated_user" formatted="true">%s autenticado</string>
     <string name="authenticated_user_fail" formatted="true">Não foi possível fazer login em %s</string>
-    <!-- ============ -->
+
     <string name="none">Nenhum</string>
     <string name="normal">Normal</string>
     <string name="all">Tudo</string>
@@ -321,12 +320,7 @@
     <string name="subtitle_offset_extra_hint_later_format">Use isto se as legendas forem mostradas %d ms adiantadas</string>
     <string name="subtitle_offset_extra_hint_before_format">Use isto se as legendas forem mostradas %d ms atrasadas</string>
     <string name="subtitle_offset_extra_hint_none_format">Sem atraso de legenda</string>
-    <!--
-    Example text (pangram) can optionally be translated; if you do, include all the letters in the alphabet,
-    see: 
-	https://en.wikipedia.org/w/index.php?title=Pangram&oldid=225849300
-	https://en.wikipedia.org/wiki/The_quick_brown_fox_jumps_over_the_lazy_dog
-    -->
+
     <string name="subtitles_example_text">A rápida raposa marrom salta sobre o cachorro preguiçoso</string>
     <string name="recommended">Recomendada</string>
     <string name="player_loaded_subtitles" formatted="true">%s carregada</string>

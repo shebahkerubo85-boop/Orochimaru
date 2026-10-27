@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- FORMAT MIGHT TRANSLATE, WILL CAUSE CRASH IF APPLIED WRONG -->
+
     <string name="app_dub_sub_episode_text_format" formatted="true">%1$s B. %2$d</string>
     <string name="cast_format" formatted="true">Oyuncular: %s</string>
     <string name="next_episode_format" formatted="true">%d. Bölüm şu tarihte yayınlanacak</string>
     <string name="next_episode_time_day_format" formatted="true">%1$dg %2$dsa %3$ddk</string>
     <string name="next_episode_time_hour_format" formatted="true">%1$dsa %2$ddk</string>
     <string name="next_episode_time_min_format" formatted="true">%ddk</string>
-    <!-- IS NOT NEEDED TO TRANSLATE AS THEY ARE ONLY USED FOR SCREEN READERS AND WONT SHOW UP TO NORMAL USERS -->
+
     <string name="result_poster_img_des">Afiş</string>
     <string name="search_poster_img_des">Afiş</string>
     <string name="episode_poster_img_des">Bölüm Afişi</string>
@@ -16,7 +16,7 @@
     <string name="go_back_img_des">Geri dön</string>
     <string name="home_change_provider_img_des">Sağlayıcıyı Değiştir</string>
     <string name="preview_background_img_des">Arkaplanı Önizle</string>
-    <!-- TRANSLATE, BUT DON'T FORGET FORMAT -->
+
     <string name="player_speed_text_format" formatted="true">Hız (%.2fx)</string>
     <string name="rated_format" formatted="true">Puan: %.1f</string>
     <string name="new_update_format" formatted="true">Yeni güncelleme bulundu! \n%1$s -&gt; %2$s</string>
@@ -52,7 +52,7 @@
     <string name="reload_error">Yeniden bağlan…</string>
     <string name="go_back">Geri Dön</string>
     <string name="play_episode">Bölümü Oynat</string>
-    <!--<string name="need_storage">Allow to download episodes</string>-->
+
     <string name="download">İndir</string>
     <string name="downloaded">İndirildi</string>
     <string name="downloading">İndiriliyor</string>
@@ -202,7 +202,7 @@
     <string name="free_storage">Boş</string>
     <string name="used_storage">Kullanılan</string>
     <string name="app_storage">Uygulama</string>
-    <!--plural-->
+
     <string name="movies">Filmler</string>
     <string name="tv_series">Diziler</string>
     <string name="cartoons">Çizgi filmler</string>
@@ -214,7 +214,7 @@
     <string name="livestreams">Canlı yayınlar</string>
     <string name="nsfw">+18</string>
     <string name="others">Diğerleri</string>
-    <!--singular-->
+
     <string name="movies_singular">Film</string>
     <string name="tv_series_singular">Dizi</string>
     <string name="cartoons_singular">Çizgi film</string>
@@ -292,7 +292,7 @@
     <string name="app_theme_settings">Uygulama teması</string>
     <string name="bottom_title_settings">Afiş başlık konumu</string>
     <string name="bottom_title_settings_des">Başlığı afişin altına yerleştir</string>
-    <!-- account stuff -->
+
     <string name="example_password">şifre123</string>
     <string name="example_username">Kullanıcı Adı</string>
     <string name="example_email">hello@world.com</string>
@@ -316,7 +316,7 @@
     <string name="sync_total_episodes_some" formatted="true">/%d</string>
     <string name="authenticated_user" formatted="true">%s başarıyla doğrulandı</string>
     <string name="authenticated_user_fail" formatted="true">%s ile giriş yapılamadı</string>
-    <!-- ============ -->
+
     <string name="none">Yok</string>
     <string name="normal">Normal</string>
     <string name="all">Tümü</string>
@@ -332,12 +332,7 @@
     <string name="subtitle_offset_extra_hint_later_format">Altyazılar %d ms erken görüntüleniyorsa bunu kullanın</string>
     <string name="subtitle_offset_extra_hint_before_format">Altyazılar %d ms geç gözüküyorsa bunu kullanın</string>
     <string name="subtitle_offset_extra_hint_none_format">Altyazı gecikmesi yok</string>
-    <!--
-    Example text (pangram) can optionally be translated; if you do, include all the letters in the alphabet,
-    see: 
-	https://en.wikipedia.org/w/index.php?title=Pangram&oldid=225849300
-	https://en.wikipedia.org/wiki/The_quick_brown_fox_jumps_over_the_lazy_dog
-    -->
+
     <string name="subtitles_example_text">Pijamalı hasta yağız şoföre çabucak güvendi</string>
     <string name="recommended">Önerilen</string>
     <string name="player_loaded_subtitles" formatted="true">%s eklendi</string>

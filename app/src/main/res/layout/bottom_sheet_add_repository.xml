@@ -62,7 +62,6 @@
         android:textSize="20sp"
         android:textStyle="bold" />
 
-
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/repositoriesRecyclerView"
         tools:listitem="@layout/item_repo"

@@ -10,14 +10,6 @@ import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.getPostForm
 import com.lagradost.cloudstream3.utils.newExtractorLink
 
-//class SBPlay1 : SBPlay() {
-//    override var mainUrl = "https://sbplay1.com"
-//}
-
-//class SBPlay2 : SBPlay() {
-//    override var mainUrl = "https://sbplay2.com"
-//}
-
 open class SBPlay : ExtractorApi() {
     override var mainUrl = "https://sbplay.one"
     override var name = "SBPlay"
@@ -62,7 +54,7 @@ open class SBPlay : ExtractorApi() {
                                         )
                                     )
                                 } else {
-                                    // no link found!!!
+
                                 }
                             } else {
                                 links.add(

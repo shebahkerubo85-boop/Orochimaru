@@ -15,13 +15,8 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import kotlin.time.Duration.Companion.seconds
 
-/**
- * Activity used to install extensions, because we can only receive the result of the installation
- * with [startActivityForResult], which we need to update the UI.
- */
 class ExtensionInstallActivity : AppCompatActivity() {
 
-    // MIUI package installer bug workaround
     private var ignoreUntil = 0L
     private var ignoreResult = false
     private var hasIgnoredResult = false
@@ -64,8 +59,7 @@ class ExtensionInstallActivity : AppCompatActivity() {
         try {
             onInstallResult.launch(installIntent)
         } catch (error: Exception) {
-            // Either install package can't be found (probably bots) or there's a security exception
-            // with the download manager. Nothing we can workaround.
+
             toast(error.message)
         }
     }

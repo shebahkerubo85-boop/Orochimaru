@@ -48,7 +48,6 @@ object PluginUpdateChecker {
             if (autoUpdate) {
                 val updatedPlugins = mutableListOf<String>()
 
-                // Auto-update CloudStream plugins
                 for (info in csUpdates) {
                     val repoSource = findRepoSource(context, info)
                     if (repoSource != null) {
@@ -75,8 +74,6 @@ object PluginUpdateChecker {
                     )
                 }
 
-                // Extensions can't be installed silently (Android requires a user-confirmed
-                // install), so just notify and let the tap run the batch install.
                 if (animeUpdates.isNotEmpty()) {
                     val extensionLines = animeUpdates.map { it.name }
                     showNotification(
@@ -94,7 +91,7 @@ object PluginUpdateChecker {
                     )
                 }
             } else {
-                // Notification-only mode: show what has updates available
+
                 if (csUpdates.isNotEmpty()) {
                     val pluginLines = csUpdates.map {
                         "${it.displayName} (v${it.installedVersion} → v${it.availableVersion})"

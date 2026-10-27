@@ -50,7 +50,6 @@ class TmdbLibraryFragment : Fragment() {
     private val itemGenres = HashMap<Pair<String, Int>, Set<String>>()
     private var genreEnrichmentRunning = false
 
-    /** (Re)builds the status pill from the current tabs/selection. Cheap to call repeatedly. */
     private fun renderStatusPill() {
         if (_binding == null) return
         binding.tmdbLibPill.bind(
@@ -79,7 +78,6 @@ class TmdbLibraryFragment : Fragment() {
 
         val primaryColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorSurface)
 
-        // Follow CalendarActivity pattern
         if (PrefManager.getVal<Boolean>(PrefName.ImmersiveMode)) {
             binding.tmdbLibSettingsContainer.setPadding(0, 0, 0, 0)
             binding.tmdbLibSettingsContainer.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
@@ -92,7 +90,6 @@ class TmdbLibraryFragment : Fragment() {
 
         binding.tmdbLibAppBar.setBackgroundColor(primaryColor)
 
-        // Dpad chain: settings/profile pill/avatar → status pill → pager grid.
         binding.tmdbLibSettings.nextFocusDownId = R.id.tmdbLibPill
         binding.tmdbLibProfileButton.nextFocusDownId = R.id.tmdbLibPill
         binding.tmdbLibAvatar.nextFocusDownId = R.id.tmdbLibPill
@@ -118,11 +115,9 @@ class TmdbLibraryFragment : Fragment() {
         binding.tmdbLibProgressBar.visibility = View.VISIBLE
         loadLibrary()
 
-        // Observe Refresh signals so library reloads after list edits or scrobble
         val live = Refresh.activity.getOrPut(requireActivity().hashCode()) { androidx.lifecycle.MutableLiveData(true) }
         live.observe(viewLifecycleOwner) { if (it == true) { loadLibrary(); live.postValue(false) } }
 
-        // Settings → bottom sheet (sort + status filter, no NSFW for movie mode)
         FocusEffectUtil.applyFocusListener(binding.tmdbLibSettings)
         binding.tmdbLibSettings.setOnClickListener {
             FocusEffectUtil.spinOnTouch(binding.tmdbLibSettings)
@@ -154,14 +149,11 @@ class TmdbLibraryFragment : Fragment() {
             ).show(childFragmentManager, LibrarySettingsBottomSheet.TAG)
         }
 
-        // Profile pill, sitting where the search field was so both library headers read the same.
-        // Only Simkl data backs this one - the anime pill is the AniList profile.
         styleProfilePill()
-        // Border only while focused, so it appears for D-pad and stays off under a finger.
+
         FocusEffectUtil.applyFocusListener(binding.tmdbLibProfileButton)
         binding.tmdbLibProfileButton.setOnClickListener { openSimklProfile() }
 
-        // Avatar → profile too
         FocusEffectUtil.applyFocusListener(binding.tmdbLibAvatar)
         val libAvatarUrl = Simkl.avatar
         if (!libAvatarUrl.isNullOrBlank()) {
@@ -173,7 +165,6 @@ class TmdbLibraryFragment : Fragment() {
         }
     }
 
-    /** Solid pill behind the label, with the label colour inverted against it. */
     private fun styleProfilePill() {
         val dark = isDarkTheme()
         val fill = if (dark) Color.WHITE else Color.BLACK
@@ -211,7 +202,6 @@ class TmdbLibraryFragment : Fragment() {
         }
     }
 
-    /** Fetch TMDB genres for library items once per session (batched, cached). */
     private fun enrichGenres() {
         if (genreEnrichmentRunning) return
         genreEnrichmentRunning = true
@@ -263,8 +253,7 @@ class TmdbLibraryFragment : Fragment() {
             it.status?.lowercase() == "hold" || it.status?.lowercase() == "onhold" || it.status?.lowercase() == "paused"
         }
         val dropped = items.filter { it.status?.lowercase() == "dropped" }
-        // Favourite = a high Simkl score. 8.5+ (user_rating 9-10) marks the title as
-        // a favourite; lowering the score below 8.5 removes it again.
+
         val favourites = items.filter { (it.userRating ?: 0) >= 9 }
 
         if (completedMovies.isNotEmpty()) sections["Completed Movies"] = completedMovies
@@ -313,11 +302,6 @@ class TmdbLibraryFragment : Fragment() {
         binding.tmdbLibPill.post { _binding?.tmdbLibPill?.requestFocus() }
     }
 
-    /**
-     * DPAD_DOWN out of the status pill. Handled from [ani.sanin.MainActivity.dispatchKeyEvent]
-     * because that runs before the framework's focus search - which would otherwise follow the
-     * pill's nextFocusDown into the view pager and restore whatever child that pager last held.
-     */
     fun focusFirstCard(): Boolean = focusFirstCardInPager()
 
     private fun focusFirstCardInPager(): Boolean {

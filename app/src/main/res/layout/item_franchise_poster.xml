@@ -1,21 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  One entry in a franchise poster row: the poster, with its release year directly
-  beneath it. Only the width is set in code, from the measured row width, so the count
-  of cells that fit depends on the screen rather than on a fixed column number.
 
-  The height is not set anywhere. The cell fills the row and the poster is weighted inside
-  it, so the poster takes whatever the card's band has left after the declared gaps and the
-  year have taken theirs. Pinning a height here instead would put a second, unrelated number
-  in charge of the same space: the band would keep its 1dp top gap only by accident, and only
-  for one font scale.
-
-  The year sits 1dp under the poster, per the spacing the card was laid out to.
-
-  includeFontPadding is off so that 1dp is the gap that renders. Left on, the font's own
-  ascent reserves several more dp above the glyphs, and the card's declared spacing stops
-  being the spacing on screen.
--->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"

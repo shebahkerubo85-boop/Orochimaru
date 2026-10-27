@@ -28,7 +28,7 @@ object BatteryOptimizationChecker {
             return !powerManager.isIgnoringBatteryOptimizations(context.packageName)
         }
 
-        return false // below Marshmallow, it's always unrestricted when app is in background
+        return false
     }
 
     fun openBatteryOptimizationSettings(context: Context) {

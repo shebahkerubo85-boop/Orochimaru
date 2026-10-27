@@ -47,24 +47,24 @@ object InAppUpdater {
     @Serializable
     private data class GithubAsset(
         @JsonProperty("name") @SerialName("name") val name: String,
-        @JsonProperty("size") @SerialName("size") val size: Int, // Size in bytes
+        @JsonProperty("size") @SerialName("size") val size: Int,
         @JsonProperty("browser_download_url") @SerialName("browser_download_url") val browserDownloadUrl: String,
-        @JsonProperty("content_type") @SerialName("content_type") val contentType: String, // application/vnd.android.package-archive
+        @JsonProperty("content_type") @SerialName("content_type") val contentType: String,
     )
 
     @Serializable
     private data class GithubRelease(
-        @JsonProperty("tag_name") @SerialName("tag_name") val tagName: String, // Version code
-        @JsonProperty("body") @SerialName("body") val body: String, // Description
+        @JsonProperty("tag_name") @SerialName("tag_name") val tagName: String,
+        @JsonProperty("body") @SerialName("body") val body: String,
         @JsonProperty("assets") @SerialName("assets") val assets: List<GithubAsset>,
-        @JsonProperty("target_commitish") @SerialName("target_commitish") val targetCommitish: String, // Branch
+        @JsonProperty("target_commitish") @SerialName("target_commitish") val targetCommitish: String,
         @JsonProperty("prerelease") @SerialName("prerelease") val prerelease: Boolean,
         @JsonProperty("node_id") @SerialName("node_id") val nodeId: String,
     )
 
     @Serializable
     private data class GithubObject(
-        @JsonProperty("sha") @SerialName("sha") val sha: String, // SHA-256 hash
+        @JsonProperty("sha") @SerialName("sha") val sha: String,
         @JsonProperty("type") @SerialName("type") val type: String,
         @JsonProperty("url") @SerialName("url") val url: String,
     )
@@ -86,7 +86,7 @@ object InAppUpdater {
     private suspend fun Activity.getAppUpdate(installPrerelease: Boolean): Update {
         return try {
             when {
-                // No updates on debug version
+
                 BuildConfig.DEBUG -> Update(false, null, null, null, null)
                 BuildConfig.FLAVOR == "prerelease" || installPrerelease -> getPreReleaseUpdate()
                 else -> getReleaseUpdate()
@@ -192,7 +192,6 @@ object InAppUpdater {
             val appUpdateName = "CloudStream"
             val appUpdateSuffix = "apk"
 
-            // Delete all old updates
             this.cacheDir.listFiles()?.filter {
                 it.name.startsWith(appUpdateName) && it.extension == appUpdateSuffix
             }?.forEach { deleteFileOnExit(it) }
@@ -242,11 +241,6 @@ object InAppUpdater {
         }
     }
 
-
-    /**
-     * @param checkAutoUpdate if the update check was launched automatically
-     * @param installPrerelease if we want to install the pre-release version
-     */
     suspend fun Activity.runAutoUpdate(
         checkAutoUpdate: Boolean = true, installPrerelease: Boolean = false
     ): Boolean {
@@ -262,13 +256,10 @@ object InAppUpdater {
             return false
         }
 
-        // Check if update should be skipped
         val updateNodeId = settingsManager.getString(
             getString(R.string.skip_update_key), ""
         )
 
-        // Skips the update if its an automatic update and the update is skipped
-        // This allows updating manually
         if (update.updateNodeId.equals(updateNodeId) && checkAutoUpdate) {
             return false
         }
@@ -289,22 +280,21 @@ object InAppUpdater {
                 val logRegex = Regex("\\[(.*?)]\\((.*?)\\)")
                 val sanitizedChangelog = update.changelog?.replace(logRegex) { matchResult ->
                     matchResult.groupValues[1]
-                } // Sanitized because it looks cluttered
+                }
 
                 builder.setMessage(sanitizedChangelog)
                 builder.apply {
                     setPositiveButton(R.string.update) { _, _ ->
-                        // Forcefully start any delayed installations
+
                         if (ApkInstaller.delayedInstaller?.startInstallation() == true) return@setPositiveButton
 
                         showToast(R.string.download_started, Toast.LENGTH_LONG)
 
-                        // Check if the setting hasn't been changed
                         if (settingsManager.getInt(
                                 getString(R.string.apk_installer_key), -1
                             ) == -1
                         ) {
-                            // Set to legacy installer if using MIUI
+
                             if (isMiUi()) {
                                 settingsManager.edit {
                                     putInt(getString(R.string.apk_installer_key), 1)
@@ -317,7 +307,7 @@ object InAppUpdater {
                         )
 
                         when (currentInstaller) {
-                            // New method
+
                             0 -> {
                                 val intent = PackageInstallerService.Companion.getIntent(
                                     this@runAutoUpdate, update.updateURL
@@ -326,7 +316,7 @@ object InAppUpdater {
                                     this@runAutoUpdate, intent
                                 )
                             }
-                            // Legacy
+
                             1 -> {
                                 ioSafe {
                                     if (!downloadUpdate(update.updateURL)) {

@@ -154,7 +154,6 @@
                             android:contentDescription="Aspect ratio"
                             tools:ignore="ContentDescription,SpeakableTextPresentCheck" />
 
-
                     </LinearLayout>
 
                     <View
@@ -174,13 +173,13 @@
                         android:layout_marginStart="8dp"
                         android:layout_marginEnd="2dp"
                         android:layout_marginBottom="0dp">
-                        <!-- Back peep card (2dp top peep) -->
+
                         <View
                             android:layout_width="80dp"
                             android:layout_height="50dp"
                             android:layout_gravity="top|end"
                             android:background="@drawable/bg_stack_card" />
-                        <!-- Front thumbnail card -->
+
                         <FrameLayout
                             android:id="@+id/exo_ep_sel_btn"
                             android:layout_width="80dp"
@@ -245,7 +244,6 @@
 
                 </androidx.cardview.widget.CardView>
 
-
                 <androidx.cardview.widget.CardView
                     android:id="@+id/exo_fast_rewind_button_cont"
                     android:layout_width="wrap_content"
@@ -309,7 +307,6 @@
                         tools:ignore="ContentDescription,DuplicateSpeakableTextCheck" />
 
                 </androidx.cardview.widget.CardView>
-
 
                 <androidx.cardview.widget.CardView
                     android:layout_width="wrap_content"
@@ -427,8 +424,6 @@
                         tools:text="@string/popular_anime" />
                 </LinearLayout>
 
-
-
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -469,14 +464,11 @@
                                 android:src="@drawable/ic_pause_circle_filled_24" />
                         </FrameLayout>
 
-
                         <View
                             android:layout_width="1dp"
                             android:layout_height="26dp"
                             android:layout_marginHorizontal="4dp"
                             android:background="#55FFFFFF" />
-
-
 
                     <LinearLayout
                         android:id="@+id/pillTopRight"
@@ -545,7 +537,6 @@
                             tools:ignore="ContentDescription" />
                     </LinearLayout>
                     </LinearLayout>
-
 
                     <TextView
                         android:id="@+id/exo_video_info"

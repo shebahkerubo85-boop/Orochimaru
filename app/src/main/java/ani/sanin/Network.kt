@@ -89,14 +89,6 @@ object Mapper : ResponseParser {
     }
 }
 
-/**
- * Performs parallel processing of collection items without blocking threads.
- * Each operation runs in its own coroutine on the specified dispatcher.
- *
- * @param dispatcher The CoroutineDispatcher to use for parallel operations (defaults to IO)
- * @param f The suspend function to apply to each item
- * @return List of results in the same order as the original collection
- */
 suspend fun <A, B> Collection<A>.asyncMap(
     dispatcher: CoroutineDispatcher = Dispatchers.IO,
     f: suspend (A) -> B
@@ -108,14 +100,6 @@ suspend fun <A, B> Collection<A>.asyncMap(
     }.awaitAll()
 }
 
-/**
- * Performs parallel processing of collection items without blocking threads,
- * filtering out null results.
- *
- * @param dispatcher The CoroutineDispatcher to use for parallel operations (defaults to IO)
- * @param f The suspend function to apply to each item
- * @return List of non-null results in the same order as the original collection
- */
 suspend fun <A, B> Collection<A>.asyncMapNotNull(
     dispatcher: CoroutineDispatcher = Dispatchers.IO,
     f: suspend (A) -> B?
@@ -184,9 +168,6 @@ suspend fun <T> tryWithSuspend(
     }
 }
 
-/**
- * A url, which can also have headers
- * **/
 data class FileUrl(
     var url: String,
     var headers: Map<String, String> = mapOf()
@@ -200,7 +181,6 @@ data class FileUrl(
     }
 }
 
-//Credits to leg
 data class Lazier<T>(
     val factory: () -> T,
     val name: String,
@@ -209,19 +189,16 @@ data class Lazier<T>(
     val get = lazy { factory() ?: lClass?.call() }
 }
 
-
 fun <T> lazyList(vararg objects: Pair<String, () -> T>): List<Lazier<T>> {
     return objects.map {
         Lazier(it.second, it.first)
     }
 }
 
-
 fun <T> T.printIt(pre: String = ""): T {
     println("$pre$this")
     return this
 }
-
 
 fun OkHttpClient.Builder.addGoogleDns() = (
         addGenericDns(
@@ -247,7 +224,7 @@ fun OkHttpClient.Builder.addAdGuardDns() = (
         addGenericDns(
             "https://dns.adguard.com/dns-query",
             listOf(
-                // "Non-filtering"
+
                 "94.140.14.140",
                 "94.140.14.141",
             )

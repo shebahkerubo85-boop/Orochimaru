@@ -57,7 +57,7 @@ object CommonActivity {
     }
 
     fun loadThemes(act: Activity?) {
-        // Stub — theme loading handled by the fork's own app
+
     }
 
     fun setLocale(context: android.content.Context?, languageTag: String?) {
@@ -80,10 +80,9 @@ object CommonActivity {
     }
 
     fun onUserLeaveHint(act: Activity) {
-        // Stub — PIP handled by PlayerPipHelper
+
     }
 
-    /** Skips the initial stage of searching for an id using the view */
     fun continueGetNextFocus(
         root: Any?,
         view: View,

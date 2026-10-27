@@ -40,7 +40,6 @@ data class MalSeason(
     val season: String,
 )
 
-
 @Serializable
 data class MalAnimeNode(
     val id: Int,
@@ -84,7 +83,6 @@ data class MalRelatedEdge(
     @SerialName("relation_type_formatted") val relationTypeFormatted: String? = null,
 )
 
-
 @Serializable
 data class MalListStatus(
     val status: String? = null,
@@ -99,7 +97,6 @@ data class MalListStatus(
     @SerialName("finish_date") val finishDate: String? = null,
 )
 
-
 @Serializable
 data class MalListEntry(
     val node: MalAnimeNode,
@@ -111,7 +108,6 @@ data class MalListResponse(
     val data: List<MalListEntry> = emptyList(),
     val paging: MalPaging? = null,
 )
-
 
 @Serializable
 data class MalRankingEntry(
@@ -130,7 +126,6 @@ data class MalRankingResponse(
     val paging: MalPaging? = null,
 )
 
-
 @Serializable
 data class MalAnimeStatistics(
     @SerialName("num_episodes") val numEpisodes: Int = 0,
@@ -140,7 +135,6 @@ data class MalAnimeStatistics(
 data class MalMangaStatistics(
     @SerialName("num_chapters_read") val numChaptersRead: Int = 0,
 )
-
 
 @Serializable
 data class JikanPagination(
@@ -458,7 +452,6 @@ data class JikanFavoriteEntry(
     val type: String? = null,
     @SerialName("start_year") val startYear: Int? = null,
 )
-
 
 @Serializable
 data class JikanCharacterFullResponse(

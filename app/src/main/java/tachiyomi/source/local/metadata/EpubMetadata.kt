@@ -7,7 +7,6 @@ import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-
 fun EpubReader.fillMetadata(manga: SManga, chapter: SChapter) {
     val ref = getPackageHref()
     val doc = getPackageDocument(ref)
@@ -40,7 +39,7 @@ fun EpubReader.fillMetadata(manga: SManga, chapter: SChapter) {
                 chapter.date_upload = parsedDate.time
             }
         } catch (e: ParseException) {
-            // Empty
+
         }
     }
 }

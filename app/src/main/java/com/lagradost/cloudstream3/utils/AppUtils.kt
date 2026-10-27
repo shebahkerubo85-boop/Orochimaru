@@ -15,17 +15,15 @@ import kotlin.reflect.KClass
 
 @OptIn(ExperimentalSerializationApi::class, InternalSerializationApi::class)
 object AppUtils {
-    /** Any object as a JSON string */
+
     fun Any.toJson(): String {
         if (this is String) return this
         return toJsonLiteral()
     }
 
-    /** Sometimes we want to encode as JSON even if it is already a String. */
     @InternalAPI
     fun Any.toJsonLiteral(): String {
-        // @Serializable generates a serializer at compile time; contextual serializers are
-        // registered manually in serializersModule, we need both to support all cases
+
         val serializer =
             this::class.serializerOrNull() ?: json.serializersModule.getContextual(this::class)
         return if (serializer != null) {
@@ -55,23 +53,19 @@ object AppUtils {
         return mapper.readValue(value, kClass.java)
     }
 
-    // This is inlined code and can easily cause breakage in extensions!
-    // Watch out when editing this to make sure stable also supports all inlined code!
     inline fun <reified T : Any> parseJson(value: String): T {
-        // @Serializable generates a serializer at compile time; contextual serializers are
-        // registered manually in serializersModule, we need both to support all cases
+
         val serializer = runCatching { serializer<T>() }
             .recoverCatching { json.serializersModule.getContextual(T::class) }
             .getOrNull()
 
-        // Prefer Kotlin Serialization over Jackson
         if (serializer != null) {
             try {
                 return json.decodeFromString(serializer, value)
             } catch (e: SerializationException) {
                 logError(e)
             } catch (_: Throwable) {
-                // Pass, the above code will trigger a NoSuchMethodError on stable due to our previously undefined json variable
+
             }
         }
 
@@ -85,7 +79,7 @@ object AppUtils {
         replaceWith = ReplaceWith("parseJson<T>(reader.readText())")
     )
     inline fun <reified T> parseJson(reader: java.io.Reader, valueType: Class<T>): T {
-        // Reader-based parsing has no kotlinx equivalent, fall back to Jackson
+
         return mapper.readValue(reader, valueType)
     }
 

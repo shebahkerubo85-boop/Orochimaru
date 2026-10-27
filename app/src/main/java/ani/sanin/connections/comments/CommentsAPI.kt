@@ -318,7 +318,7 @@ object CommentsAPI {
         isOnline = isOnline(context)
         if (authToken != null) return
         val MAX_RETRIES = 5
-        val tokenLifetime: Long = 1000 * 60 * 60 * 24 * 6 // 6 days
+        val tokenLifetime: Long = 1000 * 60 * 60 * 24 * 6
         val tokenExpiry = PrefManager.getVal<Long>(PrefName.CommentTokenExpiry)
         if (tokenExpiry < System.currentTimeMillis() + tokenLifetime) {
             val commentResponse =
@@ -463,7 +463,6 @@ data class Notification(
     @SerialName("notification_id")
     val notificationId: Int
 )
-
 
 @Serializable
 data class AuthResponse(

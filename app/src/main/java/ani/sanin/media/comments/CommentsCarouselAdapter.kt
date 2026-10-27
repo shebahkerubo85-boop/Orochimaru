@@ -32,12 +32,12 @@ class CommentsCarouselAdapter(
             val update: () -> Unit = {
                 if (old != RecyclerView.NO_POSITION) notifyItemChanged(old)
                 notifyItemChanged(pos)
-                // Cement focus on the newly centered card so it never flashes or wanders
+
                 rv.post {
                     rv.findViewHolderForAdapterPosition(pos)?.itemView?.requestFocus()
                 }
             }
-            // Notify synchronously when safe (no flash); only defer while mid-layout to avoid crashes
+
             if (rv.isComputingLayout) rv.post(update) else update()
         }
     }
@@ -78,8 +78,7 @@ class CommentsCarouselAdapter(
         val parsed = parseGifCommentContent(comment.content)
         val gifUrl = parsed.gifUrl
         if (gifUrl != null) {
-            // Gif comments: text capped at one line, gif shown above or below
-            // depending on where it appears in the comment.
+
             markwon.setMarkdown(b.carouselCommentText, parsed.text)
             b.carouselCommentText.maxLines = 1
             b.carouselCommentText.ellipsize = TextUtils.TruncateAt.END

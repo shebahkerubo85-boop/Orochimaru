@@ -21,7 +21,7 @@ import ani.sanin.ZoomOutPageTransformer
 import ani.sanin.databinding.ActivityNoInternetBinding
 import ani.sanin.initActivity
 import ani.sanin.navBarHeight
-// LocalFragment removed
+
 import ani.sanin.offline.OfflineFragment
 import ani.sanin.selectedOption
 import ani.sanin.settings.saving.PrefManager
@@ -50,7 +50,6 @@ class NoInternet : AppCompatActivity() {
             bottomBar.background = backgroundDrawable
         }
         bottomBar.background = ContextCompat.getDrawable(this, R.drawable.bottom_nav_gray)
-
 
         var doubleBackToExitPressedOnce = false
         onBackPressedDispatcher.addCallback(this) {
@@ -93,8 +92,6 @@ class NoInternet : AppCompatActivity() {
             }
         })
         navbar.selectTabAt(selectedOption)
-
-        //supportFragmentManager.beginTransaction().replace(binding.fragmentContainer.id, OfflineFragment()).commit()
 
     }
 

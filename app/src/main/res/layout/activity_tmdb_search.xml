@@ -15,7 +15,6 @@
         android:orientation="vertical"
         android:padding="8dp">
 
-        <!-- Search bar row: back + input + filter + clear -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -103,7 +102,6 @@
                 tools:ignore="ContentDescription" />
         </LinearLayout>
 
-<!-- Clear history, centred -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -141,7 +139,6 @@
             </LinearLayout>
     </LinearLayout>
 
-    <!-- Source/plugin chips (TMDB, MovieBox, etc.) -->
     <HorizontalScrollView
         android:id="@+id/tmdbSearchPluginScroll"
         android:layout_width="match_parent"
@@ -160,7 +157,6 @@
             app:singleSelection="false" />
     </HorizontalScrollView>
 
-    <!-- Search results label + grid/list toggle -->
     <LinearLayout
         android:id="@+id/tmdbSearchResultLayout"
         android:layout_width="match_parent"
@@ -203,7 +199,6 @@
             tools:ignore="ImageContrastCheck" />
     </LinearLayout>
 
-    <!-- Search history label -->
     <TextView
         android:id="@+id/tmdbSearchHistoryLabel"
         android:layout_width="match_parent"
@@ -218,7 +213,6 @@
         android:textColor="?attr/colorOnSurface"
         android:textSize="11sp" />
 
-    <!-- Search history list -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/tmdbSearchHistory"
         android:layout_width="match_parent"

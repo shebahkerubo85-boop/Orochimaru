@@ -150,6 +150,4 @@
         tools:ignore="SpUsage"
         tools:text="@string/slogan" />
 
-
-
 </LinearLayout>

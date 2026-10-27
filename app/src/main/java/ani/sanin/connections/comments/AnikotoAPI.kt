@@ -46,11 +46,6 @@ object AnikotoAPI {
     private data class AnikotoEpisode(val num: Int, val episodeId: String)
     private data class AnikotoWidget(val html: String?, val nextPage: Int?)
 
-    /**
-     * Fetches one chunk of episodes' comments from the ordered queue and streams
-     * each page through [onBatch]. Returns true when more episodes remain, so
-     * callers can keep loading chunk by chunk as the user scrolls.
-     */
     suspend fun fetchAnikotoChunk(
         mediaId: Int,
         title: String,
@@ -82,7 +77,6 @@ object AnikotoAPI {
         return end < ordered.size
     }
 
-    /** Display order: current episode down to 1, then current+1 up to the last. */
     private suspend fun orderedEpisodes(
         anime: AnikotoAnime,
         progress: Int?,
@@ -101,7 +95,6 @@ object AnikotoAPI {
         return below + above
     }
 
-    /** Fetches replies for one Anikoto comment (same .cw_l-line format). */
     suspend fun getReplies(commentId: Int, episode: Int, mediaId: Int): List<Comment> {
         val body = httpGet(
             "$BASE_URL/ajax/comment/replies/$commentId",
@@ -190,9 +183,7 @@ object AnikotoAPI {
     }
 
     private suspend fun fetchEpisodes(slug: String, animeId: String): List<AnikotoEpisode>? {
-        // Episode list is loaded via AJAX into #w-episodes; the watch page only
-        // contains a placeholder div. The site rate-limits aggressively, so retry
-        // a couple of times before giving up on a title.
+
         for (attempt in 0..2) {
             val body = httpPost("$BASE_URL/ajax/episode/list/$animeId", referer = "$BASE_URL/watch/$slug/ep-1")
             if (body != null) {
@@ -305,8 +296,7 @@ object AnikotoAPI {
     }
 
     private fun parseComment(element: Element, mediaId: Int, episode: Int): Comment? {
-        // Top-level comments use data-comment-id; replies from the replies endpoint
-        // only expose the id via id="cm-…" and their parent via data-parent-id.
+
         val rawId = when {
             element.attr("data-comment-id").isNotEmpty() -> element.attr("data-comment-id")
             else -> element.id().removePrefix("cm-")
@@ -384,7 +374,6 @@ object AnikotoAPI {
         }
     }
 
-    /** Convert bare GIF URLs (Anikoto stores them as plain text) into markdown images. */
     private fun markdownifyGifs(text: String): String {
         return GIF_URL_REGEX.replace(text) { "![gif](${it.value})" }
     }
@@ -398,7 +387,7 @@ object AnikotoAPI {
         val lower = text.lowercase(Locale.US)
         if (lower == "just now" || lower == "now") return formatIso(now)
         if (lower == "yesterday") return formatIso(now - 86_400_000L)
-        // Absolute dates like "on 6/25/26" (site switches to this for older comments)
+
         Regex("on (\\d{1,2})/(\\d{1,2})/(\\d{2,4})").find(lower)?.let { m ->
             val month = m.groupValues[1].toIntOrNull() ?: return@let
             val day = m.groupValues[2].toIntOrNull() ?: return@let

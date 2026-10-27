@@ -269,7 +269,6 @@
             </LinearLayout>
         </FrameLayout>
 
-
         <LinearLayout
             android:id="@+id/tmdbBannerDots"
             android:layout_width="wrap_content"

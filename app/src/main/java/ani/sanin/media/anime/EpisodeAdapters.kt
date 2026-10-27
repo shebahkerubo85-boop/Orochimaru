@@ -39,7 +39,6 @@ import kotlinx.coroutines.launch
 import android.widget.NumberPicker
 import ani.sanin.currContext
 
-
 fun handleProgress(cont: LinearLayout, bar: View, empty: View, mediaId: Int, ep: String) {
     val cleanEp = MediaNameAdapter.findEpisodeNumber(ep)?.let {
         if (it % 1 == 0f) it.toInt().toString() else it.toString()
@@ -113,7 +112,7 @@ class EpisodeAdapter(
     }
 
     override fun getItemViewType(position: Int): Int {
-        return if (type == 0) 3 else type // legacy list removed → strips
+        return if (type == 0) 3 else type
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
@@ -141,8 +140,7 @@ class EpisodeAdapter(
         } ?: ""
 
         if (position == 0) {
-            // Up from the first episode goes back to the header row above it
-            // (range chips, continue card or the dub switch).
+
             holder.itemView.nextFocusUpId = fragment.episodeUpTargetId()
         }
         if (position == arr.size - 1) {
@@ -480,7 +478,7 @@ class EpisodeAdapter(
 
     fun addToDownloadedEpisodes(episodeNumber: String, size: Double) {
         downloadedEpisodes.add(episodeNumber)
-        // Find the position of the chapter and notify only that item
+
         val position = arr.indexOfFirst { it.number == episodeNumber }
         if (position != -1) {
             arr[position].downloadProgress = "Downloaded" + ": (${"%.1f".format(size)} MB)"
@@ -490,7 +488,7 @@ class EpisodeAdapter(
 
     fun deleteDownload(episodeNumber: String) {
         downloadedEpisodes.remove(episodeNumber)
-        // Find the position of the chapter and notify only that item
+
         val position = arr.indexOfFirst { it.number == episodeNumber }
         if (position != -1) {
             arr[position].downloadProgress = null
@@ -500,7 +498,7 @@ class EpisodeAdapter(
 
     fun purgeDownload(episodeNumber: String) {
         downloadedEpisodes.remove(episodeNumber)
-        // Find the position of the chapter and notify only that item
+
         val position = arr.indexOfFirst { it.number == episodeNumber }
         if (position != -1) {
             arr[position].downloadProgress = "Failed"
@@ -518,7 +516,7 @@ class EpisodeAdapter(
         downloadedBytes: Long,
         estimatedTotalBytes: Long
     ) {
-        // Find the position of the chapter and notify only that item
+
         val position = arr.indexOfFirst { it.number == episodeNumber }
         if (position != -1) {
             arr[position].downloadProgress = buildDownloadProgressText(
@@ -546,7 +544,6 @@ class EpisodeAdapter(
             "Downloading: $progress%"
         }
     }
-
 
     inner class EpisodeCompactViewHolder(val binding: ItemEpisodeCompactBinding) :
         RecyclerView.ViewHolder(binding.root) {

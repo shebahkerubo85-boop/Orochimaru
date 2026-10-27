@@ -21,7 +21,7 @@
         app:lottie_rawRes="@raw/tomoe"
         app:lottie_autoPlay="true"
         app:lottie_loop="true"
-        app:lottie_colorFilter="?attr/colorSecondary" 
+        app:lottie_colorFilter="?attr/colorSecondary"
         app:lottie_speed="1.75" android:rotation="75" />
 
         <com.airbnb.lottie.LottieAnimationView
@@ -33,7 +33,7 @@
         app:lottie_rawRes="@raw/tomoe"
         app:lottie_autoPlay="true"
         app:lottie_loop="true"
-        app:lottie_colorFilter="?attr/colorSecondary" 
+        app:lottie_colorFilter="?attr/colorSecondary"
         app:lottie_speed="1.75" android:rotation="-45" />
 
         <com.airbnb.lottie.LottieAnimationView
@@ -45,7 +45,7 @@
         app:lottie_rawRes="@raw/tomoe"
         app:lottie_autoPlay="true"
         app:lottie_loop="true"
-        app:lottie_colorFilter="?attr/colorSecondary" 
+        app:lottie_colorFilter="?attr/colorSecondary"
         app:lottie_speed="1.75" android:rotation="195" />
 
     </FrameLayout>
@@ -84,9 +84,6 @@
                     app:srcCompat="@drawable/ic_baseline_tune_24"
                     app:tint="?attr/colorOnBackground" />
 
-                <!-- Pill entry point to the profile, in the same slot the search field used to
-                     hold so the two library headers read the same. The fill and the label colour
-                     are set in TmdbLibraryFragment so they invert in dark mode. -->
                 <TextView
                     android:id="@+id/tmdbLibProfileButton"
                     android:layout_width="0dp"
@@ -124,7 +121,6 @@
                     tools:ignore="ContentDescription" />
 
             </LinearLayout>
-
 
         </LinearLayout>
 

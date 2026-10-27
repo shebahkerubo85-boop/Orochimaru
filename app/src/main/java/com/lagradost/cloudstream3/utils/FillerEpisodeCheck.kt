@@ -81,10 +81,8 @@ object FillerEpisodeCheck {
 
     private val strip = Regex("[ :\\-.!]")
 
-    /** Makes names more uniform to make partial matches more still give a result */
     fun stripName(name: String): String =
         name.replace(strip, "").lowercase()
-
 
     @Synchronized
     @Throws
@@ -93,8 +91,7 @@ object FillerEpisodeCheck {
         database?.let {
             return it
         }
-        
-        /** The entire "database" is stored as a json file we can parse */
+
         val stream: InputStream = com.lagradost.AnimeDB.getDatabaseStream()!!
         val text = stream.reader().readText()
 
@@ -121,11 +118,11 @@ object FillerEpisodeCheck {
     @Throws
     @WorkerThread
     fun getFillerEpisodes(data: LoadResponse): HashSet<Int>? {
-        /** Only for anime */
+
         if (data.type != TvType.Anime) {
             return null
         }
-        /** Try to hit the cache for this entry, to avoid recreating the hashset */
+
         loadCache[data.fillerCacheId()]?.let { cachedResponse ->
             return cachedResponse
         }
@@ -163,7 +160,6 @@ object FillerEpisodeCheck {
     }
 }
 
-/** Stable per-response cache key, derived from the plugin's unique URL. */
 fun LoadResponse.fillerCacheId(): Int =
     uniqueUrl
         .replace(getApiFromNameNull(apiName)?.mainUrl ?: "", "")

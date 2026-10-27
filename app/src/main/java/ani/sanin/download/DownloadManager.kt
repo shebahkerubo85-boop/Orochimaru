@@ -20,11 +20,6 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import java.io.File
 
-/**
- * Process-wide download engine. Owns the queue, the completed index and the small worker pool that
- * drives [Downloader]. The UI observes [queue] and [completed]; everything else goes through the
- * public methods here.
- */
 object DownloadManager {
 
     private lateinit var appContext: Context
@@ -56,10 +51,9 @@ object DownloadManager {
         items.clear()
         items.addAll(DownloadStore.loadQueue())
         completedItems = DownloadStore.loadCompleted().toMutableList()
-        // Downloads that were mid-flight when the process died go back to queued.
+
         items.forEach {
-            // Queue entries from older versions stored provider estimates in totalBytes.
-            // They are not authoritative and can be wildly wrong, so recalculate on the next run.
+
             it.totalBytes = 0L
             it.downloadedBytes = 0L
             it.progress = 0f
@@ -72,20 +66,16 @@ object DownloadManager {
             }
         }
         publish()
-        // The loaded files must reach the UI too, otherwise the "Downloaded" tab stays empty
-        // until the next download finishes and happens to trigger publishCompleted().
+
         publishCompleted()
         Log.i(
             "AnimeDownload",
             "init: queue=${items.size} completed=${completedItems.size} " +
                 "statuses=${items.joinToString { it.status.toString() }}",
         )
-        // Pick the queue back up automatically (also after the process is recreated in the
-        // background) so a download keeps going without the user reopening the app.
+
         pump()
     }
-
-    // ---------------------------------------------------------------- queries
 
     fun isDownloaded(mediaId: Int, episodeNumber: String): Boolean =
         completedItems.any { it.mediaId == mediaId && it.episodeNumber == episodeNumber }
@@ -99,18 +89,14 @@ object DownloadManager {
     fun itemFor(mediaId: Int, episodeNumber: String): DownloadItem? =
         items.firstOrNull { it.mediaId == mediaId && it.episodeNumber == episodeNumber }
 
-    // ---------------------------------------------------------------- mutations
-
     fun enqueue(item: DownloadItem) {
-        // An episode can be offered by several servers/qualities. Keep one queue entry per
-        // episode so repeated taps cannot start duplicate transfers or overwrite the same file.
+
         if (isDownloaded(item.mediaId, item.episodeNumber)) return
         val existing = items.firstOrNull {
             it.mediaId == item.mediaId && it.episodeNumber == item.episodeNumber
         }
         if (existing != null) {
-            // A repeated request for the same resolved source is a natural retry/resume action.
-            // Never silently replace an active transfer or swap its URL underneath the worker.
+
             if (existing.id == item.id &&
                 (existing.status == DownloadStatus.PAUSED || existing.status == DownloadStatus.ERROR)
             ) {
@@ -269,8 +255,6 @@ object DownloadManager {
         }
     }
 
-    // ---------------------------------------------------------------- engine
-
     private fun maxConcurrent(): Int =
         PrefManager.getVal<Int>(PrefName.DownloadConcurrency).coerceIn(1, 10)
 
@@ -301,7 +285,7 @@ object DownloadManager {
             return
         }
         DownloadService.start(appContext)
-        // PREPARING first: grab the offline extras (thumbnail, wordmark) before any bytes flow.
+
         item.status = DownloadStatus.PREPARING
         item.error = null
         persist()
@@ -320,7 +304,6 @@ object DownloadManager {
             var speedBytes = 0L
             var progressLogged = false
 
-            // Soft failure: artwork never blocks the download, it just stays absent.
             try {
                 DownloadMetadata.prepare(appContext, item)
             } catch (e: kotlinx.coroutines.CancellationException) {
@@ -332,7 +315,6 @@ object DownloadManager {
                 throw DownloadCancelledException()
             }
 
-            // Pull the bytes, retrying a couple of times before giving up.
             item.status = DownloadStatus.DOWNLOADING
             publish()
             var attempt = 0
@@ -342,8 +324,7 @@ object DownloadManager {
                         item,
                         onProgress = { done, total, fraction ->
                     item.downloadedBytes = done
-                    // Only measured server/cache bytes are a size. A percentage must never be
-                    // converted into a fabricated byte total.
+
                     if (total > 0L) item.totalBytes = total
                     item.progress = if (item.totalBytes > 0L) {
                         (done.toDouble() / item.totalBytes).toFloat().coerceIn(0f, 1f)
@@ -484,8 +465,6 @@ object DownloadManager {
         persistCompleted()
         publishCompleted()
     }
-
-    // ---------------------------------------------------------------- helpers
 
     private fun isOnWifi(): Boolean {
         return try {

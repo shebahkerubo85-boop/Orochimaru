@@ -19,8 +19,7 @@ class AndroidCookieJar : CookieJar {
         val urlString = url.toString()
 
         cookies.forEach { manager?.setCookie(urlString, it.toString()) }
-        // Persist to disk so a solved Cloudflare challenge survives a process death
-        // instead of the user having to clear it by hand.
+
         manager?.flush()
     }
 

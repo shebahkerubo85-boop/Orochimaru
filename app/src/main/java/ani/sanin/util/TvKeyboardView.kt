@@ -354,8 +354,7 @@ class TvKeyboardView(
             keyboardHeight = height
             translationY = height.toFloat()
             animate().translationY(0f).setDuration(200).withEndAction {
-                // Re-capture the blur at the resting position so the backdrop
-                // lines up with the keyboard instead of the slide-in offset.
+
                 (keyboardPanel.background as? GlassEffectDrawable)?.invalidateCache()
                 keyboardPanel.invalidate()
             }.start()

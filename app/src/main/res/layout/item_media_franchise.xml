@@ -1,51 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  A franchise card. The banner is the card's *background*: a band that starts at 152dp and
-  is grown in code so that the posters in it keep a poster's shape, with the poster row and
-  the title sitting on top of it, near its bottom edge. The content is not stacked below the
-  artwork, so the card never grows past the band however many entries the row holds. The row
-  is not scrollable, it holds however many entries fit the screen width; the rest belong on
-  the dedicated franchise screen.
 
-  ## Why the band's height is set in code
-
-  A poster is two parts wide to three parts tall, and a cell that is not a portrait crops
-  the artwork into a shape it was never meant to be. The cell's width is fixed by the row,
-  which is as wide as the screen, so on a landscape screen the width is far more than the
-  height can carry: the posters came out square.
-
-  The band is therefore grown until the poster is the shape a poster is, which means the
-  height follows the width. The 152dp here is the floor it starts from, not the height it
-  stays at: a phone in portrait has a narrow row, so its band barely moves, and a tablet in
-  landscape grows to suit its wider row. See FranchiseAdaptor for the measurement and the
-  cap that stops a card taking over the view.
-
-  ## Why the content is bottom-aligned inside the band
-
-  The poster row and the title float over the artwork, which is why the band needs a dim
-  behind them: bg_franchise_banner_dim is the wash that keeps the year and the title legible
-  over whatever frame happens to be behind them. They are pinned to the band's bottom edge
-  so that edge is a fixed reference the title's bottom padding can be measured against, and
-  so the artwork left showing above the posters is always the same generous band of image
-  rather than a sliver that changes with the entry count.
-
-  The band is not a fixed height. The 152dp written below is where it starts, and the code
-  raises it to whatever the posters need, so the height here is a floor rather than a rule.
-  The content is pinned to the bottom, so if a large font scale or a long title needs more
-  room than the band has, the band grows to fit instead of clipping the title off the end.
-
-  ## Spacing, top to bottom, and why it is trustworthy
-
-  poster, 1dp, year, 2dp, title, 2dp, bottom edge.
-
-  The two text runs carry includeFontPadding="false". Without it Android reserves the font's
-  own ascent and descent on top of any declared padding, which is worth several dp at each
-  end — enough to bury a 1dp or 2dp value entirely, and the reason tuning those numbers used
-  to appear to do nothing. With it off, the padding written here is the gap on screen.
-
-  The 16dp margin is what separates two cards. It is the card's only outer breathing room,
-  so it carries the whole row's rhythm; stacked, two cards are 32dp apart.
--->
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -63,10 +17,6 @@
         android:layout_width="match_parent"
         android:layout_height="152dp">
 
-        <!--
-          The artwork band. Both layers fill it rather than restating its height, so the dim
-          cannot drift out of step with the image it is washing.
-        -->
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent">
@@ -89,21 +39,6 @@
 
         </FrameLayout>
 
-        <!--
-          The content strip, filling the band: poster row, then the year under each poster,
-          then the franchise name.
-
-          The poster row is weighted rather than sized, so it absorbs whatever height is left
-          once the gaps and the two text runs have taken theirs. That is what makes the 1dp at
-          the top real: the poster cannot be a fixed height and still leave 1dp above it,
-          because the band has one height and only two things can share it out. The poster
-          is therefore around 110dp on a 152dp band, which is the poster filling its share
-          rather than sitting small under a wide gap — and on a wider screen the band grows
-          to keep that poster the shape of a poster, as the code sets it.
-
-          Only the gaps are declared. Nothing here states the poster's height, so there is no
-          second number that can disagree with the band's.
-        -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"

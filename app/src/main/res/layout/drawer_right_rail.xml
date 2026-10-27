@@ -265,7 +265,6 @@
         </LinearLayout>
     </ScrollView>
 
-
     <TextView
         android:id="@+id/rightRailClearCache"
         android:layout_width="match_parent"

@@ -11,7 +11,6 @@
     android:paddingTop="6dp"
     android:paddingBottom="6dp">
 
-    <!-- ── TOP NOTIFICATION PILL ─────────────────────────────────── -->
     <FrameLayout
         android:id="@+id/episodePill"
         android:layout_width="match_parent"
@@ -63,12 +62,10 @@
         </LinearLayout>
     </FrameLayout>
 
-    <!-- Exact 2dp gap between pill and card -->
     <Space
         android:layout_width="match_parent"
         android:layout_height="2dp" />
 
-    <!-- ── EPISODE CARD ──────────────────────────────────────────── -->
     <FrameLayout
         android:id="@+id/episodeCard"
         android:layout_width="match_parent"
@@ -77,7 +74,6 @@
         android:background="@drawable/bg_episode_card"
         android:clipToOutline="true">
 
-        <!-- Top rim (dark in dark mode, light in light mode — set in code) -->
         <View
             android:id="@+id/episodeRim"
             android:layout_width="match_parent"
@@ -104,7 +100,6 @@
             android:layout_height="match_parent"
             android:orientation="horizontal">
 
-            <!-- Left zone keeps the thumbnail visible (gradient territory) -->
             <View
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
@@ -122,7 +117,6 @@
                 android:paddingTop="8dp"
                 android:paddingBottom="8dp">
 
-                <!-- Pure episode title: up to 3 lines, wraps, then ellipsizes -->
                 <TextView
                     android:id="@+id/episodeTitle"
                     android:layout_width="match_parent"

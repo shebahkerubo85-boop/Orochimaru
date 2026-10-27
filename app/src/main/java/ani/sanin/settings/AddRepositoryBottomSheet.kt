@@ -190,7 +190,7 @@ class AddRepositoryBottomSheet : DialogFragment() {
         if (cloudStream && cleaned.isNotBlank() && cleaned.substringBefore("/").contains(".")) {
             return null
         }
-        // CloudStream short codes (single token) resolve through cutt.ly / py.md.
+
         if (cloudStream && cleaned.matches(Regex("^[a-zA-Z0-9!_-]+$"))) {
             return null
         }

@@ -32,7 +32,7 @@ object PaginationChipHelper {
                 false
             ).root
             chip.isCheckable = true
-            
+
             fun selectedChip() {
                 chip.isChecked = true
                 scrollView.smoothScrollTo(

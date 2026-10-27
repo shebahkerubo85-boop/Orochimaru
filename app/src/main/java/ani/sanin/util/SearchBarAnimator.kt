@@ -8,7 +8,6 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.AutoCompleteTextView
 import android.widget.ImageView
 
-/** Expands/collapses an inline search bar (0 ↔ 56 dp) with a decelerating slide. */
 class SearchBarAnimator(
     private val bar: View,
     private val barText: AutoCompleteTextView,

@@ -136,7 +136,7 @@ class CommentZoomDialog : DialogFragment() {
                 binding.zoomRepliesTitle.text = "Loading replies…"
                 loadReplies()
             }
-            // Allow retrying from the failure state without reopening the dialog.
+
             binding.zoomRepliesTitle.setOnClickListener {
                 if (!repliesLoaded && binding.zoomRepliesList.childCount == 0) {
                     binding.zoomRepliesTitle.text = "Loading replies…"
@@ -145,8 +145,6 @@ class CommentZoomDialog : DialogFragment() {
             }
         }
 
-        // Read-only mode (e.g. launched from the player episode rail): no reply
-        // or voting actions are available, replies remain reachable below.
         if (listener == null) {
             binding.zoomReply.visibility = View.GONE
             binding.zoomUpVote.visibility = View.GONE

@@ -73,7 +73,7 @@ private fun setupSocks5Proxy() {
             .cache(
                 Cache(
                     directory = File(context.externalCacheDir ?: context.cacheDir, "network_cache"),
-                    maxSize = 5L * 1024 * 1024, // 5 MiB
+                    maxSize = 5L * 1024 * 1024,
                 ),
             )
             .addInterceptor(UncaughtExceptionInterceptor())
@@ -120,9 +120,6 @@ private fun setupSocks5Proxy() {
 
     val downloadClient = client.newBuilder().callTimeout(20, TimeUnit.MINUTES).build()
 
-    /**
-     * @deprecated Since extension-lib 1.5
-     */
     @Deprecated("The regular client handles Cloudflare by default")
     @Suppress("UNUSED")
     val cloudflareClient: OkHttpClient = client

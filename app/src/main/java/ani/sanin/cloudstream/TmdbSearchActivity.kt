@@ -115,14 +115,13 @@ class TmdbSearchActivity : AppCompatActivity() {
         PrefManager.setVal(PrefName.TmdbSearchHistory, updated)
     }
 
-
     private fun buildPluginChips() {
         val installed = CsRepos.installed(this)
         if (installed.isEmpty()) return
         binding.tmdbSearchPluginScroll.isVisible = true
         val group = binding.tmdbSearchPluginChips
         group.removeAllViews()
-        // TMDB chip (default source)
+
         val tmdb = Chip(this).apply {
             text = "TMDB"; isCheckable = true; isClickable = true; isFocusable = true; tag = "tmdb"
             isCloseIconVisible = true
@@ -131,7 +130,7 @@ class TmdbSearchActivity : AppCompatActivity() {
         tmdb.setOnCheckedChangeListener { _, _ -> }
         FocusEffectUtil.applyFocusListener(tmdb)
         group.addView(tmdb)
-        // Plugin chips
+
         installed.forEach { source ->
             val chip = Chip(this).apply {
                 text = source.name; isCheckable = true; isClickable = true; isFocusable = true; tag = source.id
@@ -183,7 +182,7 @@ class TmdbSearchActivity : AppCompatActivity() {
             val chip = group.getChildAt(i) as? Chip ?: continue
             if (!chip.isChecked) continue
             val tag = chip.tag?.toString() ?: continue
-            if (tag == "tmdb") continue  // TMDB is handled separately
+            if (tag == "tmdb") continue
             val source = CsRepos.installed(this).firstOrNull { it.id == tag } ?: continue
             val api = with(Dispatchers.IO) { CsRuntime.apisFor(this@TmdbSearchActivity, source).firstOrNull() }
             if (api != null) result.add(api to source.name)
@@ -222,7 +221,7 @@ class TmdbSearchActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val selectedPlugins = getSelectedPlugins()
             if (selectedPlugins.isNotEmpty()) {
-                // Search all selected plugins in parallel, merge results
+
                 val allResults = mutableListOf<com.lagradost.cloudstream3.SearchResponse>()
                 val pluginNames = mutableListOf<String>()
                 for ((api, name) in selectedPlugins) {
@@ -241,7 +240,7 @@ class TmdbSearchActivity : AppCompatActivity() {
                     if (results.isNotEmpty()) pluginNames.add(name)
                 }
                 binding.tmdbSearchProgress.isVisible = false
-                // Switch RecyclerView to plugin adapter + adaptive grid layout
+
                 binding.tmdbSearchGrid.adapter = pluginAdapter
                 val cols = TmdbCards.gridSpan(resources.displayMetrics.widthPixels / resources.displayMetrics.density)
                 binding.tmdbSearchGrid.layoutManager = GridLayoutManager(this@TmdbSearchActivity, cols)
@@ -252,7 +251,7 @@ class TmdbSearchActivity : AppCompatActivity() {
             } else {
                 val results = Tmdb.search(query)
                 binding.tmdbSearchProgress.isVisible = false
-                // Ensure TMDB grid adapter + layout
+
                 binding.tmdbSearchGrid.adapter = adapter
                 val cols = TmdbCards.gridSpan(resources.displayMetrics.widthPixels / resources.displayMetrics.density)
                 binding.tmdbSearchGrid.layoutManager = GridLayoutManager(this@TmdbSearchActivity, cols)
@@ -293,7 +292,7 @@ class TmdbSearchActivity : AppCompatActivity() {
     }
 
     private fun openPluginDetails(item: com.lagradost.cloudstream3.SearchResponse) {
-        // Find the installed source matching this result's API name
+
         val apiName = item.apiName
         val installed = CsRepos.installed(this)
         var matchedSourceId: String? = null
@@ -328,7 +327,6 @@ class TmdbSearchActivity : AppCompatActivity() {
             b.tmdbCardPoster.updateLayoutParams<ViewGroup.LayoutParams> { width = w; height = h }
             b.tmdbCard.radius = TmdbCards.roundness()
 
-            // Reset before async loads
             b.tmdbCardLogo.isVisible = false
             b.tmdbCardOverlayTitle.isVisible = false
 
@@ -358,7 +356,7 @@ class TmdbSearchActivity : AppCompatActivity() {
                     }
                 }
             } else {
-                // Portrait: bottom overlay is landscape-only — title below unless hidden
+
                 b.tmdbCardGradient.isVisible = false
                 b.tmdbCardOverlayTitle.isVisible = false
                 if (titlePos == 2) {
@@ -370,7 +368,6 @@ class TmdbSearchActivity : AppCompatActivity() {
                 b.tmdbCardYear.isVisible = false
             }
 
-            // Load poster first, then async TMDB backdrop + logo for landscape
             if (landscape) {
                 b.tmdbCardPoster.loadImage(item.posterUrl, 780)
                 b.tmdbCardPoster.tag = item.name
@@ -424,8 +421,7 @@ class TmdbSearchActivity : AppCompatActivity() {
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             val item = items[position]
-            // The card takes the width of its column so a row of them fills the screen
-            // exactly; the preference that sizes rail cards would overflow a grid cell.
+
             val rv = holder.itemView.parent as? RecyclerView
             val span = (rv?.layoutManager as? GridLayoutManager)?.spanCount ?: 0
             val cell = if (rv != null && span > 0) TmdbCards.cellWidthPx(rv, span) else null

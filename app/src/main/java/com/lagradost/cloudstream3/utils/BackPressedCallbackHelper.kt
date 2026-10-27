@@ -33,7 +33,6 @@ object BackPressedCallbackHelper {
         val callbackMap = backPressedCallbacks.getOrPut(this) { mutableMapOf() }
         if (callbackMap.containsKey(id)) return
 
-        // We use WeakReference to protect against potential leaks.
         val activityRef = WeakReference(this)
         val newCallback = object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {

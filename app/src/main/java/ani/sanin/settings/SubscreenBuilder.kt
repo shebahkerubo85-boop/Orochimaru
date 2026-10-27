@@ -44,15 +44,15 @@ object SubscreenBuilder {
         val switch: Pair<Boolean, (Boolean) -> Unit>? = null,
         val choice: Choice? = null,
         val slider: SliderOption? = null,
-        /** When set on a choice entry, a slider appears below it, expanding when choice index != expandSlider.showOnIndex */
+
         val expandSlider: ExpandSlider? = null,
-        /** When false, the entry is dimmed and non-interactive */
+
         val isEnabled: Boolean = true,
     )
 
     data class ExpandSlider(
         val slider: SliderOption,
-        /** The slider is shown when choice index != this value. Default 0 = "Off". */
+
         val showOnIndex: Int = 0,
     )
 
@@ -102,11 +102,7 @@ object SubscreenBuilder {
                         sDesc.text = entry.desc
                         sDesc.visibility = View.VISIBLE
                     }
-                    // The pref is the source of truth and is bound on every inflation, so the switch
-                    // must not restore its own checked state on top of that. Android restores a
-                    // view's state after onStart, and that setChecked call fires the listener
-                    // below, which would write the restored value straight back to the pref and
-                    // silently undo whatever the user last chose.
+
                     sToggle.isSaveEnabled = false
                     sToggle.isChecked = entry.switch!!.first
                     sToggle.setOnCheckedChangeListener { _, isChecked -> entry.switch.second(isChecked) }
@@ -120,8 +116,7 @@ object SubscreenBuilder {
                     }
                     sTitle.setOnClickListener { sToggle.isChecked = !sToggle.isChecked }
                     sDesc.setOnClickListener { sToggle.isChecked = !sToggle.isChecked }
-                    // D-pad center on TV sends click to the focused parent view;
-                    // without this, toggles don't react to ENTER at all.
+
                     switchView.setOnClickListener { sToggle.isChecked = !sToggle.isChecked }
                     if (entry.onLongClick != null) {
                         switchView.setOnLongClickListener { entry.onLongClick!!.invoke(); true }
@@ -146,13 +141,13 @@ object SubscreenBuilder {
                     sl.value = entry.slider.value
                     slValue.text = "${entry.slider.value.toInt()}${entry.slider.suffix}"
                     sl.addOnChangeListener { _, value, fromUser ->
-                        // fromUser is false for programmatic DPAD steps, so always update value text
+
                         slValue.text = "${value.toInt()}${entry.slider.suffix}"
                         if (fromUser) {
                             entry.slider.onValueChange(value)
                         }
                     }
-                    // DPAD left/right on TV to nudge slider — Material Slider isn't focused by default
+
                     sliderView.setOnKeyListener { _, keyCode, event ->
                         if (!entry.isEnabled) return@setOnKeyListener false
                         if (event.action != android.view.KeyEvent.ACTION_DOWN) return@setOnKeyListener false
@@ -202,7 +197,6 @@ object SubscreenBuilder {
                         eDesc.visibility = View.VISIBLE
                     }
 
-                    // Inline expandable slider (e.g. OLED intensity)
                     var expandSliderView: View? = null
                     var expandSlider: Slider? = null
 
@@ -269,7 +263,7 @@ object SubscreenBuilder {
                                 setTitle(c.title)
                                 singleChoiceItems(c.options, c.currentIndex) { idx ->
                                     c.onSelect(idx)
-                                    // Show/hide expandable slider based on selection
+
                                     if (entry.expandSlider != null && expandSliderView != null) {
                                         val shouldShow = idx != entry.expandSlider!!.showOnIndex
                                         if (shouldShow) {
@@ -300,7 +294,6 @@ object SubscreenBuilder {
                 }
             }
 
-            // Expand/collapse sections
             val expanded = mutableSetOf<Int>()
             if (section.defaultExpanded) expanded.add(sIdx)
 

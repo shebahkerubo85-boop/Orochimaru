@@ -11,7 +11,6 @@
     android:paddingTop="18dp"
     android:paddingBottom="26dp">
 
-    <!-- Header -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -74,7 +73,6 @@
             android:textSize="13sp" />
     </LinearLayout>
 
-    <!-- Sort -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -189,7 +187,6 @@
             app:iconSize="18dp" />
     </LinearLayout>
 
-    <!-- Genre / status filter (inline chips, no dialog) -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -227,7 +224,6 @@
         android:alpha="0.18"
         android:background="?attr/colorOutline" />
 
-    <!-- NSFW (anime mode only) -->
     <LinearLayout
         android:id="@+id/nsfwRow"
         android:layout_width="match_parent"

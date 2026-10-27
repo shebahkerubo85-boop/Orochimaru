@@ -42,11 +42,6 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
-/**
- * Shared CloudStream resolution + player-launch helpers used by the TMDB
- * watch tab. Keeps the provider pipeline (search -> load -> loadLinks) in one
- * place so the details screen and watch tab behave identically.
- */
 object TmdbStreamResolver {
 
     sealed class StreamResult {
@@ -64,10 +59,8 @@ object TmdbStreamResolver {
         data class Error(val message: String) : StreamResult()
     }
 
-    /** Negative id space so it can never collide with a real anilist id. */
     fun syntheticId(mediaId: Int): Int = -1000000000 - (mediaId % 1000000)
 
-    /** Tries every installed source and returns the first one that resolves streams. */
     suspend fun resolveAuto(
         context: Context,
         sources: List<CsInstalledSource>,
@@ -94,8 +87,7 @@ object TmdbStreamResolver {
             val why = CsRuntime.lastError?.let { "\n$it" } ?: ""
             return StreamResult.Error("Failed to load ${source.name} — is it a .cs3 plugin?$why")
         }
-        // If we already loaded this title from this provider, skip search+load
-        // and go straight to loadLinks — avoids the double-load on episode click.
+
         for (api in apis) {
             val cachedLoad = loadResponseCache["${d.id}|${api.name}"]
             if (cachedLoad != null) {
@@ -112,8 +104,7 @@ object TmdbStreamResolver {
             )
             Log.i("TmdbDetails", "Trying provider ${api.name} for '${d.displayTitle}' (season=$season ep=$episodeNumber)")
             try {
-                // A provider stuck in Cloudflare solving / slow HTML parsing must not hang
-                // playback forever; give it a budget and move on to the next provider.
+
                 val (streams, reason, matchName) = withTimeout(60_000) {
                     resolveFromApi(api, d, season, episodeNumber)
                 }
@@ -142,9 +133,6 @@ object TmdbStreamResolver {
         return StreamResult.Error("No playable streams found on ${source.name}$why")
     }
 
-    /** Resolves links for a title already loaded from a plugin (home card ->
-     *  watch tab). Skips the title search entirely — the LoadResponse carries
-     *  the episode data, so the plugin's own URL is used verbatim. */
     suspend fun resolvePluginStreams(
         context: Context,
         source: CsInstalledSource,
@@ -245,10 +233,7 @@ object TmdbStreamResolver {
         episodeNumber: Int?
     ): ApiResolve {
         val wantMovie = d.displayTitle.isNotBlank() && (d.releaseDate != null || d.title != null)
-        // Providers implement search(query, page) (paginated) OR the legacy search(query).
-        // Calling the one-arg form throws NotImplementedError in the base class, which made
-        // paginated-only providers (MovieBox, Goojara, ...) report "no streams". Mirror
-        // CloudStream: call search(query, 1) first, then fall back to quickSearch().
+
         var searchError: String? = null
         val results = runCatching { api.search(d.displayTitle, 1)?.items }
             .getOrElse { t ->
@@ -276,9 +261,7 @@ object TmdbStreamResolver {
         var match = bestSearchMatch(results, d.displayTitle, wantMovie)
         Log.i("TmdbDetails", "${api.name}: best match = ${match?.url ?: "NONE"}")
         if (match == null && results.isEmpty()) {
-            // Live-TV / catalog-driven plugins (SKTech, PlayZTV) don't implement
-            // text search; their live events live on the home page. Mirror
-            // CloudStream: browse Home and match the title against the catalog.
+
             val homeItems = homePageItems(api)
             Logger.log("TMDB_PLAY: ${api.name} home fallback -> ${homeItems.size} catalog items")
             Log.i("TmdbDetails", "${api.name}: home fallback -> ${homeItems.size} catalog items")
@@ -309,7 +292,7 @@ object TmdbStreamResolver {
         if (response == null) {
             return ApiResolve(emptyList(), "${api.name}: load returned null for ${match.url}")
         }
-        // Cache the LoadResponse so subsequent episode clicks skip search+load
+
         loadResponseCache["${d.id}|${api.name}"] = response
         val dataUrl: String = when {
             response is TvSeriesLoadResponse -> {
@@ -408,15 +391,11 @@ object TmdbStreamResolver {
     return x.contains(y) || y.contains(x)
     }
 
-    // ── Home-page fallback (live-TV / catalog-driven providers) ─────────────
-
-    /** Flattens the home page catalog: tries the provider's declared [MainAPI.mainPage]
-     *  entries first, then a synthetic "Home" request — same cascade CloudStream uses. */
     private suspend fun homePageItems(api: MainAPI): List<SearchResponse> {
         val items = mutableListOf<SearchResponse>()
         val pages = api.mainPage.filter { it.data.isNotBlank() }
         if (pages.isEmpty()) {
-            // Synthetic fallback — some providers override getMainPage even when mainPage is empty
+
             val resp = runCatching {
                 api.getMainPage(1, MainPageRequest("Home", "", false))
             }.getOrElse { t ->
@@ -439,7 +418,6 @@ object TmdbStreamResolver {
         return items
     }
 
-    /** Zangetsu approach: only trust DRM the plugin explicitly provides. */
     private fun drmForLink(link: ExtractorLink): DrmInfo? {
         val result = when (link) {
             is DrmExtractorLink -> {
@@ -474,12 +452,9 @@ object TmdbStreamResolver {
         return result
     }
 
-    // ── Synthetic TMDB media session (watch tab -> anime player) ─────────────
-
     data class SyntheticSession(
         val mediaId: Int,
         val mediaType: String,
-
 
         val detail: TmdbDetail,
         val source: CsInstalledSource,
@@ -487,16 +462,10 @@ object TmdbStreamResolver {
         val isLive: Boolean = load is LiveStreamLoadResponse
     )
 
-    /** Per-plugin episode shells (extractors live on them, so re-launching the
-     *  player for the same source shows servers instantly — no re-fetch). */
     private val episodeShells = mutableMapOf<String, Map<String, Episode>>()
 
-    /** Resolved links per episode, keyed by plugin + season/ep; shared between
-     *  the watch tab and the player so nothing is ever fetched twice. */
     private val linksCache = mutableMapOf<String, StreamResult.Success>()
 
-    /** Cached LoadResponse per (mediaId, sourceName) — so the second episode click
-     *  skips the expensive search+load and goes straight to loadLinks. */
     private val loadResponseCache = mutableMapOf<String, LoadResponse>()
 
     private val sessions = mutableMapOf<Int, SyntheticSession>()
@@ -511,14 +480,10 @@ object TmdbStreamResolver {
         linksCache[cacheKey(mediaId, sourceName, season, ep)] = result
     }
 
-    /** Plugin name backing a synthetic media id, shown in the server sheet. */
     fun syntheticSourceName(syntheticId: Int): String? = sessions[syntheticId]?.source?.name
 
-    /** Public accessor for the synthetic session (used by ExoplayerView for Simkl scrobble). */
     fun sessionFor(syntheticId: Int): SyntheticSession? = sessions[syntheticId]
 
-    /** Drops every cached server sheet for a title — used when the user switches
-     *  plugins so stale links from the previous source are never shown. */
     fun invalidateLinks(mediaId: Int) {
         linksCache.keys.removeAll { it.startsWith("$mediaId|") }
         loadResponseCache.keys.removeAll { it.startsWith("$mediaId|") }
@@ -533,13 +498,6 @@ object TmdbStreamResolver {
         else -> VideoType.CONTAINER
     }
 
-    /** Best-effort language label for a CloudStream audio track. The vendored
-     *  AudioFile only carries url+headers, so the language is derived from the
-     *  url when the plugin bakes it in (e.g. "track-eng.m3u8", "english.mp4").
-     *  Returns a language name the player's LanguageMapper understands (the
-     *  same path anime sources use), so the merged track is tagged, prepared
-     *  and labelled correctly in the rail. Falls back to "Unknown" so the
-     *  track stays selectable in the rail. */
     private fun audioLanguage(audio: AudioFile): String {
         val hay = audio.url.lowercase()
         val rules = listOf(
@@ -573,8 +531,6 @@ object TmdbStreamResolver {
         return "Unknown"
     }
 
-    /** Grouped extracts for the synthetic TMDB episode shell: one extractor per
-     *  hosting server with its qualities as videos, mirroring anime grouping. */
     fun buildExtractors(links: List<StreamResult.PlayableLink>): List<VideoExtractor> {
         if (!PrefManager.getVal<Boolean>(PrefName.GroupServersByHostAndLanguageTags)) {
             val usedNames = HashSet<String>()
@@ -603,10 +559,6 @@ object TmdbStreamResolver {
             }
         }
 
-        // Group the plugin's per-quality links under their hosting server (e.g.
-        // "VidPlay" with 1080p/720p/360p rows), mirroring how anime sources group
-        // servers in the sheet. There is no dub toggle in TMDB mode, so every host
-        // stays visible.
         val usedNames = HashSet<String>()
         return links.filter { it.url.isNotBlank() }
             .groupBy { it.host.ifBlank { it.label }.ifBlank { "Server" } }
@@ -697,9 +649,6 @@ object TmdbStreamResolver {
         return map
     }
 
-    /** Player episode shells straight from a plugin's per-season episodes —
-     *  used when the watch tab was opened from a plugin home card, so the rail
-     *  reflects the plugin's data (no TMDB lookups on a synthetic id). */
     fun pluginEpisodeShells(
         mediaId: Int,
         seasonEpisodes: Map<Int, List<TmdbEpisode>>
@@ -713,8 +662,6 @@ object TmdbStreamResolver {
         return map
     }
 
-    /** Single "episode" shell for a plugin movie (key "1", mirrors the TMDB
-     *  movie branch of [episodesFor]). */
     fun pluginMovieShell(mediaId: Int, d: TmdbDetail): Map<String, Episode> =
         linkedMapOf(
             "1" to Episode(
@@ -730,8 +677,6 @@ object TmdbStreamResolver {
             )
         )
 
-    /** Resolves (or reuses cached) links for a synthetic episode and fills its
-     *  extractors so the player can build media. Returns false if nothing played. */
     suspend fun populateSyntheticEpisode(context: Context, media: Media, ep: Episode): Boolean =
         withContext(Dispatchers.IO) {
             if (!ep.extractors.isNullOrEmpty() && ep.allStreams) return@withContext true
@@ -762,10 +707,6 @@ object TmdbStreamResolver {
             true
         }
 
-    /** Launches the full anime player for a TMDB title: all episodes across all
-     *  seasons are wired into the rail, the picked episode carries every server
-     *  the plugin returned (server button switches without re-fetching), and the
-     *  metadata drives the pause overlay + online subtitles. */
     suspend fun launchPlayer(
         context: Context,
         mediaId: Int,
@@ -794,8 +735,7 @@ object TmdbStreamResolver {
         current.extractors = extractors.toMutableList()
         current.extractorsSource = 0
         current.allStreams = true
-        // Resolve the picked quality to its grouped host card, so the continuity
-        // selection keeps both the host and the quality row the user tapped.
+
         val groupingEnabled = PrefManager.getVal<Boolean>(PrefName.GroupServersByHostAndLanguageTags)
         val pickedHost = links.firstOrNull { it.label == pickedLabel }?.host
             ?.takeIf { it.isNotBlank() }
@@ -809,7 +749,7 @@ object TmdbStreamResolver {
                 .coerceAtLeast(0)
         } else 0
         current.selectedExtractor = pickedExtractor.server.name
-        // Plugin links can change between opens; never point past the rendition list.
+
         current.selectedVideo = pickedVideoIdx.coerceIn(
             0,
             (pickedExtractor.videos.size - 1).coerceAtLeast(0),
@@ -836,8 +776,7 @@ object TmdbStreamResolver {
             isAdult = false,
             status = d.status?.uppercase()
         )
-        // Persist the picked server so auto-next/rail clicks keep playing the same
-        // plugin server immediately (anime mode's "Make Default" continuity).
+
         val selected = Selected(sourceIndex = 0, server = pickedExtractor.server.name, video = pickedVideoIdx)
         media.selected = selected
         PrefManager.setCustomVal("Selected-$id", selected)

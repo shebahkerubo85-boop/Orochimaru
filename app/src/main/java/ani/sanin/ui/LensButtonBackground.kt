@@ -10,14 +10,6 @@ import android.graphics.drawable.LayerDrawable
 import android.graphics.drawable.RippleDrawable
 import android.view.View
 
-/**
- * Tadami-style "lens" button background: a translucent glass fill inside a thin,
- * top-lit white gradient rim. Ported from AuroraHeaderIconStyle.auroraHeaderIconSurface.
- *
- * There is no real blur/glass in the source either - it is just a translucent fill
- * plus a 1dp vertical white gradient rim. This reproduces the same look as a plain
- * (non-Compose) drawable so XML ImageButtons can share it.
- */
 object LensButtonBackground {
 
     private fun isNight(context: Context): Boolean =
@@ -55,15 +47,12 @@ object LensButtonBackground {
 
     fun apply(view: View, fillAlpha: Float? = null) {
         view.background = make(view.context, fillAlpha)
-        // The glass fill reads as flat on the app's pure-white light surface, so add the
-        // same small elevation shadow the library pill uses. Skip it in dark mode, where
-        // the rim already separates the button from the background.
+
         if (!isNight(view.context)) {
             view.elevation = 3f * view.resources.displayMetrics.density
         }
     }
 
-    /** Translucent fill color (no rim) used for the reduced-background calendar button. */
     fun fillColor(context: Context, alpha: Float): Int {
         val dark = isNight(context)
         return (Math.round(alpha * 255f) shl 24) or if (dark) 0x161922 else 0xFFFFFF

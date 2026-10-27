@@ -12,7 +12,6 @@ object AnimUtils {
         PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) &&
         PrefManager.getVal<Boolean>(PrefName.XpandableAnimations)
 
-    /** Slide-down roll from the header. Falls back to instant show when disabled. */
     fun rollExpand(items: View) {
         if (!enabled()) { items.visibility = View.VISIBLE; return }
         val d = items.resources.displayMetrics.density
@@ -26,7 +25,6 @@ object AnimUtils {
             .start()
     }
 
-    /** Slide-up collapse. Falls back to instant hide when disabled. */
     fun rollCollapse(items: View) {
         if (!enabled()) { items.visibility = View.GONE; return }
         val d = items.resources.displayMetrics.density
@@ -41,7 +39,6 @@ object AnimUtils {
             }.start()
     }
 
-    /** Returns animation duration scaled by speed pref, or 0 when disabled. */
     fun duration(ms: Long): Long =
         if (enabled()) (ms * PrefManager.getVal<Float>(PrefName.AnimationSpeed)).toLong() else 0L
 }

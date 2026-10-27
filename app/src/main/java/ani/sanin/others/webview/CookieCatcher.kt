@@ -23,7 +23,6 @@ class CookieCatcher : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         ThemeManager(this).applyTheme()
 
-        //get url from intent
         val url = intent.getStringExtra("url") ?: getString(R.string.cursed_yt)
         val headers = intent
             .getSerializableExtraCompat<HashMap<String, String>>("headers")
@@ -49,8 +48,7 @@ class CookieCatcher : AppCompatActivity() {
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, finishedUrl: String?) {
                 super.onPageFinished(view, finishedUrl)
-                // Write any challenge cookies to disk as soon as the page settles, so the
-                // solved challenge is not lost if the activity is killed right afterwards.
+
                 cookies?.flush()
             }
         }

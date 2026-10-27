@@ -13,7 +13,7 @@
             android:layout_width="match_parent"
             android:orientation="horizontal"
             android:layout_height="wrap_content">
-        <!--app:cardCornerRadius="@dimen/roundedImageRadius"-->
+
         <androidx.cardview.widget.CardView
                 android:background="@color/grayShimmer"
                 app:cardCornerRadius="@dimen/loading_radius"

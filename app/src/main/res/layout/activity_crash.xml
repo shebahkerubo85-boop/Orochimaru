@@ -82,7 +82,6 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
-        <!-- Toggle between stack trace and logcat -->
         <Button
             android:id="@+id/toggleLogcatButton"
             android:layout_width="wrap_content"

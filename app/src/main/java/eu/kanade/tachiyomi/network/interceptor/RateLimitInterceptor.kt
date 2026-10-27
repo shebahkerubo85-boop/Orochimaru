@@ -13,23 +13,6 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toDuration
 import kotlin.time.toDurationUnit
 
-/**
- * An OkHttp interceptor that handles rate limiting.
- *
- * This uses `java.util.concurrent.TimeUnit` and is the legacy method, kept
- * for compatibility with extensions built against extension-lib 1.3/1.4.
- *
- * Examples:
- *
- * permits = 5,  period = 1, unit = seconds  =>  5 requests per second
- * permits = 10, period = 2, unit = minutes  =>  10 requests per 2 minutes
- *
- * @since extension-lib 1.3
- *
- * @param permits [Int]   Number of requests allowed within a period of units.
- * @param period [Long]   The limiting duration. Defaults to 1.
- * @param unit [TimeUnit] The unit of time for the period. Defaults to seconds.
- */
 @Deprecated("Use the version with kotlin.time APIs instead.", ReplaceWith("rateLimit(permits, period.toDuration(unit.toDurationUnit()))"))
 fun OkHttpClient.Builder.rateLimit(
     permits: Int,
@@ -37,25 +20,11 @@ fun OkHttpClient.Builder.rateLimit(
     unit: TimeUnit = TimeUnit.SECONDS,
 ) = addInterceptor(RateLimitInterceptor(null, permits, period.toDuration(unit.toDurationUnit())))
 
-/**
- * An OkHttp interceptor that handles rate limiting.
- *
- * Examples:
- *
- * permits = 5,  period = 1.seconds  =>  5 requests per second
- * permits = 10, period = 2.minutes  =>  10 requests per 2 minutes
- *
- * @since extension-lib 1.5
- *
- * @param permits [Int]     Number of requests allowed within a period of units.
- * @param period [Duration] The limiting duration. Defaults to 1.seconds.
- */
 fun OkHttpClient.Builder.rateLimit(
     permits: Int,
     period: Duration = 1.seconds,
 ) = addInterceptor(RateLimitInterceptor(null, permits, period))
 
-/** We can probably accept domains or wildcards by comparing with [endsWith], etc. */
 @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
 internal class RateLimitInterceptor(
     private val host: String?,
@@ -73,7 +42,7 @@ internal class RateLimitInterceptor(
 
         val request = chain.request()
         when (host) {
-            null, request.url.host -> {} // need rate limit
+            null, request.url.host -> {}
             else -> return chain.proceed(request)
         }
 
@@ -88,7 +57,7 @@ internal class RateLimitInterceptor(
 
         try {
             synchronized(requestQueue) {
-                while (requestQueue.size >= permits) { // queue is full, remove expired entries
+                while (requestQueue.size >= permits) {
                     val periodStart = SystemClock.elapsedRealtime() - rateLimitMillis
                     var hasRemovedExpired = false
                     while (requestQueue.isEmpty().not() && requestQueue.first <= periodStart) {
@@ -100,7 +69,7 @@ internal class RateLimitInterceptor(
                     } else if (hasRemovedExpired) {
                         break
                     } else {
-                        try { // wait for the first entry to expire, or notified by cached response
+                        try {
                             (requestQueue as Object).wait(requestQueue.first - periodStart)
                         } catch (_: InterruptedException) {
                             continue
@@ -108,7 +77,6 @@ internal class RateLimitInterceptor(
                     }
                 }
 
-                // add request to queue
                 timestamp = SystemClock.elapsedRealtime()
                 requestQueue.addLast(timestamp)
             }
@@ -117,7 +85,7 @@ internal class RateLimitInterceptor(
         }
 
         val response = chain.proceed(request)
-        if (response.networkResponse == null) { // response is cached, remove it from queue
+        if (response.networkResponse == null) {
             synchronized(requestQueue) {
                 if (requestQueue.isEmpty() || timestamp < requestQueue.first) return@synchronized
                 requestQueue.removeFirstOccurrence(timestamp)

@@ -31,7 +31,7 @@
         </item>
         <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="o_mr1">shortEdges
         </item>
-        <!-- Custom color attrs required by CS3 player button styles (NiceButton/BlackButton/SmallBlackButton) -->
+
         <item name="textColor">@color/textColor</item>
         <item name="grayTextColor">@color/grayTextColor</item>
         <item name="primaryGrayBackground">@color/primaryGrayBackground</item>

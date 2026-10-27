@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Stronger shadow -->
     <item
         android:bottom="4dp"
         android:left="3dp"
@@ -12,7 +11,6 @@
         </shape>
     </item>
 
-    <!-- Brighter gradient rim layer -->
     <item>
         <shape android:shape="rectangle">
             <gradient
@@ -25,7 +23,6 @@
         </shape>
     </item>
 
-    <!-- Brighter card surface -->
     <item
         android:top="1dp">
         <shape android:shape="rectangle">

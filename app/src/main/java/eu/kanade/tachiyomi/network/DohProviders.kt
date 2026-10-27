@@ -5,10 +5,6 @@ import okhttp3.OkHttpClient
 import okhttp3.dnsoverhttps.DnsOverHttps
 import java.net.InetAddress
 
-/**
- * Based on https://github.com/square/okhttp/blob/ef5d0c83f7bbd3a0c0534e7ca23cbc4ee7550f3b/okhttp-dnsoverhttps/src/test/java/okhttp3/dnsoverhttps/DohProviders.java
- */
-
 const val PREF_DOH_CLOUDFLARE = 1
 const val PREF_DOH_GOOGLE = 2
 const val PREF_DOH_ADGUARD = 3
@@ -52,8 +48,6 @@ fun OkHttpClient.Builder.dohGoogle() = dns(
         .build(),
 )
 
-// AdGuard "Default" DNS works too but for the sake of making sure no site is blacklisted,
-// we use "Unfiltered"
 fun OkHttpClient.Builder.dohAdGuard() = dns(
     DnsOverHttps.Builder().client(build())
         .url("https://dns-unfiltered.adguard.com/dns-query".toHttpUrl())
@@ -126,11 +120,6 @@ fun OkHttpClient.Builder.dohQuad101() = dns(
         .build(),
 )
 
-/*
- * Mullvad DoH
- * without ad blocking option
- * Source : https://mullvad.net/en/help/dns-over-https-and-dns-over-tls/
- */
 fun OkHttpClient.Builder.dohMullvad() = dns(
     DnsOverHttps.Builder().client(build())
         .url("https://doh.mullvad.net/dns-query".toHttpUrl())
@@ -142,11 +131,6 @@ fun OkHttpClient.Builder.dohMullvad() = dns(
         .build(),
 )
 
-/*
- * Control D
- * unfiltered option
- * Source : https://controld.com/free-dns/?
- */
 fun OkHttpClient.Builder.dohControlD() = dns(
     DnsOverHttps.Builder().client(build())
         .url("https://freedns.controld.com/p0".toHttpUrl())
@@ -159,10 +143,6 @@ fun OkHttpClient.Builder.dohControlD() = dns(
         .build(),
 )
 
-/*
- * Njalla
- * Non logging and uncensored
- */
 fun OkHttpClient.Builder.dohNajalla() = dns(
     DnsOverHttps.Builder().client(build())
         .url("https://dns.njal.la/dns-query".toHttpUrl())
@@ -173,9 +153,6 @@ fun OkHttpClient.Builder.dohNajalla() = dns(
         .build(),
 )
 
-/**
- * Source: https://shecan.ir/
- */
 fun OkHttpClient.Builder.dohShecan() = dns(
     DnsOverHttps.Builder().client(build())
         .url("https://free.shecan.ir/dns-query".toHttpUrl())
@@ -190,8 +167,8 @@ fun OkHttpClient.Builder.dohLibreDNS() = dns(
     DnsOverHttps.Builder().client(build())
         .url("https://doh.libredns.gr/dns-query".toHttpUrl())
         .bootstrapDnsHosts(
-            InetAddress.getByName("116.202.176.26"),  // IPv4 address for LibreDNS
-            InetAddress.getByName("192.71.166.92")   // Fallback IPv4 address
+            InetAddress.getByName("116.202.176.26"),
+            InetAddress.getByName("192.71.166.92")
         )
         .build()
 )

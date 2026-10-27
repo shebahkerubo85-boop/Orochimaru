@@ -136,8 +136,6 @@ class ContinueWatchingLandscapeAdapter(
             holder.progress.progress = 0
         }
 
-
-
         setGradient(holder.gradientOverlay)
         holder.itemView.setOnClickListener { onItemClick(media) }
         holder.itemView.isFocusable = true

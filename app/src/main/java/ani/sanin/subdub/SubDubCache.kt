@@ -7,21 +7,12 @@ import org.json.JSONObject
 import java.net.URL
 import java.net.URLEncoder
 
-/**
- * Lightweight in-memory LRU cache for sub/dub episode counts.
- * Fetches on-demand from Cloudflare Worker (backed by AniVault API), keyed by AniList ID or title.
- */
 object SubDubCache {
 
     private const val BASE_URL = "https://anivault-proxy.shemaus58.workers.dev"
 
     private val cache = LruCache<String, SubDubInfo>(300)
 
-    /**
-     * Get sub/dub info for [title], optionally with an [anilistId] for exact lookup.
-     * When anilistId is provided the Worker uses the anime/{id} endpoint (no scoring).
-     * Falls back to title-based search if anilistId is null.
-     */
     fun get(title: String, scope: CoroutineScope, anilistId: Int? = null, onResult: (SubDubInfo?) -> Unit) {
         val key = anilistId?.toString() ?: title.lowercase().trim()
         if (key.isBlank()) { onResult(null); return }
@@ -66,9 +57,6 @@ object SubDubCache {
 
     fun clear() { cache.evictAll() }
 
-    // ──────────────────────────────────────────────────────────────────
-    //  Fetch from Cloudflare Worker (AniList ID exact or title search)
-    // ──────────────────────────────────────────────────────────────────
     private suspend fun fetchFromApi(anilistId: Int?, title: String): SubDubInfo? = withContext(Dispatchers.IO) {
         try {
             val urlStr = if (anilistId != null) {

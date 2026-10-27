@@ -17,9 +17,7 @@ object AniSkip {
         episodeLength: Long,
         useProxyForTimeStamps: Boolean
     ): List<Stamp>? {
-        // ExoPlayer reports C.TIME_UNSET (Long.MIN_VALUE) when the stream duration
-        // isn't known yet; the AniSkip API rejects negative lengths with a 400, so
-        // fall back to a standard 24-minute episode in that case.
+
         val safeEpisodeLength = if (episodeLength > 0) episodeLength else 1440L
         Logger.log(
             "AniSkip: getResult start malId=$malId episode=$episodeNumber " +
@@ -33,11 +31,7 @@ object AniSkip {
             "https://api.allorigins.win/raw?url=${URLEncoder.encode(url, "utf-8").replace("+", "%20")}",
             "https://r.jina.ai/$url"
         )
-        // When the proxy option is on, try the CORS relays first: some devices
-        // (e.g. Fire TV) can't reach api.aniskip.com directly and the direct call
-        // would otherwise burn a full timeout before the relays get a chance.
-        // The relays are also kept as an automatic fallback when the option is off,
-        // so the skip button works on those devices out of the box.
+
         val candidates = if (useProxyForTimeStamps) proxies + url else listOf(url) + proxies
         return tryWithSuspend {
             for (candidate in candidates) {
@@ -99,7 +93,6 @@ object AniSkip {
         val skipId: String,
         val episodeLength: Double
     )
-
 
     fun String.getType(): String {
         return when (this) {

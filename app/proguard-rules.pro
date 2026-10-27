@@ -1,9 +1,4 @@
-#############################################
-# General / Debugging
-#############################################
 
-#-keepattributes SourceFile,LineNumberTable
-#-renamesourcefileattribute SourceFile
 
 -keepattributes Signature
 -keepattributes *Annotation*
@@ -12,17 +7,11 @@
 
 -dontobfuscate
 
-
-#############################################
-# Kotlin / Coroutines / Serialization
-#############################################
-
 -keep class kotlin.** { *; }
 -dontwarn kotlin.**
 
 -keep class kotlinx.** { *; }
 
-# Serializable Companion handling
 -if @kotlinx.serialization.Serializable class **
 -keepclassmembers class <1> {
     static <1>$Companion Companion;
@@ -45,10 +34,6 @@
 
 -keep class kotlinx.serialization.** { *; }
 
-#############################################
-# Core App / Extensions
-#############################################
-
 -keep class ani.sanin.** { *; }
 -keep class ani.sanin.download.DownloadsManager { *; }
 
@@ -59,22 +44,13 @@
     <init>(...);
 }
 
-# Keep NanoHTTPD for anime extensions and local proxy servers
 -keep class fi.iki.elonen.** { *; }
 -dontwarn fi.iki.elonen.**
 -keep class org.nanohttpd.** { *; }
 -dontwarn org.nanohttpd.**
 
-#############################################
-# Firebase
-#############################################
-
 -keep class com.google.firebase.** { *; }
 -dontwarn com.google.firebase.**
-
-#############################################
-# Networking (OkHttp + Okio)
-#############################################
 
 -keep class okhttp3.** { *; }
 -dontwarn okhttp3.**
@@ -82,13 +58,6 @@
 -keep class okio.** { *; }
 -dontwarn okio.**
 
-
-#############################################
-# Android / Jetpack
-
-# Plugin settings UIs (compiled .cs3 dex) call AndroidX helper methods at runtime
-# that are otherwise unused by the host app and would be stripped by R8. Keep
-# the helpers they can reference so opening a plugin's settings doesn't crash.
 -keep class androidx.core.content.res.ResourcesCompat { *; }
 -keepclassmembers,allowoptimization class androidx.core.content.res.ResourcesCompat {
     public static ** getDrawable(...);
@@ -102,13 +71,6 @@
 -keepclassmembers,allowoptimization class androidx.core.content.res.ColorStateListInflaterCompat { *; }
 -dontwarn androidx.core.content.res.ResourcesCompat
 
-#############################################
-
-# Plugin settings UI (.cs3 dex) links against the AndroidX/Material bottom-sheet
-# dialog stack by classloader at runtime. R8 optimization strips/inlines methods
-# those precompiled dex call (e.g. BottomSheetDialog.getBehavior, and the
-# getClass() on the ComponentDialog host). Keep this dialog chain unoptimized so
-# opening a plugin's settings doesn't crash. Scope is tiny (sheet+host dialog).
 -keep class androidx.activity.** { *; }
 -dontwarn androidx.activity.**
 -keep class androidx.appcompat.** { *; }
@@ -125,24 +87,13 @@
 
 -keep class androidx.preference.** { *; }
 
-# WorkManager database
 -keep class androidx.work.impl.WorkDatabase_Impl { *; }
-
-
-#############################################
-# Gson / JSON / HTML Parsing
-#############################################
 
 -keep class com.google.gson.** { *; }
 -keep class com.google.gson.reflect.TypeToken { *; }
 
 -keep class org.jsoup.** { *; }
 -keepclassmembers class org.jsoup.nodes.Document { *; }
-
-
-#############################################
-# QuickJS / Native / Unsafe
-#############################################
 
 -keep,allowoptimization class app.cash.quickjs.** { public protected *; }
 
@@ -152,36 +103,19 @@
 -dontwarn org.graalvm.nativeimage.**
 -dontwarn com.oracle.svm.core.annotate.**
 
-
-
-# Keep RxJava unsafe internals
 -keep class rx.internal.util.unsafe.** { *; }
 
-# Keep fields (VERY IMPORTANT)
 -keepclassmembers class rx.internal.util.unsafe.** {
     long producerIndex;
     long consumerIndex;
 }
 
-# Keep all rx internal operators (safe side)
 -keep class rx.internal.** { *; }
 
-# Prevent stripping Unsafe usage
 -dontwarn sun.misc.Unsafe
-
-#############################################
-# Charts (AAChart)
-#############################################
 
 -keep class com.github.aachartmodel.** { *; }
 -dontwarn com.github.aachartmodel.**
-
-
-#############################################
-# CloudStream .cs3 plugin runtime
-# Plugins are compiled dex archives that link against these class names
-# by reflection/classloader, so nothing here may be stripped or renamed.
-#############################################
 
 -keep class com.lagradost.** { *; }
 -dontwarn com.lagradost.**
@@ -213,32 +147,17 @@
 -keep class kotlinx.atomicfu.** { *; }
 -dontwarn kotlinx.atomicfu.**
 
-# Keep org.json classes used for parsing API responses (system class on Android)
 -keep class org.json.** { *; }
 -dontwarn org.json.**
-
-#############################################
-# AppCompat dialogs used by CloudStream plugin settings
-# Plugin settings screens (com.cncverse.*, etc.) call AlertDialog.Builder
-# methods (setMessage, setTitle, setPositiveButton, ...) that the host app
-# doesn't use and R8 would otherwise strip, crashing with NoSuchMethodError.
-#############################################
 
 -keep class androidx.appcompat.app.AlertDialog { *; }
 -keep class androidx.appcompat.app.AlertDialog$Builder { *; }
 -keep class androidx.appcompat.app.AlertDialog$Builder$* { *; }
 -dontwarn androidx.appcompat.app.AlertDialog
 
-#############################################
-# R8: desugar_jdk_libs_nio class conflicts
-#############################################
 -dontwarn jdk.internal.misc.Unsafe
 -dontwarn jdk.internal.misc.**
 
-#############################################
-# WebView JS bridges (@JavascriptInterface) must survive R8,
-# which would otherwise strip the unused-looking bridge methods.
-#############################################
 -keepclassmembers class * {
     @android.webkit.JavascriptInterface <methods>;
 }

@@ -9,11 +9,6 @@ import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
 
-/**
- * @param alwaysBypass will pre-emptively fetch ddos guard cookies if true.
- * If false it will only try to get cookies when a request returns 403
- * */
-// As seen in https://github.com/anime-dl/anime-downloader/blob/master/anime_downloader/sites/erairaws.py
 @AnyThread
 class DdosGuardKiller(private val alwaysBypass: Boolean) : Interceptor {
     val savedCookiesMap = mutableMapOf<String, Map<String, String>>()
@@ -39,9 +34,9 @@ class DdosGuardKiller(private val alwaysBypass: Boolean) : Interceptor {
 
         val cookies =
             savedCookiesMap[request.url.host]
-            // If no cookies are found fetch and save em.
+
                 ?: (request.url.scheme + "://" + request.url.host + (ddosBypassPath ?: "")).let {
-                    // Somehow app.get fails
+
                     Requests().get(it).cookies.also { cookies ->
                         savedCookiesMap[request.url.host] = cookies
                     }

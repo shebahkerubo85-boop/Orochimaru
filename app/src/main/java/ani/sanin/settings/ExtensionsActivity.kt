@@ -50,10 +50,6 @@ class ExtensionsActivity : AppCompatActivity() {
     private var pillTabs by mutableStateOf<List<LibraryStatusTab>>(emptyList())
     private var selectedPillIndex by mutableIntStateOf(0)
 
-    /**
-     * Intercept DPAD DOWN when the ViewPager2 is focused so it reaches the
-     * Browse button instead of triggering ViewPager2's horizontal scroll.
-     */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_BACK &&
             searchExpanded
@@ -63,9 +59,7 @@ class ExtensionsActivity : AppCompatActivity() {
         }
         if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
             val vp = binding.viewPager
-            // Intercept DPAD DOWN from either the ViewPager or the pill
-            // so focus always lands on the first Browse button instead of
-            // being swallowed by ViewPager2 scroll or pill navigation.
+
             val focused = currentFocus
             var tabFocused = false
             var p: android.view.ViewParent? = focused?.parent
@@ -77,8 +71,7 @@ class ExtensionsActivity : AppCompatActivity() {
                 focusFirstBrowseButton(vp)
                 return true
             }
-            // Bottom→top wrap fix for both Installed/Available tabs (allExtensionsRecyclerView)
-            // When at last card, DPAD_DOWN would wrap to top — consume and scroll instead.
+
             if (focused != null) {
                 var v: android.view.View? = focused
                 var rv: androidx.recyclerview.widget.RecyclerView? = null
@@ -90,9 +83,7 @@ class ExtensionsActivity : AppCompatActivity() {
                     v = parent as? android.view.View
                 }
                 if (rv != null) {
-                    // getChildAdapterPosition needs a direct child of the RecyclerView (it casts
-                    // the child's LayoutParams to RecyclerView.LayoutParams), so walk up to the
-                    // item view first — focus may sit on a nested view inside a card.
+
                     var item: android.view.View? = focused
                     while (item != null && item.parent !== rv) {
                         item = item.parent as? android.view.View
@@ -133,8 +124,6 @@ class ExtensionsActivity : AppCompatActivity() {
         val viewPager = findViewById<ViewPager2>(R.id.viewPager)
         viewPager.offscreenPageLimit = 1
 
-        // When the ViewPager2 gains focus (e.g. from search bar UP or pill DOWN),
-        // forward it into the Browse button of the first repo row
         viewPager.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) focusFirstBrowseButton(viewPager)
         }
@@ -159,9 +148,6 @@ class ExtensionsActivity : AppCompatActivity() {
 
         setupTabs()
 
-        // ViewPager2 internally sets FOCUS_BLOCK_DESCENDANTS on its child
-        // RecyclerView, which prevents DPAD focus from reaching Browse buttons.
-        // Override it AFTER adapter setup (setupTabs) since that recreates internals.
         viewPager.post {
             (viewPager.getChildAt(0) as? ViewGroup)?.let { internal ->
                 internal.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
@@ -193,11 +179,6 @@ class ExtensionsActivity : AppCompatActivity() {
         binding.searchIconButton.setOnClickListener { toggleSearchBar() }
         updateSearchUiForTab(0)
 
-        // Inset by padding, not by margin. A margin on a match_parent root leaves the layout itself
-        // taller than the window, so the list's scrollable range ends below the visible area and
-        // the last card can only ever be scrolled into the part nobody can see - which reads as
-        // the list refusing to move. Padding shrinks the content box instead, so the range and
-        // the cards stay on screen together.
         binding.settingsContainer.updatePadding(top = statusBarHeight, bottom = navBarHeight)
 
         setupModeButtons()
@@ -212,18 +193,16 @@ class ExtensionsActivity : AppCompatActivity() {
         const val EXTRA_INSTALL_UPDATES = "extra_install_updates"
     }
 
-    /** Search only exists on Installed tabs (position 0): icon + expandable bar. */
     private fun updateSearchUiForTab(tabPosition: Int) {
         val installed = tabPosition == 0
         binding.searchIconButton.visibility = if (installed) View.VISIBLE else View.GONE
         if (!installed) collapseSearchBar()
     }
 
-    /** Pill tap: move the pager; the page callback keeps the pill and search UI in sync. */
     private fun selectTab(position: Int) {
         if (position == selectedPillIndex) return
         binding.viewPager.setCurrentItem(position, true)
-        // Repo-card tabs (Available) have no search — icon + bar only exist on Installed.
+
         binding.searchViewText.setText("")
         binding.searchViewText.clearFocus()
         focusFirstBrowseButton(binding.viewPager)
@@ -284,7 +263,6 @@ class ExtensionsActivity : AppCompatActivity() {
 
     private var modeToggleAnimating = false
 
-    /** Elongated capsule toggle: white thumb, primary fill on the active half, one label. */
     private fun setupModeToggle() {
         binding.modeToggle.setOnClickListener { toggleMode() }
         binding.modeToggle.setOnKeyListener { _, keyCode, event ->
@@ -367,10 +345,8 @@ class ExtensionsActivity : AppCompatActivity() {
         )
     }
 
-    /** Focus the status pill (the repo cards' DPAD_UP exit target). */
     fun focusPill(): Boolean = binding.extensionsPill.requestFocus()
 
-    /** Focus the first Browse button in the current ViewPager page. */
     private fun focusFirstBrowseButton(viewPager: ViewPager2, attempt: Int = 0) {
         viewPager.postDelayed({
             val currentFragment = supportFragmentManager.findFragmentByTag("f${viewPager.currentItem}")
@@ -380,7 +356,7 @@ class ExtensionsActivity : AppCompatActivity() {
             val browseBtn = rv?.findViewHolderForAdapterPosition(0)
                 ?.itemView?.findViewById<android.view.View>(R.id.repoBrowseButton)
             if (browseBtn?.requestFocus() == true) return@postDelayed
-            // First attempt: retry once more (RecyclerView might not be laid out yet)
+
             if (attempt == 0) {
                 focusFirstBrowseButton(viewPager, 1)
             } else {
@@ -439,7 +415,7 @@ class ExtensionsActivity : AppCompatActivity() {
             compact = false,
         )
         viewPager.setCurrentItem(0, false)
-        // Re-apply focus override after adapter re-attach (mode switch recreates internals)
+
         viewPager.post {
             (viewPager.getChildAt(0) as? ViewGroup)?.let { internal ->
                 internal.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS

@@ -4,7 +4,7 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- Focus crosshair / viewfinder corners -->
+
     <path
         android:fillColor="?attr/colorOnSurface"
         android:pathData="M5,15H3v4c0,1.1 0.9,2 2,2h4v-2H5V15zM5,5h4V3H5c-1.1,0 -2,0.9 -2,2v4h2V5zM19,3h-4v2h4v4h2V5c0,-1.1 -0.9,-2 -2,-2zM19,19h-4v2h4c1.1,0 2,-0.9 2,-2v-4h-2v4z" />

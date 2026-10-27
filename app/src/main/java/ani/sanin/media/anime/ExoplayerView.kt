@@ -332,25 +332,17 @@ class ExoplayerView :
         var initialized = false
         lateinit var media: Media
 
-        // Set when launching straight from the downloads list: the media already carries a single
-        // local episode, so the player must start it without waiting for a source to set it.
         var offlinePlayback = false
 
         private const val DEFAULT_MIN_BUFFER_MS = 30000
         private const val DEFAULT_MAX_BUFFER_MS = 60000
-        private const val BUFFER_FOR_PLAYBACK_MS = 8000   // 8s: safer start on TV Wi-Fi
+        private const val BUFFER_FOR_PLAYBACK_MS = 8000
         private const val BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 5000
         private const val BACK_BUFFER_DURATION_MS = 1000 * 60 * 2
         private const val MAX_PLAYER_ERROR_RETRIES = 1
         private const val MAX_LIVE_RECONNECTS = 3
         private const val AUTO_SYNC_INTERVAL_MS = 15_000L
         private const val AUTO_SYNC_MIN_SPEECH_MS = 25_000L
-        // Live streams (Cricify/SKTech/PlayZTV): HLS segment URLs expire after a
-        // short TTL. Anchor near the live edge with a small target offset
-        // (CloudStream uses 5s) so ExoPlayer follows the sliding window natively
-        // instead of treating it as a fixed VOD timeline that "ends" and rewinds.
-        // A target offset larger than the window would clamp the join position to
-        // the window start, replaying content on every join/reconnect.
 
         fun clearAllCaches() {
             try {
@@ -367,7 +359,6 @@ class ExoplayerView :
         }
     }
 
-
     private lateinit var episode: Episode
     private lateinit var episodes: MutableMap<String, Episode>
     private lateinit var episodeArr: List<String>
@@ -375,7 +366,6 @@ class ExoplayerView :
     private var currentEpisodeIndex = 0
     private var epChanging = false
 
-    // Season chips inside the episode rail (synthetic TMDB media only)
     private lateinit var railSeasonScroll: android.widget.HorizontalScrollView
     private lateinit var railSeasonChips: ChipGroup
     private var seasonArr: List<String> = emptyList()
@@ -423,20 +413,11 @@ class ExoplayerView :
     private var opaqueFormatRetryStage = 0
     private var liveReconnectCount = 0
 
-    // Live-stream reconnect + live-edge handling. Cricify/SKTech HLS streams issue
-    // segment URLs with a short TTL, so we keep the playhead near the live edge and
-    // reconnect (re-fetch the playlist) when an expired segment makes the source
-    // error out, instead of dropping to an error screen like a VOD would.
-    // Set to true when the player's own timeline says the item is dynamic (live).
-    // This catches live HLS/DASH streams whose plugins return a regular
-    // LoadResponse instead of LiveStreamLoadResponse.
     private var liveDetectedFromPlayer = false
     private var liveSupportRegistered = false
 
     private val audioTrackGroups = mutableListOf<Tracks.Group>()
 
-    // Subtitle label to select the next time onTracksChanged fires (after setMediaItem+prepare).
-    // Volatile so it is safely read from the Player.Listener callback thread.
     @Volatile private var pendingSubtitleLabel: String? = null
     @Volatile private var initialSubtitleLabel: String? = null
 
@@ -495,15 +476,13 @@ class ExoplayerView :
 
         val outline =
             when (PrefManager.getVal<Int>(PrefName.Outline)) {
-                0 -> EDGE_TYPE_OUTLINE // Normal
-                1 -> EDGE_TYPE_DEPRESSED // Shine
-                2 -> EDGE_TYPE_DROP_SHADOW // Drop shadow
-                3 -> EDGE_TYPE_NONE // No outline
-                else -> EDGE_TYPE_OUTLINE // Normal
+                0 -> EDGE_TYPE_OUTLINE
+                1 -> EDGE_TYPE_DEPRESSED
+                2 -> EDGE_TYPE_DROP_SHADOW
+                3 -> EDGE_TYPE_NONE
+                else -> EDGE_TYPE_OUTLINE
             }
 
-        // Transparency belongs to the background only, so fold it into the colour's
-        // alpha rather than dimming the view, which would fade the text too.
         val subAlpha = PrefManager.getVal<Float>(PrefName.SubAlpha)
         val subBackground = PrefManager.getVal<Int>(PrefName.SubBackground).withAlphaFraction(subAlpha)
 
@@ -595,9 +574,7 @@ class ExoplayerView :
         val textElevation =
             PrefManager.getVal<Float>(PrefName.SubBottomMargin) / 50 * resources.displayMetrics.heightPixels
 
-        // Add offset to move subtitles slightly down for better alignment
-        // This helps align online subtitles with local subtitles
-        val positionOffset = 10f // Increased to 120f to push subtitles very close to bottom edge
+        val positionOffset = 10f
         textView.translationY = -textElevation + positionOffset
     }
 
@@ -609,7 +586,6 @@ class ExoplayerView :
         binding = ActivityExoplayerBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Initialize
         hideSystemBarsExtendView()
 
         playerView = findViewById(R.id.player_view)
@@ -620,8 +596,7 @@ class ExoplayerView :
         exoSubtitle = playerView.findViewById(R.id.exo_sub)
         exoAudioTrack = playerView.findViewById(R.id.exo_audio)
         exoSubtitleView = playerView.findViewById(androidx.media3.ui.R.id.exo_subtitles)
-        // Adjust bottom padding to absolute edge
-        // 0.0f (0%) pushes subtitles to the very bottom
+
         exoSubtitleView?.setBottomPaddingFraction(0.0f)
 
         exoSpeed = playerView.findViewById(androidx.media3.ui.R.id.exo_playback_speed)
@@ -644,7 +619,6 @@ class ExoplayerView :
         episodeTitleText = playerView.findViewById(R.id.exo_ep_sel_text)
         episodeTitleBtn = playerView.findViewById(R.id.exo_ep_sel_btn)
 
-        // Compact YouTube-style autoplay toggle, backed by the existing preference.
         playerView.findViewById<View>(R.id.exo_autoplay).apply {
             val thumb = findViewById<ImageView>(R.id.exo_autoplay_thumb)
             fun renderAutoplay(enabled: Boolean, animate: Boolean = false) {
@@ -692,7 +666,6 @@ class ExoplayerView :
             }
         }
 
-        // Apply WrapButtons pill style to control button groups
         applyWrapButtonsStyle()
 
         episodeDrawer = binding.root
@@ -706,7 +679,6 @@ class ExoplayerView :
         FocusEffectUtil.applyFocusListener(episodeDrawerClose)
         episodeDrawerClose.setOnClickListener { episodeDrawer.closeDrawer(episodeDrawerContent) }
 
-        // Episode comments panel (opened from the comment icon on each rail row)
         episodeCommentPanel = findViewById(R.id.episodeCommentPanel)
         episodeCommentList = findViewById(R.id.episodeCommentList)
         episodeCommentClose = findViewById(R.id.episodeCommentClose)
@@ -726,8 +698,7 @@ class ExoplayerView :
             override fun onDrawerSlide(drawerView: View, slideOffset: Float) {}
             override fun onDrawerOpened(drawerView: View) {
                 if (drawerView !== episodeDrawerContent) return
-                // Keep focus inside the rail: the background player controls are
-                // still visible next to it, so block them from receiving focus.
+
                 playerView.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
                 playerView.isFocusable = false
                 val currentKey = episodes.getEpisodeKey(media.anime?.selectedEpisode)
@@ -764,7 +735,6 @@ class ExoplayerView :
             }
         }
 
-        // Subtitle rail (left side) — mirrors the episode rail focus behaviour.
         subtitleDrawerContent = findViewById(R.id.subtitleDrawer)
         subtitleDrawerClose = findViewById(R.id.subtitleDrawerClose)
         subtitleLangButton = findViewById(R.id.subtitleLangButton)
@@ -796,7 +766,6 @@ class ExoplayerView :
             override fun onDrawerStateChanged(newState: Int) {}
         })
 
-        // Tracks rail (right side) — mirrors the episode rail focus behaviour.
         tracksDrawerContent = findViewById(R.id.tracksDrawer)
         tracksDrawerClose = findViewById(R.id.tracksDrawerClose)
         tracksDrawerList = findViewById(R.id.tracksDrawerList)
@@ -808,9 +777,6 @@ class ExoplayerView :
         )
         playerTracksBtn = playerView.findViewById(R.id.exo_tracks)
 
-        // The tracks rail is a visibility-toggled overlay on the right edge (it
-        // can't be a DrawerLayout drawer: the episode rail already owns that
-        // edge). Opening it contains focus inside the rail like the comment panel.
         trackRailController?.let { rail ->
             playerTracksBtn?.setOnClickListener {
                 Logger.log("Player: TRACKS pressed")
@@ -842,8 +808,6 @@ class ExoplayerView :
             isPlayerPlaying = savedInstanceState.getBoolean(playerOnPlay)
         }
 
-        // BackButton: one click always exits the player. The system back keeps its
-        // own handler (closes panels/overlay, optional exit dialog, hides controls).
         val exoBack = playerView.findViewById<ImageButton>(R.id.exo_back)
         exoBack.setOnClickListener {
             Logger.log("Player: BACK pressed — exiting player (ep=${media.anime?.selectedEpisode})")
@@ -855,11 +819,8 @@ class ExoplayerView :
             }
         }
 
-        // TimeStamps
         model.timeStamps.observe(this) { it ->
-            // Only mark as loaded once real data arrives; the initial null emission
-            // must not block the first load in onRenderedFirstFrame. Empty results
-            // reset the flag so a later provider response can still load.
+
             isTimeStampsLoaded = !it.isNullOrEmpty()
             Logger.log(
                 "Player: timeStamps observer fired for ep '${media.anime?.selectedEpisode}' " +
@@ -904,7 +865,6 @@ class ExoplayerView :
             exoSkipOpEd.alpha = if (PrefManager.getVal(PrefName.AutoSkipOPED)) 1f else 0.3f
         }
 
-        // Play Pause
         exoPlay.setOnClickListener {
             if (isInitialized) {
                 val wasPlaying = exoPlayer.playWhenReady
@@ -922,7 +882,6 @@ class ExoplayerView :
             }
         }
 
-        // PiP (hidden button, system PiP still works)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             pipEnabled =
                 packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE) &&
@@ -934,7 +893,6 @@ class ExoplayerView :
             }
         }
 
-        // Skip Time Button
         var skipTime = PrefManager.getVal<Int>(PrefName.SkipTime)
         if (skipTime > 0) {
             exoSkip.findViewById<TextView>(R.id.exo_skip_time).text = skipTime.toString()
@@ -961,7 +919,7 @@ class ExoplayerView :
                 }
                 dialog.findViewById<Slider>(R.id.seekbar).addOnChangeListener { _, value, _ ->
                     skipTime = value.toInt()
-                    // saveData(player, settings)
+
                     PrefManager.setVal(PrefName.SkipTime, skipTime)
                     playerView.findViewById<TextView>(R.id.exo_skip_time).text =
                         skipTime.toString()
@@ -993,7 +951,7 @@ class ExoplayerView :
         }
 
         val gestureSpeed = if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.PlayerGestureAnimations)) (300 * PrefManager.getVal<Float>(PrefName.AnimationSpeed)).toLong() else 0L
-        // Player UI Visibility Handler
+
         val brightnessRunnable =
             Runnable {
                 if (exoBrightnessCont.alpha == 1f) {
@@ -1054,14 +1012,12 @@ class ExoplayerView :
                 FocusEffectUtil.applyFocusListener(it, it, isCircular = it is ImageButton)
             }
         }
-        // Autoplay switch: pill-shaped focus border (half-height = 12dp)
+
         playerView.findViewById<View>(R.id.exo_autoplay)?.let {
             FocusEffectUtil.applyFocusListener(it, cornerRadiusPx = 12f * resources.displayMetrics.density)
         }
         playerView.post { exoPlay.requestFocus() }
 
-        // D-pad order follows the redesigned layout: top controls, playback row,
-        // then the lower subtitle/server and aspect/episodes controls.
         val tracksButton = playerView.findViewById<View>(R.id.exo_tracks)
         val autoplayButton = playerView.findViewById<View>(R.id.exo_autoplay)
         autoplayButton.nextFocusLeftId = R.id.exo_back
@@ -1142,20 +1098,9 @@ class ExoplayerView :
                 }
                 if (visibility == View.GONE) {
                     playerView.findViewById<View>(R.id.exo_controller).clearFocus()
-                    // Keep a focused view while the controller is hidden, or D-pad dies:
-                    // with nothing focused, DPAD key events go through the framework's
-                    // focus search (which finds no GONE controller buttons) and are
-                    // dropped before media3's PlayerView.dispatchKeyEvent ever sees them.
-                    // Focusing the PlayerView root routes every D-pad press into media3's
-                    // built-in rescue (isDpadKey && !controller.isFullyVisible -> show),
-                    // the exact mechanism the cs3 player relies on. The request must run
-                    // in a post: a synchronous requestFocus() in the same pass the
-                    // controller subtree went GONE is dropped, leaving the window with
-                    // no focused view at all.
+
                     playerView.post {
-                        // Skip if the controller already came back (e.g. the D-pad
-                        // rescue ran before this post) — don't steal focus from the
-                        // play button that the VISIBLE branch just focused.
+
                         if (!playerView.isControllerFullyVisible) {
                             playerView.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
                             playerView.isFocusable = true
@@ -1274,7 +1219,6 @@ class ExoplayerView :
         val fastForwardCard = playerView.findViewById<View>(R.id.exo_fast_forward)
         val fastRewindCard = playerView.findViewById<View>(R.id.exo_fast_rewind)
 
-        // Seeking
         val seekTimerF = ResettableTimer()
         val seekTimerR = ResettableTimer()
         var seekTimesF = 0
@@ -1298,7 +1242,6 @@ class ExoplayerView :
                     fastRewindCard to rewindText
                 }
 
-            //region Double Tap Animation
             val showCardAnim = ObjectAnimator.ofFloat(card, "alpha", 0f, 1f).setDuration(300)
             val showTextAnim = ObjectAnimator.ofFloat(text, "alpha", 0f, 1f).setDuration(150)
 
@@ -1334,7 +1277,6 @@ class ExoplayerView :
                     }
                 }
             }
-            //endregion
 
             startAnim()
 
@@ -1404,7 +1346,6 @@ class ExoplayerView :
             }
         }
 
-        // Screen Gestures
         if (PrefManager.getVal<Boolean>(PrefName.Gestures) || PrefManager.getVal<Boolean>(PrefName.DoubleTap)) {
             fun doubleTap(
                 forward: Boolean,
@@ -1415,7 +1356,6 @@ class ExoplayerView :
                 }
             }
 
-            // Brightness
             var brightnessTimer = Timer()
             exoBrightnessCont.visibility = View.GONE
 
@@ -1441,7 +1381,6 @@ class ExoplayerView :
                 brightnessHide()
             }
 
-            // Volume
             var volumeTimer = Timer()
             exoVolumeCont.visibility = View.GONE
 
@@ -1521,7 +1460,6 @@ class ExoplayerView :
                 }
             }
 
-            // FastRewind (Left Panel)
             val fastRewindDetector =
                 GestureDetector(
                     this,
@@ -1562,7 +1500,6 @@ class ExoplayerView :
                 true
             }
 
-            // FastForward (Right Panel)
             val fastForwardDetector =
                 GestureDetector(
                     this,
@@ -1604,7 +1541,6 @@ class ExoplayerView :
             }
         }
 
-        // Handle Media
         if (!initialized) return startMainActivity(this)
         Logger.log(
             "Player: ExoplayerView opened media='${media.userPreferredName}' id=${media.id} " +
@@ -1623,7 +1559,6 @@ class ExoplayerView :
             epChanging = !it
         }
 
-        // Anime Title
         animeTitle.text = media.userPreferredName
 
         pauseRating.text = media.meanScore?.let { "$it% ★" } ?: ""
@@ -1680,15 +1615,12 @@ class ExoplayerView :
             )
         }
 
-        // Season chips: only for media whose episodes carry a season in extra
-        // (the synthetic TMDB build). Anime episodes have none -> chips hidden.
         seasonArr = episodes.values.mapNotNull { it.extra?.get("season") }.distinct()
             .sortedWith(compareBy { it.toIntOrNull() ?: 0 })
         currentRailSeason = episodes.getEpisode(media.anime?.selectedEpisode)?.extra?.get("season")
             ?: seasonArr.firstOrNull()
         buildRailSeasonChips()
 
-        // Episode Change
         fun change(index: Int) {
             if (isInitialized) {
                 changingServer = false
@@ -1697,7 +1629,7 @@ class ExoplayerView :
                     exoPlayer.currentPosition,
                 )
                 val prev = episodeArr[currentEpisodeIndex]
-                // No subtitle state may survive an episode change.
+
                 clearAllTransientSubtitleCache()
                 isTimeStampsLoaded = false
                 timeStampsLoading = false
@@ -1720,7 +1652,6 @@ class ExoplayerView :
             }
         }
 
-        // EpisodeSelector
         episodeTitle.adapter = NoPaddingArrayAdapter(this, R.layout.item_dropdown, episodeTitleArr)
         episodeTitle.setSelection(currentEpisodeIndex)
         episodeTitleText.text = episodeTitleArr.getOrElse(currentEpisodeIndex) { "" }
@@ -1743,7 +1674,6 @@ class ExoplayerView :
                 override fun onNothingSelected(parent: AdapterView<*>) {}
             }
 
-        // Episode Side Rail
         episodeDrawerList.layoutManager = LinearLayoutManager(this)
         episodeDrawerAdapter = EpisodeRailAdapter(
             episodes = railEpisodes(),
@@ -1763,7 +1693,6 @@ class ExoplayerView :
         )
         episodeDrawerList.adapter = episodeDrawerAdapter
 
-        // Next Episode
         exoNext = playerView.findViewById(R.id.exo_next_ep)
         exoNext.setOnClickListener {
             if (isInitialized) {
@@ -1776,7 +1705,7 @@ class ExoplayerView :
                 }
             }
         }
-        // Prev Episode
+
         exoPrev = playerView.findViewById(R.id.exo_prev_ep)
         exoPrev.setOnClickListener {
             if (currentEpisodeIndex > 0) {
@@ -1792,10 +1721,6 @@ class ExoplayerView :
             if (ep != null && !epChanging) onEpisodeReady(ep)
         }
 
-        // Launched straight from the Downloads screen: the media already carries the finished
-        // local file as its only episode, so start it without waiting for a source to publish one.
-        // Deferred to the next loop so the rest of onCreate (speed/playbackParameters setup) has
-        // finished before we build the player.
         if (offlinePlayback) {
             offlinePlayback = false
             window.decorView.post {
@@ -1806,7 +1731,6 @@ class ExoplayerView :
             }
         }
 
-        // FullScreen
         isFullscreen = PrefManager.getCustomVal("${media.id}_fullscreenInt", isFullscreen)
         playerView.resizeMode =
             when (isFullscreen) {
@@ -1837,7 +1761,6 @@ class ExoplayerView :
             PrefManager.setCustomVal("${media.id}_fullscreenInt", isFullscreen)
         }
 
-        // Rotate: toggle between landscape and portrait
         exoRotate.setOnClickListener {
             val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
             Logger.log("Player: ROTATE pressed — switching from ${if (isLandscape) "landscape" else "portrait"}")
@@ -1849,7 +1772,6 @@ class ExoplayerView :
                 }
         }
 
-        // Settings
         exoSettings.setOnClickListener {
             Logger.log("Player: SETTINGS pressed (ep=${media.anime!!.selectedEpisode})")
             PrefManager.setCustomVal(
@@ -1864,7 +1786,6 @@ class ExoplayerView :
             onChangeSettings.launch(intent)
         }
 
-        // Speed
         val speeds =
             if (PrefManager.getVal(PrefName.CursedSpeeds)) {
                 arrayOf(1f, 1.25f, 1.5f, 1.75f, 2f, 2.5f, 3f, 4f, 5f, 10f, 25f, 50f)
@@ -1887,14 +1808,13 @@ class ExoplayerView :
             }
 
         val speedsName = speeds.map { "${it}x" }.toTypedArray()
-        // var curSpeed = loadData("${media.id}_speed", this) ?: settings.defaultSpeed
+
         val speedsLength = speeds.size
         val savedIndex = PrefManager.getCustomVal(
             "${media.id}_speed",
             PrefManager.getVal<Int>(PrefName.DefaultSpeed),
         )
         var curSpeed = savedIndex.coerceIn(0, speedsLength - 1)
-
 
         playbackParameters = PlaybackParameters(speeds[curSpeed])
         var speed: Float
@@ -1948,14 +1868,14 @@ class ExoplayerView :
             } else {
                 false
             }
-        // For TMDB content: show auto-update dialog for Simkl
+
         val isTmdbContent = media.id < 0
         val shouldShowDialog = if (isLiveStream()) {
             false
         } else if (isTmdbContent) {
             !incognito && showProgressDialog && Simkl.token != null
         } else {
-            // Anime is tracked by the selected tracker: MAL in rescue mode, AniList otherwise.
+
             val trackerLoggedIn =
                 if (PrefManager.getVal<Boolean>(PrefName.RescueMode)) MAL.token != null
                 else Anilist.userid != null
@@ -1996,28 +1916,18 @@ class ExoplayerView :
             model.setEpisode(episodes[media.anime!!.selectedEpisode!!]!!, "invoke")
         }
 
-        // Start the recursive Fun
         if (PrefManager.getVal(PrefName.TimeStampsEnabled)) {
             Logger.log("Player: updateTimeStamp loop starting")
             updateTimeStamp()
         }
 
-        // OLED is now window background — no overlay to hide
     }
 
-    /**
-     * Keep the episode-button stack previewing the next item in the current
-     * episode list: one back card peeking from behind and the front thumbnail
-     * tile. Episode thumbnails are optional, so leave the
-     * tile clean when the source does not provide one or there is no next
-     * episode.
-     */
     private fun updateNextEpisodeThumbnail() {
         val thumbnail = playerView.findViewById<ImageView>(R.id.exo_next_episode_thumbnail)
         val nextKey = episodeArr.getOrNull(currentEpisodeIndex + 1)
         val episodeThumbnail = nextKey?.let { episodes[it]?.thumb?.url }?.takeIf { it.isNotBlank() }
-        // Fall back to the show's resolved poster (already populated by the app's
-        // AniList/TMDB/source fallback chain) when an episode thumbnail is absent.
+
         val showPoster = media.cover?.takeIf { it.isNotBlank() }
             ?: media.banner?.takeIf { it.isNotBlank() }
         val previewUrl = episodeThumbnail ?: showPoster
@@ -2100,8 +2010,7 @@ class ExoplayerView :
         val availableExtractors = episode.extractors?.filterNotNull()
             ?.filter { it.videos.isNotEmpty() }
             .orEmpty()
-        // Saved server/quality names can drift between episodes (dynamic bitrate
-        // titles), so fall back to the extension-preferred server, then the first.
+
         val ext = availableExtractors.find { it.server.name == episode.selectedExtractor }
             ?: availableExtractors.firstOrNull { it.isPreferred }
             ?: availableExtractors.firstOrNull()
@@ -2125,8 +2034,7 @@ class ExoplayerView :
             )
             return
         }
-        // Keep the episode in sync with the fallback so the server/quality sheet,
-        // subtitle rail and auto-next all target the stream that is playing.
+
         if (episode.selectedExtractor != ext.server.name) {
             episode.selectedExtractor = ext.server.name
         }
@@ -2208,7 +2116,6 @@ class ExoplayerView :
                 else -> ext.subtitles.find { it.language == subLang }
             }
 
-        // Subtitles
         hasExtSubtitles = ext.subtitles.isNotEmpty()
 
         if (subtitle == null && hasExtSubtitles) {
@@ -2219,14 +2126,13 @@ class ExoplayerView :
         }
         initialSubtitleLabel = subtitle?.language
 
-        // Fix: Fetch IMDB ID and Episode Mapping asynchronously if missing (needed for online subtitles)
         if (isOnline(this)) {
              lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                  try {
                      if (media.idIMDB == null) {
                          media.idIMDB = IdMappers.getImdbId(media.id)
                      }
-                     // Prefetch episode mapping so the subtitle rail doesn't have a visual label pop
+
                      val selectedEpisodeStr = media.anime?.selectedEpisode ?: "1"
                      val currentEpisode = media.anime?.episodes?.get(selectedEpisodeStr)
                      val episodeNum = EpisodeMapper.episodeNumberOf(selectedEpisodeStr, currentEpisode)
@@ -2283,8 +2189,7 @@ class ExoplayerView :
             val subtitleId = buildSubtitleId(index, subtitle.language, resolvedSubtitleUrl)
             val subtitleLangCodeRaw = LanguageMapper.getLanguageCode(subtitle.language)
             val subtitleLanguageCode =
-                // Some extension labels map to "all" (not a valid BCP-47/ISO track language),
-                // and some may be blank, so normalize both cases to "und" for Media3 track metadata.
+
                 subtitleLangCodeRaw.takeUnless { it.equals("all", ignoreCase = true) || it.isBlank() } ?: "und"
             val subtitleMime =
                 when (subtitle.type) {
@@ -2310,12 +2215,6 @@ class ExoplayerView :
             )
         }
 
-        // 2. Online Subtitles (Stremio/Wyzie)
-        // Auto-fetch removed for Lazy Loading.
-        // Subtitles are now fetched only when the user opens the Subtitle Dialog.
-        // The "Online Subtitles" button availability is handled by the subtitle rail.
-
-
         lifecycleScope.launch(Dispatchers.IO) {
             ext.onVideoPlayed(video)
         }
@@ -2327,15 +2226,12 @@ class ExoplayerView :
         val httpClient =
             okhttp3.OkHttpClient.Builder()
                 .apply {
-                    // Share cookies (incl. cf_clearance solved by the plugin/Cloudflare flow),
-                    // but do NOT inherit the app client's CloudflareInterceptor/RetryInterceptor:
-                    // a 30s WebView challenge solve per media/segment request stalls playback
-                    // ("video never loads") and retrying media requests doubles the damage.
+
                     cookieJar(okHttpClient.cookieJar)
                     ignoreAllSSLErrors()
                     followRedirects(true)
                     followSslRedirects(true)
-                    // Tune for HLS: more parallel connections, explicit timeouts
+
                     connectionPool(
                         okhttp3.ConnectionPool(10, 5, java.util.concurrent.TimeUnit.MINUTES)
                     )
@@ -2344,11 +2240,7 @@ class ExoplayerView :
                     writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
                 }
                 .let { base ->
-                    // Signed streams (e.g. CloudFront Cookie=... policies from MovieBox)
-                    // must send the SAME Cookie on every manifest/segment request. OkHttp's
-                    // cookie jar can silently replace a manually-set Cookie header with its
-                    // own cookies for the host, so re-assert the stream cookie after the
-                    // jar has been applied (network interceptors run after BridgeInterceptor).
+
                     if (streamCookie.isNullOrBlank() || streamHost.isNullOrBlank()) {
                         base
                     } else {
@@ -2366,12 +2258,7 @@ class ExoplayerView :
                     }
                 }
                 .build()
-        // Keep anime behavior byte-for-byte: video headers (when present) replace the
-        // defaults, matching the previous two setDefaultRequestProperties calls.
-        // The ONLY exception is signed streams carrying a Cookie header (e.g. MovieBox
-        // CloudFront policies): those get the app defaults merged in underneath, because
-        // setDefaultRequestProperties replaces the whole map and the signed requests
-        // otherwise go out without a User-Agent.
+
         val streamHeaders = video?.file?.headers
         val requestHeaders =
             if (streamHeaders?.containsKey("Cookie") == true) {
@@ -2388,28 +2275,23 @@ class ExoplayerView :
             media.format == "LOCAL" &&
                 (video?.format == VideoType.M3U8 || video?.format == VideoType.DASH)
         cacheFactory = if (isOfflineAdaptiveDownload) {
-            // Completed HLS/DASH downloads must never fall through to the network. Their manifests,
-            // initialization data, keys (when present), and media segments live in this cache.
+
             DownloadHlsCache.offlineDataSourceFactory(this)
         } else {
             CacheDataSource.Factory().apply {
                 setCache(VideoCache.getInstance(this@ExoplayerView))
                 setUpstreamDataSourceFactory(defaultDataSourceFactory)
-                // Fall back to network when a cached segment cannot be read (e.g. stale/incomplete
-                // data left from a previous session), so seeks past already-cached positions don't
-                // hang indefinitely.
+
                 setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
             }
         }
 
-        // Set up libass for ASS/SSA subtitle rendering.
-        // Render mode: 0=Canvas (CPU, better for TV), 1=OpenGL (GPU, better for phone)
         val subtitleRenderMode = PrefManager.getVal<Int>(PrefName.SubtitleRenderMode)
         val assRenderType = if (subtitleRenderMode == 1) AssRenderType.OVERLAY_OPEN_GL else AssRenderType.OVERLAY_CANVAS
         if (assHandler == null) {
             Logger.log("Libass: Creating AssHandler with $assRenderType")
             assHandler = AssHandler(assRenderType)
-            // Inject the dedicated AssSubtitleTextureView into the video frame hierarchy.
+
             Logger.log("Libass: Injecting AssSubtitleView into exo_content_frame")
             val contentFrame = playerView.findViewById<androidx.media3.ui.AspectRatioFrameLayout>(androidx.media3.ui.R.id.exo_content_frame)
             val assView = io.github.peerless2012.ass.media.widget.AssSubtitleView(this, assHandler!!)
@@ -2431,12 +2313,7 @@ class ExoplayerView :
             .setMp4ExtractorFlags(androidx.media3.extractor.mp4.Mp4Extractor.FLAG_WORKAROUND_IGNORE_EDIT_LISTS)
             .setMatroskaExtractorFlags(androidx.media3.extractor.mkv.MatroskaExtractor.FLAG_DISABLE_SEEK_FOR_CUES)
             .withAssMkvSupport(assSubtitleParserFactory, handler)
-        // Never cache a live stream.  Live DASH/HLS re-uses segment names and
-        // byte ranges that the origin rewrites in place, so SimpleCache happily
-        // serves the previous generation of those bytes: the loader then
-        // reports "already loaded" and never fetches anything, leaving playback
-        // stuck in BUFFERING with no network activity and no error.  CS3
-        // already builds its live source without a cache.
+
         val contentDataSourceFactory: DataSource.Factory =
             if (isOfflineAdaptiveDownload) cacheFactory
             else if (isDeclaredLiveStream()) defaultDataSourceFactory else cacheFactory
@@ -2447,12 +2324,6 @@ class ExoplayerView :
             assMediaSourceFactory.setLiveTargetOffsetMs(PREFERRED_LIVE_OFFSET)
         }
 
-        // DRM session manager for encrypted streams.
-        // Two shapes come out of plugins (see TmdbStreamResolver.drmForLink):
-        //  - kid + key    -> local ClearKey, no license server involved
-        //  - licenseUrl   -> remote license request (Widevine/PlayReady), no kid/key
-        // Both have to be handled. The license-URL shape used to be served by the
-        // CS3 player only, so leaving it out here silently breaks those sources.
         video?.drm?.let { drm ->
             val uuid = drm.uuid
             val licenseUrl = drm.licenseUrl?.takeIf { it.isNotBlank() }
@@ -2506,7 +2377,7 @@ class ExoplayerView :
                 VideoType.M3U8 -> MimeTypes.APPLICATION_M3U8
                 VideoType.DASH -> MimeTypes.APPLICATION_MPD
                 VideoType.CONTAINER -> {
-                    // For local files (SAF `content://` downloads and `file://` app-storage downloads)
+
                     val url = video?.file?.url ?: ""
                     if (url.startsWith("content://") || url.startsWith("file://")) {
                         val decoded = java.net.URLDecoder.decode(url, "UTF-8").lowercase()
@@ -2516,7 +2387,7 @@ class ExoplayerView :
                             else -> MimeTypes.APPLICATION_MP4
                         }
                     } else {
-                        null // ExoPlayer auto-detect for non-local containers
+                        null
                     }
                 }
                 else -> MimeTypes.APPLICATION_MP4
@@ -2527,14 +2398,6 @@ class ExoplayerView :
             .setMimeType(mimeType)
             .setSubtitleConfigurations(sub)
 
-        // A MediaItem only counts as live once it carries a LiveConfiguration
-        // (Timeline.Window.isLive() is literally "liveConfiguration != null").
-        // Without it ExoPlayer silently disables *both* the live playback speed
-        // control and the live-offset reporting, so nothing ever pulls the
-        // playhead back towards the moving edge: it drifts to the end of the
-        // sliding window, the window stops being ahead of it, and playback
-        // stalls buffering with no error.  setLiveTargetOffsetMs only affects
-        // the initial seek, so it cannot compensate for this.
         if (isDeclaredLiveStream()) {
             mediaItemBuilder.setLiveConfiguration(
                 MediaItem.LiveConfiguration.Builder()
@@ -2603,13 +2466,11 @@ class ExoplayerView :
         }
         mediaSource = MergingMediaSource(videoMediaSource, *audioSources)
 
-        // Source
         exoSource.setOnClickListener {
             Logger.log("Player: SOURCE pressed (ep=${media.anime?.selectedEpisode})")
             sourceClick()
         }
 
-        // Quality Track
         trackSelector = DefaultTrackSelector(this)
         val parameters =
             trackSelector
@@ -2626,15 +2487,13 @@ class ExoplayerView :
                 .setRendererDisabled(TRACK_TYPE_TEXT, false)
                 .setMaxVideoSize(3840, 2160)
         if (PrefManager.getVal(PrefName.DataSaver)) {
-            // Data Saver: force ExoPlayer to pick a variant below ~1.5 Mbps so movies
-            // keep playing on slow connections instead of demanding 10+ Mbps.
+
             parameters.setMaxVideoBitrate(1_500_000)
         }
-        // .setOverrideForType(TrackSelectionOverride(trackSelector, TRACK_TYPE_VIDEO))
+
         val activeParser = (if (media.isAdult) HAnimeSources else AnimeSources)[media.selected?.sourceIndex ?: 0]
         if (activeParser.selectDub) {
-            // Prefer the source's dubbed language (e.g. "Spanish" for AnimeJL) so the
-            // player picks the right audio track, falling back to the device language.
+
             val sourceLangCode = runCatching { LanguageMapper.getLanguageCode(activeParser.language) }
                 .getOrDefault(Locale.getDefault().language)
             val preferred = if (sourceLangCode.isNotBlank() && sourceLangCode != "all") sourceLangCode
@@ -2679,17 +2538,16 @@ class ExoplayerView :
     }
 
     private fun buildExoplayer() {
-        // Clear any leftover subtitle text from the previous episode immediately
+
         customSubtitleView.text = ""
         customSubtitleView.visibility = View.GONE
         exoSubtitleView.visibility = View.GONE
-        // Reset the error retry counter so fresh sources get the full retry budget.
+
         playerErrorRetryCount = 0
         opaqueFormatRetryStage = 0
         liveReconnectCount = 0
         liveRecoveryFailed = false
 
-        // Player
         val bufferSize = PrefManager.getVal<Int>(PrefName.BufferSize)
         val minBufferMs = bufferSize * 1000
         val maxBufferMs = bufferSize * 2000
@@ -2709,8 +2567,6 @@ class ExoplayerView :
 
         hideSystemBars()
 
-        // Use Media3's built-in renderers only. FFmpeg software decoding is intentionally not
-        // bundled; standard hardware decoding and libass subtitle rendering remain available.
         val handler = assHandler!!
         val syncKey = currentSubtitleSyncKey()
         val autoSyncPrefEnabled =
@@ -2739,8 +2595,7 @@ class ExoplayerView :
             ExoPlayer
                 .Builder(this, renderersFactory)
                 .setMediaSourceFactory(assMediaSourceFactory)
-                // CloudStream: let the player gently speed up/slow down around the
-                // live edge instead of stalling or dropping to the window start.
+
                 .setLivePlaybackSpeedControl(
                     DefaultLivePlaybackSpeedControl.Builder()
                         .setFallbackMaxPlaybackSpeed(1.03f)
@@ -2759,7 +2614,6 @@ class ExoplayerView :
             registerLiveSupport()
         }
 
-        // init() must be called before prepare() so it receives onTracksChanged.
         Logger.log("Libass: Calling handler.init(exoPlayer)")
         handler.init(exoPlayer)
 
@@ -2797,16 +2651,11 @@ class ExoplayerView :
                 var activeSubtitles = ArrayDeque<String>(3)
                 var lastSubtitle: String? = null
                 var lastPosition: Long = 0
-                // CueGroup.presentationTimeUs is period-relative; shifting the
-                // cue timing by the freshest (period ↔ timeline) delta keeps
-                // stored starts comparable against exoPlayer.currentPosition
-                // even across HLS/DASH discontinuities.
+
                 var lastPeriodShiftMs = 0L
 
                 override fun onCues(cueGroup: CueGroup) {
-                    // libass only owns rendering while an ASS/SSA track is the *currently
-                    // selected* text track. hasTracks() stays true forever once any ASS
-                    // sidecar has been parsed, so keying off it swallowed every SRT/VTT cue.
+
                     val selectedTextMime = exoPlayer.currentTracks.groups
                         .firstOrNull { it.type == TRACK_TYPE_TEXT && it.isSelected }
                         ?.getTrackFormat(0)?.sampleMimeType
@@ -2814,15 +2663,9 @@ class ExoplayerView :
                         selectedTextMime == "text/x-ass" ||
                         (selectedTextMime?.contains("ssa", ignoreCase = true) == true)
                     val newCueTexts = cueGroup.cues.map { it.text.toString() ?: "" }
-                    // True presentation time of this batch (μs → ms), shifted
-                    // from period-space into timeline space.
+
                     val cueStartMs = cueGroup.presentationTimeUs / 1000 + lastPeriodShiftMs
 
-                    // Store cues for the sync dialog BEFORE the libass branch:
-                    // embedded MKV/MP4 tracks are often ASS/SSA — libass renders
-                    // them fine, but the early-return below stopped every cue
-                    // from reaching storedSyncCues, so the sync dialog kept
-                    // saying "no subtitles loaded" while lines were on screen.
                     synchronized(storedSyncCues) {
                             val lines = cueGroup.cues
                                 .mapNotNull { it.text?.toString() }
@@ -2832,18 +2675,13 @@ class ExoplayerView :
                         if (lines.isNotEmpty()) {
                             val text = lines.joinToString("\n")
                             val dedupKey = "p${cueGroup.presentationTimeUs}|$text"
-                            // three-way gate: exact (time,text) repeat, a
-                            // re-emitted copy of a line already on screen
-                            // within 15s (extractors re-send the same cue per
-                            // sample → dialog listed it twice), and title-sign
-                            // text lines.
+
                             val isWindowRepeat = storedSyncCues.any {
                                 it.text == text && cueStartMs - it.startTimeMs in 0..15_000
                             }
                             if (dedupKey !in seenCueTexts && !isWindowRepeat && !isTitleSignCue(text)) {
                                 seenCueTexts.add(dedupKey)
-                                // Media3 Cue carries no duration: backfill the
-                                // previous cue once the next start arrives.
+
                                 if (storedSyncCues.isNotEmpty() && storedSyncCues.last().durationMs == 3000L) {
                                     val gap = cueStartMs - storedSyncCues.last().startTimeMs
                                     if (gap in 1001..60000) {
@@ -2986,7 +2824,6 @@ class ExoplayerView :
         mediaSession?.release()
     }
 
-
     override fun onSaveInstanceState(outState: Bundle) {
         if (isInitialized) {
             outState.putInt(resumeWindow, exoPlayer.currentMediaItemIndex)
@@ -3015,13 +2852,6 @@ class ExoplayerView :
         )
     }
 
-    /**
-     * Silent live-stream reconnect: re-fetches fresh URLs from the plugin
-     * (bypassing the app-level link cache) and rebuilds the media source
-     * in-place without opening the server-selector dialog or tearing down
-     * the player.  Falls back to [sourceClick] (dialog) if the plugin
-     * returns nothing usable.
-     */
     private fun silentLiveReconnect() {
         val epLabel = episode.number
         val previousServer = extractor?.server?.name
@@ -3032,17 +2862,14 @@ class ExoplayerView :
         )
 
         lifecycleScope.launch(Dispatchers.IO) {
-            // 1. Invalidate the app-level link cache so the plugin re-fetches
-            //    fresh encrypted channel data (new auth_key).
+
             val session = TmdbStreamResolver.sessionFor(media.id)
             session?.mediaId?.let { TmdbStreamResolver.invalidateLinks(it) }
 
-            // 2. Clear the episode's extractors to force a full re-fetch.
             episode.extractors = null
             episode.extractorsSource = null
             episode.allStreams = false
 
-            // 3. Re-run the plugin to get fresh extractors/links.
             val ok = TmdbStreamResolver.populateSyntheticEpisode(
                 this@ExoplayerView, media, episode
             )
@@ -3063,11 +2890,6 @@ class ExoplayerView :
                 return@launch
             }
 
-            // 4. Find the fresh extractor.  Servers whose URL is identical
-            //    to the old one are stale (e.g. DAZN with an expired auth_key
-            //    baked into the encrypted payload).  Skip those and prefer the
-            //    first server whose URL actually changed (typically an embed
-            //    server that produced a fresh signed URL via WebView extraction).
             val freshExtractors = episode.extractors?.filterNotNull()
             if (freshExtractors.isNullOrEmpty()) {
                 withContext(Dispatchers.Main) {
@@ -3127,7 +2949,6 @@ class ExoplayerView :
                 return@launch
             }
 
-            // 5. Update internal state so the rest of the player stays in sync.
             extractor = freshExt
             video = freshVideo
             episode.extractors = freshExtractors.toMutableList()
@@ -3135,9 +2956,6 @@ class ExoplayerView :
             episode.selectedVideo =
                 freshExt.videos.indexOf(freshVideo).coerceAtLeast(0)
 
-            // 6. Build a fresh media source from the new URL, reusing the
-            //    existing cacheFactory / assMediaSourceFactory (same HTTP
-            //    client, same DRM config, same subtitle factory).
             val mimeType = when (freshVideo.format) {
                 VideoType.M3U8 -> MimeTypes.APPLICATION_M3U8
                 VideoType.DASH -> MimeTypes.APPLICATION_MPD
@@ -3158,8 +2976,7 @@ class ExoplayerView :
             val freshItemBuilder = MediaItem.Builder()
                 .setUri(freshVideo.file.url)
                 .setMimeType(mimeType)
-            // Keep the item marked live, otherwise the live speed control and
-            // live-offset reporting are disabled again after a reconnect.
+
             if (isDeclaredLiveStream()) {
                 freshItemBuilder.setLiveConfiguration(
                     MediaItem.LiveConfiguration.Builder()
@@ -3172,7 +2989,6 @@ class ExoplayerView :
             val videoMediaSource =
                 assMediaSourceFactory.createMediaSource(mediaItem)
 
-            // Handle separate audio tracks (rare for live HLS, but possible).
             val audioSources = freshExt.audioTracks.map { track ->
                 val audioItem = MediaItem.Builder()
                     .setUri(track.url)
@@ -3183,7 +2999,6 @@ class ExoplayerView :
 
             mediaSource = MergingMediaSource(videoMediaSource, *audioSources)
 
-            // 7. Swap the source on the live player — no teardown required.
             withContext(Dispatchers.Main) {
                 if (!isInitialized || exoPlayer.isReleased) {
                     Logger.log(
@@ -3224,20 +3039,20 @@ class ExoplayerView :
         val pillLeft = playerView.findViewById<View>(R.id.pillBottomLeft)
         val pillTop = playerView.findViewById<View>(R.id.pillTopRight)
         val pills = listOfNotNull(pillLeft, pillTop)
-        
+
         when (wrapMode) {
-            0 -> { // Off: no pill background
+            0 -> {
                 pills.forEach { it.background = null }
             }
-            1 -> { // Dark tint
+            1 -> {
                 val d = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.bg_tv_pill_dark) ?: return
                 pills.forEach { it.background = d }
             }
-            2 -> { // No tint (current: semi-transparent white)
+            2 -> {
                 val d = androidx.core.content.ContextCompat.getDrawable(this, R.drawable.bg_tv_pill) ?: return
                 pills.forEach { it.background = d }
             }
-            3 -> { // Primary color tint — resolve theme primary and apply with alpha
+            3 -> {
                 val typedVal = android.util.TypedValue()
                 theme.resolveAttribute(com.google.android.material.R.attr.colorPrimary, typedVal, true)
                 val primaryColor = typedVal.data
@@ -3258,12 +3073,6 @@ class ExoplayerView :
         }
     }
 
-    /**
-     * A sync offset only ever belongs to the episode it was tuned for. The
-     * preference survives process death, so without the media/episode key the
-     * delay from one episode (or an old auto-sync guess) would silently shift
-     * every later episode.
-     */
     private fun currentSubtitleSyncKey(): String =
         "${media.id}-${media.anime?.selectedEpisode ?: ""}"
 
@@ -3280,30 +3089,21 @@ class ExoplayerView :
     }
 
     fun applySubtitleOffset(offsetMs: Long) {
-        // A manual adjustment always owns this episode: stop capture and never
-        // let an in-flight auto result overwrite it.
+
         storeSubtitleOffset(offsetMs, "manual")
         cancelAutoSyncWatcher()
         speechRecorder.setEnabled(false)
-        // Render immediately: the custom-sync path only recalculated inside
-        // onCues(), which fires on cue-set changes — after clicking a cue or
-        // Apply the screen kept the stale text until the next cue boundary.
+
         refreshSyncRender()
     }
 
-    /**
-     * Re-evaluates the subtitle-render mode right now (mid-cue), so offset
-     * changes from the sync dialog/cue clicks take effect instantly instead
-     * of waiting for the player's next cue event.
-     */
     private fun refreshSyncRender() {
         if (!::exoPlayer.isInitialized) return
         val subtitleOffset = activeSubtitleOffset()
         val syncEnabled = PrefManager.getVal<Boolean>(PrefName.SubtitleSyncEnabled)
         val cues = synchronized(storedSyncCues) { storedSyncCues.isNotEmpty() }
         if (syncEnabled && subtitleOffset != 0L && cues) {
-            // libass owns rendering while an ASS/SSA track is selected (same
-            // rule as onCues) — don't fight it.
+
             val selectedTextMime = exoPlayer.currentTracks.groups
                 .firstOrNull { it.type == TRACK_TYPE_TEXT && it.isSelected }
                 ?.getTrackFormat(0)?.sampleMimeType
@@ -3322,28 +3122,19 @@ class ExoplayerView :
             customSubtitleView.visibility = View.VISIBLE
             customSubtitleView.text = matchingCue?.text ?: ""
         } else if (!PrefManager.getVal<Boolean>(PrefName.TextviewSubtitles)) {
-            // sync reset (offset 0) → back to native rendering
+
             customSubtitleView.visibility = View.GONE
             exoSubtitleView.visibility = View.VISIBLE
         }
     }
 
-    /**
-     * Starts audio-based sync for a freshly loaded subtitle file.
-     *
-     * The offset from a previous file is cleared first because a new file has
-     * its own timeline. ASS/SSA is skipped: libass draws it directly and
-     * ignores the player offset. TTML produces no parsed cues here, so it is
-     * skipped by the size check.
-     */
     private fun beginSubtitleAutoSync(cues: List<SyncCue>, format: String) {
         cancelAutoSyncWatcher()
         autoSyncCues = emptyList()
         autoSyncCueKey = null
         val key = currentSubtitleSyncKey()
         if (speechRecorderKey != key) {
-            // The episode can change before the subtitle download finishes,
-            // so clear here too instead of trusting buildExoplayer's key.
+
             speechRecorderKey = key
             speechRecorder.clearSegments()
         }
@@ -3366,11 +3157,6 @@ class ExoplayerView :
         startAutoSyncWatcher()
     }
 
-    /**
-     * Watches the speech mask while the episode plays and applies at most one
-     * confident offset. It never overwrites a manual setting, and it re-checks
-     * authority after the background correlation returns.
-     */
     private fun startAutoSyncWatcher() {
         val key = autoSyncCueKey ?: return
         if (autoSyncCues.isEmpty()) return
@@ -3421,10 +3207,6 @@ class ExoplayerView :
         }
     }
 
-    /**
-     * The generation counter stops a cancelled watcher's `finally` block from
-     * disabling capture after a new watcher has already started.
-     */
     private fun cancelAutoSyncWatcher() {
         autoSyncGeneration++
         autoSyncJob?.cancel()
@@ -3437,13 +3219,9 @@ class ExoplayerView :
             PrefManager.getVal<String>(PrefName.SubtitleSyncSource) == "manual"
     }
 
-    // SubtitleSyncHost implementation
     override fun getSyncPlayerPosition(): Long = getPlayerPosition()
     override fun getSubtitleOffset(): Long = activeSubtitleOffset()
     override fun setSubtitleOffset(offsetMs: Long) = applySubtitleOffset(offsetMs)
-    // getSyncCues() already matches the interface signature
-
-    // ── Subtitle file parsing for full-cue sync ───────────────
 
     private fun parseSubtitleContent(content: String, detectedFormat: String? = null): List<SyncCue> {
         val normalized = content.replace("\r\n", "\n").replace("\r", "\n")
@@ -3541,8 +3319,7 @@ class ExoplayerView :
     }
 
     private fun storeParsedCues(cues: List<SyncCue>) {
-        // Sidecar/embedded tracks carry on-screen "signs" lines that are just
-        // the show's title card — keep them out of the sync dialog store.
+
         val usable = cues.filterNot { isTitleSignCue(it.text) }
         synchronized(storedSyncCues) {
             storedSyncCues.clear()
@@ -3552,13 +3329,6 @@ class ExoplayerView :
         }
     }
 
-    /**
-     * Some subtitle content is not dialogue at all: title cards and sign
-     * typesetting like "Classroom of the Elite", 「Classroom of the Elite」, or
-     * decorated variants ("8E Classroom of the Elite"). Dropping cues that
-     * reduce to the media's title keeps the sync dialog from showing the
-     * show's name as a fake subtitle line.
-     */
     private fun isTitleSignCue(rawText: String): Boolean {
         fun tidy(s: String) = s
             .replace(Regex("[\\p{Punct}\\s\\u3000\\u300c\\u300d\\u300e\\u300f]"), "")
@@ -3567,7 +3337,7 @@ class ExoplayerView :
             media.name, media.nameMAL, media.nameRomaji, media.userPreferredName
         )
         var text = tidy(rawText)
-        // strip muxer prefixes: "8e", "S01E02", "08", "第3話"
+
         text = text.replace(Regex("^(?:s\\d{1,3}e\\d{1,3}|\\d{1,3}e|\\d{1,3}|第\\d+話?)+"), "")
         return candidates.any { candidate ->
             val t = tidy(candidate)
@@ -3579,19 +3349,13 @@ class ExoplayerView :
         return stripSubtitleTagJunk(text.replace(Regex("<[^>]+>"), ""))
     }
 
-    /**
-     * Sloppy ASS/SSA→SRT/plain-text conversions leak formatting markup as
-     * literal cue text — braced override-tag groups ({\an8}, {\i1}), unbraced
-     * leftovers like "/an8", and hard-break markers ("\N"). Strip them so the
-     * sync dialog and stored cues show only actual subtitle content.
-     */
     private fun stripSubtitleTagJunk(text: String): String {
         return text
-            // {\an8}, {\i1}, {\pos(...)} — whole override-tag groups
+
             .replace(Regex("\\{[^}]*\\}"), "")
-            // unbraced conversion leftovers: /an8, \an8, "/ an8"
+
             .replace(Regex("(?i)[\\\\/]+\\s*an\\d{1,2}\\b"), "")
-            // literal \N hard-break markers → keep as line break
+
             .replace(Regex("(?i)[\\\\/]n\\b"), "\n")
             .replace(Regex("\\s{2,}"), " ")
             .trim()
@@ -3621,12 +3385,6 @@ class ExoplayerView :
         )
     }
 
-    /**
-     * Public entry point for re-applying a cached local subtitle from its stored URI string.
-     * Called from the subtitle rail when a user re-selects a "[Local]" entry.
-     * Always performs a full re-add: sets the pending label so onTracksChanged will select
-     * the track as soon as ExoPlayer reports it as available.
-     */
     fun reApplyLocalSubtitle(uriString: String) {
         android.util.Log.d("LocalSubDebug", "reApplyLocalSubtitle called with: $uriString")
         Logger.log("reApplyLocalSubtitle: uriString=$uriString")
@@ -3640,14 +3398,12 @@ class ExoplayerView :
         }
     }
 
-
     private fun applyLocalSubtitle(uri: android.net.Uri) {
         try {
             val label = "Local Subtitle"
             Logger.log("applyLocalSubtitle: uri=$uri")
             val contentResolver = applicationContext.contentResolver
 
-            // --- Step 1: Determine MIME type ---
             val rawMime = contentResolver.getType(uri)
             val uriStr = uri.toString().lowercase()
             val finalMimeType = when {
@@ -3661,7 +3417,6 @@ class ExoplayerView :
             }
             android.util.Log.d("LocalSubDebug", "applyLocalSubtitle: uri=$uri mime=$finalMimeType")
 
-            // --- Step 2: Read subtitle bytes ---
             val subtitleBytes = try {
                 if (uri.scheme == "file") {
                     java.io.File(uri.path!!).readBytes()
@@ -3679,7 +3434,6 @@ class ExoplayerView :
                 return
             }
 
-            // --- Step 3: Write to a stable cache file (file:// is reliable for SingleSampleMediaSource) ---
             val ext = when (finalMimeType) {
                 MimeTypes.TEXT_VTT -> "vtt"
                 MimeTypes.TEXT_SSA -> "ass"
@@ -3710,8 +3464,7 @@ class ExoplayerView :
                 )
                 beginSubtitleAutoSync(parsedCues, formatForParse)
             } else {
-                // TTML/image tracks are rendered natively. Drop any cues and
-                // offset left over from the previous text file on this episode.
+
                 storeParsedCues(emptyList())
                 beginSubtitleAutoSync(emptyList(), "unknown")
             }
@@ -3721,7 +3474,6 @@ class ExoplayerView :
 
             val stableId = "local_sub_${uri.toString().hashCode()}"
 
-            // --- Step 4: Get existing subtitle configs from current media item ---
             val currentMediaItem = exoPlayer.currentMediaItem
             android.util.Log.d("LocalSubDebug", "applyLocalSubtitle: currentMediaItem=${currentMediaItem?.mediaId ?: "NULL"}, playerState=${exoPlayer.playbackState}")
             if (currentMediaItem == null) {
@@ -3741,10 +3493,6 @@ class ExoplayerView :
                 return
             }
 
-            // --- Step 5: Build SubtitleConfiguration ---
-            // KEY FIX: Do NOT use SELECTION_FLAG_DEFAULT — it causes ExoPlayer to silently
-            // merge/drop the track alongside HLS manifest subtitles.
-            // DO add setLanguage("und") — matches the working online subtitle config.
             val subConfig = MediaItem.SubtitleConfiguration.Builder(finalSubUri)
                 .setMimeType(finalMimeType)
                 .setLanguage("und")
@@ -3754,7 +3502,6 @@ class ExoplayerView :
 
             existingSubtitles.add(subConfig)
 
-            // --- Step 6: Save to ViewModel cache ---
             val mediaId = media.id
             val episodeId = media.anime?.selectedEpisode ?: "1"
             val newLocalSub = Subtitle(
@@ -3764,7 +3511,6 @@ class ExoplayerView :
             model.saveLocalSubtitle("$mediaId-$episodeId", newLocalSub)
             PrefManager.setCustomVal("subLang_$mediaId", newLocalSub.language)
 
-            // --- Step 7: Apply via setMediaItem — same path as the working online subtitle ---
             val newMediaItem = currentMediaItem.buildUpon()
                 .setSubtitleConfigurations(existingSubtitles)
                 .build()
@@ -3786,7 +3532,6 @@ class ExoplayerView :
     private fun stripAssPositioning(assContent: String): String {
         android.util.Log.d("ExoplayerView", "stripAssPositioning: Stripping positioning from ASS subtitle")
 
-        // Split into lines
         val lines = assContent.lines().toMutableList()
         var inEvents = false
         var inStyles = false
@@ -3796,7 +3541,6 @@ class ExoplayerView :
             val line = lines[i]
             val trimmedLine = line.trim()
 
-            // Track sections
             if (trimmedLine.equals("[Events]", ignoreCase = true)) {
                 inEvents = true
                 inStyles = false
@@ -3812,54 +3556,45 @@ class ExoplayerView :
                 continue
             }
 
-            // Process Style section
             if (inStyles) {
                 if (trimmedLine.startsWith("Format:", ignoreCase = true)) {
-                    // Parse format definition: Format: Name, Fontname, ...
+
                     val parts = trimmedLine.substringAfter(":").split(",")
                     styleFormatMap.clear()
                     parts.forEachIndexed { index, name ->
                         styleFormatMap[name.trim().lowercase()] = index
                     }
                 } else if (trimmedLine.startsWith("Style:", ignoreCase = true) && styleFormatMap.isNotEmpty()) {
-                    // Start after "Style:"
+
                     val styleContent = trimmedLine.substringAfter("Style:")
                     val parts = styleContent.split(",").toMutableList()
 
-                    // Fix Alignment -> 2 (Bottom Center)
                     val alignIdx = styleFormatMap["alignment"]
                     if (alignIdx != null && alignIdx < parts.size) {
                         parts[alignIdx] = "2"
                     }
 
-                    // Fix MarginV -> 0 (Vertical Margin)
                     val marginVIdx = styleFormatMap["marginv"]
                     if (marginVIdx != null && marginVIdx < parts.size) {
-                        parts[marginVIdx] = "0" // 0 margin for absolute bottom positioning
+                        parts[marginVIdx] = "0"
                     }
 
                     lines[i] = "Style: ${parts.joinToString(",")}"
                 }
             }
 
-            // Process dialogue lines in [Events] section
             if (inEvents && (trimmedLine.startsWith("Dialogue:", ignoreCase = true) ||
                              trimmedLine.startsWith("Comment:", ignoreCase = true))) {
                 var modifiedLine = line
 
-                // Remove \pos(x,y) - positioning
                 modifiedLine = modifiedLine.replace(Regex("\\\\pos\\([^)]*\\)"), "")
 
-                // Remove \move(x1,y1,x2,y2) - movement
                 modifiedLine = modifiedLine.replace(Regex("\\\\move\\([^)]*\\)"), "")
 
-                // Remove \an alignment tags (don't replace, just remove to use Style alignment)
                 modifiedLine = modifiedLine.replace(Regex("\\\\an[1-9]"), "")
 
-                // Remove \a alignment tags (old style)
                 modifiedLine = modifiedLine.replace(Regex("\\\\a[1-9]+"), "")
 
-                // Remove \org (rotation origin)
                 modifiedLine = modifiedLine.replace(Regex("\\\\org\\([^)]*\\)"), "")
 
                 lines[i] = modifiedLine
@@ -3871,12 +3606,6 @@ class ExoplayerView :
         return result
     }
 
-    /**
-     * Clears every cached subtitle: the fetched online lists, the local-list
-     * bookkeeping, and all downloaded/copied file caches. Called when an
-     * episode finishes or changes and when the watch tab is left, so no stale
-     * subtitle can leak into another episode.
-     */
     private fun clearAllTransientSubtitleCache() {
         model.clearAllFetchedSubtitles()
         model.clearAllLocalSubtitles()
@@ -3900,10 +3629,9 @@ class ExoplayerView :
         android.util.Log.d("ExoplayerView", "applyOnlineSubtitle: lang=${subtitle.lang}, url=${subtitle.url}")
         Logger.log("applyOnlineSubtitle: lang=${subtitle.lang}, url=${subtitle.url}")
 
-        // Download subtitle content first, then apply
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                // Lazily resolve OpenSubtitles placeholder URLs
+
                 val actualUrl = if (subtitle.url.startsWith(OpenSubtitles.URL_PREFIX)) {
                     val fileId = subtitle.url.removePrefix(OpenSubtitles.URL_PREFIX).toIntOrNull()
                     if (fileId != null) {
@@ -3926,7 +3654,6 @@ class ExoplayerView :
                 android.util.Log.d("ExoplayerView", "applyOnlineSubtitle: Downloading subtitle from $resolvedUrl")
                 Logger.log("applyOnlineSubtitle: resolved url=$resolvedUrl")
 
-                // Download subtitle content (carrying extractor headers when present)
                 val client = okhttp3.OkHttpClient()
                 val request = okhttp3.Request.Builder()
                     .url(resolvedUrl)
@@ -3958,7 +3685,6 @@ class ExoplayerView :
                 android.util.Log.d("ExoplayerView", "applyOnlineSubtitle: Downloaded ${subtitleContent.length} bytes")
                 Logger.log("applyOnlineSubtitle: downloaded ${subtitleContent.length} bytes")
 
-                // Detect format from content
                 val detectedFormat = when {
                     subtitleContent.trimStart().startsWith("WEBVTT") -> "VTT"
                     subtitleContent.contains("[Script Info]") || subtitleContent.contains("\\[Events\\]") -> "ASS"
@@ -3969,14 +3695,12 @@ class ExoplayerView :
                 android.util.Log.d("ExoplayerView", "applyOnlineSubtitle: Detected format: $detectedFormat")
                 Logger.log("applyOnlineSubtitle: detected format=$detectedFormat")
 
-                // Strip positioning from ASS files
                 val cleanedContent = if (detectedFormat == "ASS") {
                     stripAssPositioning(subtitleContent)
                 } else {
                     subtitleContent
                 }
 
-                // Use appropriate MIME type
                 val mimeType = when (detectedFormat) {
                     "VTT" -> MimeTypes.TEXT_VTT
                     "ASS" -> MimeTypes.TEXT_SSA
@@ -4041,10 +3765,9 @@ class ExoplayerView :
             if (alreadyExists) {
                 Logger.log("applySubtitleFromFile: config already in media item, pendingLabel=$label")
                 android.util.Log.d("ExoplayerView", "applySubtitleFromFile: Subtitle already exists, selecting via pendingLabel")
-                // Even though track already exists in the media item, we may need
-                // to wait for onTracksChanged to fire to reliably select it.
+
                 pendingSubtitleLabel = label
-                // If tracks are already reported by ExoPlayer, try immediately too.
+
                 selectSubtitleTrack(lang, label)
                 return
             }
@@ -4057,7 +3780,6 @@ class ExoplayerView :
                 .setSubtitleConfigurations(existingSubtitles)
                 .build()
 
-            // Register label to select once onTracksChanged fires after prepare()
             pendingSubtitleLabel = label
 
             val currentPos = exoPlayer.currentPosition
@@ -4070,8 +3792,6 @@ class ExoplayerView :
         }
     }
 
-
-    // Map ISO 639-2 codes (from Stremio API) to language names
     private fun mapLanguageCode(isoCode: String): String = when (isoCode.lowercase()) {
         "eng" -> "english"
         "spa" -> "spanish"
@@ -4166,7 +3886,6 @@ class ExoplayerView :
                         val trackLabel = format.label ?: ""
                         android.util.Log.d("ExoplayerView", "selectSubtitleTrack: Track $trackIndex - lang=$trackLang, label=$trackLabel")
 
-                        // PRIORITY 1: Match by specific Label (e.g., "Online: eng")
                         if (targetLabel != null && trackLabel == targetLabel) {
                             android.util.Log.d("ExoplayerView", "selectSubtitleTrack: FOUND matching track by label! Selecting index $trackIndex")
                             Logger.log("selectSubtitleTrack: MATCH by label -> group $groupIndex track $trackIndex")
@@ -4175,7 +3894,6 @@ class ExoplayerView :
                             return
                         }
 
-                        // PRIORITY 2: Fallback to matching language code if no label provided
                         if (targetLabel == null && (trackLang == mappedLang || trackLang == langCode || trackLang.startsWith(langCode) || trackLang.startsWith(mappedLang))) {
                             android.util.Log.d("ExoplayerView", "selectSubtitleTrack: FOUND matching track by language! Selecting index $trackIndex")
                             Logger.log("selectSubtitleTrack: MATCH by language -> group $groupIndex track $trackIndex")
@@ -4228,8 +3946,7 @@ class ExoplayerView :
         if (shouldPausePlayback && !isLiveStream()) {
             playerView.player?.pause()
         }
-        // Leaving the watch tab (Home/recents/back, not PiP or a rotation)
-        // must not leave subtitle state behind for the next episode/session.
+
         if (shouldPausePlayback && !isChangingConfigurations) {
             clearAllTransientSubtitleCache()
         }
@@ -4297,12 +4014,11 @@ class ExoplayerView :
                 }
             }
         }
-        // Simkl scrobble for TMDB movie/tv content ONLY (synthetic id < 0).
-        // Anime is tracked exclusively on AniList/MAL — never Simkl.
+
         val incognito = PrefManager.getVal<Boolean>(PrefName.Incognito)
         val simklProgressEnabled = PrefManager.getCustomVal("${media.id}_save_progress", true)
         if (!isLiveStream() && Simkl.token != null && media.id < 0 && !incognito && simklProgressEnabled) {
-            // Capture player position on the main thread before switching to IO
+
             val playerCurrentPosition = if (::exoPlayer.isInitialized) exoPlayer.currentPosition else 0L
             val playerDuration = if (::exoPlayer.isInitialized) exoPlayer.duration else 0L
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
@@ -4310,7 +4026,7 @@ class ExoplayerView :
                 val parts = epStr?.split("E") ?: emptyList()
                 val season = if (parts.size == 2) parts[0].removePrefix("S").toIntOrNull() else null
                 val episode = epStr?.substringAfter("E")?.toIntOrNull()
-                // TMDB content: resolve from SyntheticSession
+
                 val session = TmdbStreamResolver.sessionFor(media.id) ?: return@launch
                 val d = session.detail
                 val title = d.displayTitle
@@ -4370,7 +4086,7 @@ class ExoplayerView :
             )
             return
         }
-        // Zangetsu approach: no custom live edge correction — let ExoPlayer handle it natively.
+
         if (reason == Player.DISCONTINUITY_REASON_SEEK || reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT) {
             if (!userPaused) {
                 exoPlayer.play()
@@ -4381,9 +4097,6 @@ class ExoplayerView :
     override fun onRenderedFirstFrame() {
         super.onRenderedFirstFrame()
 
-        // Load skip timestamps before any format-dependent work: on some devices
-        // videoFormat can be reported late, and skipping the load here leaves the
-        // skip button permanently missing.
         maybeLoadTimeStamps("firstFrame")
 
         updateAudioLanguageInfo()
@@ -4420,7 +4133,6 @@ class ExoplayerView :
                 exoPlayer.seekTo(0)
             }
 
-            // if playbackPosition is within 92% of the episode length, reset it to 0
             if (playbackPosition > exoPlayer.duration.toFloat() * 0.92) {
                 playbackPosition = 0
                 exoPlayer.seekTo(0)
@@ -4429,7 +4141,6 @@ class ExoplayerView :
 
     }
 
-    // Link Preloading
     private var preloading = false
 
     private fun updateProgress() {
@@ -4450,8 +4161,7 @@ class ExoplayerView :
                     val selected = media.selected ?: return@nextEpisode
                     lifecycleScope.launch(Dispatchers.IO) {
                         if (media.id < 0) {
-                            // Synthetic TMDB media: preload the next episode through
-                            // the same plugin so autoplay starts instantly at ENDED.
+
                             ani.sanin.cloudstream.TmdbStreamResolver.populateSyntheticEpisode(
                                 this@ExoplayerView, media, ep
                             )
@@ -4503,7 +4213,6 @@ class ExoplayerView :
         }
     }
 
-    // TimeStamp Updating
     private var currentTimeStamp: AniSkip.Stamp? = null
     private var skippedTimeStamps: MutableList<AniSkip.Stamp> = mutableListOf()
     private var lastLoggedStampId: String? = null
@@ -4511,9 +4220,7 @@ class ExoplayerView :
     private fun maybeLoadTimeStamps(source: String) {
         if (!isInitialized || isTimeStampsLoaded || timeStampsLoading) return
         if (!PrefManager.getVal<Boolean>(PrefName.TimeStampsEnabled)) return
-        // Rate-limit retries so a transient failure (e.g. on slower TV hardware)
-        // doesn't hammer the API every 500ms; playback keeps retrying until it
-        // succeeds or the episode changes.
+
         val now = java.lang.System.currentTimeMillis()
         val sinceLastAttempt = now - lastTimeStampAttempt
         if (sinceLastAttempt < 10_000L) return
@@ -4714,8 +4421,6 @@ class ExoplayerView :
         }, 500)
     }
 
-    // The timestamp skip card replaces exo_skip in the same corner; repoint the
-    // focus chain from the controls below it so D-pad up reaches the card.
     private fun showSkipTimestampButton() {
         skipTimeButton.visibility = View.VISIBLE
         exoSkip.visibility = View.GONE
@@ -4748,9 +4453,7 @@ class ExoplayerView :
         Logger.log("onSetTrackGroupOverride: type=$type index=$index isDisabled=$isDisabled")
         val paramsBuilder = exoPlayer.trackSelectionParameters.buildUpon()
         if (type == TRACK_TYPE_TEXT) {
-            // Only the text renderer is toggled off/on here; audio/video
-            // overrides must never flip it (CloudStream applies audio/video
-            // TrackSelectionOverrides without touching text).
+
             paramsBuilder.setTrackTypeDisabled(TRACK_TYPE_TEXT, isDisabled)
         }
         paramsBuilder.setOverrideForType(
@@ -4776,11 +4479,8 @@ class ExoplayerView :
             booleanArrayOf(false),
         )
 
-    /** Current ExoPlayer track snapshot for the tracks rail. */
     fun playerCurrentTracks(): Tracks = if (isInitialized) exoPlayer.currentTracks else Tracks.EMPTY
 
-    /** Hide the tracks rail and hand focus back to the top-right button (or the
-     *  play button if the tracks button is hidden). */
     fun closeTracksRail() {
         playerView.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
         playerView.isFocusable = true
@@ -4798,13 +4498,6 @@ class ExoplayerView :
 
     fun subtitleRailDummyTrack(): Tracks.Group = dummyTrack
 
-    /**
-     * CloudStream rule: the top-right tracks button only appears when the open
-     * stream exposes more than one video rendition OR more than one audio track.
-     * Hiding it also takes it out of the DPAD chain: the episode button's right
-     * neighbour is reset, the button is not focusable, and if it held focus when
-     * the tracks disappeared the focus moves back to the episode button.
-     */
     private fun updateTracksButton(tracks: Tracks) {
         val videoCount = tracks.groups.sumOf { group ->
             if (group.type != TRACK_TYPE_VIDEO) return@sumOf 0
@@ -4825,9 +4518,9 @@ class ExoplayerView :
         val btn = playerTracksBtn ?: return
         btn.isVisible = show
         btn.isFocusable = show
-        // Pill background must re-measure when child visibility changes
+
         (btn.parent as? ViewGroup)?.requestLayout()
-        // Up from the skip controls lands on tracks when available, else settings
+
         val skipUpId = if (show) R.id.exo_tracks else R.id.exo_settings
         playerView.findViewById<View>(R.id.exo_skip)?.nextFocusUpId = skipUpId
         playerView.findViewById<View>(R.id.exo_skip_timestamp)?.nextFocusUpId = skipUpId
@@ -4842,10 +4535,6 @@ class ExoplayerView :
         }
     }
 
-    /**
-     * Master subtitle toggle used by the subtitle rail. Turning it off greys
-     * out every subtitle option in the rail and hides subtitles immediately.
-     */
     fun setSubtitlesEnabled(enabled: Boolean) {
         PrefManager.setVal(PrefName.Subtitles, enabled)
         if (!isInitialized) return
@@ -4865,8 +4554,7 @@ class ExoplayerView :
     }
 
     override fun onTracksChanged(tracks: Tracks) {
-        // Consume any pending subtitle label set by applyLocalSubtitle / applySubtitleFromFile.
-        // This fires reliably once ExoPlayer has parsed all tracks after setMediaItem+prepare.
+
         val userLabel = pendingSubtitleLabel
         val pendingLabel = userLabel ?: initialSubtitleLabel
         android.util.Log.d("LocalSubDebug", "onTracksChanged: pendingLabel=$pendingLabel, totalGroups=${tracks.groups.size}")
@@ -5006,12 +4694,6 @@ class ExoplayerView :
     private fun isDeclaredLiveStream(): Boolean =
         isTmdbMovieMode() && TmdbStreamResolver.sessionFor(media.id)?.isLive == true
 
-    // A stream counts as live only when the plugin declared it (LiveStreamLoadResponse)
-    // or the player confirmed a settled dynamic window (see onTimelineChanged).
-    // `Player.isCurrentMediaItemDynamic` is intentionally NOT consulted directly: on
-    // some VOD HLS/DASH manifests ExoPlayer briefly reports a still-loading window as
-    // dynamic, which used to flip VOD titles into live mode (red LIVE badge, hidden
-    // position/duration, live-edge seeking) for the whole session.
     private fun isLiveStream(): Boolean =
         isTmdbMovieMode() &&
             (
@@ -5061,18 +4743,11 @@ class ExoplayerView :
                 androidx.media3.ui.R.id.exo_progress
             ) ?: return
             if (isLiveStream()) {
-                // For a sliding live window, currentPosition grows without
-                // bound as the window advances while duration is only the
-                // window's length, so feeding the two straight to the bar
-                // makes the position run past the duration and look pinned at
-                // the end.  Measure the playhead back from the live edge
-                // instead: that is bounded by the window by definition, and it
-                // tracks the edge as the window slides.
+
                 val liveOffset = exoPlayer.currentLiveOffset
                 val windowDuration = exoPlayer.duration
                 if (liveOffset == C.TIME_UNSET || windowDuration <= 0L) {
-                    // Live edge unknown: leave the bar to the player rather
-                    // than paint a misleading position.
+
                     return
                 }
                 timeBar.setDuration(windowDuration)
@@ -5089,12 +4764,6 @@ class ExoplayerView :
         }
     }
 
-    /**
-     * For a sliding live window [exo_duration] is only the length of the DVR
-     * window, so the stock "position / duration" pair shows a meaningless
-     * "29:40 / 29:59".  Hide it while live and show the offset from the live
-     * edge in [R.id.exo_live_offset] instead.  VOD keeps the stock labels.
-     */
     private fun updateLiveBadge() {
         val live = isLiveStream()
         playerView.findViewById<View>(R.id.exo_live_badge)?.visibility =
@@ -5113,7 +4782,6 @@ class ExoplayerView :
             }
     }
 
-    /** Renders how far behind the live edge we are, e.g. "-0:05". */
     private fun updateLiveOffsetText() {
         val view = playerView.findViewById<TextView>(R.id.exo_live_offset) ?: return
         val offset = if (isLiveStream() && ::exoPlayer.isInitialized && !exoPlayer.isReleased) {
@@ -5129,18 +4797,8 @@ class ExoplayerView :
         }
     }
 
-    /**
-     * Terminal guard for live recovery.  Without this the retry budget was
-     * reset by [buildExoplayer] / the exhaustion branch itself, so a failing
-     * live stream could reconnect forever.
-     */
     private var liveRecoveryFailed = false
 
-    /**
-     * Terminal stop for live recovery.  Never resets [liveReconnectCount] and
-     * never calls [sourceClick] (which would rebuild the player, reset the
-     * counters and re-enter recovery), so the loop cannot restart.
-     */
     private fun abortLiveRecovery(reason: String) {
         liveRecoveryFailed = true
         Logger.log(
@@ -5154,17 +4812,6 @@ class ExoplayerView :
         }
     }
 
-    /**
-     * Recover a live stream that errored mid-playback.
-     *
-     * A stuck/stalled playlist (HlsPlaylistTracker.PlaylistStuckException) trips
-     * when the playhead has drifted ahead of the sliding live window, so
-     * seeking inside that window just replays the same stale segments and
-     * re-triggers the stall forever.  Recovery mirrors CS3: seek back to the
-     * window's default position (the live edge) and re-prepare.  There is no
-     * fixed/pinned duration here — the reported window length keeps advancing
-     * as the playlist slides.
-     */
     private fun retryLiveRecovery(error: PlaybackException) {
         logLiveEvent(
             "recovery requested code=${error.errorCode} name=${error.errorCodeName} " +
@@ -5190,11 +4837,6 @@ class ExoplayerView :
         )
         toast("Reconnecting… ($liveReconnectCount/$MAX_LIVE_RECONNECTS)")
 
-        // Mirror CS3 (CS3IPlayer.onPlayerError): a stuck playlist means the
-        // playhead drifted ahead of the live window, so jump back to the
-        // window's default position (the live edge) and re-prepare.  Deliberately
-        // no setMediaSource/mediaItem rebuild: re-attaching a source re-reads
-        // nothing new and can resume inside the dead window.
         if (::exoPlayer.isInitialized && exoPlayer.isReleased.not()) {
             exoPlayer.seekToDefaultPosition()
             exoPlayer.prepare()
@@ -5204,14 +4846,6 @@ class ExoplayerView :
         }
     }
 
-    /**
-     * Some extensions hand back HLS/DASH manifests behind their own localhost proxy,
-     * or otherwise without a recognisable file extension (e.g. AniPM's SettlarProxy,
-     * which wraps opaque media.settlar.io URLs). The parser can only fall back to
-     * CONTAINER for those, so ExoPlayer picks the progressive extractors and dies with
-     * ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED. Retry the same URL once as HLS, then
-     * once as DASH, before showing a fatal error.
-     */
     private fun retryOpaqueSource(format: VideoType, errorName: String): Boolean {
         val current = video ?: return false
         if (current.format != VideoType.CONTAINER || current.drm != null) return false
@@ -5248,10 +4882,7 @@ class ExoplayerView :
                     "cause=${error.cause?.javaClass?.simpleName ?: "none"}"
             )
         }
-        // DRM license acquisition failed. We no longer retry without DRM because
-        // streams that genuinely need DRM will show NO_UNSUPPORTED_DRM on every
-        // track — the Zangetsu approach handles this at setup time (only set up
-        // DRM when kid+key are available). Log and let normal error handling proceed.
+
         if (error.errorCode == PlaybackException.ERROR_CODE_DRM_LICENSE_ACQUISITION_FAILED) {
             Logger.log(Log.WARN, "Player: DRM license failed (${error.errorCodeName}) on '$epLabel' — no retry without DRM (Zangetsu approach)")
         }
@@ -5275,7 +4906,7 @@ class ExoplayerView :
                         Logger.log(Log.WARN, "Player: live reconnect $liveReconnectCount/$MAX_LIVE_RECONNECTS " +
                             "on ep '$epLabel' (${error.errorCodeName}): ${error.message}")
                         toast("Reconnecting… ($liveReconnectCount/$MAX_LIVE_RECONNECTS)")
-                        // Re-fetch fresh URLs from the plugin — the old auth_key has expired
+
                         isPlayerPlaying = true
                         silentLiveReconnect()
                     } else {
@@ -5354,11 +4985,7 @@ class ExoplayerView :
             val windowIndex = exoPlayer.currentMediaItemIndex
                 .takeIf { it in 0 until timeline.windowCount } ?: 0
             timeline.getWindow(windowIndex, window)
-            // `isDynamic` is also briefly true while an HLS/DASH manifest is still
-            // loading (duration unknown), which used to latch VOD titles into live
-            // mode permanently. Only treat it as a real live window once the
-            // manifest has resolved (duration known), unless the plugin already
-            // declared the stream live.
+
             val settledLiveWindow =
                 window.isDynamic &&
                     (isDeclaredLiveStream() || window.durationMs != C.TIME_UNSET)
@@ -5403,7 +5030,7 @@ class ExoplayerView :
             if (episodeLength == 0f && !isLiveStream()) {
                 episodeLength = exoPlayer.duration.toFloat()
             }
-            // Fallback trigger in case onRenderedFirstFrame never fired.
+
             maybeLoadTimeStamps("ready")
             updateLiveBadge()
             if (isLiveStream()) updateTimelineUi()
@@ -5414,7 +5041,7 @@ class ExoplayerView :
         }
         if (playbackState == Player.STATE_ENDED) {
             Logger.log("Player: ENDED on ep '$epLabel'")
-            // Episode is over: drop its subtitle caches before any auto-next.
+
             if (!isLiveStream()) clearAllTransientSubtitleCache()
             if (!isLiveStream() && PrefManager.getVal(PrefName.AutoPlay)) {
                 val browsingEpisodes =
@@ -5435,12 +5062,10 @@ class ExoplayerView :
     private fun updateAniProgress() {
         val incognito: Boolean = PrefManager.getVal(PrefName.Incognito)
 
-        // Live streams have no episode to track — skip progress entirely
         if (isLiveStream()) {
             return
         }
 
-        // TMDB content (synthetic id < 0): track on Simkl
         if (media.id < 0) {
             val saveProgress = PrefManager.getCustomVal("${media.id}_save_progress", true)
             if (episodeLength <= 0f || incognito || Simkl.token == null || !saveProgress) return
@@ -5473,8 +5098,7 @@ class ExoplayerView :
             }
             return
         }
-        
-        // AniList tracking (original path for anime)
+
         if (episodeLength <= 0f) {
             maybeHandleSubscriptionAfterEpisodeCompletion(false, incognito)
             return
@@ -5486,7 +5110,7 @@ class ExoplayerView :
                         PrefName.WatchPercentage,
                     )
         val episode0 = currentEpisodeIndex == 0 && PrefManager.getVal(PrefName.ChapterZeroPlayer)
-        // Gate on the tracker actually selected for anime (MAL in rescue mode, else AniList).
+
         val trackerReady =
             if (PrefManager.getVal<Boolean>(PrefName.RescueMode)) MAL.token != null
             else Anilist.userid != null
@@ -5596,7 +5220,7 @@ class ExoplayerView :
 
         if (isInitialized) {
             updateAniProgress()
-            // Clear transient subtitle caches and sync cues on player exit
+
             clearAllTransientSubtitleCache()
             synchronized(storedSyncCues) {
                 storedSyncCues.clear()
@@ -5614,8 +5238,6 @@ class ExoplayerView :
         finishAndRemoveTask()
     }
 
-
-    // Enter PiP Mode
     @Suppress("DEPRECATION")
     private fun enterPipMode() {
         wasPlaying = isPlayerPlaying
@@ -5641,7 +5263,7 @@ class ExoplayerView :
         if (isInPictureInPictureMode) {
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             orientationListener?.disable()
-            // Scale down subtitles for PiP
+
             val pipFontSize = PrefManager.getVal<Int>(PrefName.FontSize).toFloat() * 0.55f
             playerView.subtitleView?.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, pipFontSize)
             if (this::customSubtitleView.isInitialized) {
@@ -5649,7 +5271,7 @@ class ExoplayerView :
             }
         } else {
             orientationListener?.enable()
-            // Restore original subtitle size
+
             setupSubFormatting(playerView)
             if (this::customSubtitleView.isInitialized) {
                 applySubtitleStyles(customSubtitleView)
@@ -5712,7 +5334,7 @@ class ExoplayerView :
             backPressTime = now
             return true
         }
-        // Rails must close on back before controller/exit — fixes subtitle rail persisting
+
         if (this::subtitleDrawerContent.isInitialized && binding.root.isDrawerOpen(subtitleDrawerContent)) {
             Logger.log("Player handleBackPress: closing subtitle rail")
             binding.root.closeDrawer(subtitleDrawerContent)
@@ -5775,7 +5397,7 @@ class ExoplayerView :
         episodeCommentProgress.visibility = View.VISIBLE
         episodeCommentList.visibility = View.GONE
         episodeCommentPanel.visibility = View.VISIBLE
-        // Same containment as the rail: keep focus inside the comment panel.
+
         playerView.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
         playerView.isFocusable = false
         episodeCommentPanel.requestFocus()
@@ -5901,7 +5523,7 @@ class ExoplayerView :
             putInt("mediaId", media.id)
             putInt("anikotoEpisode", comment.anikotoEpisode ?: 0)
         }
-        // No listener: read-only, replies are still reachable inside the dialog.
+
         dialog.dismissCallback = {
             if (episodeCommentPanel.visibility == View.VISIBLE) {
                 episodeCommentList.post {
@@ -5961,8 +5583,6 @@ class ExoplayerView :
         if (event.action == KeyEvent.ACTION_DOWN) markInteracted()
         if (!isInitialized) return super.dispatchKeyEvent(event)
 
-        // Tracks rail (right side): DPAD left closes it (right stays trapped), and
-        // back/escape closes it too — mirrors the episode rail, mirrored sides.
         if (this::tracksDrawerContent.isInitialized &&
             trackRailController?.isOpen() == true
         ) {
@@ -5981,8 +5601,7 @@ class ExoplayerView :
                 }
             }
         }
-        // Subtitle rail: DPAD left/right and BACK must close it — was missing, so
-        // BACK fell through to hideController/exit and rail persisted on Hisilicon.
+
         if (this::subtitleDrawerContent.isInitialized && binding.root.isDrawerOpen(subtitleDrawerContent)) {
             when (event.keyCode) {
                 KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
@@ -5999,9 +5618,7 @@ class ExoplayerView :
                 }
             }
         }
-        // DPAD left dismisses the episode rail / comments panel. Consume both
-        // DOWN and UP so the event never falls through to the player-level
-        // left-skip handling (which would jump back an episode).
+
         if (event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT &&
             (episodeDrawer.isDrawerOpen(episodeDrawerContent) ||
                 episodeCommentPanel.visibility == View.VISIBLE)
@@ -6010,7 +5627,7 @@ class ExoplayerView :
                 if (episodeDrawer.isDrawerOpen(episodeDrawerContent) &&
                     currentFocus?.id == R.id.episodeRailComment
                 ) {
-                    // On the comment button, left moves focus back to the episode card.
+
                     currentFocus?.focusSearch(View.FOCUS_LEFT)?.requestFocus()
                 } else if (episodeDrawer.isDrawerOpen(episodeDrawerContent)) {
                     episodeDrawer.closeDrawer(episodeDrawerContent)
@@ -6020,13 +5637,13 @@ class ExoplayerView :
             }
             return true
         }
-        // Episode/subtitle rails: trap DPAD_RIGHT so focus doesn't leak to media buttons behind the rail
+
         if (event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT &&
             (episodeDrawer.isDrawerOpen(episodeDrawerContent) ||
                 binding.root.isDrawerOpen(subtitleDrawerContent) ||
                 trackRailController?.isOpen() == true)
         ) {
-            // Let RecyclerView handle right internally if possible, otherwise consume
+
             val focused = currentFocus
             val next = focused?.focusSearch(View.FOCUS_RIGHT)
             if (next == null || !isDescendantOf(next, episodeDrawerContent) && !isDescendantOf(next, subtitleDrawerContent) && !isDescendantOf(next, tracksDrawerContent)) {
@@ -6057,8 +5674,7 @@ class ExoplayerView :
         when (event.keyCode) {
             KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
                 if (event.action == KeyEvent.ACTION_DOWN) ensureControllerVisible()
-                // Trap focus inside open rails/panels — prevent DPAD from leaking
-                // to background media buttons.
+
                 val epOpen = episodeDrawer.isDrawerOpen(episodeDrawerContent)
                 val subOpen = binding.root.isDrawerOpen(subtitleDrawerContent)
                 val tracksOpen = trackRailController?.isOpen() == true
@@ -6071,8 +5687,7 @@ class ExoplayerView :
                             isDescendantOf(focused, tracksDrawerContent) ||
                             isDescendantOf(focused, episodeCommentPanel)
                         if (!insideRail) {
-                            // Focus escaped the rail (fast DPAD down swallows focus below screen)
-                            // — recover it instead of just swallowing the event.
+
                             Logger.log("Player rail focus escaped on ${if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP) "UP" else "DOWN"}, refocusing")
                             val target: View? = when {
                                 subOpen -> subtitleDrawerList.findViewHolderForAdapterPosition(0)?.itemView ?: subtitleDrawerClose
@@ -6088,8 +5703,7 @@ class ExoplayerView :
                             target?.post { target.requestFocus() }
                             return true
                         }
-                        // Bottom→top wrap fix: at last rail item, DPAD_DOWN would wrap to top
-                        // via framework focusSearch. Instead consume and scroll so it feels like scrolling.
+
                         if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                             val rv: RecyclerView? = when {
                                 subOpen && isDescendantOf(focused, subtitleDrawerContent) -> subtitleDrawerList
@@ -6099,9 +5713,7 @@ class ExoplayerView :
                                 else -> null
                             }
                             if (rv != null) {
-                                // getChildAdapterPosition needs a direct child of the RecyclerView
-                                // (it casts the child's LayoutParams), so walk up to the item view
-                                // first — focus may sit on a nested view inside a card.
+
                                 var item: View? = focused
                                 while (item != null && item.parent !== rv) {
                                     item = item.parent as? View
@@ -6111,13 +5723,12 @@ class ExoplayerView :
                                 if (pos != RecyclerView.NO_POSITION) {
                                     val last = (rv.adapter?.itemCount ?: 0) - 1
                                     if (pos == last) {
-                                        // Already at bottom — scroll a bit for feedback but don't wrap
+
                                         Logger.log("Player rail at bottom, DPAD_DOWN consumed to prevent wrap to top")
                                         if (rv.canScrollVertically(1)) rv.smoothScrollBy(0, 80)
                                         return true
                                     }
-                                    // If next item not laid out yet, RecyclerView wasn't scrolling.
-                                    // Manually scroll so DPAD feels like smooth scrolling, not jump.
+
                                     val lm = rv.layoutManager as? LinearLayoutManager
                                     val lastVisible = lm?.findLastVisibleItemPosition() ?: -1
                                     if (pos >= lastVisible && rv.canScrollVertically(1)) {
@@ -6127,7 +5738,7 @@ class ExoplayerView :
                             }
                         }
                     } else if (event.action == KeyEvent.ACTION_DOWN) {
-                        // No focused view at all (focus swallowed) — restore to rail
+
                         Logger.log("Player rail no focus on ${if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP) "UP" else "DOWN"}, restoring")
                         when {
                             subOpen -> subtitleRailController?.focusFirst() ?: subtitleDrawerClose.requestFocus()
@@ -6235,7 +5846,6 @@ class ExoplayerView :
         return super.dispatchKeyEvent(event)
     }
 
-    /** Walk the view parent chain to check if [view] is a descendant of [parent]. */
     private fun isDescendantOf(view: View, parent: View): Boolean {
         var v: android.view.ViewParent? = view.parent
         while (v != null) {
@@ -6391,8 +6001,7 @@ private class EpisodeCommentPillViewHolder(val card: MaterialCardView) : ViewHol
         val parsed = parseGifCommentContent(comment.content)
         val gifUrl = parsed.gifUrl
         if (gifUrl != null) {
-            // Gif comments: text capped at one line, gif shown above or below
-            // depending on where it appears in the comment.
+
             content.text = parsed.text.replace(Regex("\\s+"), " ").trim()
             content.maxLines = 1
             content.ellipsize = TextUtils.TruncateAt.END

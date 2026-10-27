@@ -64,69 +64,27 @@ import kotlinx.coroutines.withContext
 import kotlin.math.max
 import kotlin.math.min
 
-
 class AnimeFragment : Fragment() {
     private var _binding: FragmentAnimeBinding? = null
     private val binding get() = _binding!!
     private lateinit var animePageAdapter: AnimePageAdapter
 
-    /** The row's adapter, held so a page landing later can re-sort itself into place. */
     private var animeFranchiseAdapter: FranchiseAdaptor? = null
 
-    /** The header listeners are attached once; `ready` can fire again on a rebind. */
     private var animeFranchiseSortWired = false
 
-    /** The row's own search, held so the page can close it when the row is rebuilt. */
     private var animeFranchiseSearch: InlineSearchBar? = null
 
-    /**
-     * True while a batch of seeds is being resolved into cards.
-     *
-     * The row is fed by the AniList titles, so it starts out empty and fills as its seeds
-     * resolve. This says whether that work is still going on, which is what tells an empty
-     * row that is about to fill apart from an empty row that has nothing coming.
-     */
     private var animeFranchiseResolving = false
 
-    /**
-     * The page item's binding, once it has been inflated.
-     *
-     * Null before that, and the row's state can be updated before it: the AniList page can
-     * land before the page item is bound, and the row's own state does not wait for it.
-     */
     private var animePageBinding: ItemAnimePageBinding? = null
 
-    /**
-     * Counts ranking requests, so only the newest one may write to the row.
-     *
-     * Without it, picking Trending and then Most Popular quickly can let the trending reply
-     * land last and overwrite the popular order the user is now looking at.
-     */
     private var animeFranchiseSortGeneration = 0
 
-    /**
-     * How far into the loaded AniList results the row has claimed titles from.
-     *
-     * The results list grows as pages land but never reorders, so an index into it is stable
-     * across pages and one cursor serves the whole session. The row claims [SEED_BATCH] of them
-     * per call and takes more as the user scrolls, rather than turning a whole 50-title page
-     * into Kitsu requests before the first card can appear.
-     */
     private var animeFranchiseCursor = 0
 
-    /**
-     * Turns the loaded AniList titles into Franchise cards and hands them to the adapter.
-     *
-     * Each loaded title is a seed. Kitsu resolves the seed into its real franchise, and
-     * AniList relations are only the fallback for when Kitsu is unreachable or has no
-     * mapping, so the row still fills.
-     *
-     * @param from index of the first seed to consider, so a later AniList page only adds its
-     *   own cards instead of rebuilding every card already on screen.
-     */
     private fun publishFranchises(adaptor: FranchiseAdaptor, trigger: String) {
-        // Snapshot on the main thread: `results` keeps growing as later pages land, and
-        // reading it from a background thread would race that mutation.
+
         val snapshot = model.aniMangaSearchResults.results.toList()
         Logger.log(
             "Franchise(anime) publish on $trigger: cursor=$animeFranchiseCursor of " +
@@ -138,10 +96,7 @@ class AnimeFragment : Fragment() {
             Logger.log("Franchise(anime) publish: no results at all, submitted empty row")
             return
         }
-        // A result list that shrank is a different list, not a shorter one: a new search, genre
-        // or filter replaces it, and a cursor measured against the old one points into the
-        // middle of the new results and would skip them. Same thing after a rotation, where the
-        // cursor survives but the adapter it was feeding does not. Either way the row restarts.
+
         if (snapshot.size < animeFranchiseCursor) {
             Logger.log(
                 "Franchise(anime) publish: results at ${snapshot.size} but cursor is at " +
@@ -149,8 +104,7 @@ class AnimeFragment : Fragment() {
             )
             animeFranchiseCursor = 0
             adaptor.clear()
-            // The row behind the search is a new one, so a query left in the field would be
-            // filtering cards that are gone.
+
             animeFranchiseSearch?.clearQuery()
         }
         if (animeFranchiseCursor >= snapshot.size) {
@@ -158,23 +112,16 @@ class AnimeFragment : Fragment() {
             return
         }
 
-        // At most one batch of seeds per call. Kitsu is five requests a seed, so claiming a
-        // whole 50-title page up front is what made the first card take minutes; the row takes
-        // a page's worth of titles and asks for the rest as the user scrolls.
         val end = min(animeFranchiseCursor + SEED_BATCH, snapshot.size)
         val window = (animeFranchiseCursor until end).mapNotNull { snapshot.getOrNull(it) }
         animeFranchiseCursor = end
 
-        // A new page re-reports seeds that are already in flight or already on screen.
-        // Re-walking Kitsu for those is the request cost this change exists to avoid.
         val seeds = window.filterNot { adaptor.hasCardFor(it.id) || adaptor.isPending(it.id) }
         if (seeds.isEmpty()) {
             Logger.log("Franchise(anime) publish: ${window.size} in window, all already done or pending")
             return
         }
 
-        // markPending claims the seeds, so a concurrent page overlap cannot race in on the
-        // same ones between the filter above and this call.
         val claimed = adaptor.markPending(seeds.map { it.id })
             .mapNotNull { id -> seeds.firstOrNull { it.id == id } }
         if (claimed.isEmpty()) {
@@ -185,50 +132,32 @@ class AnimeFragment : Fragment() {
         animeFranchiseResolving = true
         updateAnimeFranchiseState()
 
-        // A placeholder for every seed that has relations, published before a single request
-        // goes out. This is pure work on data the AniList page already carries, so the row has
-        // something in it on the next frame. Waiting for Kitsu first is what made the row look
-        // empty: each seed costs Kitsu five sequential requests, so a 50-seed page took minutes
-        // before the first card could be built at all.
         val stubs = claimed.mapNotNull { seed ->
             FranchiseStub.fromMedia(seed)?.let { card -> seed.id to card }
         }
         val stubByName = stubs.associate { (_, card) -> card.name to card }
         val stubNames = stubs.associate { (id, card) -> id to card.name }
         if (stubNames.isNotEmpty()) {
-            // Keyed by name, not by seed id: upsert replaces by the name a card went out under.
+
             adaptor.upsert(stubByName)
             updateAnimeFranchiseState()
             Logger.log("Franchise(anime) published ${stubNames.size} placeholder cards immediately")
         }
 
-        // Kitsu then upgrades the placeholders it can answer for and supplies cards for the
-        // seeds that had no relations to stub from. Bounded rather than serial, because the whole
-        // cost of this row is the number of round trips and each one is independent.
         lifecycleScope.launch {
             var resolvedCount = 0
             claimed.chunked(KITSU_CONCURRENCY * 2).forEach { chunk ->
-                // The gate still bounds how many Kitsu requests are actually open at once, which
-                // chunking alone would not: the chunk sizes how many are in flight, the gate
-                // how many are on the wire.
+
                 val gate = Semaphore(KITSU_CONCURRENCY)
                 val pending = chunk.map { seed ->
-                    // Launched on IO rather than gathered inside a withContext: withContext waits
-                    // for its own children, so wrapping the awaits in one would finish every
-                    // request before publishing any of them — exactly the wait being removed.
+
                     async(Dispatchers.IO) { gate.withPermit { Kitsu.franchiseCard(seed.id) } }
                 }
-                // Awaited one at a time and published as each lands, rather than gathered per
-                // chunk and published in a block. The chunking still bounds how many Kitsu
-                // requests are open; it just no longer also dictates when the user sees
-                // anything, which is what made the row visibly lurch each time a chunk of
-                // placeholders was swapped out from under the user's thumb.
+
                 pending.forEachIndexed { index, job ->
                     val card = job.await() ?: return@forEachIndexed
                     resolvedCount++
-                    // Replace the placeholder by the name it was published under, so a
-                    // franchise whose resolved name differs from its seed's still lands in the
-                    // right slot rather than beside it.
+
                     val provisional = stubNames[chunk[index].id] ?: card.name
                     adaptor.upsert(mapOf(provisional to card))
                 }
@@ -241,22 +170,13 @@ class AnimeFragment : Fragment() {
             animeFranchiseResolving = false
             updateAnimeFranchiseState()
             Logger.log("Franchise(anime) built row of ${adaptor.currentCards().size} cards from ${claimed.size} seeds")
-            // Re-sort once everything has landed so the row ends in the user's chosen order.
-            // The incremental upserts above append in resolution order, which is arrival order.
+
             sortAnimeFranchises()
         }
     }
 
-    /** The row's sort, direction and single-entry choice, read fresh from preferences. */
     private fun animeFranchisePrefs() = FranchiseListPrefs.read()
 
-    /**
-     * Re-submits every card in the row's current order.
-     *
-     * Sorting is local, so nothing is refetched here: the ranking lives on each card and every
-     * ordering is a permutation of what the adapter already holds. The random case is the one
-     * exception, since its permutation comes from a fresh shuffle.
-     */
     private fun applyAnimeFranchiseSort(ranks: AnilistFranchiseRanks.Ranks? = null) {
         val adaptor = animeFranchiseAdapter ?: return
         val prefs = animeFranchisePrefs()
@@ -268,9 +188,7 @@ class AnimeFragment : Fragment() {
         }
         val shuffled = if (prefs.sort == FranchiseSort.RANDOM) ranked.shuffled() else ranked
         val sorted = FranchiseSorter.apply(ranked, prefs, shuffled)
-        // The order is logged, not just the counts: "Popular" and "Trending" both lean on a
-        // ranking fetched off-screen, and a row that reorders is otherwise indistinguishable
-        // from one that did nothing.
+
         Logger.log(
             "Franchise(anime) sort=${prefs.sort} dir=${prefs.direction} " +
                 "showSingle=${prefs.showSingleEntry} ranked=${ranks != null}: ${ranked.size} in, " +
@@ -279,14 +197,6 @@ class AnimeFragment : Fragment() {
         adaptor.submit(sorted)
     }
 
-    /**
-     * Sorts the row, fetching an AniList ranking first if the chosen sort needs one.
-     *
-     * Kitsu groups the entries well but reports no popularity or trending figure on any of them,
-     * so Trending and Most Popular have nothing to order by until AniList supplies a position.
-     * That ranking is one cached query for the process, not one request per card, and it is
-     * fetched only for the two sorts that need it.
-     */
     private fun sortAnimeFranchises() {
         val wanted = animeFranchisePrefs().sort
         val needsRanks = wanted == FranchiseSort.TRENDING || wanted == FranchiseSort.POPULAR
@@ -299,29 +209,18 @@ class AnimeFragment : Fragment() {
                 FranchiseSort.POPULAR -> AnilistFranchiseRanks.popular()
                 else -> return@launch
             }
-            // The sort may have changed, or another ranking may have landed, while this one was
-            // in flight. Only the newest request is allowed to touch the row.
+
             if (generation != animeFranchiseSortGeneration) return@launch
             if (animeFranchisePrefs().sort != wanted) return@launch
             applyAnimeFranchiseSort(ranks)
         }
     }
 
-    /**
-     * The sort pill, direction control and dialog for the anime Franchise row.
-     *
-     * Same behaviour as the movie row. The difference is in the data: these cards arrive a page
-     * at a time, and Trending and Most Popular need AniList to rank them.
-     */
     private fun setupAnimeFranchiseSort() {
-        // The search is wired before the guard below, because the page's view can be replaced
-        // while the sort's listeners stay valid: a new view needs a new bar, the same view
-        // does not need a second one.
+
         animeFranchiseAdapter?.let { setupAnimeFranchiseSearch(it) }
         if (animeFranchiseSortWired) return
-        // The pill and direction button live in the page item layout AnimePageAdapter inflates,
-        // so they are reached through *its* binding, not the fragment's and not the franchise
-        // adapter's. Only the row's own adapter is needed as a field, for re-sorting.
+
         val adaptor = animeFranchiseAdapter ?: return
         animeFranchiseSortWired = true
         val pill = animePageAdapter.binding.animeFranchiseSortPill
@@ -341,9 +240,7 @@ class AnimeFragment : Fragment() {
         direction.setSafeOnClickListener {
             val current = animeFranchisePrefs()
             if (current.sort == FranchiseSort.RANDOM) {
-                // A shuffle has no ascending or descending form, so this cannot change the
-                // order. It re-rolls, and says so rather than claiming a direction that does
-                // not apply.
+
                 snackString(R.string.franchise_randomized, requireActivity())
             } else {
                 val next = current.direction.inverted()
@@ -356,16 +253,9 @@ class AnimeFragment : Fragment() {
         updatePill()
     }
 
-    /**
-     * The row's own search: a lens button beside the title that opens a bar under it.
-     *
-     * The search filters the cards the row already holds, so it costs nothing: no request is
-     * made for it and clearing it brings the whole row back.
-     */
     private fun setupAnimeFranchiseSearch(adaptor: FranchiseAdaptor) {
         val binding = animePageAdapter.binding
-        // The same page view is wired once. A new one means the old bar belongs to a view
-        // that is gone, so it is released rather than left listening.
+
         if (animeFranchiseSearch?.button === binding.animeFranchiseSearch) return
         animeFranchiseSearch?.release()
         animeFranchiseSearch = InlineSearchBar(
@@ -379,14 +269,6 @@ class AnimeFragment : Fragment() {
         updateAnimeFranchiseState()
     }
 
-    /**
-     * Says what the row is doing: still loading, empty, or filtered down to nothing.
-     *
-     * An empty row under its own title is ambiguous, and a reader who scrolled down before
-     * the cards landed had no way to tell "still loading" from "there is nothing here" — so
-     * the section looked like it did not exist and had to be found again later. The spinner
-     * says the first, the line under the search bar says the second and the third.
-     */
     private fun updateAnimeFranchiseState() {
         val adaptor = animeFranchiseAdapter ?: return
         val binding = animePageBinding ?: return
@@ -402,25 +284,11 @@ class AnimeFragment : Fragment() {
         if (message != null) binding.animeFranchiseMessage.setText(message)
     }
 
-    /**
-     * Whether more cards can still land in the row.
-     *
-     * True while a batch of seeds is resolving, while no AniList page has arrived at all, and
-     * while the AniList list can still grow. The row is fed by that list, so an empty row is
-     * not the same thing as a finished one.
-     */
     private fun animeFranchiseStillLoading(): Boolean =
         animeFranchiseResolving ||
             model.aniMangaSearchResults.results.isEmpty() ||
             model.aniMangaSearchResults.hasNextPage
 
-    /**
-     * Puts the franchise header at the top of the screen.
-     *
-     * Opening the search bar pushes the row down by the bar's own height, so the results the
-     * reader is looking for get pushed out of view by the very control that is meant to find
-     * them. Scrolling the header back up puts the bar and the results together in view.
-     */
     private fun scrollAnimeFranchiseHeaderIntoView() {
         val rv = binding.animePageRecyclerView
         val header = animePageBinding?.animeFranchiseHeader ?: return
@@ -432,11 +300,6 @@ class AnimeFragment : Fragment() {
         if (delta > 0) rv.smoothScrollBy(0, -delta)
     }
 
-    /**
-     * Opens the franchise screen for a pressed card.
-     *
-     * @param view the card's banner, so the screen can transition out of it rather than cutting.
-     */
     private fun openFranchise(card: Franchise, view: View) {
         view.transitionName = FRANCHISE_TRANSITION
         startActivity(
@@ -450,27 +313,11 @@ class AnimeFragment : Fragment() {
     }
 
     private companion object {
-        /** Shared-element name for the card banner handing off to the franchise screen. */
+
         const val FRANCHISE_TRANSITION = "franchiseCard"
 
-        /**
-         * Kitsu requests in flight at once while a page's seeds are resolved.
-         *
-         * Each seed costs about five sequential Kitsu calls, so a 50-seed page is roughly 250
-         * round trips; serially that took minutes, which is what left the row spinning. Six at a
-         * time collapses the same work into a fraction of the wall clock while staying well
-         * inside what the Kitsu API will serve without rate-limiting.
-         */
         const val KITSU_CONCURRENCY = 6
 
-        /**
-         * Titles turned into franchise cards per batch.
-         *
-         * Matches [ani.sanin.connections.trakt.Trakt.BATCH_CARDS] so both rows open on the same
-         * number of cards. Sized against the AniList page rather than the Kitsu cost: these are
-         * resolved six at a time now, so the limit is about how much the row should claim
-         * before the user has scrolled, not about how long a batch takes.
-         */
         const val SEED_BATCH = 29
     }
 
@@ -488,17 +335,14 @@ class AnimeFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
-        // The next view inflates a fresh header, so the wiring flag has to be cleared or the new
-        // pill and direction button would be left with no listeners at all.
+
         animeFranchiseSortWired = false
         animeFranchiseAdapter = null
         animePageBinding = null
         animeFranchiseSearch?.release()
         animeFranchiseSearch = null
         animeFranchiseSortGeneration++
-        // The cursor tracks how far this row's adapter has been fed, and the adapter is going
-        // away with the view. Kept, the fresh adapter would be told the first titles had already
-        // been turned into cards and the row would come back empty after a rotation.
+
         animeFranchiseCursor = 0
     }
 
@@ -545,9 +389,7 @@ class AnimeFragment : Fragment() {
                 sort = Anilist.sortBy[1]
             )
         }
-        // Franchise cards replace the Popular list here exactly as they do in movie mode. The
-        // model still pages AniList below because its results back the shared search state
-        // too; only what the page *shows* changed.
+
         val franchiseAdaptor = FranchiseAdaptor { card, view -> openFranchise(card, view) }
         animeFranchiseAdapter = franchiseAdaptor
         val progressAdaptor = ProgressAdapter(searched = model.searched)
@@ -556,16 +398,12 @@ class AnimeFragment : Fragment() {
         val layout = LinearLayoutManager(requireContext())
         binding.animePageRecyclerView.layoutManager = layout
 
-        // Scrolling the last card into view claims the next batch of titles. The row is the
-        // tail of this list, so this is the gesture that pages it; the cursor makes a repeat
-        // call before the next page has landed a no-op rather than a double claim.
         binding.animePageRecyclerView.onNearEnd {
             publishFranchises(franchiseAdaptor, trigger = "scroll")
         }
 
         var visible = false
-        // The button is laid out visible, so a preference that hides it has to hide it up
-        // front instead of only declining to show it once the list has been scrolled.
+
         val hideScrollTop = PrefManager.getVal<Boolean>(PrefName.HideScrollTopButtons)
         if (hideScrollTop) binding.animePageScrollTop.visibility = View.GONE
         fun animate() {
@@ -592,15 +430,12 @@ class AnimeFragment : Fragment() {
             if (it != null) {
                 val page = model.aniMangaSearchResults.results.size
                 model.aniMangaSearchResults.results.addAll(it.results)
-                // A later page extends the shared result list, so the new seeds at [page]
-                // only are turned into cards. Republishing everything each time would
-                // rebuild every card already on screen for one new franchise.
+
                 publishFranchises(franchiseAdaptor, trigger = "page $page")
                 model.aniMangaSearchResults.onList = it.onList
                 model.aniMangaSearchResults.hasNextPage = it.hasNextPage
                 model.aniMangaSearchResults.page = it.page
-                // After the paging state is set, not before: whether the row is still waiting
-                // on the list depends on it, so the row's own state is read once it is true.
+
                 updateAnimeFranchiseState()
                 if (it.hasNextPage)
                     progressAdaptor.bar?.visibility = View.VISIBLE
@@ -643,7 +478,7 @@ class AnimeFragment : Fragment() {
                 super.onScrolled(v, dx, dy)
             }
         })
-        // Scroll to top when focus moves to the header area while page is scrolled down
+
         view.viewTreeObserver.addOnGlobalFocusChangeListener { _, newFocus ->
             if (newFocus != null && _binding != null) {
                 val rv = binding.animePageRecyclerView
@@ -661,8 +496,7 @@ class AnimeFragment : Fragment() {
         }
         animePageAdapter.ready.observe(viewLifecycleOwner) { i ->
             if (i) {
-                // Only now does AnimePageAdapter hold an inflated binding for the page item, so
-                // this is the first point the header's controls exist to be wired.
+
                 animePageBinding = animePageAdapter.binding
                 setupAnimeFranchiseSort()
                 model.getUpdated().observe(viewLifecycleOwner) {
@@ -694,7 +528,6 @@ class AnimeFragment : Fragment() {
                 binding.animePageScrollTop.translationY = -(navBarHeight).toFloat()
             }
         }
-
 
         fun load() = scope.launch(Dispatchers.Main) {
         }
@@ -777,9 +610,7 @@ class AnimeFragment : Fragment() {
     override fun onResume() {
         if (!model.loaded) Refresh.activity[this.hashCode()]!!.postValue(true)
         if (this::animePageAdapter.isInitialized && _binding != null) {
-            // The banner type is changed on the settings screen, so the change
-            // is only visible when the user comes back here. Rebuilding just the
-            // banner adapter is enough; it no-ops if the type is unchanged.
+
             animePageAdapter.refreshBannerTypeIfChanged()
             binding.root.requestApplyInsets()
             binding.root.requestLayout()

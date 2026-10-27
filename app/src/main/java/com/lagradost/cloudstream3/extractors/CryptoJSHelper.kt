@@ -9,16 +9,11 @@ import dev.whyoleg.cryptography.algorithms.MD5
 import dev.whyoleg.cryptography.random.CryptographyRandom
 import kotlin.math.min
 
-/**
- * Conforming with CryptoJS AES method
- */
-// see https://gist.github.com/thackerronak/554c985c3001b16810af5fc0eb5c358f
 @Suppress("unused", "FunctionName", "SameParameterValue")
 object CryptoJS {
     private const val KEY_SIZE = 256
     private const val IV_SIZE = 128
 
-    // Seriously crypto-js, what's wrong with you?
     private const val APPEND = "Salted__"
 
     private val provider = CryptographyProvider.Default
@@ -26,11 +21,6 @@ object CryptoJS {
     @OptIn(DelicateCryptographyApi::class)
     private val md5Hasher = provider.get(MD5).hasher()
 
-    /**
-     * Encrypt
-     * @param password passphrase
-     * @param plainText plain string
-     */
     @OptIn(DelicateCryptographyApi::class)
     fun encrypt(password: String, plainText: String): String {
         val saltBytes = generateSalt(8)
@@ -42,7 +32,6 @@ object CryptoJS {
         val cipher = aesKey.cipher(padding = true)
         val cipherText = cipher.encryptWithIvBlocking(iv, plainText.encodeToByteArray())
 
-        // Create CryptoJS-like encrypted: "Salted__" || salt || ciphertext
         val sBytes = APPEND.encodeToByteArray()
         val b = ByteArray(sBytes.size + saltBytes.size + cipherText.size)
         sBytes.copyInto(destination = b, destinationOffset = 0)
@@ -52,12 +41,6 @@ object CryptoJS {
         return base64Encode(b)
     }
 
-    /**
-     * Decrypt
-     * Thanks Artjom B. for this: http://stackoverflow.com/a/29152379/4405051
-     * @param password passphrase
-     * @param cipherText encrypted string
-     */
     @OptIn(DelicateCryptographyApi::class)
     fun decrypt(password: String, cipherText: String): String {
         val ctBytes = base64DecodeArray(cipherText)
@@ -115,7 +98,7 @@ object CryptoJS {
 
         derivedBytes.copyInto(destination = resultKey, destinationOffset = 0, startIndex = 0, endIndex = keySize * 4)
         derivedBytes.copyInto(destination = resultIv, destinationOffset = 0, startIndex = keySize * 4, endIndex = (keySize + ivSize) * 4)
-        return derivedBytes // key + iv
+        return derivedBytes
     }
 
     private fun generateSalt(length: Int): ByteArray =

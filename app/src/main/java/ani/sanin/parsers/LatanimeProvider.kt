@@ -70,7 +70,6 @@ class LatanimeProvider : NativeAnimeParser() {
         )
     }.distinctBy { it.extra?.get("slug") }.toList()
 
-
     override suspend fun loadEpisodes(animeLink: String, extra: Map<String, String>?, sAnime: SAnime): List<Episode> {
         val slug = extra?.get("slug") ?: animeLink.substringAfterLast('/')
         return withContext(Dispatchers.IO) {
@@ -612,7 +611,7 @@ private suspend fun latResolveHls(masterUrl: String, headers: Map<String, String
         val body = latGet(masterUrl, headers["Referer"])
         val lines = body.lines()
         val base = URI(masterUrl)
-        // Parse audio groups from #EXT-X-MEDIA entries
+
         val audioTracks = mutableListOf<Track>()
         for (line in lines) {
             val attrLine = line.trim()

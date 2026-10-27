@@ -24,20 +24,6 @@ import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
 import java.util.Locale
 
-/**
- * Class that handles the loading of the extensions. Supports two kinds of extensions:
- *
- * 1. Shared extension: This extension is installed to the system with package
- * installer, so other variants of Tachiyomi and its forks can also use this extension.
- *
- * 2. Private extension: This extension is put inside private data directory of the
- * running app, so this extension can only be used by the running app and not shared
- * with other apps.
- *
- * When both kinds of extensions are installed with a same package name, shared
- * extension will be used unless the version codes are different. In that case the
- * one with higher version code will be used.
- */
 internal object ExtensionLoader {
 
     private val preferences: SourcePreferences by injectLazy()
@@ -119,7 +105,6 @@ internal object ExtensionLoader {
             return AnimeLoadResult.Error
         }
 
-        // Validate lib version
         val rawLib = appInfo.metaData?.get("tachiyomix.extensionLib")
             ?: appInfo.metaData?.get("tachiyomi.animeextensionLib")
             ?: appInfo.metaData?.get("aniyomi.animeextensionLib")

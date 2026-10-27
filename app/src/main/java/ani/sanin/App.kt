@@ -37,7 +37,6 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.addSingletonFactory
 import uy.kohesive.injekt.api.get
 
-
 @SuppressLint("StaticFieldLeak")
 class App : Application() {
     private lateinit var animeExtensionManager: AnimeExtensionManager
@@ -51,15 +50,9 @@ class App : Application() {
     @OptIn(DelicateCoroutinesApi::class)
     override fun onCreate() {
         super.onCreate()
-        // Installed first: a throw anywhere below in onCreate otherwise happens
-        // before anything is listening, and the process just dies with no trace.
+
         Thread.setDefaultUncaughtExceptionHandler(FinalExceptionHandler())
-        // Chromium allows WebView only in one process per data directory
-        // (crbug.com/558377). This app runs CrashActivity in its own
-        // :error_process, which can also build a WebView — without distinct
-        // data dirs, whichever process initializes WebView second crashes the
-        // app with "Using WebView from more than one process at once". Give
-        // every non-main process its own suffix, as early as possible.
+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
             runCatching {
                 val process = android.app.Application.getProcessName()
@@ -84,7 +77,6 @@ class App : Application() {
         Injekt.importModule(AppModule(this))
         Injekt.importModule(PreferenceModule(this))
 
-
         val useMaterialYou: Boolean = PrefManager.getVal(PrefName.UseMaterialYou)
         if (useMaterialYou) {
             DynamicColors.applyToActivitiesIfAvailable(this)
@@ -103,10 +95,6 @@ class App : Application() {
 
         initializeNetwork()
 
-        // The reels player renders YouTube inside a WebView, and the first WebView built in a
-        // process pays a one-time provider/Chromium init cost — on a TV that is seconds, and it
-        // lands squarely on the player's first frame. Build (and drop) one here, off the launch
-        // path, so the provider is already warm by the time a reel is opened.
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
             runCatching { android.webkit.WebView(this).destroy() }
         }, 2_000L)
@@ -180,12 +168,7 @@ class App : Application() {
 
         override fun onActivityResumed(p0: Activity) {
             currentActivity = p0
-            // Keep CommonActivity.activity pointing at the current foreground
-            // activity. Older .cs3 plugins (Cricify / SKTech checkbox settings)
-            // capture their own SharedPreferences in the CONSTRUCTOR via
-            // CommonActivity.getActivity(); if this is null their prefs object
-            // is null, writes no-op, and the setting never persists. Mirror
-            // Zangetsu's MainActivity.onResume wiring, but globally.
+
             CommonActivity.setActivityInstance(p0)
         }
 
@@ -202,9 +185,6 @@ class App : Application() {
     companion object {
         var instance: App? = null
 
-        /** Reference to the application context.
-         *
-         * USE WITH EXTREME CAUTION!**/
         var context: Context? = null
         fun currentContext(): Context? {
             return instance?.mFTActivityLifecycleCallbacks?.currentActivity ?: context

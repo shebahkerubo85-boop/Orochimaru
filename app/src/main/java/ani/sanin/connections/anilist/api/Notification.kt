@@ -23,7 +23,6 @@ enum class NotificationType(val value: String) {
     MEDIA_MERGE("MEDIA_MERGE"),
     MEDIA_DELETION("MEDIA_DELETION"),
 
-    //custom
     COMMENT_REPLY("COMMENT_REPLY"),
     COMMENT_WARNING("COMMENT_WARNING"),
     SANIN_UPDATE("SANIN_UPDATE"),
@@ -113,10 +112,9 @@ data class Notification(
     val comment: ThreadComment? = null,
     val image: String? = null,
     val banner: String? = null,
-    // Nullable for local in-app TMDB subscription notifications.
-    // "tv" or "movie"; set by NotificationActivity SUBSCRIPTION tab mapping.
+
     val tmdbType: String? = null,
-    // Optional extra episode metadata used by the compact episode card.
+
     val episodeTitle: String? = null,
     val thumbnail: String? = null,
     val durationMinutes: Int? = null,

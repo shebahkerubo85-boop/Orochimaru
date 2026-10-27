@@ -56,13 +56,11 @@ object AesHelper {
         encrypt: Boolean = true,
         padding: String,
     ): String? {
-        // If it ends with NoPadding (e.g. "AES/CBC/NoPadding"), then it
-        // doesn't have padding, otherwise we treat as if it does.
+
         val hasPadding = !padding.endsWith("NoPadding")
         return runBlocking { cryptoAESHandler(data, pass, encrypt, hasPadding) }
     }
 
-    // https://stackoverflow.com/a/41434590/8166854
     fun generateKeyAndIv(
         password: ByteArray,
         salt: ByteArray,
@@ -72,7 +70,7 @@ object AesHelper {
         iterations: Int = 1,
     ): Pair<ByteArray, ByteArray>? {
         return try {
-            val digestLength = 16 // MD5 digest is always 16 bytes
+            val digestLength = 16
             val targetKeySize = keyLength + ivLength
             val requiredLength = (targetKeySize + digestLength - 1) / digestLength * digestLength
             val generatedData = ByteArray(requiredLength)
@@ -81,7 +79,7 @@ object AesHelper {
             while (generatedLength < targetKeySize) {
                 val hashFn = md5Hasher.createHashFunction()
                 if (generatedLength > 0) {
-                    // update(source, startIndex, endIndex) — endIndex is exclusive
+
                     hashFn.update(generatedData, generatedLength - digestLength, generatedLength)
                 }
                 hashFn.update(password)

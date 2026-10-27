@@ -73,8 +73,6 @@ interface SAnime : Serializable {
     }
 }
 
-// Signature mirrors extensions-lib 17 (extra fields are copied implicitly) so
-// extensions calling copy(...) keep linking after the lib upgrade.
 fun SAnime.copy(
     url: String = this.url,
     title: String = this.title,
@@ -116,8 +114,7 @@ fun SAnime.copyFrom(other: SAnime) {
     update_strategy = other.update_strategy
     fetch_type = other.fetch_type
     season_number = other.season_number
-    // A fresh detail object usually has an empty memo; keep the token the source
-    // stash during search rather than wiping state the extension still needs.
+
     if (other.memo.isNotEmpty()) memo = other.memo
     initialized = other.initialized
 }

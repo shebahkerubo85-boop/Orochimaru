@@ -77,29 +77,17 @@ class DiscoverViewModel : ViewModel() {
     private var categoriesJob: Job? = null
     private var loaded = false
 
-    /**
-     * Monotonic id for the latest query. Only a result carrying the current id may publish;
-     * see [refresh].
-     */
     private val fetchGeneration = AtomicInteger(0)
 
-    /**
-     * Loads Kitsu's category catalogue once.
-     *
-     * The chips are built from this, so it runs alongside the first grid fetch rather than
-     * before it: the grid has a default "All" query to show and should not wait on the
-     * category list. Cached in the ViewModel, so a rotation does not refetch it.
-     */
     fun loadCategories() {
         if (_categories.value.isNotEmpty() || categoriesJob?.isActive == true) return
         categoriesJob = viewModelScope.launch(Dispatchers.IO) {
-            // Keep the complete Kitsu catalogue, including empty grouping categories and NSFW-tagged rows.
+
             val categories = Kitsu.allCategories()
             if (categories.isNotEmpty()) _categories.value = categories
         }
     }
 
-    /** Runs the first load once per ViewModel, so a returning view does not refetch. */
     fun ensureLoaded() {
         if (loaded) return
         loaded = true
@@ -113,21 +101,15 @@ class DiscoverViewModel : ViewModel() {
 
     fun selectSeason(season: DiscoverSeason) {
         _selectedSeason.value = season
-        // Season belongs to the AniList "All" browse; choosing one leaves the Kitsu category
-        // so the two filters never fight over which source feeds the grid.
+
         _selectedCategory.value = null
         refresh()
     }
 
-    /** Re-runs the current selection from its first page; used by the error-state retry. */
     fun retry() = refresh()
 
-    /** Starts a fresh query for the current selection and clears all previous page state. */
     fun refresh() {
-        // Cancelling an in-flight OkHttp call does not interrupt it (`get` is a blocking
-        // request and tryWithSuspend swallows cancellation), so an older request can still
-        // finish after a newer one and would append stale cards. Each query carries a
-        // generation and only the newest is allowed to publish.
+
         val generation = fetchGeneration.incrementAndGet()
         val category = _selectedCategory.value
         val season = _selectedSeason.value
@@ -142,7 +124,6 @@ class DiscoverViewModel : ViewModel() {
         }
     }
 
-    /** Pulls the next Kitsu page when the grid approaches its end. */
     fun loadMore() {
         val state = _uiState.value
         if (state.queryId != fetchGeneration.get()) return
@@ -158,7 +139,6 @@ class DiscoverViewModel : ViewModel() {
         }
     }
 
-    /** Clears a failed "load more" and retries the same page. */
     fun retryLoadMore() {
         val state = _uiState.value
         if (state.isLoadingMore) return
@@ -167,7 +147,7 @@ class DiscoverViewModel : ViewModel() {
     }
 
     private suspend fun loadAnilist(generation: Int, season: DiscoverSeason) {
-        // discoverAnime answers with null on failure, so a null here is the error case.
+
         val list = runCatching {
             Anilist.query.discoverAnime(
                 season = season.apiValue,
@@ -182,15 +162,6 @@ class DiscoverViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Appends consecutive Kitsu pages to [baseItems] until a full batch of new cards has
-     * arrived, the listing is exhausted, or the per-trigger cap is hit.
-     *
-     * A page can lose a third of its rows to entries with no AniList mapping, so a single page
-     * often leaves the grid short; the loop keeps going while it is underfilled so the user is
-     * not left with a half-empty screen and nothing to scroll. Cards are deduplicated by
-     * AniList id because that is the key the detail screen opens on.
-     */
     private suspend fun appendCategoryPages(
         generation: Int,
         category: KitsuCategory,
@@ -206,8 +177,7 @@ class DiscoverViewModel : ViewModel() {
             val result = Kitsu.animeByCategory(category.slug, page + 1)
             if (generation != fetchGeneration.get()) return
             if (result.failed) {
-                // Keep whatever arrived; a failure with nothing to show is the full (centred)
-                // error state, otherwise it is a retryable footer under the grid.
+
                 val nothingYet = items.isEmpty()
                 _uiState.value = DiscoverUiState(
                     queryId = generation,
@@ -248,15 +218,13 @@ class DiscoverViewModel : ViewModel() {
     }
 
     private companion object {
-        /** New cards wanted per load before paging may pause. */
+
         const val PAGE_FILL_TARGET = 20
 
-        /** Upper bound on requests a single load may spend filling the grid. */
         const val MAX_PAGES_PER_TRIGGER = 5
     }
 }
 
-/** The Discovery grid's single source of truth, so loading, empty and error never overlap. */
 data class DiscoverUiState(
     val queryId: Int = 0,
     val items: List<Media> = emptyList(),
@@ -340,7 +308,6 @@ class DiscoveryFragment : Fragment() {
     private var reelEntries: List<ReelFeed.ReelItem> = emptyList()
     private var reelRailCards: List<ReelCard> = emptyList()
 
-    /** In-place category browsing: the shelf grid is swapped for a result grid, TMDB-style. */
     private var animeCategoryOpen = false
     private var shelvesScrollY = 0
     private var animeCategorySlug = ""
@@ -353,18 +320,15 @@ class DiscoveryFragment : Fragment() {
     private lateinit var animeCategoryAdapter: DiscoveryStandardCardAdapter
     private var animeCategoryBackCallback: OnBackPressedCallback? = null
 
-    /** One entry point card on the rail: a show's first video, and where it sits in the feed. */
     private data class ReelCard(
         val title: String,
         val key: String,
         val startIndex: Int,
     )
 
-    /** Backing list of the grid adapter; appended to as pages arrive. */
     private lateinit var gridItems: MutableList<Media>
     private lateinit var gridAdapter: MediaAdaptor
 
-    /** QueryId currently rendered, so a new query rebuilds instead of appending. */
     private var renderedQueryId = -1
 
     private var isTv = false
@@ -391,14 +355,10 @@ class DiscoveryFragment : Fragment() {
         const val MIN_CATEGORY_CONTENT_WIDTH_DP = 140
         const val MAX_CATEGORY_COLUMNS = 2
 
-        /** Retry a category's poster a few times before giving up, so a transient failure does
-         *  not blank the card forever but a persistent one cannot spin the scanner. */
         const val CATEGORY_ARTWORK_MAX_ATTEMPTS = 3
 
-        /** Shows seeded into the top reels rail; the player pages the rest of the pool itself. */
         const val RAIL_ANIME_COUNT = 12
 
-        /** Page size for the in-place anime category result grid. */
         const val ANIME_CATEGORY_PAGE_SIZE = 20
     }
 
@@ -424,10 +384,6 @@ class DiscoveryFragment : Fragment() {
         setupAvatar()
         setupAnimeCategoryResults()
 
-        // Discovery is now the curated category landing page. The old genre/season chips,
-        // AniList results grid and editorial shelves are intentionally not initialized here, so
-        // they cannot issue unrelated network requests or reappear. The trailer-carousel host is
-        // reused for the anime reels rail, which loads just below the search bar.
         binding.genreChipGroup.visibility = View.GONE
         binding.seasonChipGroup.visibility = View.GONE
         binding.discoverRecyclerView.visibility = View.GONE
@@ -438,15 +394,13 @@ class DiscoveryFragment : Fragment() {
         binding.discoverLoadMoreErrorGroup.visibility = View.GONE
         binding.discoverEditorialShelves.visibility = View.GONE
 
-        // The first actual card is assigned as the D-pad destination when the grid is built.
         binding.discoverSearchBar.nextFocusDownId = View.NO_ID
         binding.discoverAvatar.nextFocusDownId = View.NO_ID
         binding.discoverAvatar.nextFocusLeftId = R.id.discoverSearchBar
 
         binding.discoverScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
             if (animeCategoryOpen) {
-                // The result grid lives inside this scroll view (nested scrolling is off), so
-                // paging is driven here rather than by the grid's own scroll listener.
+
                 val resultsContent = binding.discoverScroll.getChildAt(0)?.height
                     ?: return@setOnScrollChangeListener
                 if (scrollY + binding.discoverScroll.height >= resultsContent - dp(500)) {
@@ -465,13 +419,11 @@ class DiscoveryFragment : Fragment() {
             loadVisibleCategoryArtwork()
         }
         renderCategoryGrid()
-        // The grid has no rows until it is measured, so scan for artwork once layout completes.
+
         binding.discoverCategoryGrid.post { if (_binding != null) loadVisibleCategoryArtwork() }
-        // The reel rail sits above the category grid; start it immediately so its cards are
-        // ready by the time the grid header has painted.
+
         loadReelRail()
-        // Start catalogue loading immediately; users should not have to scroll to the bottom
-        // of the curated 64 before the remaining categories begin fetching.
+
         loadNextRemainingCategoryBatch()
         if (isTv) {
             binding.discoverSearchBar.post {
@@ -480,7 +432,6 @@ class DiscoveryFragment : Fragment() {
         }
     }
 
-    /** Reveal ten unchosen Kitsu categories per scroll-to-bottom trigger. */
     private fun revealNextCategoryBatch() {
         if (visibleCuratedCategoryCount >= allDiscoveryCategories.size) return
         val start = visibleCuratedCategoryCount
@@ -490,7 +441,6 @@ class DiscoveryFragment : Fragment() {
         loadVisibleCategoryArtwork()
     }
 
-    /** Short editorial hooks for the long-tail Kitsu categories; source blurbs are often definitions. */
     private fun discoveryCategoryDescription(category: KitsuCategory): String {
         val title = category.title.trim()
         val key = title.lowercase(java.util.Locale.ROOT)
@@ -573,10 +523,6 @@ class DiscoveryFragment : Fragment() {
         }
     }
 
-    /**
-     * Fetch the remaining public Kitsu category catalogue as soon as Discovery opens.
-     * The curated 64 stay first; the next unique categories are revealed ten at a time.
-     */
     private fun loadNextRemainingCategoryBatch() {
         if (remainingCategoriesLoading || remainingCategoriesLoaded) return
         remainingCategoriesLoading = true
@@ -587,7 +533,7 @@ class DiscoveryFragment : Fragment() {
                 if (_binding == null) return@withContext
                 remainingCategoriesLoading = false
                 if (fetched.isEmpty()) {
-                    // An empty response can mean a network failure. Leave this retryable.
+
                     renderCategoryGrid()
                     return@withContext
                 }
@@ -617,7 +563,6 @@ class DiscoveryFragment : Fragment() {
         }
     }
 
-    /** Update URL tags without rebuilding cards, preserving focus and scroll position. */
     private fun updateCategoryArtworkUrls() {
         val host = _binding?.discoverCategoryGrid ?: return
         for (rowIndex in 1 until host.childCount) {
@@ -636,16 +581,11 @@ class DiscoveryFragment : Fragment() {
         }
     }
 
-    /**
-     * Resolve artwork only for cards near the viewport. The thumbnail endpoint is filtered by
-     * that card's exact Kitsu category, so every poster comes from inside the category itself.
-     */
     private fun loadVisibleCategoryArtwork() {
         val currentBinding = _binding ?: return
         val host = currentBinding.discoverCategoryGrid
         val scroll = currentBinding.discoverScroll
-        // Before layout every card reports zero size and would look "visible", triggering a mass
-        // fetch. Callers scan again after layout; just skip until then.
+
         if (scroll.height <= 0 || host.height <= 0) return
         val viewportTop = scroll.scrollY - dp(240)
         val viewportBottom = scroll.scrollY + scroll.height + dp(500)
@@ -671,8 +611,6 @@ class DiscoveryFragment : Fragment() {
                     continue
                 }
 
-                // A completed fetch is remembered in categoryArtwork (even with a null poster) so
-                // it is not requested again; only a card currently in flight is skipped here.
                 if (categoryArtwork.containsKey(slug) || !categoryArtworkLoading.add(slug)) continue
                 val attempts = categoryArtworkAttempts.getOrDefault(slug, 0)
                 if (attempts >= CATEGORY_ARTWORK_MAX_ATTEMPTS) {
@@ -682,18 +620,10 @@ class DiscoveryFragment : Fragment() {
                 categoryArtworkAttempts[slug] = attempts + 1
                 val generation = categoryArtworkGeneration
                 viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-                    // Kitsu already carries each entry's own poster on the category listing, so
-                    // no AniList round-trip is needed. Asking AniList once per visible card was
-                    // the Discovery tab's rate-limit source: dozens of rapid calls trip AniList's
-                    // burst limiter, after which every AniList query fails and posters stop
-                    // loading. The Kitsu poster is guaranteed to belong to this exact category,
-                    // and an entry without one simply contributes no candidate.
-                    // A fetch that throws stays unresolved so a later scan retries it; only a
-                    // successful fetch (even one that yields no poster) is remembered. Caching
-                    // failures as "no artwork" was leaving middle cards blank for the whole visit.
+
                     val resolved = java.util.concurrent.atomic.AtomicBoolean(false)
                     val poster = categoryArtworkSemaphore.withPermit {
-                        // A request from an earlier visit must not reserve a poster in this visit.
+
                         if (generation != categoryArtworkGeneration) return@withPermit null
                         runCatching {
                             val covers = Kitsu.animeByCategory(slug, page = 1).media
@@ -709,8 +639,7 @@ class DiscoveryFragment : Fragment() {
                         }.onSuccess { resolved.set(true) }.getOrNull()
                     }
                     withContext(Dispatchers.Main) {
-                        // Ignore stale visits before touching the loading set: a newer visit may
-                        // already be resolving artwork for this same category.
+
                         if (_binding == null || generation != categoryArtworkGeneration) return@withContext
                         categoryArtworkLoading.remove(slug)
                         if (resolved.get()) {
@@ -764,14 +693,10 @@ class DiscoveryFragment : Fragment() {
     }
 
     private fun loadKitsuCategories() {
-        // Kept as a no-network compatibility entry point for any older internal caller.
+
         renderCategoryGrid()
     }
 
-    /**
-     * Render the first 64 editorial categories, then up to 86 live categories in batches of ten.
-     * Column count and card widths are calculated from the measured grid width in either orientation.
-     */
     private fun renderCategoryGrid() {
         val host = _binding?.discoverCategoryGrid ?: return
         val context = host.context
@@ -803,14 +728,13 @@ class DiscoveryFragment : Fragment() {
         }
         val availableWidthDp = ((host.width - host.paddingLeft - host.paddingRight) /
             resources.displayMetrics.density).toInt().coerceAtLeast(1)
-        // This threshold selects the column count only; cards remain weight-based and expand
-        // to the measured width after the 3dp edge padding and 18dp gaps.
+
         val columnCount = ((availableWidthDp + CATEGORY_COLUMN_GAP_DP) /
             (MIN_CATEGORY_CONTENT_WIDTH_DP + CATEGORY_COLUMN_GAP_DP))
             .coerceIn(1, MAX_CATEGORY_COLUMNS)
         if (renderedCategoryColumnCount != 0 && renderedCategoryColumnCount != columnCount) {
             val focusedSlug = host.findFocus()?.tag as? String
-            // Keep the heading, discard old rows/footer, then rebuild at the new measured width.
+
             while (host.childCount > 1) host.removeViewAt(1)
             renderedCuratedCategoryCount = 0
             renderedCategoryColumnCount = columnCount
@@ -876,8 +800,7 @@ class DiscoveryFragment : Fragment() {
                         tag = CategoryArtworkTag(categoryArtwork[category.kitsuSlug])
                     }
                     artworkFrame.addView(artworkImage)
-                    // Fade all four poster edges into the card surface. A full-frame horizontal
-                    // gradient only blended the edge nearest the text column.
+
                     fun addArtworkFade(
                         orientation: GradientDrawable.Orientation,
                         colors: IntArray,
@@ -932,8 +855,7 @@ class DiscoveryFragment : Fragment() {
                         setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
                         setPadding(0, dp(4), 0, 0)
                     })
-                    // Mirror the two-column grid: posters face the outside screen edges,
-                    // with each category's title and description toward the centre.
+
                     if (columnIndex == 0) {
                         card.addView(artworkFrame)
                         card.addView(textColumn)
@@ -993,11 +915,6 @@ class DiscoveryFragment : Fragment() {
         }
     }
 
-    /**
-     * Wires the in-place category result grid. A category tap swaps the shelf grid for this
-     * grid under the same search bar and trailer rail, exactly like the TMDB discovery screen,
-     * instead of pushing a separate results activity.
-     */
     private fun setupAnimeCategoryResults() {
         animeCategoryAdapter = DiscoveryStandardCardAdapter { card ->
             if (card.id <= 0) {
@@ -1059,7 +976,7 @@ class DiscoveryFragment : Fragment() {
         binding.discoverCategoryStatus.visibility = View.GONE
         binding.discoverCategoryProgress.visibility = View.GONE
         binding.discoverCategoryGrid.visibility = View.VISIBLE
-        // Return to the shelf position captured when the category was opened.
+
         val target = shelvesScrollY
         binding.discoverScroll.post { if (_binding != null) binding.discoverScroll.scrollTo(0, target) }
     }
@@ -1099,7 +1016,7 @@ class DiscoveryFragment : Fragment() {
             var added = false
             var attempts = 0
             do {
-                // Resolve the curated slug against the live catalogue once, then page results.
+
                 if (resolvedAnimeCategorySlug == null && animeCategoryOffset == 0 && animeCategoryAdapter.isEmpty()) {
                     val matched = withContext(Dispatchers.IO) {
                         runCatching {
@@ -1147,7 +1064,7 @@ class DiscoveryFragment : Fragment() {
                 animeCategoryOffset += page.rawCount
                 animeCategoryEndReached = !page.hasMore
                 if (page.items.isNotEmpty()) {
-                    // Kitsu supplies the membership; AniList supplies the poster for mapped ids.
+
                     val anilistIds = page.items.mapNotNull { it.anilistId }.distinct()
                     val covers = if (anilistIds.isEmpty()) {
                         emptyMap<Int, String>()
@@ -1197,7 +1114,6 @@ class DiscoveryFragment : Fragment() {
     private fun normalizeAnimeCategoryKey(value: String): String =
         value.lowercase(java.util.Locale.ROOT).filter { it.isLetterOrDigit() }
 
-    /** Loads the anime reels feed once, then renders the rail of entry-point cards. */
     private fun loadReelRail() {
         if (reelRailLoaded) {
             renderReelRail()
@@ -1211,8 +1127,7 @@ class DiscoveryFragment : Fragment() {
                 }.getOrNull()
             }
             reelEntries = entries ?: emptyList()
-            // One card per show, in the order each first appears in the mixed feed, so a tap
-            // drops the viewer at that show's first video without breaking the interleave.
+
             val seen = HashSet<String>()
             reelRailCards = reelEntries.mapIndexedNotNull { index, item ->
                 if (seen.add(item.animeTitle)) ReelCard(item.animeTitle, item.key, index) else null
@@ -1306,7 +1221,6 @@ class DiscoveryFragment : Fragment() {
         host.addView(scroll)
     }
 
-    /** Opens the vertical reels player at [startIndex], continuing the mixed feed from there. */
     private fun openReelPlayer(startIndex: Int) {
         if (reelEntries.isEmpty() || !isAdded) return
         val intent = Intent(requireContext(), YouTubeShortsPlayerActivity::class.java).apply {
@@ -1314,8 +1228,7 @@ class DiscoveryFragment : Fragment() {
                 YouTubeShortsPlayerActivity.EXTRA_VIDEO_IDS,
                 ArrayList(reelEntries.map { it.key })
             )
-            // The top header shows the actual video name ("Naruto – Opening 1"); the bottom pill
-            // shows the show's name ("Naruto"); the rest labels the synopsis/genre block.
+
             putStringArrayListExtra(
                 YouTubeShortsPlayerActivity.EXTRA_TITLES,
                 ArrayList(reelEntries.map { it.videoName })
@@ -1336,8 +1249,7 @@ class DiscoveryFragment : Fragment() {
                 YouTubeShortsPlayerActivity.EXTRA_COVERS,
                 ArrayList(reelEntries.map { it.cover ?: "" })
             )
-            // The show's AniList id per item, so tapping the bottom pill can open that show's
-            // info page.
+
             putIntegerArrayListExtra(
                 YouTubeShortsPlayerActivity.EXTRA_ANIME_IDS,
                 ArrayList(reelEntries.map { it.anilistId })
@@ -1348,17 +1260,9 @@ class DiscoveryFragment : Fragment() {
         startActivity(intent)
     }
 
-    /**
-     * Loads a card's 16:9 artwork, falling back to the always-present thumbnail when the HD
-     * master is missing (some videos 404 on it). Glide reports that miss as a load failure, so we
-     * swap in the fallback rather than surfacing the error placeholder.
-     */
     private fun ImageView.loadReelThumbnail(key: String) {
         val view = this
-        // Glide forbids starting a new load inside a RequestListener (it throws
-        // "You can't start or clear loads in RequestListener or Target callbacks"), so the
-        // fallback goes through RequestBuilder#error instead: a 404 on the HD thumbnail still
-        // leaves Glide itself to run the standard-quality request.
+
         Glide.with(view)
             .load(ReelFeed.thumbnailUrl(key))
             .error(Glide.with(view).load(ReelFeed.thumbnailFallbackUrl(key)))
@@ -1386,8 +1290,7 @@ class DiscoveryFragment : Fragment() {
             }
         }
         binding.discoverSearchText.setOnClickListener { openSearch() }
-        // D-pad focus lands on the pill (TextInputLayout) — make the whole
-        // pill behave like one button so OK/Enter opens search, not just touch.
+
         binding.discoverSearchBar.isClickable = true
         binding.discoverSearchBar.isFocusableInTouchMode = true
         binding.discoverSearchBar.setOnClickListener { openSearch() }
@@ -1424,15 +1327,6 @@ class DiscoveryFragment : Fragment() {
         discoverViewModel.loadCategories()
     }
 
-    /**
-     * Rebuilds the category row.
-     *
-     * On a phone that is a fixed "All" chip followed by every Kitsu category. On a TV the full
-     * row would be a long sideways scroll for a d-pad, so it collapses to "All" plus a single
-     * browse chip that opens a picker. The catalogue arrives asynchronously, so this runs first
-     * with just "All" and again once it lands; the current selection is read on each pass so
-     * the checked chip survives the rebuild rather than snapping back to the first one.
-     */
     private fun renderCategoryChips(categories: List<KitsuCategory>) {
         if (!isAdded || _binding == null) return
         val group = binding.genreChipGroup
@@ -1446,8 +1340,7 @@ class DiscoveryFragment : Fragment() {
         }
         if (isTv) {
             if (categories.isEmpty()) return
-            // Opens the picker without toggling itself: the check reflects the actual selection
-            // and is only rebuilt when one is made, so cancelling the dialog leaves it alone.
+
             val browse = Chip(group.context).apply {
                 text = selected?.title ?: getString(R.string.categories)
                 isCheckable = true
@@ -1467,7 +1360,6 @@ class DiscoveryFragment : Fragment() {
         }
     }
 
-    /** One checkable category chip, styled and wired like the rest of the Discovery row. */
     private fun addCategoryChip(
         group: ChipGroup,
         textColor: Int,
@@ -1491,19 +1383,17 @@ class DiscoveryFragment : Fragment() {
         group.addView(chip)
     }
 
-    /** Applies a category choice and keeps the season row in sync: seasons only browse "All". */
     private fun applyCategorySelection(category: KitsuCategory?) {
         val hadCategory = discoverViewModel.selectedCategory.value != null
         discoverViewModel.selectCategory(category)
         setSeasonRowEnabled(category == null)
-        // Re-checking in place (rather than re-inflating) keeps the season row's D-pad focus.
+
         if (category != null) {
             binding.seasonChipGroup.clearCheck()
         } else if (hadCategory) {
             checkSeasonChip(discoverViewModel.selectedSeason.value)
         }
-        // TV shows one browse chip instead of the full row, so its label and check are the only
-        // thing reflecting the choice; update them without rebuilding the chip under the focus.
+
         if (isTv) {
             (binding.genreChipGroup.getChildAt(1) as? Chip)?.apply {
                 text = category?.title ?: getString(R.string.categories)
@@ -1512,10 +1402,6 @@ class DiscoveryFragment : Fragment() {
         }
     }
 
-    /**
-     * Seasons belong to the AniList "All" browse, so a Kitsu category dims and disables the row
-     * instead of leaving a lit chip that no longer applies to the grid.
-     */
     private fun setSeasonRowEnabled(enabled: Boolean) {
         val group = binding.seasonChipGroup
         group.isEnabled = enabled
@@ -1525,7 +1411,6 @@ class DiscoveryFragment : Fragment() {
         }
     }
 
-    /** Re-checks the stored season chip after the row is re-enabled, without re-fetching. */
     private fun checkSeasonChip(season: DiscoverSeason) {
         val group = binding.seasonChipGroup
         group.clearCheck()
@@ -1538,7 +1423,6 @@ class DiscoveryFragment : Fragment() {
         }
     }
 
-    /** TV-only picker: the full category list in a dialog so a d-pad is not stuck scrolling. */
     private fun showCategoryPicker() {
         if (!isAdded) return
         val categories = discoverViewModel.categories.value
@@ -1584,20 +1468,17 @@ class DiscoveryFragment : Fragment() {
                     binding.seasonChipGroup.clearCheck()
                     isChecked = true
                     discoverViewModel.selectSeason(season)
-                    // A season leaves the Kitsu category, so the row has to show "All" again;
-                    // it is updated in place so the focused season chip keeps D-pad focus.
+
                     updateCategoryRowToAll()
                 }
             }
             FocusEffectUtil.applyFocusListener(chip)
             binding.seasonChipGroup.addView(chip)
         }
-        // A rotated view rebuilds the chips but the ViewModel kept its category selection, so an
-        // active category must re-dim the row on restore rather than looking tappable.
+
         setSeasonRowEnabled(discoverViewModel.selectedCategory.value == null)
     }
 
-    /** Puts the category row back on "All" after a season pick, without re-inflating it. */
     private fun updateCategoryRowToAll() {
         val group = binding.genreChipGroup
         for (index in 0 until group.childCount) {
@@ -1615,8 +1496,7 @@ class DiscoveryFragment : Fragment() {
         binding.discoverRecyclerView.apply {
             val dm = resources.displayMetrics
             layoutManager = GridLayoutManager(requireContext(), TmdbCards.gridSpan(dm.widthPixels / dm.density))
-            // matchParent: the card takes the column width, so the count can follow the
-            // screen instead of a hardcoded 3 that is right on a phone and wrong on a TV.
+
             adapter = gridAdapter
             isNestedScrollingEnabled = false
             isFocusable = true
@@ -1628,8 +1508,7 @@ class DiscoveryFragment : Fragment() {
                 } else false
             }
         }
-        // The grid is wrap_content inside a NestedScrollView, so it never scrolls itself; the
-        // next page is pulled once the surrounding scroll closes to within a screen of its end.
+
         binding.discoverScroll.setOnScrollChangeListener { _, _, _, _, _ ->
             val content = binding.discoverScroll.getChildAt(0)?.height ?: return@setOnScrollChangeListener
             val remaining = content - binding.discoverScroll.scrollY - binding.discoverScroll.height
@@ -1648,11 +1527,6 @@ class DiscoveryFragment : Fragment() {
         }
     }
 
-    /**
-     * Renders a state without ever swapping the adapter, so scroll position and D-pad focus
-     * survive paging. A new queryId rebuilds the list and jumps to the top; the same query
-     * only ever appends, so later pages animate in below the fold.
-     */
     private fun render(state: DiscoverUiState) {
         val newQuery = state.queryId != renderedQueryId
         if (newQuery) renderedQueryId = state.queryId
@@ -1676,8 +1550,7 @@ class DiscoveryFragment : Fragment() {
         binding.discoverRecyclerView.isVisible = hasItems
         binding.discoverEmptyText.isVisible = !state.isInitialLoading && !state.error && !hasItems
         binding.discoverErrorGroup.isVisible = state.error && !hasItems
-        // The footer lives inside the scrolling content, so hide it whenever there is no grid to
-        // sit under rather than leaving a stray spinner/retry on an empty screen.
+
         binding.discoverLoadingMore.isVisible = hasItems && state.isLoadingMore
         binding.discoverLoadMoreErrorGroup.isVisible = hasItems && state.loadMoreError
     }
@@ -1788,7 +1661,7 @@ class DiscoveryFragment : Fragment() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        // MainActivity handles configChanges, so the measured width can change in place.
+
         _binding?.discoverRecyclerView?.let { TmdbCards.applyGridSpan(it) }
         _binding?.discoverCategoryResultsGrid?.let { TmdbCards.applyGridSpan(it) }
         _binding?.discoverCategoryGrid?.post {

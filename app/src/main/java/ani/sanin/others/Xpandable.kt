@@ -8,7 +8,6 @@ import androidx.core.content.withStyledAttributes
 import androidx.core.view.children
 import ani.sanin.R
 
-
 class Xpandable @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null
 ) : LinearLayout(context, attrs) {

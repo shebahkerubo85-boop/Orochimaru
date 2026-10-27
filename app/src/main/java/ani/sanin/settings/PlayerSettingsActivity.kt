@@ -120,9 +120,6 @@ class PlayerSettingsActivity :
         previewBinding = null
     }
 
-    // ──────────────────────────────────────────────
-    // TAB 1: VIDEO
-    // ──────────────────────────────────────────────
     private fun buildVideoTab() {
         clearTabs()
         val speeds = arrayOf(0.25f, 0.33f, 0.5f, 0.66f, 0.75f, 1f, 1.15f, 1.25f, 1.33f, 1.5f, 1.66f, 1.75f, 2f)
@@ -262,19 +259,14 @@ class PlayerSettingsActivity :
         ))
     }
 
-    // ──────────────────────────────────────────────
-    // TAB 2: SUBTITLE
-    // ──────────────────────────────────────────────
     private fun buildSubtitleTab() {
         clearTabs()
 
-        // Inflate subtitle preview
         val pv = ItemSubtitlePreviewBinding.inflate(layoutInflater, binding.subtitlePreviewContainer, false)
         previewBinding = pv
         binding.subtitlePreviewContainer.addView(pv.root)
         binding.subtitlePreviewContainer.visibility = View.VISIBLE
 
-        // Handle preview expand/collapse
         val subtitleTest = pv.root.findViewById<ani.sanin.others.Xpandable>(R.id.subtitleTest)
         subtitleTest?.addOnChangeListener(object : Xpandable.OnChangeListener {
             override fun onExpand() {
@@ -284,8 +276,6 @@ class PlayerSettingsActivity :
             override fun onRetract() { pv.subtitlePreviewDesc.setText(R.string.sub_preview_expand) }
         })
         updateSubPreview()
-        // No click listener on the header here on purpose: Xpandable already binds
-        // its first child, and a second one fought with the animation.
 
         val allProviders = arrayOf("Wyzie", "Stremio", "OpenSubtitles")
         val allLanguages = arrayOf("en","ar","pt","es","id","fr","ru","zh","ja","tr","it","de","pl","th","vi","ko")
@@ -303,7 +293,7 @@ class PlayerSettingsActivity :
                     iconRes = R.drawable.ic_round_subtitles_24,
                     switch = subtitlesEnabled to { checked ->
                         PrefManager.setVal(PrefName.Subtitles, checked)
-                        // Rebuild this tab so child entries enable/disable together
+
                         binding.tabLayout.getTabAt(1)?.select()
                     },
                 ),
@@ -491,9 +481,6 @@ class PlayerSettingsActivity :
         ))
     }
 
-    // ──────────────────────────────────────────────
-    // TAB 3: PLAYBACK BEHAVIOR
-    // ──────────────────────────────────────────────
     private fun buildPlaybackTab() {
         clearTabs()
         SubscreenBuilder.build(this, binding.tabContent, listOf(
@@ -585,9 +572,6 @@ class PlayerSettingsActivity :
         ))
     }
 
-    // ──────────────────────────────────────────────
-    // TAB 4: PROGRESS BEHAVIOR
-    // ──────────────────────────────────────────────
     private fun buildProgressTab() {
         clearTabs()
         SubscreenBuilder.build(this, binding.tabContent, listOf(
@@ -626,9 +610,6 @@ class PlayerSettingsActivity :
         ))
     }
 
-    // ──────────────────────────────────────────────
-    // COLOR PICKER
-    // ──────────────────────────────────────────────
     private val presetColorNames = arrayOf(
         "White", "Yellow", "Green", "Cyan", "Blue", "Magenta", "Red", "Orange", "Black", "Grey"
     )
@@ -651,13 +632,11 @@ class PlayerSettingsActivity :
         allowNone: Boolean = false,
         callback: (Int) -> Unit,
     ) {
-        // "None" is only meaningful where the colour is a background, and it is
-        // stored as a fully transparent colour so the existing pref shape is kept.
+
         val names = if (allowNone) arrayOf("None") + presetColorNames else presetColorNames
         val colors = if (allowNone) intArrayOf(Color.TRANSPARENT) + presetColors else presetColors
         val current = colors.indexOf(originalColor).let { found ->
-            // A saved colour that is not one of the presets must not fall back to
-            // index 0, or "None" would look selected when it is not.
+
             if (found >= 0) found else if (allowNone) -1 else 0
         }
         val backgroundOff = allowNone && originalColor == Color.TRANSPARENT
@@ -668,13 +647,10 @@ class PlayerSettingsActivity :
                 callback(colors[idx])
             }
             attach { dialog -> shown = dialog }
-            // The list fills the dialog body, so the slider is grafted in under it.
-            // This has to wait for onShow: the list view does not exist until then.
+
             setOnShowListener {
                 val list = shown?.listView
-                // list.parent is a FrameLayout that the list fills, so adding a view
-                // there would draw it on top of the list. The slot below the list is
-                // in the vertical container one level up.
+
                 val listFrame = list?.parent as? ViewGroup
                 val column = listFrame?.parent as? ViewGroup ?: return@setOnShowListener
                 val sliderView = layoutInflater.inflate(
@@ -691,8 +667,7 @@ class PlayerSettingsActivity :
                 sl.value = PrefManager.getVal<Float>(PrefName.SubAlpha).coerceIn(0f, 1f)
                 slValue.text = "${(sl.value * 100).roundToInt()}%"
                 if (backgroundOff) {
-                    // Nothing to make transparent, so the slider is inert until a
-                    // background colour is picked.
+
                     slDesc.text = "Background transparency (off with no background)"
                     sl.isEnabled = false
                     sl.alpha = 0.4f
@@ -702,16 +677,14 @@ class PlayerSettingsActivity :
                 }
                 slDesc.visibility = View.VISIBLE
                 sl.addOnChangeListener { _, value, fromUser ->
-                    // fromUser is false for programmatic DPAD steps, so label both but
-                    // only persist an actual user drag.
+
                     slValue.text = "${(value * 100).roundToInt()}%"
                     if (fromUser && !backgroundOff) {
                         PrefManager.setVal(PrefName.SubAlpha, value)
                         updateSubPreview()
                     }
                 }
-                // Material Slider is not reachable by DPAD on its own here, so wire the
-                // arrows to nudge it, matching the sliders in the settings list.
+
                 sliderView.setOnKeyListener { _, keyCode, event ->
                     if (backgroundOff) return@setOnKeyListener false
                     if (event.action != android.view.KeyEvent.ACTION_DOWN) return@setOnKeyListener false
@@ -736,13 +709,9 @@ class PlayerSettingsActivity :
         }
     }
 
-    // ──────────────────────────────────────────────
-    // SUBTITLE PREVIEW
-    // ──────────────────────────────────────────────
     private fun updateSubPreview() {
         val pv = previewBinding ?: return
-        // Mirrors playback: the slider fades the background colour's alpha, not the
-        // view, so the sample text stays fully legible at every value.
+
         pv.subtitleTestWindow.setBackgroundColor(PrefManager.getVal<Int>(PrefName.SubWindow))
         pv.subtitleTestText.textSize = PrefManager.getVal<Int>(PrefName.FontSize).toFloat()
         pv.subtitleTestText.typeface = when (PrefManager.getVal<Int>(PrefName.Font)) {

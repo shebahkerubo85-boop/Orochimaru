@@ -30,25 +30,6 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-/**
- * Tiny loopback HTTP proxy so HLS streams whose CDNs encrypt or block
- * non-browser clients can still play inside Sanin's ExoPlayer.
- *
- * ExoPlayer only ever talks to `http://127.0.0.1:<port>/stream?...`; every
- * upstream request is made by this proxy through the app's network stack
- * (shared cookie jar + Cloudflare challenge solver, when Cloudflare answers
- * with a detectable 403/503), so cookies/clearances stay consistent.
- *
- * Endpoint params:
- *  - url     original upstream resource (master/variant playlist, segment, subtitle)
- *  - ref     Referer to send upstream
- *  - origin  Origin to send upstream
- *  - pk      base64 32-byte playlist XOR key (flixcloud `_c()`), optional
- *  - mask    base64 16-byte segment XOR mask (flixcloud), optional
- *  - em      "1" for EM3U8v1 AES-GCM-encrypted playlists (senshi/vidcloud)
- *  - sub     "1" for subtitle pass-through
- *  - warm    "1" to seed a hidden WebView against the host once (CF/JS challenge)
- */
 object StreamLocalProxy {
 
     private const val FALLBACK_UA =
@@ -60,7 +41,6 @@ object StreamLocalProxy {
 
     private val warmedHosts = ConcurrentHashMap.newKeySet<String>()
 
-    /** DNS negative cache: host → timestamp when resolution failed. Requests fail fast while entry is fresh. */
     private val dnsFailedHosts = ConcurrentHashMap<String, Long>()
     private const val DNS_FAIL_TTL_MS = 30_000L
     private const val DNS_PROBE_TTL_MS = 60_000L
@@ -85,10 +65,8 @@ object StreamLocalProxy {
     @Volatile private var server: ServerSocket? = null
     @Volatile private var port: Int = -1
 
-    /** Client used for playlists: inherits the app client (cookie jar + Cloudflare solve). */
     private val cfClient: OkHttpClient get() = okHttpClient
 
-    /** Client used for segments/subtitles: no Cloudflare interceptor (no 30s stalls). */
     private val streamClient: OkHttpClient by lazy {
         okhttp3.ConnectionPool(30, 2, TimeUnit.MINUTES).let { pool ->
             OkHttpClient.Builder()
@@ -106,19 +84,17 @@ object StreamLocalProxy {
     private fun extractHost(url: String): String? =
         runCatching { URI(url).host }.getOrNull()
 
-    /** Returns true if the host is not known-bad (or the TTL expired). */
     private fun isHostReachable(url: String): Boolean {
         val host = extractHost(url) ?: return true
         val failTime = dnsFailedHosts[host] ?: return true
         val elapsed = System.currentTimeMillis() - failTime
         if (elapsed > DNS_FAIL_TTL_MS) {
             dnsFailedHosts.remove(host)
-            return true  // allow retry
+            return true
         }
         return false
     }
 
-    /** Cache a host as unreachable for DNS_PROBE_TTL_MS. */
     private fun markHostDnsFailed(host: String) {
         dnsFailedHosts[host] = System.currentTimeMillis()
         Logger.log(Log.WARN, "StreamLocalProxy: DNS failure cached for host=$host (ttl=${DNS_FAIL_TTL_MS / 1000}s)")
@@ -140,7 +116,6 @@ object StreamLocalProxy {
         return "http://127.0.0.1:$port/stream"
     }
 
-    /** Build a proxied URL for an HLS playlist / segment / subtitle. */
     fun proxyUrl(
         original: String,
         referer: String,
@@ -166,10 +141,6 @@ object StreamLocalProxy {
         return baseUrl() + "?" + params.joinToString("&")
     }
 
-    /* ================================================================
-       HTTP handling
-       ================================================================ */
-
     private fun handle(socket: Socket) {
         try {
             socket.use { s ->
@@ -180,7 +151,7 @@ object StreamLocalProxy {
                     writeResponse(s, "400 Bad Request", "text/plain", "Bad request", null)
                     return
                 }
-                // Drain headers
+
                 var len = 0
                 while (len < 32 * 1024) {
                     val line = readLine(input) ?: break
@@ -232,10 +203,6 @@ object StreamLocalProxy {
         url.contains(".m3u8", ignoreCase = true) ||
             (em && (url.contains("master.txt", ignoreCase = true) || url.contains("playlist.txt", ignoreCase = true)))
 
-    /* ================================================================
-       Manifest path (flixcloud XOR/base64 wrapped playlists)
-       ================================================================ */
-
     private fun serveManifest(
         socket: Socket,
         url: String,
@@ -246,8 +213,7 @@ object StreamLocalProxy {
         em: Boolean,
         js: Boolean,
     ) {
-        // Hosts like vidcloud/bcdn3 reject OkHttp's TLS fingerprint outright (no CF cookies
-        // are even issued), so route those through a hidden WebView which speaks real Chrome.
+
         if (js) {
             val bodyBytes = fetchViaWebView(url, referer)
             if (bodyBytes == null) {
@@ -277,7 +243,7 @@ object StreamLocalProxy {
         }
 
         val owner = if (referer.contains("flixcloud", true)) "flixcloud" else "hls"
-        // Retry up to 3 times on timeout
+
         var lastException: Exception? = null
         for (attempt in 1..3) {
         try {
@@ -295,7 +261,7 @@ object StreamLocalProxy {
             val bodyBytes = resp.body?.bytes() ?: ByteArray(0)
             writeManifest(socket, url, referer, origin, pk, mask, em, js, bodyBytes)
         }
-        return  // success
+        return
         } catch (e: java.net.SocketTimeoutException) {
             lastException = e
             Logger.log(Log.WARN, "StreamLocalProxy: $owner manifest timeout attempt $attempt/3 for $url")
@@ -314,12 +280,11 @@ object StreamLocalProxy {
             writeResponse(socket, "502 Bad Gateway", "text/plain", "Manifest fetch error: ${e.message}", null)
             return
         }
-        } // end retry loop
+        }
     }
 
     private const val EM3U8_PREFIX = "EM3U8v1:"
 
-    /** EM3U8v1 (senshi / vidcloud) AES-GCM playlist key: XOR of the two arrays from the watch page bundle. */
     private val em3u8Key: ByteArray = run {
         val ur = intArrayOf(
             226, 24, 149, 40, 170, 108, 184, 157, 168, 18, 90, 64, 186, 69, 66, 110,
@@ -407,7 +372,7 @@ object StreamLocalProxy {
                 out.append('\n')
                 continue
             }
-            // BANDWIDTH normalization: if < 100k and no AVERAGE-BANDWIDTH, multiply by 1000
+
             if (trimmed.startsWith("#EXT-X-STREAM-INF")) {
                 val bwMatch = bwRegex.find(trimmed)
                 val avgMatch = avgBwRegex.find(trimmed)
@@ -440,7 +405,7 @@ object StreamLocalProxy {
                 )).append('\n')
             }
         }
-        // Log bandwidth values for debugging
+
         out.toString().lines().filter { it.startsWith("#EXT-X-STREAM-INF") }.forEach { line ->
             Logger.log("StreamLocalProxy: rewritten $line")
         }
@@ -455,7 +420,6 @@ object StreamLocalProxy {
         return runCatching { URI(referer).resolve(value).toString() }.getOrDefault(value)
     }
 
-    /** Variant/segment URLs usually carry their own token; re-add the parent's if absent. */
     private fun ensureToken(url: String, parentParam: String): String {
         if (url.contains("token=")) return url
         val parent = firstUrlWithToken(parentParam) ?: return url
@@ -465,7 +429,7 @@ object StreamLocalProxy {
     }
 
     private fun firstUrlWithToken(param: String): String? {
-        // The referer param is a plain URL; a nested token may live in a proxied URL.
+
         val tryUrls = buildList {
             add(param)
             val q = param.substringAfter("?", "")
@@ -476,10 +440,6 @@ object StreamLocalProxy {
         }
         return tryUrls.firstOrNull { parseQuery(it.substringAfter("?", "")).getFirst("token") != null }
     }
-
-    /* ================================================================
-       Segment / subtitle / byte pass-through
-       ================================================================ */
 
     private fun serveStream(
         socket: Socket,
@@ -558,7 +518,6 @@ object StreamLocalProxy {
                 return
             }
 
-            // Segment: peek fake WebP/PNG header, strip it, XOR the payload with the mask.
             val head = ByteArray(13)
             var got = 0
             while (got < head.size) {
@@ -588,18 +547,14 @@ object StreamLocalProxy {
             head[0] == 0x52.toByte() && head[1] == 0x49.toByte() &&
             head[2] == 0x46.toByte() && head[3] == 0x46.toByte() &&
             head[8] == 0x57.toByte() && head[9] == 0x45.toByte() &&
-            head[10] == 0x42.toByte() && head[11] == 0x50.toByte() -> 12 // RIFF....WEBP
+            head[10] == 0x42.toByte() && head[11] == 0x50.toByte() -> 12
         len >= 8 &&
             head[0] == 0x89.toByte() && head[1] == 0x50.toByte() &&
             head[2] == 0x4E.toByte() && head[3] == 0x47.toByte() &&
             head[4] == 0x0D.toByte() && head[5] == 0x0A.toByte() &&
-            head[6] == 0x1A.toByte() && head[7] == 0x0A.toByte() -> 8 // PNG sig
+            head[6] == 0x1A.toByte() && head[7] == 0x0A.toByte() -> 8
         else -> 0
     }
-
-    /* ================================================================
-       Low-level HTTP writers
-       ================================================================ */
 
     private fun writeResponse(
         socket: Socket,
@@ -681,10 +636,6 @@ object StreamLocalProxy {
 
     private fun ua(): String = defaultHeaders["User-Agent"] ?: FALLBACK_UA
 
-    /* ================================================================
-       Hidden WebView warm-up (cookie seeding for CF / JS challenges)
-       ================================================================ */
-
     private fun warmHost(url: String, referer: String) {
         val host = runCatching { URI(url).host }.getOrNull() ?: return
         if (!warmedHosts.add(host)) return
@@ -733,7 +684,7 @@ object StreamLocalProxy {
                 Logger.log(Log.WARN, "StreamLocalProxy: webview warm failed: ${e.message}")
                 latch.countDown()
             }
-            // Give the WebView a moment to write cookies, then release it.
+
             mainHandler.postDelayed({
                 runCatching { webView?.stopLoading() }
                 runCatching { webView?.destroy() }
@@ -741,21 +692,11 @@ object StreamLocalProxy {
         }
     }
 
-    /* ================================================================
-       Invisible WebView byte-fetcher
-       Some stream hosts (vidcloud, bcdn3) reject OkHttp's TLS fingerprint
-       outright — Cloudflare never even issues a cf_clearance cookie. A
-       hidden WebView (never shown, never plays anything) fetches those
-       resources with a real Chrome engine and returns raw bytes to the
-       loopback proxy for ExoPlayer.
-       ================================================================ */
-
     private val webFetchLock = Any()
 
     @Volatile private var fetchWv: WebView? = null
     @Volatile private var fetchWvReady = false
 
-    /** Fetch [url] through a hidden WebView; returns raw response bytes or null. */
     fun fetchViaWebView(url: String, referer: String): ByteArray? = synchronized(webFetchLock) {
         App.context ?: return null
         val latch = CountDownLatch(1)
@@ -786,8 +727,7 @@ object StreamLocalProxy {
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun obtainFetchWebView(): WebView? {
-        // Must run on the main thread. One persistent WebView seeded on senshi.to so
-        // cross-origin fetches to vidcloud/bcdn3 look exactly like the real player.
+
         fetchWv?.let { if (it.url != null) return it }
         val ctx = App.context ?: return null
         val wv = WebView(ctx.applicationContext)
@@ -864,7 +804,7 @@ object StreamLocalProxy {
         holder: Array<String?>,
         latch: CountDownLatch,
     ) {
-        if (tries > 600) { // ~60s
+        if (tries > 600) {
             latch.countDown()
             return
         }

@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- FORMAT MIGHT TRANSLATE, WILL CAUSE CRASH IF APPLIED WRONG -->
+
     <string name="app_dub_sub_episode_text_format" formatted="true">%1$s Ep %2$d</string>
     <string name="cast_format" formatted="true">Cast: %s</string>
     <string name="next_episode_format" formatted="true">Aflevering %d zal worden uitgebracht in</string>
     <string name="next_episode_time_day_format" formatted="true">%1$dd %2$dh %3$dm</string>
     <string name="next_episode_time_hour_format" formatted="true">%1$dh %2$dm</string>
     <string name="next_episode_time_min_format" formatted="true">%dm</string>
-    <!-- IS NOT NEEDED TO TRANSLATE AS THEY ARE ONLY USED FOR SCREEN READERS AND WONT SHOW UP TO NORMAL USERS -->
+
     <string name="result_poster_img_des">Poster</string>
     <string name="search_poster_img_des">Poster</string>
     <string name="episode_poster_img_des">Aflevering Poster</string>
@@ -16,7 +16,7 @@
     <string name="go_back_img_des">Ga terug</string>
     <string name="home_change_provider_img_des">Wijzig provider</string>
     <string name="preview_background_img_des">Voorbeeld Achtergrond</string>
-    <!-- TRANSLATE, BUT DON'T FORGET FORMAT -->
+
     <string name="player_speed_text_format" formatted="true">Snelheid (%.2fx)</string>
     <string name="rated_format" formatted="true">Beoordeeld: %.1fAls</string>
     <string name="new_update_format" formatted="true">Nieuwe update gevonden! \n%1$s -&gt; %2$s</string>
@@ -52,7 +52,7 @@
     <string name="reload_error">Opnieuw proberen…</string>
     <string name="go_back">Ga terug</string>
     <string name="play_episode">Aflevering afspelen</string>
-    <!--<string name="need_storage">Allow to download episodes</string>-->
+
     <string name="download">Download</string>
     <string name="downloaded">Gedownload</string>
     <string name="downloading">Downloaden</string>
@@ -197,7 +197,7 @@
     <string name="free_storage">Vrij</string>
     <string name="used_storage">Gebruikt</string>
     <string name="app_storage">App</string>
-    <!--plural-->
+
     <string name="movies">Films</string>
     <string name="tv_series">TV series</string>
     <string name="cartoons">tekenfilms</string>
@@ -207,7 +207,7 @@
     <string name="ova">OVA</string>
     <string name="asian_drama">Aziatische drama\'s</string>
     <string name="livestreams">Livestreams</string>
-    <!--singular-->
+
     <string name="movies_singular">Film</string>
     <string name="tv_series_singular">Serie</string>
     <string name="cartoons_singular">Tekenfilm</string>
@@ -281,7 +281,7 @@
     <string name="app_theme_settings">App thema</string>
     <string name="bottom_title_settings">Locatie van de titel van de poster</string>
     <string name="bottom_title_settings_des">Zet de titel onder de poster</string>
-    <!-- account stuff -->
+
     <string name="example_password">wachtwoord123</string>
     <string name="example_username">Gebruikersnaam</string>
     <string name="example_email">hello@Wereld.com</string>
@@ -305,7 +305,7 @@
     <string name="sync_total_episodes_some" formatted="true">/%d</string>
     <string name="authenticated_user" formatted="true">%s geverifieerd</string>
     <string name="authenticated_user_fail" formatted="true">Kon niet inloggen op %s</string>
-    <!-- ============ -->
+
     <string name="none">Geen</string>
     <string name="normal">normaal</string>
     <string name="all">Allemaal</string>
@@ -321,12 +321,7 @@
     <string name="subtitle_offset_extra_hint_later_format">Gebruik dit als de ondertitels %d ms te vroeg worden getoond</string>
     <string name="subtitle_offset_extra_hint_before_format">Gebruik dit als de ondertitels %d ms te laat worden getoond</string>
     <string name="subtitle_offset_extra_hint_none_format">Geen ondertitelvertragin</string>
-    <!--
-    Example text (pangram) can optionally be translated; if you do, include all the letters in the alphabet,
-    see: 
-	https://en.wikipedia.org/w/index.php?title=Pangram&oldid=225849300
-	https://en.wikipedia.org/wiki/The_quick_brown_fox_jumps_over_the_lazy_dog
-    -->
+
     <string name="subtitles_example_text">De snelle bruine vos springt over de luie hond</string>
     <string name="recommended">Aanbevolen</string>
     <string name="player_loaded_subtitles" formatted="true">Geladen %s</string>

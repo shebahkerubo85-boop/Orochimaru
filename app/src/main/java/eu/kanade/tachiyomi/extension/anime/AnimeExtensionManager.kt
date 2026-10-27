@@ -27,16 +27,6 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.util.Locale
 
-/**
- * The manager of anime extensions installed as another apk which extend the available sources. It handles
- * the retrieval of remotely available anime extensions as well as installing, updating and removing them.
- * To avoid malicious distribution, every anime extension must be signed and it will only be loaded if its
- * signature is trusted, otherwise the user will be prompted with a warning to trust it before being
- * loaded.
- *
- * @param context The application context.
- * @param preferences The application preferences.
- */
 class AnimeExtensionManager(
     private val context: Context,
     private val preferences: SourcePreferences = Injekt.get(),
@@ -45,14 +35,8 @@ class AnimeExtensionManager(
     var isInitialized = false
         private set
 
-    /**
-     * API where all the available anime extensions can be found.
-     */
     private val api = ExtensionGithubApi()
 
-    /**
-     * The installer which installs, updates and uninstalls the anime extensions.
-     */
     private val installer by lazy { ExtensionInstaller(context) }
 
     private val iconMap = mutableMapOf<String, Drawable>()
@@ -97,9 +81,6 @@ class AnimeExtensionManager(
         ExtensionInstallReceiver().setAnimeListener(InstallationListener()).register(context)
     }
 
-    /**
-     * Loads and registers the installed animeextensions.
-     */
     private fun initAnimeExtensions() {
         val animeextensions = ExtensionLoader.loadAnimeExtensions(context)
 
@@ -114,9 +95,6 @@ class AnimeExtensionManager(
         isInitialized = true
     }
 
-    /**
-     * Finds the available anime extensions in the [api] and updates [availableExtensions].
-     */
     suspend fun findAvailableExtensions() {
         val extensions: List<AnimeExtension.Available> = try {
             api.findAnimeExtensions()
@@ -133,21 +111,11 @@ class AnimeExtensionManager(
         setupAvailableAnimeExtensionsSourcesDataMap(extensions)
     }
 
-    /**
-     * Enables the additional sub-languages in the app first run. This addresses
-     * the issue where users still need to enable some specific languages even when
-     * the device language is inside that major group. As an example, if a user
-     * has a zh device language, the app will also enable zh-Hans and zh-Hant.
-     *
-     * If the user have already changed the enabledLanguages preference value once,
-     * the new languages will not be added to respect the user enabled choices.
-     */
     private fun enableAdditionalSubLanguages(animeextensions: List<AnimeExtension.Available>) {
         if (subLanguagesEnabledOnFirstRun || animeextensions.isEmpty()) {
             return
         }
 
-        // Use the source lang as some aren't present on the animeextension level.
         val availableLanguages = animeextensions
             .flatMap(AnimeExtension.Available::sources)
             .distinctBy(AvailableAnimeSources::lang)
@@ -163,11 +131,6 @@ class AnimeExtensionManager(
         subLanguagesEnabledOnFirstRun = true
     }
 
-    /**
-     * Sets the update field of the installed animeextensions with the given [availableAnimeExtensions].
-     *
-     * @param availableAnimeExtensions The list of animeextensions given by the [api].
-     */
     private fun updatedInstalledAnimeExtensionsStatuses(availableAnimeExtensions: List<AnimeExtension.Available>) {
         if (availableAnimeExtensions.isEmpty()) {
             preferences.animeExtensionUpdatesCount().set(0)
@@ -199,13 +162,6 @@ class AnimeExtensionManager(
         updatePendingUpdatesCount()
     }
 
-    /**
-     * Returns an observable of the installation process for the given anime extension. It will complete
-     * once the anime extension is installed or throws an error. The process will be canceled if
-     * unsubscribed before its completion.
-     *
-     * @param extension The anime extension to be installed.
-     */
     fun installExtension(extension: AnimeExtension.Available): Observable<InstallStep> {
         return installer.downloadAndInstall(
             api.getAnimeApkUrl(extension), extension.pkgName,
@@ -213,13 +169,6 @@ class AnimeExtensionManager(
         )
     }
 
-    /**
-     * Returns an observable of the installation process for the given anime extension. It will complete
-     * once the anime extension is updated or throws an error. The process will be canceled if
-     * unsubscribed before its completion.
-     *
-     * @param extension The anime extension to be updated.
-     */
     fun updateExtension(extension: AnimeExtension.Installed): Observable<InstallStep> {
         val availableExt =
             _availableAnimeExtensionsFlow.value.find { it.pkgName == extension.pkgName }
@@ -231,11 +180,6 @@ class AnimeExtensionManager(
         installer.cancelInstall(extension.pkgName)
     }
 
-    /**
-     * Sets to "installing" status of an anime extension installation.
-     *
-     * @param downloadId The id of the download.
-     */
     fun setInstalling(downloadId: Long) {
         installer.updateInstallStep(downloadId, InstallStep.Installing)
     }
@@ -244,30 +188,14 @@ class AnimeExtensionManager(
         installer.updateInstallStep(downloadId, step)
     }
 
-    /**
-     * Uninstalls the anime extension that matches the given package name.
-     *
-     * @param pkgName The package name of the application to uninstall.
-     */
     fun uninstallExtension(pkgName: String) {
         installer.uninstallApk(pkgName)
     }
 
-    /**
-     * Registers the given anime extension in this and the source managers.
-     *
-     * @param extension The anime extension to be registered.
-     */
     private fun registerNewExtension(extension: AnimeExtension.Installed) {
         _installedAnimeExtensionsFlow.value += extension
     }
 
-    /**
-     * Registers the given updated anime extension in this and the source managers previously removing
-     * the outdated ones.
-     *
-     * @param extension The anime extension to be registered.
-     */
     private fun registerUpdatedExtension(extension: AnimeExtension.Installed) {
         val mutInstalledAnimeExtensions = _installedAnimeExtensionsFlow.value.toMutableList()
         val oldAnimeExtension = mutInstalledAnimeExtensions.find { it.pkgName == extension.pkgName }
@@ -278,12 +206,6 @@ class AnimeExtensionManager(
         _installedAnimeExtensionsFlow.value = mutInstalledAnimeExtensions
     }
 
-    /**
-     * Unregisters the animeextension in this and the source managers given its package name. Note this
-     * method is called for every uninstalled application in the system.
-     *
-     * @param pkgName The package name of the uninstalled application.
-     */
     private fun unregisterAnimeExtension(pkgName: String) {
         val installedAnimeExtension =
             _installedAnimeExtensionsFlow.value.find { it.pkgName == pkgName }
@@ -297,9 +219,6 @@ class AnimeExtensionManager(
         }
     }
 
-    /**
-     * Listener which receives events of the anime extensions being installed, updated or removed.
-     */
     private inner class InstallationListener : ExtensionInstallReceiver.AnimeListener {
 
         override fun onExtensionInstalled(extension: AnimeExtension.Installed) {
@@ -322,9 +241,6 @@ class AnimeExtensionManager(
         }
     }
 
-    /**
-     * AnimeExtension method to set the update field of an installed anime extension.
-     */
     private fun AnimeExtension.Installed.withUpdateCheck(): AnimeExtension.Installed {
         return if (updateExists()) {
             copy(hasUpdate = true)

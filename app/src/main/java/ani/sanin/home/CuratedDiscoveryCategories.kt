@@ -1,6 +1,5 @@
 package ani.sanin.home
 
-/** Curated editorial categories shown on Anime Discovery, in the order chosen for Sanin. */
 data class CuratedDiscoveryCategory(
     val title: String,
     val kitsuSlug: String,

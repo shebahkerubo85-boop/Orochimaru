@@ -53,13 +53,6 @@ class Query {
             val page: ani.sanin.connections.anilist.api.Page?
         )
     }
-//    data class AiringSchedule(
-//        val data : Data?
-//    ){
-//        data class Data(
-//            val AiringSchedule: ani.sanin.connections.anilist.api.AiringSchedule?
-//        )
-//    }
 
     @Serializable
     data class Character(
@@ -86,7 +79,6 @@ class Query {
         )
     }
 
-
     @Serializable
     data class Author(
         @SerialName("data")
@@ -98,14 +90,6 @@ class Query {
             val author: Staff?
         )
     }
-
-    //    data class MediaList(
-//        val data: Data?
-//    ){
-//        data class Data(
-//            val MediaList: ani.sanin.connections.anilist.api.MediaList?
-//        )
-//    }
 
     @Serializable
     data class MediaListCollection(
@@ -460,7 +444,7 @@ class Query {
     @Serializable
     data class UserStaffFavouritesCollection(
         @SerialName("nodes")
-        val nodes: List<UserCharacterImageFavorite>, //downstream it's the same as character
+        val nodes: List<UserCharacterImageFavorite>,
     ) : java.io.Serializable
 
     @Serializable
@@ -476,9 +460,6 @@ class Query {
         @SerialName("name")
         val name: String,
     ) : java.io.Serializable
-
-    //----------------------------------------
-    // Statistics
 
     @Serializable
     data class StatisticsResponse(
@@ -615,7 +596,7 @@ class Query {
         @SerialName("mediaIds")
         val mediaIds: List<Int>,
         @SerialName("length")
-        val length: String? //can be null for manga
+        val length: String?
     ) : java.io.Serializable
 
     @Serializable
@@ -794,45 +775,3 @@ class Query {
 
 }
 
-//data class WhaData(
-//    val Studio: Studio?,
-//
-//    // Follow query
-//    val Following: User?,
-//
-//    // Follow query
-//    val Follower: User?,
-//
-//    // Thread query
-//    val Thread: Thread?,
-//
-//    // Recommendation query
-//    val Recommendation: Recommendation?,
-//
-//    // Like query
-//    val Like: User?,
-
-//    // Review query
-//    val Review: Review?,
-//
-//    // Activity query
-//    val Activity: ActivityUnion?,
-//
-//    // Activity reply query
-//    val ActivityReply: ActivityReply?,
-
-//    // CommentNotificationWorker query
-//    val ThreadComment: List<ThreadComment>?,
-
-//    // Notification query
-//    val Notification: NotificationUnion?,
-
-//    // Media Trend query
-//    val MediaTrend: MediaTrend?,
-
-//    // Provide AniList markdown to be converted to html (Requires auth)
-//    val Markdown: ParsedMarkdown?,
-
-//    // SiteStatistics: SiteStatistics
-//    val AniChartUser: AniChartUser?,
-//)

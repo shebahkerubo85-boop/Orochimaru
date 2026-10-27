@@ -24,7 +24,6 @@ class CrashActivity : AppCompatActivity() {
     private lateinit var stackTrace: String
     private lateinit var logcat: String
 
-    /** Which content is currently shown — false = stack trace, true = logcat */
     private var showingLogcat = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -46,11 +45,10 @@ class CrashActivity : AppCompatActivity() {
         stackTrace = intent.getStringExtra("stackTrace") ?: "No stack trace available"
         logcat = intent.getStringExtra("logcat") ?: "No logcat available"
 
-        // Show stack trace by default
         showReport(stackTrace)
 
         binding.crashReportView.setOnKeyListener(View.OnKeyListener { _, _, _ ->
-            true // Blocks input from hardware keyboards.
+            true
         })
 
         binding.copyButton.setOnClickListener {
@@ -78,7 +76,7 @@ class CrashActivity : AppCompatActivity() {
 
     private fun showReport(content: String) {
         binding.crashReportView.setText(content)
-        // Scroll to bottom for logcat (most recent lines last), top for stack trace
+
         if (showingLogcat) {
             binding.crashReportScrollView.post {
                 binding.crashReportScrollView.fullScroll(View.FOCUS_DOWN)

@@ -52,7 +52,6 @@ object Anilist {
     var animeCustomLists: List<String>? = null
     var mangaCustomLists: List<String>? = null
 
-    /** Set to true when the AniList API reports a "disabled" error. Reset on next successful call. */
     @Volatile
     var anilistDisabledSignal: Boolean = false
 
@@ -274,11 +273,6 @@ object Anilist {
         return !token.isNullOrEmpty()
     }
 
-    /**
-     * Validate the current token by making a simple API call.
-     * Returns true if token is valid, false if invalid.
-     * Returns null if network error (cannot determine).
-     */
     suspend fun validateToken(): Boolean? {
         return try {
             val response = executeQuery<Query.Viewer>(
@@ -288,7 +282,7 @@ object Anilist {
             )
             response?.data?.user != null
         } catch (e: Exception) {
-            // Network error - cannot determine validity
+
             if (e is java.net.UnknownHostException ||
                 e is java.net.ConnectException ||
                 e is java.net.SocketTimeoutException) {
@@ -312,22 +306,17 @@ object Anilist {
         PrefManager.removeVal(PrefName.AnilistAvatar)
         PrefManager.removeVal(PrefName.AnilistUserName)
         PrefManager.removeVal(PrefName.AnilistUserId)
-        // Reset per-section notification counts
+
         PrefManager.setVal(PrefName.UnreadUserNotifications, 0)
         PrefManager.setVal(PrefName.UnreadMediaNotifications, 0)
         PrefManager.setVal(PrefName.UnreadSubscriptionNotifications, 0)
         PrefManager.setVal(PrefName.UnreadCommentNotifications, 0)
         Anilist.unreadNotificationCount = 0
-        //logout from comments api
+
         CommentsAPI.logout()
 
     }
 
-    /**
-     * Decodes the JWT token and returns the number of days until expiry.
-     * Returns null if the token is missing or cannot be decoded.
-     * Returns a negative number if the token is already expired.
-     */
     fun getTokenExpiryDays(): Long? {
         val t = token ?: return null
         return try {
@@ -423,7 +412,7 @@ object Anilist {
                 json.parsed()
             } else null
         } catch (e: Exception) {
-            // Timeouts are often transient; only treat host/connect failures as AniList-down.
+
             if (e is java.net.UnknownHostException ||
                 e is java.net.ConnectException ||
                 e.cause is java.net.UnknownHostException ||

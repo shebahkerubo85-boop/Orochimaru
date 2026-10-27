@@ -31,10 +31,9 @@ open class Vidoza : ExtractorApi() {
         val script = response.selectFirst("script:containsData(sourcesCode)")?.data()
             ?: throw RuntimeException("couldn't find script containing video data")
 
-        // e.g. sourcesCode: [{ src: "https://str38.vidoza.net/vod/v2/.../v.mp4", type: "video/mp4", label:"SD", res:"720"}],
         var sourcesArray = script.substringAfter("sourcesCode:").substringBefore("\n")
         arrayOf("src", "type", "label", "res").forEach {
-            // Add missing quotation marks, e.g. src: "https..." -> "src": "https..."
+
             sourcesArray = sourcesArray.replace(Regex(""""?$it"?:"""), """"$it":""")
         }
 

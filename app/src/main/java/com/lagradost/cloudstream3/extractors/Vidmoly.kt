@@ -34,9 +34,9 @@ open class Vidmoly : ExtractorApi() {
             "user-agent" to USER_AGENT,
             "Sec-Fetch-Dest" to "iframe"
         )
-        
-        val newUrl = if (url.contains("/w/")) 
-            url.replaceFirst("/w/", "/embed-") + ".html" 
+
+        val newUrl = if (url.contains("/w/"))
+            url.replaceFirst("/w/", "/embed-") + ".html"
             else url
 
         val script = app.get(newUrl, headers = headers, referer = referer)
@@ -44,7 +44,6 @@ open class Vidmoly : ExtractorApi() {
             .firstOrNull { it.data().contains("sources:") }
             ?.data()
 
-        // Extracts and parses videoData
         JwPlayerHelper.extractStreamLinks(script.orEmpty(), name, mainUrl, callback, subtitleCallback)
     }
 }

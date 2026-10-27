@@ -36,20 +36,14 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-
 data class SyncCue(
     val text: String,
     val startTimeMs: Long,
     val durationMs: Long = 3000L
 )
 
-/** Payload tag: partial cue rebind that only advances the mini progress bar. */
 private const val PROGRESS_PAYLOAD = "sync_progress"
 
-/**
- * Activity-hosted interface so the sync dialog works in both
- * anime ExoplayerView.
- */
 interface SubtitleSyncHost {
     fun getSyncPlayerPosition(): Long
     fun getSubtitleOffset(): Long
@@ -62,14 +56,12 @@ class SubtitleSyncDialogFragment : DialogFragment() {
     private val binding get() = _binding!!
     val model: MediaDetailsViewModel by activityViewModels()
     private var currentOffset: Long = 0L
-    // Offset in effect when the dialog opened — "Reset" restores this instead
-    // of forcing 0, so a pre-existing (e.g. auto-synced) offset survives.
+
     private var openingOffset: Long = 0L
     private var updateJob: Job? = null
     private var adapter: SyncAdapter? = null
     private var prevPlayingIndex: Int = -1
-    // Auto-centering pauses while the user is dragging the cue list (touch)
-    // and while a cue has D-pad focus (TV), resuming after they go idle.
+
     private var userScrolling = false
     private var resumeAutoScrollJob: Job? = null
 
@@ -116,13 +108,6 @@ class SubtitleSyncDialogFragment : DialogFragment() {
         applyOffset()
     }
 
-    /**
-     * Sync-panel control styling, hardcoded per request: every button is solid
-     * white with black text (no theme dependency), the offset input keeps its
-     * transparent field with a primary-color outline. Material themes force a
-     * primary backgroundTintList onto buttons, so it is explicitly cleared —
-     * that tint was overriding the white fill.
-     */
     private fun styleSyncControls() {
         val ctx = requireContext()
         val density = ctx.resources.displayMetrics.density
@@ -192,12 +177,12 @@ class SubtitleSyncDialogFragment : DialogFragment() {
             override fun onScrollStateChanged(rv: RecyclerView, newState: Int) {
                 when (newState) {
                     RecyclerView.SCROLL_STATE_DRAGGING -> {
-                        // Finger on the list: stop chasing the playing cue.
+
                         userScrolling = true
                         resumeAutoScrollJob?.cancel()
                     }
                     RecyclerView.SCROLL_STATE_IDLE -> {
-                        // Resume auto-centering shortly after the list settles.
+
                         resumeAutoScrollJob?.cancel()
                         resumeAutoScrollJob = viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
                             delay(3000)
@@ -283,8 +268,7 @@ class SubtitleSyncDialogFragment : DialogFragment() {
     }
 
     private fun resetOffset() {
-        // "Everything to how it was": restore the offset the player had before
-        // this dialog opened, not a hard 0 (it must not wipe an auto-sync).
+
         currentOffset = openingOffset
         binding.syncOffsetInput.setText(currentOffset.toString())
         (requireActivity() as? SubtitleSyncHost)?.setSubtitleOffset(currentOffset)
@@ -315,16 +299,10 @@ class SubtitleSyncDialogFragment : DialogFragment() {
         }
     }
 
-    /**
-     * Keeps the currently-playing cue centred: the 500ms update loop fires
-     * this whenever the highlighted cue changes, unless the user is actively
-     * scrolling or has D-pad focus on a cue (TV).
-     */
     private fun onPlayingIndexChanged(index: Int) {
         if (index < 0) return
         if (userScrolling) return
-        // TV: while a cue card owns focus the user is navigating by d-pad —
-        // auto-centering would yank the scroll out from under them.
+
         if (binding.subtitleSyncRecycler.focusedChild != null) return
         binding.subtitleSyncRecycler.post {
             centerOnIndex(index)
@@ -381,9 +359,7 @@ class SubtitleSyncDialogFragment : DialogFragment() {
                 prevPlayingIndex = newPlayingIndex
                 if (newPlayingIndex >= 0) onPlayingIndexChanged(newPlayingIndex)
             } else if (newPlayingIndex >= 0) {
-                // Same cue still playing: refresh just its mini progress bar
-                // via payload rebind, so the bar fills in step with the cue
-                // and the rest of the card (white fill/text/scale) stays put.
+
                 notifyItemChanged(newPlayingIndex, PROGRESS_PAYLOAD)
             }
         }
@@ -393,7 +369,7 @@ class SubtitleSyncDialogFragment : DialogFragment() {
             position: Int,
             payloads: MutableList<Any>
         ) {
-            // RecyclerView hands this list down immutable — never mutate it.
+
             if (payloads.any { it == PROGRESS_PAYLOAD }) {
                 val cue = cues[position]
                 val adjustedPos = playerPositionMs - currentOffset
@@ -405,7 +381,7 @@ class SubtitleSyncDialogFragment : DialogFragment() {
                         holder.progressBar.progress = progressValue
                     }
                 } else {
-                    // cue ended between ticks → hand back to the full bind
+
                     onBindViewHolder(holder, position)
                 }
             } else {
@@ -417,7 +393,7 @@ class SubtitleSyncDialogFragment : DialogFragment() {
             val inflater = LayoutInflater.from(parent.context)
             val itemBinding = ItemSubtitleSyncBinding.inflate(inflater, parent, false)
             applyCardFocus(itemBinding.root, itemBinding.subtitleSyncCard)
-            // playing-cue mini progress bar in the theme's primary color
+
             itemBinding.subtitleSyncProgress.progressTintList =
                 android.content.res.ColorStateList.valueOf(
                     FocusEffectUtil.getPrimaryColor(itemBinding.root.context)
@@ -431,8 +407,7 @@ class SubtitleSyncDialogFragment : DialogFragment() {
             val isPlaying = adjustedPos in cue.startTimeMs..<(cue.startTimeMs + cue.durationMs)
 
             holder.textView.text = cue.text
-            // Playing cue = solid white rounded card with black text; the
-            // d-pad focus border (applyCardFocus foreground) is untouched.
+
             if (isPlaying) {
                 holder.cardView.setCardBackgroundColor(Color.WHITE)
                 holder.textView.setTextColor(Color.BLACK)

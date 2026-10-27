@@ -9,12 +9,6 @@ import android.provider.Settings
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 
-/**
- * Downloads and the scheduled notification checks both need the process to survive while the device
- * is idle. OEM skins (Infinix/Transsion especially) kill background work regardless of the foreground
- * service unless the app is exempt from battery optimisation, so the first time work is queued the
- * user is sent to the system opt-out for this app.
- */
 object BatteryOptimizations {
 
     fun isUnrestricted(context: Context): Boolean = try {
@@ -24,12 +18,6 @@ object BatteryOptimizations {
         false
     }
 
-    /**
-     * One-shot prompt. Opens the system dialog that leads to this app's battery settings; if that
-     * intent is unavailable on the device it falls back to the app details settings page.
-     *
-     * Does nothing when we are already unrestricted or when the user has already been asked.
-     */
     fun promptIfNeeded(activity: Activity) {
         if (isUnrestricted(activity)) return
         if (PrefManager.getVal(PrefName.BatteryOptimizationPrompted)) return

@@ -25,10 +25,9 @@ val jsonMime = "application/json; charset=utf-8".toMediaType()
 @OptIn(ExperimentalAtomicApi::class)
 fun Call.asObservable(): Observable<Response> {
     return Observable.unsafeCreate { subscriber ->
-        // Since Call is a one-shot type, clone it for each new subscriber.
+
         val call = clone()
 
-        // Wrap the call in a helper which handles both unsubscription and backpressure.
         val requestArbiter = object : Producer, Subscription {
             val boolean = AtomicBoolean(false)
             override fun request(n: Long) {
@@ -70,7 +69,6 @@ fun Call.asObservableSuccess(): Observable<Response> {
     }
 }
 
-// Based on https://github.com/gildor/kotlin-coroutines-okhttp
 @OptIn(ExperimentalCoroutinesApi::class)
 private suspend fun Call.await(callStack: Array<StackTraceElement>): Response {
     return suspendCancellableCoroutine { continuation ->
@@ -83,7 +81,7 @@ private suspend fun Call.await(callStack: Array<StackTraceElement>): Response {
                 }
 
                 override fun onFailure(call: Call, e: IOException) {
-                    // Don't bother with resuming the continuation if it is already cancelled.
+
                     if (continuation.isCancelled) return
                     val exception = IOException(e.message, e).apply { stackTrace = callStack }
                     continuation.resumeWithException(exception)
@@ -96,7 +94,7 @@ private suspend fun Call.await(callStack: Array<StackTraceElement>): Response {
             try {
                 cancel()
             } catch (ex: Throwable) {
-                // Ignore cancel exception
+
             }
         }
     }
@@ -107,9 +105,6 @@ suspend fun Call.await(): Response {
     return await(callStack)
 }
 
-/**
- * @since extensions-lib 1.5
- */
 suspend fun Call.awaitSuccess(): Response {
     val callStack = Exception().stackTrace.run { copyOfRange(1, size) }
     val response = await(callStack)
@@ -149,11 +144,4 @@ fun <T> decodeFromJsonResponse(
     }
 }
 
-/**
- * Exception that handles HTTP codes considered not successful by OkHttp.
- * Use it to have a standardized error message in the app across the extensions.
- *
- * @since extensions-lib 1.5
- * @param code [Int] the HTTP status code
- */
 class HttpException(val code: Int) : IllegalStateException("HTTP error $code")

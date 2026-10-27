@@ -10,13 +10,6 @@
         android:icon="@drawable/ic_round_source_24"
         android:title="Local" />
 
-    <!--
-    <item
-        android:id="@+id/home"
-        android:icon="@drawable/ic_round_home_24"
-        android:title="@string/home" />
-    -->
-
     <item
         android:id="@+id/manga"
         android:icon="@drawable/ic_round_import_contacts_24"

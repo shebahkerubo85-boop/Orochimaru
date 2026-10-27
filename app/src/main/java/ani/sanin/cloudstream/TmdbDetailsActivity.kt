@@ -72,14 +72,6 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         const val ARG_OPEN_TAB = "openTab"
         private const val TAG_WATCH = "tmdbWatch"
 
-        /**
-         * The three tabs, in rail order. Index 0 is the one the poster, score and synopsis live
-         * on, and it is what [ARG_OPEN_TAB] defaults to.
-         *
-         * Named rather than left as bare numbers because callers outside this activity now pass
-         * one — the franchise screen sends a poster here — and a `0` at the call site says
-         * nothing about which tab it means.
-         */
         const val TAB_INFO = 0
         const val TAB_WATCH = 1
         const val TAB_COMMENTS = 2
@@ -176,10 +168,7 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         }
 
         val openTab = intent.getIntExtra(ARG_OPEN_TAB, -1)
-        // A configuration change rebuilds this activity from the same Intent, extras
-        // included, so honouring this on every build lets the arrival hint overrule the
-        // tab that is already up and undo the restore above. It only means anything on
-        // a genuinely new arrival.
+
         if (savedInstanceState == null && openTab in TAB_INFO..TAB_COMMENTS) selectedPill = openTab
 
         setupNavPills()
@@ -196,7 +185,7 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
     override fun onResume() {
         super.onResume()
         CommonActivity.setActivityInstance(this)
-        // Re-apply the banner brightness slider when returning from settings.
+
         if (::shell.isInitialized) {
             if (PrefManager.getVal<Boolean>(PrefName.ShowMediaBanner)) applyBannerTransparency()
             else applyBannerHidden()
@@ -210,7 +199,7 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
             val pillsVisible = shell.tmdbNavPills?.visibility == View.VISIBLE
 
             if (landscape) {
-                // TV/landscape: vertical rail on the left, show/hide like anime mode
+
                 when (event.keyCode) {
                     KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
                         if (pillsVisible) {
@@ -244,13 +233,10 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
                             return true
                         }
                     }
-                    // DPAD_CENTER/ENTER are NOT intercepted here on landscape so
-                    // chips, season chips and episode cards still receive their
-                    // own click listeners.  Only the pill rail handles ENTER via
-                    // its own OnClickListener.
+
                 }
             } else {
-                // Portrait/phone: horizontal bar at bottom
+
                 when (event.keyCode) {
                     KeyEvent.KEYCODE_DPAD_RIGHT -> {
                         if (selectedPill < 2) {
@@ -264,9 +250,7 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
                             return true
                         }
                     }
-                    // CENTER/ENTER: the play card carries its own OnClickListener
-                    // (onPlayClick), so we must NOT intercept here or chip/card
-                    // clicks get swallowed when the watch tab is active.
+
                     KeyEvent.KEYCODE_MENU -> return true
                 }
             }
@@ -280,8 +264,7 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
             frame.findViewWithTag<LinearLayout>("pill_list")?.let {
                 NavPillCustomizer.applyToPillList(it)
             }
-            // Defer glass to next layout pass so the backdrop capture sees the
-            // visible content instead of a blank surface.
+
             frame.post {
                 shell.tmdbNavPillBg?.setGlassEnabled(
                     GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)
@@ -294,8 +277,7 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
 
     fun hideNavPills() {
         shell.tmdbNavPills?.visibility = View.GONE
-        // Unlike the main activity rail, this is a temporary overlay. Return focus
-        // to the active tab's content whenever it is dismissed.
+
         val focusTarget = when (selectedPill) {
             TAB_INFO, TAB_WATCH -> shell.tmdbDetailFragmentContainer
             else -> shell.tmdbCommentsPlaceholder
@@ -393,19 +375,19 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
                     )
                     binding.mediaInfoWatchProgress.text = span
                 }
-                // Next episode: timer if airing, else episode number, else ???
+
                 val nextEp = d.nextEpisodeToAir
                 val airDateStr = nextEp?.airDate
                 if (airDateStr != null) {
                     val airDateMillis = parseAirDateMillis(airDateStr)
                     val now = System.currentTimeMillis()
                     if (airDateMillis != null && airDateMillis > now) {
-                        // Currently airing — show episode info + countdown
+
                         val epLabel = "SSN ${nextEp.seasonNumber} EP ${nextEp.episodeNumber}".trimEnd()
                         binding.mediaInfoNextEpisode.text = epLabel
                         startAiringTimer(airDateMillis)
                     } else if (nextEp != null) {
-                        // Air date is past or unknown — just show episode number
+
                         binding.mediaInfoNextEpisode.text = "SSN ${nextEp.seasonNumber} EP ${nextEp.episodeNumber}"
                         binding.mediaInfoNextTimer.visibility = View.GONE
                     } else {
@@ -413,7 +395,7 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
                         binding.mediaInfoNextTimer.visibility = View.GONE
                     }
                 } else {
-                    // No next episode data — show ???
+
                     binding.mediaInfoNextEpisode.text = "???"
                     binding.mediaInfoNextTimer.visibility = View.GONE
                 }
@@ -461,7 +443,6 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         }
     }
 
-    /** Parse a TMDB air date "YYYY-MM-DD" into epoch millis, or null. */
     private fun parseAirDateMillis(raw: String): Long? {
         val parts = raw.split("-")
         if (parts.size < 3) return null
@@ -470,14 +451,13 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         val day = parts[2].toIntOrNull() ?: return null
         return try {
             val cal = java.util.Calendar.getInstance().apply {
-                set(year, month - 1, day, 20, 0, 0) // 8 PM default air time
+                set(year, month - 1, day, 20, 0, 0)
                 set(java.util.Calendar.MILLISECOND, 0)
             }
             cal.timeInMillis
         } catch (_: Exception) { null }
     }
 
-    /** Start a live countdown to the next episode air time. */
     private fun startAiringTimer(airDateMillis: Long) {
         infoTimer?.cancel()
         val millisUntil = airDateMillis - System.currentTimeMillis()
@@ -525,8 +505,6 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         return "${day}${suffix} $monthName $year"
     }
 
-// __PART2__
-
     private fun loadPlugin() {
         binding.mediaInfoProgressBar.visibility = View.GONE
         binding.mediaInfoContainer.visibility = View.VISIBLE
@@ -550,8 +528,6 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         binding.mediaInfoNextRow.visibility = View.GONE
     }
 
-    /** Banner art disabled: drop the image + gradient and paint a flat
-     *  theme-aware surface (black in dark, white in light) instead. */
     private fun applyBannerHidden() {
         shell.tmdbDetailBackdrop.setImageDrawable(null)
         shell.tmdbDetailBackdrop.visibility = View.GONE
@@ -569,8 +545,7 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
             shell.tmdbDetailBackdrop.alpha = brightness
             shell.tmdbDetailGradient.alpha = brightness
         }
-        // Tinted veil: black over the dark theme, white over the light one, so
-        // lowering the slider darkens (or washes out) instead of just fading.
+
         shell.tmdbDetailDarkenOverlay?.setBackgroundColor(bannerFallbackColor())
         if (shell.tmdbDetailBackdrop.visibility != View.VISIBLE) {
             shell.tmdbDetailBackdrop.visibility = View.VISIBLE
@@ -698,7 +673,6 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         }
     }
 
-    /** Toggle favourite: set an 8.5+ rating (9/10) or clear it entirely (remove = never rated). */
     private fun toggleFavourite(d: TmdbDetail) {
         if (favBusy) return
         favBusy = true
@@ -729,8 +703,6 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
             else getThemeColor(com.google.android.material.R.attr.colorOnSurface)
         )
     }
-
-// __PART3__
 
     private fun openUrl(url: String) {
         if (url.isBlank()) return
@@ -945,8 +917,6 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         }
     }
 
-// __PART4__
-
     private fun setupNavPills() {
         val info = shell.tmdbNavPillInfo
         val watch = shell.tmdbNavPillWatch
@@ -965,7 +935,7 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
             frame.findViewWithTag<LinearLayout>("pill_list")?.let {
                 NavPillCustomizer.applyToPillList(it)
             }
-            // Push pill up to avoid phone navigation bar overlap.
+
             ViewCompat.setOnApplyWindowInsetsListener(frame) { v, insets ->
                 val bottomInset = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
                 (v.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
@@ -976,8 +946,6 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
             }
         }
 
-        // Echo-style scroll morph. Collapsing leaves only the selected tab, floating
-        // at the bottom-left (no search affordance on this screen).
         val tmdbPillContainer = shell.tmdbNavPills
         tmdbNavPill = EchoNavPillController(
             container = tmdbPillContainer!!,
@@ -1003,8 +971,6 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
         updatePillTints()
     }
 
-    // A tap on the floating pill first restores the full rail; only then does it
-    // act as a normal tab switch.
     private fun onNavPillClick(idx: Int) {
         if (tmdbNavPill?.isCollapsed == true) {
             tmdbNavPill?.setCollapsed(false)
@@ -1029,8 +995,7 @@ class TmdbDetailsActivity : AppCompatActivity(), TmdbWatchFragment.Host {
                 binding.root.visibility = View.GONE
                 shell.tmdbCommentsPlaceholder.visibility = View.GONE
                 showWatch()
-                // Land on the selected source chip once the watch header is laid
-                // out; fall back to the raw container if it isn't ready yet.
+
                 shell.tmdbDetailFragmentContainer.post {
                     val watch = supportFragmentManager.findFragmentByTag(TAG_WATCH) as? TmdbWatchFragment
                     if (watch?.isAdded != true || !watch.focusSelectedSourceChip()) {

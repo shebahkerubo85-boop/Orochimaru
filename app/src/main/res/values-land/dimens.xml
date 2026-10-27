@@ -2,7 +2,6 @@
 <resources>
     <dimen name="library_top_push">0dp</dimen>
 
-    <!-- Modern banner: full 300dp cinematic strip in landscape. -->
     <dimen name="banner_modern_height">355dp</dimen>
     <dimen name="banner_modern_content_start">34dp</dimen>
     <dimen name="banner_modern_poster_width">145dp</dimen>
@@ -16,7 +15,6 @@
     <dimen name="banner_modern_meta_gap">8dp</dimen>
     <integer name="banner_modern_synopsis_lines">3</integer>
 
-    <!-- Classic banner in landscape: shorter, same content, centred. -->
     <dimen name="banner_classic_height">355dp</dimen>
     <dimen name="banner_classic_logo_width">250dp</dimen>
     <dimen name="banner_classic_logo_height">66dp</dimen>
@@ -34,17 +32,6 @@
     <dimen name="banner_modern_watch_min_width">196dp</dimen>
     <dimen name="banner_modern_watch_text">14sp</dimen>
     <dimen name="banner_modern_synopsis_spacing">3dp</dimen>
-    <!--
-      Franchise screen in landscape: a shorter poster.
 
-      Landscape is short and wide, so the poster's 2:3 height is the binding constraint on
-      how much of the screen a row may take. Narrowing the poster is what keeps a landscape
-      row from becoming a column of posters with a thin strip of text beside them, and it
-      hands the width it gives up to the synopsis, which is what has the most to say.
-
-      Kept the same proportion narrower than portrait's, so the reduction reads as one decision
-      rather than as two. 88dp is a 132dp poster, which on a screen only a few hundred dp tall
-      is a couple of rows rather than half the viewport.
-    -->
     <dimen name="franchise_poster_width">88dp</dimen>
 </resources>

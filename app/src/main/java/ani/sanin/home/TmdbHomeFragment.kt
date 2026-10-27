@@ -66,7 +66,6 @@ import ani.sanin.limitedAsyncMap
 
 class TmdbHomeFragment : Fragment() {
 
-    /** Wrapper for banner items: either TMDB trending or plugin live items. */
     sealed class BannerItem {
         data class Tmdb(val media: TmdbMedia) : BannerItem()
         data class Plugin(
@@ -153,8 +152,7 @@ class TmdbHomeFragment : Fragment() {
         if (_binding != null) {
             applyBannerLayout()
             applyTmdbBannerFocusChain()
-            // Rotation does not re-inflate the banner items, so a rebind is what
-            // makes them pick up the landscape height and synopsis size.
+
             bannerCarouselAdapter?.notifyDataSetChanged()
         }
     }
@@ -176,8 +174,7 @@ class TmdbHomeFragment : Fragment() {
         val threeD = carouselMode && is3DBanner()
 
         if (bannerShown) {
-            // 3D exposes the focused poster's own Watch Now pill; other carousel
-            // types keep the external pill as the single focus stop.
+
             b.tmdbBannerFrame.isFocusable = !carouselMode
             b.tmdbBannerFrame.isClickable = !carouselMode
             b.tmdbBannerFrame.nextFocusUpId = R.id.mainCalendarContainer
@@ -195,7 +192,6 @@ class TmdbHomeFragment : Fragment() {
             watchBtn.nextFocusDownId = View.NO_ID
         }
 
-        // Once rows are laid out, wire each row vertically.
         binding.tmdbHomeSections.post {
             if (_binding == null) return@post
             val threeD = mode == 0 && is3DBanner()
@@ -215,8 +211,7 @@ class TmdbHomeFragment : Fragment() {
                         } else {
                             target.nextFocusUpId = R.id.mainCalendarContainer
                         }
-                        // Carousel cards (and the banner frame) jump straight to
-                        // the first card on down, bypassing the watch-now button.
+
                         if (carousel != null) {
                             carousel.nextFocusDownId = target.id
                         }
@@ -289,7 +284,7 @@ class TmdbHomeFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         startAutoAdvance()
-        // Observe Refresh signals so CW/sections reload after scrobble or list edits
+
         val live = Refresh.activity.getOrPut(requireActivity().hashCode()) { androidx.lifecycle.MutableLiveData(true) }
         live.observe(viewLifecycleOwner) { if (it == true) { load(); live.postValue(false) } }
     }
@@ -316,13 +311,13 @@ class TmdbHomeFragment : Fragment() {
         binding.tmdbHomeSections.removeAllViews()
         binding.tmdbHomeSpinner.isVisible = true
         loadJob = viewLifecycleOwner.lifecycleScope.launch {
-            // Load banner (single view — adds immediately, no frame skip).
+
             loadBanner(plugin)
-            // Try plugin home sections first; fall back to Simkl if plugin has none.
+
             val hasPluginSections = if (plugin != null) {
                 loadPluginSections(plugin)
             } else false
-            // Continue watching row is shared across every home mode.
+
             loadSimklContinueWatching()
             if (!hasPluginSections) {
                 loadSimklHomeSections()
@@ -331,9 +326,8 @@ class TmdbHomeFragment : Fragment() {
         }
     }
 
-    /** Loads banner: plugin items for live sources, TMDB trending otherwise. */
     private suspend fun loadBanner(plugin: CsInstalledSource? = null) {
-        // TMDB path fetches genres in parallel with trending below; plugin path needs it up front.
+
         if (plugin != null) {
             genreNames = withContext(Dispatchers.IO) { Tmdb.genres().associate { it.id to it.name } }
         }
@@ -344,7 +338,7 @@ class TmdbHomeFragment : Fragment() {
                 CsRuntime.apisFor(requireContext(), plugin)
             }
             for (api in apis) {
-                // 1) Try provider's declared mainPage entries
+
                 val pages = api.mainPage.filter { it.data.isNotBlank() }
                 for (page in pages) {
                     val resp = runCatching {
@@ -359,7 +353,7 @@ class TmdbHomeFragment : Fragment() {
                     }
                     if (bannerItems.isNotEmpty()) break
                 }
-                // 2) Fallback: synthetic getMainPage
+
                 if (bannerItems.isEmpty()) {
                     val resp = runCatching {
                         withContext(Dispatchers.IO) {
@@ -372,7 +366,7 @@ class TmdbHomeFragment : Fragment() {
                         }
                     }
                 }
-                // 3) Final fallback: quickSearch
+
                 if (bannerItems.isEmpty()) {
                     val quick = runCatching {
                         withContext(Dispatchers.IO) { api.quickSearch("") }
@@ -385,8 +379,7 @@ class TmdbHomeFragment : Fragment() {
                 }
                 if (bannerItems.isNotEmpty()) break
             }
-            // Like anime mode: plugin = AniList (data), TMDB = AniZip (backdrop images)
-            // Fetch TMDB backdrop for each plugin item by name search
+
             val itemsToLookup = bannerItems.filterIsInstance<BannerItem.Plugin>().take(10)
             bannerItems.clear()
             for (pluginItem in itemsToLookup) {
@@ -406,7 +399,7 @@ class TmdbHomeFragment : Fragment() {
                 }
             }
         } else {
-            // Trending TV + movies in parallel (was 3 sequential calls incl. genres)
+
             val (g, trendingSeries, trendingMovies) = coroutineScope {
                 val gd = async(Dispatchers.IO) { Tmdb.genres() }
                 val sd = async(Dispatchers.IO) { Tmdb.trending("tv", "week") }
@@ -421,7 +414,7 @@ class TmdbHomeFragment : Fragment() {
         if (_binding == null) return
         val mode = PrefManager.getVal<Int>(PrefName.HomeBannerMode)
         if (mode == 1 || mode == 3) {
-            // No banner in profile/off modes.
+
             binding.tmdbBannerFrame.visibility = View.GONE
             binding.tmdbBannerCarousel.isVisible = false
             binding.tmdbBannerDots.visibility = View.GONE
@@ -442,23 +435,17 @@ class TmdbHomeFragment : Fragment() {
     private fun isCarouselMode(): Boolean =
         PrefManager.getVal<Int>(PrefName.HomeBannerMode) == 0
 
-    /** Sets up the horizontal carousel banner (anime-style) with transparent pill
-     *  chips and progress dots, driven by HomeBannerMode == carousel. */
     private fun setupTmdbBannerCarousel() {
         val rv = binding.tmdbBannerCarousel
         rv.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
-        // The banner carousel is never D-pad focusable (anime-exact): the
-        // watch-now button is the banner focus point and moves this carousel.
+
         rv.isFocusable = is3DBanner()
         rv.descendantFocusability = if (is3DBanner()) ViewGroup.FOCUS_AFTER_DESCENDANTS
             else ViewGroup.FOCUS_BLOCK_DESCENDANTS
-        // The default animator cross-fades a full-bleed banner on every bind,
-        // which is the most expensive thing on a low-RAM TV. The slide is enough.
+
         rv.itemAnimator = null
         bannerSnapHelper.attachToRecyclerView(rv)
 
-        // Paint the carousel immediately with basic data; logos/status/scores
-        // enrich concurrently afterwards (was N sequential detail calls blocking first paint).
         val logos = mutableMapOf<Int, String?>()
         val statuses = mutableMapOf<Int, String?>()
         val scores = mutableMapOf<Int, String?>()
@@ -481,9 +468,7 @@ class TmdbHomeFragment : Fragment() {
         rv.scrollToPosition(start)
         rv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrollStateChanged(rv: RecyclerView, newState: Int) {
-                // Manual scroll: reset the auto timer so it never yanks mid-swipe;
-                // the carousel path scrolls from the live position, so the next
-                // auto step continues from here.
+
                 if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
                     startAutoAdvance()
                     return
@@ -508,11 +493,6 @@ class TmdbHomeFragment : Fragment() {
         startAutoAdvance()
         applyTmdbBannerFocusChain()
 
-        // Enrich per-item logos/status/scores with bounded parallelism. The whole
-        // TMDB detail is kept, not just the logo: Modern mode needs the synopsis,
-        // genres, rating, year and poster from it. Plugin items are matched to a
-        // TMDB entry upstream, so they get the same treatment; anything TMDB does
-        // not know about is simply left out of the banner.
         val posters = mutableMapOf<Int, String?>()
         val details = mutableMapOf<Int, TmdbDetail?>()
         lifecycleScope.launch(Dispatchers.IO) {
@@ -571,7 +551,7 @@ class TmdbHomeFragment : Fragment() {
         val dots = binding.tmdbBannerDots
         if (dots.visibility != View.VISIBLE || dots.childCount == 0) return
         val density = resources.displayMetrics.density
-        // Portrait window: active dot cycles within the shown dots.
+
         val active = bannerIndex % dots.childCount
         for (i in 0 until dots.childCount) {
             val dot = dots.getChildAt(i)
@@ -589,7 +569,7 @@ class TmdbHomeFragment : Fragment() {
         val dots = binding.tmdbBannerDots
         dots.removeAllViews()
         val density = resources.displayMetrics.density
-        // Portrait: max 7 dots, cycling (8th banner lights dot 0). Landscape: all.
+
         val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
         val shown = if (isPortrait) minOf(itemCount, 7) else itemCount
         for (i in 0 until shown) {
@@ -617,7 +597,7 @@ class TmdbHomeFragment : Fragment() {
 
     private fun openBannerItem(item: BannerItem) {
         when (item) {
-            // Like every other movie card: details first, Watch lives there.
+
             is BannerItem.Tmdb -> openDetails(item.media.type, item.media.id)
             is BannerItem.Plugin -> {
                 if (item.tmdbId != null && item.tmdbType != null) {
@@ -633,10 +613,6 @@ class TmdbHomeFragment : Fragment() {
         }
     }
 
-    /** Loads plugin home sections (CloudStream-style). Returns true if any
-     *  sections were added. Mimics Zangetsu: first section → hero carousel,
-     *  remaining → browse rows; providers with no mainPage get a synthetic
-     *  request fallback, and a quickSearch fallback synthesises trending rows. */
     private suspend fun loadPluginSections(source: CsInstalledSource): Boolean {
         val apis = withContext(Dispatchers.IO) {
             CsRuntime.apisFor(requireContext(), source)
@@ -644,7 +620,7 @@ class TmdbHomeFragment : Fragment() {
         if (apis.isEmpty()) return false
         var added = false
         for (api in apis) {
-            // 1) Try the provider's declared mainPage entries.
+
             val pages = api.mainPage.filter { it.data.isNotBlank() }
             if (pages.isNotEmpty()) {
                 for (page in pages) {
@@ -661,8 +637,7 @@ class TmdbHomeFragment : Fragment() {
                     }
                 }
             } else {
-                // 2) Fallback: try a synthetic getMainPage (some providers override it
-                //    with hardcoded logic even when mainPage is empty).
+
                 val resp = runCatching {
                     withContext(Dispatchers.IO) {
                         api.getMainPage(1, MainPageRequest("Home", "", false))
@@ -675,7 +650,7 @@ class TmdbHomeFragment : Fragment() {
                     }
                 }
             }
-            // 3) Final fallback: quickSearch synthesises trending rows (Zangetsu-style).
+
             if (!added) {
                 val quick = runCatching {
                     withContext(Dispatchers.IO) { api.quickSearch("") }
@@ -689,7 +664,6 @@ class TmdbHomeFragment : Fragment() {
         return added
     }
 
-    /** Folds a Simkl library entry into the shared Media the "more" list binds. */
     private fun Simkl.SimklWatchedItem.toExploreMedia(): Media? {
         val tmdbId = ids?.tmdb ?: return null
         val name = title ?: return null
@@ -700,9 +674,7 @@ class TmdbHomeFragment : Fragment() {
             nameRomaji = name,
             userPreferredName = name,
             isAdult = false,
-            // Simkl returns a poster identifier, not necessarily a URL. The shared
-            // MediaAdaptor loads cover/banner directly, unlike the home rail which
-            // calls Simkl.imageUrl itself. Normalize both here for See All grid/list.
+
             cover = Simkl.imageUrl(poster),
             banner = Simkl.imageUrl(poster, "w"),
             format = type.uppercase(),
@@ -710,7 +682,6 @@ class TmdbHomeFragment : Fragment() {
         )
     }
 
-    /** A trailing lens chevron that opens the full list for a Simkl rail. */
     private fun simklMoreAdapter(items: List<Simkl.SimklWatchedItem>, title: String): SectionMoreAdapter {
         val exploreList = ArrayList(items.mapNotNull { it.toExploreMedia() })
         return SectionMoreAdapter {
@@ -724,7 +695,6 @@ class TmdbHomeFragment : Fragment() {
         }
     }
 
-    /** Loads Simkl "continue watching" items (TV/movie only, not anime). */
     private suspend fun loadSimklContinueWatching() {
         if (Simkl.token == null) return
         val items = withContext(Dispatchers.IO) { Simkl.getContinueWatching() }
@@ -765,17 +735,12 @@ class TmdbHomeFragment : Fragment() {
         binding.tmdbHomeSections.addView(list)
     }
 
-    /**
-     * Simkl-driven home rails (Favourites, Planned, Recommended) shown when the
-     * content source is Simkl. Recommended: TMDB "more like this" from the user's
-     * own library, filtered to the genres they actually watch.
-     */
     private suspend fun loadSimklHomeSections() = coroutineScope {
         val all = if (Simkl.token != null) {
             withContext(Dispatchers.IO) { Simkl.getLibrary() }
                 ?.let { it.movies.orEmpty() + it.shows.orEmpty() }.orEmpty()
         } else emptyList()
-        // Favourites = user_rating 9-10 (same rule as the library "Favourites" tab).
+
         val favourites = all.filter { (it.userRating ?: 0) >= 9 }
         if (favourites.isNotEmpty()) addSimklSection("Favourites", favourites)
         val planned = all.filter {
@@ -788,14 +753,8 @@ class TmdbHomeFragment : Fragment() {
         applyTmdbBannerFocusChain()
     }
 
-    /**
-     * Builds the Recommended rail from TMDB "more like this" of the user's own
-     * library. Only titles sharing a genre with what they already track survive;
-     * no random fill, and the rail is skipped entirely when there is nothing to
-     * base it on.
-     */
     private suspend fun loadRecommended(libraryItems: List<Simkl.SimklWatchedItem>) = coroutineScope {
-        // Library items that can seed "more like this" lookups, highest rated first.
+
         val seeds = libraryItems
             .mapNotNull { item ->
                 val id = item.ids?.tmdb ?: return@mapNotNull null
@@ -806,14 +765,12 @@ class TmdbHomeFragment : Fragment() {
             .take(8)
         if (seeds.isEmpty()) return@coroutineScope
 
-        // Genres the user actually watches, gathered from those seed items.
         val watchedGenres = async(Dispatchers.IO) {
             seeds.map { (_, mediaType, id) ->
                 runCatching { Tmdb.detailGenres(mediaType, id).map { it.id } }.getOrDefault(emptyList())
             }.flatten().toSet()
         }
 
-        // "More like this" for the strongest seeds, in parallel.
         val similar = seeds.map { (_, mediaType, id) ->
             async(Dispatchers.IO) {
                 runCatching { Tmdb.similar(mediaType, id) }.getOrDefault(emptyList())
@@ -825,15 +782,14 @@ class TmdbHomeFragment : Fragment() {
         val recs = similar
             .asReversed().distinctBy { it.type to it.id }.reversed()
             .filterNot { it.id in known }
-            // Only titles with at least one genre the user watches.
+
             .filter { it.genreIds.any { g -> g in genres } }
-            // Most genre overlap first → closest to their taste.
+
             .sortedByDescending { it.genreIds.count { g -> g in genres } }
             .take(20)
         if (recs.isNotEmpty()) addSection("Recommended", recs)
     }
 
-    /** A horizontal Simkl poster rail, reusing the anime-library card style. */
     private fun addSimklSection(title: String, items: List<Simkl.SimklWatchedItem>) {
         if (items.isEmpty()) return
         val ctx = requireContext()
@@ -885,7 +841,7 @@ class TmdbHomeFragment : Fragment() {
         source: CsInstalledSource
     ) {
         if (items.isEmpty()) return
-        // Skip plugin CW — Simkl row handles this
+
         if (title.contains("Continue Watching", ignoreCase = true)) return
         val ctx = requireContext()
         val header = TextView(ctx).apply {
@@ -958,7 +914,7 @@ class TmdbHomeFragment : Fragment() {
         val item = bannerItems.getOrNull(index) ?: return
         bannerIndex = index
         binding.tmdbBannerImage.loadImage(item.bannerUrl)
-        // Default centerCrop works for both TMDB backdrops and plugin TMDB-looked-up backdrops
+
         binding.tmdbBannerImage.scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
         val meta = buildString {
             if (item is BannerItem.Tmdb && item.media.voteAverage > 0)
@@ -971,7 +927,7 @@ class TmdbHomeFragment : Fragment() {
         binding.tmdbBannerRating.text = meta
         val synopsis = item.overview?.takeIf { it.isNotBlank() } ?: ""
         val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
-        // Large type: title + chips only, no synopsis.
+
         val largeBanner = isClassicBanner()
         binding.tmdbBannerSynopsis.text = synopsis
         binding.tmdbBannerSynopsis.isVisible = !isPortrait && !largeBanner && synopsis.isNotBlank()
@@ -1090,13 +1046,6 @@ class TmdbHomeFragment : Fragment() {
         else -> status
     }
 
-    /**
-     * Classic stacks the logo, the metadata line and the watch pill down the
-     * middle of the banner. The carousel gets that from item_banner_classic,
-     * but this single-banner view is laid out here and every row in it defaults
-     * to left, which is what left the chips stacked against the edge in movie
-     * mode. Compact and Modern keep the left alignment they have always had.
-     */
     private fun centerStack(root: View, centered: Boolean) {
         if (root !is ViewGroup) return
         val gravity = if (centered) Gravity.CENTER_HORIZONTAL else Gravity.START
@@ -1111,21 +1060,14 @@ class TmdbHomeFragment : Fragment() {
     }
 
     private fun applyBannerLayout() {
-        // Done here rather than with a gravity per child in the XML, so both
-        // banner views stay in step with the carousel.
+
         val classic = isClassicBanner()
         centerStack(binding.tmdbBannerContent, classic)
         centerStack(binding.tmdbBannerSide, classic)
         if (classic) {
-            // A row centres its own content by gravity, and gravity only bites
-            // when nothing inside it is weighted. Genres carries a weight so
-            // Compact can hold it against the far right edge, and that same
-            // weight is what pins the whole block to the left in Classic.
+
             binding.tmdbBannerMetaRow?.let { row ->
-                // The row spans the full card, so the gravity that matters is the
-                // row's own: it is what lines its children up in the middle. Its
-                // layout gravity only positions the row, and the row is
-                // match_parent, so there is nothing to position.
+
                 (row as? LinearLayout)?.let { line ->
                     line.gravity = Gravity.CENTER_HORIZONTAL or Gravity.CENTER_VERTICAL
                 }
@@ -1134,8 +1076,7 @@ class TmdbHomeFragment : Fragment() {
                         val child = group.getChildAt(i)
                         val lp = child.layoutParams as? LinearLayout.LayoutParams
                         if (lp != null && lp.weight > 0f) {
-                            // Weight would hand the leftover width back to one
-                            // child and undo the centring just applied.
+
                             lp.weight = 0f
                             lp.width = ViewGroup.LayoutParams.WRAP_CONTENT
                             child.layoutParams = lp
@@ -1143,8 +1084,7 @@ class TmdbHomeFragment : Fragment() {
                     }
                 }
             }
-            // The anime Classic banner has no synopsis either; leaving one here
-            // puts a left-aligned text block under a centred stack.
+
             binding.tmdbBannerSynopsis.isVisible = false
         }
 
@@ -1167,8 +1107,6 @@ class TmdbHomeFragment : Fragment() {
             binding.tmdbBannerContent.isVisible = false
             binding.tmdbBannerDots.isVisible = bannerItems.size > 1
 
-            // Modern is full-bleed in every orientation: the metadata lives inside
-            // the banner, so the side panel and the left fade are never used.
             if (isModernBanner()) {
                 card.sizeBannerCard()
                 card.updateLayoutParams<FrameLayout.LayoutParams> {
@@ -1186,10 +1124,7 @@ class TmdbHomeFragment : Fragment() {
                 card.updateLayoutParams<FrameLayout.LayoutParams> {
                     gravity = Gravity.END or Gravity.TOP
                 }
-                // Classic draws the logo, the chips and the pill on the card
-                // itself, so the side panel repeats all three and puts a second
-                // logo above the first. Same reason the anime screen drops its
-                // panel for Classic and Modern.
+
                 if (isClassicBanner()) {
                     binding.tmdbBannerFade.isVisible = false
                     binding.tmdbBannerCardScrim.isVisible = false
@@ -1205,7 +1140,7 @@ class TmdbHomeFragment : Fragment() {
                 }
                 binding.tmdbBannerFade.bringToFront()
                 binding.tmdbBannerFade.z = 10f
-                // Large type: no left 3-layer scrim, only gradients below.
+
                 binding.tmdbBannerCardScrim.isVisible = !isClassicBanner()
                 binding.tmdbBannerCardScrim.layoutParams = binding.tmdbBannerCardScrim.layoutParams.apply {
                     width = cardW / 2
@@ -1246,7 +1181,7 @@ class TmdbHomeFragment : Fragment() {
                 gravity = Gravity.END or Gravity.TOP
             }
             val stripW = ctx.resources.displayMetrics.widthPixels - cardW
-            // Exact anime landscape gradient: strip fade on the left + scrim over the card's left half
+
             binding.tmdbBannerFade.isVisible = true
             binding.tmdbBannerFade.updateLayoutParams<FrameLayout.LayoutParams> {
                 width = stripW
@@ -1277,7 +1212,7 @@ class TmdbHomeFragment : Fragment() {
             binding.tmdbBannerLogo.maxHeight = (cardH * 0.30f).toInt()
             if (largeBanner) {
                 binding.tmdbBannerSideWatchBtn.updateLayoutParams<ViewGroup.MarginLayoutParams> { topMargin = (2 * density).toInt() }
-                // Title spacing 5dp for Large
+
                 binding.tmdbBannerSide.findViewById<android.view.View>(R.id.tmdbBannerLogo)?.let { v ->
                     v.updateLayoutParams<ViewGroup.MarginLayoutParams> { bottomMargin = (5 * density).toInt() }
                 }
@@ -1312,11 +1247,7 @@ class TmdbHomeFragment : Fragment() {
             override fun run() {
                 val lm = binding.tmdbBannerCarousel.layoutManager as? LinearLayoutManager
                 if (isCarouselMode() && lm != null && lm.isSmoothScrolling()) {
-                    // A tick used to be able to land while the previous slide was still
-                    // travelling, and startSmoothScroll replaces the in-flight scroller, so
-                    // each tick cut the last one short and aimed again, so the banner crept
-                    // forward and never came to rest. Waiting for the settle forces one
-                    // slide, one pause.
+
                     bannerHandler.postDelayed(this, BANNER_SETTLE_POLL_MS)
                     return
                 }
@@ -1341,8 +1272,7 @@ class TmdbHomeFragment : Fragment() {
             binding.tmdbBannerCarousel.findContainingViewHolder(focus) != null ||
             focus == binding.tmdbBannerWatchBtn || focus == binding.tmdbBannerSideWatchBtn
         )
-        // D-pad moves from the watch button must always scroll (force);
-        // auto-advance stays hands-off while the user is on the banner.
+
         if (!onBanner || force) {
             rv.smoothScrollToPosition(pos + (if (forward) 1 else -1))
         }
@@ -1380,8 +1310,6 @@ class TmdbHomeFragment : Fragment() {
         class VH(val binding: ItemTmdbCardBinding) : RecyclerView.ViewHolder(binding.root)
     }
 
-    /** Cards for plugin main-page rows — same layout and sizing as TMDB cards,
-     *  but images come straight from the plugin (posterUrl is a full URL). */
     class PluginRowAdapter(
         private val items: List<SearchResponse>,
         private val onClick: (SearchResponse) -> Unit
@@ -1413,7 +1341,6 @@ class TmdbHomeFragment : Fragment() {
             b.tmdbCard.radius = TmdbCards.roundness()
             b.tmdbCardPoster.loadImage(item.posterUrl, if (landscape || isLive) 780 else 300)
 
-            // Reset before async loads
             b.tmdbCardLogo.isVisible = false
             b.tmdbCardOverlayTitle.isVisible = false
 
@@ -1447,7 +1374,7 @@ class TmdbHomeFragment : Fragment() {
                         b.tmdbCardYear.isVisible = false
                     }
                 }
-                // Async TMDB backdrop + logo for plugin items
+
                 cardScope.launch {
                     val name = item.name ?: return@launch
                     val results = runCatching { ani.sanin.connections.tmdb.Tmdb.search(name) }.getOrNull()
@@ -1471,7 +1398,7 @@ class TmdbHomeFragment : Fragment() {
                 }
             } else {
                 b.tmdbCardPoster.loadImage(item.posterUrl, 300)
-                // Portrait: bottom overlay is landscape-only — title below unless hidden
+
                 b.tmdbCardGradient.isVisible = false
                 b.tmdbCardOverlayTitle.isVisible = false
                 b.tmdbCardLogo.isVisible = false
@@ -1494,7 +1421,6 @@ class TmdbHomeFragment : Fragment() {
         class VH(val binding: ItemTmdbCardBinding) : RecyclerView.ViewHolder(binding.root)
     }
 
-    /** Portrait poster rail for Simkl library items (Favourites / Planned / Recommended). */
     class SimklRowAdapter(
         private val items: List<Simkl.SimklWatchedItem>,
         private val onClick: (Simkl.SimklWatchedItem) -> Unit
@@ -1528,7 +1454,7 @@ class TmdbHomeFragment : Fragment() {
                 b.tmdbCardPoster.setImageResource(R.drawable.ic_round_person_24)
             }
             if (landscape) {
-                // Wide card: gradient + overlay title, no title below.
+
                 b.tmdbCardTitle.isVisible = false
                 b.tmdbCardYear.isVisible = false
                 b.tmdbCardLogo.isVisible = false
@@ -1536,7 +1462,7 @@ class TmdbHomeFragment : Fragment() {
                 b.tmdbCardOverlayTitle.isVisible = true
                 b.tmdbCardOverlayTitle.text = item.title ?: ""
             } else {
-                // Portrait: poster with title + year below (anime-library rail style).
+
                 b.tmdbCardTitle.isVisible = true
                 b.tmdbCardTitle.text = item.title ?: ""
                 b.tmdbCardYear.isVisible = item.year != null

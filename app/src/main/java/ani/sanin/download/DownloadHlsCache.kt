@@ -28,7 +28,6 @@ import java.net.URI
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-/** Persistent Media3 cache for adaptive streams; locator remains compatible with saved HLS items. */
 @UnstableApi
 object DownloadHlsCache {
     const val LOCATOR_PREFIX = "sanin-hls-cache://"

@@ -8,13 +8,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 
-/**
- * Handles DDoS-Guard ("ddos-guard") clearance cookies for hosts like voe.sx.
- * Ported from yuzono/anime-extensions (aniyomi.lib.voeextractor.DdosGuardInterceptor).
- * When the upstream replies 403 with a "ddos-guard" server header and no __ddg2_ cookie
- * is present, it fetches the clearance cookie from check.ddos-guard.net and retries.
- * If clearance cannot be obtained the original request is passed through unchanged.
- */
 class DdosGuardInterceptor(private val client: OkHttpClient) : Interceptor {
 
     private val cookieManager by lazy { CookieManager.getInstance() }

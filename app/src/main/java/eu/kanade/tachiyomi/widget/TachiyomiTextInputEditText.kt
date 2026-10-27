@@ -16,12 +16,6 @@ import kotlinx.coroutines.flow.onEach
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
-/**
- * A custom [TextInputEditText] that sets [EditorInfoCompat.IME_FLAG_NO_PERSONALIZED_LEARNING] to imeOptions
- * if [BasePreferences.incognitoMode] is true. Some IMEs may not respect this flag.
- *
- * @see setIncognito
- */
 class TachiyomiTextInputEditText @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -43,10 +37,7 @@ class TachiyomiTextInputEditText @JvmOverloads constructor(
     }
 
     companion object {
-        /**
-         * Sets Flow to this [EditText] that sets [EditorInfoCompat.IME_FLAG_NO_PERSONALIZED_LEARNING] to imeOptions
-         * if [BasePreferences.incognitoMode] is true. Some IMEs may not respect this flag.
-         */
+
         fun EditText.setIncognito(viewScope: CoroutineScope) {
             Injekt.get<BasePreferences>().incognitoMode().changes()
                 .onEach {

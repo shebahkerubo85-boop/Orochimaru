@@ -27,7 +27,6 @@
             android:layout_height="1dp"
             android:background="?android:attr/listDivider" />
 
-
         <LinearLayout
             android:id="@+id/bottomDialogCustomContainer"
             android:layout_width="match_parent"

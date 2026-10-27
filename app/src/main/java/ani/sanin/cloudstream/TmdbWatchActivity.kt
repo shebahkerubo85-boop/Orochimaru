@@ -7,12 +7,6 @@ import androidx.appcompat.app.AppCompatActivity
 import ani.sanin.R
 import ani.sanin.themes.ThemeManager
 
-/**
- * Thin host for the movie/tv watch tab when it is opened directly (home
- * banner, continue watching). The real screen is [TmdbWatchFragment]; the
- * details screen embeds the same fragment and keeps the Info/Watch/Comments
- * pill visible across all three tabs.
- */
 class TmdbWatchActivity : AppCompatActivity(), TmdbWatchFragment.Host {
 
     companion object {

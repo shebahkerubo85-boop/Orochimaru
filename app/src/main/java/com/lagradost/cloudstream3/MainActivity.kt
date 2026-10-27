@@ -22,8 +22,6 @@ private val jsonResponseParser = object : ResponseParser {
     override fun writeValueAsString(obj: Any): String = obj.toJson()
 }
 
-// Top-level declarations MUST live in MainActivity.kt: plugins compiled against the
-// upstream CS3 SDK reference com.lagradost.cloudstream3.MainActivityKt.getApp().
 var app = Requests(responseParser = jsonResponseParser).apply {
     defaultHeaders = mapOf("user-agent" to USER_AGENT)
 }
@@ -33,10 +31,6 @@ var insecureApp = Requests(responseParser = jsonResponseParser).apply {
     defaultHeaders = mapOf("user-agent" to USER_AGENT)
 }
 
-/**
- * Minimal host stub for upstream cloudstream3 references.
- * The real Activity lives in ani.sanin.MainActivity.
- */
 open class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

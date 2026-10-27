@@ -67,7 +67,6 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
         FocusEffectUtil.applyFocusListener(binding.csRepoBack)
         binding.csRepoTitle.text = repoUrl.clean()
 
-        // Header action buttons
         binding.csRepoCopy.setOnClickListener {
             copyToClipboard(repoUrl, true)
         }
@@ -86,13 +85,11 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
         FocusEffectUtil.applyFocusListener(binding.csRepoCopy)
         FocusEffectUtil.applyFocusListener(binding.csRepoDelete)
 
-        // Filter chip
         binding.csRepoFilterChip.setOnClickListener {
             CsTypeFilter.show(this) { refreshList(cachedPlugins) }
         }
         FocusEffectUtil.applyFocusListener(binding.csRepoFilterChip)
 
-        // Language chip
         binding.csRepoLangChip.setOnClickListener {
             val languageOptions =
                 LanguageMapper.Companion.Language.entries.map { entry ->
@@ -117,7 +114,6 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
         }
         FocusEffectUtil.applyFocusListener(binding.csRepoLangChip)
 
-        // Search icon + inline search bar
         searchAnimator = SearchBarAnimator(
             binding.csRepoSearchView,
             binding.csRepoSearchViewText,
@@ -153,7 +149,7 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
             }
             binding.csRepoTitle.text = result.name
             cachedManifest = result
-            // Load repo icon
+
             result.iconUrl?.let { icon ->
                 val fullUrl = if (icon.startsWith("http")) icon else CsRepos.sourceUrl(repoUrl, icon)
                 SvgImageLoader.load(
@@ -170,7 +166,6 @@ class CloudStreamRepoDetailActivity : AppCompatActivity() {
             if (plugins.isEmpty()) binding.csRepoEmptyText.text = "No extensions found in this repo"
             refreshList(plugins)
 
-            // Build focus chain: back → copy/delete + filter/lang → plugin list
             binding.csRepoRecyclerView.requestFocus()
         }
     }

@@ -7,7 +7,6 @@ import com.lagradost.cloudstream3.utils.ExtractorApi
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.JsUnpacker
 
-
 open class Vtbe : ExtractorApi() {
     override var name = "Vtbe"
     override var mainUrl = "https://vtbe.to"

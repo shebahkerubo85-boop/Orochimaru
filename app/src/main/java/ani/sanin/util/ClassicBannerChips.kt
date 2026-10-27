@@ -7,27 +7,11 @@ import com.google.android.flexbox.FlexboxLayout
 import ani.sanin.R
 import ani.sanin.getThemeColor
 
-/**
- * How the two chip lines are divided: 5 of every 8 chips go on top and the
- * remaining 3 underneath. A ratio rather than a fixed count, so an anime with
- * four chips or ten chips still gets a balanced pair of lines instead of
- * 5-and-rest.
- */
 private const val CLASSIC_CHIPS_TOP_SHARE = 5f
 private const val CLASSIC_CHIPS_SPLIT_TOTAL = 8f
 
-/** Total chip slots, so a long genre list cannot push the banner taller. */
 const val CLASSIC_CHIPS_MAX = 10
 
-/**
- * Renders the Classic banner's chips into two rows split by
- * [CLASSIC_CHIPS_TOP_SHARE]:[CLASSIC_CHIPS_SPLIT_TOTAL] - [CLASSIC_CHIPS_SPLIT_TOTAL].
- *
- * Eight chips therefore land 5 and 3, which is the shape this was designed
- * around, and any other total is divided by the same ratio. Anything past
- * [CLASSIC_CHIPS_MAX] is dropped, since the banner has a fixed height and more
- * chips would push the logo off the card.
- */
 fun bindClassicChips(
     container: ViewGroup?,
     top: ViewGroup?,
@@ -40,8 +24,7 @@ fun bindClassicChips(
 
     val capped = labels.filter { it.isNotBlank() }.take(CLASSIC_CHIPS_MAX)
     if (capped.isEmpty()) {
-        // Hide the wrapper too, otherwise it keeps its top margin and leaves a
-        // gap above the logo.
+
         container?.isVisible = false
         top.isVisible = false
         bottom.isVisible = false

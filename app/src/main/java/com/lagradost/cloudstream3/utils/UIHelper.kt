@@ -94,8 +94,7 @@ object UIHelper {
             Manifest.permission.WRITE_EXTERNAL_STORAGE
         )
                 == PackageManager.PERMISSION_GRANTED
-                // Since Android 13, we can't request external storage permission,
-                // so don't check it.
+
                 || Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
     }
 
@@ -108,7 +107,7 @@ object UIHelper {
         if (view == null) return
         view.removeAllViews()
         val context = view.context ?: return
-        val maxTags = tags.take(10) // Limited because they are too much
+        val maxTags = tags.take(10)
 
         maxTags.forEach { tag ->
             val chip = Chip(context)
@@ -173,17 +172,10 @@ object UIHelper {
         }
     }
 
-    /**
-     * Sets ListView height dynamically based on the height of the items.
-     *
-     * @param listView to be resized
-     * @return true if the listView is successfully resized, false otherwise
-     */
     fun setListViewHeightBasedOnItems(listView: ListView?) {
         val listAdapter: ListAdapter = listView?.adapter ?: return
         val numberOfItems: Int = listAdapter.count
 
-        // Get total height of all items.
         var totalItemsHeight = 0
         for (itemPos in 0 until numberOfItems) {
             val item: View = listAdapter.getView(itemPos, null, listView)
@@ -191,11 +183,9 @@ object UIHelper {
             totalItemsHeight += item.measuredHeight
         }
 
-        // Get total height of all item dividers.
         val totalDividersHeight: Int = listView.dividerHeight *
                 (numberOfItems - 1)
 
-        // Set list height.
         val params: ViewGroup.LayoutParams = listView.layoutParams
         params.height = totalItemsHeight + totalDividersHeight
         listView.layoutParams = params
@@ -203,7 +193,7 @@ object UIHelper {
     }
 
     fun Context.getSpanCount(isHorizontal:Boolean=false): Int {
-//        val compactView = false
+
         val spanCountLandscape = if (isHorizontal) 3 else 6
         val spanCountPortrait = if (isHorizontal) 2 else 3
         val orientation = resources.configuration.orientation
@@ -235,25 +225,20 @@ object UIHelper {
         }
     }
 
-
-    /** If you want to call this from a BackPressedCallback, pass the name of the callback to temporarily disable it */
     fun FragmentActivity.popCurrentPage(fromBackPressedCallback: String? = null) {
-        // Use the main looper handler to post actions on the main thread
+
         main {
-            // Post the back press action to the main thread handler to ensure it executes
-            // after any currently pending UI updates or fragment transactions.
+
             if (fromBackPressedCallback != null) {
                 disableBackPressedCallback(fromBackPressedCallback)
             }
             if (!supportFragmentManager.isStateSaved) {
-                // Get the top fragment from the back stack
+
                 Log.d("popFragment", "Destroying Fragment")
-                // If the state is not saved, it's safe to perform the back press action.
+
                 onBackPressedDispatcher.onBackPressed()
             } else {
-                // If the state is saved, retry the back press action after a slight delay.
-                // This gives the FragmentManager time to complete any ongoing state-saving
-                // operations or transactions, ensuring that we do not encounter an IllegalStateException.
+
                 delay(100)
                 if (!supportFragmentManager.isStateSaved) {
                     Log.d("popFragment", "Destroying after delay")
@@ -302,7 +287,7 @@ object UIHelper {
     }
 
     fun Activity.hideSystemUI() {
-        // Enables regular immersive mode.
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val controller = WindowCompat.getInsetsController(window, window.decorView)
             controller.systemBarsBehavior =
@@ -311,30 +296,27 @@ object UIHelper {
             return
         }
 
-        // For "lean back" mode, remove SYSTEM_UI_FLAG_IMMERSIVE.
-        // Or for "sticky immersive," replace it with SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = (
                 View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                        // Set the content to appear under the system bars so that the
-                        // content doesn't resize when the system bars hide and show.
+
                         or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                         or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                         or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        // Hide the nav bar and status bar
+
                         or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                         or View.SYSTEM_UI_FLAG_FULLSCREEN
                 )
     }
 
     fun Activity.enableEdgeToEdgeCompat() {
-        // edge-to-edge is very buggy on earlier versions
+
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
         WindowCompat.enableEdgeToEdge(window)
     }
 
     fun Activity.setNavigationBarColorCompat(@AttrRes resourceId: Int) {
-        // edge-to-edge handles this
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) return
 
         @Suppress("DEPRECATION")
@@ -389,8 +371,7 @@ object UIHelper {
         overlayCutout: Boolean = true,
         fixIme: Boolean = false
     ) {
-        // edge-to-edge is very buggy on earlier versions so we just
-        // handle the status bar here instead.
+
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             if (padTop) {
                 val ctx = v.context ?: return
@@ -432,9 +413,7 @@ object UIHelper {
             }
 
             if (overlayCutout && isLayout(PHONE)) {
-                // Draw a black overlay over the cutout. We do this so that
-                // it doesn't use the fragment background. We want it to
-                // appear as if the screen actually ends at cutout.
+
                 val cutout = windowInsets.displayCutout
                 if (cutout != null) {
                     val left = if (!leftCheck) 0 else cutout.safeInsetLeft
@@ -498,8 +477,6 @@ object UIHelper {
         }
     }
 
-    // Shows the system bars by removing all the flags
-    // except for the ones that make the content appear under the system bars.
     fun Activity.showSystemUI() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val controller = WindowCompat.getInsetsController(window, window.decorView)
@@ -544,18 +521,10 @@ object UIHelper {
         }
     }
 
-    /**
-     * Source: https://stackoverflow.com/questions/70954321/circular-progress-indicator-inside-buttons-android-material-design
-     *
-     * Shows indeterminate progress bar on this button in place of where icon would be.
-     * By default the tint of progress bar is the same as iconTint.
-     *
-     * @param tintColor (@ColorInt Int) Sets custom progress bar tint color.
-     */
     fun MaterialButton.showProgress(@ColorInt tintColor: Int = this.iconTint.defaultColor) =
-        // Use runOnMainThreadNative to allow process on io threads, to make the code a bit cleaner
+
         runOnMainThreadNative {
-            // No need to set it again, as then it will reset the animation
+
             if(this.icon is IndeterminateDrawable<*>) {
                 return@runOnMainThreadNative
             }
@@ -581,7 +550,6 @@ object UIHelper {
             this.icon = null
         }
 
-    /**id, stringRes */
     @SuppressLint("RestrictedApi")
     fun View.popupMenuNoIcons(
         items: List<Pair<Int, Int>>,
@@ -611,7 +579,6 @@ object UIHelper {
         return popup
     }
 
-    /**id, string */
     @SuppressLint("RestrictedApi")
     fun View.popupMenuNoIconsAndNoStringRes(
         items: List<Pair<Int, String>>,

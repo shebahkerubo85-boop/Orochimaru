@@ -90,7 +90,6 @@ class StoragePermissions {
     }
 }
 
-
 class LauncherWrapper(
     activity: AppCompatActivity,
     contract: ActivityResultContracts.OpenDocumentTree

@@ -67,8 +67,7 @@ object IntroDB {
         interval = AniSkip.AniSkipInterval(startTime = startSec, endTime = endSec),
         skipType = skipType,
         skipId = skipId,
-        // episodeLength represents total episode duration; use 0.0 as a sentinel since
-        // IntroDB segments don't carry the full episode length
+
         episodeLength = 0.0
     )
 

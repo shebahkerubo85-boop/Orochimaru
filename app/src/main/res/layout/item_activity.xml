@@ -198,7 +198,6 @@
                 app:srcCompat="@drawable/linear_gradient_nav"
                 tools:ignore="ContentDescription" />
 
-
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/activityCoverContainer"
                 android:layout_width="wrap_content"
@@ -244,7 +243,6 @@
                     android:textStyle="bold"
                     tools:ignore="HardcodedText" />
 
-                
             </LinearLayout>
 
             <LinearLayout

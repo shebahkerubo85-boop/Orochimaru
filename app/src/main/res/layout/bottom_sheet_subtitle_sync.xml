@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Portrait variant: cues on top, buttons below (horizontal/landscape
-     variant lives in layout-land). Same IDs as the landscape file — the
-     dialog code drives both from one binding. -->
+
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/syncRoot"

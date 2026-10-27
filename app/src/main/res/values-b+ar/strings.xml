@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- IS NOT NEEDED TO TRANSLATE AS THEY ARE ONLY USED FOR SCREEN READERS AND WONT SHOW UP TO NORMAL USERS -->
+
     <string name="result_poster_img_des">ملصق</string>
     <string name="search_poster_img_des">الصورة الدعائية</string>
     <string name="episode_poster_img_des">ملصق الحلقة</string>
@@ -9,7 +9,7 @@
     <string name="go_back_img_des">رجوع</string>
     <string name="home_change_provider_img_des">تغيير المصدر</string>
     <string name="preview_background_img_des">معاينة الخلفية</string>
-    <!-- TRANSLATE, BUT DON'T FORGET FORMAT -->
+
     <string name="player_speed_text_format" formatted="true">سرعة (%.2fx)</string>
     <string name="rated_format" formatted="true">تقييم: %.1f</string>
     <string name="new_update_format" formatted="true">يوجد تحديث جديد! \n%1$s -&gt; %2$s</string>
@@ -44,7 +44,7 @@
     <string name="reload_error">إعادة محاولة الاتصال …</string>
     <string name="go_back">ارجع للخلف</string>
     <string name="play_episode">تشغيل الحلقة</string>
-    <!--<string name="need_storage">السماح بتنزيل الحلقات</string>-->
+
     <string name="download">تحميل</string>
     <string name="downloaded">تم التنزيل</string>
     <string name="downloading">جاري التنزيل</string>
@@ -191,7 +191,7 @@
     <string name="free_storage">فارغ</string>
     <string name="used_storage">مستخدم</string>
     <string name="app_storage">التطبيق</string>
-    <!--plural-->
+
     <string name="movies">أفلام</string>
     <string name="tv_series">مسلسلات</string>
     <string name="cartoons">رسوم متحركة</string>
@@ -203,7 +203,7 @@
     <string name="livestreams">بث حي</string>
     <string name="nsfw">+18</string>
     <string name="others">أخرى</string>
-    <!--singular-->
+
     <string name="movies_singular">فيلم</string>
     <string name="tv_series_singular">مسلسل</string>
     <string name="cartoons_singular">كرتون</string>
@@ -281,7 +281,7 @@
     <string name="app_theme_settings">مظهر التطبيق</string>
     <string name="bottom_title_settings">مكان عنوان الملصق</string>
     <string name="bottom_title_settings_des">وضع العنوان تحت الملصق</string>
-    <!-- account stuff -->
+
     <string name="example_password">كلمة المرور</string>
     <string name="example_username">إسم المستخدم</string>
     <string name="example_email">البريد الإلكتروني</string>
@@ -305,7 +305,7 @@
     <string name="sync_total_episodes_some" formatted="true">/%d</string>
     <string name="authenticated_user" formatted="true">%s تم التوثيق</string>
     <string name="authenticated_user_fail" formatted="true">تعذر تسجيل الدخول في %s</string>
-    <!-- ============ -->
+
     <string name="none">لا شيء</string>
     <string name="normal">عادي</string>
     <string name="all">الكل</string>
@@ -321,12 +321,7 @@
     <string name="subtitle_offset_extra_hint_later_format">إستعملْ هذا إذا تَظْهرُ الترجماتَ %d m في وقت مبكر جداً</string>
     <string name="subtitle_offset_extra_hint_before_format">استخدم هذا إذا تم عرض الترجمة %d مللي ثانية متأخرًا جدًا</string>
     <string name="subtitle_offset_extra_hint_none_format">لا تأخير في الترجمة</string>
-    <!--
-    Example text (pangram) can optionally be translated; if you do, include all the letters in the alphabet,
-    see:
-	https://en.wikipedia.org/w/index.php?title=Pangram&oldid=225849300
-	https://en.wikipedia.org/wiki/The_quick_brown_fox_jumps_over_the_lazy_dog
-    -->
+
     <string name="subtitles_example_text">نصٌّ حكيمٌ لهُ سِرٌّ قاطِعٌ وَذُو شَأنٍ عَظيمٍ مكتوبٌ على ثوبٍ أخضرَ ومُغلفٌ بجلدٍ أزرق</string>
     <string name="recommended">مُوصى به</string>
     <string name="player_loaded_subtitles" formatted="true">تم تحميل %s</string>

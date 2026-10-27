@@ -25,7 +25,7 @@ class ColorEditor {
 
             for (i in 0 until size) {
                 val newHue =
-                    (hsv[0] + hueDelta * i) % 360 // Ensure hue stays within the 0-360 range
+                    (hsv[0] + hueDelta * i) % 360
                 val newSaturation = (hsv[1] + saturationDelta * i).coerceIn(0f, 1f)
                 val newValue = (hsv[2] + valueDelta * i).coerceIn(0f, 1f)
 
@@ -61,15 +61,13 @@ class ColorEditor {
             val isBackgroundDark = getLuminance(backgroundColor) < 0.5
 
             while (contrastRatio < 4.5) {
-                // Adjust brightness by modifying the RGB values
+
                 val r = Color.red(adjustedColor)
                 val g = Color.green(adjustedColor)
                 val b = Color.blue(adjustedColor)
 
-                // Calculate the amount to adjust
                 val adjustment = if (isBackgroundDark) 10 else -10
 
-                // Adjust the color
                 val newR = (r + adjustment).coerceIn(0, 255)
                 val newG = (g + adjustment).coerceIn(0, 255)
                 val newB = (b + adjustment).coerceIn(0, 255)
@@ -77,7 +75,6 @@ class ColorEditor {
                 adjustedColor = Color.rgb(newR, newG, newB)
                 contrastRatio = getContrastRatio(adjustedColor, backgroundColor)
 
-                // Break the loop if the color adjustment does not change (to avoid infinite loop)
                 if (newR == r && newG == g && newB == b) {
                     break
                 }

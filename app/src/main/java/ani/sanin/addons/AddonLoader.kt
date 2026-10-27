@@ -12,19 +12,6 @@ import eu.kanade.tachiyomi.extension.util.ExtensionLoader
 class AddonLoader {
     companion object {
 
-        /**
-         * Load an extension from a package name with a specific class name
-         * @param context the context
-         * @param packageName the package name of the extension
-         * @param type the type of extension
-         * @return the loaded extension
-         * @throws IllegalStateException if the extension is not of the correct type
-         * @throws ClassNotFoundException if the extension class is not found
-         * @throws NoClassDefFoundError if the extension class is not found
-         * @throws Exception if any other error occurs
-         * @throws PackageManager.NameNotFoundException if the package is not found
-         * @throws IllegalStateException if the extension is not found
-         */
         fun loadExtension(
             context: Context,
             packageName: String,
@@ -54,7 +41,7 @@ class AddonLoader {
             val appInfo = try {
                 pkgManager.getApplicationInfo(pkgName, PackageManager.GET_META_DATA)
             } catch (error: PackageManager.NameNotFoundException) {
-                // Unlikely, but the package may have been uninstalled at this point
+
                 Logger.log(error)
                 throw error
             }
@@ -90,13 +77,6 @@ class AddonLoader {
             return null
         }
 
-        /**
-         * Load an extension from a package name (class is determined by type)
-         * @param context the context
-         * @param packageName the package name of the extension
-         * @param type the type of extension
-         * @return the loaded extension
-         */
         fun loadFromPkgName(context: Context, packageName: String): LoadResult? {
             return try {
                 loadExtension(
@@ -111,12 +91,6 @@ class AddonLoader {
             }
         }
 
-        /**
-         * Check if a package is an extension by comparing the package name
-         * @param type the type of extension
-         * @param pkgInfo the package info
-         * @return true if the package is an extension
-         */
         private fun isPackageAnExtension(type: String, pkgInfo: PackageInfo): Boolean {
             return pkgInfo.packageName.equals(type)
         }

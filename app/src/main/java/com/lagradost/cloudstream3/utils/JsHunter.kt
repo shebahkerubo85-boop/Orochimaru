@@ -3,24 +3,13 @@ package com.lagradost.cloudstream3.utils
 import com.lagradost.cloudstream3.mvvm.logError
 import kotlin.math.pow
 
-// author: https://github.com/daarkdemon
 class JsHunter(private val hunterJS: String) {
 
-    /**
-     * Detects whether the javascript is H.U.N.T.E.R coded.
-     *
-     * @return true if it's H.U.N.T.E.R coded.
-     */
     fun detect(): Boolean {
         val regex = Regex("eval\\(function\\(h,u,n,t,e,r\\)")
         return regex.containsMatchIn(hunterJS)
     }
 
-    /**
-     * Unpack the javascript
-     *
-     * @return the javascript unhunt or null.
-     */
     fun dehunt(): String? {
         try {
             val regex = Regex("""(?s)\}\("([^"]+)",[^,]+,\s*"([^"]+)",\s*(\d+),\s*(\d+)""")

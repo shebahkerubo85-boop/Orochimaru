@@ -47,14 +47,14 @@ const val RESULT_WATCH_STATE = "result_watch_state"
 const val RESULT_WATCH_STATE_DATA = "result_watch_state_data"
 const val RESULT_SUBSCRIBED_STATE_DATA = "result_subscribed_state_data"
 const val RESULT_FAVORITES_STATE_DATA = "result_favorites_state_data"
-const val RESULT_RESUME_WATCHING = "result_resume_watching_2" // Changed due to id changes
+const val RESULT_RESUME_WATCHING = "result_resume_watching_2"
 const val RESULT_RESUME_WATCHING_OLD = "result_resume_watching"
 const val RESULT_RESUME_WATCHING_HAS_MIGRATED = "result_resume_watching_migrated"
 const val RESULT_EPISODE = "result_episode"
 const val RESULT_SEASON = "result_season"
 const val RESULT_DUB = "result_dub"
 const val KEY_RESULT_SORT = "result_sort"
-const val USER_PINNED_PROVIDERS = "user_pinned_providers" // Key for pinned user set
+const val USER_PINNED_PROVIDERS = "user_pinned_providers"
 
 class UserPreferenceDelegate<T : Any>(
     private val key: String,
@@ -78,11 +78,10 @@ class UserPreferenceDelegate<T : Any>(
     }
 }
 
-/** Percentage after which the next episode is queued for resuming. */
 const val NEXT_WATCH_EPISODE_PERCENTAGE = 90
 
 object DataStoreHelper {
-    // be aware, don't change the index of these as Account uses the index for the art
+
     val profileImages = arrayOf(
         R.drawable.profile_bg_dark_blue,
         R.drawable.profile_bg_blue,
@@ -94,7 +93,7 @@ object DataStoreHelper {
     )
 
     private var searchPreferenceProvidersStrings: List<String> by UserPreferenceDelegate(
-        /** java moment right here, as listOf()::class.java != List(0) { "" }::class.java */
+
         "search_pref_providers", List(0) { "" }
     )
 
@@ -149,7 +148,6 @@ object DataStoreHelper {
         ListSorting.AlphabeticalA.ordinal
     )
 
-
     @Serializable
     data class Account(
         @JsonProperty("keyIndex") @SerialName("keyIndex") val keyIndex: Int,
@@ -170,10 +168,6 @@ object DataStoreHelper {
     var selectedKeyIndex by PreferenceDelegate("$TAG/account_key_index", 0)
     val currentAccount: String get() = selectedKeyIndex.toString()
 
-    /**
-     * Get or set the current account homepage.
-     * Setting this does not automatically reload the homepage.
-     */
     var currentHomePage: String?
         get() = getKey<String>("$currentAccount/$USER_SELECTED_HOMEPAGE_API")
         set(value) {
@@ -209,7 +203,6 @@ object DataStoreHelper {
         }
     }
 
-    /** Gets the current selected account (or default), may return null if context is null and the user is using the default account */
     fun getCurrentAccount(): Account? {
         return (context?.let {
             getAccounts(it)
@@ -242,19 +235,9 @@ object DataStoreHelper {
     fun Int.toYear(): Date =
         GregorianCalendar.getInstance().also { it.set(Calendar.YEAR, this) }.time
 
-    /**
-     * Used to display notifications on new episodes and posters in library.
-     */
     @Serializable
     abstract class LibrarySearchResponse(
-       /**
-        * These fields are marked @Transient because this class is only ever serialized through
-        * through its subclasses, which redeclare each property with their own @SerialName
-        * annotations. Without @Transient here, kotlinx.serialization would try to
-        * generate a serializer for the abstract base class itself (or double-serialize
-        * these fields), which fails/conflicts since these are meant to be overridden,
-        * not serialized directly from the parent.
-        */
+
         @Transient override var id: Int? = null,
         @Transient open val latestUpdatedTime: Long = 0L,
         @Transient override val name: String = "",
@@ -286,7 +269,7 @@ object DataStoreHelper {
             }
     }
 
-    @OptIn(ExperimentalSerializationApi::class) // KeepGeneratedSerializer is an experimental annotation for now
+    @OptIn(ExperimentalSerializationApi::class)
     @KeepGeneratedSerializer
     @Serializable(with = SubscribedData.Serializer::class)
     data class SubscribedData(
@@ -350,7 +333,7 @@ object DataStoreHelper {
         }
     }
 
-    @OptIn(ExperimentalSerializationApi::class) // KeepGeneratedSerializer is an experimental annotation for now
+    @OptIn(ExperimentalSerializationApi::class)
     @KeepGeneratedSerializer
     @Serializable(with = BookmarkedData.Serializer::class)
     data class BookmarkedData(
@@ -411,7 +394,7 @@ object DataStoreHelper {
         }
     }
 
-    @OptIn(ExperimentalSerializationApi::class) // KeepGeneratedSerializer is an experimental annotation for now
+    @OptIn(ExperimentalSerializationApi::class)
     @KeepGeneratedSerializer
     @Serializable(with = FavoritesData.Serializer::class)
     data class FavoritesData(
@@ -490,10 +473,6 @@ object DataStoreHelper {
         @JsonProperty("score") @SerialName("score") override var score: Score? = null,
     ) : SearchResponse
 
-    /**
-     * A datastore wide account for future implementations of a multiple account system
-     */
-
     fun getAllWatchStateIds(): List<Int>? {
         val folder = "$currentAccount/$RESULT_WATCH_STATE"
         return getKeys(folder)?.mapNotNull {
@@ -528,7 +507,7 @@ object DataStoreHelper {
     }
 
     fun migrateResumeWatching() {
-        // if (getKey<Boolean>(RESULT_RESUME_WATCHING_HAS_MIGRATED, false) != true) {
+
         setKey(RESULT_RESUME_WATCHING_HAS_MIGRATED, true)
         getAllResumeStateIdsOld()?.forEach { id ->
             getLastWatchedOld(id)?.let {
@@ -543,7 +522,7 @@ object DataStoreHelper {
                 removeLastWatchedOld(it.parentId)
             }
         }
-        // }
+
     }
 
     fun setLastWatched(
@@ -624,9 +603,6 @@ object DataStoreHelper {
         removeKey("$currentAccount/$RESULT_SUBSCRIBED_STATE_DATA", id.toString())
     }
 
-    /**
-     * Set new seen episodes and update time
-     */
     fun updateSubscribedData(id: Int?, data: SubscribedData?, episodeResponse: EpisodeResponse?) {
         if (id == null || data == null || episodeResponse == null) return
         val newData = data.copy(
@@ -672,14 +648,10 @@ object DataStoreHelper {
 
     fun setViewPos(id: Int?, pos: Long, dur: Long) {
         if (id == null) return
-        if (dur < 30_000) return // too short
+        if (dur < 30_000) return
         setKey("$currentAccount/$VIDEO_POS_DUR", id.toString(), PosDur(pos, dur))
     }
 
-    /**
-     * Sets the position, duration, and resume data of an episode/movie,
-     * If nextEpisode is not specified it will not be able to set the next episode as resumable if progress > NEXT_WATCH_EPISODE_PERCENTAGE
-     */
     fun setViewPosAndResume(id: Int?, position: Long, duration: Long, currentEpisode: Any?, nextEpisode: Any?) {
         setViewPos(id, position, duration)
         if (id != null) {
@@ -696,7 +668,7 @@ object DataStoreHelper {
         val nextEp = percentage >= NEXT_WATCH_EPISODE_PERCENTAGE
         val resumeMeta = if (nextEp) nextEpisode else currentEpisode
         if (resumeMeta == null && nextEp) {
-            // remove last watched as it is the last episode and you have watched too much
+
             when (val newMeta = currentEpisode) {
                 is ResultEpisode -> {
                     removeLastWatched(newMeta.parentId)
@@ -707,7 +679,7 @@ object DataStoreHelper {
                 }
             }
         } else {
-            // save resume
+
             when (resumeMeta) {
                 is ResultEpisode -> {
                     setLastWatched(
@@ -744,7 +716,7 @@ object DataStoreHelper {
 
     fun setVideoWatchState(id: Int?, watchState: VideoWatchState) {
         if (id == null) return
-        // None == No key
+
         if (watchState == VideoWatchState.None) {
             removeKey("$currentAccount/$VIDEO_WATCH_STATE", id.toString())
         } else {

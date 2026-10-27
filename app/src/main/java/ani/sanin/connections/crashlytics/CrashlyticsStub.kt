@@ -5,7 +5,7 @@ import ani.sanin.util.Logger
 
 class CrashlyticsStub : CrashlyticsInterface {
     override fun initialize(context: Context) {
-        //no-op
+
     }
 
     override fun logException(e: Throwable) {
@@ -17,15 +17,15 @@ class CrashlyticsStub : CrashlyticsInterface {
     }
 
     override fun setUserId(id: String) {
-        //no-op
+
     }
 
     override fun setCustomKey(key: String, value: String) {
-        //no-op
+
     }
 
     override fun setCrashlyticsCollectionEnabled(enabled: Boolean) {
-        //no-op
+
     }
 
 }

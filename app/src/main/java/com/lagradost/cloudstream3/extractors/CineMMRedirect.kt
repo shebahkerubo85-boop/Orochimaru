@@ -6,7 +6,6 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
 import io.ktor.http.Url
 
-// deobfuscated from https://hglink.to/main.js?v=1.1.3 using https://deobfuscate.io/
 private val mirrors = arrayOf(
     "hgplaycdn.com",
     "habetar.com",
@@ -78,8 +77,6 @@ class HglinkTo: CineMMRedirect() {
     override val mainUrl: String = "https://hglink.to"
 }
 
-// These providers redirect to one of the other mirrors immediately,
-// i.e. they pick a random one of the links above
 abstract class CineMMRedirect : ExtractorApi() {
     override val name: String = "CineMMRedirect"
     override val requiresReferer: Boolean = false
@@ -93,8 +90,6 @@ abstract class CineMMRedirect : ExtractorApi() {
         val videoId = Url(url).encodedPath
         val mirror = mirrors.random()
 
-        // re-use existing extractors by calling the ExtractorApi
-        // of the randomly selected mirror URL
         val mirrorUrlWithVideoId = "https://$mirror$videoId"
         loadExtractor(mirrorUrlWithVideoId, referer, subtitleCallback, callback)
     }

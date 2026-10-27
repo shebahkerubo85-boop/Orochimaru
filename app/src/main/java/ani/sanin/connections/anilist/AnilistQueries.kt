@@ -347,7 +347,6 @@ class AnilistQueries {
                                 }
                             }
 
-                            // Map non-main studios (isMain: false) as producers
                             fetchedMedia.producers?.nodes?.apply {
                                 if (isNotEmpty()) {
                                     media.anime.producers = map {
@@ -857,7 +856,6 @@ class AnilistQueries {
         return returnMap
     }
 
-
     private suspend fun bannerImage(type: String): String? {
         if (PrefManager.getVal<Boolean>(PrefName.RescueMode)) {
             if (MAL.token != null) {
@@ -938,7 +936,7 @@ class AnilistQueries {
 
         sorted["Favourites"] = favMedia(anime, userId)
         sorted["Favourites"]?.sortWith(compareBy { it.userFavOrder })
-        //favMedia doesn't fill userProgress, so we need to fill it manually by searching :(
+
         sorted["Favourites"]?.forEach { fav ->
             all.find { it.id == fav.id }?.let {
                 fav.userProgress = it.userProgress
@@ -967,7 +965,6 @@ class AnilistQueries {
         }
         return sorted
     }
-
 
     suspend fun getGenresAndTags(): Boolean {
         var genres: ArrayList<String>? = PrefManager.getVal<Set<String>>(PrefName.GenresList)
@@ -1624,7 +1621,6 @@ Page(page:$page,perPage:50) {
         return studio
     }
 
-
     suspend fun getAuthorDetails(author: Author): Author {
         fun query(page: Int = 0) = """ {
   Staff(id: ${author.id}) {
@@ -1783,7 +1779,6 @@ Page(page:$page,perPage:50) {
         )
     }
 
-
     suspend fun getNotifications(
         id: Int,
         page: Int = 1,
@@ -1898,7 +1893,7 @@ Page(page:$page,perPage:50) {
     suspend fun isUserFav(
         favType: AnilistMutations.FavType,
         id: Int
-    ): Boolean {   //anilist isFavourite is broken, so we need to check it manually
+    ): Boolean {
         val res = getUserProfile(Anilist.userid ?: return false)
         return when (favType) {
             AnilistMutations.FavType.ANIME -> res?.data?.user?.favourites?.anime?.nodes?.any { it.id == id }

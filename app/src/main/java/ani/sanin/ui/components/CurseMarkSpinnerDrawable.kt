@@ -24,7 +24,6 @@ class CurseMarkSpinnerDrawable : Drawable() {
 
     var accentColor: Int = Color.MAGENTA
 
-    // 3-level alpha for spinner sweep illusion
     private val alphas = intArrayOf(255, 100, 40)
 
     init { startAnimation() }
@@ -51,7 +50,6 @@ class CurseMarkSpinnerDrawable : Drawable() {
         val radius = size * 0.38f
         val headR = size * 0.09f
 
-        // faint track ring
         val track = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = accentColor
             alpha = 20
@@ -73,12 +71,10 @@ class CurseMarkSpinnerDrawable : Drawable() {
             tailPaint.color = accentColor
             tailPaint.alpha = alphas[i]
 
-            // head circle (bulbous part)
             val headX = cx
             val headY = cy - radius
             canvas.drawCircle(headX, headY, headR, headPaint)
 
-            // tail - sweeps clockwise from right side of head toward center
             val tail = buildTail(cx, cy, radius, headR)
             canvas.drawPath(tail, tailPaint)
 
@@ -93,24 +89,23 @@ class CurseMarkSpinnerDrawable : Drawable() {
         val headY = cy - radius
         val h = headR
 
-        // right side of head
         val sx = cx + h * 0.85f
         val sy = headY + h * 0.5f
 
         path.moveTo(sx, sy)
-        // outer curve - bulges right then sweeps to tip near center
+
         path.cubicTo(
             cx + h * 2.0f, headY + h * 0.3f,
             cx + h * 1.5f, headY + radius * 0.9f,
             cx + h * 0.4f, headY + radius * 1.3f
         )
-        // tip
+
         path.cubicTo(
             cx, headY + radius * 1.55f,
             cx - h * 0.1f, headY + radius * 1.6f,
             cx - h * 0.1f, headY + radius * 1.6f
         )
-        // inner curve - comes back up tighter
+
         path.cubicTo(
             cx - h * 0.6f, headY + radius * 1.1f,
             cx - h * 0.7f, headY + h * 1.2f,

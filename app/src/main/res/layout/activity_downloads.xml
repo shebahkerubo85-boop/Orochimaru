@@ -8,7 +8,6 @@
     android:background="?attr/colorSurface"
     android:orientation="vertical">
 
-    <!-- Header row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

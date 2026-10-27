@@ -34,22 +34,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/**
- * Shared background scope for per-row enrichment. Deliberately NOT tied to a
- * row or screen lifecycle: rebinding/scroll-away must never cancel the
- * AniZip/TMDB/Kitsu network calls in flight (cancellation showed up as
- * "IOException: Canceled" bursts and meant thumbnails + episode titles never
- * resolved). Stale writes are instead guarded by a per-view generation tag.
- */
 private val enrichmentScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-/**
- * Compact "episode aired" notification: a thin top pill (round poster + message
- * + relative time) and a 72dp episode card (full-bleed thumbnail, dominant
- * colour gradient, episode title + metadata, single focusable Watch button).
- *
- * Used by the Media tab (anime-mode) and the Subscriptions tab (both modes).
- */
 class EpisodeNotificationItem(
     private val notification: Notification,
     val type: TabType,
@@ -66,9 +52,7 @@ class EpisodeNotificationItem(
 
     override fun bind(viewBinding: ItemNotificationEpisodeBinding, position: Int) {
         binding = viewBinding
-        // Per-view generation tag: in-flight enrichment from a previously
-        // displayed row must not paint stale data onto a recycled view. We do
-        // NOT cancel the coroutine — that was killing the network calls.
+
         val generation = ((viewBinding.root.getTag(R.id.episode_enrichment_gen) as? Int) ?: 0) + 1
         viewBinding.root.setTag(R.id.episode_enrichment_gen, generation)
         setAnimation(binding.root.context, binding.root)
@@ -82,10 +66,8 @@ class EpisodeNotificationItem(
         binding.episodeCard.setOnLongClickListener { dialog(); true }
     }
 
-    // ── Top pill ──────────────────────────────────────────────────
-
     private fun bindPill() {
-        // Pill: white slab on dark mode, black slab on light mode; text adapts.
+
         val dark = isDarkMode()
         binding.episodePill.setBackgroundResource(
             if (dark) R.drawable.bg_episode_pill_dark else R.drawable.bg_episode_pill_light
@@ -94,7 +76,6 @@ class EpisodeNotificationItem(
         binding.episodePillText.setTextColor(pillTextColor)
         binding.episodePillTime.setTextColor(pillTextColor)
 
-        // Round poster (anime poster, not the episode thumbnail).
         val poster = notification.image ?: notification.media?.coverImage?.large
         if (!poster.isNullOrBlank()) {
             binding.episodePillPoster.loadImage(poster)
@@ -136,20 +117,16 @@ class EpisodeNotificationItem(
         return builder
     }
 
-    // ── Episode card ──────────────────────────────────────────────
-
     private fun bindCard(generation: Int) {
-        // Capture the binding: the item's `binding` property may be reassigned
-        // while the coroutine is in flight (recycled view), so all async UI
-        // writes go through this captured reference.
+
         val viewBinding = binding
-        // Full-bleed background: banner immediately, thumbnail swaps in once known.
+
         val banner = notification.banner ?: notification.image
             ?: notification.media?.bannerImage ?: notification.media?.coverImage?.large
         if (!banner.isNullOrBlank()) viewBinding.episodeThumb.loadImage(banner)
 
         val dark = isDarkMode()
-        // Top rim: dark gradient in dark mode, white gradient in light mode.
+
         viewBinding.episodeRim.setBackgroundResource(
             if (dark) R.drawable.bg_episode_card_rim_light else R.drawable.bg_repo_card_rim
         )
@@ -157,9 +134,6 @@ class EpisodeNotificationItem(
         viewBinding.episodeTitle.setTextColor(onRight)
         bindMetaColors(onRight)
 
-        // Old subscription rows have no stored episode number; parse it from
-        // the notification text ("... Episode 1116 ...") so enrichment + the
-        // "Episode N" fallback still work for them.
         val episode = notification.episode
             ?: notification.context
                 ?.let { Regex("Episode\\s+(\\d+)").find(it)?.groupValues?.get(1)?.toIntOrNull() }
@@ -177,12 +151,8 @@ class EpisodeNotificationItem(
 
         Logger.log(Log.INFO, "EpNotifItem [${episode}] knownTitle=$knownTitle mediaId=${notification.mediaId} context=${notification.context?.take(40)}")
 
-        // Apply gradient synchronously so it is ALWAYS visible.
         viewBinding.episodeGradient.background = EpisodeCardGradient.build(viewBinding.root.context)
 
-        // Async enrichment: resolver (anizip -> tmdb -> kitsu) fills missing
-        // title/duration/date/thumbnail, then swaps in episode still. Runs in
-        // the shared non-cancellable scope so scrolling never kills the fetch.
         enrichmentScope.launch {
             val isAnime = notification.tmdbType.isNullOrBlank()
             var title = knownTitle
@@ -213,7 +183,7 @@ class EpisodeNotificationItem(
             val resolvedBackdrop = anizipBackdrop
 
             withContext(Dispatchers.Main) {
-                // Recycled view (or rebound row): drop the stale result.
+
                 if (generation != viewBinding.root.getTag(R.id.episode_enrichment_gen)) {
                     Logger.log(Log.INFO, "EpNotifItem skipped: view rebound (gen=$generation)")
                     return@withContext
@@ -235,15 +205,13 @@ class EpisodeNotificationItem(
         }
     }
 
-    /** Clock/calendar meta icons render smaller than their 24dp intrinsic size. */
     private fun shrinkMetaIcons(viewBinding: ItemNotificationEpisodeBinding) {
         val sizePx = (8 * viewBinding.root.resources.displayMetrics.density).toInt()
         listOf(
             viewBinding.episodeMetaDuration to R.drawable.ic_baseline_clock_24,
             viewBinding.episodeMetaDate to R.drawable.ic_round_calendar_today_24
         ).forEach { (tv, res) ->
-            // Reuse the already-tinted drawable when present; otherwise create one
-            // and fall back to the text colour so the icon is never invisible.
+
             val prev = tv.compoundDrawables.getOrNull(0)
             val drawable = prev
                 ?: ContextCompat.getDrawable(viewBinding.root.context, res)
@@ -264,10 +232,6 @@ class EpisodeNotificationItem(
         binding.episodeMetaDate.setCompoundDrawableTintList(tint)
     }
 
-    /**
-     * Duration gets its own line with the clock icon; date + local release
-     * time share a line with the calendar icon.
-     */
     private fun applyMeta(viewBinding: ItemNotificationEpisodeBinding, durationMinutes: Int?, airDate: String?, airTimeMillis: Long) {
         val date = airDate ?: if (airTimeMillis > 0)
             SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(airTimeMillis)) else null
@@ -285,8 +249,6 @@ class EpisodeNotificationItem(
     private fun isDarkMode(): Boolean =
         (binding.root.context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
             Configuration.UI_MODE_NIGHT_YES
-
-    // ── Actions ───────────────────────────────────────────────────
 
     private fun open() {
         val isTmdb = type == TabType.SUBSCRIPTION && !notification.tmdbType.isNullOrBlank()

@@ -35,7 +35,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-
 class SubscriptionNotificationTask : Task {
     private var currentlyPerforming = false
 
@@ -51,15 +50,12 @@ class SubscriptionNotificationTask : Task {
                     var newSubscriptionCount = 0
                     val notificationManager = NotificationManagerCompat.from(context)
 
-                    // ── TMDB (movie/tv) subscriptions ──
-                    // Explicit bell subscriptions only (no library/Simkl auto-merge).
                     runCatching {
                         newSubscriptionCount += checkTmdbSubscriptions(context, notificationManager)
                     }.onFailure {
                         Logger.log("SubscriptionNotificationTask(TMDB): ${it.message}")
                     }
 
-                    // ── Anime / manga subscriptions (require parsers) ──
                     val subscriptions = SubscriptionHelper.getSubscriptions()
                     if (subscriptions.isNotEmpty()) {
                         var timeout = 15_000L
@@ -96,8 +92,6 @@ class SubscriptionNotificationTask : Task {
             return false
         }
     }
-
-    // ── Anime / manga subscription checking (existing behaviour) ──
 
     @SuppressLint("MissingPermission")
     private suspend fun checkAnimeAndMangaSubscriptions(
@@ -224,24 +218,12 @@ class SubscriptionNotificationTask : Task {
         return newSubscriptionCount
     }
 
-    // ── TMDB (movie/tv) subscription checking ──
-    //
-    // Only explicit bell subscriptions (TmdbSubscriptionHelper) are checked.
-    // Library / Simkl "watching" status never auto-subscribes.
-    //
-    // For each TV show, fetches TMDB detail and compares lastEpisodeToAir
-    // with the locally stored last-notified episode.  On first encounter
-    // (lastSeason == 0) the current episode is recorded as baseline so only
-    // *future* episodes trigger a notification.
-
     @SuppressLint("MissingPermission")
     private suspend fun checkTmdbSubscriptions(
         context: Context,
         notificationManager: NotificationManagerCompat
     ): Int {
-        // Only the bell (explicit subscriptions) triggers notifications. Library
-        // / Simkl "watching" status is deliberately NOT merged in, so adding a
-        // show to a list never silently enables notifications.
+
         val subs = TmdbSubscriptionHelper.getSubscriptions().toMutableMap()
 
         if (subs.isEmpty()) return 0
@@ -255,8 +237,6 @@ class SubscriptionNotificationTask : Task {
                 continue
             }
 
-            // Prefer lastEpisodeToAir; fall back to nextEpisodeToAir whose
-            // airDate is today or in the past (has already aired).
             var candidate = detail.lastEpisodeToAir
             if (candidate == null && detail.nextEpisodeToAir != null) {
                 val airDate = detail.nextEpisodeToAir.airDate
@@ -273,7 +253,6 @@ class SubscriptionNotificationTask : Task {
             val season = candidate.seasonNumber
             val episode = candidate.episodeNumber
 
-            // First encounter: record baseline without notifying.
             if (item.lastSeason == 0 && item.lastEpisode == 0) {
                 TmdbSubscriptionHelper.save(
                     item.copy(lastSeason = season, lastEpisode = episode)
@@ -330,7 +309,6 @@ class SubscriptionNotificationTask : Task {
                 }
             }
 
-            // Remember that we notified about this episode so we only fire once.
             TmdbSubscriptionHelper.save(item.copy(lastSeason = season, lastEpisode = episode))
         }
         return newSubscriptionCount

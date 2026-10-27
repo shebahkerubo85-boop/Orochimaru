@@ -8,19 +8,6 @@ import ani.sanin.settings.saving.PrefName
 import java.io.File
 import java.io.InputStream
 
-/**
- * Resolves where a download is written and performs the "commit" step (moving the finished temp
- * file into place). Two backends:
- *
- *  - [DownloadStorage.APP]: a real directory under the app-private external files dir. Fast, no
- *    permissions, removed when the app is uninstalled.
- *  - [DownloadStorage.SHARED]: a user-picked folder through the Storage Access Framework. A copy
- *    of the finished temp file is streamed into the chosen document tree.
- *
- * Direct-file downloads use a real temp file before committing to app storage or a SAF folder.
- * HLS downloads are managed separately by DownloadHlsCache so their playlist and segments remain
- * addressable by ExoPlayer for reliable offline playback.
- */
 object DownloadStorageHelper {
 
     const val ROOT_NAME = "Orochimaru"
@@ -59,25 +46,19 @@ object DownloadStorageHelper {
         else -> "mp4"
     }
 
-    /** Display name including extension, used for both the temp file and the final file. */
     fun finalName(item: DownloadItem): String =
         sanitize(item.fileName) + "." + extensionFor(item)
 
     fun tempFile(context: Context, item: DownloadItem): File {
         val dir = File(context.cacheDir, TEMP_DIR).apply { mkdirs() }
         val ext = extensionFor(item)
-        // Stable ID path permits verified Range resume across retries and process restarts.
+
         return File(dir, sanitize(item.id) + ".$ext.part")
     }
 
-    /** Download root for the current mode, or null when SHARED is selected but not configured. */
     fun appMediaDir(context: Context, mediaName: String): File =
         File(appRoot(context), sanitize(mediaName)).apply { mkdirs() }
 
-    /**
-     * Moves/copies [tempFile] into its final home and returns the locator string that playback
-     * should use (an absolute path, or a content:// uri for SAF).
-     */
     fun commit(context: Context, item: DownloadItem, tempFile: File): String? {
         if (!tempFile.exists()) return null
         return when (mode()) {
@@ -87,7 +68,7 @@ object DownloadStorageHelper {
                 if (out.exists()) out.delete()
                 if (tempFile.renameTo(out)) out.absolutePath
                 else {
-                    // Different volume (cache vs external) — stream it across.
+
                     tempFile.copyTo(out, overwrite = true)
                     tempFile.delete()
                     out.absolutePath
@@ -97,7 +78,7 @@ object DownloadStorageHelper {
             DownloadStorage.SHARED -> {
                 val root = sharedRoot(context)
                 if (root == null) {
-                    // No folder picked yet: keep the file in the app dir so nothing is lost.
+
                     val dir = File(appRoot(context), sanitize(item.mediaName)).apply { mkdirs() }
                     val out = File(dir, finalName(item))
                     tempFile.copyTo(out, overwrite = true)
@@ -129,7 +110,6 @@ object DownloadStorageHelper {
         }
     }
 
-    /** Opens a downloaded file for playback / poster extraction. */
     fun openInput(context: Context, path: String): InputStream? = try {
         if (path.startsWith("content://")) context.contentResolver.openInputStream(Uri.parse(path))
         else File(path).inputStream()

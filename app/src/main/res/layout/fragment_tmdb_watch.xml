@@ -9,7 +9,6 @@
     android:focusable="true"
     tools:context=".cloudstream.TmdbWatchFragment">
 
-    <!-- Background image (blurred poster, same as anime mode) -->
     <ImageView
         android:id="@+id/mediaBg"
         android:layout_width="match_parent"
@@ -18,7 +17,6 @@
         android:importantForAccessibility="no"
         tools:ignore="ContentDescription" />
 
-    <!-- Dark gradient overlay (same as anime mode) -->
     <View
         android:id="@+id/mediaBgGradient"
         android:layout_width="320dp"
@@ -27,7 +25,6 @@
         android:background="@drawable/gradient_rtl_dark"
         android:importantForAccessibility="no" />
 
-    <!-- Logo art (same position as anime mode mediaWatchLogo) -->
     <ImageView
         android:id="@+id/tmdbWatchLogo"
         android:layout_width="wrap_content"
@@ -41,7 +38,6 @@
         tools:ignore="ContentDescription"
         tools:visibility="visible" />
 
-    <!-- Title (same position as anime mode mediaWatchTitle) -->
     <TextView
         android:id="@+id/tmdbWatchTitle"
         android:layout_width="wrap_content"
@@ -55,7 +51,6 @@
         android:visibility="gone"
         tools:visibility="visible" />
 
-    <!-- Episode RecyclerView (same structure as anime mode mediaSourceRecycler) -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/tmdbWatchRecycler"
         android:layout_width="match_parent"
@@ -69,7 +64,6 @@
         android:paddingBottom="128dp"
         tools:listitem="@layout/item_episode_grid" />
 
-    <!-- Close button (same position/style as anime mode mediaClose; back to Info) -->
     <androidx.cardview.widget.CardView
         android:id="@+id/tmdbWatchBackCard"
         android:layout_width="32dp"
@@ -94,7 +88,6 @@
             tools:ignore="ContentDescription" />
     </androidx.cardview.widget.CardView>
 
-    <!-- Scroll-to-top (same as anime mode ScrollTop) -->
     <androidx.cardview.widget.CardView
         android:id="@+id/tmdbWatchScrollTop"
         android:layout_width="48dp"

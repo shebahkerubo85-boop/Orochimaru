@@ -31,12 +31,12 @@ class CommentNotificationTask : Task {
     override suspend fun execute(context: Context): Boolean {
         try {
             withContext(Dispatchers.IO) {
-                PrefManager.init(context) //make sure prefs are initialized
+                PrefManager.init(context)
                 val client = OkHttpClient()
                 CommentsAPI.fetchAuthToken(context, client)
                 val notificationResponse = CommentsAPI.getNotifications(client)
                 var notifications = notificationResponse?.notifications?.toMutableList()
-                //if we have at least one reply notification, we need to fetch the media titles
+
                 var names = emptyMap<Int, MediaNameFetch.Companion.ReturnedData>()
                 if (notifications?.any { it.type == 1 || it.type == null } == true) {
                     val mediaIds =
@@ -58,7 +58,7 @@ class CommentNotificationTask : Task {
                     PrefManager.setVal(PrefName.RecentGlobalNotification, newRecentGlobal)
                 }
                 if (notifications.isNullOrEmpty()) return@withContext
-                
+
                 var commentCount = 0
                 var warningCount = 0
                 var updateCount = 0
@@ -188,8 +188,7 @@ class CommentNotificationTask : Task {
                             }
                         }
                     }
-                    
-                    // Update comment notification count (combining replies and warnings as they appear in the Comments section)
+
                 val totalNewComments = commentCount + warningCount
                 if (totalNewComments > 0) {
                     val currentCommentCount = PrefManager.getVal<Int>(PrefName.UnreadCommentNotifications)

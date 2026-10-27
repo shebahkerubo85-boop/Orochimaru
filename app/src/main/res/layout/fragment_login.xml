@@ -12,7 +12,6 @@
         android:visibility="gone"
         tools:ignore="ContentDescription" />
 
-    <!-- Logged Out State -->
     <LinearLayout
         android:id="@+id/loggedOutContainer"
         android:layout_width="match_parent"
@@ -168,7 +167,6 @@
 
     </LinearLayout>
 
-    <!-- Logged In State -->
     <LinearLayout
         android:id="@+id/loggedInContainer"
         android:layout_width="match_parent"

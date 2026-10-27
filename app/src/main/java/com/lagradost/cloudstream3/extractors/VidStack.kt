@@ -21,7 +21,6 @@ class Server1uns : VidStack() {
     override var requiresReferer = true
 }
 
-
 open class VidStack : ExtractorApi() {
     override var name = "Vidstack"
     override var mainUrl = "https://vidstack.io"

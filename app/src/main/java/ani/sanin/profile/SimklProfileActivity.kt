@@ -14,13 +14,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * The movie-mode counterpart to [ProfileActivity].
- *
- * Simkl exposes far less about a user than AniList does, so this is deliberately plain: the
- * name and avatar it already holds, plus how much of each library is filled in. Nothing here
- * is fetched per-open beyond the two library calls the library screen already makes.
- */
 class SimklProfileActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySimklProfileBinding
 
@@ -50,8 +43,7 @@ class SimklProfileActivity : AppCompatActivity() {
 
     private fun loadCounts() {
         lifecycleScope.launch {
-            // The two library calls the library screen already makes. Failure just leaves the
-            // counters blank rather than tearing the screen down.
+
             val movies = runCatching { withContext(Dispatchers.IO) { Simkl.getMovieLibrary().size } }.getOrNull()
             val shows = runCatching { withContext(Dispatchers.IO) { Simkl.getShowLibrary().size } }.getOrNull()
 

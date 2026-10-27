@@ -15,12 +15,9 @@ import kotlinx.serialization.json.JsonNames
 import java.security.SecureRandom
 
 data class AuthLoginPage(
-    /** The website to open to authenticate */
+
     val url: String,
-    /**
-     * State/control code to verify against the redirectUrl to make sure the request is valid.
-     * This parameter will be saved, and then used in AuthAPI::login.
-     */
+
     val payload: String? = null,
 )
 
@@ -49,9 +46,7 @@ data class AuthToken(
 data class AuthUser(
     @JsonProperty("name") @SerialName("name")
     val name: String,
-    /** This id is unique for the service, and as such can be used to identify the account.
-     * Note that the id is NOT unique across services.
-     * This should be handled by the idPrefix. */
+
     @JsonProperty("id") @SerialName("id")
     val id: Int,
     @JsonProperty("profilePicture") @SerialName("profilePicture")
@@ -70,15 +65,14 @@ data class AuthData(
 data class AuthPinData(
     val deviceCode: String,
     val userCode: String,
-    /** QR Code url */
+
     val verificationUrl: String,
-    /** In seconds */
+
     val expiresIn: Int,
-    /** Check if the code has been verified interval */
+
     val interval: Int,
 )
 
-/** The login field requirements to display to the user */
 data class AuthLoginRequirement(
     val password: Boolean = false,
     val username: Boolean = false,
@@ -86,7 +80,6 @@ data class AuthLoginRequirement(
     val server: Boolean = false,
 )
 
-/** What the user responds to the AuthLoginRequirement */
 @Serializable
 data class AuthLoginResponse(
     @JsonProperty("password") @SerialName("password") val password: String?,
@@ -95,33 +88,24 @@ data class AuthLoginResponse(
     @JsonProperty("server") @SerialName("server") val server: String?,
 )
 
-/** Stateless Authentication class used for all personalized content */
 abstract class AuthAPI {
     open val name: String = "NONE"
     open val idPrefix: String = "NONE"
 
-    /** Drawable icon of the service */
     open val icon: Int? = null
 
-    /** If this service requires an account to use */
     open val requiresLogin: Boolean = true
 
-    /** Link to a website for creating a new account */
     open val createAccountUrl: String? = null
 
-    /** The sensitive redirect URL from OAuth should contain "/redirectUrlIdentifier" to trigger the login */
     open val redirectUrlIdentifier: String? = null
 
-    /** Has OAuth2 login support, including login, loginRequest and refreshToken */
     open val hasOAuth2: Boolean = false
 
-    /** Has on device pin support, aka login with a QR code */
     open val hasPin: Boolean = false
 
-    /** Has in app login support, aka login with a dialog */
     open val hasInApp: Boolean = false
 
-    /** The requirements to login in app */
     open val inAppLoginRequirement: AuthLoginRequirement? = null
 
     companion object {

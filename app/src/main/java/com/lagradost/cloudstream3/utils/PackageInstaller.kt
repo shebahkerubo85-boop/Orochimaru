@@ -23,9 +23,7 @@ const val INSTALL_ACTION = "ApkInstaller.INSTALL_ACTION"
 class ApkInstaller(private val service: PackageInstallerService) {
 
     companion object {
-        /**
-         * Used for postponed installations
-         **/
+
         var delayedInstaller: DelayedInstaller? = null
         private var isReceiverRegistered = false
         private const val TAG = "ApkInstaller"
@@ -110,11 +108,10 @@ class ApkInstaller(private val service: PackageInstallerService) {
                     inputStream.close()
                 }
 
-            // We must create an explicit intent or it will fail on Android 15+
-            val installIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) { 
+            val installIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 Intent(service, PackageInstallerService::class.java)
-                    .setAction(INSTALL_ACTION) 
-            } else Intent(INSTALL_ACTION) 
+                    .setAction(INSTALL_ACTION)
+            } else Intent(INSTALL_ACTION)
 
             val installFlags = when {
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> PendingIntent.FLAG_MUTABLE
@@ -126,15 +123,13 @@ class ApkInstaller(private val service: PackageInstallerService) {
                 service, activeSession, installIntent, installFlags
             ).intentSender
 
-            // Use delayed installations on android 13 and only if "allow from unknown sources" is enabled
-            // if the app lacks installation permission it cannot ask for the permission when it's closed.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
                 context.packageManager.canRequestPackageInstalls()
             ) {
-                // Save for later installation since it's more jarring to have the app exit abruptly
+
                 delayedInstaller = DelayedInstaller(session, intentSender)
                 main {
-                    // Use real toast since it should show even if app is exited
+
                     Toast.makeText(context, R.string.delayed_update_notice, Toast.LENGTH_LONG)
                         .show()
                 }
@@ -155,7 +150,7 @@ class ApkInstaller(private val service: PackageInstallerService) {
     }
 
     init {
-        // Might be dangerous
+
         registerInstallActionReceiver()
     }
 

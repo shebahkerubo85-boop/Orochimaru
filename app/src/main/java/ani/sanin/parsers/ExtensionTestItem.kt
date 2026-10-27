@@ -33,7 +33,7 @@ class ExtensionTestItem(
     override fun bind(viewBinding: ItemExtensionTestBinding, position: Int) {
         binding = viewBinding
         context = binding.root.context
-        
+
         Glide.with(context).clear(binding.extensionIconImageView)
         binding.extensionIconImageView.setImageDrawable(null)
         if (extension.icon != null) {

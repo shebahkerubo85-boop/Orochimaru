@@ -37,7 +37,7 @@ class LocalList : SyncAPI() {
             val isTrueTv = isLayout(TV)
 
             val baseMap = WatchType.entries.filter { it != WatchType.NONE }.associate {
-                // None is not something to display
+
                 it.stringRes to emptyList<SyncAPI.LibraryItem>()
             } + mapOf(
                 R.string.favorites_list_name to emptyList()
@@ -59,7 +59,6 @@ class LocalList : SyncAPI() {
                 it.toLibraryItem()
             })
 
-            // Don't show subscriptions on TV
             val result = if (isTrueTv) {
                 baseMap + watchStatusMap + favoritesMap
             } else {
@@ -83,8 +82,6 @@ class LocalList : SyncAPI() {
                 ListSorting.UpdatedOld,
                 ListSorting.ReleaseDateNew,
                 ListSorting.ReleaseDateOld,
-//                ListSorting.RatingHigh,
-//                ListSorting.RatingLow,
 
             )
         )

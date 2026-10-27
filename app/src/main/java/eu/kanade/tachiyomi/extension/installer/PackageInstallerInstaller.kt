@@ -37,7 +37,7 @@ class PackageInstallerInstaller(private val service: Service) : Installer(servic
                                 .allowExtra(PackageInstaller.EXTRA_SESSION_ID) { id -> id == activeSession?.second }
                                 .allowAnyComponent()
                                 .allowPackage {
-                                    // There is no way to check the actual installer name so allow all.
+
                                     true
                                 }
                                 .build()
@@ -73,7 +73,6 @@ class PackageInstallerInstaller(private val service: Service) : Installer(servic
 
     private var activeSession: Pair<Entry, Int>? = null
 
-    // Always ready
     override var ready = true
 
     override fun processEntry(entry: Entry) {

@@ -1,16 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  The franchise screen, reached by pressing a franchise card on either Explore page.
 
-  Structure, top to bottom: the filter pill row, the franchise's own logo art and name, then the
-  alternating card/synopsis rows. The rows are children of a LinearLayout rather than a
-  RecyclerView, because the whole point is the flowing connector between them — a recycling
-  container would drop and rebuild the rows the line is drawn between, and the line would flicker
-  as they were reused.
-
-  Every franchise is a few dozen entries at most, so building them all is bounded and the
-  connector can be drawn once in a single pass over the laid-out row positions.
--->
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -26,7 +15,6 @@
         android:orientation="vertical"
         android:paddingTop="8dp">
 
-        <!-- Back and the filter pills on one line. -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -59,7 +47,6 @@
 
         </LinearLayout>
 
-        <!-- Logo art and the franchise name, centred, per spec. -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -129,14 +116,6 @@
                 android:textSize="14sp"
                 android:visibility="gone" />
 
-            <!--
-              The whole flow scrolls. The rows are added here by the activity.
-
-              This used to be a FrameLayout wrapping a connector view that drew a line from each
-              card to the next. The line is gone: it was the one primary-coloured thing on a screen
-              whose whole surface is otherwise flat page colour, and it read as a chart rather than
-              as a list. Alternation now carries the order on its own.
-            -->
             <androidx.core.widget.NestedScrollView
                 android:id="@+id/franchiseScroll"
                 android:layout_width="match_parent"

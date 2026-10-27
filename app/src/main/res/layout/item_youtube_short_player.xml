@@ -1,10 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    One full-screen reel. Kept deliberately bare: the WebView is the only real content, and a
-    transparent blocker sits on top so none of YouTube's own chrome (tap-to-pause, title links,
-    "watch on YouTube") ever receives touch. Playback control lives in the activity overlay, and
-    paging keeps working because the RecyclerView intercepts drags above the blocker.
--->
+
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"

@@ -23,16 +23,6 @@ import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
 
-/**
- * When used as Interceptor additionalUrls cannot be returned, use WebViewResolver(...).resolveUsingWebView(...)
- * @param interceptUrl will stop the WebView when reaching this url.
- * @param additionalUrls this will make resolveUsingWebView also return all other requests matching the list of Regex.
- * @param userAgent if null then will use the default user agent
- * @param useOkhttp will try to use the okhttp client as much as possible, but this might cause some requests to fail. Disable for cloudflare.
- * @param script pass custom js to execute
- * @param scriptCallback will be called with the result from custom js
- * @param timeout close webview after timeout
- * */
 class WebViewResolver (
     val interceptUrl: Regex,
     val additionalUrls: List<Regex> = emptyList(),
@@ -106,7 +96,7 @@ class WebViewResolver (
         val headers = request.headers
         Log.i(TAG, "Initial web-view request: $url")
         var webView: WebView? = null
-        // Extra assurance it exits as it should.
+
         var shouldExit = false
 
         fun destroyWebView() {
@@ -128,17 +118,16 @@ class WebViewResolver (
                     (getContext() as? Context)
                         ?: throw RuntimeException("No base context in WebViewResolver")
                 ).apply {
-                    // Bare minimum to bypass captcha
+
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
 
                     webViewUserAgent = settings.userAgentString
-                    // Don't set user agent, setting user agent will make cloudflare break.
+
                     if (userAgent != null) {
                         settings.userAgentString = userAgent
                     }
-                    // Blocks unnecessary images, remove if captcha fucks.
-//                    settings.blockNetworkImage = true
+
                 }
 
                 webView?.webViewClient = object : WebViewClient() {
@@ -171,9 +160,6 @@ class WebViewResolver (
                             }?.let(extraRequestList::add)
                         }
 
-                        // Suppress image requests as we don't display them anywhere
-                        // Less data, low chance of causing issues.
-                        // blockNetworkImage also does this job but i will keep it for the future.
                         val blacklistedFiles = listOf(
                             ".jpg",
                             ".png",
@@ -201,15 +187,10 @@ class WebViewResolver (
                             ".srt",
                             ".ts",
                             ".gif",
-                            // Warning, this might fuck some future sites, but it's used to make Sflix work.
+
                             "wss://"
                         )
 
-                        /** NOTE!  request.requestHeaders is not perfect!
-                         *  They don't contain all the headers the browser actually gives.
-                         *  Overriding with okhttp might fuck up otherwise working requests,
-                         *  e.g the recaptcha request.
-                         * */
                         return@runBlocking try {
                             when {
                                 blacklistedFiles.any { Url(webViewUrl).encodedPath.decodeURLPart().contains(it) } || webViewUrl.endsWith(
@@ -251,7 +232,7 @@ class WebViewResolver (
                         handler: SslErrorHandler?,
                         error: SslError?
                     ) {
-                        handler?.proceed() // Ignore ssl issues
+                        handler?.proceed()
                     }
                 }
                 webView?.loadUrl(url, headers.toMap())
@@ -261,12 +242,11 @@ class WebViewResolver (
         }
 
         var loop = 0
-        // Timeouts after this amount, 60s
+
         val totalTime = timeout
 
         val delayTime = 100L
 
-        // A bit sloppy, but couldn't find a better way
         while (loop < totalTime / delayTime && !shouldExit) {
             if (fixedRequest != null) return fixedRequest to extraRequestList
             delay(delayTime)
@@ -282,9 +262,6 @@ class WebViewResolver (
 fun WebResourceRequest.toRequest(): Request? {
     val webViewUrl = this.url.toString()
 
-    // If invalid url then it can crash with
-    // java.lang.IllegalArgumentException: Expected URL scheme 'http' or 'https' but was 'data'
-    // At Request.Builder().url(addParamsToUrl(url, params))
     return safe {
         requestCreator(
             this.method,
@@ -296,7 +273,7 @@ fun WebResourceRequest.toRequest(): Request? {
 
 fun Response.toWebResourceResponse(): WebResourceResponse {
     val contentTypeValue = this.header("Content-Type")
-    // 1. contentType. 2. charset
+
     val typeRegex = Regex("""(.*);(?:.*charset=(.*)(?:|;)|)""")
     return if (contentTypeValue != null) {
         val found = typeRegex.find(contentTypeValue)

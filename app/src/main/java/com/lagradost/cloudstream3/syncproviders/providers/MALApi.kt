@@ -30,7 +30,6 @@ import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
-/** max 100 via https://myanimelist.net/apiconfig/references/api/v2#tag/anime */
 const val MAL_MAX_SEARCH_LIMIT = 25
 
 class MALApi : SyncAPI() {
@@ -258,7 +257,7 @@ class MALApi : SyncAPI() {
                 airStatus = when (malAnime.status) {
                     "finished_airing" -> ShowStatus.Completed
                     "currently_airing" -> ShowStatus.Ongoing
-                    // "not_yet_aired"
+
                     else -> null
                 },
                 nextAiring = null,
@@ -285,7 +284,6 @@ class MALApi : SyncAPI() {
     override suspend fun status(auth: AuthData?, id: String): SyncAPI.AbstractSyncStatus? {
         val auth = auth?.token?.accessToken ?: return null
 
-        // https://myanimelist.net/apiconfig/references/api/v2#operation/anime_anime_id_get
         val url =
             "$apiUrl/v2/anime/$id?fields=id,title,num_episodes,my_list_status"
         val data = app.get(
@@ -328,7 +326,7 @@ class MALApi : SyncAPI() {
             None(-1, R.string.type_none)
         }
 
-        private fun fromIntToAnimeStatus(inp: SyncWatchType): MalStatusType {//= AniListStatusType.values().first { it.value == inp }
+        private fun fromIntToAnimeStatus(inp: SyncWatchType): MalStatusType {
             return when (inp) {
                 SyncWatchType.NONE -> MalStatusType.None
                 SyncWatchType.WATCHING -> MalStatusType.Watching
@@ -500,7 +498,6 @@ class MALApi : SyncAPI() {
             group.value.map { it.toLibraryItem() }
         } ?: emptyMap()
 
-        // To fill empty lists when MAL does not return them
         val baseMap =
             MalStatusType.entries.filter { it.value >= 0 }.associate {
                 it.stringRes to emptyList<SyncAPI.LibraryItem>()
@@ -547,8 +544,7 @@ class MALApi : SyncAPI() {
 
     private suspend fun getMalAnimeListSlice(token: AuthToken, offset: Int = 0): MalList {
         val user = "@me"
-        // Very lackluster docs
-        // https://myanimelist.net/apiconfig/references/api/v2#operation/users_user_id_animelist_get
+
         val url = "$apiUrl/v2/users/$user/animelist?fields=list_status,num_episodes,media_type,status,start_date,end_date,synopsis,alternative_titles,mean,genres,rank,num_list_users,nsfw,average_episode_duration,num_favorites,popularity,num_scoring_users,start_season,favorites_info,broadcast,created_at,updated_at&nsfw=1&limit=100&offset=$offset"
         val res = app.get(
             url, headers = mapOf(
@@ -659,7 +655,6 @@ class MALApi : SyncAPI() {
         @JsonProperty("medium") @SerialName("medium") val medium: String?,
     )
 
-    // Used for getDataAboutId()
     @Serializable
     data class SmallMalAnime(
         @JsonProperty("id") @SerialName("id") val id: Int,
@@ -677,7 +672,7 @@ class MALApi : SyncAPI() {
     @Serializable
     data class MalSearch(
         @JsonProperty("data") @SerialName("data") val data: List<MalSearchNode>,
-        // paging
+
     )
 
     data class MalTitleHolder(

@@ -1,12 +1,10 @@
-/* Sanin landing page interactions */
 
-/* Lazy-load hero gif on window load */
+
 window.addEventListener('load', function () {
   var img = document.querySelector('[data-src]');
   if (img) img.src = img.dataset.src;
 });
 
-/* Copy-to-clipboard for repo boxes */
 document.querySelectorAll('[data-copy]').forEach(function (b) {
   b.addEventListener('click', function () {
     var doCopy = function () {
@@ -42,11 +40,10 @@ function fallbackCopy(b) {
       b.textContent = 'Copy';
       b.classList.remove('done');
     }, 1400);
-  } catch (e) { /* ignore */ }
+  } catch (e) {  }
   document.body.removeChild(ta);
 }
 
-/* Features grid (data-driven) */
 var featuresData = JSON.parse(document.getElementById('features-data').textContent);
 
 var icons = {
@@ -75,7 +72,6 @@ var icons = {
   });
 })();
 
-/* Scroll reveal */
 var sections = document.querySelectorAll('.section');
 var io = new IntersectionObserver(function (entries) {
   entries.forEach(function (e) {
@@ -88,7 +84,6 @@ var io = new IntersectionObserver(function (entries) {
 
 sections.forEach(function (s) { io.observe(s); });
 
-/* Active nav link on scroll */
 var navLinks = document.querySelectorAll('.nav-links a[data-section]');
 var sectionIds = Array.prototype.map.call(document.querySelectorAll('section[id]'), function (s) { return s.id; });
 
@@ -106,7 +101,6 @@ function onScroll() {
 
 window.addEventListener('scroll', onScroll, { passive: true });
 
-/* Smooth scroll for nav links */
 document.querySelectorAll('[data-section]').forEach(function (el) {
   el.addEventListener('click', function (e) {
     var target = document.getElementById(el.dataset.section);
@@ -117,7 +111,6 @@ document.querySelectorAll('[data-section]').forEach(function (el) {
   });
 });
 
-/* Mobile menu */
 var menuToggle = document.getElementById('menuToggle');
 var menuClose = document.getElementById('menuClose');
 var menuOverlay = document.getElementById('menuOverlay');
@@ -137,7 +130,6 @@ menuToggle.addEventListener('click', openMobileMenu);
 menuClose.addEventListener('click', closeMobileMenu);
 menuOverlay.addEventListener('click', closeMobileMenu);
 
-/* Version pill — fetch latest release tag from GitHub */
 var pill = document.getElementById('version-pill');
 if (pill) {
   fetch('https://api.github.com/repos/Shippun/sanin/releases/latest')

@@ -64,7 +64,6 @@ fun SManga.copyFromComicInfo(comicInfo: ComicInfo) {
     status = ComicInfoPublishingStatus.toSMangaValue(comicInfo.publishingStatus?.value)
 }
 
-
 @Suppress("UNUSED")
 @Serializable
 @XmlSerialName("ComicInfo", "", "")
@@ -171,7 +170,7 @@ enum class ComicInfoPublishingStatus(
     ONGOING("Ongoing", SManga.ONGOING),
     COMPLETED("Completed", SManga.COMPLETED),
     LICENSED("Licensed", SManga.LICENSED),
-    PUBLISHING_FINISHED("Publishing finished", 10 /* SManga.PUBLISHING_FINISHED */),
+    PUBLISHING_FINISHED("Publishing finished", 10 ),
     CANCELLED("Cancelled", SManga.CANCELLED),
     ON_HIATUS("On hiatus", SManga.ON_HIATUS),
     UNKNOWN("Unknown", SManga.UNKNOWN),

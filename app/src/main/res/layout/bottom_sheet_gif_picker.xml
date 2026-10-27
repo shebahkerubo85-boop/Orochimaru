@@ -7,7 +7,6 @@
     android:orientation="vertical"
     android:paddingBottom="12dp">
 
-    <!-- Drag Handle -->
     <View
         android:layout_width="36dp"
         android:layout_height="4dp"
@@ -17,7 +16,6 @@
         android:background="@drawable/rounded_top_nav"
         android:alpha="0.4" />
 
-    <!-- Title -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -28,7 +26,6 @@
         android:textSize="15sp"
         tools:ignore="HardcodedText" />
 
-    <!-- Search Field -->
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -52,7 +49,6 @@
 
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- Loader -->
     <FrameLayout
         android:id="@+id/gifProgressBar"
         style="?android:attr/progressBarStyleSmall"
@@ -71,7 +67,7 @@
         app:lottie_rawRes="@raw/tomoe"
         app:lottie_autoPlay="true"
         app:lottie_loop="true"
-        app:lottie_colorFilter="?attr/colorSecondary" 
+        app:lottie_colorFilter="?attr/colorSecondary"
         app:lottie_speed="1.75" android:rotation="75" />
 
         <com.airbnb.lottie.LottieAnimationView
@@ -83,7 +79,7 @@
         app:lottie_rawRes="@raw/tomoe"
         app:lottie_autoPlay="true"
         app:lottie_loop="true"
-        app:lottie_colorFilter="?attr/colorSecondary" 
+        app:lottie_colorFilter="?attr/colorSecondary"
         app:lottie_speed="1.75" android:rotation="-45" />
 
         <com.airbnb.lottie.LottieAnimationView
@@ -95,12 +91,11 @@
         app:lottie_rawRes="@raw/tomoe"
         app:lottie_autoPlay="true"
         app:lottie_loop="true"
-        app:lottie_colorFilter="?attr/colorSecondary" 
+        app:lottie_colorFilter="?attr/colorSecondary"
         app:lottie_speed="1.75" android:rotation="195" />
 
     </FrameLayout>
 
-    <!-- GIF List -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/gifRecycler"
         android:layout_width="match_parent"
@@ -111,7 +106,6 @@
         android:paddingBottom="8dp"
         tools:listitem="@layout/item_gif" />
 
-    <!-- Footer -->
     <TextView
         android:id="@+id/gifPoweredBy"
         android:layout_width="wrap_content"

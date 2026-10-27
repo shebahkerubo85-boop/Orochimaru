@@ -44,7 +44,7 @@ class LoginFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        // Check if user is already logged in
+
         updateUIBasedOnLoginState()
 
         val rescueMode = PrefManager.getVal<Boolean>(PrefName.RescueMode)
@@ -68,11 +68,11 @@ class LoginFragment : Fragment() {
             if (!token.isNullOrBlank()) {
                 PrefManager.setVal(PrefName.AnilistToken, token)
                 if (Anilist.getSavedToken()) {
-                    // Update UI instead of restarting
+
                     viewLifecycleOwner.lifecycleScope.launch {
                         try {
                             Anilist.query.getUserData()
-                            // Record login diagnostics
+
                             ani.sanin.connections.auth.LoginDiagnostics.recordLogin(
                                 ani.sanin.connections.auth.LoginDiagnostics.LoginMethod.TOKEN_PASTE
                             )
@@ -102,7 +102,7 @@ class LoginFragment : Fragment() {
                                 ?: throw Exception("Error reading file")
                         val name =
                             DocumentFile.fromSingleUri(requireActivity(), uri)?.name ?: "settings"
-                        //.sani is encrypted, .ani is not
+
                         if (name.endsWith(".sani")) {
                             passwordAlertDialog { password ->
                                 if (password != null) {
@@ -142,7 +142,6 @@ class LoginFragment : Fragment() {
             openDocumentLauncher.launch(arrayOf("*/*"))
         }
 
-        // Set up logged-in state buttons
         binding.switchAccountButton.setOnClickListener {
             showSwitchAccountDialog()
         }
@@ -151,7 +150,6 @@ class LoginFragment : Fragment() {
             showLogoutConfirmationDialog()
         }
 
-        // Set up social links for logged-in state
         binding.loggedInDiscord.setOnClickListener { openLinkInBrowser(getString(R.string.discord)) }
         binding.loggedInGithub.setOnClickListener { openLinkInBrowser(getString(R.string.github)) }
         binding.loggedInTelegram.setOnClickListener { openLinkInBrowser(getString(R.string.telegram)) }
@@ -159,7 +157,7 @@ class LoginFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // Check login state when fragment resumes
+
         updateUIBasedOnLoginState()
     }
 
@@ -167,40 +165,38 @@ class LoginFragment : Fragment() {
         val isLoggedIn = Anilist.getSavedToken()
 
         if (isLoggedIn) {
-            // Show logged-in state with loading
+
             binding.loggedOutContainer.visibility = View.GONE
             binding.loggedInContainer.visibility = View.VISIBLE
             binding.loggedInUsername.text = "Restoring session..."
 
-            // Validate token in background
             viewLifecycleOwner.lifecycleScope.launch {
                 try {
                     val isValid = Anilist.validateToken()
                     if (isValid == true) {
-                        // Token valid - fetch user data
+
                         Anilist.query.getUserData()
                         binding.loggedInUsername.text = Anilist.username ?: "Unknown"
-                        
-                        // Load avatar
+
                         Anilist.avatar?.let { avatarUrl ->
                             if (avatarUrl.isNotEmpty()) {
                                 binding.loggedInAvatar.loadImage(avatarUrl)
                             }
                         }
                     } else if (isValid == false) {
-                        // Token invalid - return to logged out
+
                         Anilist.removeSavedToken()
                         updateUIBasedOnLoginState()
                         toast("Session expired, please login again")
                     }
-                    // If null (network error), keep existing session
+
                 } catch (e: Exception) {
                     Logger.log(e)
-                    // Network error - keep existing session
+
                 }
             }
         } else {
-            // Show logged-out state
+
             binding.loggedOutContainer.visibility = View.VISIBLE
             binding.loggedInContainer.visibility = View.GONE
         }
@@ -218,10 +214,9 @@ class LoginFragment : Fragment() {
     }
 
     private fun performLogout() {
-        // Clear AniList token and cached data
+
         Anilist.removeSavedToken()
 
-        // Update UI
         updateUIBasedOnLoginState()
 
         toast("Logged out successfully")
@@ -241,7 +236,6 @@ class LoginFragment : Fragment() {
     private fun passwordAlertDialog(callback: (CharArray?) -> Unit) {
         val password = CharArray(16).apply { fill('0') }
 
-        // Inflate the dialog layout
         val dialogView = DialogUserAgentBinding.inflate(layoutInflater).apply {
             userAgentTextBox.hint = "Password"
             subtitle.visibility = View.VISIBLE
@@ -266,7 +260,6 @@ class LoginFragment : Fragment() {
             }
         }.show()
 
-
     }
 
     private fun restartApp() {
@@ -288,17 +281,15 @@ class LoginFragment : Fragment() {
     private suspend fun handleAuthenticated() {
         try {
             Logger.log("[QR-DEBUG] LoginFragment: handleAuthenticated called")
-            // Get user data from AniList
+
             if (Anilist.getSavedToken()) {
                 Logger.log("[QR-DEBUG] LoginFragment: calling getUserData()")
                 Anilist.query.getUserData()
 
-                // Record login diagnostics
                 ani.sanin.connections.auth.LoginDiagnostics.recordLogin(
                     ani.sanin.connections.auth.LoginDiagnostics.LoginMethod.QR_CODE
                 )
 
-                // Update UI
                 updateUIBasedOnLoginState()
 
                 toast("Successfully signed in")

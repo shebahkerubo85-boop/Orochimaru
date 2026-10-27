@@ -10,7 +10,6 @@ import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.PBEKeySpec
 
-//used to encrypt and decrypt json strings on import and export
 class PreferenceKeystore {
     companion object {
         fun generateKey(alias: String) {
@@ -54,7 +53,7 @@ class PreferenceKeystore {
                 Cipher.DECRYPT_MODE,
                 secretKey,
                 IvParameterSpec(ByteArray(16))
-            ) // Use the correct IV
+            )
             return cipher.doFinal(ciphertext).toString(Charsets.UTF_8)
         }
 

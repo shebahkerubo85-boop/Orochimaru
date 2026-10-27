@@ -72,8 +72,6 @@ class AnimeJLProvider : NativeAnimeParser() {
         }
     }
 
-    // AnimeJL keeps Latino/Castellano versions as separate entries: prefer
-    // Spanish-dub (Latino) first, then Castellano, then the default sub entry.
     private fun dubPriority(title: String): Int = when {
         title.contains("latino", ignoreCase = true) -> 0
         title.contains("castellano", ignoreCase = true) -> 1
@@ -163,8 +161,7 @@ class AnimeJLProvider : NativeAnimeParser() {
                     host.contains("p2pstream") -> "Upns"
                 host == "ok.ru" || host.endsWith(".ok.ru") -> null
                 else -> {
-                    // Unknown embed hosts fall back to the universal extractor,
-                    // named after the host so every server on the page shows up.
+
                     val labels = host.split(".")
                     val label = if (labels.size >= 2) labels[labels.size - 2] else labels[0]
                     label.replaceFirstChar { it.uppercase() }.takeIf { it.length >= 2 }
@@ -248,8 +245,7 @@ class AnimeJLUpnsExtractor(override val server: VideoServer) : VideoExtractor() 
                 ajlLog("AnimeJL Upns: no id in $embed")
                 return@withContext VideoContainer(emptyList())
             }
-            // The CDN rejects the site origin as Referer (403); it only serves with
-            // the embed host's own origin, e.g. https://anime.upns.pro
+
             val referer = ajlOrigin(embed)
             val host = runCatching { URI(embed).host }.getOrNull()?.removePrefix("www.") ?: ""
             if (host.isBlank()) {
@@ -294,10 +290,7 @@ class UniversalEmbedExtractor(override val server: VideoServer) : VideoExtractor
                 .findAll(page).map { it.value }.distinct().toList()
             val dashUrls = Regex("""https?://[^"'<>\s]+?\.mpd[^"'<>\s]*""", RegexOption.IGNORE_CASE)
                 .findAll(page).map { it.value }.distinct().toList()
-            // Static URLs can be stale placeholders: hqq-style players embed an expired
-            // m3u8 in the HTML and only generate a fresh one via JS. Verify each URL is
-            // actually servable before offering it, then fall back to the headless
-            // WebView (which captures the real player request like the extension does).
+
             val embedOrigin = ajlOrigin(embed)
             val staticUrls = (hlsUrls + mp4Urls + dashUrls).distinct()
             val allUrls = if (staticUrls.isEmpty()) {
@@ -427,7 +420,6 @@ class AnimeJLVoeExtractor(override val server: VideoServer) : VideoExtractor() {
     }
 }
 
-
 class AnimeJLUqloadExtractor(override val server: VideoServer) : VideoExtractor() {
     override suspend fun extract(): VideoContainer = withContext(Dispatchers.IO) {
         try {
@@ -525,7 +517,7 @@ private fun ajlResolveHls(masterUrl: String, headers: Map<String, String>): AjlH
         val body = ajlGet(masterUrl, headers["Referer"])
         val lines = body.lines()
         val base = URI(masterUrl)
-        // Parse audio groups from #EXT-X-MEDIA entries
+
         val audioTracks = mutableListOf<Track>()
         for (line in lines) {
             val attrLine = line.trim()
@@ -544,9 +536,6 @@ private fun ajlResolveHls(masterUrl: String, headers: Map<String, String>): AjlH
             audioTracks.add(Track(url = audioUrl, lang = lang))
         }
 
-        // Keep parsing variants even when an audio group is present: servers like
-        // StreamWish carry EXT-X-MEDIA audio plus multiple quality variants, and
-        // collapsing to the master URL would hide the quality picker.
         val videos = mutableListOf<Video>()
         var i = 0
         while (i < lines.size) {
@@ -589,18 +578,8 @@ private fun ajlUpnsDecrypt(hex: String): String? = try {
     null
 }
 
-// Headless WebView capture is a last resort: block up to 10s like the upstream
-// extension (JS players like hqq need a few seconds to mint a fresh stream URL),
-// and never attempt hosts that serve encrypted/streamed content no media URL can
-// be captured from (mega, d.tube).
 private const val AJL_WEBVIEW_TIMEOUT_MS = 10_000L
 private val AJL_WEBVIEW_SKIP_HOSTS = listOf("mega.nz", "mega.co.nz", "d.tube")
-
-/**
- * Quietly loads an embed page in an off-screen 1x1 WebView (no dialog, no popups)
- * and captures the first media URL the player requests. Used as a last resort for
- * JS-heavy players that expose no stream URL in the raw HTML.
- */
 
 private suspend fun ajlWebViewCatch(embedUrl: String, referer: String?): List<String> =
     withContext(Dispatchers.Main) {
@@ -740,7 +719,7 @@ private fun ajlMediaOk(url: String, headers: Map<String, String>): Boolean = try
     okHttpClient.newCall(builder.get().build()).execute().use { resp ->
         val statusOk = resp.isSuccessful
         val contentType = resp.header("Content-Type").orEmpty().lowercase()
-        // Reject dead tokens (403) and pages that merely look like media (text/html).
+
         statusOk && !contentType.contains("text/html") && !contentType.contains("application/xhtml")
     }
 } catch (e: Exception) {

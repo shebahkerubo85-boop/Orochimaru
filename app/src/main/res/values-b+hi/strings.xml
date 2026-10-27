@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- TRANSLATE, BUT DON'T FORGET FORMAT -->
+
     <string name="player_speed_text_format" formatted="true">स्पीड (%.2fx)</string>
     <string name="new_update_format" formatted="true">नया अपडेट आया है! \n%1$s -&gt; %2$s</string>
     <string name="title_home">होम</string>
@@ -24,7 +24,7 @@
     <string name="reload_error">पुनः प्रयास करें…</string>
     <string name="go_back">वापिस जाए</string>
     <string name="play_episode">एपिसोड चलाएं</string>
-    <!--<string name="need_storage">Allow to download episodes</string>-->
+
     <string name="download">डाउनलोड</string>
     <string name="downloaded">डाउनलोड किया गया</string>
     <string name="downloading">डाउनलोड हो रहा</string>

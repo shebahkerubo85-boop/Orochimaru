@@ -26,10 +26,7 @@ object OpenSubtitles {
         return withContext(Dispatchers.IO) {
             try {
                 val cleanImdb = imdbId.removePrefix("tt")
-                // Exact addressing only. Season-less queries (imdb_id + episode_number)
-                // return subtitles for ANY season's episode N — S02E03, S04E03, S07E03
-                // all match when the user asked for one specific episode — and the old
-                // title-text fallback made matches even fuzzier, so both are gone.
+
                 val urls = if (isTv) {
                     listOf("$BASE_URL/subtitles?imdb_id=$cleanImdb&season_number=$season&episode_number=$episode")
                 } else {

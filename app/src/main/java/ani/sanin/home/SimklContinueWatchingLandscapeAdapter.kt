@@ -43,13 +43,11 @@ class SimklContinueWatchingLandscapeAdapter(
         holder.card.radius =
             PrefManager.getVal<Int>(PrefName.ContinueWatchingCardRoundness).toFloat()
 
-        // Reset to defaults before async loads
         holder.clearlogo.visibility = View.GONE
         holder.overlayTitle.visibility = View.GONE
         holder.title.isVisible = false
         val epStr = item.lastWatched
 
-        // Load TMDB backdrop + logo async (same pattern as anime CW)
         val tmdbId = item.ids?.tmdb
         val mediaType = item.mediaType ?: "tv"
         if (tmdbId != null) {
@@ -83,7 +81,7 @@ class SimklContinueWatchingLandscapeAdapter(
 
                     if (!logoUrl.isNullOrBlank()) {
                         holder.clearlogo.visibility = View.VISIBLE
-                        // Constrain logo to 70% of image width (same as TmdbCards)
+
                         val logoW = (holder.image.layoutParams.width * 0.7f).toInt().coerceIn(80, 200)
                         com.bumptech.glide.Glide.with(holder.clearlogo.context)
                             .load(logoUrl)
@@ -120,7 +118,6 @@ class SimklContinueWatchingLandscapeAdapter(
             }
         }
 
-
         if (epStr.isNullOrBlank()) {
             holder.episodeNo.visibility = View.GONE
         } else {
@@ -136,8 +133,6 @@ class SimklContinueWatchingLandscapeAdapter(
             if (item.year != null) append(" \u00B7 ${item.year}")
         }
         holder.subtitle.text = subtitle
-
-        // progress visibility is set above in the async callback
 
         setGradient(holder.gradientOverlay)
 

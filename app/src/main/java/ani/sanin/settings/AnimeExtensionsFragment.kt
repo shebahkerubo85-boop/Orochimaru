@@ -25,12 +25,6 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.util.Locale
 
-/**
- * "Available Anime" tab - repo home for aniyomi extensions.
- * Each configured repo renders as a Nuvio-style gradient card (GitHub avatar logo,
- * derived name, extension count, improvised content types, language chips, Browse pill).
- * Browse opens [AnimeRepoDetailActivity] with only that repo's extensions.
- */
 class AnimeExtensionsFragment : Fragment(), SearchQueryHandler {
 
     private var _binding: FragmentExtensionsBinding? = null
@@ -75,7 +69,6 @@ class AnimeExtensionsFragment : Fragment(), SearchQueryHandler {
         }
     }
 
-    /** Group extensions by repository and build [RepoUi] cards. */
     private fun buildRepos(available: List<AnimeExtension.Available>): List<RepoUi> {
         val urls = PrefManager.getVal<Set<String>>(PrefName.AnimeExtensionRepos).toList()
         return urls.mapNotNull { url ->
@@ -92,7 +85,6 @@ class AnimeExtensionsFragment : Fragment(), SearchQueryHandler {
         }
     }
 
-    /** Improvise content types from extension names + NSFW flag. */
     private fun improviseContentTypes(ext: List<AnimeExtension.Available>): List<String> {
         val types = linkedSetOf<String>()
         ext.forEach { e ->

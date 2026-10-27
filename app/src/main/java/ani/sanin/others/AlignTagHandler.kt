@@ -7,7 +7,6 @@ import io.noties.markwon.RenderProps
 import io.noties.markwon.html.HtmlTag
 import io.noties.markwon.html.tag.SimpleTagHandler
 
-
 class AlignTagHandler : SimpleTagHandler() {
 
     override fun getSpans(

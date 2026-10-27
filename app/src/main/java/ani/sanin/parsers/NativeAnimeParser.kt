@@ -29,20 +29,14 @@ abstract class NativeAnimeParser : AnimeParser() {
     val baseUrl: String
         get() = providerBaseUrl(saveName) ?: defaultBaseUrl
 
-    /** Dub/sub preference is remembered per provider (falls back to the global default). */
     override var selectDub: Boolean
         get() = PrefManager.getProviderDub(saveName)
         set(value) {
             PrefManager.setProviderDub(saveName, value)
         }
 
-    /** Server names the user can disable from this provider's settings screen. */
     open val knownServers: List<String> = emptyList()
 
-    /**
-     * Base screen shared by all native providers; providers may override to add
-     * provider-specific preferences (call super first).
-     */
     open fun setupPreferenceScreen(screen: PreferenceScreen) {
         val context: Context = currContext() ?: return
 
@@ -284,13 +278,6 @@ abstract class NativeAnimeParser : AnimeParser() {
         }
     }
 
-    /**
-     * Auto-matches a media entry to this source.
-     *
-     * Tries the main name first, then a simplified query (season tokens stripped),
-     * then romaji variants. Prefers the entry whose season matches, which fixes
-     * sites like Latanime that split seasons into separate entries.
-     */
     override suspend fun autoSearch(mediaObj: Media): ShowResponse? {
         val saved = loadSavedShowResponse(mediaObj.id)
         if (saved != null) {
@@ -337,10 +324,6 @@ abstract class NativeAnimeParser : AnimeParser() {
         return best
     }
 
-    /**
-     * Site searches often choke on season suffixes ("Season 4" / "3rd Season").
-     * Try the raw query first, then a simplified one stripped of season tokens and punctuation.
-     */
     protected suspend fun searchWithFallback(query: String): List<ShowResponse> {
         var results = search(query)
         if (results.isEmpty()) {

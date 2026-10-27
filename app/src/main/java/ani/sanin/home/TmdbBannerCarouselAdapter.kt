@@ -128,7 +128,6 @@ class TmdbBannerCarouselAdapter(
             return
         }
 
-        // --- Banner image ---
         val imageUrl = if (is3DBanner()) item.posterUrl else item.bannerUrl
         val bannerImage = holder.bannerImage
         val loadOptions = bannerLoadOptions(currentBannerType(modernMode, isClassicBanner()))
@@ -148,7 +147,6 @@ class TmdbBannerCarouselAdapter(
             holder.bannerBg.isVisible = false
         }
 
-        // --- Clearlogo / Title ---
         val logoUrl = if (PrefManager.getVal(PrefName.UseClearlogoInPosters)) logoUrls[pos] else null
         if (!logoUrl.isNullOrBlank()) {
             holder.clearlogo.tag = pos
@@ -173,8 +171,7 @@ class TmdbBannerCarouselAdapter(
                     }
                 })
             if (isClassicBanner() || is3DBanner()) {
-                // Decode to the hardcoded view size rather than an arbitrary
-                // 240x64 that was tuned for the old wrap_content logo.
+
                 logoReq.override(
                     holder.clearlogo.layoutParams.width,
                     holder.clearlogo.layoutParams.height
@@ -189,8 +186,6 @@ class TmdbBannerCarouselAdapter(
             holder.title.text = item.title
         }
 
-        // --- Tags: transparent pills ---
-        // TMDB's type is a lower-case api id, so capitalising it alone rendered "Tv".
         val typeText = when (item.type) {
             "tv" -> "TV"
             "movie" -> "Movie"
@@ -198,11 +193,8 @@ class TmdbBannerCarouselAdapter(
         }
         val statusText = statusByIndex[pos]
 
-        // Season/Year. A plugin result carries no year of its own, so the
-        // matched TMDB entry supplies it.
         val year = item.year.ifBlank { detailsByIndex[pos]?.year.orEmpty() }
 
-        // Score, falling back to the detail's rating for plugin items.
         val score = scoreByIndex[pos]
             ?: detailsByIndex[pos]?.voteAverage?.takeIf { it > 0.0 }
                 ?.let { String.format("%.1f", it) + "%" }
@@ -215,7 +207,7 @@ class TmdbBannerCarouselAdapter(
         }
 
         if (isClassicBanner()) {
-            // One two-line chip area under the pill, genres included.
+
             bindClassicChips(
                 holder.genresRow,
                 holder.chipsTop,
@@ -237,7 +229,6 @@ class TmdbBannerCarouselAdapter(
             setChip(holder.seasonTag, year)
             setChip(holder.scoreTag, score)
 
-            // --- Genre chips (transparent pills) ---
             val genresRow = holder.genresRow
             genresRow?.removeAllViews()
             val density = ctx.resources.displayMetrics.density
@@ -266,12 +257,8 @@ class TmdbBannerCarouselAdapter(
             if (genresRow != null) genresRow.isVisible = genres.isNotEmpty()
         }
 
-        // --- Description (hidden in cardMode) ---
         holder.description.isVisible = false
 
-        // --- Watch Now pill / fav button ---
-        // Classic shows the pill as its D-pad stop, the same as Modern. Compact
-        // keeps hiding both, since its metadata lives in the side panel.
         if (isClassicBanner() || is3DBanner()) {
             holder.playBtn.setOnClickListener { onItemClick(item) }
             holder.playBtn.isFocusable = true
@@ -282,18 +269,13 @@ class TmdbBannerCarouselAdapter(
         }
         holder.favBtn?.isVisible = false
 
-        // --- Click (touch only). The carousel is intentionally NOT D-pad
-        // focusable — the watch-now button is the banner's focus point and
-        // moves this carousel left/right, exactly like anime mode. ---
         holder.itemView.isFocusable = false
         holder.itemView.isFocusableInTouchMode = false
         holder.itemView.isClickable = true
         holder.itemView.setOnClickListener { onItemClick(item) }
 
-        // --- Landscape overlay ---
         applyLandscapeOverlay(holder)
 
-        // --- Preload adjacent ---
         for (offset in listOf(-1, 1)) {
             val adjPos = realPosition(position + offset)
             if (adjPos in items.indices) {
@@ -360,8 +342,6 @@ class TmdbBannerCarouselAdapter(
             return
         }
 
-        // Classic keeps its full stack in both orientations; landscape just
-        // centres it and drops the left scrim.
         if (isClassicBanner()) {
             scrim.isVisible = false
             val lp = content.layoutParams as FrameLayout.LayoutParams
@@ -396,9 +376,7 @@ class TmdbBannerCarouselAdapter(
             holder.genresRow?.isVisible = true
             return
         }
-        // Landscape (anime-exact): the card shows only the image + left-half
-        // scrim; the metadata lives in the side panel (tmdbBannerSide).
-        // Large type: no left 3-layer scrim, only the gradient below.
+
         val half = cardWidthPx / 2
         scrim.isVisible = !isClassicBanner()
         scrim.layoutParams = scrim.layoutParams.apply { width = half }
@@ -412,12 +390,6 @@ class TmdbBannerCarouselAdapter(
         holder.genresRow?.isVisible = false
     }
 
-    /**
-     * Modern mode. Metadata comes from TMDB wherever it exists — including for
-     * plugin items, which are matched to a TMDB entry upstream. Anything TMDB
-     * does not know about is simply left out, so an unmatched plugin still
-     * renders as a plain title over its artwork.
-     */
     private fun bindModern(holder: ViewHolder, item: TmdbHomeFragment.BannerItem, pos: Int) {
         val ctx = holder.itemView.context
         val density = ctx.resources.displayMetrics.density
@@ -425,7 +397,6 @@ class TmdbBannerCarouselAdapter(
         applyModernContentWidth(holder.itemView, holder.modernContent)
         val detail = detailsByIndex[pos]
 
-        // --- Background art ---
         val imageUrl = item.bannerUrl
         if (!imageUrl.isNullOrBlank()) {
             holder.bannerBg.isVisible = true
@@ -438,7 +409,6 @@ class TmdbBannerCarouselAdapter(
             holder.bannerBg.isVisible = false
         }
 
-        // --- Portrait poster: TMDB's own, else the plugin's ---
         val poster = holder.poster
         val posterUrl = postersByIndex[pos] ?: (item as? TmdbHomeFragment.BannerItem.Plugin)?.response?.posterUrl
         if (!posterUrl.isNullOrBlank() && poster != null) {
@@ -449,7 +419,6 @@ class TmdbBannerCarouselAdapter(
             poster?.isVisible = false
         }
 
-        // --- Logo art, falling back to the title text ---
         val logoUrl = if (PrefManager.getVal(PrefName.UseClearlogoInPosters)) logoUrls[pos] else null
         if (!logoUrl.isNullOrBlank()) {
             holder.clearlogo.isVisible = true
@@ -463,7 +432,6 @@ class TmdbBannerCarouselAdapter(
             holder.title.text = item.title
         }
 
-        // --- Synopsis ---
         val overview = detail?.overview?.replace(Regex("\\s+"), " ")?.trim()
         if (!overview.isNullOrBlank()) {
             holder.description.text = overview
@@ -472,7 +440,6 @@ class TmdbBannerCarouselAdapter(
             holder.description.isVisible = false
         }
 
-        // --- Genres · Year · Rating · Status · Type ---
         val metaRow = holder.metaRow
         metaRow?.removeAllViews()
         metaRow?.let { row ->
@@ -500,7 +467,6 @@ class TmdbBannerCarouselAdapter(
             row.isVisible = row.childCount > 0
         }
 
-        // --- Watch Now: the banner's only D-pad stop ---
         holder.playBtn.setOnClickListener { onItemClick(item) }
         holder.playBtn.isFocusable = true
         holder.playBtn.isFocusableInTouchMode = false
@@ -510,7 +476,6 @@ class TmdbBannerCarouselAdapter(
         holder.itemView.setOnClickListener { onItemClick(item) }
     }
 
-    /** Late-arriving TMDB enrichment, keyed by real (non-virtual) banner index. */
     fun updateDetails(
         logos: Map<Int, String?>,
         statuses: Map<Int, String?>,
@@ -527,7 +492,6 @@ class TmdbBannerCarouselAdapter(
     }
 }
 
-/** Shows a chip view with [text], or hides it when there is nothing to show. */
 private fun setChip(view: TextView?, text: String?) {
     if (view == null) return
     if (!text.isNullOrBlank()) {

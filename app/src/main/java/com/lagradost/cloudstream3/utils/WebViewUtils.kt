@@ -11,10 +11,6 @@ fun jsValueToString(v: Any?): String {
     return v?.toString() ?: ""
 }
 
-/**
- * Evaluate JavaScript in a WebView and return the result.
- * Uses a headless WebView approach.
- */
 suspend fun evalJs(
     js: String,
     variable: String? = null,

@@ -23,10 +23,7 @@ class Login : AppCompatActivity() {
             if (match != null) {
                 Anilist.token = match.value
                 PrefManager.setVal(PrefName.AnilistToken, match.value)
-                // Fetch the profile (id/name/avatar) before opening the
-                // app, exactly like the QR login flow. Without this the
-                // first user query fails with
-                // "User ID/Name and type arguments required".
+
                 lifecycleScope.launch {
                     try {
                         Anilist.query.getUserData()

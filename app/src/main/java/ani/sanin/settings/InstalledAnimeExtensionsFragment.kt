@@ -52,7 +52,6 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.util.Locale
 
-
 class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
     private var _binding: FragmentExtensionsBinding? = null
     private val binding get() = _binding!!
@@ -102,7 +101,7 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
                         show()
                     }
                 } else {
-                    // If there's only one setting, proceed with the fragment transaction
+
                     val fragment =
                         AnimeSourcePreferencesFragment().getInstance(selectedSetting) {
                             changeUIVisibility(true)
@@ -115,7 +114,6 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
 
                 }
 
-                // Hide ViewPager2 and TabLayout
                 changeUIVisibility(false)
             } else {
                 Toast.makeText(requireContext(), "Source is not configurable", Toast.LENGTH_SHORT)
@@ -239,7 +237,6 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
         extensionsAdapter.itemTouchHelper = touchHelper
         extensionsAdapter.reorderMessage = binding.reorderMessage
 
-
         lifecycleScope.launch {
             animeExtensionManager.installedExtensionsFlow.collect { extensions ->
                 extensionsAdapter.updateData(sortToAnimeSourcesList(extensions))
@@ -258,7 +255,6 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backDisarm)
         extensionsAdapter.onDragModeChanged = { armed -> backDisarm.isEnabled = armed }
     }
-
 
     private fun sortToAnimeSourcesList(inpt: List<AnimeExtension.Installed>): List<AnimeExtension.Installed> {
         val sourcesMap = inpt.associateBy { it.name }
@@ -279,7 +275,7 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
         )
     }
 
-    override fun notifyDataChanged() { // Do nothing
+    override fun notifyDataChanged() {
     }
 
     private class AnimeExtensionsAdapter(
@@ -375,8 +371,6 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
             holder.dragUpArrow.setColorFilter(tintColor)
             holder.dragDownArrow.setColorFilter(tintColor)
 
-            // Phone: one tap arms drag mode (primary fill) — touch the row
-            // anywhere to drag; TV: the handle keeps focus, leave via BACK/RIGHT.
             holder.dragHandle.setOnClickListener {
                 val currentPos = holder.absoluteAdapterPosition
                 if (currentPos == RecyclerView.NO_POSITION) return@setOnClickListener
@@ -391,8 +385,6 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
                 }
             }
 
-            // Phone: once armed, dragging anywhere on the row moves the item —
-            // no need to keep holding the handle.
             holder.itemView.setOnTouchListener { _, event ->
                 if (event.actionMasked == MotionEvent.ACTION_DOWN &&
                     dragActivePosition == holder.absoluteAdapterPosition

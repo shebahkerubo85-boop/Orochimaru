@@ -2,7 +2,6 @@ package ani.sanin.connections
 
 import kotlinx.serialization.Serializable
 
-
 @Serializable
 data class PendingDeletion(
     val mediaId: Int,

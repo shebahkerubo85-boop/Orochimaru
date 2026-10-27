@@ -54,13 +54,6 @@ fun Context.cancelNotification(id: Int) {
     NotificationManagerCompat.from(this).cancel(id)
 }
 
-/**
- * Helper method to create a notification builder.
- *
- * @param id the channel id.
- * @param block the function that will execute inside the builder.
- * @return a notification to be displayed or updated.
- */
 fun Context.notificationBuilder(
     channelId: String,
     block: (NotificationCompat.Builder.() -> Unit)? = null
@@ -73,13 +66,6 @@ fun Context.notificationBuilder(
     return builder
 }
 
-/**
- * Helper method to build a notification channel group.
- *
- * @param channelId the channel id.
- * @param block the function that will execute inside the builder.
- * @return a notification channel group to be displayed or updated.
- */
 fun buildNotificationChannelGroup(
     channelId: String,
     block: (NotificationChannelGroupCompat.Builder.() -> Unit),
@@ -89,14 +75,6 @@ fun buildNotificationChannelGroup(
     return builder.build()
 }
 
-/**
- * Helper method to build a notification channel.
- *
- * @param channelId the channel id.
- * @param channelImportance the channel importance.
- * @param block the function that will execute inside the builder.
- * @return a notification channel to be displayed or updated.
- */
 fun buildNotificationChannel(
     channelId: String,
     channelImportance: Int,

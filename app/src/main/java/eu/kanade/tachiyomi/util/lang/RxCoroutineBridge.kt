@@ -9,10 +9,6 @@ import rx.Subscription
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-/*
- * Util functions for bridging RxJava and coroutines. Taken from TachiyomiEH/SY.
- */
-
 suspend fun <T> Observable<T>.awaitSingle(): T = single().awaitOne()
 
 @OptIn(InternalCoroutinesApi::class)
@@ -39,11 +35,7 @@ private suspend fun <T> Observable<T>.awaitOne(): T = suspendCancellableCoroutin
                 }
 
                 override fun onError(e: Throwable) {
-                    /*
-                     * Rx1 observable throws NoSuchElementException if cancellation happened before
-                     * element emission. To mitigate this we try to atomically resume continuation with exception:
-                     * if resume failed, then we know that continuation successfully cancelled itself
-                     */
+
                     val token = cont.tryResumeWithException(e)
                     if (token != null) {
                         cont.completeResume(token)

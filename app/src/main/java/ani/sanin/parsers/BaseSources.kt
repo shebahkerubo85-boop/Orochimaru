@@ -105,8 +105,6 @@ abstract class NovelReadSources : BaseSources() {
 
 }
 
-
-
 abstract class BaseSources {
     abstract val list: List<Lazier<BaseParser>>
 
@@ -133,6 +131,4 @@ abstract class BaseSources {
         const val SEPARATOR = "───"
     }
 }
-
-
 

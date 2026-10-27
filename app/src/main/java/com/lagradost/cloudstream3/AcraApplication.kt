@@ -1,9 +1,5 @@
 package com.lagradost.cloudstream3
 
-/**
- * Deprecated alias for CloudStreamApp for backwards compatibility with plugins.
- * Use CloudStreamApp instead.
- */
 @Deprecated(
     message = "AcraApplication is deprecated, use CloudStreamApp instead",
     replaceWith = ReplaceWith("com.lagradost.cloudstream3.CloudStreamApp"),

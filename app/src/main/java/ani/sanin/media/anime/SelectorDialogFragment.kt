@@ -19,16 +19,13 @@ import android.widget.CheckBox
 import android.widget.TextView
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-//import androidx.compose.ui.test.performClick
-//import androidx.compose.ui.geometry.isEmpty
-//import androidx.compose.ui.semantics.text
+
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.activityViewModels
-//import androidx.glance.visibility
-//import androidx.glance.visibility
+
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.withCreated
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -83,7 +80,6 @@ import tachiyomi.core.util.lang.launchIO
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.text.DecimalFormat
-
 
 class SelectorDialogFragment : DialogFragment() {
     private var _binding: BottomSheetSelectorBinding? = null
@@ -197,11 +193,7 @@ class SelectorDialogFragment : DialogFragment() {
                         )
                     val adapter = ExtractorAdapter(onEpisodeDownloadHandler)
                     binding.selectorRecyclerView.adapter = adapter
-                    // Reuse already-loaded servers when reopening the same episode from the
-                    // same source; only force a fresh fetch when there's no cache or the
-                    // cache came from a different source (e.g. right after a source switch).
-                    // A preloaded single-server cache has allStreams=false but is still valid,
-                    // so base reuse on extractor presence + source match rather than allStreams.
+
                     val cacheValid =
                         !ep.extractors.isNullOrEmpty() &&
                             ep.extractorsSource == media!!.selected?.sourceIndex
@@ -210,7 +202,7 @@ class SelectorDialogFragment : DialogFragment() {
                         ep.extractors = null
                         ep.extractorsSource = null
                     }
-                    // Show servers progressively as each one finishes loading
+
                     ep.extractorCallback = { extractor ->
                         scope.launch(Dispatchers.Main) {
                             if (_binding == null || !isAdded) return@launch
@@ -218,8 +210,7 @@ class SelectorDialogFragment : DialogFragment() {
                         }
                     }
                     if (!cacheValid && media!!.id < 0) {
-                        // Synthetic TMDB episode: servers come from the plugin, cached
-                        // per episode so reopening the sheet is instant.
+
                         scope.launch(Dispatchers.IO) {
                             val ok = ani.sanin.cloudstream.TmdbStreamResolver.populateSyntheticEpisode(
                                 requireContext(), media!!, ep
@@ -238,7 +229,7 @@ class SelectorDialogFragment : DialogFragment() {
                         }
                     } else if (!cacheValid) {
                         scope.launch(Dispatchers.IO) {
-                            // Phase 1: fetch server names and show them immediately
+
                             val servers = model.loadEpisodeVideoServers(ep, media!!.selected!!.sourceIndex)
                             if (servers.isNullOrEmpty()) {
                                 withContext(Dispatchers.Main) {
@@ -260,11 +251,11 @@ class SelectorDialogFragment : DialogFragment() {
                                 binding.selectorProgressBar.visibility = View.GONE
                                 binding.selectorMakeDefault.post { binding.selectorMakeDefault.requestFocus() }
                             }
-                            // Phase 2: fill each server's videos progressively
+
                             model.loadEpisodeVideos(ep, media!!.selected!!.sourceIndex, servers = servers)
                             withContext(Dispatchers.Main) {
                                 if (_binding == null || !isAdded) return@withContext
-                                // Remove placeholders for servers that failed or timed out
+
                                 adapter.removePendingPlaceholders()
                                 if (adapter.itemCount == 0) {
                                     fail(R.string.stream_selection_empty)
@@ -336,8 +327,7 @@ class SelectorDialogFragment : DialogFragment() {
                     val actualKey = media?.anime?.episodes?.getEpisodeKey(rawKey) ?: rawKey
                     media?.anime?.selectedEpisode = actualKey
                     episode = ep
-                    // Prefer a finished download over the network: play the local file directly.
-                    // Works offline and skips server extraction entirely.
+
                     val downloaded = ep?.let { DownloadManager.findCompleted(media!!.id, it.number) }
                     if (ep != null && downloaded != null) {
                         val key = media?.anime?.episodes?.getEpisodeKey(ep.number) ?: actualKey
@@ -588,8 +578,7 @@ class SelectorDialogFragment : DialogFragment() {
                         if (meta.filterNotNull().isEmpty()) View.GONE else View.VISIBLE
                     holder.binding.streamLoading.visibility = View.GONE
                     holder.binding.streamRecyclerView.visibility = View.VISIBLE
-                    // The name header is a label only: not focusable or clickable, so D-pad
-                    // focus lands straight on the quality cards under it.
+
                     holder.binding.streamHeader.isFocusable = false
                     holder.binding.streamHeader.isClickable = false
                     holder.binding.streamHeader.onFocusChangeListener = null
@@ -644,8 +633,7 @@ class SelectorDialogFragment : DialogFragment() {
         fun performClick(position: Int) {
             try {
                 val extractor = links.getOrNull(position) as? VideoExtractor ?: return
-                // The extension-flagged rendition wins: its quality label can
-                // change between episodes, so a saved label alone is unreliable.
+
                 val preferredIndex = extractor.videos.indexOfFirst { it.preferred }
                 if (preferredIndex >= 0) {
                     playVideo(extractor, preferredIndex, remember = false)
@@ -746,7 +734,7 @@ class SelectorDialogFragment : DialogFragment() {
             }
             if (video.size != null) {
                 binding.urlSize.isVisible = true
-                // if video size is null or 0, show "Unknown Size" else show the size in MB
+
                 val sizeText = getString(
                     R.string.mb_size, "${if (video.extraNote != null) " : " else ""}${
                         if (video.size == 0.0) getString(R.string.size_unknown) else DecimalFormat("#.##").format(
@@ -826,11 +814,6 @@ class SelectorDialogFragment : DialogFragment() {
                 }
             }
 
-            /**
-             * When a quality card gains focus, scroll the outer server list so the whole card is
-             * visible. Walk up to the direct child of the outer RecyclerView so
-             * getChildAdapterPosition always sees RecyclerView.LayoutParams.
-             */
             fun scrollIntoOuterView(v: View) {
                 var p: android.view.ViewParent? = v.parent
                 while (p != null) {
@@ -873,7 +856,6 @@ class SelectorDialogFragment : DialogFragment() {
     private fun qualityLabelFor(video: Video): String =
         if (video.quality == null) getString(R.string.quality_auto) else "${video.quality}p"
 
-    /** Per-quality sizes of a server, e.g. "1080p · 1.2 GB · 720p · 700 MB"; null when unknown. */
     private fun videoSizesLabel(videos: List<Video>): String? {
         val known = videos.mapNotNull { v ->
             val size = v.size

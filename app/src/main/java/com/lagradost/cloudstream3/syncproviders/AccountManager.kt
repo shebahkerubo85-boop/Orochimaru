@@ -93,8 +93,6 @@ abstract class AccountManager {
             cachedAccountIds = ids
         }
 
-        // I do not want to place this in the init block as JVM initialization order is weird, and it may cause exceptions
-        // accessing other classes
         fun initMainAPI() {
             LoadResponse.malIdPrefix = malApi.idPrefix
             LoadResponse.kitsuIdPrefix = kitsuApi.idPrefix
@@ -114,10 +112,8 @@ abstract class AccountManager {
         const val APP_STRING_REPO = "cloudstreamrepo"
         const val APP_STRING_PLAYER = "cloudstreamplayer"
 
-        // Instantly start the search given a query
         const val APP_STRING_SEARCH = "cloudstreamsearch"
 
-        // Instantly resume watching a show
         const val APP_STRING_RESUME_WATCHING = "cloudstreamcontinuewatching"
 
         const val APP_STRING_SHARE = "csshare"
@@ -138,7 +134,7 @@ abstract class AccountManager {
             if (minutes < 0) {
                 return completedValue
             }
-            //println("$days $hours $minutes")
+
             return "${if (days != 0L) "$days" + "d " else ""}${if (hours != 0L) "$hours" + "h " else ""}${minutes}m"
         }
     }

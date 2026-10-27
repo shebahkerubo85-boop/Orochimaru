@@ -35,18 +35,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * One service's catalogue: the grid of everything a watch provider carries, with a
- * movie/TV filter above it.
- *
- * Films and series are separate endpoints on TMDB and a service stocks both, so the
- * filter picks the endpoint rather than filtering a mixed list — the same reason
- * Zangetsu asks for a page of each.
- *
- * The grid itself is the app's usual [MediaAdaptor]. Every title is folded into a
- * [Media] carrying a `tmdbType`, and [MediaAdaptor.clicked] already routes such a
- * title to [TmdbDetailsActivity], so tapping a poster needs no extra wiring here.
- */
 class TmdbServiceCatalogueActivity : AppCompatActivity() {
     private lateinit var binding: ActivityTmdbServiceCatalogueBinding
     private lateinit var mediaAdaptor: MediaAdaptor
@@ -62,15 +50,11 @@ class TmdbServiceCatalogueActivity : AppCompatActivity() {
     private var pillTabs by mutableStateOf<List<LibraryStatusTab>>(emptyList())
     private var selectedPillIndex by mutableIntStateOf(0)
 
-    /** Stop paging once a page comes back empty, the way a real catalogue ends. */
     private var hasMore = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Theme before inflate. The layout resolves ?attr/colorPrimary for the pill's
-        // checked stroke and label, and inflation is where those are read: inflating
-        // first left them on the pre-setTheme Theme.Sanin, whose inherited Material3
-        // colorPrimary is the default #6750A4 purple.
+
         ThemeManager(this).applyTheme()
         binding = ActivityTmdbServiceCatalogueBinding.inflate(layoutInflater)
         initActivity(this)
@@ -107,18 +91,6 @@ class TmdbServiceCatalogueActivity : AppCompatActivity() {
         load()
     }
 
-    /**
-     * The Movie / TV pill: one control, two entries, the chosen one marked by the
-     * travelling selection strip.
-     *
-     * The pill owns the single selection, so there is no index to keep in step with a
-     * pair of chips: it reports which entry was tapped and the shelf is reloaded from
-     * there. The initial index is set before the pill is bound, so restoring a type from the
-     * intent does not kick off a second load.
-     *
-     * This is the same capsule the library status tabs use, just wrap-content so it
-     * reads as a segmented switch rather than a full-width bar.
-     */
     private fun setUpTypeToggle() {
         selectedPillIndex = if (mediaType == TYPE_TV) 1 else 0
         pillTabs = listOf(
@@ -142,7 +114,7 @@ class TmdbServiceCatalogueActivity : AppCompatActivity() {
         if (index == selectedPillIndex) return
         selectedPillIndex = index
         mediaType = if (index == 1) TYPE_TV else TYPE_MOVIE
-        // A new type is a different shelf, so drop what the old one loaded and start over.
+
         page = 0
         hasMore = true
         if (media.isNotEmpty()) {
@@ -170,7 +142,6 @@ class TmdbServiceCatalogueActivity : AppCompatActivity() {
         binding.mediaGrid.setOnClickListener { changeView(0) }
         changeView(if (mode == 1) 1 else 0)
 
-        // Paging: fetch the next page while the user is still a screen away from the end.
         binding.mediaRecyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 if (dy <= 0) return
@@ -203,8 +174,7 @@ class TmdbServiceCatalogueActivity : AppCompatActivity() {
                     for (item in results) {
                         media.add(item.toGridMedia())
                     }
-                    // Append only what arrived. notifyDataSetChanged would rebind every
-                    // card already on screen, which reads as a flash on each page.
+
                     if (results.isNotEmpty()) {
                         mediaAdaptor.notifyItemRangeInserted(start, results.size)
                     }
@@ -231,11 +201,6 @@ class TmdbServiceCatalogueActivity : AppCompatActivity() {
         scope.cancel()
     }
 
-    /**
-     * Folds a TMDB title into the domain [Media] the grid already binds. Only the
-     * fields [MediaAdaptor] reads are set: the poster, the title it shows, the score
-     * and the `tmdbType` that routes the tap.
-     */
     private fun TmdbMedia.toGridMedia(): Media = Media(
         id = id,
         name = displayTitle,
@@ -245,7 +210,7 @@ class TmdbServiceCatalogueActivity : AppCompatActivity() {
         banner = Tmdb.imageUrl(backdropPath, 1280) ?: Tmdb.imageUrl(posterPath, 780),
         cover = Tmdb.imageUrl(posterPath, 500),
         description = overview,
-        // TMDB votes are 0-10; the score chip is a 0-100 percentage.
+
         meanScore = if (voteAverage > 0) (voteAverage * 10).toInt() else null,
         tmdbType = type
     )
@@ -258,7 +223,6 @@ class TmdbServiceCatalogueActivity : AppCompatActivity() {
         private const val TYPE_MOVIE = "movie"
         private const val TYPE_TV = "tv"
 
-        /** Rows from the end at which the next page is requested. */
         private const val PREFETCH_DISTANCE = 8
     }
 }

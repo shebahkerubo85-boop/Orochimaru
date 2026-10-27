@@ -10,11 +10,6 @@ import ani.sanin.util.Logger
 object BiometricPromptUtils {
     private const val TAG = "BiometricPromptUtils"
 
-    /**
-     * Create a BiometricPrompt instance
-     * @param activity: AppCompatActivity
-     * @param processSuccess: success callback
-     */
     fun createBiometricPrompt(
         activity: AppCompatActivity,
         processSuccess: (BiometricPrompt.AuthenticationResult) -> Unit
@@ -42,11 +37,6 @@ object BiometricPromptUtils {
         return BiometricPrompt(activity, executor, callback)
     }
 
-    /**
-     * Create a BiometricPrompt.PromptInfo instance
-     * @param activity: AppCompatActivity
-     * @return BiometricPrompt.PromptInfo: instance
-     */
     fun createPromptInfo(activity: AppCompatActivity): BiometricPrompt.PromptInfo =
         BiometricPrompt.PromptInfo.Builder().apply {
             setTitle(activity.getString(R.string.bio_prompt_info_title))

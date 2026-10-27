@@ -14,7 +14,6 @@ class UrlMedia : Activity() {
         ThemeManager(this).applyTheme()
         val data = intent?.data ?: return
 
-        // If URL is an OAuth/api URL, forward to browser instead
         if (data.pathSegments?.getOrNull(0) == "api") {
             val browserIntent = Intent(Intent.ACTION_VIEW, data)
             browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

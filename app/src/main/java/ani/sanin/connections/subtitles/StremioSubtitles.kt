@@ -16,11 +16,6 @@ object StremioSubtitles {
 
     private const val BASE_URL = "https://opensubtitles-v3.strem.io/subtitles"
 
-    /**
-     * Streaming fetch: emits each provider's results as they finish, so the UI
-     * can render Wyzie's subs while SubDL / OpenSubtitles are still loading.
-     * The [onAllDone] lambda runs after every provider has emitted.
-     */
     fun getSubtitlesStreaming(
         imdbId: String?,
         season: Int,
@@ -66,7 +61,7 @@ object StremioSubtitles {
 
             if (providers.contains("Wyzie")) {
                 launchProvider("Wyzie") {
-                    // Wyzie is a TV-episode database: skip it for movies.
+
                     val rawSubs = if (isTvSeries) {
                         WyzieSubtitles.getWyzieSubtitles(imdbId, season, episode)
                     } else emptyList()
@@ -83,10 +78,7 @@ object StremioSubtitles {
 
             if (providers.contains("Stremio")) {
                 launchProvider("Stremio") {
-                    // Exact addressing only. The old fallback list silently returned
-                    // different seasons ("$imdbId:1:$episode" = S1's episode N, or the
-                    // bare absolute form "$imdbId:$episode") when the exact URL came
-                    // up empty — a classic source of wrong-episode subtitles.
+
                     val url = if (!isTvSeries) {
                         "$BASE_URL/movie/$imdbId.json"
                     } else {
@@ -115,17 +107,9 @@ object StremioSubtitles {
                 }
             }
 
-            // SubSource's public API (searchMovie/getMovie) now 404s every POST and
-            // SubDL's API key is rejected with 403 not_authorized — neither can
-            // ever return results, so both are skipped until replacement keys/
-            // endpoints exist. Wyzie, Stremio (opensubtitles-v3) and OpenSubtitles.com
-            // were verified live with exact season+episode addressing.
-
-            // Keep channel open until every provider coroutine finishes
             jobs.joinAll()
         }
 
-    /** Original blocking fetch — keeps anime-mode and other callers unchanged. */
     suspend fun getSubtitles(
         imdbId: String?,
         season: Int,
@@ -140,7 +124,6 @@ object StremioSubtitles {
         return result
     }
 
-    /** Anime-mode overload — unwraps Media and delegates. */
     suspend fun getSubtitles(media: Media, season: Int, episode: Int): List<StremioSub> {
         val enabled = PrefManager.getVal<Boolean>(PrefName.OnlineSubtitlesEnabled)
         if (!enabled) return emptyList()

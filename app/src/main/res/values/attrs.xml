@@ -5,7 +5,6 @@
         <attr name="focusBackground" format="reference" />
     </declare-styleable>
 
-
     <declare-styleable name="PieFetchButton">
         <attr name="download_layout" format="reference" />
         <attr name="download_background_progress" format="reference" />
@@ -23,7 +22,7 @@
             <enum name="clockwise" value="0" />
             <enum name="counter_clockwise" value="1" />
             <enum name="small_to_large" value="2" />
-            <!--<enum name="top_to_bottom" value="3" />-->
+
         </attr>
 
         <attr name="download_fill_override" format="reference" />

@@ -92,7 +92,7 @@ constructor(
 
                 canvas.drawText(
                     text,
-                    x + 4f, // Shadow offset
+                    x + 4f,
                     y + 4f,
                     shadowPaint,
                 )
@@ -127,7 +127,6 @@ constructor(
         currentEffect = Effect.OUTLINE
     }
 
-    // Too hard for me to figure it out
     fun applyShineEffect(color: Int) {
         this.effectColor = color
         currentEffect = Effect.SHINE

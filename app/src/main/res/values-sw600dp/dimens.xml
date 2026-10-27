@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Modern banner: tablets and Android TV get the full 300dp strip even in portrait. -->
+
     <dimen name="banner_modern_height">355dp</dimen>
     <dimen name="banner_modern_content_start">34dp</dimen>
     <dimen name="banner_modern_poster_width">145dp</dimen>
@@ -13,7 +13,7 @@
     <dimen name="banner_modern_meta_text">12sp</dimen>
     <dimen name="banner_modern_meta_gap">8dp</dimen>
     <integer name="banner_modern_synopsis_lines">3</integer>
-    <!-- Classic banner: large screens stay at the portrait height. -->
+
     <dimen name="banner_classic_height">355dp</dimen>
     <dimen name="banner_classic_logo_width">300dp</dimen>
     <dimen name="banner_classic_logo_height">82dp</dimen>

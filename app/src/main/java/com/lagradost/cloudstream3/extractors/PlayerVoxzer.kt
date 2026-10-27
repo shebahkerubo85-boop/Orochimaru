@@ -5,7 +5,6 @@ import com.lagradost.cloudstream3.utils.ExtractorApi
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.M3u8Helper
 
-
 open class PlayerVoxzer : ExtractorApi() {
     override var name = "Voxzer"
     override var mainUrl = "https://player.voxzer.org"

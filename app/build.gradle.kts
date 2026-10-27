@@ -43,7 +43,7 @@ android {
 
         versionName = "3.2.2"
         versionCode = (versionName ?: "1.0.0").split(".")
-            //noinspection WrongGradleMethod
+
             .map { it.toInt() * 100 }
             .joinToString("")
             .toInt()
@@ -68,7 +68,6 @@ android {
             isDefault = true
         }
 
-        // Firebase Messaging in BOM 35 requires API 24; Media3 HLS download also works here.
         create("phone") {
             dimension = "device"
             isDefault = true
@@ -126,7 +125,7 @@ android {
 
     packaging {
         jniLibs {
-            // libc++_shared is shared by multiple native dependencies.
+
             pickFirsts += listOf("lib/**/libc++_shared.so")
         }
     }
@@ -153,21 +152,16 @@ kotlin {
 
 dependencies {
 
-    // Firebase
     add("googleImplementation", platform(libs.firebase.bom))
     add("googleImplementation", libs.bundles.firebase)
 
-    // AndroidX
     implementation(libs.bundles.androidx)
 
-    // Kotlin
     implementation(libs.kotlin.reflect)
     implementation(libs.kotlin.stdlib)
 
-    // Core libs
     implementation(libs.bundles.misc)
 
-    // Glide
     implementation(libs.bundles.glide)
     ksp(libs.glide.ksp)
 
@@ -176,7 +170,6 @@ dependencies {
     implementation(libs.bundles.subtitles)
     implementation(libs.vad.webrtc)
 
-    // UI
     implementation(libs.material)
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
@@ -204,7 +197,7 @@ dependencies {
     implementation(libs.paging)
     implementation(libs.bundles.okhttp)
     implementation(libs.okio)
-    // CloudStream .cs3 plugin runtime (vendored com.lagradost.cloudstream3 library)
+
     implementation(libs.jackson.module.kotlin)
     implementation(libs.kotlinx.atomicfu)
     implementation(libs.kotlinx.datetime)
@@ -217,12 +210,10 @@ dependencies {
     implementation(libs.rhino)
     implementation(libs.androidsvg.aar)
 
-    // Archive support (local source)
     implementation(libs.libarchive)
     implementation(libs.xmlutil.core)
     implementation(libs.xmlutil.serialization)
 
-    // === CS3 Player upstream deps ===
     implementation(libs.coil3)
     implementation(libs.coil.network.okhttp)
     implementation(libs.media3.common)
@@ -236,7 +227,7 @@ dependencies {
     implementation(libs.constraintlayout)
     implementation(libs.core.ktx)
     implementation(libs.work.runtime.ktx)
-    // Upstream CS3 dependencies
+
     implementation(libs.safefile)
     implementation(libs.nicehttp)
     implementation(libs.jsoup)
@@ -251,8 +242,7 @@ dependencies {
     implementation(libs.fragment.ktx)
     implementation(libs.json)
     implementation(libs.tvprovider)
-    // nextlib's JNI (libmedia3ext.so) links against media3-exoplayer, which the bundle already
-    // provides; error_prone_annotations was only declared by the nextlib POM.
+
     add("phoneImplementation", "com.google.errorprone:error_prone_annotations:2.48.0")
     coreLibraryDesugaring(libs.desugar.jdk.libs.nio)
 }

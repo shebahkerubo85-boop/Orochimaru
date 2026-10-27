@@ -160,7 +160,7 @@ object Logger {
             if (!PrefManager.getVal<Boolean>(PrefName.LogToFile) || file != null) return
             file = File(context.getExternalFilesDir(null), "log.txt")
             if (file?.exists() == true) {
-                if (file!!.length() > 1024 * 1024 * 5) { // 5 MB
+                if (file!!.length() > 1024 * 1024 * 5) {
                     file?.delete()
                     file?.createNewFile()
                 }
@@ -254,7 +254,6 @@ object Logger {
             return
         }
 
-        // No saved log file: share general logcat output instead of the AnimeJL-only log.
         if (!PrefManager.getVal<Boolean>(PrefName.LoggingEnabled)) {
             snackString("Enable logging first")
             return
@@ -272,10 +271,6 @@ object Logger {
         shareTextAsFile(context, logs, "General logs")
     }
 
-    /**
-     * Shares large log text as a file via FileProvider. Putting big text into
-     * Intent extras crashes with TransactionTooLargeException (binder limit).
-     */
     fun shareTextAsFile(context: Context, text: String, subject: String) {
         val dir = File(context.cacheDir, "shared_logs").apply { mkdirs() }
         val file = File(dir, "sanin_logs_${System.currentTimeMillis()}.txt")
@@ -291,7 +286,7 @@ object Logger {
             }
             context.startActivity(Intent.createChooser(shareIntent, "Share logs"))
         } catch (e: Exception) {
-            // Last resort: small snippet in the intent, well under the binder limit.
+
             val snippet = text.takeLast(100_000)
             val fallback = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
@@ -353,15 +348,10 @@ object Logger {
         return LogcatBuffer.getLastMinutes(minutes)
     }
 
-    /**
-     * Reads recent logcat output for the current process.
-     * Capped at [maxLines] to avoid blowing past the Intent size limit.
-     */
     fun readLogcat(maxLines: Int = 500): String {
         return try {
             val pid = android.os.Process.myPid()
-            // -d  → dump and exit (non-blocking)
-            // --pid → only lines from our process (API 24+, falls back gracefully on older)
+
             val process = Runtime.getRuntime().exec(
                 arrayOf("logcat", "-d", "--pid=$pid", "-v", "time")
             )
@@ -369,7 +359,7 @@ object Logger {
             val lines = reader.readLines()
             reader.close()
             process.destroy()
-            // Keep the tail so we get the lines closest to the crash
+
             lines.takeLast(maxLines).joinToString("\n")
         } catch (e: Exception) {
             "Failed to read logcat: ${e.message}"
@@ -379,7 +369,7 @@ object Logger {
 
 class FinalExceptionHandler : Thread.UncaughtExceptionHandler {
     private val defaultUEH = Thread.getDefaultUncaughtExceptionHandler()
-    private val MAX_STACK_TRACE_SIZE = 131071 //128 KB - 1
+    private val MAX_STACK_TRACE_SIZE = 131071
 
     override fun uncaughtException(t: Thread, e: Throwable) {
         val stackTraceString = Log.getStackTraceString(e)
@@ -422,7 +412,6 @@ class FinalExceptionHandler : Thread.UncaughtExceptionHandler {
                     ctx.startActivity(intent)
                 } catch (_: Exception) { }
 
-                // Give CrashActivity time to launch and render before killing the process
                 try {
                     Thread.sleep(500)
                 } catch (_: InterruptedException) { }

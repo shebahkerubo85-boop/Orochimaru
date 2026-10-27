@@ -8,7 +8,6 @@
     android:orientation="vertical"
     tools:context=".settings.AnimeRepoDetailActivity">
 
-    <!-- Header row: back, icon, title, copy/delete -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -85,7 +84,6 @@
             tools:ignore="ContentDescription" />
     </LinearLayout>
 
-    <!-- Action chips: filter + language -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -138,8 +136,6 @@
             android:contentDescription="@string/search" />
     </LinearLayout>
 
-
-    <!-- Inline search bar -->
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/animeRepoSearchView"
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"

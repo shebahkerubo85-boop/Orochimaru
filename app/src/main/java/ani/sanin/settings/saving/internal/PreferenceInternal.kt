@@ -2,7 +2,6 @@ package ani.sanin.settings.saving.internal
 
 import kotlin.reflect.KClass
 
-
 data class Pref(
     val prefLocation: Location,
     val type: KClass<*>,
@@ -16,6 +15,6 @@ enum class Location(val location: String, val exportable: Boolean) {
     Reader("ani.sanin.reader", true),
     NovelReader("ani.sanin.novelReader", true),
     Irrelevant("ani.sanin.irrelevant", false),
-    AnimeDownloads("animeDownloads", false),  //different for legacy reasons
+    AnimeDownloads("animeDownloads", false),
     Protected("ani.sanin.protected", true),
 }

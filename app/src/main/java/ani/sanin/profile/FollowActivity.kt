@@ -27,7 +27,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-
 class FollowActivity : AppCompatActivity() {
     private lateinit var binding: ActivityFollowBinding
     val adapter = GroupieAdapter()

@@ -1,9 +1,5 @@
 package ani.sanin.home
 
-/**
- * Curated TMDB discovery shelves. Descriptions are written for the card itself; queries
- * use TMDB's genre taxonomy and optional keyword search rather than falling back to popularity.
- */
 data class TmdbDiscoveryCategory(
     val title: String,
     val description: String,

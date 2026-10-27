@@ -1,8 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  All of the Modern banner's dimming in one view: the left-to-right wash with
-  the flat 50% already composited in, plus the bottom fade over it.
--->
+
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@drawable/banner_modern_gradient_ltr" />
     <item android:drawable="@drawable/banner_modern_gradient_bottom" />

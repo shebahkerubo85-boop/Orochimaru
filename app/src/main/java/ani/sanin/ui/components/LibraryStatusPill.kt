@@ -21,16 +21,6 @@ import com.google.android.material.R
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
-/**
- * Library status tabs (library / extensions / streaming-catalogue / franchise filters) rendered
- * as a scrollable capsule, now as plain Views rather than a Compose host.
- *
- * Each tab is its own DPAD focus target, mirroring the calendar's week strip: one travelling
- * selection indicator is drawn behind the row ([GlassStripLayout]) and stretches toward the new
- * tab on change, the focused tab (even when unselected) draws the calendar's accent oval rim, and
- * Enter / DPAD-center / tap selects it. Up/Down (and Left/Right at the edges) hand focus back to
- * the surrounding chrome via the nextFocus ids the host sets on this view.
- */
 data class LibraryStatusTab(val label: String, val count: Int)
 
 class LibraryStatusPill @JvmOverloads constructor(
@@ -74,9 +64,6 @@ class LibraryStatusPill @JvmOverloads constructor(
         scroll.addView(strip)
         addView(scroll)
 
-        // The capsule itself takes focus so the hosts' nextFocusUp/Down ids (which point at the
-        // pill) resolve, then immediately forwards into the selected tab - the same shape the
-        // Compose host used.
         isFocusable = true
         isFocusableInTouchMode = false
         setOnFocusChangeListener { _, hasFocus ->
@@ -84,10 +71,6 @@ class LibraryStatusPill @JvmOverloads constructor(
         }
     }
 
-    /**
-     * Fills the pill and records the selection. Safe to call again whenever the tab list or the
-     * selected index changes; the cells are only rebuilt when the list actually differs.
-     */
     fun bind(
         tabs: List<LibraryStatusTab>,
         selectedIndex: Int,
@@ -115,7 +98,6 @@ class LibraryStatusPill @JvmOverloads constructor(
         post { moveIndicator(this.selectedIndex, animate = indicatorPlaced) }
     }
 
-    /** Moves the selection without touching the tab list (page swipes, programmatic changes). */
     fun setSelected(index: Int) {
         if (index !in tabs.indices) return
         if (index == selectedIndex && indicatorPlaced) return
@@ -124,17 +106,12 @@ class LibraryStatusPill @JvmOverloads constructor(
         moveIndicator(index, animate = indicatorPlaced)
     }
 
-    /**
-     * Sets the DPAD-UP exit target and pushes it onto the tab cells. Hosts use this so the pill
-     * returns focus to whichever top-chrome control the user navigated down from.
-     */
     fun setExitFocusUp(id: Int) {
         if (nextFocusUpId == id) return
         nextFocusUpId = id
         propagateNextFocus()
     }
 
-    /** Sets the DPAD-DOWN exit target (usually the content pager) and pushes it onto the cells. */
     fun setExitFocusDown(id: Int) {
         if (nextFocusDownId == id) return
         nextFocusDownId = id
@@ -203,7 +180,6 @@ class LibraryStatusPill @JvmOverloads constructor(
             }
         }
 
-        // Left/Right chain inside the row; the ends inherit whatever the host set on the pill.
         for (i in 0 until row.childCount) {
             val c = row.getChildAt(i)
             c.nextFocusLeftId = if (i > 0) row.getChildAt(i - 1).id else nextFocusLeftId
@@ -241,8 +217,7 @@ class LibraryStatusPill @JvmOverloads constructor(
 
     private fun paintCell(index: Int) {
         val cell = row.getChildAt(index) as? ViewGroup ?: return
-        // The selection fill is the travelling strip indicator behind the row, so the cell only
-        // ever paints the calendar's focus rim (never a per-cell selected fill).
+
         GlassPill.applyCell(cell, selected = false, focused = cell.isFocused)
 
         val selected = index == selectedIndex
@@ -262,17 +237,11 @@ class LibraryStatusPill @JvmOverloads constructor(
         }
     }
 
-    /**
-     * Moves the single indicator onto tab [index]. When [animate], the leading edge eases out
-     * faster than the trailing edge so the capsule stretches toward the new tab and settles,
-     * identical to the calendar week strip.
-     */
     private fun moveIndicator(index: Int, animate: Boolean) {
         if (index < 0 || index >= row.childCount) return
         val cell = row.getChildAt(index)
         if (cell.width == 0 || cell.height == 0) {
-            // Not measured yet (or hidden). Retry once the pill is actually on screen; the
-            // isShown guard keeps a GONE pill from posting every frame forever.
+
             if (isShown) post { moveIndicator(index, animate) }
             return
         }
@@ -327,11 +296,6 @@ class LibraryStatusPill @JvmOverloads constructor(
         propagateNextFocus()
     }
 
-    /**
-     * The hosts set nextFocusUp/Down (and sometimes Left/Right) on the pill view; copy those onto
-     * the cells so DPAD leaves the capsule exactly where the host intended. Internal Left/Right
-     * chaining is preserved - only the row's outer edges inherit the pill's own ids.
-     */
     private fun propagateNextFocus() {
         if (row.childCount == 0) return
         for (i in 0 until row.childCount) {

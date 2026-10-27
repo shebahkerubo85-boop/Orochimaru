@@ -27,7 +27,7 @@
             app:lottie_rawRes="@raw/tomoe"
             app:lottie_autoPlay="true"
             app:lottie_loop="true"
-            app:lottie_colorFilter="?attr/colorSecondary" 
+            app:lottie_colorFilter="?attr/colorSecondary"
             app:lottie_speed="1.75" android:rotation="75" />
 
             <com.airbnb.lottie.LottieAnimationView
@@ -39,7 +39,7 @@
             app:lottie_rawRes="@raw/tomoe"
             app:lottie_autoPlay="true"
             app:lottie_loop="true"
-            app:lottie_colorFilter="?attr/colorSecondary" 
+            app:lottie_colorFilter="?attr/colorSecondary"
             app:lottie_speed="1.75" android:rotation="-45" />
 
             <com.airbnb.lottie.LottieAnimationView
@@ -51,7 +51,7 @@
             app:lottie_rawRes="@raw/tomoe"
             app:lottie_autoPlay="true"
             app:lottie_loop="true"
-            app:lottie_colorFilter="?attr/colorSecondary" 
+            app:lottie_colorFilter="?attr/colorSecondary"
             app:lottie_speed="1.75" android:rotation="195" />
 
         </FrameLayout>
@@ -66,8 +66,6 @@
             android:layout_height="wrap_content"
             android:layout_gravity="top"
             android:fitsSystemWindows="true">
-
-            
 
             <LinearLayout
                 android:id="@+id/mainModeContainer"
@@ -149,7 +147,7 @@
                     android:layout_marginStart="52dp"
                     android:backgroundTint="@color/nav_bg_inv"
                     android:focusable="true"
-                    
+
                     app:cardCornerRadius="22dp">
 
                     <com.google.android.material.imageview.ShapeableImageView
@@ -233,7 +231,6 @@
                     android:focusable="true"
                     android:nextFocusUp="@id/homeNavHome"
                     android:nextFocusDown="@id/homeNavDiscovery" />
-
 
                 <ImageButton
                     android:id="@+id/homeNavDiscovery"

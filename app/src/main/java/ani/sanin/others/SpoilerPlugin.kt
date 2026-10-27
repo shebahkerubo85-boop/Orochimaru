@@ -25,11 +25,11 @@ class SpoilerPlugin(private val anilist: Boolean = false) : AbstractMarkwonPlugi
         private var revealed = false
         override fun updateDrawState(tp: TextPaint) {
             if (!revealed) {
-                // use the same text color
+
                 tp.bgColor = Color.DKGRAY
                 tp.color = Color.DKGRAY
             } else {
-                // for example keep a bit of black background to remind that it is a spoiler
+
                 tp.bgColor = ColorUtils.applyAlpha(Color.DKGRAY, 25)
             }
         }
@@ -39,10 +39,9 @@ class SpoilerPlugin(private val anilist: Boolean = false) : AbstractMarkwonPlugi
         }
     }
 
-    // we also could make text size smaller (but then MetricAffectingSpan should be used)
     private class HideSpoilerSyntaxSpan : CharacterStyle() {
         override fun updateDrawState(tp: TextPaint) {
-            // set transparent color
+
             tp.color = 0
         }
     }
@@ -62,7 +61,7 @@ class SpoilerPlugin(private val anilist: Boolean = false) : AbstractMarkwonPlugi
                     }
 
                     override fun updateDrawState(ds: TextPaint) {
-                        // no op
+
                     }
                 }
                 val s = matcher.start()
@@ -70,7 +69,6 @@ class SpoilerPlugin(private val anilist: Boolean = false) : AbstractMarkwonPlugi
                 spannable.setSpan(spoilerSpan, s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 spannable.setSpan(clickableSpan, s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
 
-                // we also can hide original syntax
                 spannable.setSpan(
                     HideSpoilerSyntaxSpan(),
                     s,

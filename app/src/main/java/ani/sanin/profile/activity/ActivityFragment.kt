@@ -55,13 +55,12 @@ class ActivityFragment : Fragment() {
             if (type == ActivityType.OTHER_USER) View.VISIBLE else View.GONE
         binding.titleText.text =
             if (userId == Anilist.userid) getString(R.string.create_new_activity) else getString(R.string.write_a_message)
-        
-        // Set up filter icon visibility
+
         binding.filterButton.visibility = if (type == ActivityType.OTHER_USER) View.VISIBLE else View.GONE
         binding.filterButton.setOnClickListener {
             showFilterBottomSheet()
         }
-        
+
         binding.titleImage.setOnClickListener { handleTitleImageClick() }
         binding.listRecyclerView.adapter = adapter
         binding.listRecyclerView.layoutManager = LinearLayoutManager(context)
@@ -120,10 +119,10 @@ class ActivityFragment : Fragment() {
 
     private fun applyFilter() {
         val filteredActivities = getFilteredActivities()
-        
+
         adapter.clear()
         adapter.addAll(filteredActivities.map { ActivityItem(it, adapter, ::onActivityClick) })
-        
+
         binding.emptyTextView.isVisible = filteredActivities.isEmpty()
         binding.emptyTextView.text = when (currentFilter) {
             ActivityFilterType.ALL -> getString(R.string.nothing_here)

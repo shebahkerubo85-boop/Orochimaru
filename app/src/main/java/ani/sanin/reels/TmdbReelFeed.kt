@@ -8,18 +8,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 
-/**
- * The TMDB half of the reels feed: the same shuffled, endlessly-appending trailer runway as the
- * anime rail, but seeded from TMDB's own catalog instead of AniList.
- *
- * The only thing that really differs from [ReelFeed] is where the titles come from — a TMDB id is
- * already in hand (no AniZip mapping step), and one draw can mix movies and shows. Everything
- * downstream (interleave, thumbnail, player) is shared, so a TMDB reel and an anime reel are the
- * same [ReelFeed.ReelItem] with a different id set.
- */
 object TmdbReelFeed {
 
-    /** A title from TMDB that can be turned into a set of playable trailer videos. */
     data class TmdbRef(
         val id: Int,
         val mediaType: String,
@@ -31,14 +21,10 @@ object TmdbReelFeed {
         val showKey: String get() = "t:$mediaType:$id"
     }
 
-    // How deep a random draw may reach (TMDB serves 20 a page, up to 500 pages).
     private const val MAX_PAGE = 25
 
-    // Half of all draws come from this shallower band so the household names still appear often.
     private const val POPULAR_BAND_PAGE = 8
 
-    // Rotating the ordering keeps any one of them (most popular / best rated / most voted) from
-    // dominating the feed the way "always page 1 of popularity" did.
     private val SORTS = listOf("popularity.desc", "vote_average.desc", "vote_count.desc")
 
     private const val RECENT_PAGE_MEMORY = 10
@@ -54,16 +40,14 @@ object TmdbReelFeed {
 
     private var cachedGenreNames: Map<Int, String>? = null
 
-    /** `official` first, then by kind, then newest — the order a viewer expects a title's videos. */
     private val videoOrder = compareByDescending<TmdbVideo> { it.official }
         .thenBy { typeRank(it.type) }
         .thenByDescending { it.publishedAt ?: "" }
 
-    /** One page of movies or shows from TMDB under a given sort order. */
     private suspend fun pool(page: Int, mediaType: String, sort: String): List<TmdbRef> {
         if (Tmdb.apiKey.isBlank()) return emptyList()
         val extra = mutableListOf("include_adult" to "false")
-        // Ranking by average with no floor returns festival shorts with a single 10/10 vote.
+
         if (sort == "vote_average.desc") extra.add("vote_count.gte" to "300")
         val names = genreNames()
         val media = runCatching {
@@ -72,7 +56,6 @@ object TmdbReelFeed {
         return media.mapNotNull { toRef(it, mediaType, names) }
     }
 
-    /** One page drawn from a random slice of the catalog, under a random order, movies or shows. */
     suspend fun draw(): List<TmdbRef> =
         pool(
             page = nextPage(),
@@ -80,7 +63,6 @@ object TmdbReelFeed {
             sort = SORTS.random(),
         )
 
-    /** A rail-sized pool taken from several independent draws and shuffled, de-duped by title. */
     suspend fun railPool(cardCount: Int): List<TmdbRef> {
         val merged = LinkedHashMap<String, TmdbRef>()
         repeat(2) { draw().forEach { merged.putIfAbsent(it.showKey, it) } }
@@ -111,10 +93,6 @@ object TmdbReelFeed {
         )
     }
 
-    /**
-     * Every video for [refs], interleaved round-robin and shuffled — the TMDB analogue of
-     * [ReelFeed.buildInterleaved], producing the same [ReelFeed.ReelItem] the player already knows.
-     */
     suspend fun buildInterleaved(refs: List<TmdbRef>): List<ReelFeed.ReelItem> {
         val distinct = refs.distinctBy { it.showKey }
         if (distinct.isEmpty()) return emptyList()
@@ -135,7 +113,6 @@ object TmdbReelFeed {
         return out
     }
 
-    /** The cached videos for one title, fetched and mapped on first use. */
     suspend fun videosFor(ref: TmdbRef): List<ReelFeed.ReelItem> {
         synchronized(cacheLock) { cache[ref.showKey] }?.let { return it }
         val items = gate.withPermit { fetchVideos(ref) }
@@ -169,7 +146,6 @@ object TmdbReelFeed {
             .toList()
     }
 
-    /** Genre id -> name, fetched once. TMDB's movie and TV lists share most ids and names. */
     private suspend fun genreNames(): Map<Int, String> {
         cachedGenreNames?.let { return it }
         val map = runCatching { Tmdb.genres() }.getOrDefault(emptyList())

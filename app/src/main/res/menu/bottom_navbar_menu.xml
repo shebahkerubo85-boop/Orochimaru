@@ -10,5 +10,4 @@
         android:icon="@drawable/ic_round_home_24"
         android:title="@string/home" />
 
-
 </menu>

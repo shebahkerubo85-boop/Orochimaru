@@ -61,8 +61,6 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
         }.getOrNull()
     }
 
-
-
     private val adapter = RepoCardAdapter(
         onOpen = { repo -> openRepo(repo) },
         onLongClick = { repo -> showRepoShortcuts(repo) },
@@ -104,7 +102,7 @@ class CloudStreamAvailableFragment : Fragment(), SearchQueryHandler {
                 async {
                     val manifest = runCatching { CsRepos.fetchManifest(url) }.getOrNull()
                     val plugins = if (manifest != null) CsRepos.getRepoPlugins(url) else emptyList()
-                    // Prefer manifest icon; fall back to the repo owner's GitHub avatar
+
                     val manifestIcon = manifest?.iconUrl?.let {
                         if (it.startsWith("http")) it else CsRepos.sourceUrl(url, it)
                     }

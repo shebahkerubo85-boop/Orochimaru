@@ -14,12 +14,6 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import eu.kanade.tachiyomi.data.notification.Notifications
 
-/**
- * Receives FCM messages pushed by the relay worker (cloudflare-worker/push.js).
- * In the background the system displays the notification from the FCM payload;
- * here we render it ourselves when the app is in the foreground and route taps
- * to the right details screen.
- */
 class OrochimaruMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {

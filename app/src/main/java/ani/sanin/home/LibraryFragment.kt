@@ -49,7 +49,6 @@ class LibraryFragment : Fragment() {
 
     private val model: ListViewModel by activityViewModels()
 
-    /** (Re)builds the status pill from the current tabs/selection. Cheap to call repeatedly. */
     private fun renderStatusPill() {
         if (_binding == null) return
         binding.listTabPill.bind(
@@ -78,7 +77,6 @@ class LibraryFragment : Fragment() {
 
         val primaryColor = requireContext().getThemeColor(com.google.android.material.R.attr.colorSurface)
 
-        // Follow CalendarActivity pattern
         if (PrefManager.getVal<Boolean>(PrefName.ImmersiveMode)) {
             binding.settingsContainer.setPadding(0, 0, 0, 0)
             binding.settingsContainer.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
@@ -145,17 +143,13 @@ class LibraryFragment : Fragment() {
             }
         }
 
-        // Profile pill: solid fill with the label inverted against it, so it stays the
-        // highest-contrast thing in the bar in either theme.
         styleProfilePill()
-        // applyFocusListener draws the border only while the pill holds focus, so it shows up
-        // for D-pad navigation and stays off under a finger.
+
         FocusEffectUtil.applyFocusListener(binding.profileButton)
         binding.profileButton.setOnClickListener {
             openProfile()
         }
 
-        // Settings: bottom sheet with sort / genre / 18+ toggles
         FocusEffectUtil.applyFocusListener(binding.listSettings)
         LensButtonBackground.apply(binding.listSettings)
         binding.listSettings.setOnClickListener {
@@ -189,7 +183,6 @@ class LibraryFragment : Fragment() {
             ).show(childFragmentManager, LibrarySettingsBottomSheet.TAG)
         }
 
-        // Avatar: opens the right-side rail drawer
         FocusEffectUtil.applyFocusListener(binding.listAvatar)
         val avatarUrl = Anilist.avatar ?: Simkl.avatar
         if (!avatarUrl.isNullOrBlank()) {
@@ -203,17 +196,6 @@ class LibraryFragment : Fragment() {
         setupFocusChain()
     }
 
-    /**
-     * Wires the Library screen's D-pad chain:
-     *
-     *   settings <-> profile <-> avatar      (top chrome, left/right)
-     *        any of them  v                   (down)
-     *                     status pill  v      (down)
-     *                     first card  ^       (up returns to the pill, then to where you came from)
-     *
-     * The pill is a view, so its cells are the focus targets; [setExitFocusUp] retargets the up
-     * exit to the top control the user last used.
-     */
     private fun setupFocusChain() {
         binding.listSettings.nextFocusRightId = R.id.profileButton
         binding.listSettings.nextFocusDownId = R.id.listTabPill
@@ -226,8 +208,6 @@ class LibraryFragment : Fragment() {
         binding.listTabPill.setExitFocusUp(lastTopFocusId)
         binding.listTabPill.setExitFocusDown(R.id.listViewPager)
 
-        // Remember which top control we came down from so UP on the pill returns there. Chain the
-        // existing (FocusEffectUtil) listener rather than replacing it, so the focus ring stays.
         for (id in intArrayOf(R.id.listSettings, R.id.profileButton, R.id.listAvatar)) {
             val control = binding.root.findViewById<View>(id) ?: continue
             val borderListener = control.onFocusChangeListener
@@ -241,11 +221,6 @@ class LibraryFragment : Fragment() {
         }
     }
 
-    /**
-     * DPAD_DOWN out of the status pill. Handled from [ani.sanin.MainActivity.dispatchKeyEvent]
-     * because that runs before the framework's focus search - which would otherwise follow the
-     * pill's nextFocusDown into the view pager and restore whatever child that pager last held.
-     */
     fun focusFirstCard(): Boolean = focusFirstCardInPager()
 
     private fun focusFirstCardInPager(): Boolean {
@@ -254,7 +229,6 @@ class LibraryFragment : Fragment() {
         return page?.focusFirstCard() ?: false
     }
 
-    /** Solid pill behind the label, with the label colour inverted against it. */
     private fun styleProfilePill() {
         val dark = isDarkTheme()
         val fill = if (dark) Color.WHITE else Color.BLACK
@@ -266,7 +240,6 @@ class LibraryFragment : Fragment() {
         binding.profileButton.setTextColor(if (dark) Color.BLACK else Color.WHITE)
     }
 
-    /** Opens the AniList profile for the signed-in user. */
     private fun openProfile() {
         val uid = Anilist.userid
         if (uid != null) {
@@ -275,7 +248,7 @@ class LibraryFragment : Fragment() {
                     .putExtra("userId", uid)
             )
         } else {
-            // No id yet (still logging in, or logged out): the rail at least has the sign-in.
+
             val act = requireActivity()
             if (act is ani.sanin.MainActivity) {
                 val drawer = act.findViewById<androidx.drawerlayout.widget.DrawerLayout>(

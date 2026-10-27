@@ -16,25 +16,6 @@ import com.bumptech.glide.request.RequestOptions
 import jp.wasabeef.glide.transformations.internal.FastBlur
 import java.security.MessageDigest
 
-/**
- * Stack blur for banner art, at a fraction of the source resolution.
- *
- * The stock BlurTransformation tries RenderScript first and falls back to the
- * same FastBlur we call here, so on any device where RenderScript is unavailable
- * it pays for a RenderScript.create() that throws plus a releaseAllContexts()
- * teardown, then blurs anyway. RenderScript has been deprecated since API 26, so
- * that is the common path rather than the exception. Going straight to FastBlur
- * gives the same result for a fraction of the setup cost, which matters when a
- * low-RAM TV is decoding a screenful of banners.
- *
- * The bitmap is scaled down by [sampling] before blurring, so the work is
- * divided by sampling squared. A blurred image hides the lost resolution, which
- * is why this is a free trade rather than a quality setting.
- *
- * Note this reaches into the library's `internal` package. It is public API of a
- * pinned dependency (glide-transformations 4.3.0), but a bump to that artifact
- * could move it.
- */
 class StackBlurTransformation(
     private val radius: Int,
     private val sampling: Int = 2,
@@ -61,9 +42,7 @@ class StackBlurTransformation(
     }
 
     override fun updateDiskCacheKey(messageDigest: MessageDigest) {
-        // The radius is part of the key, so every position of the blur slider is
-        // a separate cached bitmap. Keeping the slider coarse limits how many
-        // of those a drag can produce.
+
         messageDigest.update("$ID$radius$sampling".toByteArray(Charsets.UTF_8))
     }
 
@@ -72,28 +51,12 @@ class StackBlurTransformation(
     }
 }
 
-/** Blur down-sample divisor, shared by every banner blur. */
 const val BANNER_BLUR_SAMPLING = 2
 
-/**
- * Hard cap on the width of any carousel banner bitmap. A Modern banner is
- * full-bleed, so without a cap it decodes whatever the source happens to be,
- * often 1920px, for every item in the carousel.
- */
 const val BANNER_MAX_WIDTH = 720
 
-/**
- * How much of the Classic banner's height gets blurred. The bottom band is where
- * the chips and watch pill sit, so that is the part worth softening; the art
- * above it stays sharp.
- */
 const val CLASSIC_BLUR_BAND = 0.45f
 
-/**
- * Blurs only the bottom band of the image, feathering the top edge of the band
- * into the sharp art above it. Used by the Large banner, where a full-image blur
- * would throw away the artwork the banner exists to show.
- */
 class BottomBlurTransformation(
     private val radius: Int,
     private val fraction: Float = CLASSIC_BLUR_BAND,
@@ -122,8 +85,6 @@ class BottomBlurTransformation(
         val blurred = FastBlur.blur(small, radius.coerceIn(1, 25), true)
         val bandBlurred = Bitmap.createScaledBitmap(blurred, width, bandHeight, true)
 
-        // Draw the band back in strips so its top edge fades out instead of
-        // showing a hard seam against the sharp art above it.
         val canvas = Canvas(toTransform)
         val paint = Paint(Paint.FILTER_BITMAP_FLAG)
         val feather = (bandHeight * FEATHER_FRACTION).toInt().coerceAtLeast(1)
@@ -162,17 +123,6 @@ class BottomBlurTransformation(
     }
 }
 
-/**
- * Load options for a carousel banner.
- *
- * Every banner is capped to a sane width, because a carousel will happily decode
- * a full-resolution backdrop per item and that is a lot of bitmap for a 1GB TV.
- * The cap is what keeps a screenful of banners affordable.
- *
- * On top of that, the blur is applied only where it earns its keep: Large blurs
- * just its bottom band, Modern blurs the dimmed backdrop it is built around, and
- * Compact is left sharp.
- */
 fun bannerLoadOptions(bannerType: Int): RequestOptions {
     val options = RequestOptions().override(BANNER_MAX_WIDTH)
     if (!PrefManager.getVal<Boolean>(PrefName.BlurBanners)) return options
@@ -186,21 +136,12 @@ fun bannerLoadOptions(bannerType: Int): RequestOptions {
     }
 }
 
-/** Which of the three banner presentations the carousel is currently showing. */
 fun currentBannerType(modern: Boolean, large: Boolean): Int = when {
     modern -> BANNER_TYPE_MODERN
     large -> BANNER_TYPE_CLASSIC
     else -> BANNER_TYPE_COMPACT
 }
 
-/**
- * Blur for unwatched episode stills, where the point is to hide spoilers without
- * hiding the shot. This was 15 of a possible 25, which turned every unwatched
- * episode into an unreadable smear; 5 still obscures detail but you can make out
- * the frame. Fixed rather than user-adjustable: it lives with the spoiler toggle
- * in the Anime settings, and the banner blur slider is a different control.
- */
 const val EPISODE_BLUR_RADIUS = 5
 
-/** Episode stills are small list thumbnails, so they can afford a heavier down-sample. */
 const val EPISODE_BLUR_SAMPLING = 3

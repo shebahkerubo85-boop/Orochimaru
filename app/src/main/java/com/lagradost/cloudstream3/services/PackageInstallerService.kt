@@ -37,7 +37,7 @@ class PackageInstallerService : Service() {
             .setColorized(true)
             .setOnlyAlertOnce(true)
             .setSilent(true)
-            // If low priority then the notification might not show :(
+
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setColor(this.colorFromAttribute(R.attr.colorPrimary))
             .setContentTitle(getString(R.string.update_notification_downloading))
@@ -62,7 +62,6 @@ class PackageInstallerService : Service() {
         try {
             Log.d("PackageInstallerService", "Downloading update: $url")
 
-            // Delete all old updates
             ioSafe {
                 val appUpdateName = "CloudStream"
                 val appUpdateSuffix = "apk"
@@ -88,7 +87,7 @@ class PackageInstallerService : Service() {
 
                 installer?.installApk(this, inputStream, totalSize, {
                     currentSize += it
-                    // Prevent div 0
+
                     if (totalSize == 0L) return@installApk
 
                     val percentage = currentSize / totalSize.toFloat()
@@ -112,7 +111,7 @@ class PackageInstallerService : Service() {
         percentage: Float,
         state: ApkInstaller.InstallProgressStatus
     ) {
-//        Log.d(LOG_TAG, "Downloading app update progress $percentage | $state")
+
         val text = when (state) {
             ApkInstaller.InstallProgressStatus.Installing -> R.string.update_notification_installing
             ApkInstaller.InstallProgressStatus.Preparing, ApkInstaller.InstallProgressStatus.Downloading -> R.string.update_notification_downloading
@@ -137,7 +136,6 @@ class PackageInstallerService : Service() {
         val notificationManager =
             getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
-        // Persistent notification on failure
         val id =
             if (state == ApkInstaller.InstallProgressStatus.Failed) UPDATE_NOTIFICATION_ID + 1 else UPDATE_NOTIFICATION_ID
         notificationManager.notify(id, newNotification)
@@ -147,9 +145,7 @@ class PackageInstallerService : Service() {
         val url = intent?.getStringExtra(EXTRA_URL) ?: return START_NOT_STICKY
         ioSafe {
             downloadUpdate(url)
-            // Close the service after the update is done
-            // If no sleep then the install prompt may not appear and the notification
-            // will disappear instantly
+
             delay(10_000)
             this@PackageInstallerService.stopSelf()
         }
@@ -176,7 +172,7 @@ class PackageInstallerService : Service() {
         const val UPDATE_CHANNEL_ID = "cloudstream3.updates"
         const val UPDATE_CHANNEL_NAME = "App Updates"
         const val UPDATE_CHANNEL_DESCRIPTION = "App updates notification channel"
-        const val UPDATE_NOTIFICATION_ID = -68454136 // Random unique
+        const val UPDATE_NOTIFICATION_ID = -68454136
 
         fun getIntent(
             context: Context,

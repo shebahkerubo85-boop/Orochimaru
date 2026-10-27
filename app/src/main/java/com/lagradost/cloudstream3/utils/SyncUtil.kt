@@ -1,7 +1,5 @@
 package com.lagradost.cloudstream3.utils
 
-// TODO: FIX
-
 import android.util.Log
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.APIHolder.apis
@@ -59,17 +57,13 @@ object SyncUtil {
         return null
     }
 
-    /**
-     * first. Mal, second. Anilist,
-     * Valid sites are: Gogoanime, Twistmoe and 9anime
-     */
     private suspend fun getIdsFromSlug(
         slug: String,
         site: String = "Gogoanime",
     ): Pair<String?, String?>? {
         Log.i(TAG, "getIdsFromSlug $slug $site")
         try {
-            // Gogoanime, Twistmoe and 9anime
+
             val url = "https://raw.githubusercontent.com/MALSync/MAL-Sync-Backup/master/data/pages/$site/$slug.json"
             val response = app.get(url, cacheTime = 1, cacheUnit = TimeUnit.DAYS).text
             val mapped = tryParseJson<MalSyncPage>(response)
@@ -95,7 +89,7 @@ object SyncUtil {
         val current = pages.gogoanime.values.union(pages.nineanime.values).union(pages.twistmoe.values)
             .mapNotNull { it.url }.toMutableList()
 
-        if (type == "anilist") { // TODO MAKE BETTER
+        if (type == "anilist") {
             apis.filter { it.name.contains("Aniflix", ignoreCase = true) }.forEach {
                 current.add("${it.mainUrl}/anime/$id")
             }

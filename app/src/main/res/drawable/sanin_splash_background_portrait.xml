@@ -1,11 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    Solid black backdrop.
 
-    This used to carry a copy of the logo as well, but sanin_emblem_portrait draws the
-    logo on top of it, so the splash was showing the mark twice. The splash is just the
-    logo on black now, so this is the black and nothing else.
--->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="711dp"
     android:height="1536dp"

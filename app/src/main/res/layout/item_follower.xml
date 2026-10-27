@@ -30,7 +30,6 @@
             app:srcCompat="@drawable/linear_gradient_nav"
             tools:ignore="ContentDescription" />
 
-
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/profileUserAvatarContainer"
             android:layout_width="64dp"

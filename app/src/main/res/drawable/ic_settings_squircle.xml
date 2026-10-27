@@ -5,15 +5,6 @@
     android:viewportWidth="256"
     android:viewportHeight="256">
 
-    <!-- Rounded-square settings glyph for the avatar side rail: a squircle with a gear
-         and a person cut out of it.
-
-         The cut-out is not a clip or a mask: the gear subpaths wind the opposite way to
-         the squircle, so with VectorDrawable's default nonZero fill rule the winding
-         number cancels to 0 inside the gear and it is left transparent. Setting
-         fillType to evenOdd, or reversing one of the paths, turns the whole thing into
-         a solid white block. -->
-
     <path
         android:fillColor="#FFFFFFFF"
         android:pathData="M 196.828 1.407 h -137.943 C 27.141 1.407 1.407 27.141 1.407 58.882 v 137.946 C 1.407 228.573 27.141 254.307 58.885 254.307 h 137.943 C 228.573 254.307 254.307 228.573 254.307 196.828 V 58.882 C 254.307 27.141 228.573 1.407 196.828 1.407 z M 229.604 173.055 c -5.614 13.252 -13.623 25.13 -23.801 35.31 c -10.178 10.178 -22.058 18.186 -35.31 23.801 c -13.82 5.856 -28.437 8.823 -43.448 8.823 c -15.011 0.0 -29.629 -2.967 -43.448 -8.823 c -13.252 -5.614 -25.133 -13.623 -35.31 -23.804 c -10.178 -10.178 -18.186 -22.058 -23.801 -35.31 c -5.853 -13.817 -8.823 -28.434 -8.823 -43.445 s 2.967 -29.629 8.823 -43.445 c 5.614 -13.252 13.623 -25.133 23.801 -35.31 c 10.178 -10.178 22.058 -18.186 35.31 -23.804 c 13.817 -5.853 28.437 -8.823 43.448 -8.823 c 15.011 0.0 29.629 2.97 43.448 8.823 c 13.252 5.614 25.13 13.623 35.31 23.801 c 10.178 10.178 18.186 22.058 23.801 35.31 c 5.856 13.82 8.823 28.437 8.823 43.448 C 238.427 144.618 235.457 159.236 229.604 173.055 z" />

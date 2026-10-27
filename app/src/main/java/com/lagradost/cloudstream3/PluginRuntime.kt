@@ -4,10 +4,6 @@ import android.content.Context
 import com.lagradost.cloudstream3.utils.Event
 import java.io.File
 
-/**
- * Plugin-load lifecycle hooks and deferred file cleanup. These used to live on
- * the CS3 MainActivity, which is gone.
- */
 object PluginRuntime {
     val afterPluginsLoadedEvent = Event<Boolean>()
 

@@ -42,7 +42,7 @@ class ArchiveReader(pfd: ParcelFileDescriptor) : Closeable {
         try {
             Os.munmap(address, size)
         } catch (e: Exception) {
-            // Ignored
+
         }
     }
 }

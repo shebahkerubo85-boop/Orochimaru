@@ -26,7 +26,6 @@ class CloudflareInterceptor(
 
     private val executor = ContextCompat.getMainExecutor(context)
 
-    /** Serializes Cloudflare challenge solves so at most one WebView exists at a time. */
     private val webViewSolves = Semaphore(1)
 
     override fun shouldIntercept(response: Response): Boolean {
@@ -48,8 +47,7 @@ class CloudflareInterceptor(
 
             return chain.proceed(request)
         }
-        // Because OkHttp's enqueue only handles IOExceptions, wrap the exception so that
-        // we don't crash the entire app
+
         catch (e: CloudflareBypassException) {
             throw IOException("Failed to bypass Cloudflare")
         } catch (e: Exception) {
@@ -59,9 +57,7 @@ class CloudflareInterceptor(
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun resolveWithWebView(originalRequest: Request, oldCookie: Cookie?) {
-        // Never run more than one WebView challenge solve at a time: each WebView holds
-        // tens of MB (native + heap), so parallel plugin requests to Cloudflare-protected
-        // hosts could exhaust the heap on low-memory devices.
+
         if (!webViewSolves.tryAcquire()) return
         try {
             resolveWithWebViewLocked(originalRequest, oldCookie)
@@ -72,8 +68,7 @@ class CloudflareInterceptor(
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun resolveWithWebViewLocked(originalRequest: Request, oldCookie: Cookie?) {
-        // We need to lock this thread until the WebView finds the challenge solution url, because
-        // OkHttp doesn't support asynchronous interceptors.
+
         val latch = CountDownLatch(1)
 
         var webview: WebView? = null
@@ -102,7 +97,7 @@ class CloudflareInterceptor(
                     }
 
                     if (url == origRequestUrl && !challengeFound) {
-                        // The first request didn't return the challenge, abort.
+
                         latch.countDown()
                     }
                 }
@@ -116,10 +111,10 @@ class CloudflareInterceptor(
                 ) {
                     if (isMainFrame) {
                         if (errorCode in ERROR_CODES) {
-                            // Found the Cloudflare challenge page.
+
                             challengeFound = true
                         } else {
-                            // Unlock thread, the challenge wasn't found.
+
                             latch.countDown()
                         }
                     }
@@ -142,9 +137,8 @@ class CloudflareInterceptor(
             }
         }
 
-        // Throw exception if we failed to bypass Cloudflare
         if (!cloudflareBypassed) {
-            // Prompt user to update WebView if it seems too outdated
+
             if (isWebViewOutdated) {
                 context.toast(
                     "Please update the webview app for better compatibility",

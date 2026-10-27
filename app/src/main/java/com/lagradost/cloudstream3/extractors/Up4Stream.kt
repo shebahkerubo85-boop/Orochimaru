@@ -27,7 +27,6 @@ open class Up4Stream : ExtractorApi() {
     ) {
         val movieId = url.substringAfterLast("/").substringBefore(".html")
 
-        // redirect from "wait 5 seconds" page to actual movie page
         val redirectResponse = app.get(url, cookies = mapOf("id" to movieId))
         val redirectForm = redirectResponse.document.selectFirst("form[method=POST]") ?: return
         val redirectUrl = fixUrl(redirectForm.attr("action"))
@@ -35,11 +34,9 @@ open class Up4Stream : ExtractorApi() {
             input.attr("name") to input.attr("value")
         }
 
-        // wait for 5 seconds, otherwise the below md5 hash is invalid
         delay(5000)
         val response = app.post(redirectUrl, data = redirectParams).document
 
-        // starting here, this works similar to many other extractors like StreamWish
         val extractedpack =
             response.selectFirst("script:containsData(function(p,a,c,k,e,d))")?.data()
         if (extractedpack == null) {

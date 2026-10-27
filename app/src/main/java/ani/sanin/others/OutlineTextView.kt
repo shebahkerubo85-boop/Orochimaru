@@ -70,7 +70,6 @@ class OutlineTextView : AppCompatTextView {
         super.invalidate()
     }
 
-
     override fun onDraw(canvas: Canvas) {
         if (strokeWidth > 0) {
             isDrawing = true

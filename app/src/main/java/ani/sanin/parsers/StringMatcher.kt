@@ -42,7 +42,7 @@ class StringMatcher {
         fun closestStringMovedToTop(target: String, list: List<String>): List<String> {
             val (_, closestIndex) = closestString(target, list)
             if (closestIndex == -1) {
-                return list // Return original list if no closest string found
+                return list
             }
             return listOf(list[closestIndex]) + list.subList(0, closestIndex) + list.subList(
                 closestIndex + 1,
@@ -55,7 +55,7 @@ class StringMatcher {
             val closestIndex = closestShowAndIndex.second
             if (closestIndex == -1) {
                 Logger.log("No closest show found for $target")
-                return shows // Return original list if no closest show found
+                return shows
             }
             Logger.log("Closest show found for $target is ${closestShowAndIndex.first.name}")
             return listOf(shows[closestIndex]) + shows.subList(0, closestIndex) + shows.subList(

@@ -1,13 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Classic banner. Split out from item_banner_card.xml because that layout is
-  shared with Compact, and Classic wants a different order: clearlogo first,
-  then the watch pill, then the chips.
 
-  Every size here is a fixed resource, not wrap_content, so the logo and pill
-  render at the same size on every launch instead of tracking whatever the
-  loaded artwork happens to be.
--->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -57,9 +49,6 @@
         android:paddingHorizontal="16dp"
         android:paddingBottom="14dp">
 
-        <!-- Clearlogo leads: it is the artwork, and the controls sit under it
-             rather than competing with it. Fixed width, fitCenter, so a wide
-             logo keeps its aspect and a tall one is not stretched. -->
         <ImageView
             android:id="@+id/bannerClearlogo"
             android:layout_width="@dimen/banner_classic_logo_width"
@@ -71,7 +60,6 @@
             tools:src="@tools:sample/backgrounds/scenic"
             tools:visibility="visible" />
 
-        <!-- Title only appears when there is no clearlogo to stand in for it. -->
         <TextView
             android:id="@+id/bannerTitle"
             android:layout_width="match_parent"
@@ -92,8 +80,6 @@
             tools:text="Attack on Titan"
             tools:visibility="visible" />
 
-        <!-- Watch Now: same translucent pill language as Modern, larger and with
-             a tighter corner radius so the two read as the same family. -->
         <Button
             android:id="@+id/bannerPlayBtn"
             android:layout_width="wrap_content"
@@ -111,10 +97,6 @@
             android:textColor="@color/bg_white"
             android:textSize="@dimen/banner_classic_watch_text" />
 
-        <!-- Chips: format, status, season, score and genres, all under the pill.
-             Two explicit rows rather than one wrapping area, so the split is a
-             predictable 5 on top and 3 underneath instead of whatever the
-             measured chip widths happen to allow. -->
         <LinearLayout
             android:id="@+id/bannerGenresRow"
             android:layout_width="match_parent"
@@ -142,8 +124,6 @@
 
         </LinearLayout>
 
-        <!-- Retained so the shared ViewHolder lookups still resolve. Classic
-             never shows the description; it is hidden in the bind. -->
         <TextView
             android:id="@+id/bannerDescription"
             android:layout_width="match_parent"
@@ -155,7 +135,6 @@
 
     </LinearLayout>
 
-    <!-- Compact still owns the favourite button; Classic hides it. -->
     <ImageView
         android:id="@+id/bannerFavBtn"
         android:layout_width="32dp"

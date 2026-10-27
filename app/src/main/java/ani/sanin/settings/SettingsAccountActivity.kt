@@ -80,9 +80,7 @@ class SettingsAccountActivity : AppCompatActivity() {
             fun reload() {
                 settingsAnilistLogin.isFocusable = true
                 settingsMALLogin.isFocusable = true
-                // Link buttons keep their brand fill; show a visible white focus ring that follows
-                // the pill's 24dp corners (the default primary ring was low-contrast on the brand
-                // colours, and AniList had no ring at all).
+
                 FocusEffectUtil.applyFocusListener(
                     settingsAnilistLogin,
                     settingsMALLogin,
@@ -170,7 +168,6 @@ class SettingsAccountActivity : AppCompatActivity() {
                     settingsMALUsername.visibility = View.GONE
                 }
 
-            // AniList gear icon → AniList settings
             settingsAnilistGear.setOnClickListener {
                 lifecycleScope.launch {
                     Anilist.query.getUserData()
@@ -179,7 +176,6 @@ class SettingsAccountActivity : AppCompatActivity() {
             }
             FocusEffectUtil.applyFocusListener(settingsAnilistGear)
 
-            // Simkl tracking — Nuvio-style gradient card
             settingsSimklLogin.isFocusable = true
             if (Simkl.token != null) {
                 settingsSimklLogin.setText(R.string.unlink_simkl)

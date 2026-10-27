@@ -79,7 +79,6 @@
         </LinearLayout>
     </FrameLayout>
 
-    <!-- Replicate anime mode pill: bg_clay_pill + SnakeNavRailView + tag pill_list -->
     <FrameLayout
         android:id="@+id/tmdbNavPills"
         android:layout_width="wrap_content"

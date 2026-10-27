@@ -42,16 +42,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * Left-side subtitle rail for the player.
- *
- * Replaces the old bottom-sheet [SubtitleDialogFragment]: the rail shows a
- * master subtitle toggle, subtitle sync, the current server's subtitles,
- * other servers' subtitles (fetched on demand), embedded stream tracks,
- * online subtitles and local subtitles — all in one D-pad friendly list.
- * When the master toggle is off every row below it is greyed out.
- * A language filter in the header narrows rows to one language.
- */
 class SubtitleRailController(
     private val activity: ExoplayerView,
     private val model: MediaDetailsViewModel,
@@ -168,7 +158,6 @@ class SubtitleRailController(
 
         rows.clear()
 
-        // 1. Master subtitle toggle
         rows.add(
             RailItem(
                 label = "Subtitles",
@@ -177,7 +166,6 @@ class SubtitleRailController(
             )
         )
 
-        // 2. Subtitle sync (moved up, styled with smaller italic helper text)
         rows.add(
             RailItem(
                 label = syncLabel(),
@@ -188,7 +176,6 @@ class SubtitleRailController(
             )
         )
 
-        // 3. Current server subtitles — guard against null extractor / null server (crash on Hisilicon: VideoExtractor.getServer() NPE)
         val safeExtractors = episode.extractors.orEmpty().filterNotNull().filter { it.server != null }
         val currentExtractor = safeExtractors.find { it.server.name == episode.selectedExtractor }
         if (currentExtractor != null && currentExtractor.subtitles.isNotEmpty()) {
@@ -206,7 +193,6 @@ class SubtitleRailController(
             }
         }
 
-        // 4. Other servers (fetch subtitles on demand)
         val otherExtractors = safeExtractors.filter { it.server.name != episode.selectedExtractor }
         if (otherExtractors.isNotEmpty()) {
             rows.add(
@@ -240,7 +226,6 @@ class SubtitleRailController(
             }
         }
 
-        // 5. Embedded stream tracks (only when the stream itself carries subtitles)
         val embeddedTracks = activity.subtitleRailEmbeddedTracks()
         if (embeddedTracks.isNotEmpty()) {
             rows.add(RailItem("Embedded Tracks", isHeader = true))
@@ -274,7 +259,6 @@ class SubtitleRailController(
             }
         }
 
-        // 6. Online subtitles
         rows.add(RailItem("Online", isHeader = true))
         val cached = model.getFetchedSubtitles(episodeId)
         val hasCached = cached != null && cached.isNotEmpty()
@@ -314,7 +298,6 @@ class SubtitleRailController(
             }
         }
 
-        // 7. Local subtitles
         rows.add(RailItem("Local", isHeader = true))
         val localSubs = model.getLocalSubtitles(episodeId)
         localSubs.forEach { item ->
@@ -337,13 +320,11 @@ class SubtitleRailController(
             })
         )
 
-        // Apply the language filter (keeps toggle, sync, headers and actions)
         val filter = languageFilter
         if (filter != null) {
             rows.removeAll { it.language != null && !it.language.equals(filter, ignoreCase = true) }
         }
 
-        // Language button reflects an active filter in primary color
         languageButton.imageTintList = ColorStateList.valueOf(
             if (filter != null) PrefManager.getVal<Int>(PrefName.PrimaryColor) else Color.WHITE
         )
@@ -351,12 +332,10 @@ class SubtitleRailController(
         adapter.notifyDataSetChanged()
         } catch (e: Exception) {
             Logger.log("SubtitleRail rebuild failed: ${e.message}")
-            // Don't crash player on Hisilicon boxes where extractors can contain nulls
+
             e.printStackTrace()
         }
     }
-
-    // --- Toggle & selection actions ---
 
     private fun toggleSubtitles() {
         val enabled = !PrefManager.getVal<Boolean>(PrefName.Subtitles)
@@ -370,7 +349,7 @@ class SubtitleRailController(
         PrefManager.setCustomVal(prefKey, language)
         episode.selectedSubtitle = index
         model.setEpisode(episode, "Subtitle")
-        // Actually switch Exo track — was only saving index, so highlight showed but track never rendered
+
         activity.selectExistingSubByLabel(language)
         close()
     }
@@ -419,8 +398,6 @@ class SubtitleRailController(
         close()
     }
 
-    // --- Language filter ---
-
     private fun showLanguageDialog() {
         val distinct = rows.mapNotNull { it.language }
             .distinctBy { it.lowercase() }
@@ -441,8 +418,6 @@ class SubtitleRailController(
             show()
         }
     }
-
-    // --- On-demand fetches ---
 
     private fun fetchOtherServer(ex: VideoExtractor) {
         Logger.log("SubtitleRail: fetching subtitles from ${ex.server.name}")
@@ -503,8 +478,6 @@ class SubtitleRailController(
             }
         }
     }
-
-    // --- Formatting helpers ---
 
     private fun sourceAbbrev(source: String): String = when (source.lowercase()) {
         "wyzie", "wy" -> "WY"
@@ -619,7 +592,6 @@ class SubtitleRailController(
             binding.subtitleTitle.text = item.label
             binding.subtitleTitle.setTextColor(if (enabled) Color.WHITE else grey)
 
-            // Master toggle switch
             binding.subtitleToggle.visibility = if (item.isToggle) View.VISIBLE else View.GONE
             if (item.isToggle) {
                 binding.subtitleToggle.setOnCheckedChangeListener(null)
@@ -631,14 +603,12 @@ class SubtitleRailController(
                 }
             }
 
-            // Globe icon replaces the old "[ONLINE]" text prefix
                 binding.subtitleGlobe.visibility = if (item.globe) View.VISIBLE else View.GONE
             if (item.globe) {
-                // Chrome icon uses its natural colors — no tint
+
                 binding.subtitleGlobe.imageTintList = null
             }
 
-            // Flag background for online subtitles
             val flag = if (item.globe && !item.language.isNullOrBlank())
                 LanguageFlag.flagForLanguage(item.language) else ""
             if (flag.isNotEmpty()) {
@@ -648,7 +618,6 @@ class SubtitleRailController(
                 binding.subtitleFlag.visibility = View.GONE
             }
 
-            // Source badge in primary color
             binding.subtitleBadge.visibility = if (item.badge != null) View.VISIBLE else View.GONE
             if (item.badge != null) {
                 binding.subtitleBadge.text = item.badge
@@ -662,7 +631,6 @@ class SubtitleRailController(
                 )
             }
 
-            // Spinner for "still loading" rows
             binding.subtitleSpinner.visibility = if (item.isStatus && item.label.isBlank()) android.view.View.VISIBLE else android.view.View.GONE
 
             val media = model.getMedia().value

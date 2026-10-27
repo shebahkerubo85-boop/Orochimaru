@@ -20,58 +20,40 @@ object SubtitleHelper {
         val ISO_639_6: String,
     )
 
-    /**
-     * Represents one language with english name, native name and codes.
-     * IETF BCP 47 conformant tag shall be used as the first choice for language code!
-     *
-     * See locales on:
-     * https://github.com/unicode-org/cldr-json/blob/main/cldr-json/cldr-core/availableLocales.json
-     * https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry
-     * https://android.googlesource.com/platform/frameworks/base/+/android-16.0.0_r2/core/res/res/values/locale_config.xml
-     * https://iso639-3.sil.org/code_tables/639/data/all
-     */
     data class LanguageMetadata(
         val languageName: String,
         val nativeName: String,
-        val IETF_tag: String,       // Combine ISO 639-1, 639-3 and ISO 3166-1 (or numeric UN M49 / CLDR) for country / region
+        val IETF_tag: String,
         val ISO_639_1: String,
-        val ISO_639_2_B: String,    // ISO 639-2/T missing as it's a subset of ISO 639-3
-        val ISO_639_3: String,      // ISO 639-6 missing as it's intended to differentiate specific dialects and variants
-        val openSubtitles: String, // inconsistent codes that do not conform ISO 639
+        val ISO_639_2_B: String,
+        val ISO_639_3: String,
+        val openSubtitles: String,
     ) {
         fun localizedName(localizedTo: String? = null): String =
             localizedLanguageName(this.IETF_tag, localizedTo ?: getCurrentLocale())
-                // fallback to native language name
+
                 ?: this.nativeName
 
         fun nameNextToFlagEmoji(localizedTo: String? = null): String {
-            // fallback to [A][A] -> [?] question mak flag
+
             val flag = getFlagFromIso(this.IETF_tag) ?: "\ud83c\udde6\ud83c\udde6"
 
-            return "$flag\u00a0${localizedName(localizedTo)}" // \u00a0 non-breaking space
+            return "$flag\u00a0${localizedName(localizedTo)}"
         }
     }
 
-    /**
-     * Language name (english or native) -> [LanguageMetadata]
-     * @param languageName language name or language tag
-     * @param halfMatch match with `contains()` instead of `equals()`. Also uses fuzzy matching to get approximate matches.
-     */
     private fun getLanguageDataFromName(
         languageName: String?,
         halfMatch: Boolean? = false
     ): LanguageMetadata? {
         if (languageName.isNullOrBlank() || languageName.length < 2) return null
-        // Workaround to avoid junk like "English (original audio)" or "Spanish 123"
-        // or "اَلْعَرَبِيَّةُ (Original Audio) 1" or "English (hindi sub)"…
-        // Will still keep "-" to be compatible with language tags such as pr-bt
-        val garbage = Regex(
-            "\\([^)]*(?:dub|sub|original|audio|code)[^)]*\\)|" + // junk words in parenthesis
-                    "[\\u064B-\\u065B]|" + // arabic diacritics
-                    "\\d|" +  // numbers
-                    "[^\\p{L}\\p{Mn}\\p{Mc}\\p{Me} ()-]" // non-letter (from any language)
-        )
 
+        val garbage = Regex(
+            "\\([^)]*(?:dub|sub|original|audio|code)[^)]*\\)|" +
+                    "[\\u064B-\\u065B]|" +
+                    "\\d|" +
+                    "[^\\p{L}\\p{Mn}\\p{Mc}\\p{Me} ()-]"
+        )
 
         val lowLangName = languageName.lowercase().replace(garbage, "").trim()
 
@@ -85,7 +67,7 @@ object SubtitleHelper {
         if (langMetadata != null) {
             return langMetadata
         } else if (halfMatch == true) {
-            // Go for partial matches but only use the best match
+
             var closestMatch: Pair<LanguageMetadata?, Int> = null to 0
 
             for (lang in languages) {
@@ -96,13 +78,12 @@ object SubtitleHelper {
                     )
                 )
 
-                // Usually the languageName or nativeName is a substring of the entered name, for example in "English Subtitle"
                 if (lowLangName.contains(lang.languageName, ignoreCase = true) ||
                     lowLangName.contains(lang.nativeName, ignoreCase = true) ||
-                    // Arbitrary cutoff at 80.
+
                     score > 80
                 ) {
-                    // First detected language gets priority in equal scores.
+
                     if (score > closestMatch.second) {
                         closestMatch = lang to score
                     }
@@ -120,11 +101,7 @@ object SubtitleHelper {
         replaceWith = ReplaceWith("fromLanguageToTagIETF(input, looseCheck)"),
         level = DeprecationLevel.WARNING
     )
-    /**
-     * Language name (english or native) -> ISO_639_1
-     * @param input language name
-     * @param looseCheck match with `contains()` instead of `equals()`
-    */
+
     fun fromLanguageToTwoLetters(input: String, looseCheck: Boolean): String? {
         return getLanguageDataFromName(input, looseCheck)?.ISO_639_1
     }
@@ -134,27 +111,15 @@ object SubtitleHelper {
         replaceWith = ReplaceWith("fromLanguageToTagIETF(input)"),
         level = DeprecationLevel.WARNING
     )
-    /**
-     * Language name (english or native) -> ISO_639_3
-    */
+
     fun fromLanguageToThreeLetters(input: String): String? {
         return getLanguageDataFromName(input)?.ISO_639_3
     }
 
-    /**
-     * Language name -> IETF_tag
-     * @param languageName language name
-     * @param halfMatch match with `contains()` instead of `equals()`
-    */
     fun fromLanguageToTagIETF(languageName: String?, halfMatch: Boolean? = false): String? {
         return getLanguageDataFromName(languageName, halfMatch)?.IETF_tag
     }
 
-    /**
-     * Language code -> [LanguageMetadata]
-     * @param languageCode IETF BCP 47, ISO 639-1, ISO 639-2B/T, ISO 639-3, OpenSubtitles
-     * @return [LanguageMetadata] or `null`
-    */
     private fun getLanguageDataFromCode(languageCode: String?): LanguageMetadata?  {
         if (languageCode.isNullOrBlank() || languageCode.length < 2) return null
 
@@ -174,9 +139,7 @@ object SubtitleHelper {
         replaceWith = ReplaceWith("fromTagToEnglishLanguageName(input)"),
         level = DeprecationLevel.WARNING
     )
-    /**
-     * Language code -> language english name
-    */
+
     fun fromTwoLettersToLanguage(input: String): String? {
         return getLanguageDataFromCode(input)?.languageName
     }
@@ -186,56 +149,30 @@ object SubtitleHelper {
         replaceWith = ReplaceWith("fromTagToEnglishLanguageName(input)"),
         level = DeprecationLevel.WARNING
     )
-    /**
-     * Language code -> language english name
-    */
+
     fun fromThreeLettersToLanguage(input: String): String? {
         return getLanguageDataFromCode(input)?.languageName
     }
 
-    /**
-     * Language code -> language name (if not found, fallback to native language name)
-     * @param languageCode IETF BCP 47, ISO 639-1, ISO 639-2B/T, ISO 639-3, OpenSubtitles
-     * @param localizedTo IETF BCP 47 tag to localize the language name to. Default: app current language
-    */
     fun fromTagToLanguageName(languageCode: String?, localizedTo: String? = null): String? {
         return getLanguageDataFromCode(languageCode)?.localizedName(localizedTo)
     }
 
-    /**
-     * Language code -> language english name
-     * @param languageCode IETF BCP 47, ISO 639-1, ISO 639-2B/T, ISO 639-3, OpenSubtitles
-    */
     fun fromTagToEnglishLanguageName(languageCode: String?): String? {
         return getLanguageDataFromCode(languageCode)?.languageName
     }
 
-    /**
-     * Language code -> openSubtitles inconsistent language tag
-     * @param languageCode IETF BCP 47, ISO 639-1, ISO 639-2B/T, ISO 639-3, OpenSubtitles
-    */
     fun fromCodeToOpenSubtitlesTag(languageCode: String?): String? {
         return getLanguageDataFromCode(languageCode)?.openSubtitles
     }
 
-    /** openSubtitles -> IETF_tag */
     fun fromCodeToLangTagIETF(languageCode: String?): String? {
         return getLanguageDataFromCode(languageCode)?.IETF_tag
     }
 
-    /**
-     * Check for a well formed IETF BCP 47 conformant language tag
-     *
-     * See locales on:
-     * https://github.com/unicode-org/cldr-json/blob/main/cldr-json/cldr-core/availableLocales.json
-     * https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry
-     * https://android.googlesource.com/platform/frameworks/base/+/android-16.0.0_r2/core/res/res/values/locale_config.xml
-    */
     fun isWellFormedTagIETF(langTagIETF: String?): Boolean {
         if (langTagIETF.isNullOrBlank() || langTagIETF.length < 2) return false
 
-        // Written by Addison Phillips, <Addison at amazon.com>
-        // https://www.langtag.net/philips-regexp.html
         val langTagRegex = """
             +(^[xX](\x2d\p{Alnum}{1,8})*$)
             +|(((^\p{Alpha}{2,8}(?=\x2d|$)){1}
@@ -249,16 +186,11 @@ object SubtitleHelper {
         return langTagIETF.matches(langTagRegex)
     }
 
-    /**
-     * Try to get a flag emoji form a language code
-     * or two letters country code (ISO 3166-1-alfa-2)
-    */
     fun getFlagFromIso(inp: String?): String? {
         if (inp.isNullOrBlank() || inp.length < 2) return null
 
-        // 2 times a symbol between regional indicator "[A]" and "[Z]"
         val unicodeFlagRegex = Regex("[\uD83C\uDDE6-\uD83C\uDDFF]{2}")
-        // language tags (en-US, es-419, pt-BR, zh-hant-TW) that includes country
+
         val countryRegex = Regex("[-_](\\p{Alnum}{2,3})$", RegexOption.IGNORE_CASE)
 
         val country = countryRegex.find(inp)?.groupValues?.get(1)
@@ -270,35 +202,23 @@ object SubtitleHelper {
             getFlagFromCountry2Letters(lang2country[country?.lowercase()]) ?: ""
 
         if (inp.equals("qt", ignoreCase = true))
-            return "\uD83E\uDD8D" // "mmmm... monke" -> gorilla [🦍]
+            return "\uD83E\uDD8D"
         if (flagEmoji.matches(unicodeFlagRegex))
             return flagEmoji
         return null
     }
 
-    /**
-     * Get a flag emoji next to the language name
-     * @param languageCode IETF BCP 47, ISO 639-1, ISO 639-2B/T, ISO 639-3, OpenSubtitles
-     * @param localizedTo IETF BCP 47 tag to localize the language name to. Default: app current language
-    */
     fun getNameNextToFlagEmoji(languageCode: String?, localizedTo: String? = null): String? {
         return getLanguageDataFromCode(languageCode)?.nameNextToFlagEmoji(localizedTo)
     }
 
-    // 2 letters country code (ISO 3166-1-alfa-2) -> flag emoji
     private fun getFlagFromCountry2Letters(countryLetters: String?): String? {
         if (countryLetters.isNullOrBlank() || countryLetters.length != 2) return null
 
-        val asciiOffset = 0x41    // uppercase "A"
-        val flagOffset = 0x1F1E6  // regional indicator "[A]"
+        val asciiOffset = 0x41
+        val flagOffset = 0x1F1E6
         val offset = flagOffset - asciiOffset
 
-        /**
-         * Unicode surrogate pairs encode code points above U+FFFF (outside the Basic Multilingual Plane).
-         * The code point is offset by 0x10000, then split into two 10-bit halves:
-         * high surrogate: upper 10 bits, biased into the range 0xD800-0xDBFF
-         * low surrogate: lower 10 bits (masked with 0x3FF), biased into the range 0xDC00-0xDFFF
-         */
         fun toSurrogatePair(codePoint: Int): String {
             val high = ((codePoint - 0x10000) shr 10) + 0xD800
             val low  = ((codePoint - 0x10000) and 0x3FF) + 0xDC00
@@ -312,23 +232,8 @@ object SubtitleHelper {
         return toSurrogatePair(first) + toSurrogatePair(second)
     }
 
-    // when (langTag = country) or (langTag contains country)
-    // as in:
-    //   "es" to "ES"
-    //   "pt" to "PT"
-    //   "fr" to "FR"
-    //   "en-US" to "US"
-    //   "pt-BR" to "BR"
-    //   "zh-hant-TW" to "TW"
-    // add to this list is useless as getFlagFromIso() already
-    // handles it.
-    // Adding here is still an option to overwrite a flag like in:
-    //   "am" to "ET" => Ethiopia flag for Amharic instead of Armenia flag
-    // For country / region see
-    // https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2
-    // https://en.wikipedia.org/wiki/UN_M49
     private val lang2country = mapOf(
-        "419" to "ES", // (?_?) Latin America Spanish -> ES or a L.A. country?
+        "419" to "ES",
         "aa" to "ET",
         "af" to "ZA",
         "agq" to "CM",
@@ -342,8 +247,8 @@ object SubtitleHelper {
         "ars" to "SA",
         "as" to "IN",
         "asa" to "TZ",
-        "av" to "RU", // (?_?) Avaric -> RU
-        "ay" to "BO", // (?_?) Aymara -> BO
+        "av" to "RU",
+        "ay" to "BO",
         "azb" to "AZ",
         "bas" to "CM",
         "be" to "BY",
@@ -358,7 +263,7 @@ object SubtitleHelper {
         "ca" to "ES",
         "cgg" to "UG",
         "chr" to "US",
-        "ckb" to "IQ", // (?_?) Central Kurdish -> IQ or IR
+        "ckb" to "IQ",
         "cnr" to "ME",
         "cs" to "CZ",
         "cy" to "GB",
@@ -385,7 +290,7 @@ object SubtitleHelper {
         "ga" to "IE",
         "gd" to "GB",
         "gl" to "ES",
-        "gn" to "PY", // (?_?) Guarani -> PY
+        "gn" to "PY",
         "gsw" to "CH",
         "gu" to "IN",
         "guz" to "KE",
@@ -397,9 +302,9 @@ object SubtitleHelper {
         "hy" to "AM",
         "ig" to "NG",
         "ii" to "CN",
-        "in" to "ID", // "in" deprecate, use "id" instead. Keeping for exiting subtitles
+        "in" to "ID",
         "ita" to "IT",
-        "iw" to "IL", // "iw" deprecate, use "he" instead. Keeping for exiting subtitles
+        "iw" to "IL",
         "ja" to "JP",
         "jmc" to "TZ",
         "jv" to "ID",
@@ -409,7 +314,7 @@ object SubtitleHelper {
         "kam" to "KE",
         "kde" to "TZ",
         "kea" to "CV",
-        "kg" to "CD", // (?_?) Kongo -> CD or CG or AO
+        "kg" to "CD",
         "khq" to "ML",
         "ki" to "KE",
         "kk" to "KZ",
@@ -419,8 +324,8 @@ object SubtitleHelper {
         "kn" to "IN",
         "ko" to "KR",
         "kok" to "IN",
-        "kr" to "TD", // (?_?) Kanuri -> TD or NE
-        "ks" to "IN", // (?_?) Kashmiri -> IN or PK
+        "kr" to "TD",
+        "ks" to "IN",
         "ksb" to "TZ",
         "ksf" to "CM",
         "ku" to "IQ",
@@ -455,10 +360,10 @@ object SubtitleHelper {
         "ne" to "NP",
         "nmg" to "CM",
         "nn" to "NO",
-        "nr" to "ZA", // (?_?) Southern Ndebele -> ZA or ZW
+        "nr" to "ZA",
         "nus" to "SD",
         "nv" to "US",
-        "ny" to "MW", // (?_?) Nyanja -> MW
+        "ny" to "MW",
         "nyn" to "UG",
         "oc" to "ES",
         "oci" to "ES",
@@ -473,8 +378,8 @@ object SubtitleHelper {
         "pr" to "AF",
         "prs" to "AF",
         "ps" to "AF",
-        "qu" to "PE", // (?_?) Quechua -> PE or EC or BO or CO or CL or AR
-        "que" to "PE", // (?_?) Quechua -> PE or EC or BO or CO or CL or AR
+        "qu" to "PE",
+        "que" to "PE",
         "rm" to "CH",
         "rn" to "BI",
         "rof" to "TZ",
@@ -484,8 +389,8 @@ object SubtitleHelper {
         "saq" to "KE",
         "sat" to "IN",
         "sbp" to "TZ",
-        "sd" to "PK", // (?_?) Sindhi -> PK or IN
-        "sdn" to "PK", // (?_?) Sindhi -> PK or IN
+        "sd" to "PK",
+        "sdn" to "PK",
         "se" to "NO",
         "seh" to "MZ",
         "ses" to "ML",
@@ -499,7 +404,7 @@ object SubtitleHelper {
         "sp" to "ES",
         "sq" to "AL",
         "sr" to "RS",
-        "st" to "LS", // (?_?) Southern Sotho -> LS or ZA
+        "st" to "LS",
         "su" to "ID",
         "sv" to "SE",
         "sw" to "TZ",
@@ -514,8 +419,8 @@ object SubtitleHelper {
         "ti" to "ET",
         "tk" to "TM",
         "tl" to "PH",
-        "tm-td" to "TL", // (?_?) Tetun -> TL
-        "tn" to "ZA", // (?_?) Tswana -> ZA or BW
+        "tm-td" to "TL",
+        "tn" to "ZA",
         "ts" to "ZA",
         "tso" to "ZA",
         "tt" to "RU",
@@ -535,8 +440,8 @@ object SubtitleHelper {
         "yo" to "NG",
         "yue" to "CN",
         "za" to "CN",
-        "zh-hans" to "CN", // (?_?) Chinese (simplified) -> CN ?
-        "zh-hant" to "TW", // (?_?) Chinese (traditional) -> CN or TW or other ?
+        "zh-hans" to "CN",
+        "zh-hant" to "TW",
         "zh" to "CN",
         "zha" to "CN",
         "zu" to "ZA",
@@ -544,14 +449,14 @@ object SubtitleHelper {
 
     @Suppress("SpellCheckingInspection")
     val languages = listOf(
-        // languageName, nativeName, IETF_tag, ISO_639_1, ISO_639_2_B, ISO_639_3, openSubtitles
+
         LanguageMetadata("Afar","Afaraf","aa","aa","aar","aar",""),
         LanguageMetadata("Afrikaans","Afrikaans","af","af","afr","afr","af"),
         LanguageMetadata("Akan","Akan","ak","ak","aka","aka",""),
         LanguageMetadata("Albanian","Shqip","sq","sq","","sqi","sq"),
         LanguageMetadata("Amharic","አማርኛ","am","am","amh","amh","am"),
         LanguageMetadata("Arabic","العربية","ar","ar","ara","ara","ar"),
-        LanguageMetadata("Arabic (Levantine)","عربي شامي","apc","","ajp","apc","ar"), // "ajp" is deprecated, keeping for compatibility
+        LanguageMetadata("Arabic (Levantine)","عربي شامي","apc","","ajp","apc","ar"),
         LanguageMetadata("Arabic (Najdi)","عربي شامي","ars","","","ars","ar"),
         LanguageMetadata("Aragonese","aragonés","an","an","arg","arg","an"),
         LanguageMetadata("Armenian","Հայերեն","hy","hy","","hye","hy"),
@@ -601,13 +506,13 @@ object SubtitleHelper {
         LanguageMetadata("Gujarati","ગુજરાતી","gu","gu","guj","guj",""),
         LanguageMetadata("Haitian","Kreyòl ayisyen","ht","ht","hat","hat",""),
         LanguageMetadata("Hausa","(Hausa) هَوُسَ","ha","ha","hau","hau",""),
-        LanguageMetadata("Hebrew","עברית","he","iw","heb","heb","he"), // "iw" is deprecated, keeping for compatibility
+        LanguageMetadata("Hebrew","עברית","he","iw","heb","heb","he"),
         LanguageMetadata("Hindi","हिन्दी, हिंदी","hi","hi","hin","hin","hi"),
         LanguageMetadata("Hungarian","Magyar","hu","hu","hun","hun","hu"),
         LanguageMetadata("Icelandic","Íslenska","is","is","","isl","is"),
         LanguageMetadata("Ido","Ido","io","io","ido","ido",""),
         LanguageMetadata("Igbo","Asụsụ Igbo","ig","ig","ibo","ibo","ig"),
-        LanguageMetadata("Indonesian","Bahasa Indonesia","id","in","ind","ind","id"), // "in" is deprecated, keeping for compatibility
+        LanguageMetadata("Indonesian","Bahasa Indonesia","id","in","ind","ind","id"),
         LanguageMetadata("Interlingua","Interlingua","ia","ia","ina","ina","ia"),
         LanguageMetadata("Interlingue","Interlingue (originally Occidental)","ie","ie","ile","ile",""),
         LanguageMetadata("Irish","Gaeilge","ga","ga","gle","gle","ga"),
@@ -643,7 +548,7 @@ object SubtitleHelper {
         LanguageMetadata("Marathi","मराठी","mr","mr","mar","mar","mr"),
         LanguageMetadata("Marshallese","Kajin M̧ajeļ","mh","mh","mah","mah",""),
         LanguageMetadata("Meitei","ꯃꯅꯤꯄꯨꯔꯤ, মণিপুরী","mni","","mni","mni","ma"),
-        LanguageMetadata("Mexican Spanish", "Español mexicano", "es-MX", "mx","","",""), // iso639_1 is not mx but, some extension use it as such
+        LanguageMetadata("Mexican Spanish", "Español mexicano", "es-MX", "mx","","",""),
         LanguageMetadata("Mongolian","Монгол хэл","mn","mn","mon","mon","mn"),
         LanguageMetadata("Montenegrin","crnogorski, црногорски","cnr","","cnr","cnr","me"),
         LanguageMetadata("Navajo","Diné bizaad","nv","nv","nav","nav","nv"),

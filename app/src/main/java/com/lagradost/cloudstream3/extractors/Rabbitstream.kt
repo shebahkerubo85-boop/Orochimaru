@@ -72,8 +72,6 @@ class Dokicloud : Rabbitstream() {
     override val mainUrl = "https://dokicloud.one"
 }
 
-// Code found in https://github.com/eatmynerds/key
-// special credits to @eatmynerds for providing key
 open class Rabbitstream : ExtractorApi() {
     override val name = "Rabbitstream"
     override val mainUrl = "https://rabbitstream.net"

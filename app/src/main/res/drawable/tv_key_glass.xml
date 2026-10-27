@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Default glass key surface (full keyboard). -->
+
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- soft drop shadow -->
+
     <item>
         <shape android:shape="rectangle">
             <solid android:color="#33000000" />
             <corners android:radius="10dp" />
         </shape>
     </item>
-    <!-- translucent glass body with thin highlight border -->
+
     <item
         android:top="1dp"
         android:left="1dp"

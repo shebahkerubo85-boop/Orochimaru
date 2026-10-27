@@ -90,11 +90,6 @@ class SnakeNavRailView @JvmOverloads constructor(
         }
     }
 
-    // The black-to-white gradient this view used to draw is gone. It only ever
-    // rendered on the vertical rail, so the horizontal pill kept its transparent
-    // bg_clay_pill and its icons looked like they were floating in thin air. The
-    // pill now paints one solid fill via NavPillCustomizer in both orientations.
-
     fun getColorAtFraction(fraction: Float): Int = NavPillCustomizer.getPillFillColor()
 
     fun invalidateGlass() {

@@ -335,7 +335,6 @@ class CommentsFragment : Fragment() {
             }
         }
 
-        // Sort button
         binding.commentSort.setOnClickListener { sortView ->
             val popup = PopupMenu(requireContext(), sortView)
             popup.setOnMenuItemClickListener { item ->
@@ -356,7 +355,6 @@ class CommentsFragment : Fragment() {
             popup.show()
         }
 
-        // Rules button
         binding.openRules.setOnClickListener {
             activity.customAlertDialog().apply {
                 setTitle("Commenting Rules")
@@ -378,7 +376,6 @@ class CommentsFragment : Fragment() {
             }
         }
 
-        // Episode badge click - open episode list dialog
         binding.commentCurrentProgress.setOnClickListener {
             val progress = userProgress ?: return@setOnClickListener
             if (progress <= 0) return@setOnClickListener
@@ -410,7 +407,6 @@ class CommentsFragment : Fragment() {
             }
         }
 
-        // Input focus shrink animation
         binding.commentInput.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
                 TvKeyboardUtil.showKeyboardDelayed(binding.commentInput)
@@ -496,10 +492,6 @@ class CommentsFragment : Fragment() {
         renderComments()
     }
 
-    /**
-     * Runs one comment provider with a hard timeout and renders whatever is
-     * available immediately, so a slow or failing source never blocks the others.
-     */
     private suspend fun loadProvider(tag: String, block: suspend () -> Unit) {
         try {
             withTimeoutOrNull(PROVIDER_TIMEOUT_MS) { block() }
@@ -517,7 +509,6 @@ class CommentsFragment : Fragment() {
         if (displayedComments.isNotEmpty()) carouselAdapter.requestFocusedCard()
     }
 
-    /** Reveals up to 15 comments per call so TV rendering stays smooth. */
     private fun revealNextBatch() {
         if (revealInProgress) return
         revealInProgress = true
@@ -576,12 +567,6 @@ class CommentsFragment : Fragment() {
         }
     }
 
-    /**
-     * Fetches Anikoto comments episode by episode (current down to 1, then above)
-     * in chunks. Only fetches the next chunk once the user has scrolled through
-     * the current one, so long series load progressively instead of stopping at
-     * the first 20 episodes.
-     */
     private suspend fun loadAnikotoComments() {
         if (mediaName.isBlank()) {
             anikotoLoadDone = true
@@ -592,7 +577,7 @@ class CommentsFragment : Fragment() {
             var startIndex = 0
             var hasMore = true
             while (hasMore) {
-                // Wait until the current chunk is being consumed before fetching more.
+
                 while (anikotoCommentPool.size >= ANIKOTO_POOL_LOW_WATERMARK) {
                     delay(500)
                 }
@@ -606,7 +591,7 @@ class CommentsFragment : Fragment() {
                     revealNextBatch()
                 }
                 startIndex += ANIKOTO_CHUNK_EPISODES
-                // Pace through stretches of comment-less episodes to avoid hammering the site.
+
                 if (!producedAny) delay(1_500L)
             }
         } catch (e: Exception) {

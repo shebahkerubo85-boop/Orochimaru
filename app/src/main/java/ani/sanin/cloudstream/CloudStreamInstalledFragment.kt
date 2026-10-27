@@ -178,9 +178,7 @@ class CloudStreamInstalledFragment : Fragment(), SearchQueryHandler {
     }
 
     private fun openSettings(source: CsInstalledSource) {
-        // Launch the dedicated, transparent MaterialComponents-settings host
-        // (mirrors Zangetsu). The plugin's sheet renders there, not on this
-        // busy, Material3-theme activity which crashes it.
+
         startActivity(CloudStreamSettingsActivity.intent(requireContext(), source.id))
     }
 
@@ -302,8 +300,6 @@ class CloudStreamInstalledFragment : Fragment(), SearchQueryHandler {
             holder.binding.dragUpArrow.setColorFilter(tintColor)
             holder.binding.dragDownArrow.setColorFilter(tintColor)
 
-            // Phone: one tap arms drag mode (primary fill) — touch the row
-            // anywhere to drag; TV: the handle keeps focus, leave via BACK/RIGHT.
             holder.binding.dragHandle.setOnClickListener {
                 val currentPos = holder.absoluteAdapterPosition
                 if (currentPos == RecyclerView.NO_POSITION) return@setOnClickListener
@@ -318,8 +314,6 @@ class CloudStreamInstalledFragment : Fragment(), SearchQueryHandler {
                 }
             }
 
-            // Phone: once armed, dragging anywhere on the row moves the item —
-            // no need to keep holding the handle.
             holder.itemView.setOnTouchListener { _, event ->
                 if (event.actionMasked == MotionEvent.ACTION_DOWN &&
                     dragActivePosition == holder.absoluteAdapterPosition

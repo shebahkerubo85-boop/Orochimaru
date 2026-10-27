@@ -6,13 +6,8 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.util.customAlertDialog
 import eu.kanade.tachiyomi.extension.anime.model.AnimeExtension
 
-/**
- * Content type filter for aniyomi repo detail screens.
- * Options are dynamically built from the repo's actual extensions + NSFW flag.
- */
 object AnimeTypeFilter {
 
-    /** Classify an extension into a content type label. */
     fun classify(ext: AnimeExtension.Available): String {
         val n = ext.name.lowercase()
         if (ext.isNsfw) {
@@ -27,7 +22,6 @@ object AnimeTypeFilter {
         }
     }
 
-    /** Build unique content type options from a list of extensions. */
     fun optionsFor(extensions: List<AnimeExtension.Available>): List<String> {
         val types = linkedSetOf<String>()
         extensions.forEach { types.add(classify(it)) }

@@ -67,15 +67,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 
-/**
- * The movie/tv "watch tab": a mirror of the anime watch tab (logo art on top,
- * source chips for installed CS3 plugins, season chips, continue watching and
- * an episode list) backed by TMDB metadata + CloudStream plugins.
- */
 class TmdbWatchFragment : Fragment() {
 
-    /** The host screen (details activity or the thin watch host) handles the
-     *  back / prequel / sequel actions so the watch tab stays embedded. */
     interface Host {
         fun onWatchBackPressed()
         fun onWatchOpenTitle(type: String, id: Int)
@@ -87,7 +80,7 @@ class TmdbWatchFragment : Fragment() {
         const val ARG_PLUGIN_SOURCE = "pluginSource"
         const val ARG_PLUGIN_URL = "pluginUrl"
         private const val EPISODE_CAP = 24
-        /** The header is the first item of the adapter; episodes follow. */
+
         private const val HEADER_ITEM_COUNT = 1
 
         fun newInstance(
@@ -133,9 +126,9 @@ class TmdbWatchFragment : Fragment() {
     private var movieEpisodes: List<TmdbEpisode> = emptyList()
 
     private val sources by lazy { CsRepos.installed(requireContext()) }
-    // -1 = Auto Search (try every installed plugin in order, no chip selected)
+
     private var selectedSourceIndex = -1
-    // 0 bars, 2 strips, 3 compact (list removed)
+
     private var episodeStyle = 2
     private var reversed = false
     private var isResolving = false
@@ -163,12 +156,11 @@ class TmdbWatchFragment : Fragment() {
         mediaId = arguments?.getInt(ARG_MEDIA_ID, -1) ?: -1
         pluginSourceId = arguments?.getString(ARG_PLUGIN_SOURCE)
         pluginUrl = arguments?.getString(ARG_PLUGIN_URL)
-        // Plugin titles have no TMDB id — key everything (caches, continue
-        // watching, notify) off a stable hash of the plugin URL.
+
         if (pluginUrl != null) mediaId = pluginUrl.hashCode()
         episodeStyle = (PrefManager.getNullableCustomVal("tmdb_style", 2, Int::class.java)
             ?: 2).coerceIn(0, 3)
-        if (episodeStyle == 1) episodeStyle = 2 // legacy list removed → strips
+        if (episodeStyle == 1) episodeStyle = 2
         reversed = PrefManager.getNullableCustomVal("tmdb_reversed_$mediaId", false, Boolean::class.java)
             ?: false
         Logger.log("TMDB_WATCH: opened mediaType=$mediaType mediaId=$mediaId style=$episodeStyle reversed=$reversed")
@@ -186,7 +178,7 @@ class TmdbWatchFragment : Fragment() {
         binding.tmdbWatchRecycler.layoutManager = GridLayoutManager(requireContext(), maxGridSize).apply {
             spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
                 override fun getSpanSize(position: Int): Int = when {
-                    // header + bars + strips fill the row; compact is a small rounded square
+
                     position == 0 -> maxGridSize
                     episodeStyle == 3 -> 1
                     else -> maxGridSize
@@ -215,13 +207,11 @@ class TmdbWatchFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // Re-read the blur/grey watched toggles (anime-exact) and re-sync Simkl
-        // state so the indicators reflect setting changes / scrobbles.
+
         if (::episodeAdapter.isInitialized) {
             episodeAdapter.refreshCache()
             loadSimklWatched()
-            // Refresh the continue card too — the resume position was just saved
-            // by the player, so returning shows "Continue watching" immediately.
+
             updateContinueCard()
         }
     }
@@ -231,7 +221,6 @@ class TmdbWatchFragment : Fragment() {
             ?: requireActivity().onBackPressedDispatcher.onBackPressed()
     }
 
-    /** Portrait → poster, landscape → wide backdrop (mirrors anime + details). */
     private fun bannerUrl(d: TmdbDetail): String? {
         val isPortrait =
             resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT
@@ -241,8 +230,6 @@ class TmdbWatchFragment : Fragment() {
             Tmdb.imageUrl(d.backdropPath, 1280) ?: Tmdb.imageUrl(d.posterPath, 780)
     }
 
-    /** Watch-tab-only banner dim: 86% black, independent of user settings.
-     *  Dim the image itself over the black root rather than drawing a full-screen overlay. */
     private fun applyBannerDim() {
         if (!PrefManager.getVal<Boolean>(PrefName.ShowMediaBanner)) {
             binding.mediaBg?.setImageDrawable(null)
@@ -290,7 +277,7 @@ class TmdbWatchFragment : Fragment() {
                 selectedSeason = restoreSeason()
                 episodes = Tmdb.episodes(mediaType, mediaId, selectedSeason)
             } else {
-                // A movie is a single "episode".
+
                 movieEpisodes = listOf(
                     TmdbEpisode(
                         id = mediaId,
@@ -309,15 +296,11 @@ class TmdbWatchFragment : Fragment() {
             buildAdapter()
             updateContinueCard()
             loadSimklWatched()
-            // Always kick off the auto search as soon as the tab opens so the user
-            // sees "Searching : …" immediately instead of an idle Sources row.
+
             autoSearchOnOpen()
         }
     }
 
-    /** Plugin-driven watch tab: loads the title straight from the selected
-     *  plugin (home card -> here), mapping the LoadResponse onto the same
-     *  TMDB-shaped data so the rest of the screen behaves identically. */
     private suspend fun loadPlugin() {
         val url = pluginUrl ?: return
         val source = sources.firstOrNull { it.id == pluginSourceId } ?: run {
@@ -490,7 +473,6 @@ class TmdbWatchFragment : Fragment() {
     private fun buildHeader() {
         val h = headerBinding
 
-        // ── source chips: installed CS3 plugins only (Auto Search is NOT a chip) ──
         if (selectedSourceIndex == -1) selectedSourceIndex = defaultSourceIndex()
         h.tmdbWatchSourceChips.removeAllViews()
         h.tmdbWatchSourceTitle.text = when {
@@ -531,7 +513,6 @@ class TmdbWatchFragment : Fragment() {
             h.tmdbWatchSourceChips.addView(chip)
         }
 
-        // ── season area ──
         if (mediaType == "tv") {
             if (seasons.isNotEmpty()) {
                 h.tmdbWatchSeasonScroll.isVisible = true
@@ -579,7 +560,6 @@ class TmdbWatchFragment : Fragment() {
             FocusEffectUtil.applyFocusListener(h.tmdbWatchSequel)
         }
 
-        // ── refresh / notification / appearance ──
         h.tmdbWatchRefresh.setOnClickListener { refreshSelected() }
         FocusEffectUtil.applyFocusListener(h.tmdbWatchRefresh)
 
@@ -624,9 +604,7 @@ class TmdbWatchFragment : Fragment() {
                 updateNotifyIcon()
                 toast(getString(R.string.tmdb_watch_notify_off))
             } else {
-                // Save locally with show metadata and seed last-notified
-                // to the current last aired episode so we don't re-notify
-                // for it immediately.
+
                 val latest = d?.lastEpisodeToAir
                 TmdbSubscriptionHelper.save(
                     TmdbSubscriptionHelper.Companion.TmdbSubscriptionItem(
@@ -635,10 +613,7 @@ class TmdbWatchFragment : Fragment() {
                         type = mediaType,
                         image = d?.let { t -> Tmdb.imageUrl(t.posterPath ?: t.backdropPath, 342) },
                         banner = d?.let { t -> Tmdb.imageUrl(t.backdropPath ?: t.posterPath, 780) },
-                        // If the show already has aired episodes, seed to the
-                        // latest so we only notify for the *next* one. When
-                        // nothing has aired yet (-1/-1 sentinel) the first
-                        // aired episode still fires a notification.
+
                         lastSeason = latest?.seasonNumber ?: -1,
                         lastEpisode = latest?.episodeNumber ?: -1
                     )
@@ -657,7 +632,7 @@ class TmdbWatchFragment : Fragment() {
             }
         )
         h.tmdbWatchAppearance.setOnClickListener {
-            // Instant cycle like anime mode: Bars -> Compact -> Strips
+
             episodeStyle = when (episodeStyle) {
                 0 -> 3
                 3 -> 2
@@ -681,7 +656,6 @@ class TmdbWatchFragment : Fragment() {
         }
         FocusEffectUtil.applyFocusListener(h.tmdbWatchAppearance)
 
-        // ── continue watching ──
         h.tmdbWatchContinueCard.setOnClickListener { onContinueClick() }
         FocusEffectUtil.applyFocusListener(h.tmdbWatchContinueCard)
 
@@ -689,11 +663,6 @@ class TmdbWatchFragment : Fragment() {
 
         wireHeaderFocusChain(h)
 
-        // Entry focus: once the header is attached and laid out inside the episode
-        // recycler, move focus from the generic first-focusable (back/refresh) onto
-        // the selected source chip and pre-scroll both chip rows to centre it.
-        // Never steal focus that already sits on a chip or outside this fragment
-        // (nav-pill overlay, episode grid, etc.).
         h.root.doOnLayout {
             if (!isAdded || !binding.root.isShown) return@doOnLayout
             val headerFocus = h.root.findFocus()
@@ -706,11 +675,6 @@ class TmdbWatchFragment : Fragment() {
         }
     }
 
-    /**
-     * Focus chain for the TMDB watch header.
-     * Source/season chips (centre) ↔ left clay (refresh…notify) ↔ right clay (appearance…faq).
-     * Right clay is a trap: Right stays inside it; entry lands on the top button.
-     */
     private fun wireHeaderFocusChain(h: ItemTmdbWatchHeaderBinding) {
         val left = arrayOf(
             R.id.tmdbWatchRefresh, R.id.tmdbWatchSettings,
@@ -782,9 +746,6 @@ class TmdbWatchFragment : Fragment() {
 
         syncHeaderDownTargets(h)
 
-        // The episode cards are children of the list, so there is no id a
-        // nextFocusDownId could point at: the hop from the header into the list
-        // is made by a key listener instead.
         applyDownIntoEpisodes(
             h.tmdbWatchSourceScroll,
             h.tmdbWatchSourceChips,
@@ -798,14 +759,6 @@ class TmdbWatchFragment : Fragment() {
         )
     }
 
-    /**
-     * Vertical focus targets of the TMDB header.
-     *
-     * Source chips → season chips → continue card → episode list. The episode
-     * cards are children of the list, so there is no id a nextFocusDownId could
-     * point at: the last hop is made by a key listener (see
-     * [applyDownIntoEpisodes]).
-     */
     private fun syncHeaderDownTargets(h: ItemTmdbWatchHeaderBinding) {
         val sourceChips = (0 until h.tmdbWatchSourceChips.childCount)
             .mapNotNull { h.tmdbWatchSourceChips.getChildAt(it) as? Chip }
@@ -831,13 +784,6 @@ class TmdbWatchFragment : Fragment() {
         h.tmdbWatchFaq.nextFocusDownId = continueId
     }
 
-    /**
-     * Down from the header into the episode list.
-     *
-     * The listener only steps in when the view has no explicit down target of
-     * its own, so the normal chain (source chips → season chips → continue card)
-     * keeps working as it is.
-     */
     private fun applyDownIntoEpisodes(vararg views: View?) {
         for (view in views) {
             view ?: continue
@@ -851,13 +797,6 @@ class TmdbWatchFragment : Fragment() {
         }
     }
 
-    /**
-     * Move focus to the first episode card.
-     *
-     * Episode cards are children of the list, so there is no id a
-     * nextFocusDownId could point at. The list is scrolled to the first episode
-     * and the card is focused once it has been laid out.
-     */
     private fun focusFirstEpisode(): Boolean {
         if (!::binding.isInitialized) return false
         val recycler = binding.tmdbWatchRecycler
@@ -875,7 +814,6 @@ class TmdbWatchFragment : Fragment() {
         return true
     }
 
-    /** Focus the first episode card once the list has laid it out. */
     private fun focusEpisodeAfterLayout(recycler: RecyclerView) {
         val focus = {
             recycler.findViewHolderForAdapterPosition(HEADER_ITEM_COUNT)
@@ -898,10 +836,6 @@ class TmdbWatchFragment : Fragment() {
         )
     }
 
-    /**
-     * View that takes focus when the user presses Up from the first episode:
-     * the season chips or the continue card.
-     */
     private fun episodeUpTargetId(): Int {
         if (!::headerBinding.isInitialized) return View.NO_ID
         val h = headerBinding
@@ -912,7 +846,6 @@ class TmdbWatchFragment : Fragment() {
             else View.NO_ID
     }
 
-    /** Scroll [scroll] so [chip] sits at its horizontal centre, once laid out. */
     private fun centerOn(scroll: android.widget.HorizontalScrollView, chip: Chip) {
         chip.doOnLayout {
             val w = scroll.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
@@ -930,10 +863,6 @@ class TmdbWatchFragment : Fragment() {
         centerOn(scroll, checked)
     }
 
-    /**
-     * Watch-screen entry: centre both chip rows and focus the selected source chip.
-     * Returns true when a checked chip exists so hosts skip their generic container focus.
-     */
     fun focusSelectedSourceChip(): Boolean {
         if (!::headerBinding.isInitialized || view == null || !binding.root.isShown) return false
         centerCheckedChip(headerBinding.tmdbWatchSourceScroll, headerBinding.tmdbWatchSourceChips)
@@ -954,11 +883,8 @@ class TmdbWatchFragment : Fragment() {
         }
     }
 
-    /** First chip on open: the plugin chosen at home if it's still installed,
-     *  otherwise the first installed plugin (or Auto Search if none). */
     private fun defaultSourceIndex(): Int {
-        // Per-title source persistence first, so re-opening a show resumes the
-        // exact plugin you last used (mirrors anime mode's continuity).
+
         val savedId = PrefManager.getNullableCustomVal("tmdb_source_$mediaId", null, String::class.java)
         if (!savedId.isNullOrEmpty()) {
             val idx = sources.indexOfFirst { it.id == savedId }
@@ -982,9 +908,7 @@ class TmdbWatchFragment : Fragment() {
     }
 
     private fun setSourceStatus(text: String) {
-        // Pad with invisible braille blanks so the status always fills its weight
-        // and the refresh/notification buttons stay pinned at the right edge,
-        // regardless of title length or how many plugin chips are present.
+
         val filler = "\u2800".repeat(120)
         headerBinding.tmdbWatchSourceTitle.ellipsize = TextUtils.TruncateAt.END
         headerBinding.tmdbWatchSourceTitle.isSelected = false
@@ -1009,7 +933,7 @@ class TmdbWatchFragment : Fragment() {
         displayList(if (mediaType == "tv") episodes.take(EPISODE_CAP) else movieEpisodes)
 
     private fun loadEpisodesForSeason() {
-        // Compute cumulative episode offset for previous seasons
+
         val cumulativeOffset = seasons.filter { it.seasonNumber < selectedSeason }
             .sumOf { it.episodeCount }
 
@@ -1035,7 +959,7 @@ class TmdbWatchFragment : Fragment() {
         episodeAdapter = EpisodeListAdapter(episodeStyle, episodesOrMovie(), { episode ->
             onEpisodeClick(episode)
         }, { cumulativeEp ->
-            // Long-click: set progress to this cumulative episode number
+
             lifecycleScope.launch(Dispatchers.IO) {
                 Simkl.setProgress(type = mediaType, title = detail?.displayTitle ?: "", year = detail?.releaseDate?.take(4)?.toIntOrNull(),
                     tmdbId = if (!pluginMode) mediaId else null, imdbId = detail?.externalIds?.imdbId,
@@ -1047,12 +971,10 @@ class TmdbWatchFragment : Fragment() {
             }
         }, { episodeUpTargetId() })
         binding.tmdbWatchRecycler.adapter = episodeAdapter
-        // Header is a fixed first item owned by the adapter.
+
         episodeAdapter.setHeader(headerBinding.root)
     }
 
-    /** Fetches Simkl watched episodes for the current title and marks them in
-     *  the episode list (eye icon + anime blur/grey toggles). */
     private fun loadSimklWatched() {
         val realTmdbId = if (!pluginMode) mediaId else null
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
@@ -1061,17 +983,14 @@ class TmdbWatchFragment : Fragment() {
                     val item = Simkl.getShowLibrary()
                         .firstOrNull { it.ids?.tmdb == realTmdbId }
                     if (item == null) return@runCatching emptySet()
-                    // watched_episodes_count from Simkl = total absolute across all
-                    // seasons. Also honor per-episode completed flags as a fallback
-                    // when the count is missing (older API responses).
+
                     val totalWatched = item.totalWatched
                     val completedEps = item.episodes
                         ?.filter { it.completed == true }
                         ?.mapNotNull { it.number }
                         ?.toSet() ?: emptySet()
                     if (totalWatched > 0) {
-                        // Compute cumulative episode offsets per season so we can map
-                        // absolute numbers back to per-season episode numbers.
+
                         var cumulative = 0
                         val result = mutableSetOf<Int>()
                         for (s in 1..50) {
@@ -1083,13 +1002,13 @@ class TmdbWatchFragment : Fragment() {
                                     result.add(ep.episodeNumber)
                                 }
                             }
-                            // If we haven't reached this season yet at all, stop
+
                             if (cumulative >= totalWatched) break
                         }
                         if (completedEps.isNotEmpty()) result.addAll(completedEps)
                         result
                     } else {
-                        // Fallback: use per-episode completed flag if available
+
                         completedEps
                     }
                 }.getOrDefault(emptySet())
@@ -1103,10 +1022,9 @@ class TmdbWatchFragment : Fragment() {
     }
 
     private fun onEpisodeClick(episode: TmdbEpisode) {
-        // A user click always wins: cancel the on-open auto search if it is still
-        // running, but keep blocking while an explicit resolve is in flight.
+
         if (isResolving && autoSearchJob?.isActive != true) return
-        // Showing the server sheet after onSaveInstanceState crashes — bail early.
+
         if (!isAdded || childFragmentManager.isStateSaved) return
         autoSearchJob?.cancel()
         autoSearchJob = null
@@ -1162,11 +1080,8 @@ class TmdbWatchFragment : Fragment() {
             picker.updateSources(labels)
         }
 
-        // Same plugin + same episode already resolved? Reuse the cached servers —
-        // the sheet appears instantly with no double loading.
         var cached = TmdbStreamResolver.cachedLinks(mediaId, sourceName, season, ep)
-        // Fallback: auto-search may have cached under lastAutoSource even if chip switched,
-        // or for movie (season/ep null) the direct key may miss — try any source for this episode.
+
         if (cached == null) {
             for (src in sources) {
                 val c = TmdbStreamResolver.cachedLinks(mediaId, src.name, season, ep)
@@ -1190,9 +1105,7 @@ class TmdbWatchFragment : Fragment() {
             return
         }
         setSourceStatus(getString(R.string.tmdb_watch_searching, d.displayTitle))
-        // Open the server sheet FIRST with a "Fetching from …" row; the resolved
-        // links are dropped into the same sheet when they land, so the user sees
-        // progress instead of a bare snackbar.
+
         picker.show(childFragmentManager, "tmdbWatchServerSelector")
         isResolving = true
         resolveJob?.cancel()
@@ -1225,15 +1138,12 @@ class TmdbWatchFragment : Fragment() {
         }
     }
 
-    /** Runs the auto search (all installed sources, in order) the moment the tab
-     *  opens, so "Searching : …" shows immediately; on success the checked source
-     *  chip moves to whichever plugin actually provided the streams. */
     private fun autoSearchOnOpen() {
         autoSearchJob?.cancel()
         if (isResolving) return
         val d = detail ?: return
         val season = if (mediaType == "tv") selectedSeason else null
-        // Resolve for the last watched episode so links are ready on open.
+
         val resumeEp = if (mediaType == "tv") lastPlayed()?.second else null
         Logger.log("TMDB_WATCH: auto search on open for '${d.displayTitle}' (season=$season ep=$resumeEp)")
         setSourceStatus(getString(R.string.tmdb_watch_searching, d.displayTitle))
@@ -1258,9 +1168,7 @@ class TmdbWatchFragment : Fragment() {
                     }
                 }
             } finally {
-                // Only clear state if this coroutine is still the active auto
-                // search — a user click already nulled the job and started an
-                // explicit resolve, so its flag must not be clobbered here.
+
                 if (autoSearchJob == coroutineContext[Job]) {
                     autoSearchJob = null
                     isResolving = false
@@ -1287,11 +1195,9 @@ class TmdbWatchFragment : Fragment() {
                     refreshChips(headerBinding.tmdbWatchSourceChips)
                     Logger.log("TMDB_WATCH: auto search found ${result.links.size} links via $foundName")
                     snackString("${result.links.size} links found via $foundName")
-                    // Cache auto-search result so clicking the same episode is instant
+
                     TmdbStreamResolver.cacheLinks(mediaId, foundName, season, resumeEp, result)
-                    // Auto-show the server sheet so the user can pick a server immediately.
-                    // Guard: the IO hop may have outlived the UI (app backgrounded) —
-                    // showing a dialog after onSaveInstanceState crashes.
+
                     if (!isAdded || childFragmentManager.isStateSaved) {
                         Logger.log("TMDB_WATCH: auto search landed after state saved, sheet skipped (links cached)")
                         return@launch
@@ -1311,12 +1217,8 @@ class TmdbWatchFragment : Fragment() {
 
     private var lastAutoSource: CsInstalledSource? = null
 
-    /** The auto search kicked off on tab open; cancelled the moment the user
-     *  explicitly picks an episode or presses refresh so it never blocks them. */
     private var autoSearchJob: Job? = null
 
-    /** In-flight explicit resolve (episode click / refresh); cancelled when the
-     *  user switches plugin so its result is never cached under the new source. */
     private var resolveJob: Job? = null
 
     private suspend fun resolve(season: Int?, ep: Int?): TmdbStreamResolver.StreamResult {
@@ -1326,8 +1228,7 @@ class TmdbWatchFragment : Fragment() {
                 return TmdbStreamResolver.StreamResult.Error(getString(R.string.tmdb_watch_no_sources))
             }
             if (pluginMode) {
-                // Auto search on a plugin title: resolve the home plugin directly
-                // (its LoadResponse is already in hand — no title search needed).
+
                 val home = sources.firstOrNull { it.id == pluginSourceId }
                 val load = pluginLoad
                 if (home != null && load != null) {
@@ -1402,8 +1303,6 @@ class TmdbWatchFragment : Fragment() {
         onEpisodeClick(episode)
     }
 
-    /** Restore the last-watched season for this title, falling back to the
-     *  first season if the saved one no longer exists. */
     private fun restoreSeason(): Int {
         val saved = lastPlayed()?.first ?: return seasons.firstOrNull()?.seasonNumber ?: 1
         return seasons.firstOrNull { it.seasonNumber == saved }?.seasonNumber ?: 1
@@ -1425,7 +1324,7 @@ class TmdbWatchFragment : Fragment() {
                 if (s != null && e != null) return s to e
             }
         }
-        // Fallback: read from Simkl on a fresh device (no local prefs yet).
+
         val realTmdbId = if (!pluginMode) mediaId else null
         if (realTmdbId != null && realTmdbId > 0 && mediaType == "tv") {
             runCatching {
@@ -1440,8 +1339,7 @@ class TmdbWatchFragment : Fragment() {
     }
 
     private fun saveSourcePref() {
-        // -1 = Auto Search: forget the per-title pin so it falls back to the
-        // home/global source next time instead of resurrecting an old plugin.
+
         if (selectedSourceIndex == -1) {
             PrefManager.setCustomVal("tmdb_source_$mediaId", "")
             return
@@ -1453,9 +1351,7 @@ class TmdbWatchFragment : Fragment() {
     private fun updateContinueCard() {
         val h = headerBinding
         val syntheticId = TmdbStreamResolver.syntheticId(mediaId)
-        // The player stores position under "S{season}E{ep}" for TV and "1" for
-        // movies, so look up the exact key of the last thing the user watched
-        // instead of assuming "_1" (which is why TV continue cards vanished).
+
         val (s, e) = lastPlayed() ?: (if (mediaType == "tv") selectedSeason to 1 else 1 to 1)
         val epKey = if (mediaType == "tv") "S${s}E$e" else "1"
         val pos = PrefManager.getNullableCustomVal("${syntheticId}_$epKey", 0L, Long::class.java) ?: 0L
@@ -1481,8 +1377,7 @@ class TmdbWatchFragment : Fragment() {
         val emptyParams = h.tmdbWatchContinueProgressEmpty.layoutParams as LinearLayout.LayoutParams
         emptyParams.weight = 1f - div
         h.tmdbWatchContinueProgressEmpty.layoutParams = emptyParams
-        // The continue card just appeared: the rows above it now have to point
-        // down to it.
+
         syncHeaderDownTargets(h)
     }
 
@@ -1490,14 +1385,12 @@ class TmdbWatchFragment : Fragment() {
         host?.onWatchOpenTitle(type, id)
     }
 
-    // ── adapter ─────────────────────────────────────────────────────────────
-
     private class EpisodeListAdapter(
         private var style: Int,
         private var items: List<TmdbEpisode>,
         private val onClick: (TmdbEpisode) -> Unit,
         private val onLongClick: (Int) -> Unit = {},
-        /** View that takes focus when the user presses Up from the first episode. */
+
         private val firstEpisodeUpTarget: () -> Int = { View.NO_ID }
     ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
@@ -1540,7 +1433,7 @@ class TmdbWatchFragment : Fragment() {
 
         override fun getItemViewType(position: Int): Int =
             if (header != null && position == 0) 0
-            else when (style) { // 0(collides w/ header) → 1; 2 strips; 3 compact
+            else when (style) {
                 2 -> 2
                 3 -> 3
                 else -> 1
@@ -1559,8 +1452,7 @@ class TmdbWatchFragment : Fragment() {
             if (getItemViewType(position) == 0) return
             val epIndex = position - (if (header != null) 1 else 0)
             val ep = items[epIndex]
-            // Up from the first episode goes back to the header row above it
-            // (season chips or the continue card).
+
             if (epIndex == 0) holder.itemView.nextFocusUpId = firstEpisodeUpTarget()
             val title = ep.name?.takeIf { it.isNotBlank() } ?: "Episode ${ep.episodeNumber}"
             val date = ep.airDate.orEmpty()
@@ -1678,8 +1570,6 @@ class TmdbWatchFragment : Fragment() {
             }
         }
 
-        /** Anime-exact watched styling: eye icon + cover when watched, and
-         *  optional grey (watched) / blur (unwatched) via the shared toggles. */
         private fun applyWatchedState(
             viewedIcon: View,
             viewedCover: View,
@@ -1720,14 +1610,13 @@ class TmdbWatchFragment : Fragment() {
             }
         }
 
-        /** Load episode thumbnail with optional BlurTransformation (anime-exact). */
         private fun loadEpisodeImage(
             image: android.widget.ImageView,
             url: String?,
             isWatched: Boolean
         ) {
             if (url.isNullOrEmpty()) {
-                // Unreleased episodes have no still — show hourglass on black
+
                 image.setBackgroundColor(0xFF000000.toInt())
                 image.setImageResource(R.drawable.hourglass_24)
                 image.scaleType = android.widget.ImageView.ScaleType.CENTER

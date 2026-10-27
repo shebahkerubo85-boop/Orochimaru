@@ -42,16 +42,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
-/**
- * Full-screen vertical reels player.
- *
- * Playback is a YouTube iframe driven entirely by `postMessage`, but every piece of YouTube's own
- * chrome is suppressed: the embed runs with `controls=0`, the item lays a transparent blocker over
- * the WebView so nothing inside the frame is tappable, and the activity paints its own transport
- * bar. Player state and progress are pushed back from the page through a small `Android` JS bridge,
- * which is what lets us draw a real progress bar and auto-advance when a reel ends (masking
- * YouTube's end-screen recommendations).
- */
 class YouTubeShortsPlayerActivity : AppCompatActivity() {
 
     private lateinit var recycler: RecyclerView
@@ -80,14 +70,11 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
     private val liked = mutableSetOf<String>()
     private val disliked = mutableSetOf<String>()
 
-    /** Reels mode appends more anime as the viewer nears the end; the shorts feature does not. */
     private var reelMode = false
 
-    /** Which catalog the endless append draws from once the seeded rail runs out. */
     private var reelSource = SOURCE_ANIME
     private val seenReelKeys = HashSet<String>()
 
-    /** Shows already played, keyed "a:<anilistId>" or "t:<mediaType>:<tmdbId>" so ids never clash. */
     private val seenReelShows = HashSet<String>()
     private var reelLoading = false
     private var reelRetryJob: Job? = null
@@ -146,15 +133,11 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         adapter = ShortsAdapter(videoIds, animeIds, tmdbIds, tmdbTypes, titles, animeTitles, synopses, genresRaw, covers)
         recycler.layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
             .apply { isItemPrefetchEnabled = false }
-        // Only the visible reel should own a live WebView: no pre-built neighbours, no detached
-        // cache. Each WebView is a full YouTube player, so a small set of them is what stutters a TV.
+
         recycler.setItemViewCacheSize(0)
         recycler.recycledViewPool.setMaxRecycledViews(0, 1)
         recycler.adapter = adapter
 
-        // PagerSnapHelper (not LinearSnapHelper): a reel is a full-screen page, so a fling must
-        // land on the single adjacent item. LinearSnapHelper picks its target from fling velocity
-        // and could skip several videos on a small swipe.
         PagerSnapHelper().attachToRecyclerView(recycler)
 
         recycler.addOnScrollListener(object : RecyclerView.OnScrollListener() {
@@ -177,8 +160,6 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
             }
         })
 
-        // Single tap toggles play/pause. Fed from the intercept hook so it never eats the drags
-        // the pager needs.
         val tapDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onDown(e: MotionEvent): Boolean = true
             override fun onSingleTapUp(e: MotionEvent): Boolean {
@@ -245,11 +226,10 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
             val id = adapter.currentVideoId() ?: return@setOnClickListener
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/watch?v=$id")))
         }
-        // The bottom pill names the show playing now; tapping it opens that show's info page.
+
         animePill.setOnClickListener { openInfo() }
     }
 
-    /** Opens the details page of the title behind the reel on screen (anime or TMDB). */
     private fun openInfo() {
         val position = adapter.currentPos
         val tmdbId = adapter.tmdbIdAt(position)
@@ -305,7 +285,6 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         adapter.setMuted(isMuted)
     }
 
-    /** "Action|Shounen|Supernatural" -> "#action #shounen #supernatural", capped so it never wraps. */
     private fun formatGenres(raw: String): String =
         raw.split('|')
             .asSequence()
@@ -345,7 +324,6 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         if (!persist) playPause.postDelayed(hidePlayPause, 900)
     }
 
-    /** Callback from the page's player state (0 ended, 1 playing, 2 paused, 3 buffering, 5 cued). */
     fun onPlayerState(state: Int) {
         when (state) {
             1 -> {
@@ -366,7 +344,6 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         }
     }
 
-    /** Callback with the page's playback head, in seconds. */
     fun onPlayerProgress(currentSeconds: Double, durationSeconds: Double) {
         if (userSeeking) return
         val duration = durationSeconds.toInt()
@@ -383,10 +360,6 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         moveReel(1)
     }
 
-    /**
-     * Steps to the adjacent reel. Down/forward past the end pulls the next batch in reels mode so
-     * playback continues; up/back simply stops at the first reel.
-     */
     private fun moveReel(delta: Int) {
         val next = adapter.currentPos + delta
         if (next < adapter.itemCount) {
@@ -405,22 +378,13 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         return String.format(Locale.US, "%d:%02d", totalSeconds / 60, totalSeconds % 60)
     }
 
-    /**
-     * Appends the next mixed batch of reels.
-     *
-     * Draws from the anime or TMDB catalog depending on [reelSource], resolves each title's videos
-     * and interleaves them, skipping shows and keys already queued so the seed rail and every
-     * earlier batch never repeat.
-     */
     private fun loadMoreReels(onAppended: (() -> Unit)? = null) {
         if (reelLoading) return
         reelLoading = true
         lifecycleScope.launch {
             val items = withContext(Dispatchers.IO) { nextReelBatch() }
             if (items.isEmpty()) {
-                // A batch can come back empty when AniList or TMDB hiccups, or when a draw only
-                // turns up shows already played. Rather than ending the feed, try again shortly so
-                // playback can continue indefinitely.
+
                 scheduleReelRetry()
             } else {
                 adapter.appendItems(
@@ -440,7 +404,6 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         }
     }
 
-    /** Re-attempt an append after a short pause, so a transient empty batch is not the end. */
     private fun scheduleReelRetry() {
         if (reelRetryJob?.isActive == true) return
         reelRetryJob = lifecycleScope.launch {
@@ -457,10 +420,7 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         while (attempts++ < REEL_MAX_EMPTY_PAGES) {
             val pool = runCatching { ReelFeed.draw() }.getOrDefault(emptyList())
             if (pool.isEmpty()) return emptyList()
-            // The whole AniList catalog is fair game here, not just the shows the rail seeded the
-            // player with. Drop shows already played before resolving any videos, both to keep
-            // "never repeat" and to avoid spending a page on shows whose videos would all be
-            // filtered out anyway.
+
             val freshShows = pool.filter { seenReelShows.add("a:${it.anilistId}") }
             if (freshShows.isEmpty()) continue
             val fresh = runCatching { ReelFeed.buildInterleaved(freshShows) }.getOrDefault(emptyList())
@@ -484,12 +444,6 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         return emptyList()
     }
 
-    /**
-     * D-pad navigation for controllers, keyboards and TV remotes: up/down step through the reels and
-     * right opens the current show's info page (center/enter toggles play-pause). The feed is a
-     * single vertical runway, so we bypass the default focus search that would otherwise hop between
-     * the overlay buttons.
-     */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val initialPress = event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0
         when (event.keyCode) {
@@ -538,7 +492,7 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
     ) : RecyclerView.Adapter<ShortsAdapter.VH>() {
 
         private val webViews = mutableMapOf<Int, WebView>()
-        /** Every WebView ever built, so [destroyAll] tears down reels that have scrolled away too. */
+
         private val allWebViews = HashSet<WebView>()
         var currentPos = -1
 
@@ -568,7 +522,6 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
 
         override fun getItemCount() = videoIds.size
 
-        /** Appends a batch to the end of the feed without disturbing what is on screen. */
         fun appendItems(
             newIds: List<String>,
             newAnimeIds: List<Int>,
@@ -596,13 +549,10 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             holder.boundPosition = position
-            // Only the reel on screen loads its YouTube embed. Neighbours are prepared lazily when
-            // they become current (setCurrent), so a whole film-strip of embeds is never fetched at
-            // once — that simultaneous loading is what made the player crawl on TV.
+
             if (position == currentPos) load(holder, position)
         }
 
-        /** Loads a holder's embed if it is not already showing the reel it is bound to. */
         private fun load(holder: VH, position: Int) {
             val videoId = videoIds[position]
             if (holder.loadedVideoId == videoId) return
@@ -645,10 +595,6 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
             allWebViews.add(webView)
         }
 
-        /**
-         * Bridge from the page back into the activity. Each WebView gets its own instance bound to
-         * its position so stray events from pre-loaded neighbours are ignored.
-         */
         private fun makeBridge(position: Int): Any = object {
             @JavascriptInterface
             fun onReady() {
@@ -664,8 +610,7 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
             @JavascriptInterface
             fun onProgress(currentSeconds: String, durationSeconds: String) {
                 if (position != currentPos) return
-                // The page pushes a delivery several times a second; only one tick reaches the UI
-                // thread per interval, so scrubbing stays smooth without the bridge flooding it.
+
                 val now = System.currentTimeMillis()
                 if (now - lastProgressAt < PROGRESS_THROTTLE_MS) return
                 lastProgressAt = now
@@ -680,14 +625,13 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         fun setCurrent(position: Int) {
             val previous = currentPos
             currentPos = position
-            // Stop the reel we are leaving, and kick off the one we arrive at — the embed only
-            // loads now, so only one player ever runs.
+
             if (previous != position && previous >= 0) webViews[previous]?.let { command(it, "pause()") }
             val holder = recycler.findViewHolderForAdapterPosition(position) as? VH
             if (holder != null) {
                 load(holder, position)
             } else {
-                // The holder for a freshly scrolled-to position may not be laid out yet.
+
                 recycler.post {
                     (recycler.findViewHolderForAdapterPosition(position) as? VH)?.let { load(it, position) }
                 }
@@ -776,21 +720,16 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
         const val EXTRA_COVERS = "covers"
         const val EXTRA_REEL_MODE = "reel_mode"
 
-        /** Which catalog the endless append draws from; defaults to the anime rail. */
         const val EXTRA_REEL_SOURCE = "reel_source"
         const val SOURCE_ANIME = "anime"
         const val SOURCE_TMDB = "tmdb"
 
-        /** How close to the end of the feed the next batch is fetched. */
         private const val REEL_PREFETCH_DISTANCE = 4
 
-        /** How many random draws to attempt within one append before deferring a retry. */
         private const val REEL_MAX_EMPTY_PAGES = 6
 
-        /** How long to wait before retrying an append that came back empty. */
         private const val REEL_RETRY_DELAY_MS = 8_000L
 
-        /** How often the JS progress bridge may touch the UI thread (the page pushes several a second). */
         private const val PROGRESS_THROTTLE_MS = 500L
     }
 }

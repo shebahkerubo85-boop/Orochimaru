@@ -38,11 +38,6 @@ object TvKeyboardUtil {
 
     private const val KEYBOARD_AUTO = -1
 
-    /**
-     * Effective keyboard mode: -1 (Auto) resolves per device.
-     * Phones and regular Android TV use the system keyboard; Amazon Fire TV
-     * (whose system IME is unreliable) falls back to the custom compact keyboard.
-     */
     fun keyboardMode(): Int {
         val saved = PrefManager.getVal<Int>(PrefName.KeyboardMode)
         if (saved != KEYBOARD_AUTO) return saved
@@ -60,7 +55,6 @@ object TvKeyboardUtil {
     private fun describe(view: View): String =
         view.javaClass.simpleName + "#" + view.id + "(" + view.isAttachedToWindow + ")"
 
-    /** For mode 0 (System keyboard): show system keyboard on focus */
     fun setupSystemKeyboard(view: View) {
         tvkLog("setupSystemKeyboard(mode0) ${describe(view)}")
         retainWindowFocus(view)
@@ -78,7 +72,6 @@ object TvKeyboardUtil {
         }
     }
 
-    /** For mode 1 (Toggle button): attach toggle button, show/hide custom keyboard on click */
     fun setupEditTextWithToggle(editText: EditText, toggleButton: View) {
         tvkLog("setupEditTextWithToggle(mode1) ${describe(editText)}")
         retainWindowFocus(editText)
@@ -108,7 +101,6 @@ object TvKeyboardUtil {
         if (editText.isFocused) applyFocusBorder(editText)
     }
 
-    /** For mode 2 (Always visible): show compact keyboard at bottom-left, set target on focus */
     fun setupEditTextForAlwaysVisible(editText: EditText) {
         tvkLog("setupEditTextForAlwaysVisible(mode2) ${describe(editText)}")
         retainWindowFocus(editText)
@@ -140,13 +132,12 @@ object TvKeyboardUtil {
         }
     }
 
-    /** Unified setup that delegates based on keyboard mode */
     fun setupTvInput(view: View) {
         tvkLog("setupTvInput mode=${keyboardMode()} ${describe(view)}")
         when (keyboardMode()) {
             0 -> setupSystemKeyboard(view)
             1 -> {
-                // Default toggle behavior when no explicit toggle button provided
+
                 retainWindowFocus(view)
                 if (view is EditText) {
                     view.showSoftInputOnFocus = false

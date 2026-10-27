@@ -23,7 +23,6 @@ open class Slmaxed : ExtractorApi() {
     override val mainUrl = "https://slmaxed.com/"
     override val requiresReferer = true
 
-    // https://slmaxed.com/e/oLvgezw3LjPzbp8E -> oLvgezw3LjPzbp8E
     val embedRegex = Regex("""/e/([^/]*)""")
     override suspend fun getUrl(url: String, referer: String?): List<ExtractorLink>? {
         val id = embedRegex.find(url)!!.groupValues[1]

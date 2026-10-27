@@ -10,7 +10,6 @@
     android:paddingTop="12dp"
     android:paddingBottom="6dp">
 
-    <!-- Browser Login -->
     <Button
         android:id="@+id/qrBrowserButton"
         android:layout_width="match_parent"
@@ -34,7 +33,6 @@
         android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="12sp" />
 
-    <!-- QR Code -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/qrCodeCard"
         android:layout_width="200dp"
@@ -54,7 +52,6 @@
             android:contentDescription="QR Code to scan for login"
             android:scaleType="fitCenter" />
 
-        <!-- Loading indicator -->
         <ProgressBar
             android:id="@+id/qrLoadingIndicator"
             android:layout_width="48dp"
@@ -65,7 +62,6 @@
 
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Instructions -->
     <TextView
         android:id="@+id/qrInstructionsText"
         android:layout_width="wrap_content"
@@ -87,7 +83,6 @@
         android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="12sp" />
 
-    <!-- Status Section -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -116,7 +111,6 @@
 
     </LinearLayout>
 
-    <!-- Action Buttons: Refresh (left) and Verify (right), native dialog Cancel handles dismissal -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -149,7 +143,6 @@
 
     </LinearLayout>
 
-    <!-- Debug Panel -->
     <LinearLayout
         android:id="@+id/qrDebugPanel"
         android:layout_width="match_parent"

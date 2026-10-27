@@ -5,12 +5,6 @@ import ani.sanin.media.Media
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-/**
- * Picks poster art from AniList's own anime catalogue.
- *
- * The catalogue pool is shared for the process, while picks are randomised per Discovery
- * visit. This keeps API traffic low and makes the cards stable until the next visit.
- */
 internal object CuratedCategoryArtwork {
     private val poolMutex = Mutex()
     @Volatile private var cachedPool: List<Media>? = null
@@ -45,7 +39,6 @@ internal object CuratedCategoryArtwork {
         "yuri" to listOf("girls love", "yuri"),
     )
 
-    /** Relevance is ranked first; AniList score and popularity break ties. */
     suspend fun pickFor(
         categories: List<CuratedDiscoveryCategory>,
         excludedPosterUrls: Set<String> = emptySet(),
@@ -101,7 +94,7 @@ internal object CuratedCategoryArtwork {
         return poolMutex.withLock {
             cachedPool?.let { return@withLock it }
             val found = ArrayList<Media>(100)
-            // Keep requests sequential: AniList has a strict rate limit and burst limiter.
+
             for (page in 1..2) {
                 val batch = runCatching {
                     Anilist.query.discoverAnime(page = page, perPage = 50)

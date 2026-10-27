@@ -18,7 +18,6 @@ import ani.sanin.settings.saving.PrefName
 import com.google.android.material.color.DynamicColors
 import com.google.android.material.color.DynamicColorsOptions
 
-
 class ThemeManager(private val context: Activity) {
     fun applyTheme(fromImage: Bitmap? = null) {
         applyUIScale()
@@ -49,8 +48,7 @@ class ThemeManager(private val context: Activity) {
             )
             if (!returnedEarly && effectiveCustom == null) return
         } else if (accentColorIndex > 0 && !useCustomTheme) {
-            // Accent color only — skip DynamicColors (no-op or interfering on TV),
-            // the mapped hardcoded theme is applied below via setTheme()
+
         } else if (useCustomTheme) {
             val returnedEarly =
                 applyDynamicColors(useMaterial, context, useOLED, useCustom = effectiveCustom)

@@ -6,7 +6,6 @@ import com.lagradost.cloudstream3.extractors.helper.JwPlayerHelper
 import com.lagradost.cloudstream3.utils.ExtractorApi
 import com.lagradost.cloudstream3.utils.ExtractorLink
 
-
 class Luluvdoo : LuluStream() {
     override var mainUrl = "https://luluvdoo.com"
 }

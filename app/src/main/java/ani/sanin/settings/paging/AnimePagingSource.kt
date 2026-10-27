@@ -47,7 +47,6 @@ class AnimeExtensionsViewModelFactory(
     }
 }
 
-
 class AnimeExtensionsViewModel(
     animeExtensionManager: AnimeExtensionManager
 ) : ViewModel() {
@@ -139,7 +138,7 @@ class AnimeExtensionAdapter(private val clickListener: OnAnimeInstallClickListen
                 oldItem: AnimeExtension.Available,
                 newItem: AnimeExtension.Available
             ): Boolean {
-                // Your logic here
+
                 return oldItem.pkgName == newItem.pkgName
             }
 
@@ -147,7 +146,7 @@ class AnimeExtensionAdapter(private val clickListener: OnAnimeInstallClickListen
                 oldItem: AnimeExtension.Available,
                 newItem: AnimeExtension.Available
             ): Boolean {
-                // Your logic here
+
                 return oldItem == newItem
             }
         }
@@ -219,7 +218,7 @@ class AnimeExtensionAdapter(private val clickListener: OnAnimeInstallClickListen
         }
 
         fun clear() {
-            job.cancel() // Cancel the coroutine when the view is recycled
+            job.cancel()
         }
     }
 

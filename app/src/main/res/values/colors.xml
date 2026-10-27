@@ -46,7 +46,6 @@
     <color name="tags">#5E057E</color>
     <color name="golden_yellow">#FFD700</color>
 
-    <!-- sanin (seed #005B96) -->
     <color name="seed_sanin">#005B96</color>
     <color name="md_theme_light_sanin_primary">#007BCC</color>
     <color name="md_theme_light_sanin_onPrimary">#EFF2F4</color>
@@ -101,7 +100,6 @@
     <color name="md_theme_dark_sanin_inverseSurface">#E6E1E6</color>
     <color name="md_theme_dark_sanin_inversePrimary">#007BCC</color>
 
-    <!-- lime (seed #8BC34A) -->
     <color name="seed_lime">#8BC34A</color>
     <color name="md_theme_light_lime_primary">#699932</color>
     <color name="md_theme_light_lime_onPrimary">#F2F3F0</color>
@@ -156,7 +154,6 @@
     <color name="md_theme_dark_lime_inverseSurface">#E6E1E6</color>
     <color name="md_theme_dark_lime_inversePrimary">#699932</color>
 
-    <!-- indigo (seed #4B0082) -->
     <color name="seed_indigo">#4B0082</color>
     <color name="md_theme_light_indigo_primary">#7500CC</color>
     <color name="md_theme_light_indigo_onPrimary">#F2EFF4</color>
@@ -211,7 +208,6 @@
     <color name="md_theme_dark_indigo_inverseSurface">#E6E1E6</color>
     <color name="md_theme_dark_indigo_inversePrimary">#7500CC</color>
 
-    <!-- saikou (seed #FF007F) -->
     <color name="seed_saikou">#FF007F</color>
     <color name="md_theme_light_saikou_primary">#CC0065</color>
     <color name="md_theme_light_saikou_onPrimary">#F4EFF2</color>
@@ -266,7 +262,6 @@
     <color name="md_theme_dark_saikou_inverseSurface">#E6E1E6</color>
     <color name="md_theme_dark_saikou_inversePrimary">#CC0065</color>
 
-    <!-- sun (seed #FFD700) -->
     <color name="seed_sun">#FFD700</color>
     <color name="md_theme_light_sun_primary">#CCAC00</color>
     <color name="md_theme_light_sun_onPrimary">#F4F3EF</color>
@@ -321,7 +316,6 @@
     <color name="md_theme_dark_sun_inverseSurface">#E6E1E6</color>
     <color name="md_theme_dark_sun_inversePrimary">#CCAC00</color>
 
-    <!-- blood (seed #FF000D) -->
     <color name="seed_blood">#FF000D</color>
     <color name="md_theme_light_blood_primary">#FF000D</color>
     <color name="md_theme_light_blood_onPrimary">#FFFFFF</color>
@@ -376,7 +370,6 @@
     <color name="md_theme_dark_blood_inverseSurface">#EDE0DD</color>
     <color name="md_theme_dark_blood_inversePrimary">#FF000D</color>
 
-    <!-- ocean (seed #00BCD4) -->
     <color name="seed_ocean">#00BCD4</color>
     <color name="md_theme_light_ocean_primary">#00B4CC</color>
     <color name="md_theme_light_ocean_onPrimary">#EFF4F4</color>
@@ -431,7 +424,6 @@
     <color name="md_theme_dark_ocean_inverseSurface">#E6E1E6</color>
     <color name="md_theme_dark_ocean_inversePrimary">#00B4CC</color>
 
-    <!-- kurama (seed #FF4D00) -->
     <color name="seed_kurama">#FF4D00</color>
     <color name="md_theme_light_kurama_primary">#FF4D00</color>
     <color name="md_theme_light_kurama_onPrimary">#FFFFFF</color>
@@ -486,22 +478,20 @@
     <color name="md_theme_dark_kurama_inverseSurface">#EDE0DC</color>
     <color name="md_theme_dark_kurama_inversePrimary">#FF4D00</color>
 
-
-    <!-- Upstream CS3 colors -->
     <color name="colorPrimary">#3d50fa</color>
     <color name="colorPrimarySecond">@color/colorPrimary</color>
-    <color name="colorSearch">#303135</color> <!--#3444D1 @color/itemBackground-->
-    <color name="colorOngoing">#F53B66</color> <!--FF8181-->
+    <color name="colorSearch">#303135</color>
+    <color name="colorOngoing">#F53B66</color>
     <color name="colorPrimaryDark">#3700B3</color>
-    <color name="colorAccent">#3b65f5</color> <!-- 818fff-->
-    <color name="primaryGrayBackground">#2B2C30</color> <!--0f0f10 0E0E10 303135 2B2C30-->
-    <color name="primaryBlackBackground">#111111</color> <!--1C1C20 191a1f 19181E 202125 1C1C20-->
-    <color name="iconGrayBackground">#1C1C20</color> <!--141419 202125-->
-    <color name="boxItemBackground">#161616</color> <!-- 17171B 1B1B20-->
-    <color name="textColor">#e9eaee</color> <!--FFF-->
-    <color name="grayTextColor">#9ba0a4</color> <!-- 5e5f62-->
-    <color name="grayShimmer">#DCDCDC</color> <!-- 5e5f62-->
-    <color name="searchColorTransparent">#1AFFFFFF</color> <!--DADADA-->
+    <color name="colorAccent">#3b65f5</color>
+    <color name="primaryGrayBackground">#2B2C30</color>
+    <color name="primaryBlackBackground">#111111</color>
+    <color name="iconGrayBackground">#1C1C20</color>
+    <color name="boxItemBackground">#161616</color>
+    <color name="textColor">#e9eaee</color>
+    <color name="grayTextColor">#9ba0a4</color>
+    <color name="grayShimmer">#DCDCDC</color>
+    <color name="searchColorTransparent">#1AFFFFFF</color>
     <color name="white">#FFF</color>
     <color name="black">#000</color>
     <color name="gray_200">#EEEEEE</color>
@@ -509,27 +499,26 @@
     <color name="whiteText">#FFF</color>
     <color name="blackText">#000</color>
     <color name="progressBackgroundColor">#1AFFFFFF</color>
-    <color name="dubColorText">#121950</color> <!--3b65f5 f18c82 8294F1-->
+    <color name="dubColorText">#121950</color>
     <color name="amoledModeLight">#121213</color>
     <color name="dubColorBg">#3B65F5</color>
-    <color name="subColorText">#571711</color> <!--F53B66 FA3D79-->
+    <color name="subColorText">#571711</color>
     <color name="subColorBg">#F53B66</color>
     <color name="typeColorText">#BEC8FF</color>
     <color name="typeColorBg">#3700B3</color>
     <color name="ratingColor">#4C3115</color>
     <color name="ratingColorBg">#FFA662</color>
-    <color name="adultColor">#FF6F63</color> <!-- same as sub color -->
+    <color name="adultColor">#FF6F63</color>
     <color name="video_ripple">#80FFFFFF</color>
     <color name="video_button_ripple">#32FFFFFF</color>
     <color name="black_overlay">#66000000</color>
     <color name="darkBarTransparent">#C0121212</color>
     <color name="skipOpTransparent">#4D121212</color>
     <color name="darkBar">#121212</color>
-    <color name="videoProgress">#66B5B5B5</color> <!--66B5B5B5-->
-    <!--<color name="videoCache">#663D50FA</color>--> <!--66B5B5B5-->
+    <color name="videoProgress">#66B5B5B5</color>
+
     <color name="iconColor">#9ba0a6</color>
-    <!-- <color name="usedStorageColor">?attr/white</color>#fff-->
-    <!-- <color name="freeStorageColor">?attr/grayTextColor</color> #676767-->
+
     <color name="lightPrimaryGrayBackground">#f1f1f1</color>
     <color name="lightBitDarkerGrayBackground">#fff</color>
     <color name="lightGrayBackground">#eeeeee</color>
@@ -560,7 +549,7 @@
     <color name="SilentBlueIconColor">#7B83B0</color>
     <color name="colorPrimaryBlue">#5664B7</color>
     <color name="colorPrimaryRed">#D50000</color>
-    <color name="colorPrimaryPurple">#6200EA</color> <!-- Burple-->
+    <color name="colorPrimaryPurple">#6200EA</color>
     <color name="colorPrimaryGreen">#00BFA5</color>
     <color name="colorPrimaryGreenApple">#48E484</color>
     <color name="colorPrimaryBanana">#E4D448</color>
@@ -581,20 +570,13 @@
     <color name="colorTestFail">#ea596e</color>
     <color name="colorTestWarning">#FF9800</color>
     <color name="playIconBackground">#B3000000</color>
-    <!--
-      Franchise screen page: white in light, true black in dark.
 
-      A solid colour, not the banner artwork, because the rows carry their own text and a
-      page that has to be darkened under every label is a page that decides the text colour
-      for you. Pure black rather than the near-black of an OLED-ish surface so that dark mode
-      is actually amoled: on a panel that is off, the page costs nothing.
-    -->
     <color name="franchise_page">#FFFFFFFF</color>
     <color name="franchise_on_page">#FF15171A</color>
     <color name="franchise_on_page_muted">#9915171A</color>
-    <!-- Text that sits on top of poster art, so always light and always legible over it. -->
+
     <color name="franchise_on_art">#FFFFFFFF</color>
-    <!-- The rating pill, and the wash behind the info button and year. -->
+
     <color name="franchise_art_pill">#B3000000</color>
     <color name="franchise_art_ring">#80FFFFFF</color>
     <color name="franchise_list_stroke">#9915171A</color>

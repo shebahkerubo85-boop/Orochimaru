@@ -6,8 +6,6 @@ import com.lagradost.cloudstream3.utils.StringUtils.decodeUrl
 import com.lagradost.nicehttp.NiceResponse
 import io.ktor.http.Url
 
-// Code heavily based on unshortenit.py form kodiondemand /addon
-
 object ShortLink {
     data class ShortUrl(
         val regex: Regex,

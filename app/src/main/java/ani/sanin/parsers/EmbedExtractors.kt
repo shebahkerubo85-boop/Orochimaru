@@ -25,10 +25,6 @@ import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
 
-/* ================================================================
-   Common types
-   ================================================================ */
-
 data class EmbedResult(
     val urls: List<String>,
     val subtitles: List<SubData> = emptyList(),
@@ -42,10 +38,6 @@ data class SubData(
     val language: String = "en",
     val type: String = "vtt"
 )
-
-/* ================================================================
-   Router
-   ================================================================ */
 
 object EmbedRouter {
     suspend fun resolve(url: String, referer: String? = null): EmbedResult =
@@ -62,8 +54,7 @@ object EmbedRouter {
                     DataSvExtractor.matches(url)      -> DataSvExtractor.extract(url, referer)
                     AnimeSaltExtractor.matches(url)   -> AnimeSaltExtractor.extract(url, referer)
                     else -> {
-                        // No extractor for this host — a raw embed page is NOT a playable
-                        // video. Returning it makes the player fail on HTML.
+
                         Logger.log("EmbedRouter: no extractor for $url")
                         EmbedResult(urls = emptyList())
                     }
@@ -78,10 +69,6 @@ object EmbedRouter {
 }
 
 private fun emptyEmbedResult(): EmbedResult = EmbedResult(urls = emptyList())
-
-/* ================================================================
-   Shared helpers
-   ================================================================ */
 
 private const val UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
@@ -141,7 +128,6 @@ private fun hmacSha256(key: ByteArray, value: String): ByteArray {
     return mac.doFinal(value.toByteArray(Charsets.UTF_8))
 }
 
-/** Raw-byte PBKDF2-HMAC-SHA256 (password is a byte array, as WebCrypto uses). */
 private fun pbkdf2Sha256(password: ByteArray, salt: ByteArray, iterations: Int, dkLen: Int = 32): ByteArray {
     val mac = Mac.getInstance("HmacSHA256")
     mac.init(SecretKeySpec(password, "HmacSHA256"))
@@ -174,10 +160,6 @@ private fun asString(value: Any?): String? = value as? String
 private fun asMap(value: Any?): Map<*, *>? = value as? Map<*, *>
 
 private fun asList(value: Any?): List<*>? = value as? List<*>
-
-/* ================================================================
-   JS Literal Parser (Flixcloud SSR payload)
-   ================================================================ */
 
 private class JsLiteralParser(private val source: String) {
     private var index = 0
@@ -282,10 +264,6 @@ private class JsLiteralParser(private val source: String) {
     }
 }
 
-/* ================================================================
-   WASM decrypt interpreter (Flixcloud)
-   ================================================================ */
-
 private class WasmTransform(val step: Int, private val code: ByteArray) {
     fun transform(inputByte: Int): Int {
         var local6 = inputByte and 0xFF
@@ -294,50 +272,50 @@ private class WasmTransform(val step: Int, private val code: ByteArray) {
         while (i < code.size) {
             val op = code[i++].toInt() and 0xFF
             when (op) {
-                32 -> { // local.get
+                32 -> {
                     val (idx, next) = leb(code, i); i = next
                     stack.add(if (idx == 6) local6 else 0)
                 }
-                33 -> { // local.set
+                33 -> {
                     val (idx, next) = leb(code, i); i = next
                     val v = if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) else 0
                     if (idx == 6) local6 = v and 0xFF
                 }
-                65 -> { // i32.const
+                65 -> {
                     val (v, next) = leb(code, i); i = next
                     stack.add(v)
                 }
-                106 -> { // i32.add
+                106 -> {
                     val r = if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) else 0
                     val l = if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) else 0
                     stack.add((l + r) and 0xFF)
                 }
-                107 -> { // i32.sub
+                107 -> {
                     val r = if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) else 0
                     val l = if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) else 0
                     stack.add((l - r + 256) and 0xFF)
                 }
-                113 -> { // i32.and
+                113 -> {
                     val r = if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) else 0
                     val l = if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) else 0
                     stack.add((l and r) and 0xFF)
                 }
-                114 -> { // i32.or
+                114 -> {
                     val r = if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) else 0
                     val l = if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) else 0
                     stack.add((l or r) and 0xFF)
                 }
-                115 -> { // i32.xor
+                115 -> {
                     val r = if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) else 0
                     val l = if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) else 0
                     stack.add((l xor r) and 0xFF)
                 }
-                116 -> { // i32.shl
+                116 -> {
                     val r = if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) else 0
                     val l = if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) else 0
                     stack.add((l shl (r and 7)) and 0xFF)
                 }
-                118 -> { // i32.shr_u
+                118 -> {
                     val r = if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) else 0
                     val l = if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) else 0
                     stack.add((l ushr (r and 7)) and 0xFF)
@@ -362,7 +340,7 @@ private class WasmTransform(val step: Int, private val code: ByteArray) {
 }
 
 private fun parseWasmDecrypt(bytes: ByteArray): WasmTransform {
-    var position = 8 // magic + version
+    var position = 8
     while (position < bytes.size) {
         val section = bytes[position++].toInt() and 0xFF
         var size = 0
@@ -375,7 +353,7 @@ private fun parseWasmDecrypt(bytes: ByteArray): WasmTransform {
         } while (next and 0x80 != 0)
 
         if (section == 10) {
-            // code section: skip function count + first function body
+
             position++
             var bodySize = 0
             var bodyShift = 0
@@ -389,7 +367,7 @@ private fun parseWasmDecrypt(bytes: ByteArray): WasmTransform {
         }
         position += size
     }
-    // read second function body
+
     var fSize = 0
     var fShift = 0
     var next: Int
@@ -445,10 +423,6 @@ private fun runDecrypt(wasmBytes: ByteArray, fragment: ByteArray, keyFragment: B
     }
     return out
 }
-
-/* ================================================================
-   Flixcloud (Reanime)
-   ================================================================ */
 
 object FlixcloudExtractor {
     private const val FLIX = "https://flixcloud.cc"
@@ -518,8 +492,6 @@ object FlixcloudExtractor {
         val url = String(plain, Charsets.UTF_8).trim().trimEnd('\u0000')
         if (!url.startsWith("http")) throw IllegalStateException("bad decrypted url")
 
-        // Playlist XOR key comes from the wasm's data segment (`_c()` = half ^ half),
-        // the 16-byte segment mask from the site's hls.js (hardcoded fallback).
         val playlistKey = runCatching { flixPlaylistKey(wasmPayload) }.getOrNull()
             ?: throw IllegalStateException("flixcloud playlist key missing")
         val segmentMask = flixSegmentMask(html)
@@ -551,12 +523,6 @@ object FlixcloudExtractor {
         )
     }
 
-    /**
-     * Resolve the subtitle format string ("ass"/"srt"/"vtt") that the native subtitle pipeline maps to a
-     * SubtitleType. flixcloud declares it in `format`; fall back to the upstream URL extension otherwise.
-     * Never inferred from the proxied URL — StreamLocalProxy serves every subtitle as ".../stream",
-     * which drops the extension and used to make every track look like WebVTT.
-     */
     private fun flixSubtitleType(declared: String?, url: String): String {
         when (declared?.lowercase()?.substringBefore(';')?.trim()) {
             "ass", "ssa" -> return "ass"
@@ -573,7 +539,6 @@ object FlixcloudExtractor {
         }
     }
 
-    /** Derive the 32-byte playlist XOR key from the embed wasm (`_c()` copies 2000..2064). */
     private fun flixPlaylistKey(wasm: ByteArray): ByteArray {
         var pos = 8
         while (pos < wasm.size) {
@@ -597,7 +562,7 @@ object FlixcloudExtractor {
                     cShift += 7
                 } while (next and 0x80 != 0)
                 if (count < 1) throw IllegalStateException("no data segment")
-                i++ // memory index (0)
+                i++
                 if (wasm[i++].toInt() and 0xFF != 0x41) throw IllegalStateException("bad offset expr")
                 var v = 0
                 var vShift = 0
@@ -628,7 +593,6 @@ object FlixcloudExtractor {
         throw IllegalStateException("wasm data section not found")
     }
 
-    /** Pull the 16-byte segment XOR mask from flixcloud's hls.js, with a hardcoded fallback. */
     private fun flixSegmentMask(html: String): ByteArray {
         val fallback = byteArrayOf(
             (-99).toByte(), 42, (-15).toByte(), 71, (-77).toByte(), (-114).toByte(), 92, 112,
@@ -688,10 +652,6 @@ object FlixcloudExtractor {
     )
 }
 
-/* ================================================================
-   MegaPlay (AniKoto + AniWaves)
-   ================================================================ */
-
 object MegaPlayExtractor {
     fun matches(url: String): Boolean = Regex("megaplay\\.[^/]+/stream/", RegexOption.IGNORE_CASE).containsMatchIn(url)
 
@@ -705,11 +665,7 @@ object MegaPlayExtractor {
         val scriptUrls = Regex("""<script[^>]+src=["']([^"']+)["']""", RegexOption.IGNORE_CASE)
             .findAll(pageHtml).map { runCatching { java.net.URL(java.net.URL(embedUrl), it.groupValues[1]).toString() }.getOrNull() }
             .filterNotNull().toList()
-        // Fetch scripts lazily and stop at the first one carrying the sources route + the
-        // AES-CBC key/IV. Previously *every* script was downloaded before searching
-        // (jw_player.js 113KB, e1-player.min.js 69KB, app.main.js, ...), so on slow/throttled
-        // networks those extra fetches timed out and RetryInterceptor retried them, stalling
-        // extraction. The bundle that actually matters (newclient.min.js) is small and first.
+
         val orderedScriptUrls = scriptUrls.sortedBy { url ->
             when {
                 url.contains("newclient", ignoreCase = true) -> 0
@@ -755,8 +711,6 @@ object MegaPlayExtractor {
             SubData(u, lang)
         } ?: emptyList()
 
-        // Route master + subtitles through the local proxy so the native ExoPlayer
-        // (which lacks the app client's Cloudflare interceptor) gets cookies/clearances.
         val cdnHost = runCatching { java.net.URI(url).host }.getOrNull()
         val embedHost = runCatching { java.net.URI(embedUrl).host }.getOrNull()
         val needWarm = cdnHost != null && cdnHost != embedHost
@@ -854,10 +808,6 @@ object MegaPlayExtractor {
     }
 }
 
-/* ================================================================
-   Vidplay
-   ================================================================ */
-
 object VidplayExtractor {
     fun matches(url: String): Boolean = Regex("play\\.echovideo\\.ru/embed-[01]/", RegexOption.IGNORE_CASE).containsMatchIn(url)
 
@@ -887,10 +837,6 @@ object VidplayExtractor {
     }
 }
 
-/* ================================================================
-   Vidmoly
-   ================================================================ */
-
 object VidmolyExtractor {
     fun matches(url: String): Boolean = Regex("vidmoly\\.(net|biz|to)", RegexOption.IGNORE_CASE).containsMatchIn(url)
 
@@ -902,10 +848,6 @@ object VidmolyExtractor {
         EmbedResult(urls = listOf(m.groupValues[1]))
     }
 }
-
-/* ================================================================
-   Nova
-   ================================================================ */
 
 object NovaExtractor {
     private val KEY = "kiemtienmua911ca".toByteArray(Charsets.UTF_8)
@@ -931,10 +873,6 @@ object NovaExtractor {
         EmbedResult(urls = listOf(url))
     }
 }
-
-/* ================================================================
-   Byse (ECDSA + PoW + AES-GCM)
-   ================================================================ */
 
 object ByseExtractor {
     fun matches(url: String): Boolean = Regex("(?:bysesayeveum\\.com|gn1r5n\\.org)/e/", RegexOption.IGNORE_CASE).containsMatchIn(url)
@@ -1049,12 +987,12 @@ object ByseExtractor {
     }
 
     private fun derToRaw(sig: ByteArray): ByteArray {
-        // ASN.1 DER: SEQUENCE { INTEGER r, INTEGER s } -> r||s (64 bytes)
+
         var i = 0
         var r: ByteArray
         var s: ByteArray
         fun readTlv(): ByteArray {
-            i++ // tag
+            i++
             var len = 0
             var lenBytes = 0
             var b = sig[i].toInt() and 0xFF
@@ -1068,8 +1006,8 @@ object ByseExtractor {
             i += len
             return out
         }
-        i += 1 // SEQ tag
-        // skip seq length
+        i += 1
+
         var seqLen = 0
         var seqLenBytes = 0
         var b = sig[i].toInt() and 0xFF
@@ -1153,10 +1091,6 @@ object ByseExtractor {
         return out
     }
 }
-
-/* ================================================================
-   BabaStream (PoW + AES-GCM)
-   ================================================================ */
 
 object BabaStreamExtractor {
     fun matches(url: String): Boolean = Regex("babastream\\.[^/]+/embed/", RegexOption.IGNORE_CASE).containsMatchIn(url)
@@ -1381,10 +1315,6 @@ object BabaStreamExtractor {
     }
 }
 
-/* ================================================================
-   DataSv (MP4)
-   ================================================================ */
-
 object DataSvExtractor {
     fun matches(url: String): Boolean = Regex("play\\.echovideo\\.ru/embed-20/", RegexOption.IGNORE_CASE).containsMatchIn(url)
 
@@ -1395,7 +1325,7 @@ object DataSvExtractor {
         val endpoint = "${originOf(embedUrl)}/embed-20/getSources?id=$id"
         val json = rawGet(endpoint, mapOf("User-Agent" to UA, "Referer" to embedUrl, "X-Requested-With" to "XMLHttpRequest"))
         val obj = Mapper.json.parseToJsonElement(json) as? JsonObject ?: throw IllegalStateException("datasv bad json")
-        val sources = mutableListOf<Pair<String, String>>() // url, quality
+        val sources = mutableListOf<Pair<String, String>>()
         (obj["sources"] as? JsonObject)?.forEach { (quality, v) ->
             val list = when (v) {
                 is JsonArray -> v.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
@@ -1415,10 +1345,6 @@ object DataSvExtractor {
         EmbedResult(urls = valid)
     }
 }
-
-/* ================================================================
-   AnimeSalt (m3u8 POST)
-   ================================================================ */
 
 object AnimeSaltExtractor {
     fun matches(url: String): Boolean {

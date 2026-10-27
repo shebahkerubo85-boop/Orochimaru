@@ -10,7 +10,6 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.JsUnpacker
 import com.lagradost.cloudstream3.utils.M3u8Helper
 
-
 class FileMoon : FilemoonV2() {
     override var mainUrl = "https://filemoon.to"
     override var name = "FileMoon"
@@ -25,7 +24,6 @@ class FileMoonSx : FilemoonV2() {
     override var mainUrl = "https://filemoon.sx"
     override var name = "FileMoonSx"
 }
-
 
 open class FilemoonV2 : ExtractorApi() {
     override var name = "Filemoon"
@@ -70,7 +68,6 @@ open class FilemoonV2 : ExtractorApi() {
             return
         }
 
-        // If iframe was found, continue processing
         val iframeHeaders = defaultHeaders + ("Accept-Language" to "en-US,en;q=0.5")
         val iframeResponse = app.get(iframeSrcUrl, headers = iframeHeaders)
 
@@ -89,7 +86,7 @@ open class FilemoonV2 : ExtractorApi() {
         )
 
         if (!linkFound) {
-            // Last-resort fallback using WebView interception
+
             val resolver = WebViewResolver(
                 interceptUrl = Regex("""(m3u8|master\.txt)"""),
                 additionalUrls = listOf(Regex("""(m3u8|master\.txt)""")),

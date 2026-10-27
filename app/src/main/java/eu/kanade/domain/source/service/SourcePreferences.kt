@@ -9,8 +9,6 @@ class SourcePreferences(
     private val preferenceStore: PreferenceStore,
 ) {
 
-    // Common options
-
     fun sourceDisplayMode() = preferenceStore.getObject(
         "pref_display_mode_catalogue",
         LibraryDisplayMode.default,
@@ -28,8 +26,6 @@ class SourcePreferences(
 
     fun migrationSortingDirection() =
         preferenceStore.getEnum("pref_migration_direction", SetMigrateSorting.Direction.ASCENDING)
-
-    // Mixture Sources
 
     fun disabledAnimeSources() = preferenceStore.getStringSet("hidden_anime_catalogues", emptySet())
     fun disabledMangaSources() = preferenceStore.getStringSet("hidden_catalogues", emptySet())
@@ -54,16 +50,6 @@ class SourcePreferences(
 
     fun hideInMangaLibraryItems() =
         preferenceStore.getBoolean("browse_hide_in_library_items", false)
-
-    // SY -->
-
-    // fun enableSourceBlacklist() = preferenceStore.getBoolean("eh_enable_source_blacklist", true)
-
-    // fun sourcesTabCategories() = preferenceStore.getStringSet("sources_tab_categories", mutableSetOf())
-
-    // fun sourcesTabCategoriesFilter() = preferenceStore.getBoolean("sources_tab_categories_filter", false)
-
-    // fun sourcesTabSourcesInCategories() = preferenceStore.getStringSet("sources_tab_source_categories", mutableSetOf())
 
     fun dataSaver() = preferenceStore.getEnum("data_saver", DataSaver.NONE)
 
@@ -90,5 +76,5 @@ class SourcePreferences(
         WSRV_NL,
         RESMUSH_IT,
     }
-    // SY <--
+
 }

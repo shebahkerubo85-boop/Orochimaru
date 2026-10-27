@@ -14,19 +14,6 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
 
-/**
- * Convenience serializer for nullable String fields that combines
- * ACCEPT_EMPTY_STRING_AS_NULL_OBJECT with null passthrough.
- * An empty JSON string (`""`) or JSON null is decoded as null.
- *
- * Usage:
- *
- *   @Serializable
- *   data class MyData(
- *       @Serializable(with = NullableStringSerializer::class)
- *       @SerialName("title") val title: String? = null,
- *   )
- */
 @Prerelease
 object NullableStringSerializer : KSerializer<String?> {
 
@@ -43,7 +30,7 @@ object NullableStringSerializer : KSerializer<String?> {
     }
 
     override fun serialize(encoder: Encoder, value: String?) {
-        @OptIn(ExperimentalSerializationApi::class) // encodeNull is experimental for now
+        @OptIn(ExperimentalSerializationApi::class)
         if (value == null) encoder.encodeNull() else encoder.encodeString(value)
     }
 }

@@ -27,7 +27,7 @@ fun updateProgress(media: Media, number: String) {
         ?: return
     if (!incognito && autoUpdate) {
         if (rescueMode) {
-            // In rescue mode: cache the update for later AL sync and mirror to MAL
+
             val a = progressInt
             if (a > (media.userProgress ?: -1)) {
                 val status = if (media.userStatus == "REPEATING") media.userStatus!! else "CURRENT"
@@ -95,7 +95,6 @@ fun updateProgress(media: Media, number: String) {
     }
 }
 
-/** Sync all pending progress updates (cached during rescue mode) to AniList. */
 fun syncPendingProgressUpdates() {
 
     if (PrefManager.getVal<Boolean>(PrefName.RescueMode)) return
@@ -112,7 +111,7 @@ fun syncPendingProgressUpdates() {
         val remaining = pending.toMutableList()
         for (update in pending) {
             try {
-                
+
                 val anilistId: Int = if (update.idMAL != null && update.mediaId == update.idMAL) {
                     val type = if (update.isAnime) "ANIME" else "MANGA"
                     val resolved = Anilist.query.getMedia(update.idMAL, mal = true, type = type)?.id
@@ -170,7 +169,6 @@ fun statusNotificationPhrase(media: Media, newStatus: String): String {
     }
 }
 
-// sync changes to anilist in background 
 fun syncPendingDeletions() {
     if (PrefManager.getVal<Boolean>(PrefName.RescueMode)) return
     if (Anilist.userid == null) return
@@ -191,7 +189,7 @@ fun syncPendingDeletions() {
                     val type = if (deletion.isAnime) "ANIME" else "MANGA"
                     val resolved = Anilist.query.getMedia(deletion.idMAL, mal = true, type = type)?.id
                     if (resolved == null) {
-                        if (Anilist.anilistDisabledSignal) break  // AniList down — abort entire sync
+                        if (Anilist.anilistDisabledSignal) break
                         remaining.remove(deletion)
                         continue
                     }

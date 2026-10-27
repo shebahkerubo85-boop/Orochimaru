@@ -4,25 +4,25 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- Bookshelf: shelf plank + books standing on it -->
+
     <path
         android:fillColor="?attr/colorOnSurface"
         android:pathData="M2,20h20v1.5H2z" />
-    <!-- Book 1 (tall, left) -->
+
     <path
         android:fillColor="?attr/colorOnSurface"
         android:pathData="M4,6h3v14H4z" />
-    <!-- Book 2 (medium) -->
+
     <path
         android:fillColor="?attr/colorOnSurface"
         android:pathData="M8,8h2.5v12H8z"
         android:fillAlpha="0.7" />
-    <!-- Book 3 (short) -->
+
     <path
         android:fillColor="?attr/colorOnSurface"
         android:pathData="M11.5,10h2.5v10h-2.5z"
         android:fillAlpha="0.5" />
-    <!-- Book 4 (tall, leaning feel) -->
+
     <path
         android:fillColor="?attr/colorOnSurface"
         android:pathData="M15,7h3v13h-3z" />

@@ -90,15 +90,11 @@ class SenshiProvider : NativeAnimeParser() {
                 val audioTag = if (dubPreferred) "dub" else "sub"
                 extraData["audio"] = audioTag
 
-                // Current senshi.to pipeline: episode-embeds carries remote_source_id and the real
-                // stream comes from vidcloud's sources API. Master/child playlists are EM3U8v1
-                // AES-GCM encrypted, so the proxied URL must set em=true for StreamLocalProxy.
                 val remoteSourceId = (embed["remote_source_id"] as? JsonPrimitive)
                     ?.let { it.intOrNull ?: it.contentOrNull?.toIntOrNull() }
                 if (remoteSourceId != null && remoteSourceId > 0) {
                     try {
-                        // vidcloud/bcdn3 reject OkHttp's TLS fingerprint (Cloudflare never
-                        // issues a cookie), so fetch the sources JSON inside a hidden WebView.
+
                         val sourcesBytes = StreamLocalProxy.fetchViaWebView(
                             "https://s.vidcloud.se/_v1/sources?id=$remoteSourceId", "$baseUrl/"
                         )
@@ -129,7 +125,6 @@ class SenshiProvider : NativeAnimeParser() {
                     }
                 }
 
-                // Fallback: the embed URL used to be a direct playlist before the EM3U8v1 pipeline.
                 if (servers.isEmpty() && !hlsUrl.isNullOrBlank()) {
                     servers.add(VideoServer("Senshi", hlsUrl, extraData))
                 }
@@ -173,7 +168,6 @@ class SenshiProvider : NativeAnimeParser() {
         }
     }
 
-    /** Parses vidcloud sources JSON → (master playlist src, subtitle JSON string). */
     private fun vidcloudMasterAndSubtitles(jsonStr: String): Pair<String?, String?> {
         return try {
             val root = Mapper.json.parseToJsonElement(jsonStr)
@@ -192,8 +186,7 @@ class SenshiProvider : NativeAnimeParser() {
                     ?: (track["url"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null
                 if (raw.isBlank()) return@mapNotNull null
                 val lang = languageCode(label)
-                // Route through the proxy (js WebView fetch) so subtitle hosts gated the
-                // same way as the CDN still load; small files, no playback impact.
+
                 val proxied = StreamLocalProxy.proxyUrl(
                     raw, referer = "$baseUrl/", origin = "$baseUrl", js = true, subtitle = true
                 )

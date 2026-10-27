@@ -226,5 +226,4 @@
             tools:ignore="ContentDescription" />
     </androidx.cardview.widget.CardView>
 
-
 </FrameLayout>

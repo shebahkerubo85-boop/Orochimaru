@@ -93,8 +93,6 @@ fun <T> normalSafeApiCall(apiCall: () -> T): T? {
     }
 }
 
-/** Catches any exception (or error) and only logs it.
- * Will return null on exceptions. */
 fun <T> safe(apiCall: () -> T): T? {
     return try {
         apiCall.invoke()
@@ -104,8 +102,6 @@ fun <T> safe(apiCall: () -> T): T? {
     }
 }
 
-/** Catches any exception (or error) and only logs it.
- * Will return null on exceptions. */
 suspend fun <T> safeAsync(apiCall: suspend () -> T): T? {
     return try {
         apiCall.invoke()
@@ -140,7 +136,7 @@ fun Throwable.getStackTracePretty(showMessage: Boolean = true): String {
         .mapNotNull { line ->
             val trimmed = line.trim()
             if (!trimmed.startsWith("at ")) return@mapNotNull null
-            // pull "File.kt:42" out of "at com.pkg.Class.method(File.kt:42)"
+
             Regex("""\(([^)]+)\)$""").find(trimmed)?.groupValues?.get(1)
                 ?.replace(":", " ")
         }
@@ -173,7 +169,7 @@ fun <T> platformThrowAbleToResource(throwable: Throwable): Resource<T> {
         is NoSuchMethodException, is NoSuchFieldException, is NoSuchMethodError, is NoSuchFieldError, is NoSuchPropertyException -> {
             Resource.Failure(
                 false,
-                "App or extension is outdated, update the app or try pre-release.\n${throwable.message}" // todo add exact version?
+                "App or extension is outdated, update the app or try pre-release.\n${throwable.message}"
             )
         }
         is SocketTimeoutException, is InterruptedIOException -> {
@@ -197,7 +193,6 @@ fun <T> platformThrowAbleToResource(throwable: Throwable): Resource<T> {
         else -> safeFail(throwable)
     }
 }
-
 
 fun <T> throwAbleToResource(
     throwable: Throwable

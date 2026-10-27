@@ -62,14 +62,13 @@ open class GDMirrorbot : ExtractorApi() {
         val siteUrls = root.siteUrls ?: return
         val siteFriendlyNames = root.siteFriendlyNames
 
-        // mresult can arrive as a JSON object or a base64-encoded string
         val mresult: Map<String, String>? = run {
             val raw = responseText
                 .substringAfter("\"mresult\":")
                 .trimStart()
             when {
                 raw.startsWith("\"") -> {
-                    // base64-encoded string
+
                     tryParseJson<Map<String, String>>(
                         try { base64Decode(raw.trim('"')) } catch (_: Exception) { return }
                     )

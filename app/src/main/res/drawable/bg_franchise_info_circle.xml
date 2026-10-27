@@ -1,11 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Circular container behind the stylised "i" on a franchise poster.
 
-  A wash rather than a fill, because it sits on artwork: a solid disc would paint a hole in
-  the picture. The ring keeps it readable over a frame that is already pale, and the fill
-  handles the frame that is already dark.
--->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
     <solid android:color="@color/franchise_art_pill" />

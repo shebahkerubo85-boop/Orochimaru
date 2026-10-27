@@ -152,7 +152,7 @@ class JikanQueries {
     }
 
     suspend fun getSchedules(
-        filter: String? = null,  
+        filter: String? = null,
         page: Int = 1,
         limit: Int = 25,
     ): JikanSearchResponse? {

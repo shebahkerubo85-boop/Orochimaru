@@ -12,7 +12,6 @@
         android:clipChildren="false"
         android:clipToPadding="false">
 
-        <!-- Add a LinearLayout or other ViewGroup as a direct child of SwipeRefreshLayout -->
         <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
             android:id="@+id/localRefresh"
             android:layout_width="match_parent"
@@ -129,7 +128,7 @@
                     tools:ignore="ContentDescription,ImageContrastCheck" />
 
             </LinearLayout>
-            <!-- This TextView might overlap with GridView if GridView has items -->
+
             <TextView
                 android:id="@+id/noMangaOffline"
                 android:layout_width="match_parent"
@@ -139,7 +138,7 @@
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="18sp"
                 android:visibility="gone" />
-            <!-- for large view  -->
+
             <GridView
                 android:id="@+id/gridView"
                 android:layout_width="match_parent"
@@ -153,7 +152,7 @@
                 android:scrollbars="none"
                 android:verticalSpacing="20dp"
                 android:visibility="gone" />
-            <!-- for compact view -->
+
             <GridView
                 android:id="@+id/gridView1"
                 android:layout_width="match_parent"

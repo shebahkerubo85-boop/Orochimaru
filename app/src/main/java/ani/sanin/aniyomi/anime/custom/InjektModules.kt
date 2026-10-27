@@ -1,6 +1,5 @@
 package ani.sanin.aniyomi.anime.custom
 
-
 import android.app.Application
 import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
@@ -27,7 +26,6 @@ class AppModule(val app: Application) : InjektModule {
     @OptIn(UnstableApi::class)
     override fun InjektRegistrar.registerInjectables() {
         addSingleton(app)
-
 
         addSingletonFactory { NetworkHelper(app) }
         addSingletonFactory { NetworkHelper(app).client }

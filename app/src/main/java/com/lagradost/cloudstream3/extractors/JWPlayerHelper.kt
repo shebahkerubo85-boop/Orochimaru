@@ -20,26 +20,6 @@ object JwPlayerHelper {
     private val tracksRegex = Regex(""""?tracks"?:\s*(\[.*?\])""")
     private val m3u8Regex = Regex("""[:=]\s*\"([^\"\s]+(\.m3u8|master\.txt)[^\"\s]*)""")
 
-    /**
-     * Get stream links the "sources" attribute inside a JWPlayer script, e.g.
-     *
-     * ```js
-     * <script>
-     * jwplayer("vplayer").setup({
-     *     sources: [{
-     *         file: "https://example.com/master.m3u8",
-     *     }],
-     *     tracks: [{
-     *         file: "https://example.com/subtitles.vtt",
-     *         kind: "captions",
-     *         label: "en",
-     *     }],
-     * }
-     * ```
-     *
-     *  @param script The content of a HTML <script> tag containing the jwplayer code.
-     *  @return whether any extractor or subtitle link was found
-     */
     suspend fun extractStreamLinks(
         script: String,
         sourceName: String,
@@ -81,24 +61,6 @@ object JwPlayerHelper {
             }
         }
 
-        /**
-         * Fallback to searching for HLS streams, e.g.
-         *
-         * ```js
-         * var links = {
-         *     "hls2": "https://mmmmmmmmmm.qqqqqqqqqqqq.com/hls2/01/00000/ggggggggg_l/master.m3u8?t=##################&s=123456",
-         *     "hls3": "https://mmmmmmmmmm.qqqqqqqqqqqq.space/#########/hls3/01/00000/ggggggggg_l/master.txt",
-         *     "hls4": "/stream/zzzzzzzzzzzzzzz/hhhhhhhhhhh/123456789/123456/master.m3u8",
-         * };
-         *
-         * jwplayer("vplayer").setup({
-         *     sources: [{
-         *         file: links.hls4 || links.hls3 || links.hls2,
-         *         type: "hls",
-         *     }],
-         * });
-         * ```
-         */
         if (extractedLinks.isEmpty()) {
             extractedLinks = m3u8Regex.findAll(script).toList().map { match ->
                 val cleanUrl = match.groupValues[1].replace("\\/", "/")

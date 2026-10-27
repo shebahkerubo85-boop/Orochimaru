@@ -5,9 +5,6 @@ import eu.kanade.core.preference.PreferenceMutableState
 import kotlinx.coroutines.CoroutineScope
 import tachiyomi.core.preference.Preference
 
-/**
- * Binds a checkbox or switch view with a boolean preference.
- */
 fun CompoundButton.bindToPreference(pref: Preference<Boolean>) {
     isChecked = pref.get()
     setOnCheckedChangeListener { _, isChecked -> pref.set(isChecked) }

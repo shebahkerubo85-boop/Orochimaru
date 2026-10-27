@@ -4,14 +4,6 @@ import androidx.annotation.MainThread
 import androidx.lifecycle.LiveData
 import com.lagradost.cloudstream3.mvvm.Resource
 
-/**
- * This is an atomic LiveData where you can do .value instantly after doing .postValue.
- *
- * The default behavior is a footgun that will cause race conditions, 
- * as we do not really care if it is posted as we only want the latest data (even in the binding).
- *
- * Fuck all that is LiveData, because we want this value to be accessible everywhere instantly.
- * */
 open class ConsistentLiveData<T>(initValue : T? = null) : LiveData<T>(initValue) {
     @Volatile private var internalValue : T? = initValue
 
@@ -19,7 +11,6 @@ open class ConsistentLiveData<T>(initValue : T? = null) : LiveData<T>(initValue)
         return internalValue
     }
 
-    /** If someone want the old behavior then good for them */
     val postedValue : T? get() = super.getValue()
 
     public override fun postValue(value : T?) {
@@ -34,7 +25,6 @@ open class ConsistentLiveData<T>(initValue : T? = null) : LiveData<T>(initValue)
     }
 }
 
-/** Atomic resource livedata, to make it easier to work with resources without local copies */
 class ResourceLiveData<T>(initValue : Resource<T>? = null) : ConsistentLiveData<Resource<T>>(initValue) {
     var success
         get() = when(val output = this.value) {

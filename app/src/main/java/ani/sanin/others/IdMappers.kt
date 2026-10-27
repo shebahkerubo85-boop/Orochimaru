@@ -13,31 +13,23 @@ import kotlinx.serialization.json.*
 
 object IdMappers {
 
-    // Your Working Vercel URL
     private const val MAPPER_API_URL = "https://Isagi2025-idmapper.hf.space/api/mapper"
 
-    // Simple RAM cache to prevent fetching the same ID multiple times
     private val cache = HashMap<Int, AnimeId>()
 
-    /**
-     * Fetches IDs from your Vercel API.
-     * NOTE: I removed "private" so MediaDetailsActivity can call this directly.
-     */
     suspend fun getIds(anilistId: Int): AnimeId? {
-        // 1. Check if we already have this ID in memory
+
         if (cache.containsKey(anilistId)) {
             return cache[anilistId]
         }
 
         return withContext(Dispatchers.IO) {
             try {
-                // 2. Request data from Vercel
+
                 val response = client.get("$MAPPER_API_URL?anilist_id=$anilistId")
 
-                // 3. Parse the JSON result
                 val data = Mapper.json.decodeFromString<AnimeId>(response.text)
 
-                // 4. Save to cache
                 if (data.anilistId != null) {
                     cache[data.anilistId] = data
                 }
@@ -46,26 +38,22 @@ object IdMappers {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                // If 404 or no internet, return null safely
+
                 e.printStackTrace()
                 null
             }
         }
     }
 
-
-    // --- Helper Functions ---
-
     suspend fun getSimklId(anilistId: Int): Int? {
         return getIds(anilistId)?.simklId
     }
 
     suspend fun getImdbId(anilistId: Int): String? {
-        // First try the main mapper
+
         val mainId = getIds(anilistId)?.imdbId
         if (mainId != null) return mainId
 
-        // Fallback to ani.zip
         return getAniZipId(anilistId)
     }
 
@@ -88,7 +76,7 @@ object IdMappers {
                     return@withContext null
                 }
                 val data = Mapper.json.decodeFromJsonElement<AniZipResponse>(jsonElement)
-                // The mappings are a flat map of ID types to values
+
                 val imdbVal = data.mappings["imdb_id"]
                 if (imdbVal is JsonPrimitive) imdbVal.contentOrNull else null
             } catch (e: CancellationException) {

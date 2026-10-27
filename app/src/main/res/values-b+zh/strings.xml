@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- FORMAT MIGHT TRANSLATE, WILL CAUSE CRASH IF APPLIED WRONG -->
+
     <string name="app_dub_sub_episode_text_format" formatted="true">%1$s Ep %2$d</string>
     <string name="cast_format" formatted="true">演员：%s</string>
     <string name="next_episode_format" formatted="true">第 %d 集将发布于</string>
     <string name="next_episode_time_day_format" formatted="true">%1$dd %2$dh %3$dm</string>
     <string name="next_episode_time_hour_format" formatted="true">%1$dh %2$dm</string>
     <string name="next_episode_time_min_format" formatted="true">%dm</string>
-    <!-- IS NOT NEEDED TO TRANSLATE AS THEY ARE ONLY USED FOR SCREEN READERS AND WONT SHOW UP TO NORMAL USERS -->
+
     <string name="result_poster_img_des">封面</string>
     <string name="search_poster_img_des">封面</string>
     <string name="episode_poster_img_des">剧集封面</string>
@@ -16,7 +16,7 @@
     <string name="go_back_img_des">返回</string>
     <string name="home_change_provider_img_des">更改片源</string>
     <string name="preview_background_img_des">预览背景</string>
-    <!-- TRANSLATE, BUT DON'T FORGET FORMAT -->
+
     <string name="player_speed_text_format" formatted="true">速度（%.2fx）</string>
     <string name="rated_format" formatted="true">评分：%.1f</string>
     <string name="new_update_format" formatted="true">发现新版本！ \n%1$s -&gt; %2$s</string>
@@ -52,7 +52,7 @@
     <string name="reload_error">重试连接…</string>
     <string name="go_back">返回</string>
     <string name="play_episode">播放剧集</string>
-    <!--<string name="need_storage">允许下载剧集</string>-->
+
     <string name="download">下载</string>
     <string name="downloaded">已下载</string>
     <string name="downloading">下载中</string>
@@ -203,7 +203,7 @@
     <string name="free_storage">空闲</string>
     <string name="used_storage">已使用</string>
     <string name="app_storage">应用</string>
-    <!--plural-->
+
     <string name="movies">电影</string>
     <string name="tv_series">电视剧</string>
     <string name="cartoons">卡通</string>
@@ -215,7 +215,7 @@
     <string name="livestreams">直播</string>
     <string name="nsfw">NSFW</string>
     <string name="others">其他</string>
-    <!--singular-->
+
     <string name="movies_singular">电影</string>
     <string name="tv_series_singular">电视剧</string>
     <string name="cartoons_singular">卡通</string>
@@ -293,7 +293,7 @@
     <string name="app_theme_settings">应用主题</string>
     <string name="bottom_title_settings">封面标题位置</string>
     <string name="bottom_title_settings_des">将标题移至封面下方</string>
-    <!-- account stuff -->
+
     <string name="example_password">密码</string>
     <string name="example_username">用户名</string>
     <string name="example_email">邮箱</string>
@@ -317,7 +317,7 @@
     <string name="sync_total_episodes_some" formatted="true">/%d</string>
     <string name="authenticated_user" formatted="true">已验证 %s</string>
     <string name="authenticated_user_fail" formatted="true">无法登录到 %s</string>
-    <!-- ============ -->
+
     <string name="none">无</string>
     <string name="normal">普通</string>
     <string name="all">全部</string>
@@ -333,12 +333,7 @@
     <string name="subtitle_offset_extra_hint_later_format">如果字幕过早显示 %d ms，请使用此选项</string>
     <string name="subtitle_offset_extra_hint_before_format">如果字幕过晚显示 %d ms，请使用此选项</string>
     <string name="subtitle_offset_extra_hint_none_format">无字幕延迟</string>
-    <!--
-    Example text (pangram) can optionally be translated; if you do, include all the letters in the alphabet,
-    see: 
-	https://en.wikipedia.org/w/index.php?title=Pangram&oldid=225849300
-	https://en.wikipedia.org/wiki/The_quick_brown_fox_jumps_over_the_lazy_dog
-    -->
+
     <string name="subtitles_example_text">The quick brown fox jumps over the lazy dog</string>
     <string name="recommended">推荐</string>
     <string name="player_loaded_subtitles" formatted="true">已加载 %s</string>

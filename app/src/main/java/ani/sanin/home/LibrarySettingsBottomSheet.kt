@@ -17,11 +17,6 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.util.FocusEffectUtil
 import com.google.android.material.chip.Chip
 
-/**
- * Library sort / filter panel. Clean Material sheet (no clay): sort tiles in a
- * 2x2 grid, an inline single-select chip row for genre/status (no nested
- * dialog), and an 18+ toggle for anime mode. Everything is D-pad focusable.
- */
 class LibrarySettingsBottomSheet : BottomSheetDialogFragment() {
 
     private var _binding: BottomSheetLibrarySettingsBinding? = null
@@ -70,7 +65,6 @@ class LibrarySettingsBottomSheet : BottomSheetDialogFragment() {
         val outline = ctx.getThemeColor(com.google.android.material.R.attr.colorOutline)
         val density = resources.displayMetrics.density
 
-        // Header: primary-tinted rounded square behind the tune icon.
         binding.sheetHeaderIconBg.background = GradientDrawable().apply {
             cornerRadius = 14 * density
             setColor(ColorUtils.setAlphaComponent(primary, 40))
@@ -79,7 +73,6 @@ class LibrarySettingsBottomSheet : BottomSheetDialogFragment() {
 
         val currentSort = arguments?.getString("sort") ?: "updatedAt"
 
-        // Sort: 2x2 tiles, selected tile gets a primary fill.
         val sortButtons = linkedMapOf(
             binding.sortRecent to "updatedAt",
             binding.sortScore to "score",
@@ -96,10 +89,8 @@ class LibrarySettingsBottomSheet : BottomSheetDialogFragment() {
         }
         updateSortHighlight(currentSort, primary, onSurface, outline)
 
-        // Filter: inline single-select chips — no extra dialog.
         buildFilterChips()
 
-        // Clear All: resets genre filter to "All" and (anime mode) the 18+ toggle.
         FocusEffectUtil.applyFocusListener(binding.clearAllBtn)
         binding.clearAllBtn.setOnClickListener {
             allChip?.isChecked = true
@@ -112,7 +103,6 @@ class LibrarySettingsBottomSheet : BottomSheetDialogFragment() {
             }
         }
 
-        // 18+: anime mode only.
         val showNsfw = arguments?.getBoolean("showNsfw") ?: true
         if (!showNsfw || onNsfwChanged == null) {
             binding.nsfwRow.visibility = View.GONE
@@ -168,17 +158,15 @@ class LibrarySettingsBottomSheet : BottomSheetDialogFragment() {
             FocusEffectUtil.applyFocusListener(chip)
             binding.genreChipGroup.addView(chip)
         }
-        // Always keep a selection (defaults to "All").
+
         if (binding.genreChipGroup.checkedChipId == View.NO_ID && binding.genreChipGroup.childCount > 0) {
             (binding.genreChipGroup.getChildAt(0) as? Chip)?.isChecked = true
         }
     }
 
-    /** Filter items: genres for anime mode, status categories for movie mode. */
     private fun filterItems(): List<String> {
         arguments?.getStringArrayList("filters")?.takeIf { it.isNotEmpty() }?.let { return it }
-        // Movie mode has no offline genre list — show only "All" until TMDB
-        // enrichment populates the sheet.
+
         if ((arguments?.getBoolean("showNsfw") ?: true) == false) return emptyList()
         val stored = PrefManager.getVal<Set<String>>(PrefName.GenresList)
         return if (stored.isNullOrEmpty()) {

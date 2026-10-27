@@ -135,7 +135,6 @@ class BannerCarouselAdapter(
             return
         }
 
-        // --- Banner image (AniZip backdrop, fallback AniList banner/cover) ---
         val anizipUrl = backdropUrls[media.id]
         val imageUrl = if (is3DBanner()) media.cover
                        else if (!anizipUrl.isNullOrBlank()) anizipUrl
@@ -182,7 +181,6 @@ class BannerCarouselAdapter(
                 .into(bannerImage ?: holder.bannerBg)
         }
 
-        // --- Clearlogo (pre-fetched) / Title fallback ---
         holder.title.text = media.userPreferredName ?: media.name
         holder.title.isVisible = true
         holder.clearlogo.isVisible = false
@@ -211,9 +209,7 @@ class BannerCarouselAdapter(
                         return false
                     }
                 })
-            // Classic has a hardcoded logo size, so decode to exactly that and
-            // let the view scale it; the old fixed 240x64 was tuned for the
-            // wrap_content logo and left Classic's larger box undersampled.
+
             if (isClassicBanner() || is3DBanner()) {
                 logoReq.override(
                     holder.clearlogo.layoutParams.width,
@@ -225,10 +221,6 @@ class BannerCarouselAdapter(
             logoReq.into(holder.clearlogo)
         }
 
-        // --- Chips: format, status, season, score, then genres ---
-        // Classic folds all of these into one two-line area under the pill;
-        // Compact still uses the individual tag views, so those are filled
-        // first and only the genre row is shared.
         val formatText = media.format?.replace("_", " ")?.let { fmt ->
             when {
                 fmt.equals("TV", true) -> "TV Series"
@@ -267,7 +259,6 @@ class BannerCarouselAdapter(
             setChip(holder.scoreTag, scoreText)
         }
 
-        // --- Description ---
         val desc = media.description
             ?.replace(Regex("<.*?>"), "")
             ?.replace(Regex("\\s+"), " ")
@@ -281,9 +272,6 @@ class BannerCarouselAdapter(
             holder.description.isVisible = false
         }
 
-        // --- Genre chips ---
-        // In Classic the genres were already folded into the chip list above,
-        // so only Compact/Large still build the separate genre row here.
         val genresRow = holder.genresRow
         if (!isClassicBanner() && !is3DBanner()) {
             genresRow?.removeAllViews()
@@ -317,9 +305,6 @@ class BannerCarouselAdapter(
             }
         }
 
-        // --- Play button ---
-        // Says Continue once the user is actually watching something, matching
-        // the nav banner, so the label never promises a start they already did.
         holder.playBtn.setOnClickListener { onItemClick(media) }
         holder.playBtn.isFocusable = true
         holder.playBtn.isFocusableInTouchMode = false
@@ -329,7 +314,6 @@ class BannerCarouselAdapter(
         )
         holder.playBtn.visibility = View.VISIBLE
 
-        // --- Favorite button ---
         val favBtn = holder.favBtn
         val isFav = media.isFav
         favBtn?.setImageDrawable(
@@ -353,22 +337,14 @@ class BannerCarouselAdapter(
                 Anilist.mutation.toggleFav(media.anime != null, media.id)
             }
         }
-        // Hidden: a second focus stop inside a banner means the user has to press
-        // D-pad right twice to reach the next slide. The favourite is still one
-        // tap away on the details screen.
+
         favBtn?.visibility = View.GONE
 
-        // --- Item click ---
         holder.itemView.setOnClickListener { onItemClick(media) }
-        // Exactly one D-pad stop per banner, so left and right always mean the
-        // previous and next slide. That stop is the watch pill when the card
-        // carries one; only Compact in card mode has no pill, so it keeps the
-        // card itself as the stop. Either way the RecyclerView's focus search
-        // moves to the neighbouring card and scrolls it into view.
+
         holder.itemView.isFocusable = cardMode
         holder.itemView.isFocusableInTouchMode = false
 
-        // --- D-pad focus chain ---
         if (nextFocusDownId != View.NO_ID) {
             holder.playBtn.nextFocusDownId = nextFocusDownId
             favBtn?.nextFocusDownId = nextFocusDownId
@@ -382,7 +358,6 @@ class BannerCarouselAdapter(
 
         applyLandscapeOverlay(holder)
 
-        // --- Preload adjacent items ---
         for (offset in listOf(-1, 1)) {
             val pos = realPosition(position + offset)
             if (pos in items.indices) {
@@ -400,17 +375,12 @@ class BannerCarouselAdapter(
 
     override fun getItemCount() = if (items.isEmpty()) 0 else Int.MAX_VALUE
 
-    /**
-     * Modern mode: the landscape artwork is the background and every piece of metadata
-     * lives inside the banner, so the side overlay and the compact tag chips are unused.
-     */
     private fun bindModern(holder: ViewHolder, media: Media) {
         val ctx = holder.itemView.context
         val density = ctx.resources.displayMetrics.density
         applyModernMetrics(holder.itemView, holder.description)
         applyModernContentWidth(holder.itemView, holder.modernContent)
 
-        // --- Background art: AniZip backdrop, then AniList banner, then cover. ---
         val imageUrl = backdropUrls[media.id]?.takeIf { it.isNotBlank() }
             ?: media.banner?.takeIf { it.isNotBlank() }
             ?: media.cover
@@ -427,7 +397,6 @@ class BannerCarouselAdapter(
             holder.bannerBg.isVisible = false
         }
 
-        // --- Portrait poster, floated on the right. ---
         val poster = holder.poster
         val posterUrl = media.cover
         if (!posterUrl.isNullOrBlank() && poster != null) {
@@ -441,7 +410,6 @@ class BannerCarouselAdapter(
             poster?.isVisible = false
         }
 
-        // --- Logo art, falling back to the title text. ---
         val logoUrl = if (PrefManager.getVal(PrefName.UseClearlogoInPosters)) logoUrls[media.id] else null
         if (!logoUrl.isNullOrBlank()) {
             holder.clearlogo.isVisible = true
@@ -458,7 +426,6 @@ class BannerCarouselAdapter(
             holder.title.text = media.userPreferredName ?: media.name
         }
 
-        // --- Synopsis ---
         val desc = media.description
             ?.replace(Regex("<.*?>"), "")
             ?.replace(Regex("\\s+"), " ")
@@ -470,7 +437,6 @@ class BannerCarouselAdapter(
             holder.description.isVisible = false
         }
 
-        // --- Genres · Year · Rating · Status · Type · Country ---
         val metaRow = holder.metaRow
         metaRow?.removeAllViews()
         metaRow?.let { row ->
@@ -479,7 +445,7 @@ class BannerCarouselAdapter(
             }
             addModernMetaItem(row, media.anime?.seasonYear?.toString(), density)
             media.meanScore?.let { score ->
-                // AniList scores 0-100; the meta row shows them out of 10.
+
                 addModernMetaItem(row, String.format("%.1f", score / 10f), density, withStar = true)
             }
             addModernMetaItem(
@@ -493,15 +459,13 @@ class BannerCarouselAdapter(
             row.isVisible = row.childCount > 0
         }
 
-        // --- Watch Now: the banner's only D-pad stop, so it drives slide navigation. ---
         holder.playBtn.setOnClickListener { onItemClick(media) }
         holder.playBtn.isFocusable = true
         holder.playBtn.isFocusableInTouchMode = false
         holder.playBtn.isVisible = true
 
         holder.itemView.setOnClickListener { onItemClick(media) }
-        // Watch Now is the banner's only D-pad stop, so the card itself stays
-        // out of the focus chain.
+
         holder.itemView.isFocusable = false
         holder.itemView.isFocusableInTouchMode = false
 
@@ -567,8 +531,6 @@ class BannerCarouselAdapter(
             return
         }
 
-        // Classic keeps its full stack (pill, chips, logo) in both orientations;
-        // landscape just centres it and drops the left scrim.
         if (isClassicBanner()) {
             scrim.isVisible = false
             bottomGradient.isVisible = true
@@ -580,8 +542,7 @@ class BannerCarouselAdapter(
             val padH = if (landscapeOverlay) (24 * density).toInt() else (16 * density).toInt()
             val padB = if (landscapeOverlay) (10 * density).toInt() else (14 * density).toInt()
             content.setPadding(padH, 0, padH, padB)
-            // The logo has a fixed size from the layout, so clear the old
-            // maxWidth/maxHeight that used to make it vary per logo.
+
             holder.clearlogo.maxWidth = Int.MAX_VALUE
             holder.clearlogo.maxHeight = Int.MAX_VALUE
             holder.favBtn?.isVisible = false
@@ -602,7 +563,7 @@ class BannerCarouselAdapter(
             return
         }
         val half = cardWidthPx / 2
-        // Large type: no left 3-layer scrim, only the gradient below.
+
         val largeBanner = isClassicBanner()
         scrim.isVisible = !largeBanner
         scrim.layoutParams = scrim.layoutParams.apply { width = half }
@@ -618,33 +579,12 @@ class BannerCarouselAdapter(
     }
 }
 
-/** Genres get their own budget in the meta row; the rest of the line is short. */
 const val MODERN_MAX_GENRES = 3
 
-/**
- * How often the auto-advance re-checks whether a slide has come to rest. The banner
- * drives its own auto-advance from a timer, and the timer is restarted when the carousel
- * reports idle, so this is only a guard for the case where that callback never arrives.
- */
 internal const val BANNER_SETTLE_POLL_MS = 120L
 
-/** The content column is capped to this fraction of the banner so it clears the poster. */
 private const val MODERN_CONTENT_WIDTH_FRACTION = 0.58f
 
-/**
- * Re-applies the Modern banner's dimension-driven metrics on every bind.
- *
- * MainActivity handles rotation itself via android:configChanges, so the banner
- * items are never re-inflated and a dimension resolved at inflate time would stay
- * at the portrait value for the life of the recycled ViewHolder. That is what made
- * some banners keep the 240dp/12sp portrait metrics after rotating to landscape
- * while freshly inflated ones picked up 300dp/15sp.
- *
- * Reading them here fixes it because the Resources object is refreshed on a
- * configuration change even when the activity is not recreated, so any holder
- * corrects itself the next time it is bound. The px form of the synopsis size is
- * deliberate: it already carries fontScale, exactly as the inflated attribute did.
- */
 internal fun applyModernMetrics(root: View, description: TextView?) {
     val res = root.resources
     val height = res.getDimensionPixelSize(R.dimen.banner_modern_height)
@@ -659,11 +599,6 @@ internal fun applyModernMetrics(root: View, description: TextView?) {
     )
 }
 
-/**
- * Caps the Modern banner's content column to a fraction of the banner width.
- * AAPT2 rejects a percentage on a FrameLayout child's layout_width, so the
- * fraction is applied here once the item has been measured.
- */
 internal fun applyModernContentWidth(root: View, content: View?) {
     content ?: return
     val apply = {
@@ -680,14 +615,8 @@ internal fun applyModernContentWidth(root: View, content: View?) {
     if (root.width > 0) apply() else root.post { apply() }
 }
 
-/** Slightly muted white for the metadata line. */
 private val MODERN_META_MUTED = 0xCCFFFFFF.toInt()
 
-/**
- * Appends one item to a Modern banner's metadata line, prefixed by a centred
- * dot when it is not the first. Blank text is skipped, so callers can pass
- * whatever fields happen to be populated.
- */
 internal fun addModernMetaItem(
     row: LinearLayout,
     value: String?,
@@ -698,8 +627,7 @@ internal fun addModernMetaItem(
     if (value.isNullOrBlank()) return
     val ctx = row.context
     val res = ctx.resources
-    // Read as px: the dimen is declared in sp, so this carries fontScale, which
-    // dividing by density alone would drop.
+
     val textPx = res.getDimension(R.dimen.banner_modern_meta_text)
     val gap = res.getDimension(R.dimen.banner_modern_meta_gap).toInt()
 
@@ -747,7 +675,6 @@ internal fun addModernMetaItem(
     )
 }
 
-/** Shows a chip view with [text], or hides it when there is nothing to show. */
 private fun setChip(view: TextView?, text: String?) {
     if (view == null) return
     if (!text.isNullOrBlank()) {
@@ -758,10 +685,6 @@ private fun setChip(view: TextView?, text: String?) {
     }
 }
 
-/**
- * Modern gets its own layout, Classic gets its own, and Compact keeps the
- * original card layout it has always used.
- */
 fun layoutForBannerType(modern: Boolean): Int = when {
     is3DBanner() -> R.layout.item_banner_3d
     modern -> R.layout.item_banner_modern

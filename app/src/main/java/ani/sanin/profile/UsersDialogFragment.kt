@@ -9,7 +9,6 @@ import ani.sanin.BottomSheetDialogFragment
 import ani.sanin.databinding.BottomSheetUsersBinding
 import ani.sanin.util.FocusEffectUtil
 
-
 class UsersDialogFragment : BottomSheetDialogFragment() {
     private var _binding: BottomSheetUsersBinding? = null
     private val binding get() = _binding!!

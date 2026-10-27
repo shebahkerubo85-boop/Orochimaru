@@ -39,7 +39,6 @@ class SimklSectionFragment : Fragment() {
     private var originalItems: List<Simkl.SimklWatchedItem> = emptyList()
     private var recyclerView: RecyclerView? = null
 
-    /** Hands DPAD_UP on a first-row card back to the status pill. Set by the host fragment. */
     var onExitUp: (() -> Boolean)? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,8 +57,7 @@ class SimklSectionFragment : Fragment() {
     ): View {
         return RecyclerView(requireContext()).apply {
             val dm = resources.displayMetrics
-            // One shared density rule, so this grid, TMDB discovery and both anime grids
-            // always agree on the column count instead of each guessing its own.
+
             val cols = TmdbCards.gridSpan(dm.widthPixels / dm.density)
             layoutManager = GridLayoutManager(requireContext(), cols)
             overScrollMode = View.OVER_SCROLL_NEVER
@@ -81,10 +79,6 @@ class SimklSectionFragment : Fragment() {
         updateAdapter(items)
     }
 
-    /**
-     * Sends focus to the first card of the grid (first row, left column). Scrolls to the top first
-     * so a scrolled grid can't leave focus on an arbitrary remembered child.
-     */
     fun focusFirstCard(): Boolean {
         val rv = recyclerView ?: return false
         rv.stopScroll()
@@ -101,10 +95,6 @@ class SimklSectionFragment : Fragment() {
         return true
     }
 
-    /**
-     * True only when the focused card is in the grid's first row, so the host can hand focus up to
-     * the status pill; lower rows fall through to the default vertical search.
-     */
     private fun dpadUpToHeader(): Boolean {
         val rv = recyclerView ?: return false
         val focused = rv.findFocus() ?: return false
@@ -158,8 +148,7 @@ class SimklSectionFragment : Fragment() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        // MainActivity handles configChanges, so this fragment's RecyclerView is the one
-        // built in onCreateView and still carries the portrait span after a rotation.
+
         recyclerView?.let { TmdbCards.applyGridSpan(it) }
     }
 
@@ -180,8 +169,7 @@ class SimklSectionFragment : Fragment() {
             val landscape = TmdbCards.isLandscapeOrientation()
             val size = TmdbCards.cardSize()
             val (baseW, baseH) = if (landscape) 260f to 148f else 102f to 154f
-            // Fill the column. At the preferred card width these cards were wider than a
-            // cell at three columns, so the right-hand one ran under its neighbour.
+
             val rv = holder.itemView.parent as? RecyclerView
             val span = (rv?.layoutManager as? GridLayoutManager)?.spanCount ?: 0
             val cell = if (rv != null && span > 0) TmdbCards.cellWidthPx(rv, span) else 0
@@ -191,7 +179,7 @@ class SimklSectionFragment : Fragment() {
                 width = w
                 height = h
             }
-            // Same row gap as TMDB discovery, so the two TMDB grids match.
+
             (holder.itemView.parent as? RecyclerView)?.let { rv ->
                 b.root.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                     bottomMargin = TmdbCards.gridRowGapPx(rv)
@@ -199,13 +187,11 @@ class SimklSectionFragment : Fragment() {
             }
             b.tmdbCard.radius = TmdbCards.roundness()
 
-            // Reset before async loads
             b.tmdbCardTitle.isVisible = true
             b.tmdbCardTitle.text = item.title
             b.tmdbCardYear.text = item.year?.toString() ?: ""
             b.tmdbCardYear.isVisible = item.year != null
 
-            // Rating pill: user rating first, TMDB fallback
             val rating = b.tmdbCardRating
             val ratingText = b.tmdbCardRatingText
             val userRating = item.userRating
@@ -214,7 +200,7 @@ class SimklSectionFragment : Fragment() {
                 ratingText.text = String.format("%.1f", userRating.toDouble())
             } else {
                 rating.isVisible = false
-                // Async TMDB vote average fallback
+
                 val tmdbId = item.ids?.tmdb
                 val mt = item.mediaType ?: "tv"
                 if (tmdbId != null && tmdbId > 0) {
@@ -246,7 +232,6 @@ class SimklSectionFragment : Fragment() {
                 b.tmdbCardLogo.isVisible = false
             }
 
-            // Load image + logo async (same pattern as anime library)
             val tmdbId = item.ids?.tmdb
             val mediaType = item.mediaType ?: "tv"
             if (tmdbId != null) {
@@ -258,7 +243,6 @@ class SimklSectionFragment : Fragment() {
                     withContext(Dispatchers.Main) {
                         if (!holder.bindingEquals(item)) return@withContext
 
-                        // Image: landscape → backdrop, portrait → poster
                         val imageUrl = if (landscape) {
                             backdropUrl ?: Simkl.imageUrl(item.poster, "w")
                         } else {
@@ -266,7 +250,6 @@ class SimklSectionFragment : Fragment() {
                         }
                         b.tmdbCardPoster.loadImage(imageUrl)
 
-                        // Logo overlay in landscape mode
                         if (landscape && !logoUrl.isNullOrBlank()) {
                             b.tmdbCardLogo.isVisible = true
                             val logoW = (b.tmdbCardPoster.layoutParams.width * 0.7f).toInt().coerceIn(60, 180)
@@ -280,7 +263,7 @@ class SimklSectionFragment : Fragment() {
                     }
                 }
             } else {
-                // No TMDB ID — use Simkl poster
+
                 val imageUrl = if (landscape) {
                     Simkl.imageUrl(item.poster, "w")
                 } else {
@@ -289,10 +272,9 @@ class SimklSectionFragment : Fragment() {
                 b.tmdbCardPoster.loadImage(imageUrl)
             }
 
-            // ── Progress badge (gated by CardMetadataBottom) ──
             val progressBadge = b.root.findViewById<View>(R.id.progressBadge)
             val wantProgress = PrefManager.getVal<Int>(PrefName.CardMetadataBottom) == 2 &&
-                !(landscape && true)  // landscape cards use overlay title
+                !(landscape && true)
             if (!wantProgress) {
                 progressBadge?.isVisible = false
             } else if (progressBadge != null) {
@@ -330,7 +312,7 @@ class SimklSectionFragment : Fragment() {
                         }
                     }
                 } else {
-                    // TV: async detail for released/TT
+
                     watchedIcon.isVisible = false
                     watchedCount.text = "~"
                     releasedIcon.isVisible = false

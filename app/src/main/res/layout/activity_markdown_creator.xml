@@ -201,7 +201,6 @@
                 app:tint="?attr/colorOnBackground"
                 tools:ignore="ContentDescription" />
 
-
         </LinearLayout>
 
         <LinearLayout

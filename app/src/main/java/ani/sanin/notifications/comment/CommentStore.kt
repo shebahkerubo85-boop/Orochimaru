@@ -2,7 +2,6 @@ package ani.sanin.notifications.comment
 
 import kotlinx.serialization.Serializable
 
-
 @Serializable
 data class CommentStore(
     val title: String,

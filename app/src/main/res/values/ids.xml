@@ -1,21 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Per-view generation tag guarding stale episode-notification enrichment -->
+
     <item name="episode_enrichment_gen" type="id" />
 
-    <!--
-      One anchor per Explore rail. The five rows are five includes of a single row
-      layout, so their child ids repeat; these give the focus chain one distinct id
-      per row instead of an ambiguous shared one.
-    -->
     <item name="tmdbRowInCinema" type="id" />
     <item name="tmdbRowTrending" type="id" />
     <item name="tmdbRowTopRated" type="id" />
     <item name="tmdbRowLatestRelease" type="id" />
     <item name="tmdbRowUpcoming" type="id" />
 
-    <!-- Marks a horizontal media/card rail so D-pad up/down can land on its first card
-         and D-pad right can trap at its end, without touching the banner pager or
-         unrelated horizontal rails. -->
     <item name="section_row_tag" type="id" />
 </resources>

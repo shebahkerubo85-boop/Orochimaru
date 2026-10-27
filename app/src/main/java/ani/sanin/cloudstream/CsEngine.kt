@@ -19,12 +19,6 @@ import javax.crypto.spec.SecretKeySpec
 
 class CsEngineException(message: String) : Exception(message)
 
-/**
- * Runs the Zangetsu-style JS providers (index.json manifest + .js scraper) on
- * QuickJS. The bridge is synchronous: every `fetch`/crypto call blocks the
- * engine thread in Java, so a full provider call (including its promise chains)
- * settles inside one evaluate + job-queue pump.
- */
 object CsEngine {
 
     interface CsNativeFetch { fun fetch(src: String, url: String, optsJson: String): String }
@@ -34,7 +28,6 @@ object CsEngine {
 
     private val engineLock = Any()
 
-    /** Calls a provider method and returns the JSON-stringified result. */
     suspend fun call(
         sourceId: String,
         method: String,

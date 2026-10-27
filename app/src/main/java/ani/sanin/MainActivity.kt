@@ -102,12 +102,11 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.io.Serializable
 
-
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { _ -> /* result handled by system */ }
+    ) { _ ->  }
     private lateinit var incognitoLiveData: SharedPreferenceBooleanLiveData
     private val scope = lifecycleScope
     private var load = false
@@ -127,8 +126,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun getFragmentForTab(index: Int): Fragment = when (index) {
         0 -> if (isAnimeMode()) HomeFragment() else TmdbHomeFragment()
-        // No movie-mode branch: explore is the empty TMDB slot until it has
-        // contents, so it resolves to nothing rather than to another screen.
+
         1 -> if (isAnimeMode()) AnimeFragment() else TmdbExploreFragment()
         2 -> if (isAnimeMode()) DiscoveryFragment() else TmdbDiscoveryFragment()
         3 -> if (isAnimeMode()) LibraryFragment() else TmdbLibraryFragment()
@@ -145,7 +143,6 @@ class MainActivity : AppCompatActivity() {
             .replace(R.id.fragmentContainer, fragment, tag)
             .commit()
     }
-
 
     @kotlin.OptIn(DelicateCoroutinesApi::class)
     @SuppressLint("InternalInsetResource", "DiscouragedApi")
@@ -207,7 +204,6 @@ class MainActivity : AppCompatActivity() {
         rescueLayoutParams.topMargin = 11 * offset / 12
         binding.rescueModeIcon.layoutParams = rescueLayoutParams
 
-      
         fun syncRescueIconMargin(incognitoOn: Boolean) {
             val p = binding.rescueModeIcon.layoutParams as ViewGroup.MarginLayoutParams
             p.marginStart = if (incognitoOn) {
@@ -288,8 +284,7 @@ class MainActivity : AppCompatActivity() {
         val initComplete = CompletableDeferred<Unit>()
         if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) {
             val splashView = ComposeView(this).apply {
-                // Opaque from the first frame so the home tab
-                // never shows through while the splash fades in.
+
                 setBackgroundColor(android.graphics.Color.BLACK)
                 setContent {
                     SaninLandscapeSplash(
@@ -309,8 +304,7 @@ class MainActivity : AppCompatActivity() {
             binding.root.addView(splashView)
         } else {
             val splashView = ComposeView(this).apply {
-                // Opaque from the first frame so the home tab
-                // never shows through while the splash fades in.
+
                 setBackgroundColor(android.graphics.Color.BLACK)
                 setContent {
                     SaninPortraitSplash(
@@ -344,11 +338,9 @@ class MainActivity : AppCompatActivity() {
             window.navigationBarColor = ContextCompat.getColor(this, android.R.color.transparent)
             binding.mainProgressBar.visibility = View.GONE
 
-            // Setup home side rail (replaces compose navPills)
             navPillsViewModel = ViewModelProvider(this)[NavigationPillsViewModel::class.java]
             setupHomeNavRail()
 
-            // Setup avatar and right rail drawer
             binding.mainAvatarContainer.visibility = View.VISIBLE
             Anilist.getSavedToken()
             Simkl.getSavedToken()
@@ -363,12 +355,12 @@ class MainActivity : AppCompatActivity() {
                     null
                 )
             }
-            // Focus: each icon gets its own border
+
             FocusEffectUtil.applyFocusListener(binding.mainCalendarContainer)
             FocusEffectUtil.applyFocusListener(binding.mainUserAvatarContainer)
-            // Calendar: same lens button as the Extensions icons.
+
             LensButtonBackground.apply(binding.mainCalendarContainer)
-            // Focus chain: calendar ↔ avatar
+
             binding.mainCalendarContainer.nextFocusLeftId = R.id.mainUserAvatarContainer
             binding.mainCalendarContainer.nextFocusRightId = R.id.mainUserAvatarContainer
             binding.mainUserAvatarContainer.nextFocusLeftId = R.id.mainCalendarContainer
@@ -377,18 +369,16 @@ class MainActivity : AppCompatActivity() {
             updateModeLabel()
             updateNavPillForMode()
 
-            // Observe tab changes
             lifecycleScope.launch {
                 navPillsViewModel.currentTab.collect { tabIndex ->
                     switchTab(tabIndex)
                     attachNavPillScroll()
-                    // Hide floating avatar+calendar on Discovery and Library tabs
+
                     binding.mainAvatarContainer.visibility =
                         if (tabIndex == 2 || tabIndex == 3 || tabIndex == 4) View.GONE else View.VISIBLE
                 }
             }
 
-            // Load initial tab
             var startTab = PrefManager.getVal<Int>(PrefName.DefaultStartUpTab)
             if (startTab > 1) {
                 startTab = 0
@@ -397,7 +387,6 @@ class MainActivity : AppCompatActivity() {
             navPillsViewModel.setTab(startTab)
             switchTab(startTab)
 
-            // Setup avatar and right rail drawer
             loadAvatar()
             setupRightRail()
             binding.homeNavRail.post { updateSideRail() }
@@ -457,7 +446,6 @@ class MainActivity : AppCompatActivity() {
             } else {
                 val model: AnilistHomeViewModel by viewModels()
 
-                //Load Data
                 if (!load && !launched) {
                     scope.launch(Dispatchers.IO) {
                         model.loadMain(this@MainActivity)
@@ -525,15 +513,11 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 KeyEvent.KEYCODE_DPAD_UP -> {
-                    // Moving between card rows always lands on the row's first (leftmost) card
-                    // rather than whichever card the framework's spatial search happened to pick.
+
                     if (moveToAdjacentSectionRow(View.FOCUS_UP)) return true
                 }
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    // DOWN off the Library status pill must land on the grid's first card. The
-                    // pill's own nextFocusDown points at the view pager, whose focus search would
-                    // restore whatever card it last held, so resolve it here before the framework
-                    // runs that search.
+
                     if (isFocusInLibraryStatusPill()) {
                         val fragment = currentFragmentTag?.let {
                             supportFragmentManager.findFragmentByTag(it)
@@ -557,9 +541,7 @@ class MainActivity : AppCompatActivity() {
                         hideHomeNavRail()
                         return true
                     }
-                    // The right edge of a card row is a wall: focus stays on the last item
-                    // (the chevron when present, otherwise the last card) instead of spilling
-                    // into the next section.
+
                     if (isAtSectionRowEnd(currentFocus)) return true
                 }
                 KeyEvent.KEYCODE_DPAD_LEFT -> {
@@ -595,8 +577,7 @@ class MainActivity : AppCompatActivity() {
                                     val lm = p.layoutManager
                                     val holder = p.findContainingViewHolder(focus)
                                     if (lm is GridLayoutManager) {
-                                        // Vertical grid: allow DPAD-left to move to the previous
-                                        // card unless we are already in the first column (far left).
+
                                         val pos = holder?.bindingAdapterPosition ?: RecyclerView.NO_POSITION
                                         val span = lm.spanCount
                                         if (lm.orientation == GridLayoutManager.VERTICAL && pos != RecyclerView.NO_POSITION && span > 1) {
@@ -643,7 +624,6 @@ class MainActivity : AppCompatActivity() {
         return super.dispatchKeyEvent(event)
     }
 
-    /** The horizontal media rail (section row) that contains [v], if any. */
     private fun sectionRowOf(v: View?): RecyclerView? {
         var view: View? = v
         while (view != null) {
@@ -657,26 +637,17 @@ class MainActivity : AppCompatActivity() {
         return null
     }
 
-    /** True when [v] is focus inside a media row and sits on its last focusable item. */
     private fun isAtSectionRowEnd(v: View?): Boolean {
         val focus = v ?: return false
         val row = sectionRowOf(focus) ?: return false
         val holder = row.findContainingViewHolder(focus) ?: return false
-        // absoluteAdapterPosition, not bindingAdapterPosition: home/explore rows wrap their
-        // adapter (plus a trailing "show more" chevron) in a ConcatAdapter, so the binding
-        // position is relative to the inner adapter (0..n-1 or always 0 for the chevron) and
-        // never reaches the row's last index. That let D-pad right walk off the end and loop.
+
         val pos = holder.absoluteAdapterPosition
         if (pos == RecyclerView.NO_POSITION) return false
         val count = row.adapter?.itemCount ?: return false
         return pos == count - 1
     }
 
-    /**
-     * Moves focus from a card row to the neighbouring row in [direction], landing on the
-     * target row's first card. Returns false when focus is not in a media row so the
-     * framework's normal navigation still runs.
-     */
     private fun moveToAdjacentSectionRow(direction: Int): Boolean {
         val focus = currentFocus ?: return false
         if (sectionRowOf(focus) == null) return false
@@ -699,7 +670,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** True when the focused view is (or sits inside) a Library status pill. */
     private fun isFocusInLibraryStatusPill(): Boolean {
         var view: View? = currentFocus
         while (view != null) {
@@ -722,8 +692,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateNavPillForMode() {
-        // Never hidden. Movie mode keeps it as the slot that will hold the TMDB
-        // content, so the rail is four pills in both modes.
+
         binding.homeNavExplore.visibility = View.VISIBLE
         binding.homeNavHome.nextFocusDownId = R.id.homeNavExplore
         binding.homeNavExplore.nextFocusUpId = R.id.homeNavHome
@@ -748,9 +717,7 @@ class MainActivity : AppCompatActivity() {
         if (supportFragmentManager.isStateSaved) return
         val tag = tabFragments[0] ?: "home"
         val fragment = getFragmentForTab(0)
-        // Tag must be set before setTab() — commit() is async so currentFragmentTag
-        // was still null, letting switchTab() create a *second* HomeFragment that
-        // doubled memory pressure and OOM-killed the app on low-RAM devices.
+
         currentFragmentTag = tag
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragmentContainer, fragment, tag)
@@ -782,7 +749,7 @@ class MainActivity : AppCompatActivity() {
             GlassEffectManager.isComponentEnabled(GlassComponent.NavPills)
         )
         updateSideRailGlass()
-        // Push home nav rail up when system nav bar is visible
+
         ViewCompat.setOnApplyWindowInsetsListener(binding.homeNavRail) { v, insets ->
             val bottomInset = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
             (v.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
@@ -871,7 +838,7 @@ class MainActivity : AppCompatActivity() {
                     ?: throw Exception("Error reading file")
             val name =
                 DocumentFile.fromSingleUri(this, uri)?.name ?: "settings"
-            //.sani is encrypted, .ani is not
+
             if (name.endsWith(".sani")) {
                 passwordAlertDialog { password ->
                     if (password != null) {
@@ -915,7 +882,6 @@ class MainActivity : AppCompatActivity() {
     private fun passwordAlertDialog(callback: (CharArray?) -> Unit) {
         val password = CharArray(16).apply { fill('0') }
 
-        // Inflate the dialog layout
         val dialogView = DialogUserAgentBinding.inflate(layoutInflater).apply {
             TvKeyboardUtil.setupTvInput(userAgentTextBox)
             userAgentTextBox.hint = "Password"
@@ -1101,12 +1067,7 @@ class MainActivity : AppCompatActivity() {
             updateHomeNavIconTints()
         }
         setHomeNavPillsFocusable(true)
-        // The rail measures 0-wide while it is GONE, so the indicator kept the
-        // coordinates it had before hiding and landed on the icon alone, without the
-        // label. Nothing recomputed it on the way back in. Only MainActivity hides the
-        // rail on scroll, which is why only MainActivity showed this. syncGlass() is the
-        // documented re-shown hook: it re-measures the label and re-places the indicator
-        // once layout has settled.
+
         homeNavPill?.syncGlass()
         val tab = navPillsViewModel.currentTab.value
         val id = when (tab) {
@@ -1219,8 +1180,7 @@ class MainActivity : AppCompatActivity() {
                 true
             } else false
         }
-        
-        // Media & tracker button
+
         findViewById<View>(R.id.rightRailMediaTracker).setOnClickListener { showMediaTrackerBottomSheet() }
         FocusEffectUtil.applyFocusListener(findViewById(R.id.rightRailMediaTracker))
 
@@ -1247,7 +1207,6 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    /** Opens the account side rail, or closes it when already open. Shared by both Library modes. */
     fun toggleRightRail() {
         if (!binding.mainDrawer.isDrawerOpen(Gravity.END)) {
             populateRightRail()

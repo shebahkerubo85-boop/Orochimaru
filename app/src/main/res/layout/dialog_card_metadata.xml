@@ -9,7 +9,6 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- Title -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -24,7 +23,6 @@
             android:layout_height="1dp"
             android:background="?android:attr/listDivider" />
 
-        <!-- ─── Top section header ─── -->
         <LinearLayout
             android:id="@+id/metadataTopRow"
             android:layout_width="match_parent"
@@ -53,7 +51,6 @@
                 android:contentDescription="@string/empty" />
         </LinearLayout>
 
-        <!-- Top expanded content -->
         <LinearLayout
             android:id="@+id/metadataTopExpanded"
             android:layout_width="match_parent"
@@ -63,7 +60,6 @@
             android:paddingStart="4dp"
             android:paddingEnd="4dp">
 
-            <!-- Rating badge row -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -101,7 +97,6 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Airing status row -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -139,7 +134,6 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- None row -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -179,7 +173,6 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- ─── Bottom section header ─── -->
         <LinearLayout
             android:id="@+id/metadataBottomRow"
             android:layout_width="match_parent"
@@ -208,7 +201,6 @@
                 android:contentDescription="@string/empty" />
         </LinearLayout>
 
-        <!-- Bottom expanded content -->
         <LinearLayout
             android:id="@+id/metadataBottomExpanded"
             android:layout_width="match_parent"
@@ -218,7 +210,6 @@
             android:paddingStart="4dp"
             android:paddingEnd="4dp">
 
-            <!-- Sub & Dub badge row -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -256,7 +247,6 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Progress badge row -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -294,7 +284,6 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- None row -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

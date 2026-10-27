@@ -6,14 +6,6 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import androidx.core.graphics.ColorUtils
 
-/**
- * Theme-adaptive three-layer gradient for the episode notification card:
- *
- *   transparent -> semi dark/white -> solid black (dark mode) / white (light mode)
- *
- * The right edge is always fully opaque so adaptive text stays readable and the
- * card always reads as "dark slab in dark mode, white slab in light mode".
- */
 object EpisodeCardGradient {
 
     fun build(context: Context): GradientDrawable {
@@ -29,9 +21,7 @@ object EpisodeCardGradient {
             GradientDrawable.Orientation.LEFT_RIGHT,
             colors
         )
-        // The color-offset overload setColors(int[], float[]) was added in API 29 (Q), not N.
-        // On older devices fall back to the constructor's evenly spaced gradient to avoid
-        // NoSuchMethodError.
+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
             drawable.setColors(colors, floatArrayOf(0f, 0.42f, 1f))
         }

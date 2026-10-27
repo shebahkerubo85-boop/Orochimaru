@@ -11,18 +11,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import okhttp3.Request
 
-/**
- * Resolves extra per-episode metadata (thumbnail, title, duration, air date)
- * for the episode notification cards.
- *
- * Source chain for anime:
- *  1. Anizip mappings (which already contain per-episode entries)
- *  2. TMDB episode stills (best source for recent episodes)
- *  3. Kitsu episode thumbnail (older catalogue entries)
- *
- * Results are cached in memory so tab switches / scrolling do not re-hit the
- * network for the same (show, episode).
- */
 data class EpisodeExtra(
     val thumbnailUrl: String? = null,
     val title: String? = null,
@@ -43,7 +31,6 @@ object EpisodeNotificationResolver {
             size > MAX_CACHE
     }
 
-    /** Per-TMDB-show cached season layout, avoids re-walking season ranges. */
     private data class ShowLayout(val seasonNumbers: List<Int>, val ranges: List<IntRange>)
 
     private val tmdbLayouts = HashMap<Int, ShowLayout>()
@@ -76,17 +63,13 @@ object EpisodeNotificationResolver {
             ?: mappings.images?.firstOrNull { it.coverType == "Banner" }?.url
 
 var thumbnail = entry?.image
-// AniZip is not asked for the episode title. Its endpoint takes no locale parameter, so there
-// was never a way to request English and the localized map had to be guessed at — which is how
-// a notification turned up with a fansub or Japanese title. The caller's fallback leads here
-// and TMDB's episode name is tried just below, so this loses nothing but the wrong language.
+
 var title = fallbackTitle
         var duration = entry?.runtime ?: entry?.length
         var airDate = entry?.airDateUtc?.take(10)
             ?: entry?.airDate
             ?: entry?.airdate
 
-        // TMDB stills — the only reliable thumbnails for recently aired episodes.
         if (thumbnail == null && episode != null) {
             val tmdbId = mappings.tmdbId?.toIntOrNull()
             if (tmdbId != null) {
@@ -99,7 +82,6 @@ var title = fallbackTitle
             }
         }
 
-        // Kitsu covers older catalogue episodes (and any missing title/duration).
         val kitsuId = mappings.kitsuId
         if (kitsuId != null && (thumbnail == null || title == null || duration == null || airDate == null)) {
             val k = kitsuEpisode(kitsuId, episode)
@@ -115,7 +97,6 @@ var title = fallbackTitle
         return EpisodeExtra(thumbnail, title, duration, airDate, backdrop)
     }
 
-    /** title, airDate, stillPath for (show, anilist episode number). */
     private suspend fun tmdbEpisodeMeta(tmdbId: Int, episode: Int): Triple<String?, String?, String?>? {
         return withContext(Dispatchers.IO) {
             try {
@@ -130,7 +111,7 @@ var title = fallbackTitle
                     ShowLayout(seasons.map { it.seasonNumber }, ranges)
                 }
                 if (layout.ranges.isEmpty()) return@withContext null
-                // Single season, renumbered per entry (Pattern A/C): episode N == S1E{N}.
+
                 val seasonIdx = if (layout.seasonNumbers.size == 1) 0
                 else layout.ranges.indexOfFirst { episode in it }.takeIf { it >= 0 } ?: return@withContext null
                 val season = layout.seasonNumbers[seasonIdx]
@@ -147,8 +128,6 @@ var title = fallbackTitle
             }
         }
     }
-
-    // ── Kitsu fallback ────────────────────────────────────────────────
 
     @Serializable
     private data class KitsuResponse(val data: List<KitsuEpisodeData> = emptyList())
@@ -197,5 +176,4 @@ var title = fallbackTitle
     }
 }
 
-// tiny quad holder to avoid a data class explosion
 private data class Quad<A, B, C, D>(val first: A?, val second: B?, val third: C?, val fourth: D?)

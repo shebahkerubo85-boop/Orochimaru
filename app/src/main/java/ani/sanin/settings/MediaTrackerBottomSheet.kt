@@ -61,7 +61,6 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
         val animeCatalogueNameView = v.findViewById<TextView>(R.id.sheetAnimeCatalogueName)
         val animeCatalogueArrow = v.findViewById<View>(R.id.sheetAnimeCatalogueArrow)
 
-        // Card banner/scrim/profile/tracker icon views
         val animeBanner = v.findViewById<ImageView>(R.id.sheetAnimeBanner)
         val animeScrim = v.findViewById<View>(R.id.sheetAnimeScrim)
         val animeProfilePic = v.findViewById<ImageView>(R.id.sheetAnimeProfilePic)
@@ -105,13 +104,11 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             animeButton.nextFocusDownId = View.NO_ID
         }
 
-        // --- Anime button card styling ---
         val savedTracker = PrefManager.getVal<Int>(PrefName.SelectedTracker)
         val savedType = PrefManager.getVal<Int>(PrefName.SelectedMediaType)
 
-        // Anime card: show profile if AniList (0) or MAL (1) is logged in
         if (savedType == 0 && savedTracker == 0 && Anilist.token != null) {
-            // AniList logged in
+
             val bannerUrl = Anilist.bg ?: Anilist.avatar
             if (bannerUrl != null) {
                 animeBanner.loadImage(bannerUrl)
@@ -125,7 +122,7 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             animeTrackerIcon.setImageResource(R.drawable.ic_anilist)
             animeTrackerIcon.visibility = View.VISIBLE
         } else if (savedType == 0 && savedTracker == 1 && MAL.token != null) {
-            // MAL logged in — use avatar as banner too (MAL has no bg)
+
             val bannerUrl = MAL.avatar
             if (bannerUrl != null) {
                 animeBanner.loadImage(bannerUrl)
@@ -140,7 +137,6 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             animeTrackerIcon.visibility = View.VISIBLE
         }
 
-        // --- Movie card styling: Simkl ---
         if (savedType == 1 && savedTracker == 2 && Simkl.token != null) {
             val bannerUrl = Simkl.avatar
             if (bannerUrl != null) {
@@ -156,7 +152,6 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             movieTrackerIcon.visibility = View.VISIBLE
         }
 
-        // --- Expand/collapse logic ---
         animeButton.setOnClickListener {
             val isVisible = animeExpanded.visibility == View.VISIBLE
             if (isVisible) {
@@ -265,7 +260,6 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             }
         }
 
-        // --- Tracker checkboxes → instant mode switch ---
         aniListCheck.setOnClickListener {
             if (aniListCheck.isChecked) {
                 if (Anilist.token == null) {
@@ -294,8 +288,7 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
                 aniListCheck.isChecked = false
                 PrefManager.setVal(PrefName.SelectedMediaType, 0)
                 PrefManager.setVal(PrefName.SelectedTracker, 1)
-                // MAL is the active anime tracker in rescue mode; selecting it here
-                // must actually switch tracking to MAL (AniList stays the linked mirror).
+
                 PrefManager.setVal(PrefName.RescueMode, true)
                 (activity as? MainActivity)?.setContentMode("anime")
                 collapseSection(animeExpanded, animeArrow)
@@ -320,7 +313,6 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             }
         }
 
-        // --- Plugin source picker (single-choice dialog, same as player speed) ---
         val installedSources = CsRepos.installed(requireContext())
         val pluginNames = mutableListOf("Simkl")
         val pluginIds = mutableListOf("simkl")
@@ -334,24 +326,18 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             val restoreIdx = pluginIds.indexOfFirst { it.equals(savedSource, ignoreCase = true) }
             val currentIdx = if (restoreIdx >= 0) restoreIdx else 0
             pluginNameView.text = pluginNames[currentIdx]
-            // Dialog layout: [List header] [Simkl] [divider] [Plugin header] [plug 1..n]
-            // so Simkl is position 1 and plugin i (>=1) is position i + 3.
+
             val adapterPos = if (currentIdx == 0) 1 else currentIdx + 3
             val picker = SourcePickerAdapter(requireContext(), pluginNames, adapterPos, headerSecond = "Plugin")
             requireContext().customAlertDialog().apply {
                 setTitle(R.string.home_metadata)
                 setWidthPx((240 * requireContext().resources.displayMetrics.density).toInt())
-                // The framework only ticks a radio for rows it wires up itself, and our
-                // BaseAdapter builds its own CheckedTextViews, so the ListView's checked
-                // set is never populated. Letting the adapter own the checked state is
-                // what actually moves the indicator.
+
                 attach { d ->
                     d.listView?.choiceMode = android.widget.ListView.CHOICE_MODE_NONE
                 }
                 singleChoiceAdapter(picker, adapterPos) { pos ->
-                    // Dialog positions 0, 2 and 3 are structural rows, not sources.
-                    // Guard the mapping before touching either list so an unexpected
-                    // callback position cannot crash the picker on older TV devices.
+
                     val idx = when {
                         pos == 1 -> 0
                         pos >= 4 -> pos - 3
@@ -377,7 +363,6 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
         pluginNameView.setOnClickListener { showSourcePicker() }
         pluginArrow.setOnClickListener { showSourcePicker() }
 
-        // --- Anime catalogue source picker (AniList/MAL + native providers + extensions) ---
         fun findCheckedPos(names: ArrayList<String>, ids: ArrayList<String>, savedCat: String, trackerId: String): Int {
             if (savedCat.isNotBlank()) {
                 val idx = ids.indexOfFirst { it.equals(savedCat, ignoreCase = true) }
@@ -394,12 +379,10 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
 
             val catalogueNames = mutableListOf<String>()
             val catalogueIds = mutableListOf<String>()
-            // List header entry (tracker)
+
             catalogueNames.add(trackerName)
             catalogueIds.add(trackerId)
 
-            // Only enabled providers can back the catalogue; the rest are not in the
-            // watch tab's source list, so offering them here would route nowhere.
             AnimeSources.nativeParsers.forEach { parser ->
                 val name = parser.name
                 if (name.isNotBlank() && !catalogueNames.contains(name)) {
@@ -408,7 +391,6 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
                 }
             }
 
-            // AniYomi extensions as catalogue sources
             try {
                 AnimeSources.list.forEach { lazy ->
                     val name = lazy.name
@@ -427,13 +409,11 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             }
             animeCatalogueNameView.text = catalogueNames.getOrNull(currentIdx) ?: trackerName
 
-            // Layout: [List header] [tracker/native...] [divider] [Extensions header] [extensions...]
-            // Put extensions after divider+header
             val namesWithStructure = ArrayList<String>()
             val idsWithStructure = ArrayList<String>()
-            namesWithStructure.add("List") // header marker
+            namesWithStructure.add("List")
             idsWithStructure.add("__HEADER_LIST__")
-            // Add tracker + natives in first group
+
             for (i in catalogueIds.indices) {
                 val id = catalogueIds[i]
                 if (id.startsWith("ext:")) continue
@@ -473,7 +453,6 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             }
         }
 
-        // Set initial anime catalogue name
         val savedTrackerInit = PrefManager.getVal<Int>(PrefName.SelectedTracker)
         val savedCatInit = PrefManager.getVal<String>(PrefName.AnimeCatalogueSource)
         val trackerNameInit = if (savedTrackerInit == 1) "MAL" else "AniList"
@@ -481,8 +460,7 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
             animeCatalogueNameView.text = trackerNameInit
         } else {
             if (savedCatInit.equals("anilist", true) || savedCatInit.equals("mal", true)) {
-                // A tracker id means "follow the tracker", so the label is whichever
-                // tracker is active now, not the one that happened to be saved.
+
                 animeCatalogueNameView.text = trackerNameInit
             } else if (savedCatInit.startsWith("native:")) {
                 val sn = savedCatInit.substringAfter("native:")
@@ -498,7 +476,6 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
         animeCatalogueNameView.setOnClickListener { showAnimeCataloguePicker() }
         animeCatalogueArrow.setOnClickListener { showAnimeCataloguePicker() }
 
-        // --- Restore checkbox state (but always start collapsed) ---
         when (savedTracker) {
             0 -> aniListCheck.isChecked = true
             1 -> malCheck.isChecked = true
@@ -524,7 +501,6 @@ class MediaTrackerBottomSheet : BottomSheetDialogFragment() {
         AnimUtils.rollCollapse(section)
         arrow.animate().rotation(0f).setDuration(AnimUtils.duration(200)).start()
     }
-
 
     override fun onStart() {
         super.onStart()
@@ -650,14 +626,6 @@ private class SourcePickerAdapterStructured(
     }
 }
 
-/**
- * Source picker rows for the dialog. Layout:
- *   position 0  -> "List" section header (small, primary color, left aligned)
- *   position 1  -> Simkl
- *   position 2  -> low-contrast divider
- *   position 3  -> "Plugin" section header
- *   positions 4+ -> installed plugin sources
- */
 private class SourcePickerAdapter(
     private val context: Context,
     private val names: List<String>,
@@ -671,19 +639,6 @@ private class SourcePickerAdapter(
         private const val TYPE_HEADER = 2
     }
 
-    /**
-     * A fresh radio drawable for one row.
-     *
-     * This used to be a `by lazy` shared by every row, which is why the selection was invisible:
-     * a Drawable carries its own checked/unchecked state, so rows sharing one instance each
-     * overwrote it as they were drawn and the last one bound won. The ListView draws top to
-     * bottom, so the final row left it unchecked and no tick ever appeared -- including on a
-     * freshly opened dialog, where the checked row was correct in the adapter but had nothing
-     * to render with.
-     *
-     * Each row now gets its own instance, and [bindRadioState] sets the state on it directly
-     * rather than relying on the TextView's drawable-state propagation.
-     */
     private fun newRadioIndicator(): android.graphics.drawable.Drawable? {
         val a = context.obtainStyledAttributes(intArrayOf(android.R.attr.listChoiceIndicatorSingle))
         return try {
@@ -705,21 +660,8 @@ private class SourcePickerAdapter(
 
     private val rowMaxWidth = (context.resources.displayMetrics.density * 280).toInt()
 
-    /**
-     * The adapter owns the checked row. The framework's single-choice handling never
-     * ticks a row that a BaseAdapter built itself, so asking the ListView what is
-     * checked (the previous approach) always came back with nothing and the radio
-     * indicator stayed blank.
-     */
     private var checkedPosition = checkedPosition
 
-    /**
-     * Moves the indicator, so the tick follows the tap immediately.
-     *
-     * This exists for the case where the dialog is configured not to dismiss on select. It has
-     * to notify, otherwise the change is invisible: mutating checkedPosition alone leaves the
-     * bound rows holding their previous drawable state with no reason to re-bind.
-     */
     fun setChecked(position: Int) {
         if (position == checkedPosition) return
         checkedPosition = position
@@ -731,7 +673,7 @@ private class SourcePickerAdapter(
     override fun getItem(position: Int): Any = when {
         position == 1 -> names[0]
         position >= 4 -> names[position - 3]
-        else -> "" // header/divider rows; disabled, never bound from a name
+        else -> ""
     }
 
     override fun getItemId(position: Int): Long = position.toLong()
@@ -767,7 +709,7 @@ private class SourcePickerAdapter(
                 val dp = context.resources.displayMetrics.density
                 header.setPadding(
                     (dp * 20).toInt(),
-                    if (position == 3) (dp * 12).toInt() else 0, // breathing room below the divider
+                    if (position == 3) (dp * 12).toInt() else 0,
                     (dp * 8).toInt(),
                     0
                 )
@@ -775,11 +717,7 @@ private class SourcePickerAdapter(
             }
 
             2 -> {
-                // A fresh divider is always built — its convertView is never
-                // recycled into a text row because of the distinct view type.
-                // White at ~17% alpha reads as a faint grey line on the
-                // AMOLED-black dialog surface (that's what the player's own
-                // dialog looks like), without clashing on light surfaces.
+
                 View(context).apply {
                     layoutParams = ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
@@ -792,8 +730,7 @@ private class SourcePickerAdapter(
             else -> {
                 val row = convertView as? CheckedTextView
                     ?: CheckedTextView(context).apply {
-                        // radio indicator sits on the left, right against the name.
-                        // Per-row instance: see newRadioIndicator() for why this cannot be shared.
+
                         setCompoundDrawablesWithIntrinsicBounds(newRadioIndicator(), null, null, null)
                         compoundDrawablePadding = (context.resources.displayMetrics.density * 2).toInt()
                         gravity = Gravity.CENTER_VERTICAL
@@ -804,8 +741,7 @@ private class SourcePickerAdapter(
                 row.ellipsize = android.text.TextUtils.TruncateAt.END
                 row.setSingleLine(true)
                 row.setPadding(0, 0, 0, 0)
-                // Checked state comes from the adapter, not from the ListView: this
-                // BaseAdapter builds its own rows, so the framework never ticks them.
+
                 bindRadioState(row, position == checkedPosition)
                 row
             }

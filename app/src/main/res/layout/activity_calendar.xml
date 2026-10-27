@@ -19,7 +19,6 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <!-- Header -->
         <LinearLayout
             android:id="@+id/calendarHeader"
             android:layout_width="match_parent"
@@ -80,7 +79,6 @@
                     android:text="@string/calendar_episodes_this_week" />
             </LinearLayout>
 
-            <!-- List only toggle -->
             <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/calendarListToggle"
                 android:layout_width="wrap_content"
@@ -91,11 +89,6 @@
                 android:contentDescription="Toggle list only" />
         </LinearLayout>
 
-        <!--
-            Week pill: the library capsule. A 7-day window scrolled one day at a time over a
-            fixed 3-week range (last week Monday .. next week Sunday). The selected day carries
-            the oval indicator; a dpad-focused but unselected day shows only the oval border.
-        -->
         <LinearLayout
             android:id="@+id/calendarPill"
             android:layout_width="match_parent"
@@ -127,7 +120,6 @@
             </HorizontalScrollView>
         </LinearLayout>
 
-        <!-- Day Label -->
         <TextView
             android:id="@+id/calendarDayLabel"
             android:layout_width="match_parent"
@@ -140,7 +132,6 @@
             android:visibility="gone"
             tools:text="Monday, September 1" />
 
-        <!-- Empty state -->
         <LinearLayout
             android:id="@+id/calendarEmpty"
             android:layout_width="match_parent"
@@ -168,7 +159,6 @@
                 android:textSize="14sp" />
         </LinearLayout>
 
-        <!-- Episode cards (wrapping grid) -->
         <com.google.android.flexbox.FlexboxLayout
             android:id="@+id/calendarDayEpisodes"
             android:layout_width="match_parent"
@@ -181,7 +171,6 @@
     </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- Loading spinner overlay: centred over the screen while cards load -->
     <FrameLayout
         android:id="@+id/calendarSpinner"
         android:layout_width="76.5dp"

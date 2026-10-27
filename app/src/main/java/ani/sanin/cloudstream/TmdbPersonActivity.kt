@@ -27,14 +27,6 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-/**
- * One cast or crew member, opened from a cast card on the TMDB info tab.
- *
- * Everything on this screen is optional. TMDB leaves out the biography, the dates, the
- * birthplace and the portrait for a large share of people, so each block is hidden
- * independently rather than the screen being all-or-nothing — a festival extra with a name
- * and a face should still be worth opening.
- */
 class TmdbPersonActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityTmdbPersonBinding
@@ -42,10 +34,7 @@ class TmdbPersonActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Theme before inflate, like every other screen. Without it this activity stayed
-        // on the manifest's Theme.Sanin, and every ?attr/colorPrimary in the layout — the
-        // actor's name and dates, the section headings, the rating stars — resolved to
-        // Material3's inherited #6750A4 purple.
+
         ThemeManager(this).applyTheme()
         binding = ActivityTmdbPersonBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -65,8 +54,7 @@ class TmdbPersonActivity : AppCompatActivity() {
     private fun load() {
         binding.tmdbPersonProgress.isVisible = true
         lifecycleScope.launch {
-            // One coroutine, not three: a failed person lookup should not leave a spinner
-            // over an empty screen, and the credits and photos are useless without the name.
+
             val person = withContext(Dispatchers.IO) { Tmdb.person(personId) }
             if (person == null) {
                 finish()
@@ -138,7 +126,6 @@ class TmdbPersonActivity : AppCompatActivity() {
         )
     }
 
-    /** `1969-08-18` to `18 August 1969`, or the raw value if TMDB sent something else. */
     private fun prettyDate(iso: String): String = runCatching {
         val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(iso)
             ?: return@runCatching iso

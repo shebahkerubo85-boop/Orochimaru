@@ -286,9 +286,8 @@ class KitsuApi: SyncAPI() {
     ): Boolean {
         val libraryEntryId = getAnimeLibraryEntryId(auth, id)
 
-        // Exists entry for anime in library
         if (libraryEntryId != null) {
-            // Delete anime from library
+
             if (status == null || status == KitsuStatusType.None) {
                 val res = app.delete(
                     "$apiUrl/library-entries/$libraryEntryId",
@@ -401,7 +400,6 @@ class KitsuApi: SyncAPI() {
             group.value.map { it.toLibraryItem() }
         } ?: emptyMap()
 
-        // To fill empty lists when Kitsu does not return them
         val baseMap =
             KitsuStatusType.entries.filter { it.value >= 0 }.associate {
                 it.stringRes to emptyList<LibraryItem>()
@@ -474,7 +472,7 @@ class KitsuApi: SyncAPI() {
     data class KitsuNode(
         @JsonProperty("id") @SerialName("id") val id: String,
         @JsonProperty("attributes") @SerialName("attributes") val attributes: KitsuNodeAttributes,
-        /* User list anime node */
+
         @JsonProperty("relationships") @SerialName("relationships") val relationships: KitsuRelationships?,
         @JsonProperty("anime") @SerialName("anime") var anime: KitsuAnimeData?,
     ) {
@@ -540,7 +538,7 @@ class KitsuApi: SyncAPI() {
 
     @Serializable
     data class KitsuNodeAttributes(
-        /* General attributes */
+
         @JsonProperty("titles") @SerialName("titles") val titles: KitsuTitles?,
         @JsonProperty("canonicalTitle") @SerialName("canonicalTitle") val canonicalTitle: String?,
         @JsonProperty("posterImage") @SerialName("posterImage") val posterImage: KitsuPosterImage?,
@@ -549,12 +547,12 @@ class KitsuApi: SyncAPI() {
         @JsonProperty("endDate") @SerialName("endDate") val endDate: String?,
         @JsonProperty("episodeCount") @SerialName("episodeCount") val episodeCount: Int?,
         @JsonProperty("episodeLength") @SerialName("episodeLength") val episodeLength: Int?,
-        /* User attributes */
+
         @JsonProperty("name") @SerialName("name") val name: String?,
         @JsonProperty("location") @SerialName("location") val location: String?,
         @JsonProperty("createdAt") @SerialName("createdAt") val createdAt: String?,
         @JsonProperty("avatar") @SerialName("avatar") val avatar: KitsuUserAvatar?,
-        /* User list anime attributes */
+
         @JsonProperty("progress") @SerialName("progress") val progress: Int?,
         @JsonProperty("ratingTwenty") @SerialName("ratingTwenty") val ratingTwenty: Int?,
         @JsonProperty("updatedAt") @SerialName("updatedAt") val updatedAt: String?,
@@ -590,11 +588,11 @@ class KitsuApi: SyncAPI() {
 
     @Serializable
     data class KitsuLinks(
-        /* Pagination */
+
         @JsonProperty("first") @SerialName("first") val first: String?,
         @JsonProperty("next") @SerialName("next") val next: String?,
         @JsonProperty("last") @SerialName("last") val last: String?,
-        /* Relationships */
+
         @JsonProperty("related") @SerialName("related") val related: String?,
     )
 
@@ -602,7 +600,7 @@ class KitsuApi: SyncAPI() {
     data class KitsuResponse(
         @JsonProperty("links") @SerialName("links") val links: KitsuLinks?,
         @JsonProperty("data") @SerialName("data") val data: List<KitsuNode>,
-        /* When requesting related info (User library entry -> anime) */
+
         @JsonProperty("included") @SerialName("included") val included: List<KitsuAnimeData>?,
     )
 
@@ -654,8 +652,6 @@ class KitsuApi: SyncAPI() {
     }
 }
 
-// modified code from from https://github.com/saikou-app/saikou/blob/main/app/src/main/java/ani/saikou/others/Kitsu.kt
-// GNU General Public License v3.0 https://github.com/saikou-app/saikou/blob/main/LICENSE.md
 object Kitsu {
     private suspend fun getKitsuData(query: String): KitsuResponse {
         val headers = mapOf(
@@ -681,7 +677,7 @@ object Kitsu {
     suspend fun getEpisodesDetails(
         malId: String?,
         anilistId: String?,
-        isResponseRequired: Boolean = true, // overrides isEnabled
+        isResponseRequired: Boolean = true,
     ): Map<Int, KitsuResponse.Node>? {
         if (!isResponseRequired && !isEnabled) return null
         if (anilistId != null) {

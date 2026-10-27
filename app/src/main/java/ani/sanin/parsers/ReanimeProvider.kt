@@ -82,13 +82,11 @@ class ReanimeProvider : NativeAnimeParser() {
                     }
                 }
 
-                // Fast pass: cover image embeds AniList ID
                 for ((id, r) in candidates) {
                     val coverId = anilistIdFromCover(r)
                     if (coverId == anilistId) return@withContext buildResponse(anilistId, id, r, null)
                 }
 
-                // Fallback: fetch details and compare anilist_id / mal_id
                 val needsDetail = candidates.filter { (_, r) -> anilistIdFromCover(r) == null }
                 for ((id, r) in needsDetail) {
                     val detailJson = runCatching { get("$baseUrl/api/v1/anime/$id", baseUrl) }.getOrNull() ?: continue

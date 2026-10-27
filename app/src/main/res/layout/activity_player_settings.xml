@@ -10,7 +10,6 @@
     android:orientation="vertical"
     tools:context=".settings.PlayerSettingsActivity">
 
-    <!-- Header row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -68,7 +67,6 @@
             tools:ignore="ContentDescription" />
     </LinearLayout>
 
-    <!-- Scrollable Tab row -->
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tabLayout"
         android:layout_width="match_parent"
@@ -81,8 +79,6 @@
         app:tabPaddingStart="16dp"
         app:tabTextAppearance="@style/NavBarText" />
 
-    <!-- Content area -->
-    <!-- Subtitle preview: outside the scroll view so it stays put on the Subtitle tab -->
     <FrameLayout
         android:id="@+id/subtitlePreviewContainer"
         android:layout_width="match_parent"
@@ -106,7 +102,6 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- Dynamic tab content -->
             <LinearLayout
                 android:id="@+id/tabContent"
                 android:layout_width="match_parent"

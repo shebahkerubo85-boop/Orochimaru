@@ -5,11 +5,6 @@ import android.widget.ImageView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 
-/**
- * Loads a CloudStream repo/plugin logo into an [ImageView]. Routes `.svg`
- * sources through [SvgDecoder] (PictureDrawable transcode chain) and everything
- * else through Glide's normal bitmap path.
- */
 object SvgImageLoader {
 
     fun load(imageView: ImageView, url: String?, placeholder: Int, error: Int) {

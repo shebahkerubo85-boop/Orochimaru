@@ -10,7 +10,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlin.math.pow
 
-/** backwards api surface */
 class M3u8Helper {
     companion object {
         suspend fun generateM3u8(
@@ -25,7 +24,6 @@ class M3u8Helper {
         }
     }
 
-
     data class M3u8Stream(
         val streamUrl: String,
         val quality: Int? = null,
@@ -36,7 +34,6 @@ class M3u8Helper {
         return M3u8Helper2.m3u8Generation(m3u8, returnThis ?: true)
     }
 }
-
 
 object M3u8Helper2 {
     private val TAG = "M3u8Helper"
@@ -78,7 +75,7 @@ object M3u8Helper2 {
     private val QUALITY_REGEX =
         Regex("""#EXT-X-STREAM-INF:(?:(?:.*?(?:RESOLUTION=\d+x(\d+)).*?\s+(.*))|(?:.*?\s+(.*)))""")
     private val TS_EXTENSION_REGEX =
-        Regex("""#EXTINF:(([0-9]*[.])?[0-9]+|).*\n(.+?\n)""") // fuck it we ball, who cares about the type anyways
+        Regex("""#EXTINF:(([0-9]*[.])?[0-9]+|).*\n(.+?\n)""")
 
     private fun absoluteExtensionDetermination(url: String): String? {
         val split = url.split("/")
@@ -133,10 +130,9 @@ object M3u8Helper2 {
         var anyFound = false
         if (parsed != null) {
             for (video in parsed.variants) {
-                // The m3u8 should not be split it that causes a loss of audio, however this can not be done reliably
-                // Therefore that should be figured out on the extension level, so only "trick play" is checked for
+
                 if (video.isTrickPlay()) {
-                    //println("Denied m3u8Generation, isTrickPlay = ${video.isTrickPlay()} containsAudio = ${video.containsAudio()}, codec = ${video.format.codecs}, url = ${video.url}")
+
                     continue
                 }
 
@@ -152,9 +148,8 @@ object M3u8Helper2 {
             }
         }
 
-        // If it is not a "Master Playlist", or if it does not contain any playable "Media Playlist" or if it should return itself
         if (parsed == null || !anyFound || returnThis) {
-            // Only include it if is a "Media Playlist" (any TS files are found), or if it is a "Master Playlist" (parsing is non null)
+
             if (parsed != null || TS_EXTENSION_REGEX.containsMatchIn(response)) {
                 list += m3u8
             } else {
@@ -234,8 +229,6 @@ object M3u8Helper2 {
             body.close()
             if (tsData.isEmpty()) throw ErrorLoadingException("no data")
 
-            // Some sources respond with "error 404" or similar, this checks for small responses that
-            // looks like ASCII
             if (tsData.size < 128 && tsData.all { it >= 0 }) throw ErrorLoadingException("ASCII found instead of data")
 
             return if (isEncrypted) {
@@ -253,10 +246,7 @@ object M3u8Helper2 {
         requireAudio: Boolean,
         depth: Int = 3,
     ): LazyHlsDownloadData {
-        // Allow nesting, but not too much:
-        // Master Playlist (different videos)
-        // -> Media Playlist (different qualities of the same video)
-        // -> Media Segments (ts files of a single video)
+
         if (depth < 0) {
             throw IllegalArgumentException()
         }
@@ -270,8 +260,7 @@ object M3u8Helper2 {
 
         val parsed = HlsPlaylistParser.parse(playlistStream.streamUrl, playlistResponse)
         if (parsed != null) {
-            // find first with no audio group if audio is required, as otherwise muxing is required
-            // as m3u8 files can include separate tracks for dubs/subs
+
             val variants = if (requireAudio) {
                 parsed.variants.filter { it.isPlayableStandalone(parsed) }
             } else {
@@ -285,12 +274,8 @@ object M3u8Helper2 {
                 )
             }
 
-            // M3u8 can also include different camera angles (parsed.videos) for the same quality
-            // but here the default is used
             val bestVideo = if (selectBest) {
-                // Sort by pixels, while this normally is a bad idea if one is -1,
-                // in the m3u8 parsing must contains both or neither, so NO_VALUE => 1
-                // Tie break on averageBitrate
+
                 variants.maxBy { (it.format.width * it.format.height).toLong() * 1000L + it.format.averageBitrate.toLong() }
             } else {
                 variants.minBy { (it.format.width * it.format.height).toLong() * 1000L + it.format.averageBitrate.toLong() }
@@ -309,9 +294,6 @@ object M3u8Helper2 {
             )
         }
 
-        // This is already a "Media Segments" file
-
-        // Encryption, this is because crunchy uses it
         var encryptionIv = byteArrayOf()
         var encryptionData = byteArrayOf()
 

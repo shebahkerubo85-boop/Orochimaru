@@ -31,35 +31,22 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.ceil
 
-/**
- * Every service the region has, as a grid — the destination of the rail's See All card.
- *
- * This is the app's streaming services screen rather than a new one in kind: the tiles
- * are the same [StreamingServicesAdapter] ones, the brand tint included, so the rail and
- * this grid cannot drift apart. Only the shape differs, so the See All card is dropped
- * (there is nothing further to see) and the cap is lifted (the point of the screen is
- * the long tail).
- */
 class TmdbAllServicesActivity : AppCompatActivity() {
     private lateinit var binding: ActivityTmdbAllServicesBinding
     private lateinit var scope: CoroutineScope
 
     private companion object {
-        /** Zangetsu's grid side padding, matching the recycler view's own. */
+
         const val GRID_SIDE_PADDING_DP = 32f
 
-        /** Zangetsu's SliverGridDelegateWithMaxCrossAxisExtent. */
         const val GRID_MAX_EXTENT_DP = 150f
 
-        /** Zangetsu's crossAxisSpacing: 12 on a phone, 16 on a TV. */
         const val GRID_CROSS_SPACING_DP = 12f
         const val GRID_CROSS_SPACING_DP_TV = 16f
 
-        /** Zangetsu's mainAxisSpacing: 14 on a phone, 16 on a TV. */
         const val GRID_MAIN_SPACING_DP = 14f
         const val GRID_MAIN_SPACING_DP_TV = 16f
 
-        /** Zangetsu's childAspectRatio of 128/92, so a cell's height follows its width. */
         const val GRID_TILE_RATIO_W = 128f
         const val GRID_TILE_RATIO_H = 92f
     }
@@ -90,12 +77,10 @@ class TmdbAllServicesActivity : AppCompatActivity() {
             getThemeColor(com.google.android.material.R.attr.colorPrimary)
         )
 
-        // The grid/list pair is a lens button on every screen that carries it.
         LensButtonBackground.apply(binding.mediaList)
         LensButtonBackground.apply(binding.mediaGrid)
         FocusEffectUtil.applyFocusListener(binding.mediaList, binding.mediaGrid)
 
-        // The title doubles as the back button, the way the other detail screens do it.
         binding.allServicesTitle.setSafeOnClickListener { finish() }
 
         scope = CoroutineScope(Dispatchers.IO)
@@ -104,11 +89,7 @@ class TmdbAllServicesActivity : AppCompatActivity() {
     }
 
     private fun setUpGrid() {
-        // The arrow-mark screens (Continue Watching and friends) size their grid from the
-        // screen rather than a fixed count, and carry a grid/list pair in the app bar. This
-        // screen is one of them, so the shape is theirs.
-        // The adapter is attached first: applyGrid() hands it the cell size, so a grid that
-        // is set up before it exists would leave the tiles on their rail dimensions.
+
         binding.allServicesRecyclerView.adapter = StreamingServicesAdapter(
             isTv = isTvDevice(this),
             onServiceClick = { provider -> openCatalogue(provider) },
@@ -128,17 +109,6 @@ class TmdbAllServicesActivity : AppCompatActivity() {
         changeView(if (mode == 1) 1 else 0)
     }
 
-    /**
-     * Lays out the grid, and sizes the tiles to the cell they land in.
-     *
-     * The span alone is not enough: GridLayoutManager does not clamp a child to its cell,
-     * so a tile of a fixed width spills into the next column once the cells get narrower
-     * than the tile. Zangetsu's grid passes the card double.infinity and lets SliverGrid
-     * do the measuring, so the same numbers here have to be measured out by hand.
-     *
-     * displayMetrics is the source rather than the view, because this runs from
-     * onConfigurationChanged before the new layout has been applied.
-     */
     private fun applyGrid(isGrid: Boolean) {
         val rv = binding.allServicesRecyclerView
         val adapter = rv.adapter as? StreamingServicesAdapter
@@ -164,16 +134,6 @@ class TmdbAllServicesActivity : AppCompatActivity() {
         adapter?.setGridTileSize(tileWidthPx, tileHeightPx, cross, main)
     }
 
-    /**
-     * Zangetsu's service grid, in both of its shapes: six across on a TV, and on a phone
-     * a max-extent grid that comes out at three columns around 360dp.
-     *
-     * The arithmetic this replaces divided the screen width by a 128dp plate and truncated
-     * the quotient, which floored a 360dp phone to two columns and then stranded each
-     * 46dp tile at the start of a half-screen cell. A max-extent grid has to round the
-     * count up, because it is a ceiling on how wide a column may get rather than a guess
-     * at how wide one is.
-     */
     private fun gridSpanCount(): Int {
         if (isTvDevice(this)) return 6
         val screenWidthDp = resources.displayMetrics.run { widthPixels / density }
@@ -182,12 +142,6 @@ class TmdbAllServicesActivity : AppCompatActivity() {
         return ceil(availableDp / columnDp).toInt().coerceAtLeast(2)
     }
 
-    /**
-     * This screen declares configChanges, so it is not recreated when the device turns and
-     * onCreate does not run again. Without this the portrait grid is kept into landscape
-     * and the column count never changes, and because the tile is measured to the cell,
-     * the tiles are stale in both dimensions.
-     */
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         applyGrid(isGrid = PrefManager.getCustomVal("mediaView", 0) == 0)
@@ -207,10 +161,6 @@ class TmdbAllServicesActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * The same hand-off the rail's tiles make, so a service behaves identically whether
-     * it was tapped in the rail or in this grid.
-     */
     private fun openCatalogue(provider: TmdbProvider) {
         startActivity(
             Intent(this, TmdbServiceCatalogueActivity::class.java)

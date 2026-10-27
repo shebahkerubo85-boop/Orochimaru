@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- FORMAT MIGHT TRANSLATE, WILL CAUSE CRASH IF APPLIED WRONG -->
+
     <string name="app_dub_sub_episode_text_format" formatted="true">%1$s epizoda %2$d</string>
     <string name="cast_format" formatted="true">Glumačka postava: %s</string>
     <string name="next_episode_format" formatted="true">Epizoda %d će izaći za</string>
     <string name="next_episode_time_day_format" formatted="true">%1$dd %2$dh %3$dmin</string>
     <string name="next_episode_time_hour_format" formatted="true">%1$dh %2$dmin</string>
     <string name="next_episode_time_min_format" formatted="true">%dmin</string>
-    <!-- IS NOT NEEDED TO TRANSLATE AS THEY ARE ONLY USED FOR SCREEN READERS AND WONT SHOW UP TO NORMAL USERS -->
+
     <string name="result_poster_img_des">Poster</string>
     <string name="search_poster_img_des">Poster</string>
     <string name="episode_poster_img_des">Poster epizode</string>
@@ -16,7 +16,7 @@
     <string name="go_back_img_des">Idi natrag</string>
     <string name="home_change_provider_img_des">Promijeni pružatelja usluge</string>
     <string name="preview_background_img_des">Pregled slike pozadine</string>
-    <!-- TRANSLATE, BUT DON'T FORGET FORMAT -->
+
     <string name="player_speed_text_format" formatted="true">Brzina (%.2f×)</string>
     <string name="rated_format" formatted="true">Ocjena: %.1f</string>
     <string name="new_update_format" formatted="true">Pronađeno je novo ažuriranje! \n%1$s -&gt; %2$s</string>
@@ -52,7 +52,7 @@
     <string name="reload_error">Ponovni pokušaj povezivanja …</string>
     <string name="go_back">Idi natrag</string>
     <string name="play_episode">Pokreni epizodu</string>
-    <!--<string name="need_storage">Allow to download episodes</string>-->
+
     <string name="download">Preuzmi</string>
     <string name="downloaded">Preuzeto</string>
     <string name="downloading">Preuzimanje u tijeku</string>
@@ -201,7 +201,7 @@
     <string name="free_storage">Slobodno</string>
     <string name="used_storage">Iskorišteno</string>
     <string name="app_storage">Aplikacija</string>
-    <!--plural-->
+
     <string name="movies">Filmovi</string>
     <string name="tv_series">TV Serije</string>
     <string name="cartoons">Crtići</string>
@@ -213,7 +213,7 @@
     <string name="livestreams">Livestreamovi</string>
     <string name="nsfw">NSFW</string>
     <string name="others">Ostali</string>
-    <!--singular-->
+
     <string name="movies_singular">Film</string>
     <string name="tv_series_singular">Serija</string>
     <string name="cartoons_singular">Crtić</string>
@@ -291,7 +291,7 @@
     <string name="app_theme_settings">Tema aplikacije</string>
     <string name="bottom_title_settings">Mjesto naslova postera</string>
     <string name="bottom_title_settings_des">Stavlja naslov ispod postera</string>
-    <!-- account stuff -->
+
     <string name="example_password">lozinka123</string>
     <string name="example_username">Korisničko ime</string>
     <string name="example_email">bok@svijete.com</string>
@@ -315,7 +315,7 @@
     <string name="sync_total_episodes_some" formatted="true">/%d</string>
     <string name="authenticated_user" formatted="true">%s ovjeren</string>
     <string name="authenticated_user_fail" formatted="true">Nije moguće prijaviti se na %s</string>
-    <!-- ============ -->
+
     <string name="none">Nijedan</string>
     <string name="normal">Normalno</string>
     <string name="all">Sve</string>
@@ -331,12 +331,7 @@
     <string name="subtitle_offset_extra_hint_later_format">Koristi ovo ako se titlovi prikazuju %d ms prerano</string>
     <string name="subtitle_offset_extra_hint_before_format">Koristite ovo ako se titlovi prikazuju %d ms prekasno</string>
     <string name="subtitle_offset_extra_hint_none_format">Bez kašnjenja titlova</string>
-    <!--
-    Example text (pangram) can optionally be translated; if you do, include all the letters in the alphabet,
-    see: 
-	https://en.wikipedia.org/w/index.php?title=Pangram&oldid=225849300
-	https://en.wikipedia.org/wiki/The_quick_brown_fox_jumps_over_the_lazy_dog
-    -->
+
     <string name="subtitles_example_text">Gojazni đačić s biciklom drži hmelj i finu vatu u džepu nošnje</string>
     <string name="recommended">Preporučeno</string>
     <string name="player_loaded_subtitles" formatted="true">Učitano %s</string>

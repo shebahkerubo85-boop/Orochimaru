@@ -59,14 +59,6 @@
                 app:tint="?attr/colorOnBackground" />
         </LinearLayout>
 
-        <!--
-          The movie/TV filter for this service's catalogue. A service carries both, so
-          the grid defaults to Movie and the filter narrows it, matching the app's
-          Movie / TV switch elsewhere.
-
-          The same Tadami-style capsule pill the library status tabs use: a single
-          rounded container whose selection strip travels between the two entries.
-        -->
         <ani.sanin.ui.components.LibraryStatusPill
             android:id="@+id/catalogueTypePill"
             android:layout_width="wrap_content"

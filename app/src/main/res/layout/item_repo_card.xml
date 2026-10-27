@@ -10,7 +10,6 @@
     android:layout_marginBottom="12dp"
     android:foreground="?android:attr/selectableItemBackground">
 
-    <!-- GitHub glyph watermark (bottom-right) -->
     <ImageView
         android:layout_width="130dp"
         android:layout_height="130dp"
@@ -22,7 +21,6 @@
         app:srcCompat="@drawable/ic_github"
         app:tint="?attr/colorOnSurface" />
 
-    <!-- Content -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -32,7 +30,6 @@
         android:paddingTop="18dp"
         android:paddingBottom="2dp">
 
-        <!-- Header row: logo + name + count -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -60,7 +57,6 @@
                 android:textSize="16sp"
                 tools:text="CnC Verse" />
 
-            <!-- Plugin count badge -->
             <TextView
                 android:id="@+id/repoCount"
                 android:layout_width="wrap_content"
@@ -76,7 +72,6 @@
                 tools:text="12 plugins" />
         </LinearLayout>
 
-        <!-- Content types row (scrollable, not focusable) -->
         <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -91,7 +86,6 @@
                 app:chipSpacingHorizontal="6dp" />
         </HorizontalScrollView>
 
-        <!-- Language count: a single centred chip, showing how many there are -->
         <com.google.android.material.chip.ChipGroup
             android:id="@+id/repoLanguages"
             android:layout_width="wrap_content"
@@ -104,7 +98,6 @@
 
     </LinearLayout>
 
-    <!-- Browse pill button (bottom overlay) -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/repoBrowseButton"
         android:layout_width="match_parent"

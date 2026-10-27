@@ -18,7 +18,6 @@ class ExtensionInstallerPreference(
 
     override fun key() = "extension_installer"
 
-
     val entries
         get() = ExtensionInstaller.entries.toTypedArray().run {
             if (context.hasMiuiPackageInstaller) {

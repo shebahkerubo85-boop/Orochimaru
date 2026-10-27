@@ -9,14 +9,14 @@ data class User(
     val name: String,
     val pfp: String?,
     val banner: String?,
-    // for media
+
     val status: String? = null,
     val score: Float? = null,
     val progress: Int? = null,
     val totalEpisodes: Int? = null,
     val nextAiringEpisode: Int? = null,
     val activity: List<Activity> = mutableListOf(),
-    // for follow status
+
     var isFollowing: Boolean? = null,
     var isFollower: Boolean? = null,
 ) : java.io.Serializable {

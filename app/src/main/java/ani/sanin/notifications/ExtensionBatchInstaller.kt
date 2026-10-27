@@ -27,11 +27,6 @@ import uy.kohesive.injekt.api.get
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
 
-/**
- * Installs all pending anime extension updates in one batch. Triggered when the user taps the
- * "installation still required" update notification. The subscriptions live in this singleton so
- * the installs keep running even if the screen that started them goes away.
- */
 object ExtensionBatchInstaller {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -46,8 +41,6 @@ object ExtensionBatchInstaller {
         scope.launch {
             val manager: AnimeExtensionManager = Injekt.get()
 
-            // The app fetches the available extensions asynchronously at startup; wait briefly for
-            // the update flags to be populated before installing (matters for a cold-start tap).
             val pending = withTimeoutOrNull(15_000) {
                 manager.installedExtensionsFlow.first { list -> list.any { it.hasUpdate } }
             }?.filter { it.hasUpdate }.orEmpty()

@@ -8,9 +8,6 @@
     android:orientation="vertical"
     android:background="?attr/colorSurface">
 
-    <!-- A plain static header, matching the TMDB discovery screen. The previous AppBarLayout
-         lifted (liftOnScroll) a grey surface over the AMOLED-black page as the shelf grid
-         scrolled, so the search bar is now a normal row above the scroll view. -->
     <LinearLayout
         android:id="@+id/discoverAppBar"
         android:layout_width="match_parent"
@@ -160,12 +157,6 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!--
-        Painted with the same surface the TMDB discovery screen uses. The grid inside is
-        wrap_content, so a short result set leaves this container taller than its content
-        and whatever is not painted falls through to the window; on AMOLED that read as
-        the page turning grey behind the pinned chips once scrolled.
-    -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/discoverScroll"
         android:layout_width="match_parent"
@@ -235,10 +226,6 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
-            <!--
-                The grid is wrap_content inside the scroll view, so the footer (next page spinner
-                and its retry) sits right after the last row rather than pinned to the screen.
-            -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -318,7 +305,7 @@
                 app:lottie_rawRes="@raw/tomoe"
                 app:lottie_autoPlay="true"
                 app:lottie_loop="true"
-                app:lottie_colorFilter="?attr/colorSecondary" 
+                app:lottie_colorFilter="?attr/colorSecondary"
                 app:lottie_speed="1.75" android:rotation="75" />
 
                 <com.airbnb.lottie.LottieAnimationView
@@ -330,7 +317,7 @@
                 app:lottie_rawRes="@raw/tomoe"
                 app:lottie_autoPlay="true"
                 app:lottie_loop="true"
-                app:lottie_colorFilter="?attr/colorSecondary" 
+                app:lottie_colorFilter="?attr/colorSecondary"
                 app:lottie_speed="1.75" android:rotation="-45" />
 
                 <com.airbnb.lottie.LottieAnimationView
@@ -342,7 +329,7 @@
                 app:lottie_rawRes="@raw/tomoe"
                 app:lottie_autoPlay="true"
                 app:lottie_loop="true"
-                app:lottie_colorFilter="?attr/colorSecondary" 
+                app:lottie_colorFilter="?attr/colorSecondary"
                 app:lottie_speed="1.75" android:rotation="195" />
 
             </FrameLayout>

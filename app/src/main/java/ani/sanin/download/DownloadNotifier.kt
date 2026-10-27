@@ -12,11 +12,6 @@ import ani.sanin.R
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 
-/**
- * Single-slot notification for the active download plus a separate completed notification.
- * Everything is best-effort: if the user disabled notifications or never granted the runtime
- * permission, the download still proceeds.
- */
 class DownloadNotifier(private val context: Context) {
 
     private val manager = NotificationManagerCompat.from(context)
@@ -95,7 +90,7 @@ class DownloadNotifier(private val context: Context) {
         try {
             manager.notify(id, notif)
         } catch (_: SecurityException) {
-            // POST_NOTIFICATIONS not granted
+
         }
     }
 

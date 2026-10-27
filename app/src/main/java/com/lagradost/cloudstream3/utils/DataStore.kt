@@ -48,7 +48,6 @@ class PreferenceDelegate<T : Any>(
     }
 }
 
-/** When inserting many keys use this function, this is because apply for every key is very expensive on memory */
 data class Editor(
     val editor: SharedPreferences.Editor
 ) {
@@ -81,19 +80,9 @@ data class Editor(
 }
 
 object DataStore {
-    /**
-     * Jackson mapper matching the REAL CloudStream app-module DataStore surface.
-     * Older .cs3 plugins (e.g. Cricify / CNC Verse checkbox settings) INLINE the
-     * app's setKey/getKey at compile time, so their bytecode links directly
-     * against `DataStore.getMapper()`, `DataStore.setKey(String, Object)` and
-     * `DataStore.getKey(String, Class)` with NO Context receiver. Without these
-     * exact JVM members their saves throw NoSuchMethodError, get swallowed, and
-     * the checkbox silently never persists (string/token plugins are newer and
-     * call the Context.setKey extension instead, which is why those survive).
-     */
+
     val mapper: JsonMapper = JsonMapper.builder().addModule(kotlinModule()).build()
 
-    /** Plain-member variant of the store — what inlined plugin bytecode calls. */
     fun <T> setKey(path: String, value: T) {
         val ctx = CloudStreamApp.context ?: return
         try {

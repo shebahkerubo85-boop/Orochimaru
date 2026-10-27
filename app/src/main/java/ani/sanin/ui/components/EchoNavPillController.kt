@@ -45,18 +45,17 @@ class EchoNavPillController(
     private val thresholdPx = 52f * density
     private val searchGapPx = (8f * density).roundToInt()
     private val tightPaddingPx = (3f * density).roundToInt()
-    /** Distance between the selected pill's edge and its label text. */
+
     private val labelGapPx = (2f * density).roundToInt()
 
-    /** Breathing room between the indicator and the top/bottom edge of the pill. */
     private val indicatorInsetPx = (3f * density).roundToInt()
     private val pillH = NavPillCustomizer.getHeightDp()
     private val iconRadiusPx = pillH * density / 2f
     private val indicatorRadiusPx = pillH * density / 2f
-    /** Translucent tint of the pill it sits on, so it reads on black and on white. */
+
     private val indicatorColor: Int
         get() = if (NavPillCustomizer.isDarkTheme()) 0x40FFFFFF.toInt() else 0x33000000
-    /** Collapsed non-glass button fill: a solid pill, matching the expanded one. */
+
     private val surfaceColor: Int get() = NavPillCustomizer.getPillFillColor()
 
     private var selectedIndex = 0
@@ -75,10 +74,6 @@ class EchoNavPillController(
     private var repositioning = false
     private var lastAppliedKey: String? = null
 
-    /**
-     * True only while [animateContainerWidth] is running. Suppresses the geometry watcher for the
-     * duration, because the container width is an animation target rather than a settled value.
-     */
     private var widthAnimating = false
     private val treeScrollListener = ViewTreeObserver.OnScrollChangedListener {
         dispatchScrollDeltas()
@@ -109,20 +104,11 @@ class EchoNavPillController(
         }
     }
 
-    /**
-     * The label is a real child of the pill_list, not a free-floating overlay. That
-     * way the LinearLayout reserves genuine horizontal space for it and pushes the
-     * sibling pills out of the way by itself. The overlay version painted wider and
-     * looked right but the icons never moved, so the text landed on the next icon.
-     */
     private val labelView: TextView? by lazy {
         if (labels.isEmpty()) return@lazy null
-        // Show Icon Labels off: the rail is icons only, with no text next to the selected
-        // pill. Returning null is the same path the TV rail already takes, and every
-        // label call site is null-guarded, so nothing else has to know about this.
+
         if (!NavPillCustomizer.getShowLabel()) return@lazy null
-        // Horizontal rail only. The vertical/TV rail keeps its original behaviour; the
-        // only change there is that the gradient is gone.
+
         if (isVerticalRail()) return@lazy null
         TextView(container.context).apply {
             setTextColor(NavPillCustomizer.getIconColor())
@@ -134,7 +120,7 @@ class EchoNavPillController(
             )
             includeFontPadding = false
             isSingleLine = true
-            // Never let a long label stretch the bar past the screen margins.
+
             ellipsize = android.text.TextUtils.TruncateAt.END
             visibility = View.GONE
             gravity = android.view.Gravity.CENTER_VERTICAL
@@ -147,10 +133,7 @@ class EchoNavPillController(
         }
     }
 
-    /** Width the label currently occupies, so it can be animated to 0 on collapse. */
     private var labelWidthPx = 0
-
-
 
     private val searchButton: ImageButton? by lazy {
         if (row == null || onSearch == null) return@lazy null
@@ -166,13 +149,6 @@ class EchoNavPillController(
         }
     }
 
-    /**
-     * Re-applies the Icon Tint and Icon Size to the search button, and re-syncs its box to
-     * the current Pill Height. [pillH] is captured when the controller is built, so after a
-     * settings change it can be stale; reading the setting here keeps the search pill the
-     * same size as the others. Called on attach and from [syncGlass], which is the hook
-     * that runs on resume and whenever the appearance settings are re-applied.
-     */
     private fun applyIconSettingsToSearch() {
         val sb = searchButton ?: return
         val sizePx = (NavPillCustomizer.getHeightDp() * density).roundToInt()
@@ -187,9 +163,7 @@ class EchoNavPillController(
 
     fun attach(initialIndex: Int) {
         selectedIndex = initialIndex
-        // Up front, not only on a collapse transition: restoring straight into the last
-        // tab never scrolls, so applyCollapseGravity() would not run until much later and
-        // a rail sized from its background would keep the pill stranded at the top.
+
         normaliseContainerBox()
         installGeometryWatchers()
         if (indicator.parent == null) {
@@ -197,8 +171,7 @@ class EchoNavPillController(
         }
         labelView?.let { lbl ->
             if (lbl.parent == null) {
-                // Sits in pill_list, immediately after the selected pill, so the layout
-                // engine gives it real space and shifts the following pills along.
+
                 val anchor = pillList?.indexOfChild(pills.getOrNull(selectedIndex)) ?: -1
                 if (pillList != null && anchor >= 0) {
                     pillList.addView(lbl, (anchor + 1).coerceIn(0, pillList.childCount))
@@ -213,34 +186,11 @@ class EchoNavPillController(
                 val lp = LinearLayout.LayoutParams(pillSize, pillSize)
                 lp.leftMargin = searchGapPx
                 row?.addView(sb, lp)
-                // The search icon is a collapse-only affordance, not a fifth nav item -- the
-                // expanded rail carries four icons. It still obeys the Icon Tint and Icon Size
-                // settings so it matches the pills while collapsed. It is built lazily here,
-                // which is AFTER the activity already ran applyToPillList over the XML pills, so
-                // without this it kept the drawable's own colour and, having no padding,
-                // stretched to the full pill size instead of the configured icon size.
+
                 applyIconSettingsToSearch()
             }
         }
-        // One owner for surfaces: syncGlass() applies them from the current collapsed state
-        // and the current glass setting, so it is the only thing that should paint a pill.
-        //
-        // attach() used to call sb.updateSurface(surfaceColor) on the search button instead,
-        // which was wrong twice over. It ignored the glass setting, so search kept an opaque
-        // fill that the sibling pills never had; and it ran only once, guarded by
-        // `if (sb.parent == null)`, so that fill was never reconciled on a later collapse or
-        // expand. That left the search icon the one icon with a background whenever the
-        // rail was mid-scroll, since scrolling is what re-runs the other surfaces but not
-        // this one. It also painted while expanded, where the search icon is meant to be
-        // transparent.
-        //
-        // It has to run on the first frame, not onResume: setupHomeNavRail() calls attach()
-        // from onCreate, and onResume is the first syncGlass() call, so between those the
-        // rail was laid out with nothing but the transparent bg_clay_pill behind the icons.
-        //
-        // syncGlass() already does the two-pass geometry this used to do here (it re-derives
-        // the label, repins the width, then posts the indicator once the list has reflowed),
-        // so this replaces the block below rather than running alongside it.
+
         syncGlass()
     }
 
@@ -248,8 +198,7 @@ class EchoNavPillController(
         if (index !in pills.indices) return
         val oldIndex = selectedIndex
         selectedIndex = index
-        // A tab switch can bring a freshly created fragment view (and its scroll
-        // container) into the tree, so re-scan for anything we have not seen yet.
+
         observedRoot?.let { collectScrollables(it, 0) }
         if (collapsed) {
             if (index != oldIndex) refreshCollapsedSelection(oldIndex, index)
@@ -258,67 +207,24 @@ class EchoNavPillController(
         if (index == oldIndex) {
             positionLabelOverlay()
             repinContainerWidth()
-            // Post, so the indicator reads settled geometry: positionLabelOverlay only
-            // requests layout, so the pills have not moved yet at this point.
+
             container.post { positionIndicator(index, animate) }
         } else {
             container.post {
                 positionLabelOverlay()
                 repinContainerWidth()
-                // The label's new width shifts the pills, so read the settled geometry.
+
                 container.post { positionIndicator(index, animate) }
             }
         }
     }
 
-    /**
-     * Restores natural sizing for the expanded rail.
-     *
-     * This must NOT pin a fixed pixel width. A pinned width is fed straight back in as
-     * `measuredWidth` on the next pass, so once the bar had been narrow (collapsed, or a
-     * short label) the pin could never grow or shrink back to the content again. The bar
-     * stayed wider or narrower than the pills plus label inside it, and because the
-     * container is `bottom|center_horizontal` while the inner pill_list is `wrap_content`
-     * with `gravity=center`, the mismatch shoved the pills off-centre and clipped the
-     * label. That is what made it look media-info specific: it needs a collapse plus a
-     * label change, which is exactly what that tab does.
-     *
-     * WRAP_CONTENT lets the bar size itself, and maxWidth is the layout system enforcing
-     * the screen-margin ceiling natively, so a long label ellipsizes rather than escaping.
-     */
-    /**
-     * Width the rail should settle at when fully expanded, measured rather than read off the
-     * container mid-morph.
-     *
-     * Reading `container.measuredWidth` here produced a bar that visibly overshot and then
-     * snapped back: it grew to roughly 120% of its final width for a moment before settling on
-     * the correct size. Two things were wrong with that measurement.
-     *
-     * First, it was taken a single `post` after `requestLayout()`, which does not guarantee the
-     * re-measure has happened. `requestLayout()` is asynchronous and a posted runnable only
-     * executes once the current queue drains, so the value could still be the pre-collapse width
-     * or, more often, one measured against the label before `positionLabelOverlay()` had applied
-     * the width cap. The label's width is only correct once that function has measured it, so an
-     * earlier read is simply too wide and the correction arrives a frame later as a visible snap.
-     *
-     * Second, the icons were still animating from scaleX 0.3 to 1.0, so the row's measured width
-     * reflected partially-scaled pills.
-     *
-     * So the target is measured explicitly here, with the icons pinned to full scale for the
-     * duration of the measurement only. That is the width the rail is actually going to end at,
-     * independent of when the layout pass happens to run.
-     */
     private fun settledExpandedWidthPx(): Int {
         val pl = pillList ?: return container.measuredWidth
-        // Measure the row at rest: four nav icons at full scale. scaleX is what made the
-        // mid-flight width wrong, and it is restored immediately afterwards so the animation is
-        // unaffected.
+
         val scaled = pills.map { it.scaleX }
         pills.forEach { it.scaleX = 1f }
-        // The search button is excluded rather than pinned. It is a collapse-only affordance,
-        // not one of the four nav icons, so an expanded bar must never be sized to include it.
-        // Hiding it for the measurement is belt-and-braces on top of expand() already hiding it:
-        // if this is ever called from a path that has not, the width still comes out right.
+
         val sb = searchButton
         val sbVisible = sb?.visibility
         sb?.visibility = View.GONE
@@ -327,8 +233,7 @@ class EchoNavPillController(
                 View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
                 View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
             )
-            // lp.width is the view's own width: content plus its own padding. The margins are
-            // applied by the parent FrameLayout, so they must not be folded in here.
+
             val padding = container.paddingLeft + container.paddingRight
             return (pl.measuredWidth + padding).coerceAtLeast(1)
         } finally {
@@ -337,45 +242,22 @@ class EchoNavPillController(
         }
     }
 
-    /**
-     * Whether this is the vertical (TV) rail.
-     *
-     * Previously this was `pillList?.orientation == VERTICAL`, which is wrong in a way that
-     * fails silently and in the worst direction: when `pillList` was null -- because a layout
-     * had no `pill_list` tag -- `null?.orientation` is null, the comparison is false, and the
-     * rail was treated as *horizontal*. The landscape media layout was exactly that, so the TV
-     * rail was building a text label and stretching its indicator the way the horizontal bar
-     * does. layout-land/activity_media.xml now carries the tag like the others, but the
-     * fallback below means a future layout missing it degrades to vertical (no label, no
-     * stretch) rather than silently picking up horizontal behaviour.
-     */
     private fun isVerticalRail(): Boolean {
         pillList?.let { return it.orientation == LinearLayout.VERTICAL }
-        // No tagged row: find the icon container directly. Pills and the label are the only
-        // LinearLayout children of the rail.
+
         for (i in 0 until container.childCount) {
             val child = container.getChildAt(i)
             if (child is LinearLayout && pills.any { it.parent === child }) {
                 return child.orientation == LinearLayout.VERTICAL
             }
         }
-        // Nothing recognisable. Fail safe: the vertical rail is the one that must not gain
-        // horizontal behaviour, so treat the unknown case as vertical.
+
         return true
     }
 
     private fun repinContainerWidth() {
         if (collapsed) return
 
-        // Vertical (TV) rail: leave the layout's own width exactly as the XML sets it.
-        // layout-land pins these rails to 44dp, which is correct for a column of 44dp
-        // pills, so there is nothing to re-pin.
-        //
-        // Pinning it to WRAP_CONTENT here is what made the rail bleed edge to edge. The
-        // pill_list child is match_parent, so a wrap_content parent measures that child
-        // against the whole screen width and the background track stretches all the way
-        // across, while the height still wraps the pill column. That is the symptom: a
-        // bar running left to right with correct bounds at the top and bottom.
         if (isVerticalRail()) return
 
         val lp = container.layoutParams ?: return
@@ -385,11 +267,6 @@ class EchoNavPillController(
         }
     }
 
-    /**
-     * Horizontal space in [parent] that [exclude] does not get: the list's own padding
-     * plus every sibling's width and left margin. Read from layout params where possible
-     * so it is correct before the first layout pass, falling back to the measured width.
-     */
     private fun fixedChildWidthPx(parent: LinearLayout, exclude: View): Int {
         var total = parent.paddingLeft + parent.paddingRight
         for (i in 0 until parent.childCount) {
@@ -405,28 +282,16 @@ class EchoNavPillController(
 
     fun setCollapsed(collapsed: Boolean) {
         if (!isScrollCapable) return
-        // Refuse to collapse when Shrink Pill On Scroll is off. The false case is left
-        // alone on purpose: that is the tap-to-expand path in all three activities, which
-        // has to keep working.
+
         if (collapsed && !NavPillCustomizer.getShrinkOnScroll()) return
         if (this.collapsed == collapsed) return
         if (collapsed) shrink() else expand()
     }
 
-    /**
-     * Tracks scrolling without stealing listeners from anyone else.
-     *
-     * [android.widget.ScrollView.setOnScrollChangeListener] holds a single listener, so
-     * hooking it directly would silently break MediaInfoFragment's corner-radius
-     * animation and GlassEffectDrawable's cache invalidation. Instead we only *add*
-     * things: RecyclerView gets an extra OnScrollListener (which supports many), while
-     * plain scroll views are sampled through one window-wide OnScrollChangedListener.
-     */
     fun startScrollTracking(root: View) {
         if (!isScrollCapable) return
         if (observedRoot === root) {
-            // Same root: still worth a re-walk, because a fragment switch creates new
-            // scroll views under the root that the original walk never saw.
+
             collectScrollables(root, 0)
             return
         }
@@ -438,12 +303,7 @@ class EchoNavPillController(
         root.postDelayed({ collectScrollables(root, 0) }, 450)
         root.postDelayed({ collectScrollables(root, 0) }, 1000)
         root.postDelayed({ collectScrollables(root, 0) }, 2000)
-        // Keep re-walking for as long as tracking is live. A tab switch replaces the
-        // fragment and creates a new scroll view underneath this root, and nothing
-        // re-ran the walk afterwards -- so the newly shown tab's scrolling was ignored
-        // until the user tapped a pill, which is what re-ran it. That is precisely the
-        // "stop scrolling, tap the tab, scroll again" workaround, so the walk now keeps
-        // itself current instead of depending on a tap.
+
         recollect?.let { root.removeCallbacks(it) }
         val rewalk = object : Runnable {
             override fun run() {
@@ -469,8 +329,7 @@ class EchoNavPillController(
     }
 
     private fun collectScrollables(v: View, depth: Int) {
-        // Was 12, which a fragment inside a ViewPager can exceed on its own, so the tab's
-        // list was never found and could not collapse the rail at all.
+
         if (depth > 30) return
         when {
             v is RecyclerView -> if (trackedLists.add(v)) {
@@ -480,10 +339,7 @@ class EchoNavPillController(
                     }
                 })
             }
-            // Collect regardless of visibility. Filtering on isShown here meant a tab's
-            // scroll view was never tracked if it happened to be hidden when the walk
-            // ran, and nothing re-walked the tree afterwards -- so that tab could not
-            // collapse the rail at all.
+
             v is NestedScrollView || v is android.widget.ScrollView -> {
                 scrollViews.add(v)
             }
@@ -496,12 +352,7 @@ class EchoNavPillController(
     private fun dispatchScrollDeltas() {
         for (view in scrollViews) {
             if (!view.isShown) {
-                // Forget the baseline but KEEP the view. Removing it here was permanent:
-                // the tree is only re-walked from startScrollTracking() and select(), so a
-                // tab that was hidden once (tab switch, fragment swap) stayed deaf to
-                // scrolling until the user tapped it. Tapping re-collected and the pill
-                // started responding again, which is exactly the "tap the tab, then
-                // scroll again" workaround this replaces.
+
                 lastScrollY.remove(view)
                 continue
             }
@@ -513,8 +364,7 @@ class EchoNavPillController(
 
     private fun forwardScroll(scroller: View, dy: Int) {
         if (dy == 0) return
-        // Ignore rubber-band overscroll: pulling down at the top reports a positive
-        // delta, which would otherwise shrink the pill on an upward scroll.
+
         if (dy > 0 && !scroller.canScrollVertically(1)) return
         if (dy < 0 && !scroller.canScrollVertically(-1)) return
         onScroll(dy.toFloat())
@@ -523,25 +373,13 @@ class EchoNavPillController(
     fun onScroll(dyPixels: Float) {
         if (!isScrollCapable) return
         if (dyPixels == 0f) return
-        // Shrink Pill On Scroll off: the rail stays expanded, whatever the user scrolls.
-        // Gated here rather than in setCollapsed() on purpose, because setCollapsed(false)
-        // is also the tap-to-expand path in all three activities, and that has to keep
-        // working. This is the only scroll-driven entry point, so gating it here covers
-        // both the MainActivity bar and the Media Info rail without touching the taps.
+
         if (!NavPillCustomizer.getShrinkOnScroll()) {
-            // Drain the accumulator, so switching the setting back on does not immediately
-            // collapse the rail using scroll distance that was banked while it was off.
+
             accumulated = 0f
             return
         }
-        // A signed accumulator, deliberately NOT reset when the direction flips.
-        //
-        // Real scroll streams contain stray opposite-signed deltas all the time:
-        // sub-pixel rounding, rubber-band bounce part-way through a fling, and two
-        // tracked scroll sources interleaving on one gesture. Wiping progress on the
-        // first sign change meant the 52dp threshold could only be met if *every*
-        // single delta in the gesture agreed, so the pill often failed to shrink on
-        // the way down and failed to expand on the way back.
+
         accumulated += dyPixels
         if (collapsed) {
             if (accumulated <= -thresholdPx) {
@@ -554,36 +392,20 @@ class EchoNavPillController(
                 setCollapsed(true)
             }
         }
-        // Cap the surplus so a long scroll cannot bank a large lead that would need
-        // just as much travel in reverse to undo. This is what stops flapping.
+
         accumulated = accumulated.coerceIn(-thresholdPx, thresholdPx)
     }
 
-    /**
-     * Re-tints the label to match the Icon Tint setting. The activities tint the icon
-     * buttons directly, so without this the text would lag behind them whenever the
-     * setting changes while a tab is already showing.
-     */
     fun refreshLabelTint() {
         labelView?.setTextColor(NavPillCustomizer.getIconColor())
     }
 
-    /**
-     * Re-applies the glass/background arrangement for the current state. Call this
-     * whenever the rail is re-shown (e.g. onResume) so a collapsed rail keeps its
-     * two independent glass buttons instead of regaining the shared pill.
-     */
     fun syncGlass() {
-        // Called from onResume and whenever the appearance settings are re-applied, so
-        // this is where a changed pill height, icon size or tint gets picked up.
+
         applyIconSettingsToSearch()
-        // Settle Show Icon Labels before anything reads the geometry below, so the width
-        // and the indicator are both derived from the row as it will actually be laid out.
+
         syncLabelAttachment()
-        // Turn Shrink Pill On Scroll off while the rail is already collapsed and it would
-        // otherwise stay that way: onScroll no longer expands it, and nothing else calls
-        // setCollapsed. Expanding here also re-measures the label and re-places the
-        // indicator through the normal path, so it lands correctly rather than snapping.
+
         if (collapsed && isScrollCapable && !NavPillCustomizer.getShrinkOnScroll()) {
             expand()
             return
@@ -603,10 +425,7 @@ class EchoNavPillController(
         } else {
             positionLabelOverlay()
             repinContainerWidth()
-            // The label's margin and width were just re-derived from the current pill and
-            // icon size, so the indicator has to be rebuilt from them too. Without this it
-            // kept its previous width while the label had already changed, and the text
-            // stuck out past the pill's background.
+
             container.post {
                 if (collapsed) return@post
                 positionIndicator(selectedIndex, animate = false)
@@ -622,19 +441,17 @@ class EchoNavPillController(
                 NavPillCustomizer.getCornerRadiusDp().toFloat()
             )
         } else {
-            // No glass: paint one solid fill so the pill actually has a body. Leaving
-            // the transparent bg_clay_pill here is what made the icons look detached.
+
             GlassEffectManager.removeGlass(container)
             NavPillCustomizer.applyPillBackground(container)
         }
     }
 
     private fun applyCollapsedGlass() {
-        // The two collapsed icons are independent surfaces: drop the shared pill
-        // entirely and put the glass (or a plain surface) on each button itself.
+
         GlassEffectManager.removeGlass(container)
         container.background = null
-        // No shared pill to clip to; the outline would shave the button circles.
+
         container.clipToOutline = false
         listOfNotNull(pills.getOrNull(selectedIndex), searchButton)
             .forEach { applyButtonSurface(it) }
@@ -649,9 +466,7 @@ class EchoNavPillController(
             GlassEffectManager.removeGlass(it)
             it.setBackgroundResource(android.R.color.transparent)
         }
-        // The vertical TV rail's focus ring intentionally extends beyond the icon
-        // button bounds. Do not let the shared pill outline clip that ring; horizontal
-        // phone pills keep their existing rounded clipping.
+
         container.clipToOutline = !isVerticalRail()
         applySharedContainerGlass()
     }
@@ -665,27 +480,6 @@ class EchoNavPillController(
         }
     }
 
-    /**
-     * When collapsing to a single pill the rail detaches from the bottom-center and
-     * floats to the bottom-left. Layout margins are deliberately left untouched so the
-     * pill keeps breathing room instead of touching the screen edges.
-     */
-    /**
-     * Keeps the rail's own box honest: wrap_content height, and the pill list centred
-     * inside it.
-     *
-     * The pill list is a plain child of the FrameLayout and activity_media.xml /
-     * activity_tmdb_details.xml give it no `layout_gravity`, so FrameLayout places it at
-     * TOP|START. That is invisible while the container is exactly as tall as the pill, but
-     * the glass background is a `match_parent` child -- so any pass that sizes the rail
-     * from its background strands the pill at the top of it while the background keeps
-     * painting the full height and the page content sits behind the leftover blur.
-     * Centring the list means a container taller than its content can never push the pill
-     * to the top.
-     *
-     * The height is pinned for the same reason: every rail is declared wrap_content in
-     * every layout, so restoring it is a no-op in the normal case.
-     */
     private fun normaliseContainerBox() {
         val lp = container.layoutParams
         val heightWas = lp?.height
@@ -708,31 +502,15 @@ class EchoNavPillController(
         }
     }
 
-    /**
-     * Last resort for the full-height glass, and the fix that the logcat actually pointed at.
-     *
-     * The symptoms arrived together: the glass painted the whole screen, and the pill sat dead
-     * centre of the screen instead of the bottom. Those are one defect, because
-     * `laidOut` showed the list vertically centred inside an over-tall container --
-     * `(1536 - 116) / 2 == 710`, exactly the reported `listTop`. Centring was working; it was
-     * just centring inside a box that was far too big.
-     *
-     * Re-pinning `lp.height` to WRAP_CONTENT does not help, and the log proved why: `lpH` was
-     * already `-2`. The declaration was correct and the measurement was wrong regardless, so the
-     * height has to be asserted as a concrete number instead of a declaration. When the measured
-     * box is taller than its own content by more than a rounding error, the content height wins.
-     */
     private fun pinContainerHeightToContent() {
         val list = pillList ?: return
         val lp = container.layoutParams ?: return
         val contentH = list.height
         if (contentH <= 0) return
-        // Compare against the layout, not the last measured box: a stale measurement is exactly
-        // what this is correcting, so it must not be able to satisfy the check itself.
+
         val declared = if (lp.height >= 0) lp.height else -1
         val grown = container.height > contentH + (4f * density).roundToInt()
-        // Only ever override a healthy wrap_content rail, which is left alone on purpose: a fixed
-        // pixel height would survive a rotation and then be stale.
+
         val stale = declared > 0 && declared != contentH
         if (!grown && !stale) return
         val was = "${lp.height} (measured ${container.height})"
@@ -741,17 +519,6 @@ class EchoNavPillController(
         Log.i(TAG, "box: pinned container height $was -> $contentH (pill_list height)")
     }
 
-    /**
-     * Watches the rail's own box and the pill list for any later layout change and reacts
-     * to it, instead of trusting a one-shot post to have read the final geometry.
-     *
-     * Two symptoms came out of that: the glass running the full height of the screen while
-     * the pill sat centred in it, and an indicator that was briefly correct and then drifted
-     * -- whatever re-laid-out the rail afterwards (icon settings, a tab switch, the rail
-     * re-showing itself, its scale animation settling) invalidated coordinates that had
-     * already been used. `positionIndicator` is now idempotent and re-derived whenever the
-     * geometry it depends on actually changes.
-     */
     private fun installGeometryWatchers() {
         if (geometryWatcher != null) return
         val watcher = View.OnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
@@ -775,9 +542,7 @@ class EchoNavPillController(
                 "bg=${bg?.javaClass?.simpleName} bgVis=${bg?.visibility} bgSize=${bg?.width}x${bg?.height} bgAlpha=${bg?.alpha} " +
                 "containerBg=${container.background?.javaClass?.simpleName} collapsed=$collapsed"
         )
-        // DIAGNOSTIC: enumerate every child, GONE ones included, with the size its own layout
-        // params request. The stretch has to come from one of them, or from the parent handing
-        // down a spec that ignores wrap_content. This names the culprit instead of guessing.
+
         if (stretched) {
             val kids = (0 until container.childCount).joinToString("; ") { i ->
                 val c = container.getChildAt(i)
@@ -794,15 +559,11 @@ class EchoNavPillController(
             normaliseContainerBox()
             pinContainerHeightToContent()
         }
-        // While the width is animating, the container is a moving target and raw geometry is
-        // meaningless: the log showed the indicator being placed at negative offsets mid-flight
-        // and then snapping back when the animation landed. The animation drives the indicator
-        // itself, so the watcher has to stay out of the way until it finishes.
+
         if (collapsed || !isScrollCapable || widthAnimating) return
         repositionIndicatorIfMoved()
     }
 
-    /** Cheap fingerprint of everything [positionIndicator] reads. */
     private fun indicatorGeometryKey(): String {
         val pill = pills.getOrNull(selectedIndex)
         val lbl = labelView
@@ -857,8 +618,7 @@ class EchoNavPillController(
         labelView?.let { lbl ->
             fadeAlpha(lbl, 0f)
             lbl.visibility = View.INVISIBLE
-            // Zero the axes the label occupies on this rail, so the list does not keep
-            // a hole where the text was and the floating pill stays centred.
+
             lbl.layoutParams = lbl.layoutParams.apply {
                 width = 0
                 height = 0
@@ -893,9 +653,7 @@ class EchoNavPillController(
             pl.requestLayout()
             pl.post {
                 if (version != morphVersion || !collapsed) return@post
-                // The container wraps its content, so measuring after the list has
-                // reflowed gives the settled width. Cap it so a long label can never
-                // push the bar past the screen margins.
+
                 val target = container.measuredWidth.coerceAtMost(maxContainerWidthPx())
                 animateContainerWidth(startWidth, target) {
                     if (version != morphVersion || !collapsed) return@animateContainerWidth
@@ -924,12 +682,7 @@ class EchoNavPillController(
         others.forEach { it.alpha = 0f }
         others.forEach { it.scaleX = 0.3f }
         others.forEach { it.scaleY = 0.3f }
-        // Search is a collapse-only affordance, not a fifth nav item: the rail carries four
-        // icons (home, explore, discovery, library). It is hidden here, up front, rather than at
-        // the end of the width animation. Left VISIBLE at 0.3 scale it kept a full pill's width
-        // in the row for the whole morph, so the bar grew to fit a search button that was about
-        // to disappear -- the overshoot, then the snap back. Being visible at partial alpha for
-        // those 220ms was also the flash inside the pill.
+
         searchButton?.let { sb ->
             sb.animate().cancel()
             sb.visibility = View.GONE
@@ -947,17 +700,9 @@ class EchoNavPillController(
         }
         savedPillPadding = null
         applyExpandedGlass()
-        // shrink() fades the indicator out, because the two collapsed buttons carry their
-        // own surfaces. Restore it here rather than at the end of the morph: this is the
-        // only place it is brought back, and the expanded rail needs it for its pill
-        // colour. positionIndicator still re-sizes and re-places it once layout settles.
+
         indicator.alpha = 1f
 
-        // Bring the icons, the label and the background straight back, in parallel with
-        // the width morph. They used to be faded in only once that morph finished, which
-        // left the rail looking empty for its whole 220ms. The indicator is deliberately
-        // not faded out here, so a pill always sits behind the selected icon and there is
-        // never a bare-icon frame.
         others.forEach { it.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(200).start() }
         labelView?.let { lbl -> lbl.animate().alpha(1f).setDuration(200).start() }
         backgroundPill?.animate()?.alpha(1f)?.setDuration(200)?.start()
@@ -966,11 +711,7 @@ class EchoNavPillController(
             if (version != morphVersion || collapsed) return@post
             positionLabelOverlay()
             pl.requestLayout()
-            // Restore natural sizing before the width gets measured. The collapse left the
-            // container pinned to the small pill width, and reading measuredWidth while it
-            // is still pinned would animate straight back to that stale value. This post is
-            // also what lets the new layout land before the block below reads the width, so
-            // no extra frame is needed for it.
+
             repinContainerWidth()
             pl.post {
                 if (version != morphVersion || collapsed) return@post
@@ -978,43 +719,19 @@ class EchoNavPillController(
                 animateContainerWidth(startWidth, targetWidth) {
                     if (version != morphVersion || collapsed) return@animateContainerWidth
                     positionLabelOverlay()
-                    // Hand the width back to the layout, otherwise the bar stays pinned to
-                    // whatever the animation last set and the pills sit off-centre.
+
                     repinContainerWidth()
-                    // Only now read the geometry, one frame later. repinContainerWidth()
-                    // hands the width back to WRAP_CONTENT, which queues a re-measure, and
-                    // positionLabelOverlay() only requests layout -- so reading
-                    // getLocationInWindow() straight afterwards returns the pill positions
-                    // from *before* the list reflowed. The indicator was then drawn against
-                    // stale coordinates: covering only the icon, or stopping short of half
-                    // the label. A frame later those positions are the settled ones.
+
                     container.post {
                         if (version != morphVersion || collapsed) return@post
                         positionIndicator(selectedIndex, animate = false)
                     }
-                    // No search-button fade-out here: expand() already hid it before the width
-                    // animation began, so it was never part of the expanded bar's measurement.
-                    // Animating it out again at the end could only re-introduce a visible frame.
+
                 }
             }
         }
     }
 
-    /**
-     * Left margin for the label, so the text starts [labelGapPx] from the icon glyph.
-     *
-     * A LinearLayout child's leftMargin is measured from the *end of the previous child*
-     * (the pill), not from the pill's left edge. The icon is centred in a square pill
-     * with symmetric padding, so its right edge sits at `pillSize / 2 + glyph / 2` from
-     * the pill's left edge. To put the text just past that:
-     *
-     *     margin = (iconRight + gap) - pillSize
-     *
-     * which is negative, because the glyph's right edge is inside the pill. Returning
-     * the un-offset `iconRight + gap` would shove the text a whole pill-width too far
-     * right. Clamped so the text can never start left of the icon, and never past the
-     * pill's right edge.
-     */
     private fun labelLeftMarginPx(pillSize: Int): Int {
         val glyph = NavPillCustomizer.getIconDrawnSizePx(pillSize)
         val iconRight = pillSize / 2f + glyph / 2f
@@ -1022,27 +739,6 @@ class EchoNavPillController(
         return margin.coerceIn(iconRight - pillSize, 0f).roundToInt()
     }
 
-    /**
-     * Moves the label into the layout right after the selected pill and sizes it to its
-     * text. Because it is a genuine child of pill_list, the sibling pills reflow to make
-     * room, so nothing can overlap. Horizontal rail only.
-     */
-    /**
-     * Attaches or detaches the label to match the Show Icon Labels setting.
-     *
-     * labelView is built once by 'lazy' and kept for the controller's lifetime, so the
-     * startup check inside it only ever runs once. Switching the setting off while the
-     * activity was already alive therefore did nothing at all: the label stayed in the
-     * view tree and the bar kept its label-sized width, so the toggle looked broken until
-     * the app was restarted. This runs from syncGlass(), which is called when returning
-     * from the appearance settings, and settles it without needing a restart.
-     *
-     * Detaching rather than just hiding is what makes the sizing come out right: the width
-     * is measured by settledExpandedWidthPx(), which measures the row, and a label that is
-     * merely GONE still occupies no space but a label that is VISIBLE is measured. Both are
-     * fine on their own, but only a detached label also disappears from the collapsed
-     * layout, which is the state the setting is really about.
-     */
     private fun syncLabelAttachment() {
         val parent = pillList ?: return
         val lbl = labelView
@@ -1057,8 +753,7 @@ class EchoNavPillController(
             }
             return
         }
-        // Setting off: take the label out of the tree. A null label, or one that was never
-        // added, needs nothing doing.
+
         if (lbl != null && attached) parent.removeView(lbl)
     }
 
@@ -1067,10 +762,7 @@ class EchoNavPillController(
         val parent = lbl.parent as? LinearLayout ?: return
         val pill = pills.getOrNull(selectedIndex) ?: return
         val text = labels.getOrNull(selectedIndex) ?: ""
-        // Idempotence guard. Everything below ends in requestLayout(), and the layout
-        // watcher reads any layout pass as "the geometry moved, re-position". Without this
-        // the two feed each other forever. Cheap enough to check first: it only compares
-        // values that are already computed, and skips the measure when nothing differs.
+
         val curLp = lbl.layoutParams as? LinearLayout.LayoutParams
         val curPillSize = if (pill.height > 0) pill.height else (pillH * density).roundToInt()
         val curAnchor = parent.indexOfChild(pill)
@@ -1081,47 +773,33 @@ class EchoNavPillController(
             curLp.height == curPillSize && curLp.width == labelWidthPx
         ) return
         lbl.text = text
-        // The label is built once, but the Icon Tint setting can change underneath us.
+
         lbl.setTextColor(NavPillCustomizer.getIconColor())
-        // The label is constructed GONE, and until now only expand() ever set it back to
-        // VISIBLE. So on a freshly attached rail the text never appeared at all, and
-        // positionIndicator() -- which only stretches over the label when it is VISIBLE
-        // -- drew a pill covering just the icon. That was both "the pill appears
-        // unlabelled, especially on app start" and "the indicator only indicates the
-        // icon". Own the visibility here: expanded means visible.
+
         if (!collapsed) lbl.visibility = View.VISIBLE
 
         val wantAnchor = parent.indexOfChild(pill)
         if (wantAnchor >= 0 && parent.indexOfChild(lbl) != wantAnchor + 1) {
-            // Detach first, then re-read the anchor: removing the label shifts every
-            // later child down by one, so an index captured before the removeView is
-            // stale and addView throws IndexOutOfBounds.
+
             parent.removeView(lbl)
             val anchor = parent.indexOfChild(pill)
             if (anchor >= 0) {
-                // Clamp as a last resort: addView throws on an out-of-range index, and
-                // this runs from a click listener, so a crash here takes down the app.
+
                 parent.addView(lbl, (anchor + 1).coerceIn(0, parent.childCount))
             } else {
                 parent.addView(lbl)
             }
         }
 
-        // The pill may not be laid out yet (first attach), so fall back to its
-        // configured height rather than measuring against zero.
         val pillSize = if (pill.height > 0) pill.height else (pillH * density).roundToInt()
         val lp = lbl.layoutParams
-        // Restore both axes: collapse zeroed them, and the rail only needs the width.
+
         val leftMargin = labelLeftMarginPx(pillSize)
         if (lp is LinearLayout.LayoutParams) {
             lp.leftMargin = leftMargin
             lp.topMargin = 0
         }
-        // Bound the text so the bar, at WRAP_CONTENT, still fits inside the screen
-        // margins. Every other child already occupies a fixed width, so the label only
-        // gets what is left over. This replaces a maxWidth cap on the container, and is
-        // stricter: the old cap only knew about the selected pill, so it ignored the
-        // other pills and the search button and let the bar overflow on a narrow screen.
+
         val roomForText = (maxContainerWidthPx() - fixedChildWidthPx(parent, lbl) - leftMargin)
             .coerceAtLeast(0)
         lbl.measure(
@@ -1135,17 +813,11 @@ class EchoNavPillController(
         parent.requestLayout()
     }
 
-    /**
-     * Hard ceiling for the bar: the screen width less the container's own side margins
-     * and the navigation-bar inset. The label ellipsizes past this rather than letting
-     * the pill run off the edge.
-     */
     private fun maxContainerWidthPx(): Int {
         val screen = container.resources.displayMetrics.widthPixels
         val lp = container.layoutParams
         val margins = if (lp is ViewGroup.MarginLayoutParams) lp.leftMargin + lp.rightMargin else 0
-        // ViewCompat, not rootWindowInsets.getInsets(): the latter is API 30+ and
-        // minSdk here is 23.
+
         val insets = ViewCompat.getRootWindowInsets(container)
             ?.getInsets(WindowInsetsCompat.Type.systemBars())?.left ?: 0
         return (screen - margins - insets).coerceAtLeast((pillH * density).roundToInt() * 2)
@@ -1168,10 +840,7 @@ class EchoNavPillController(
 
     private fun positionIndicator(index: Int, animate: Boolean) {
         val pill = pills.getOrNull(index) ?: pills.firstOrNull() ?: return
-        // The vertical/TV rail has no indicator. It shows selection with the round focus
-        // border on the background view instead, so a second highlight behind the icon was
-        // always redundant there -- and once the landscape media layout started being
-        // misread as horizontal, it became a stretched icon+label pill as well.
+
         if (isVerticalRail()) {
             indicatorAnimator?.cancel()
             indicator.visibility = View.GONE
@@ -1182,24 +851,17 @@ class EchoNavPillController(
         container.getLocationInWindow(cLoc)
         pill.getLocationInWindow(pLoc)
         val vx = (pLoc[0] - cLoc[0]).toFloat()
-        // The label is a sibling that already occupies its own layout space, so the
-        // indicator spans the icon and the text as one continuous pill. The vertical
-        // rail is left exactly as it was, minus the gradient.
+
         val vertical = isVerticalRail()
         val stretch = if (vertical) 0 else labelView?.let { lbl ->
             if (lbl.visibility == View.VISIBLE && !collapsed) {
-                // The label's margin can be negative (it starts inside the pill, next to
-                // the glyph), so the stretch is the true remaining distance to the text's
-                // right edge and must never be less than the pill's own width.
+
                 val margin = (lbl.layoutParams as? LinearLayout.LayoutParams)?.leftMargin ?: 0
                 (margin + labelWidthPx).coerceAtLeast(0)
             } else 0
         } ?: 0
         val width = pill.width + stretch
-        // A little breathing room above and below: the indicator is inset vertically
-        // from the pill, and nudged down by the same amount so it stays centred on the
-        // icon. Horizontal only, so the vertical rail keeps its original full-height
-        // indicator.
+
         val inset = if (vertical) 0 else indicatorInsetPx
         val height = (pill.height - inset * 2).coerceAtLeast(1)
         val vy = (pLoc[1] - cLoc[1]).toFloat() + inset
@@ -1267,14 +929,6 @@ class EchoNavPillController(
         }
     }
 
-    /**
-     * Writes the width onto the container's *current* LayoutParams on every frame.
-     *
-     * Holding one LayoutParams object captured before the animation started was unsafe:
-     * the activities' window-insets listener replaces `layoutParams` while this runs, so
-     * re-assigning the captured object at the end silently rolled the container back to
-     * its pre-inset margins and dropped the gravity the collapse had just applied.
-     */
     private fun applyContainerWidth(width: Int) {
         val lp = container.layoutParams ?: return
         lp.width = width.coerceAtLeast(1)

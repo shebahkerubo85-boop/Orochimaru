@@ -4,7 +4,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 
-/** Handles the two explicit actions exposed by the active-download notification. */
 class DownloadActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         val itemId = intent?.getStringExtra(EXTRA_ITEM_ID) ?: return

@@ -146,7 +146,7 @@ class HubCloud : ExtractorApi() {
                         ) { this.quality = quality }
                     )
                 }
-                
+
                 else -> {
                     loadExtractor(link, "", subtitleCallback, callback)
                 }

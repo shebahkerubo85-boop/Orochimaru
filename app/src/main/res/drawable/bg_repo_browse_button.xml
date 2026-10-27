@@ -3,7 +3,7 @@
     android:color="?attr/colorPrimary">
     <item>
         <selector>
-            <!-- Focused: primary color fill -->
+
             <item android:state_focused="true">
                 <shape android:shape="rectangle">
                     <solid android:color="?attr/colorPrimary" />
@@ -11,14 +11,14 @@
                     <corners android:radius="24dp" />
                 </shape>
             </item>
-            <!-- Pressed -->
+
             <item android:state_pressed="true">
                 <shape android:shape="rectangle">
                     <solid android:color="?attr/colorPrimary" />
                     <corners android:radius="24dp" />
                 </shape>
             </item>
-            <!-- Default: primary with alpha -->
+
             <item>
                 <shape android:shape="rectangle">
                     <solid android:color="@android:color/white" />

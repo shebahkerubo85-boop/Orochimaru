@@ -17,56 +17,24 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 import kotlin.system.measureTimeMillis
 
-
 abstract class BaseParser {
 
-    /**
-     * Name that will be shown in Source Selection
-     * **/
     open val name: String = ""
 
-    /**
-     * Name used to save the ShowResponse selected by user or by autoSearch
-     * **/
     open val saveName: String = ""
 
-    /**
-     * The main URL of the Site
-     * **/
     open val hostUrl: String = ""
 
-    /**
-     * override as `true` if the site **only** has NSFW media
-     * **/
     open val isNSFW = false
 
-    /**
-     * mostly redundant for official app, But override if you want to add different languages
-     * **/
     open val language = "English"
 
-    /**
-     * Icon of the site, can be null
-     */
     open val icon: Drawable? = null
 
-    /**
-     * Icon URL of the site, used if local icon is null
-     */
     open val iconUrl: String? = null
 
-    /**
-     *  Search for Anime/Manga/Novel, returns a List of Responses
-     *
-     *  use `encode(query)` to encode the query for making requests
-     * **/
     abstract suspend fun search(query: String): List<ShowResponse>
 
-    /**
-     * The function app uses to auto find the anime/manga using Media data provided by anilist
-     *
-     * Isn't necessary to override, but recommended, if you want to improve auto search results
-     * **/
     open suspend fun autoSearch(mediaObj: Media): ShowResponse? {
         var response: ShowResponse? = loadSavedShowResponse(mediaObj.id)
         if (response != null && this !is OfflineMangaParser) {
@@ -75,7 +43,7 @@ abstract class BaseParser {
             setUserText("Searching : ${mediaObj.mainName()}")
             Logger.log("Searching : ${mediaObj.mainName()}")
             val results = search(mediaObj.mainName())
-            //log all results
+
             results.forEach {
                 Logger.log("Result: ${it.name}")
             }
@@ -142,10 +110,6 @@ abstract class BaseParser {
         return response
     }
 
-    /**
-     * ping the site to check if it's working or not.
-     * @return Triple<Int, Int?, String> : First Int is the status code, Second Int is the response time in milliseconds, Third String is the response message.
-     */
     fun ping(): Triple<Int, Int?, String> {
         val client = OkHttpClient()
         var statusCode = 0
@@ -171,11 +135,6 @@ abstract class BaseParser {
         return Triple(statusCode, responseTime, responseMessage)
     }
 
-    /**
-     * Used to get an existing Search Response which was selected by the user.
-     * @param mediaId : The mediaId of the Media object.
-     * @return ShowResponse? : The ShowResponse object if found, else null.
-     */
     open suspend fun loadSavedShowResponse(mediaId: Int): ShowResponse? {
         checkIfVariablesAreEmpty()
         return PrefManager.getNullableCustomVal(
@@ -185,12 +144,6 @@ abstract class BaseParser {
         )
     }
 
-    /**
-     * Used to save Shows Response using `saveName`.
-     * @param mediaId : The mediaId of the Media object.
-     * @param response : The ShowResponse object to save.
-     * @param selected : Boolean : If the ShowResponse was selected by the user or not.
-     */
     open fun saveShowResponse(mediaId: Int, response: ShowResponse?, selected: Boolean = false) {
         if (response != null) {
             checkIfVariablesAreEmpty()
@@ -214,9 +167,6 @@ abstract class BaseParser {
     open var showUserText = ""
     open var showUserTextListener: ((String) -> Unit)? = null
 
-    /**
-     * Used to show messages & errors to the User, a useful way to convey what's currently happening or what was done.
-     * **/
     fun setUserText(string: String) {
         showUserText = string
         showUserTextListener?.invoke(showUserText)
@@ -228,32 +178,19 @@ abstract class BaseParser {
     val defaultImage = "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/default.jpg"
 }
 
-
-/**
- * A single show which contains some episodes/chapters which is sent by the site using their search function.
- *
- * You might wanna include `otherNames` & `total` too, to further improve user experience.
- *
- * You can also store a Map of Strings if you want to save some extra data.
- * **/
 data class ShowResponse(
     val name: String,
     val link: String,
     val coverUrl: FileUrl,
 
-    //would be Useful for custom search, ig
     val otherNames: List<String> = listOf(),
 
-    //Total number of Episodes/Chapters in the show.
     val total: Int? = null,
 
-    //In case you want to sent some extra data
     val extra: MutableMap<String, String>? = null,
 
-    //SAnime object from Aniyomi
     val sAnime: SAnime? = null,
 
-    //SManga object from Aniyomi
     val sManga: SManga? = null
 ) : Serializable {
     constructor(
@@ -289,5 +226,4 @@ data class ShowResponse(
         private const val serialVersionUID = 1L
     }
 }
-
 

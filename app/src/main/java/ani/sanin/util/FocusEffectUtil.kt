@@ -69,12 +69,6 @@ object FocusEffectUtil {
         }
     }
 
-    /**
-     * Focus ring with per-corner radii in px ([topLeft, topLeft, topRight, topRight,
-     * bottomRight, bottomRight, bottomLeft, bottomLeft]). Server-sheet quality rows use this so the
-     * ring follows the group card's rounded outline (round top on the first row, round bottom on
-     * the last) instead of a generic 8dp that looked square inside the 16dp card.
-     */
     fun applyFocusListener(view: View, cornerRadii: FloatArray, onFocusChanged: ((View, Boolean) -> Unit)? = null) {
         removeBorder(view)
         view.onFocusChangeListener = null
@@ -134,7 +128,6 @@ object FocusEffectUtil {
         }
     }
 
-    /** Replays the same spin as dpad focus for touch taps (buttons beside search bars). */
     fun spinOnTouch(view: View) {
         if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.FocusAnimations)) {
             view.animate().cancel()
@@ -145,9 +138,7 @@ object FocusEffectUtil {
     private fun resetView(v: View?) {
         if (v == null) return
         removeBorder(v)
-        // Keep the light-mode lens shadow: LensButtonBackground puts a small elevation on
-        // those round buttons and zeroing it here would make it vanish after the first
-        // time focus moves away.
+
         if (!isLensButton(v)) v.elevation = 0f
         v.scaleX = 1f
         v.scaleY = 1f
@@ -158,8 +149,7 @@ object FocusEffectUtil {
     }
 
     fun getPrimaryColor(context: android.content.Context): Int {
-        // Views inflated under AppBar/Material overlays can resolve an unset colorPrimary to
-        // Material's default purple. Resolve the app's runtime theme from its owning Activity.
+
         val themedContext = GlassPill.themedContext(context)
         val ta: TypedArray = themedContext.theme.obtainStyledAttributes(
             intArrayOf(com.google.android.material.R.attr.colorPrimary)
@@ -177,10 +167,6 @@ object FocusEffectUtil {
             TypedValue.COMPLEX_UNIT_DIP, borderDp, v.resources.displayMetrics
         ).toInt()
 
-        // Chips draw their pill inside their padding (Material chip expands the
-        // touch target beyond the visible shape). A full-bounds foreground ring
-        // therefore looks oversized. Draw the ring inset to the chip's visual
-        // bounds with a stadium radius so it hugs the pill exactly.
         if (v is com.google.android.material.chip.Chip && !isCircular) {
             val chipDrawable = chipFocusRing(v, borderWidthPx, primaryColor)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -246,13 +232,6 @@ object FocusEffectUtil {
         }
     }
 
-    /**
-     * Focus ring that follows a [com.google.android.material.chip.Chip]'s pill exactly.
-     *
-     * Material draws the chip's pill inset by half its stroke width; the ring mirrors
-     * that inset around a fully-rounded [GradientDrawable], so it sits on the visible
-     * outline instead of the raw (touch-target) view bounds.
-     */
     private fun chipFocusRing(
         chip: com.google.android.material.chip.Chip,
         borderWidthPx: Int,
@@ -262,12 +241,10 @@ object FocusEffectUtil {
             setShape(GradientDrawable.RECTANGLE)
             setColor(Color.TRANSPARENT)
             setStroke(borderWidthPx, color)
-            // Clamps to half the drawn height → a perfect pill regardless of the
-            // inset applied below, matching the Material chip outline.
+
             cornerRadius = 100000f
         }
-        // Material draws the chip pill inset by half its own stroke width; match that
-        // so the focus ring sits exactly on the visible outline.
+
         val inset = (chip.chipStrokeWidth / 2f).toInt().coerceAtLeast(0)
         return InsetDrawable(shape, inset, inset, inset, inset)
     }
@@ -331,7 +308,6 @@ object FocusEffectUtil {
 
     private fun isLensButton(v: View): Boolean = v.id in lensButtonIds
 
-    /** Re-applies the light-mode lens shadow; no-op in dark mode. */
     private fun applyLensElevation(v: View) {
         if (!isLensButton(v)) return
         val dark = (v.resources.configuration.uiMode and

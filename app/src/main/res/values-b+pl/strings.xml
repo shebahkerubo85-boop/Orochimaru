@@ -192,7 +192,7 @@
     <string name="free_storage">Wolne</string>
     <string name="used_storage">W użyciu</string>
     <string name="app_storage">Aplikacja</string>
-    <!--plural-->
+
     <string name="movies">Filmy</string>
     <string name="tv_series">Seriale telewizyjne</string>
     <string name="cartoons">Kreskówki</string>
@@ -204,7 +204,7 @@
     <string name="livestreams">Transmisje na żywo</string>
     <string name="nsfw">NSFW</string>
     <string name="others">Inne</string>
-    <!--singular-->
+
     <string name="movies_singular">Film</string>
     <string name="tv_series_singular">Serial telewizyjny</string>
     <string name="cartoons_singular">Kreskówka</string>
@@ -295,7 +295,7 @@
     <string name="sync_score_format" formatted="true">%d na 10</string>
     <string name="authenticated_user" formatted="true">Uwierzytelniono %s</string>
     <string name="authenticated_user_fail" formatted="true">Nie udało się uwierzytelnić %s</string>
-    <!-- ============ -->
+
     <string name="none">Brak</string>
     <string name="normal">Normalne</string>
     <string name="all">Wszystko</string>

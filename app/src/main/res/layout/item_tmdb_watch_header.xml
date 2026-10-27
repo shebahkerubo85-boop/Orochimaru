@@ -10,7 +10,6 @@
     android:orientation="vertical"
     android:paddingTop="16dp">
 
-    <!-- Shared clay-columns box: [left clay | middle | right clay] -->
     <LinearLayout
         android:id="@+id/tmdbWatchBox"
         android:layout_width="match_parent"
@@ -20,7 +19,6 @@
         android:orientation="horizontal"
         android:padding="32dp">
 
-        <!-- Left clay: refresh, settings, globe, subscribe -->
         <LinearLayout
             android:id="@+id/tmdbWatchClayLeft"
             android:layout_width="wrap_content"
@@ -79,7 +77,6 @@
                 tools:ignore="ContentDescription,ImageContrastCheck" />
         </LinearLayout>
 
-        <!-- Middle clay: auto-search (spinner + title) and source chips -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="match_parent"
@@ -139,7 +136,6 @@
             </HorizontalScrollView>
         </LinearLayout>
 
-        <!-- Right clay: layout, sort, download, faq -->
         <LinearLayout
             android:id="@+id/tmdbWatchClayRight"
             android:layout_width="wrap_content"
@@ -199,7 +195,6 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Season area (tv) -->
     <HorizontalScrollView
         android:id="@+id/tmdbWatchSeasonScroll"
         android:layout_width="match_parent"
@@ -218,7 +213,6 @@
             app:singleSelection="true" />
     </HorizontalScrollView>
 
-    <!-- Single-season label -->
     <TextView
         android:id="@+id/tmdbWatchSingleSeason"
         android:layout_width="wrap_content"
@@ -231,7 +225,6 @@
         tools:text="1 Season"
         tools:visibility="visible" />
 
-    <!-- Movie row: prequel / sequel -->
     <LinearLayout
         android:id="@+id/tmdbWatchMovieRow"
         android:layout_width="match_parent"
@@ -267,7 +260,6 @@
             android:textColor="?attr/colorPrimary" />
     </LinearLayout>
 
-    <!-- Continue watching -->
     <androidx.cardview.widget.CardView
         android:id="@+id/tmdbWatchContinueCard"
         android:layout_width="match_parent"
@@ -364,7 +356,6 @@
         </FrameLayout>
     </androidx.cardview.widget.CardView>
 
-    <!-- Episodes header -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

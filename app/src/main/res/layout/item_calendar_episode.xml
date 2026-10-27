@@ -10,7 +10,6 @@
     android:orientation="vertical"
     android:padding="8dp">
 
-    <!-- Thumbnail with centered badge -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -22,10 +21,9 @@
             android:layout_height="160dp"
             android:importantForAccessibility="no"
             android:scaleType="centerCrop"
-            
+
             tools:ignore="ContentDescription" />
 
-        <!-- Badge: centered on thumbnail -->
         <TextView
             android:id="@+id/calendarEpBadge"
             android:layout_width="wrap_content"
@@ -41,7 +39,6 @@
             tools:text="Ep 9 · 10:56pm" />
     </FrameLayout>
 
-    <!-- Title + extras -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

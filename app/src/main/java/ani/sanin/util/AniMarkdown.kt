@@ -3,7 +3,7 @@ package ani.sanin.util
 import ani.sanin.getYoutubeId
 import ani.sanin.util.ColorEditor.Companion.toCssColor
 
-class AniMarkdown { //istg anilist has the worst api
+class AniMarkdown {
     companion object {
         private fun String.convertNestedImageToHtml(): String {
             val regex = """\[!\[(.*?)]\((.*?)\)]\((.*?)\)""".toRegex()
@@ -114,7 +114,6 @@ class AniMarkdown { //istg anilist has the worst api
 
         fun getFullAniHTML(html: String, textColor: Int): String {
             val basicHtml = getBasicAniHTML(html)
-
 
             val returnHtml = """
             <html>

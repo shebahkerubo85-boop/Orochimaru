@@ -23,28 +23,15 @@ enum class SyncIdName {
     LocalList,
 }
 
-/**
- * Stateless synchronization class, used for syncing status about a specific movie/show.
- *
- * All non-null `AuthToken` will be non-expired when each function is called.
- */
 abstract class SyncAPI : AuthAPI() {
-    /**
-     * Set this to true if the user updates something on the list like watch status or score
-     **/
+
     open var requireLibraryRefresh: Boolean = true
     open val mainUrl: String = "NONE"
 
-    /** Currently unused, but will be used to correctly render the UI.
-     * This should specify what sync watch types can be used with this service. */
     open val supportedWatchTypes: Set<SyncWatchType> = SyncWatchType.entries.toSet()
-    /**
-     * Allows certain providers to open pages from
-     * library links.
-     **/
+
     open val syncIdName: SyncIdName? = null
 
-    /** Modify the current status of an item */
     @Throws
     open suspend fun updateStatus(
         auth: AuthData?,
@@ -52,25 +39,20 @@ abstract class SyncAPI : AuthAPI() {
         newStatus: AbstractSyncStatus
     ): Boolean = throw NotImplementedError()
 
-    /** Get the current status of an item */
     @Throws
     open suspend fun status(auth: AuthData?, id: String): AbstractSyncStatus? =
         throw NotImplementedError()
 
-    /** Get metadata about an item */
     @Throws
     open suspend fun load(auth: AuthData?, id: String): SyncResult? = throw NotImplementedError()
 
-    /** Search this service for any results for a given query */
     @Throws
     open suspend fun search(auth: AuthData?, query: String): List<SyncSearchResult>? =
         throw NotImplementedError()
 
-    /** Get the current library/bookmarks of this service */
     @Throws
     open suspend fun library(auth: AuthData?): LibraryMetadata? = throw NotImplementedError()
 
-    /** Helper function, may be used in the future */
     @Throws
     open fun urlToId(url: String): String? = null
 
@@ -104,14 +86,14 @@ abstract class SyncAPI : AuthAPI() {
     ) : AbstractSyncStatus()
 
     data class SyncResult(
-        /**Used to verify*/
+
         var id: String,
 
         var totalEpisodes: Int? = null,
 
         var title: String? = null,
         var publicScore: Score? = null,
-        /**In minutes*/
+
         var duration: Int? = null,
         var synopsis: String? = null,
         var airStatus: ShowStatus? = null,
@@ -124,9 +106,8 @@ abstract class SyncAPI : AuthAPI() {
         var posterUrl: String? = null,
         var backgroundPosterUrl: String? = null,
 
-        /** In unixtime */
         var startDate: Long? = null,
-        /** In unixtime */
+
         var endDate: Long? = null,
         var recommendations: List<SyncSearchResult>? = null,
         var nextSeason: SyncSearchResult? = null,
@@ -174,11 +155,7 @@ abstract class SyncAPI : AuthAPI() {
     data class LibraryItem(
         override val name: String,
         override val url: String,
-        /**
-         * Unique unchanging string used for data storage.
-         * This should be the actual id when you change scores and status
-         * since score changes from library might get added in the future.
-         **/
+
         val syncId: String,
         val episodesCompleted: Int?,
         val episodesTotal: Int?,

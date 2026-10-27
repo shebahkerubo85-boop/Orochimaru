@@ -11,7 +11,6 @@
     android:orientation="vertical"
     android:padding="0dp">
 
-    <!-- Logo / Title -->
     <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/commentsLogo"
         android:layout_width="match_parent"
@@ -34,7 +33,6 @@
         android:visibility="gone"
         tools:ignore="HardcodedText" />
 
-    <!-- Banner Image (media.banner) -->
     <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/commentsLogoart"
         android:layout_width="match_parent"
@@ -45,7 +43,6 @@
         android:visibility="visible"
         tools:ignore="ContentDescription" />
 
-    <!-- List Editor Button -->
     <Button
         android:id="@+id/commentsListEditor"
         style="@style/Widget.Material3.Button.OutlinedButton"
@@ -65,7 +62,6 @@
         app:cornerRadius="16dp"
         app:strokeColor="@android:color/white" />
 
-    <!-- Episode Badge + Sort + Rules Row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -123,7 +119,6 @@
             app:tint="#FF888888" />
     </LinearLayout>
 
-    <!-- Carousel -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -184,7 +179,6 @@
             android:background="#FF2A2A2A" />
     </FrameLayout>
 
-    <!-- Input -->
     <LinearLayout
         android:id="@+id/commentMessageContainer"
         android:layout_width="match_parent"
@@ -315,7 +309,6 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Hidden views from landscape -->
     <com.google.android.material.imageview.ShapeableImageView
         android:id="@+id/commentsPoster"
         android:layout_width="0dp"

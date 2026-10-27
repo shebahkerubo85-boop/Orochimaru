@@ -47,7 +47,6 @@ import java.util.Calendar
 import java.util.Locale
 import kotlin.math.abs
 
-
 class Stories @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : ConstraintLayout(context, attrs, defStyleAttr), View.OnTouchListener {
@@ -78,7 +77,6 @@ class Stories @JvmOverloads constructor(
 
         binding.touchPanel.setOnTouchListener(this)
     }
-
 
     fun setStoriesList(
         activityList: List<Activity>, startIndex: Int = 1
@@ -221,12 +219,12 @@ class Stories @JvmOverloads constructor(
                     storyIndex += 1
                     showStory()
                 } else {
-                    // on stories end
+
                     binding.androidStoriesLoadingView.visibility = GONE
                     onStoriesCompleted()
                 }
             } else {
-                // on stories end
+
                 binding.androidStoriesLoadingView.visibility = GONE
                 onStoriesCompleted()
             }
@@ -262,7 +260,6 @@ class Stories @JvmOverloads constructor(
             }
         }
     }
-
 
     private fun rightPanelTouch() {
         Logger.log("rightPanelTouch: $storyIndex")
@@ -319,7 +316,7 @@ class Stories @JvmOverloads constructor(
     private fun loadStory(story: Activity) {
         binding.linkPreviewContainer.removeAllViews()
         binding.linkPreviewContainer.visibility = GONE
-        
+
         val key = "activities"
         val set = PrefManager.getCustomVal<Set<Int>>(key, setOf()).plus((story.id))
         val newList = set.sorted().takeLast(200).toSet()
@@ -462,8 +459,7 @@ class Stories @JvmOverloads constructor(
                     show(hostActivity.supportFragmentManager, "dialog")
                 }
             } else if ((story.likeCount ?: 0) > 0) {
-                // The feed query doesn't always carry `likes` for an activity, so a long press
-                // with a non-zero count can show an empty sheet. Fetch the activity on demand.
+
                 pause()
                 val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
                 scope.launch {
@@ -494,8 +490,7 @@ class Stories @JvmOverloads constructor(
                             }
                         }
                     } finally {
-                        // Resume even if the fetch throws: leaving the timer stopped would freeze
-                        // the story until the user swiped away manually.
+
                         withContext(Dispatchers.Main) {
                             if (!hostActivity.isFinishing && !hostActivity.isDestroyed) resume()
                         }
@@ -549,7 +544,7 @@ class Stories @JvmOverloads constructor(
                 }
                 val mediaMap = mediaList?.associateBy { it.id } ?: emptyMap()
                 withContext(Dispatchers.Main) {
-                    // Re-render the text view: replace AniList URLs with media titles
+
                     if (mediaMap.isNotEmpty() && !(context as android.app.Activity).isDestroyed) {
                         val titleMap = mediaMap.mapValues { (_, media) -> media.userPreferredName }
                         val htmlWithTitles = AnilistLinkParser.replaceAnilistUrlsInHtml(
@@ -558,7 +553,7 @@ class Stories @JvmOverloads constructor(
                         val markwon = buildMarkwon(context, false)
                         markwon.setMarkdown(binding.textActivity, htmlWithTitles)
                     }
-                    // Add preview cards
+
                     links.forEach { link ->
                         val previewView = AnilistLinkPreviewView(context)
                         val media = mediaMap[link.id]

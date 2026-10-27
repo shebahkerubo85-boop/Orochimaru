@@ -94,15 +94,11 @@ class TmdbListDialogFragment : DialogFragment() {
         binding.mediaListVolumeProgressLayout.visibility = View.GONE
         binding.mediaListExpandable.visibility = View.GONE
 
-        // ── Score field: Simkl rating (1-10). Fabricates favourites: a score of
-        //    8.5+ (rounds to user_rating 9-10) marks the title as a favourite in the
-        //    library tab; lowering it below 8.5 removes it automatically.
         binding.mediaListScore.filters = arrayOf(
             InputFilterMinMax(0.0, 10.0),
             android.text.InputFilter.LengthFilter(4)
         )
 
-        // ── Progress field: enabled only for TV shows ──
         if (totalEpisodes != null && type == "tv") {
             binding.mediaListProgressLayout.visibility = View.VISIBLE
             binding.mediaListIncrement.visibility = View.VISIBLE
@@ -125,7 +121,6 @@ class TmdbListDialogFragment : DialogFragment() {
             binding.mediaListIncrement.visibility = View.GONE
         }
 
-        // ── Load current status + progress from Simkl ──
         scope.launch(Dispatchers.IO) {
             val currentStatus = runCatching {
                 Simkl.getMediaStatus(type, tmdbId, imdbId, anilistId)
@@ -140,7 +135,7 @@ class TmdbListDialogFragment : DialogFragment() {
             }.getOrNull()
 
             withContext(Dispatchers.Main) {
-                // Populate status chips
+
                 val currentIdx = simklStatusToIndex(currentStatus)
                 binding.mediaListStatusGroup.removeAllViews()
                 statusStrings.forEachIndexed { index, label ->
@@ -159,18 +154,17 @@ class TmdbListDialogFragment : DialogFragment() {
                     *(0 until binding.mediaListStatusGroup.childCount)
                         .map { binding.mediaListStatusGroup.getChildAt(it) }.toTypedArray()
                 )
-                // Populate progress field
+
                 if (currentProgress != null && currentProgress > 0 && totalEpisodes != null && type == "tv") {
                     binding.mediaListProgress.setText(currentProgress.toString())
                 }
-                // Populate score (Simkl stores 1-10; the field edits 0-10)
+
                 if (currentRating != null && currentRating > 0) {
                     binding.mediaListScore.setText(currentRating.toString())
                 }
             }
         }
 
-        // ── Save: status + progress ── (debounced for D-pad double-fire) ──
         var saving = false
         binding.mediaListSave.setOnClickListener {
             if (saving) return@setOnClickListener
@@ -184,18 +178,16 @@ class TmdbListDialogFragment : DialogFragment() {
             val simklStatus = SIMKL_STATUS_BY_INDEX[idx]
             val progress = if (type == "tv" && totalEpisodes != null) {
                 val typed = binding.mediaListProgress.text.toString().toIntOrNull() ?: 0
-                // Mark-all when completed and no explicit progress typed
+
                 if (typed == 0 && simklStatus == "completed") totalEpisodes else typed
             } else 0
-            // Simkl stores ratings 1-10; the score field edits 0-10, so round to the
-            // nearest whole rating (8.5+ → 9 = favourite).
+
             val score = binding.mediaListScore.text.toString().toDoubleOrNull()
                 ?.let { if (it > 0) Math.round(it).toInt().coerceIn(1, 10) else 0 }
                 ?: 0
 
             scope.launch(Dispatchers.IO) {
-                // 1. Sync episode progress FIRST — Simkl resets the status to watching
-                //    after a /sync/history update, so it must never run after status.
+
                 if (type == "tv" && progress > 0) {
                     runCatching {
                         Simkl.setProgress(
@@ -205,7 +197,7 @@ class TmdbListDialogFragment : DialogFragment() {
                         )
                     }
                 }
-                // 2. Set the list status LAST — final operation, not clobbered by history.
+
                 val applied = runCatching {
                     Simkl.setListStatus(
                         type = type, title = title, year = year,
@@ -226,7 +218,6 @@ class TmdbListDialogFragment : DialogFragment() {
             }
         }
 
-        // ── Delete from Simkl list ── (debounced for D-pad double-fire) ──
         binding.mediaListDelete.setOnClickListener {
             if (saving) return@setOnClickListener
             saving = true

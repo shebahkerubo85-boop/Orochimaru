@@ -9,7 +9,6 @@
     android:orientation="vertical"
     tools:context=".settings.SettingsActivity">
 
-    <!-- Toggle row: add repo left, capsule centered, search right -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="56dp"
@@ -103,7 +102,6 @@
         android:nextFocusUp="@id/searchIconButton"
         android:nextFocusDown="@id/viewPager" />
 
-    <!-- Inline search bar: expands under the tabs when the search icon is tapped -->
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/searchView"
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"

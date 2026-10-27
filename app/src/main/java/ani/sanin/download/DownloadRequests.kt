@@ -7,19 +7,11 @@ import ani.sanin.parsers.Video
 import ani.sanin.parsers.VideoExtractor
 import ani.sanin.util.BatteryOptimizations
 
-/** Preferred quality when an episode is downloaded in bulk without an explicit quality pick. */
 fun bestVideoOf(extractor: VideoExtractor): Video? =
     extractor.videos.firstOrNull { it.preferred }
         ?: extractor.videos.maxByOrNull { it.quality ?: 0 }
         ?: extractor.videos.firstOrNull()
 
-/**
- * Builds the queue entry for one resolved episode/server/quality and enqueues it. The video is
- * already resolved by [ani.sanin.media.anime.SelectorDialogFragment], so this only has to map the
- * Orochimaru types onto the engine's model.
- *
- * Returns the enqueued item, or null if this episode is already downloaded / already queued.
- */
 fun DownloadManager.enqueue(
     media: Media,
     episode: Episode,
@@ -52,8 +44,7 @@ fun DownloadManager.enqueue(
         genres = media.genres.takeIf { it.isNotEmpty() },
     )
     enqueue(item)
-    // One-time battery exemption prompt, so the OS does not kill the queue (or its foreground
-    // service) under OEM power management. Only ever fires on the first item ever queued.
+
     App.currentActivity()?.let { BatteryOptimizations.promptIfNeeded(it) }
     return item
 }

@@ -6,7 +6,7 @@
         android:name="vector"
         android:tint="?attr/white"
 >
-    <!-- ScaleX = 108/24 -->
+
     <group
             android:scaleX="0.22"
             android:scaleY="0.22"

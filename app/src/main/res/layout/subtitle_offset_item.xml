@@ -20,7 +20,6 @@
         android:textStyle="bold"
         tools:text="Long testing subtitle line 1\nSubtitle line 2" />
 
-
     <androidx.core.widget.ContentLoadingProgressBar
         android:id="@+id/subtitle_progress"
         style="@android:style/Widget.Material.ProgressBar.Horizontal"

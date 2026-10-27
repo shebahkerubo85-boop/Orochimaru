@@ -333,7 +333,6 @@ class AnilistAnimeViewModel : ViewModel() {
         )
     }
 
-
     private val animePopular = MutableLiveData<AniMangaSearchResults?>(null)
 
     fun getPopular(): LiveData<AniMangaSearchResults?> = animePopular
@@ -380,7 +379,6 @@ class AnilistAnimeViewModel : ViewModel() {
             )
         )
     }
-
 
     suspend fun loadNextPage(r: AniMangaSearchResults) {
         val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
@@ -518,7 +516,6 @@ class AnilistMangaViewModel : ViewModel() {
         )
     }
 
-
     private val mangaPopular = MutableLiveData<AniMangaSearchResults?>(null)
     fun getPopular(): LiveData<AniMangaSearchResults?> = mangaPopular
     suspend fun loadPopular(
@@ -564,7 +561,6 @@ class AnilistMangaViewModel : ViewModel() {
             )
         )
     }
-
 
     suspend fun loadNextPage(r: AniMangaSearchResults) {
         val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)

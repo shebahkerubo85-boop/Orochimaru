@@ -4,17 +4,9 @@ import ani.sanin.util.Logger
 import java.util.regex.Pattern
 import kotlin.math.pow
 
-// https://github.com/cylonu87/JsUnpacker
-// https://github.com/recloudstream/cloudstream/blob/master/app/src/main/java/com/lagradost/cloudstream3/utils/JsUnpacker.kt
-
 class JsUnpacker(packedJS: String?) {
     private var packedJS: String? = null
 
-    /**
-     * Detects whether the javascript is P.A.C.K.E.R. coded.
-     *
-     * @return true if it's P.A.C.K.E.R. coded.
-     */
     fun detect(): Boolean {
         val js = packedJS!!.replace(" ", "")
         val p = Pattern.compile("eval\\(function\\(p,a,c,k,e,[rd]")
@@ -22,11 +14,6 @@ class JsUnpacker(packedJS: String?) {
         return m.find()
     }
 
-    /**
-     * Unpack the javascript
-     *
-     * @return the javascript unpacked or null.
-     */
     fun unpack(): String? {
         val js = packedJS ?: return null
         try {
@@ -121,7 +108,6 @@ class JsUnpacker(packedJS: String?) {
     init {
         this.packedJS = packedJS
     }
-
 
     companion object {
         val c =

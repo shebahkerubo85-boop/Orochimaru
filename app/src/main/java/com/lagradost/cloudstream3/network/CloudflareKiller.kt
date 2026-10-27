@@ -30,18 +30,15 @@ class CloudflareKiller : Interceptor {
     }
 
     init {
-        // Needs to clear cookies between sessions to generate new cookies.
+
         safe {
-            // This can throw an exception on unsupported devices :(
+
             CookieManager.getInstance().removeAllCookies(null)
         }
     }
 
     val savedCookies: MutableMap<String, Map<String, String>> = mutableMapOf()
 
-    /**
-     * Gets the headers with cookies, webview user agent included!
-     * */
     fun getCookieHeaders(url: String): Headers {
         val userAgentHeaders = WebViewResolver.webViewUserAgent?.let {
             mapOf("user-agent" to it)
@@ -89,12 +86,8 @@ class CloudflareKiller : Interceptor {
         }
     }
 
-    /**
-     * Returns true if the cf cookies were successfully fetched from the CookieManager
-     * Also saves the cookies.
-     * */
     private fun trySolveWithSavedCookies(request: Request): Boolean {
-        // Not sure if this takes expiration into account
+
         return getWebViewCookie(request.url.toString())?.let { cookie ->
             cookie.contains("cf_clearance").also { solved ->
                 if (solved) savedCookies[request.url.host] = parseCookieMap(cookie)
@@ -119,18 +112,16 @@ class CloudflareKiller : Interceptor {
     private suspend fun bypassCloudflare(request: Request): Response? {
         val url = request.url.toString()
 
-        // If no cookies then try to get them
-        // Remove this if statement if cookies expire
         if (!trySolveWithSavedCookies(request)) {
             Log.d(TAG, "Loading webview to solve cloudflare for ${request.url}")
             WebViewResolver(
-                // Never exit based on url
+
                 Regex(".^"),
-                // Cloudflare needs default user agent
+
                 userAgent = null,
-                // Cannot use okhttp (i think intercepting cookies fails which causes the issues)
+
                 useOkhttp = false,
-                // Match every url for the requestCallBack
+
                 additionalUrls = listOf(Regex(".")),
                 script = null,
                 scriptCallback = null,

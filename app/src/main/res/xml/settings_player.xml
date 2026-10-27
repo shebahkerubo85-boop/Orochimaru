@@ -10,14 +10,6 @@
         app:key="@string/episode_sync_enabled_key" />
 
     <PreferenceCategory android:title="@string/pref_category_defaults">
-        <!--        <Preference-->
-        <!--            android:icon="@drawable/ic_baseline_hd_24"-->
-        <!--            android:key="@string/quality_pref_key"-->
-        <!--            android:title="@string/watch_quality_pref" />-->
-        <!--        <Preference-->
-        <!--            android:icon="@drawable/ic_baseline_hd_24"-->
-        <!--            android:key="@string/quality_pref_mobile_data_key"-->
-        <!--            android:title="@string/watch_quality_pref_data" />-->
 
         <Preference
             android:icon="@drawable/netflix_play"
@@ -54,7 +46,6 @@
             android:title="@string/chromecast_subtitles_settings"
             app:summary="@string/chromecast_subtitles_settings_des" />
     </PreferenceCategory>
-
 
     <PreferenceCategory android:title="@string/pref_category_player_features">
         <Preference

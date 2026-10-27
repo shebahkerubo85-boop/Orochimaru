@@ -11,7 +11,6 @@
     android:orientation="horizontal"
     android:padding="0dp">
 
-    <!-- Left 70% - Comment Carousel -->
     <FrameLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
@@ -74,7 +73,6 @@
             android:background="#FF2A2A2A" />
     </FrameLayout>
 
-    <!-- Right 30% - Info Panel -->
     <FrameLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
@@ -90,7 +88,6 @@
             android:gravity="center_horizontal"
             android:orientation="vertical">
 
-            <!-- Cover Poster (media.cover) -->
             <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/commentsPoster"
                 android:layout_width="match_parent"
@@ -100,7 +97,6 @@
                 android:nextFocusLeft="@id/commentsList"
                 tools:ignore="ContentDescription" />
 
-            <!-- Logo / Title -->
             <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/commentsLogo"
                 android:layout_width="match_parent"
@@ -126,7 +122,6 @@
                 android:visibility="gone"
                 tools:ignore="HardcodedText" />
 
-            <!-- List Editor Button -->
             <Button
                 android:id="@+id/commentsListEditor"
                 style="@style/Widget.Material3.Button.OutlinedButton"
@@ -146,7 +141,6 @@
                 app:cornerRadius="16dp"
                 app:strokeColor="?attr/colorOnSurface" />
 
-            <!-- Episode Progress Badge + Sort + Rules Row -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -205,7 +199,6 @@
                     app:tint="#FF888888" />
             </LinearLayout>
 
-            <!-- Input -->
             <LinearLayout
                 android:id="@+id/commentMessageContainer"
                 android:layout_width="match_parent"

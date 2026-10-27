@@ -8,77 +8,44 @@ import androidx.core.app.NotificationManagerCompat.IMPORTANCE_LOW
 import eu.kanade.tachiyomi.util.system.buildNotificationChannel
 import eu.kanade.tachiyomi.util.system.buildNotificationChannelGroup
 
-/**
- * Class to manage the basic information of all the notifications used in the app.
- */
 object Notifications {
 
-    /**
-     * Common notification channel and ids used anywhere.
-     */
     const val CHANNEL_COMMON = "common_channel"
     const val ID_DOWNLOAD_IMAGE = 2
 
-    /**
-     * Notification channel and ids used by the downloader.
-     */
     private const val GROUP_DOWNLOADER = "group_downloader"
     const val CHANNEL_DOWNLOADER_PROGRESS = "downloader_progress_channel"
     const val ID_DOWNLOAD_EPISODE_PROGRESS = -203
     const val CHANNEL_DOWNLOADER_ERROR = "downloader_error_channel"
     const val ID_DOWNLOAD_EPISODE_ERROR = -204
 
-    /**
-     * Notification channel and ids used by the library updater.
-     */
     const val CHANNEL_NEW_CHAPTERS_EPISODES = "new_chapters_episodes_channel"
     const val ID_NEW_EPISODES = -1301
     const val GROUP_NEW_EPISODES = "eu.kanade.tachiyomi.NEW_EPISODES"
 
-    /**
-     * Notification channel used for Incognito Mode
-     */
     const val CHANNEL_INCOGNITO_MODE = "incognito_mode_channel"
     const val ID_INCOGNITO_MODE = -701
 
-    /**
-     * Notification channel used for comment notifications
-     */
     private const val GROUP_COMMENTS = "group_comments"
     const val CHANNEL_COMMENTS = "comments_channel"
     const val CHANNEL_COMMENT_WARING = "comment_warning_channel"
     const val ID_COMMENT_REPLY = -801
 
-
     const val CHANNEL_APP_GLOBAL = "app_global"
 
-    /**
-     * Notification channel and ids used for anilist updates.
-     */
     const val GROUP_ANILIST = "group_anilist"
     const val CHANNEL_ANILIST = "anilist_channel"
     const val ID_ANILIST = -901
 
-    /**
-     * Notification channel and ids used subscription checks.
-     */
     const val GROUP_SUBSCRIPTION_CHECK = "group_subscription_check"
     const val CHANNEL_SUBSCRIPTION_CHECK = "subscription_check_channel"
     const val CHANNEL_SUBSCRIPTION_CHECK_PROGRESS = "subscription_check_progress_channel"
     const val ID_SUBSCRIPTION_CHECK = -1001
     const val ID_SUBSCRIPTION_CHECK_PROGRESS = -1002
 
-
-    /**
-     * Notification channel used for instant pushes from the relay worker.
-     */
     const val CHANNEL_ANIME_PUSH = "anime_push"
     const val ID_ANIME_PUSH = -1101
 
-
-    /**
-     * Notification channel and ids used for app and extension updates.
-     */
     private const val GROUP_APK_UPDATES = "group_apk_updates"
     const val CHANNEL_APP_UPDATE = "app_apk_update_channel"
     const val ID_APP_UPDATER = 1
@@ -106,16 +73,9 @@ object Notifications {
         "library_progress_channel",
     )
 
-    /**
-     * Creates the notification channels introduced in Android Oreo.
-     * This won't do anything on Android versions that don't support notification channels.
-     *
-     * @param context The application context.
-     */
     fun createChannels(context: Context) {
         val notificationManager = NotificationManagerCompat.from(context)
 
-        // Delete old notification channels
         deprecatedChannels.forEach(notificationManager::deleteNotificationChannel)
 
         notificationManager.createNotificationChannelGroupsCompat(

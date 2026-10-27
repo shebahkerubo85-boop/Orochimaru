@@ -24,10 +24,6 @@ class ListFragment : Fragment() {
     private var grid: Boolean? = null
     private var list: MutableList<Media>? = null
 
-    /**
-     * Invoked when DPAD_UP is pressed while a card in the first row is focused, so the host can
-     * hand focus back to the status pill. Returns true when the host consumed the key.
-     */
     var onExitUp: (() -> Boolean)? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,10 +47,6 @@ class ListFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         val screenWidth = resources.displayMetrics.run { widthPixels / density }
 
-        // DPAD_UP from the first row of cards hands focus back up to the status pill. The listener
-        // is on the RecyclerView (an ancestor of the focused card) so it works no matter which
-        // child owns focus; lower rows return false so the default vertical search moves between
-        // rows. This avoids relying on nextFocusUpId, which does not resolve across the view pager.
         binding.listRecyclerView.setOnKeyListener { _, keyCode, event ->
             if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_UP) {
                 dpadUpToHeader()
@@ -104,10 +96,6 @@ class ListFragment : Fragment() {
         adapter.randomOptionClick()
     }
 
-    /**
-     * Sends focus to the first card of the grid (first row, left column). Scrolls to the top first
-     * so a scrolled grid can't leave focus on an arbitrary remembered child.
-     */
     fun focusFirstCard(): Boolean {
         val rv = _binding?.listRecyclerView ?: return false
         rv.stopScroll()
@@ -121,10 +109,6 @@ class ListFragment : Fragment() {
         return true
     }
 
-    /**
-     * True when the focused card sits in the first row of the grid. The host uses this to hand
-     * focus up to the status pill instead of letting the default vertical search leave the grid.
-     */
     private fun dpadUpToHeader(): Boolean {
         val rv = _binding?.listRecyclerView ?: return false
         val focused = rv.findFocus() ?: return false
@@ -153,10 +137,7 @@ class ListFragment : Fragment() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        // MainActivity handles configChanges, so this fragment's view survives the
-        // rotation and the span built in onViewCreated is still the portrait one. This
-        // list can also be showing in list mode, which is a fixed span of 1 and must be
-        // left alone.
+
         if (grid == true) {
             _binding?.listRecyclerView?.let { TmdbCards.applyGridSpan(it) }
         }

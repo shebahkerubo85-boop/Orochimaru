@@ -6,11 +6,6 @@ import android.content.res.Configuration
 import android.content.res.Resources
 import android.os.Build
 
-/**
- * Host implementation of CloudStream's [Globals] so plugins referencing it can
- * resolve. Layout selection defaults to phone; the value is only meaningful for
- * UI decisions, never for stream extraction.
- */
 object Globals {
     var beneneCount = 0
 
@@ -27,7 +22,7 @@ object Globals {
 
     private fun Context.isAutoTv(): Boolean {
         val uiModeManager = getSystemService(Context.UI_MODE_SERVICE) as UiModeManager?
-        // AFT = Fire TV
+
         val model = Build.MODEL.lowercase()
         return uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION || Build.MODEL.contains(
             "AFT"
@@ -48,16 +43,10 @@ object Globals {
         layoutId = layoutIntCorrected()
     }
 
-    /** Returns true if the current orientation is landscape. */
     fun isLandscape(): Boolean =
         isLayout(TV or EMULATOR) ||
             Resources.getSystem().configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    /**
-     * Returns true if the layout is any of the flags,
-     * so isLayout(TV or EMULATOR) is a valid statement for checking if the layout is in the emulator
-     * or tv. Auto will become the "TV" or the "PHONE" layout.
-     */
     fun isLayout(flags: Int): Boolean {
         return (layoutId and flags) != 0
     }

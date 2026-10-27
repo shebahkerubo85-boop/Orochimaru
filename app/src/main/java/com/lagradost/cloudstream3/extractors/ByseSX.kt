@@ -94,7 +94,7 @@ open class ByseSX : ExtractorApi() {
         val cipherBytes = b64UrlDecode(playback.payload)
 
         val aesKey = aesGcm.keyDecoder().decodeFromByteArray(AES.Key.Format.RAW, keyBytes)
-        // 128-bit GCM tag (default)
+
         val cipher = aesKey.cipher()
         val plainBytes = cipher.decryptWithIv(ivBytes, cipherBytes)
 

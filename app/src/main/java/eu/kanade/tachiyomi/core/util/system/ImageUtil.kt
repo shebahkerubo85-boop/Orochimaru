@@ -14,7 +14,6 @@ import kotlin.math.max
 
 object ImageUtil {
 
-
     enum class ImageType(val mime: String, val extension: String) {
         AVIF("image/avif", "avif"),
         GIF("image/gif", "gif"),
@@ -25,9 +24,6 @@ object ImageUtil {
         WEBP("image/webp", "webp"),
     }
 
-    /**
-     * Extract the 'side' part from imageStream and return it as InputStream.
-     */
     fun splitInHalf(imageStream: InputStream, side: Side): InputStream {
         val imageBytes = imageStream.readBytes()
 
@@ -68,9 +64,6 @@ object ImageUtil {
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
-    /**
-     * Split the image into left and right parts, then merge them into a new image.
-     */
     fun splitAndMerge(imageStream: InputStream, upperSide: Side): InputStream {
         val imageBytes = imageStream.readBytes()
 
@@ -80,14 +73,14 @@ object ImageUtil {
 
         val result = createBitmap(width / 2, height * 2)
         result.applyCanvas {
-            // right -> upper
+
             val rightPart = when (upperSide) {
                 Side.RIGHT -> Rect(width - width / 2, 0, width, height)
                 Side.LEFT -> Rect(0, 0, width / 2, height)
             }
             val upperPart = Rect(0, 0, width / 2, height)
             drawBitmap(imageBitmap, rightPart, upperPart, null)
-            // left -> bottom
+
             val leftPart = when (upperSide) {
                 Side.LEFT -> Rect(width - width / 2, 0, width, height)
                 Side.RIGHT -> Rect(0, 0, width / 2, height)

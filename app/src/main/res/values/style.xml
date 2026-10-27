@@ -10,11 +10,10 @@
 
     <style name="AppTheme.Amoled" parent="">
         <item name="android:colorBackground">@color/darkest_Black</item>
-        <!-- set colorSurface to black -->
+
         <item name="colorSurface">@color/darkest_Black</item>
         <item name="colorSurfaceVariant">@color/nav_bg</item>
     </style>
-
 
     <style name="Suffix">
         <item name="android:height">54dp</item>
@@ -23,11 +22,6 @@
         <item name="android:layout_gravity">center</item>
     </style>
 
-    <!--
-      Lighter than Suffix, which is 14sp and also drives the media list chips and
-      both bottom sheets. The season labels are three short labels sitting side by
-      side under a banner, so they need to sit lighter than a standalone chip.
-    -->
     <style name="SeasonChipLabel">
         <item name="android:fontFamily">@font/poppins_bold</item>
         <item name="android:textSize">12sp</item>
@@ -98,7 +92,7 @@
     </style>
 
     <style name="BottomNavBar" parent="">
-        <!-- set background color  to transparent -->
+
         <item name="android:background">@android:color/transparent</item>
     </style>
 
@@ -116,7 +110,6 @@
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">50%</item>
     </style>
-
 
     <style name="ThemeOverlay_Sanin_MediaRouter" parent="ThemeOverlay.AppCompat" />
 

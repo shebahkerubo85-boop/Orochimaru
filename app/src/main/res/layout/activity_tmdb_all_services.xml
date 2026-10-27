@@ -19,7 +19,6 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <!-- Same back affordance as the other detail screens: the title itself. -->
             <TextView
                 android:id="@+id/allServicesTitle"
                 android:layout_width="0dp"
@@ -37,10 +36,6 @@
                 app:drawableTint="?attr/colorOnBackground"
                 tools:ignore="TextContrastCheck" />
 
-            <!--
-              The grid/list pair every row's arrow-mark screen carries, so this screen
-              behaves like the Continue Watching one rather than inventing a layout.
-            -->
 <ImageButton
             android:id="@+id/mediaList"
             android:layout_width="44dp"

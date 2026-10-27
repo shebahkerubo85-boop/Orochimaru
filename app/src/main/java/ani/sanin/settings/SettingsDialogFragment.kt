@@ -127,7 +127,7 @@ class SettingsDialogFragment : BottomSheetDialogFragment() {
 
         binding.settingsIncognito.isChecked = PrefManager.getVal(PrefName.Incognito)
         binding.settingsIncognito.setOnCheckedChangeListener { _, isChecked ->
-            // Added check to ensure fragment is still active before updating
+
             if (isAdded) {
                 PrefManager.setVal(PrefName.Incognito, isChecked)
                 incognitoNotification(requireContext())
@@ -179,7 +179,7 @@ class SettingsDialogFragment : BottomSheetDialogFragment() {
         binding.settingsDownloads.setOnCheckedChangeListener { _, isChecked ->
             Timer().schedule(300) {
                 val currentActivity = activity
-                // Ensure fragment is added and activity is not null
+
                 if (currentActivity != null && isAdded) {
                     when (pageType) {
                         PageType.MANGA -> {

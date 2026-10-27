@@ -49,25 +49,16 @@ object Simkl {
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     private val okHttpClient get() = Injekt.get<eu.kanade.tachiyomi.network.NetworkHelper>().client
-    // In-memory cache: "tmdb:12345" -> "67890" (simkl id)
+
     private val simklIdCache = java.util.concurrent.ConcurrentHashMap<String, String>()
 
-    /**
-     * Resolve external IDs (tmdb/imdb/anilist) to a Simkl ID.
-     * Uses Simkl's /search/id endpoint WITH the media type. The bare /redirect
-     * endpoint is unreliable because TMDB movies and TV shows share a numeric ID
-     * space (e.g. tmdb 73602 = "Melody" the movie AND "Greenhouse Academy" the show),
-     * so redirects silently resolve to the wrong entity.
-     * Returns the Simkl numeric ID or null if resolution fails.
-     */
     suspend fun resolveSimklId(
         type: String,
         tmdbId: Int? = null,
         imdbId: String? = null,
         anilistId: Int? = null
     ): String? {
-        // Anime content arrives with type "tv" (player) or "anime" — treat any
-        // AniList id as anime, since Simkl stores anime under type=anime.
+
         val isAnime = type == "anime" || (anilistId != null && anilistId > 0)
         val simklType = when {
             isAnime -> "anime"
@@ -84,8 +75,6 @@ object Simkl {
 
         simklIdCache[key]?.let { return it }
 
-        // ID priority: anilist for anime (unique per anime), imdb for shows/movies
-        // (globally unique), then tmdb (needs the type param to disambiguate).
         val attempts = mutableListOf<Pair<String, String>>()
         if (isAnime && anilistId != null && anilistId > 0) attempts.add("anilist" to anilistId.toString())
         if (!isAnime && !imdbId.isNullOrBlank()) attempts.add("imdb" to imdbId)
@@ -118,7 +107,6 @@ object Simkl {
         return null
     }
 
-    /** Extract the first "simkl" id from a /search/id JSON array response. */
     private fun parseSimklIdFromSearch(body: String?): String? {
         if (body.isNullOrBlank()) return null
         return try {
@@ -131,10 +119,6 @@ object Simkl {
         }
     }
 
-    /**
-     * Build an ids JSON object using the resolved Simkl ID.
-     * Falls back to raw external IDs if resolution fails.
-     */
     private suspend fun buildResolvedIdsObj(
         type: String,
         tmdbId: Int? = null,
@@ -145,7 +129,7 @@ object Simkl {
         return if (simklId != null) {
             buildJsonObject { put("simkl", JsonPrimitive(simklId)) }
         } else {
-            // Fallback: pass external IDs (may not work for all endpoints)
+
             buildJsonObject {
                 if (tmdbId != null && tmdbId > 0) put("tmdb", JsonPrimitive(tmdbId.toString()))
                 if (!imdbId.isNullOrBlank()) put("imdb", JsonPrimitive(imdbId))
@@ -154,12 +138,10 @@ object Simkl {
         }
     }
 
-
-
     fun loginIntent(context: Context) {
         val codeVerifier = generateCodeVerifier()
         PrefManager.setVal(PrefName.SimklCodeVerifier, codeVerifier)
-        val codeChallenge = codeVerifier  // Simkl uses plain code_challenge
+        val codeChallenge = codeVerifier
         val url = "$AUTH_URL/oauth/authorize?client_id=$clientId&redirect_uri=${Uri.encode(REDIRECT_URI)}&response_type=code&code_challenge=$codeChallenge&code_challenge_method=plain"
         try {
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
@@ -260,7 +242,6 @@ object Simkl {
         PrefManager.setVal(PrefName.SimklToken, res)
     }
 
-    /** Fetch user settings (profile info) after login */
     suspend fun fetchUserData(): SimklUser? {
         val t = token
         if (t == null) {
@@ -298,7 +279,6 @@ object Simkl {
         }
     }
 
-    /** Scrobble: report watching progress */
     suspend fun scrobbleStart(
         type: String,
         title: String,
@@ -401,11 +381,6 @@ object Simkl {
         }
     }
 
-    /**
-     * Mark episodes as watched on Simkl.
-     * Ported from AnymeX: movies skip /sync/history (add-to-list completed instead).
-     * Shows POST /sync/history with episodes 1..episodeNum in the given season.
-     */
     suspend fun addToHistory(
         type: String,
         title: String,
@@ -420,7 +395,7 @@ object Simkl {
         val idsObj = buildResolvedIdsObj(type, tmdbId, imdbId, anilistId)
         tryWithSuspend {
             if (type != "tv") {
-                // AnymeX: movies skip /sync/history entirely; mark completed via add-to-list
+
                 setListStatus("movie", title, year, tmdbId, imdbId, "completed", anilistId)
                 ani.sanin.util.Logger.log("Simkl.addToHistory: movie → setListStatus completed title=$title")
                 return@tryWithSuspend
@@ -456,14 +431,6 @@ object Simkl {
         }
     }
 
-    /**
-     * Set the list status for a show or movie on Simkl.
-     * Ported from AnymeX: a single /sync/add-to-list call + optional rating.
-     * Callers must post progress (/sync/history) BEFORE this — history resets the
-     * status back to watching, so this call has to be the final operation.
-     * Returns the status Simkl actually applied (Simkl may refuse e.g. "completed"
-     * for a still-airing show and silently apply "watching" instead), or null on failure.
-     */
     suspend fun setListStatus(
         type: String,
         title: String,
@@ -476,13 +443,11 @@ object Simkl {
     ): String? {
         val t = token ?: return null
 
-        // "na" = delete / Not Interested → use removeFromList endpoint
         if (status == "na") {
             removeFromList(type, tmdbId, imdbId, anilistId)
             return null
         }
 
-        // Resolve external IDs to Simkl ID (AnymeX pattern — required for sync endpoints)
         val idsObj = buildResolvedIdsObj(type, tmdbId, imdbId, anilistId)
 
         return tryWithSuspend {
@@ -512,7 +477,6 @@ object Simkl {
                 ani.sanin.util.Logger.log("Simkl.setListStatus: HTTP ${resp.code} status=$status title=$title type=$type resp=${respBody?.take(200)}")
             }
 
-            // POST /sync/ratings if rating > 0 (Simkl only accepts 1-10)
             if (rating > 0) {
                 val ratingBody = buildJsonObject {
                     put(collection, buildJsonArray {
@@ -538,7 +502,6 @@ object Simkl {
         }
     }
 
-    /** Extract the "to" status Simkl actually applied from an add-to-list response body. */
     private fun appliedStatusFromAddToList(body: String?, collection: String): String? {
         if (body.isNullOrBlank()) return null
         return try {
@@ -552,7 +515,6 @@ object Simkl {
         }
     }
 
-    /** Add item to Simkl watchlist with "watching" status (called on first scrobble start). */
     suspend fun addToWatchlist(
         type: String,
         tmdbId: Int? = null,
@@ -584,7 +546,6 @@ object Simkl {
         }
     }
 
-        /** Remove an item from the user's Simkl list. Uses /sync/history/remove (AnymeX pattern). */
     suspend fun removeFromList(
         type: String,
         tmdbId: Int? = null,
@@ -617,7 +578,6 @@ object Simkl {
         }
     }
 
-        /** Get the user's list status for a specific show/movie from Simkl library. */
     suspend fun getMediaStatus(
         type: String,
         tmdbId: Int? = null,
@@ -641,7 +601,6 @@ object Simkl {
         }
     }
 
-    /** Get the user's rating (1-10) for a specific show/movie from Simkl library. */
     suspend fun getMediaRating(
         type: String,
         tmdbId: Int? = null,
@@ -665,11 +624,6 @@ object Simkl {
         }
     }
 
-    /**
-     * Set the user's rating for a specific item (POST /sync/ratings).
-     * Simkl only accepts 1-10; callers pass the 1-10 value here
-     * (8.5+ = favourite maps to 9-10).
-     */
     suspend fun setMediaRating(
         type: String,
         tmdbId: Int? = null,
@@ -705,7 +659,6 @@ object Simkl {
         } == true
     }
 
-    /** Clear the user's rating for a specific item (POST /sync/ratings/remove). */
     suspend fun removeMediaRating(
         type: String,
         tmdbId: Int? = null,
@@ -736,7 +689,6 @@ object Simkl {
         } == true
     }
 
-    /** Get the number of watched episodes for a show/movie. */
     suspend fun getProgress(
         type: String,
         tmdbId: Int? = null,
@@ -760,11 +712,6 @@ object Simkl {
         }
     }
 
-    /**
-     * Set cumulative episode progress on Simkl (POST /sync/history, AnymeX pattern).
-     * NOTE: Simkl resets the show status to watching after a history update — callers
-     * must call setListStatus AFTER this, never before.
-     */
     suspend fun setProgress(
         type: String,
         title: String,
@@ -836,15 +783,13 @@ object Simkl {
         }
     }
 
-        /** Get continue watching (in progress) items from Simkl library */
     suspend fun getContinueWatching(): List<SimklWatchedItem> {
         val t = token
         if (t == null) {
             ani.sanin.util.Logger.log("Simkl.getContinueWatching: token is null")
             return emptyList()
         }
-        // Derive continue watching from library data (same as AnymeX)
-        // /sync/history doesn't work reliably with GET via this client
+
         return try {
             val movies = getMovieLibrary().filter {
                 val s = it.status?.lowercase()
@@ -865,7 +810,6 @@ object Simkl {
         }
     }
 
-    /** Get full library (movies + shows) */
     suspend fun getLibrary(): SimklLibrary? {
         val t = token
         if (t == null) {
@@ -889,7 +833,7 @@ object Simkl {
                 return null
             }
             val root = org.json.JSONObject(body)
-            // /sync/all-items returns movies/shows/anime at the top level (no "all" wrapper).
+
             val moviesArr = root.optJSONArray("movies")
             val showsArr = root.optJSONArray("shows")
             val movies = if (moviesArr != null) json.decodeFromString<List<SimklWatchedItem>>(moviesArr.toString()) else emptyList()
@@ -902,7 +846,6 @@ object Simkl {
         }
     }
 
-    /** Get movie library list */
     suspend fun getMovieLibrary(): List<SimklWatchedItem> {
         val t = token ?: return emptyList()
         return try {
@@ -930,7 +873,6 @@ object Simkl {
         }
     }
 
-    /** Get show library list */
     suspend fun getShowLibrary(): List<SimklWatchedItem> {
         val t = token ?: return emptyList()
         return try {
@@ -958,8 +900,6 @@ object Simkl {
         }
     }
 
-    // --- Data classes ---
-
     @Serializable
     data class SimklTokenRequest(
         @SerialName("client_id") val clientId: String,
@@ -985,7 +925,7 @@ object Simkl {
         fun isExpired(): Boolean {
             val created = createdAt
             val life = expiresIn
-            // If createdAt is null (common with PKCE flow), trust the token
+
             if (created == null || life == null) return false
             return System.currentTimeMillis() / 1000 > created + life - 60
         }
@@ -1075,7 +1015,7 @@ object Simkl {
 
     @Serializable
     data class SimklWatchedItem(
-        // Top-level fields from /sync/all-items response
+
         val status: String? = null,
         @SerialName("added_to_watchlist_at") val addedToWatchlistAt: String? = null,
         @SerialName("last_watched_at") val lastWatchedAt: String? = null,
@@ -1088,30 +1028,27 @@ object Simkl {
         val type: String? = null,
         val season: Int? = null,
         val episodes: List<SimklWatchedEpisode>? = null,
-        // Nested show/movie objects from API response
+
         val show: SimklShowData? = null,
         val movie: SimklMovieData? = null
     ) : java.io.Serializable {
-        // Computed properties that flatten nested data for UI consumption
+
         val title: String? get() = show?.title ?: movie?.title
         val year: Int? get() = show?.year ?: movie?.year
         val poster: String? get() = show?.poster ?: movie?.poster
         val ids: ScrobbleIds? get() = show?.ids ?: movie?.ids
         val mediaType: String? get() = if (show != null) "tv" else if (movie != null) "movie" else type
 
-        /** Total absolute episode count watched. */
         val totalWatched: Int
             get() = watchedEpisodesCount ?: 0
 
-        /** Total episode count across all aired episodes. */
         val totalEpisodes: Int
             get() = totalEpisodesCount ?: 0
 
-        /** Parse `lastWatched` "S{season}E{episode}" into (season, episode), or null. */
         val lastWatchedSeasonEp: Pair<Int, Int>?
             get() {
                 val str = lastWatched ?: return null
-                // Regex: ^[Ss](\d+)[Ee](\d+)$ e.g. "S11E10"
+
                 val m = Regex("^[Ss](\\d+)[Ee](\\d+)$").find(str) ?: return null
                 val s = m.groupValues[1].toIntOrNull() ?: return null
                 val e = m.groupValues[2].toIntOrNull() ?: return null

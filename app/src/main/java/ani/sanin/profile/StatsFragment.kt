@@ -137,8 +137,7 @@ class StatsFragment :
     }
 
     private fun updateJourneySummary(anime: Boolean) {
-        // The first entry is the profile being viewed; comparison data must not inflate
-        // the headline totals. AniList generates separate Anime and Manga stat types.
+
         val profile = stats.firstOrNull()
         val totalCount: Int
         val totalTime: Int
@@ -509,7 +508,6 @@ class StatsFragment :
                     valuesMap[name] ?: 0
                 }
 
-                // Create a new ChartPacket with standardized names and values.
                 ChartPacket(packet.username, referenceNames, standardizedValues)
             }.toMutableList()
             chartPackets.clear()
@@ -564,7 +562,6 @@ class StatsFragment :
                     valuesMap[name] ?: 0
                 }
 
-                // Create a new ChartPacket with standardized names and values.
                 ChartPacket(packet.username, referenceNames, standardizedValues)
             }.toMutableList()
             chartPackets.clear()
@@ -619,7 +616,6 @@ class StatsFragment :
                     valuesMap[name] ?: 0
                 }
 
-                // Create a new ChartPacket with standardized names and values.
                 ChartPacket(packet.username, referenceNames, standardizedValues)
             }.toMutableList()
             chartPackets.clear()
@@ -676,7 +672,6 @@ class StatsFragment :
                     valuesMap[name] ?: 0
                 }
 
-                // Create a new ChartPacket with standardized names and values.
                 ChartPacket(packet.username, referenceNames, standardizedValues)
             }.toMutableList()
             chartPackets.clear()
@@ -731,7 +726,6 @@ class StatsFragment :
                     valuesMap[name] ?: 0
                 }
 
-                // Create a new ChartPacket with standardized names and values.
                 ChartPacket(packet.username, referenceNames, standardizedValues)
             }.toMutableList()
             chartPackets.clear()
@@ -789,7 +783,6 @@ class StatsFragment :
                     valuesMap[name] ?: 0
                 }
 
-                // Create a new ChartPacket with standardized names and values.
                 ChartPacket(packet.username, referenceNames, standardizedValues)
             }.toMutableList()
             chartPackets.clear()

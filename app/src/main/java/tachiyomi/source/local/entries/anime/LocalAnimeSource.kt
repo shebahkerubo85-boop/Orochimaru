@@ -47,7 +47,6 @@ class LocalAnimeSource(
 
     override val supportsLatest = true
 
-    // Browse related
     override suspend fun getPopularAnime(page: Int) = getSearchAnime(page, "", POPULAR_FILTERS)
 
     override suspend fun getLatestUpdates(page: Int) = getSearchAnime(page, "", LATEST_FILTERS)
@@ -65,7 +64,7 @@ class LocalAnimeSource(
         } else {
             0L
         }
-        
+
         val localDir = baseDir.findFile("local") ?: baseDir
         val localAnimeDir = localDir.findFile("anime") ?: localDir
 
@@ -102,7 +101,7 @@ class LocalAnimeSource(
                         animeDirs.sortedByDescending { it.lastModified() }
                     }
                 }
-                else -> { /* Do nothing */ }
+                else -> {  }
             }
         }
 
@@ -143,7 +142,6 @@ class LocalAnimeSource(
         }
     }
 
-    // Anime details related
     override suspend fun getAnimeDetails(anime: SAnime): SAnime = withIOContext {
         val animeDir = getAnimeDir(anime.url, context) ?: return@withIOContext anime
 
@@ -157,7 +155,6 @@ class LocalAnimeSource(
             }
         }
 
-        // details.json
         animeDir.findFile("details.json")?.let { detailsFile ->
             try {
                 val inputStream = context.contentResolver.openInputStream(detailsFile.uri)
@@ -178,11 +175,9 @@ class LocalAnimeSource(
         return@withIOContext anime
     }
 
-    // Episodes
     override suspend fun getEpisodeList(anime: SAnime): List<SEpisode> = withIOContext {
         val animeDir = getAnimeDir(anime.url, context) ?: return@withIOContext emptyList()
 
-        // ep.json
         val episodesData = try {
             animeDir.findFile("episodes.json")?.let { episodesFile ->
                 val inputStream = context.contentResolver.openInputStream(episodesFile.uri)
@@ -204,7 +199,6 @@ class LocalAnimeSource(
                     name = episodeFile.name.orEmpty().substringBeforeLast(".")
                     date_upload = episodeFile.lastModified()
 
-                    // Parse ep number
                     val parsedNumber = MediaNameAdapter.findEpisodeNumber(this.name)
                         ?: Regex("""(\d+(?:\.\d+)?)""").find(this.name)?.value?.toFloatOrNull()
                     episode_number = parsedNumber ?: -1f
@@ -230,11 +224,8 @@ class LocalAnimeSource(
 
     override suspend fun getSeasonList(anime: SAnime): List<SAnime> = getSeasonList(anime)
 
-
-    // Filters
     override fun getFilterList() = AnimeFilterList(AnimeOrderBy.Popular())
 
-    // Unused stuff
     override suspend fun getVideoList(episode: SEpisode) =
         throw UnsupportedOperationException("Unused")
 

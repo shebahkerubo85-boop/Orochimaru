@@ -149,5 +149,4 @@ class AniZoneProvider : NativeAnimeParser() {
         return if (subs.toList().isNotEmpty()) "[${subs.toList().joinToString(",")}]" else ""
     }
 
-
 }

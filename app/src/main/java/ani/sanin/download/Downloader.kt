@@ -35,16 +35,6 @@ import java.util.concurrent.atomic.AtomicReference
 class DownloadException(message: String) : Exception(message)
 class DownloadCancelledException : Exception("cancelled")
 
-/**
- * Turns a resolved [DownloadItem] into a finished temp file.
- *
- *  - Direct files (mp4, mkv, ...): when the server reports an authoritative size, the file is
- *    pulled over N parallel range connections (Segments per episode setting, up to 8) so one
- *    download saturates the connection the way download-managers do. Otherwise it is streamed
- *    over a single connection and progress is exact.
- *  - HLS playlists are downloaded with Media3's native HlsDownloader into a persistent
- *    ExoPlayer cache. Playback uses that same cache offline; no remuxing or native FFmpeg is used.
- */
 class Downloader(
     private val context: android.content.Context,
     private val client: OkHttpClient,
@@ -65,8 +55,7 @@ class Downloader(
             Log.i(TAG, "download finished url=${item.url} size=${temp.length()}")
             return temp
         } catch (error: Throwable) {
-            // Direct-file partials are retained for a verified Range resume. Segmented downloads
-            // remove their own parts on failure; invalid resume responses delete the stale temp.
+
             throw error
         }
     }
@@ -82,8 +71,6 @@ class Downloader(
         val total = probedTotal.takeIf { it in 1 until MAX_DOWNLOAD_BYTES } ?: 0L
         val segments = PrefManager.getVal<Int>(PrefName.DownloadSegments).coerceIn(1, 8)
 
-        // Segmented files aren't resumable without a manifest. Only use them on a clean temp
-        // and after the server confirms the exact byte-range protocol.
         if (existingBytes == 0L && total >= MIN_SEGMENT_SIZE && segments > 1 && isActive() &&
             supportsRanges(item, total)
         ) {
@@ -104,7 +91,6 @@ class Downloader(
         downloadSingle(item, temp, total, onProgress, isActive)
     }
 
-    /** Resume a partial file only when the origin confirms the requested byte offset. */
     private suspend fun downloadSingle(
         item: DownloadItem,
         temp: File,
@@ -127,7 +113,7 @@ class Downloader(
                         throw DownloadException("Invalid resume Content-Range for byte $offset")
                     }
                 } else if (res.code == 200) {
-                    // Server ignored Range (or this is a fresh request): truncate, never append.
+
                     offset = 0L
                 } else if (!res.isSuccessful) {
                     throw DownloadException("HTTP ${res.code} for ${item.url}")
@@ -232,8 +218,7 @@ class Downloader(
                         )
                     }
                 } catch (e: Throwable) {
-                    // A pause cancels the siblings too; surface it as a pause, never a generic
-                    // cancellation that would leave the item stuck in DOWNLOADING.
+
                     val wrapped = if (!isActive() && e !is DownloadCancelledException) {
                         DownloadCancelledException()
                     } else {
@@ -278,10 +263,6 @@ class Downloader(
         Log.i(TAG, "segmented download done: $segments ranges -> ${temp.length()} bytes")
     }
 
-    /**
-     * Best-effort size probe (HEAD, then a 1-byte range GET) used only when the actual download
-     * response has no Content-Length. Returns -1 when the size genuinely cannot be determined.
-     */
     private data class ParsedRange(val first: Long, val last: Long, val total: Long)
 
     private fun parseContentRange(value: String?): ParsedRange? {
@@ -293,7 +274,6 @@ class Downloader(
         return ParsedRange(first, last, total)
     }
 
-    /** Trust only a successful HEAD length or a valid one-byte 206 probe. */
     private suspend fun resolveLength(item: DownloadItem): Long {
         val head = probeLength(item, head = true)
         if (head > 0L) return head
@@ -342,7 +322,6 @@ class Downloader(
         }
     }
 
-    /** OkHttp async execution is cancellable immediately, unlike a blocking execute() call. */
     @OptIn(InternalCoroutinesApi::class)
     private suspend fun executeCancellable(request: Request): Response =
         suspendCancellableCoroutine { continuation ->
@@ -381,8 +360,7 @@ class Downloader(
         }
 
         fun defaultClient(): OkHttpClient {
-            // OkHttp defaults to five concurrent requests per host. That silently caps a user
-            // selecting 6–8 segments, so align the per-host dispatcher with the segment ceiling.
+
             val dispatcher = okhttp3.Dispatcher().apply {
                 maxRequests = 32
                 maxRequestsPerHost = 8

@@ -29,10 +29,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * List editor for TMDB/movie mode content that edits Simkl list status.
- * Replicates MediaListDialogFragment's UI but uses Simkl API instead of AniList.
- */
 class SimklListDialogFragment : DialogFragment() {
 
     private var _binding: BottomSheetMediaListBinding? = null
@@ -135,23 +131,19 @@ class SimklListDialogFragment : DialogFragment() {
         val coverUrl = arguments?.getString(ARG_COVER_URL)
         val currentStatus = arguments?.getString(ARG_CURRENT_STATUS)
 
-        // Show loading initially
         binding.mediaListProgressBar.visibility = View.VISIBLE
         binding.mediaListLayout.visibility = View.GONE
         binding.mediaListBannerContainer.visibility = View.VISIBLE
 
-        // Load banner — prefer backdrop (like anime mode uses banner ?: cover)
         val backdropUrl = arguments?.getString(ARG_BACKDROP_URL)
         val bannerUrl = backdropUrl ?: coverUrl
         if (!bannerUrl.isNullOrBlank()) {
             binding.mediaListBanner.loadImage(bannerUrl)
         }
 
-        // Simkl statuses
         val simklStatuses = listOf("watching", "plantowatch", "completed", "dropped", "hold", "na")
         val simklStatusLabels = listOf("Watching", "Plan to Watch", "Completed", "Dropped", "On Hold", "Not Interested")
 
-        // Build status chips
         binding.mediaListStatusGroup.removeAllViews()
         var selectedStatus = currentStatus ?: "plantowatch"
 
@@ -170,7 +162,6 @@ class SimklListDialogFragment : DialogFragment() {
             binding.mediaListStatusGroup.addView(chip)
         }
 
-        // Score — Simkl stores 1-10 (the field edits 0-10)
         val currentRating = arguments?.getInt(ARG_CURRENT_RATING, 0) ?: 0
         if (currentRating > 0) {
             binding.mediaListScore.setText(currentRating.toString())
@@ -184,7 +175,6 @@ class SimklListDialogFragment : DialogFragment() {
         }
         binding.mediaListScoreLayout.suffixTextView.gravity = Gravity.CENTER
 
-        // Hide sections not relevant for Simkl
         binding.mediaListProgressLayout.visibility = View.GONE
         binding.mediaListVolumeProgressLayout.visibility = View.GONE
         binding.mediaListStartLayout.visibility = View.GONE
@@ -196,11 +186,9 @@ class SimklListDialogFragment : DialogFragment() {
         binding.mediaListAddCustomList.visibility = View.GONE
         binding.mediaListCustomListContainer.visibility = View.GONE
 
-        // Show progress bar done
         binding.mediaListProgressBar.visibility = View.GONE
         binding.mediaListLayout.visibility = View.VISIBLE
 
-        // Listen for chip selection
         binding.mediaListStatusGroup.setOnCheckedStateChangeListener { group, checkedIds ->
             if (checkedIds.isNotEmpty()) {
                 val checkedChip = group.findViewById<com.google.android.material.chip.Chip>(checkedIds[0])
@@ -210,7 +198,6 @@ class SimklListDialogFragment : DialogFragment() {
             }
         }
 
-        // Save button
         binding.mediaListSave.setOnClickListener {
             if (isSaving) return@setOnClickListener
             isSaving = true
@@ -249,7 +236,6 @@ class SimklListDialogFragment : DialogFragment() {
             }
         }
 
-        // Delete / remove from list
         binding.mediaListDelete.setOnClickListener {
             lifecycleScope.launch {
                 withContext(Dispatchers.IO) {

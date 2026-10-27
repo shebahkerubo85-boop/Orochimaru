@@ -60,9 +60,6 @@ class CloudStreamApp : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
-        // If we want to initialize Coil as early as possible, maybe when
-        // loading an image or GIF in a splash screen activity.
-        // buildImageLoader(applicationContext)
 
         ExceptionHandler(filesDir.resolve("last_error")) {
             val intent = context!!.packageManager.getLaunchIntentForPackage(context!!.packageName)
@@ -81,14 +78,13 @@ class CloudStreamApp : Application(), SingletonImageLoader.Factory {
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
-        // Coil module will be initialized globally when first loadImage() is invoked.
+
         return buildImageLoader(applicationContext)
     }
 
     companion object {
         var exceptionHandler: ExceptionHandler? = null
 
-        /** Use to get Activity from Context. */
         tailrec fun Context.getActivity(): Activity? {
             return when (this) {
                 is Activity -> this

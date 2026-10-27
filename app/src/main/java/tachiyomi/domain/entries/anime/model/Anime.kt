@@ -76,7 +76,7 @@ data class Anime(
     }
 
     companion object {
-        // Generic filter that does not filter anything
+
         const val SHOW_ALL = 0x00000000L
 
         const val EPISODE_SORT_DESC = 0x00000000L

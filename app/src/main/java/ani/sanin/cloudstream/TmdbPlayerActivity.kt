@@ -52,9 +52,6 @@ class TmdbPlayerActivity : AppCompatActivity() {
             return
         }
 
-        // Use the app's OkHttp client (app User-Agent, cloudflare/retry interceptors) like the
-        // anime player. Many stream hosts reset connections when they see ExoPlayer's default
-        // HttpURLConnection stack or a missing/browser-less User-Agent.
         val requestProperties = HashMap<String, String>().apply {
             putAll(defaultHeaders)
             putAll(headers)

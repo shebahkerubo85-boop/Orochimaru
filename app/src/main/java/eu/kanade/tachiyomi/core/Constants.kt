@@ -9,7 +9,6 @@ object Constants {
 
     const val MAIN_ACTIVITY = "eu.kanade.tachiyomi.ui.main.MainActivity"
 
-    // Shortcut actions
     const val SHORTCUT_ANIMELIB = "eu.kanade.tachiyomi.SHOW_ANIMELIB"
     const val SHORTCUT_LIBRARY = "eu.kanade.tachiyomi.SHOW_LIBRARY"
     const val SHORTCUT_ANIME = "eu.kanade.tachiyomi.SHOW_ANIME"

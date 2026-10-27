@@ -218,13 +218,6 @@ fun aniMangaSearch(perPage: Int?) = """
     }
 """.prepare()
 
-/**
- * Media fields shared by every query.
- *
- * [withRelations] adds AniList's `relations`, which is only worth paying for on the paths
- * that build Franchise cards. It is a large payload and the Franchise row's primary source
- * is Kitsu, so the search, profile and detail queries leave it off.
- */
 fun standardMediaInformation(withRelations: Boolean = false) = """
 id
 idMal
@@ -271,13 +264,6 @@ mediaListEntry {
 ${if (withRelations) relationsInformation() else ""}
 """.prepare()
 
-/**
- * A media's AniList relations, used by [ani.sanin.media.FranchiseStub] as the fallback when
- * Kitsu cannot answer.
- *
- * Flattened to the same field set as [standardMediaInformation] rather than a smaller one,
- * because the query layer maps these nodes through the same code as any other media.
- */
 private fun relationsInformation() = """
 relations {
   edges {

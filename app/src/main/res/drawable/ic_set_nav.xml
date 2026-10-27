@@ -4,7 +4,7 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- Nav pill / pill bar icon: three rounded pills in a row -->
+
     <path
         android:fillColor="?attr/colorOnSurface"
         android:pathData="M4,8c-2.21,0 -4,1.79 -4,4s1.79,4 4,4 4,-1.79 4,-4 -1.79,-4 -4,-4zM4,14c-1.1,0 -2,-0.9 -2,-2s0.9,-2 2,-2 2,0.9 2,2 -0.9,2 -2,2z" />

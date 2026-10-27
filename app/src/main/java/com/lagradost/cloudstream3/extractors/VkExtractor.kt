@@ -1,4 +1,4 @@
-// Made by @kraptor123 for cs-kraptor
+
 package com.lagradost.cloudstream3.extractors
 
 import com.lagradost.cloudstream3.SubtitleFile

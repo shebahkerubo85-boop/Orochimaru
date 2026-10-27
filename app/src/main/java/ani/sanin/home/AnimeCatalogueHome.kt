@@ -29,12 +29,6 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
-/**
- * One card in a catalogue-driven Anime home section.
- *
- * [media] is optional tracker metadata. Catalogue-only entries use a synthetic Media id;
- * their info tab can be enriched from TMDB without making catalogue loading depend on AniList.
- */
 data class CatalogueItem(
     val response: ShowResponse,
     val media: Media? = null,
@@ -42,11 +36,6 @@ data class CatalogueItem(
 
 data class CatalogueRow(val title: String, val items: List<CatalogueItem>)
 
-/**
- * Builds the Anime home directly from the catalogue source picked in the tracker
- * sheet. Tracker ids ("anilist"/"mal"/blank) return null so the caller keeps the
- * existing AniList/MAL home.
- */
 object AnimeCatalogueHome {
 
     private const val PER_SECTION = 20
@@ -59,12 +48,6 @@ object AnimeCatalogueHome {
         "Recommended",
     )
 
-    /**
-     * True when the saved id names a usable extension/native source rather than a
-     * tracker. A native provider that is no longer enabled no longer counts, so the
-     * home falls back to the tracker page instead of showing a source the watch tab
-     * cannot open.
-     */
     fun isCatalogueSource(id: String?): Boolean {
         if (id.isNullOrBlank()) return false
         if (id.equals("anilist", true) || id.equals("mal", true)) return false
@@ -77,10 +60,6 @@ object AnimeCatalogueHome {
 
     fun savedSourceId(): String = PrefManager.getVal(PrefName.AnimeCatalogueSource)
 
-    /**
-     * Loads every section for [sourceId], preserving the fixed display order.
-     * Empty/failed sections are dropped rather than rendered blank.
-     */
     suspend fun loadRows(sourceId: String): List<CatalogueRow> {
         Logger.log("Catalogue: loadRows('$sourceId')")
         if (!isCatalogueSource(sourceId)) {
@@ -170,8 +149,6 @@ object AnimeCatalogueHome {
         return chosen
     }
 
-    // ---------------------------------------------------------------- extensions
-
     private suspend fun loadExtensionRows(parser: DynamicAnimeParser): List<CatalogueRow> =
         withContext(Dispatchers.IO) {
             val source = catalogueSourceOf(parser) ?: run {
@@ -240,11 +217,6 @@ object AnimeCatalogueHome {
         emptyList()
     }
 
-    /**
-     * Runs an empty search with any status-shaped filter set to a matching value.
-     * Extensions vary wildly, so this both looks for a status filter by name and
-     * matches the keywords against the filter's own values.
-     */
     private suspend fun searchWithStatus(
         source: AnimeCatalogueSource,
         keywords: List<String>,
@@ -286,12 +258,6 @@ object AnimeCatalogueHome {
         )
     )
 
-    // ------------------------------------------------------------------- natives
-
-    /**
-     * Native providers are search-only, so TMDB supplies discovery lists and each title
-     * is resolved through the selected provider. The catalogue never queries AniList.
-     */
     private suspend fun loadNativeRows(parser: NativeAnimeParser): List<CatalogueRow> =
         withContext(Dispatchers.IO) {
             Logger.log("Catalogue: loading native '${parser.name}' from TMDB")
@@ -315,10 +281,6 @@ object AnimeCatalogueHome {
             }
         }
 
-    /**
-     * Fill only missing/empty baseline sections from TMDB. Every result is resolved through
-     * the chosen playback provider, so a title without a playable source is never shown.
-     */
     private suspend fun withTmdbFallback(
         rows: List<CatalogueRow>,
         resolve: suspend (String) -> CatalogueItem?,
@@ -336,7 +298,7 @@ object AnimeCatalogueHome {
         resolve: suspend (String) -> CatalogueItem?,
         only: Set<String> = SECTION_ORDER.toSet(),
     ): List<CatalogueRow> = withContext(Dispatchers.IO) {
-        // TMDB has no latest-episodes feed, so never fake that section.
+
         val trending = runCatching { Tmdb.trending("tv", "week") }.getOrDefault(emptyList())
         val popular = runCatching { Tmdb.popular(1) }.getOrDefault(emptyList())
         val upcoming = runCatching {
@@ -363,8 +325,6 @@ object AnimeCatalogueHome {
             if (titles.isEmpty()) null else section to titles
         }.toMap()
 
-        // A title may appear in several TMDB lists. Resolve it only once, with a small
-        // concurrency cap so a fallback does not flood an extension with duplicate searches.
         val uniqueTitles = titlesBySection.values.flatten().distinctBy(keyOf)
         val gate = Semaphore(4)
         val resolvedByTitle = coroutineScope {
@@ -390,11 +350,6 @@ object AnimeCatalogueHome {
         }
     }
 
-    /**
-     * Extra extension-supported categories are derived only from actual genre/category
-     * filters exposed by that source. The API has no arbitrary named-section contract,
-     * so we do not invent shelves from unrelated filters.
-     */
     private suspend fun loadFilterRows(
         source: AnimeCatalogueSource,
         existingTitles: Set<String>,
@@ -463,13 +418,6 @@ object AnimeCatalogueHome {
         return result.toItem()
     }
 
-    // ------------------------------------------------------------------- routing
-
-    /**
-     * Makes sure the chosen source is addressable from the watch tab's source
-     * list. A native provider chosen as a catalogue source may not be enabled,
-     * so it is enabled (and therefore listed) instead of silently falling back.
-     */
     fun watchSourceIndex(sourceId: String): Int {
         val name = when {
             sourceId.startsWith("native:", true) ->
@@ -483,9 +431,7 @@ object AnimeCatalogueHome {
         if (existing >= 0) return existing
 
         val parser = AnimeSources.allNativeParsers.firstOrNull { it.name == name } ?: return -1
-        // A provider picked as the catalogue source has to be watchable, so enable it. That
-        // also keeps the index stable: a later list rebuild would otherwise drop a
-        // session-only entry and silently point this index at another source.
+
         val enabled = PrefManager.getVal<Set<String>>(PrefName.EnabledProviders).toMutableSet()
         if (enabled.add(parser.saveName)) {
             PrefManager.setVal(PrefName.EnabledProviders, enabled)
@@ -501,11 +447,9 @@ object AnimeCatalogueHome {
         return insertion
     }
 
-    /** Media a section card binds: the resolved AniList title, or a synthetic stand-in. */
     fun displayMedia(sourceId: String, item: CatalogueItem): Media =
         item.media ?: item.response.toSyntheticMedia(sourceId)
 
-    /** Opens the normal anime detail flow with the catalogue source pre-selected. */
     fun openItem(
         activity: AppCompatActivity,
         sourceId: String,
@@ -520,8 +464,7 @@ object AnimeCatalogueHome {
             return
         }
         activity.lifecycleScope.launch {
-            // Catalogue navigation must remain usable when AniList is degraded.
-            // The selected provider response is enough to open the detail/player flow.
+
             val media = item.media ?: withContext(Dispatchers.IO) {
                 item.response.toSyntheticMedia(sourceId)
             }
@@ -541,7 +484,6 @@ object AnimeCatalogueHome {
         }
     }
 
-    /** Fallback Media when AniList knows nothing about the title. */
     private fun ShowResponse.toSyntheticMedia(sourceId: String): Media {
         val id = syntheticId(sourceId, link)
         return Media(

@@ -23,16 +23,6 @@ import ani.sanin.util.FocusEffectUtil
 import com.google.android.material.color.MaterialColors
 import java.util.Locale
 
-/**
- * Right-side tracks rail for the player (mirrors CloudStream's track picker).
- *
- * Lists the currently-open stream's video renditions (Tracks) and audio tracks
- * (Audio) in D-pad friendly rows, each with an active indicator, and applies
- * the selection immediately on click. The top-right player button only shows
- * when the source exposes more than one video rendition OR more than one audio
- * track (CloudStream's exact visibility rule); the rail itself follows the
- * episode/subtitle rail pattern.
- */
 @UnstableApi
 class TrackRailController(
     private val activity: ExoplayerView,
@@ -47,7 +37,7 @@ class TrackRailController(
         val type: @C.TrackType Int,
         val label: CharSequence,
         val active: Boolean,
-        /** Height for video (for sort), 0 for audio (manifest order). */
+
         val sort: Int = 0,
     )
 
@@ -87,7 +77,6 @@ class TrackRailController(
         val videoChevron = root.findViewById<View>(R.id.tracksSheetVideoChevron)
         val audioChevron = root.findViewById<View>(R.id.tracksSheetAudioChevron)
 
-        // Split rows into video/audio
         val videoRows = rows.filter { it.entry?.type == C.TRACK_TYPE_VIDEO }
         val audioRows = rows.filter { it.entry?.type == C.TRACK_TYPE_AUDIO }
 
@@ -145,14 +134,12 @@ class TrackRailController(
         rows.clear()
         val tracks = activity.playerCurrentTracks()
 
-        // --- Tracks (video renditions inside the open stream) ---
         val videos = videoEntries(tracks).sortedByDescending { it.sort }
         if (videos.isNotEmpty()) {
             rows.add(RailItem("Tracks", isHeader = true))
             videos.forEach { rows.add(RailItem(it.label, entry = it)) }
         }
 
-        // --- Audio ---
         val audios = audioEntries(tracks)
         if (audios.isNotEmpty()) {
             rows.add(RailItem("Audio", isHeader = true))
@@ -181,7 +168,6 @@ class TrackRailController(
         }
     }
 
-    /** Flatten supported video renditions (height > 0) like CloudStream. */
     private fun videoEntries(tracks: Tracks): List<TrackEntry> {
         val result = mutableListOf<TrackEntry>()
         tracks.groups.forEach { group ->
@@ -287,7 +273,7 @@ class TrackRailController(
             "und" -> "Unknown"
             else -> code
         }
-        // Reuse the app's language mapper when the code is BCP-47 style.
+
         return if (mapped == code) {
             runCatching { ani.sanin.others.LanguageMapper.getLanguageName(code) }
                 .getOrNull()
@@ -384,7 +370,6 @@ class TrackRailController(
         }
     }
 
-    /** Lightweight adapter for the dialog's RecyclerViews. */
     private inner class DialogAdapter(private val items: List<RailItem>) :
         RecyclerView.Adapter<DialogAdapter.VH>() {
         inner class VH(val binding: ItemSubtitleTextBinding) : RecyclerView.ViewHolder(binding.root)

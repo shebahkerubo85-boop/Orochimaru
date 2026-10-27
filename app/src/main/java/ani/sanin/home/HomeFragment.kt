@@ -93,7 +93,6 @@ import kotlinx.coroutines.withContext
 import kotlin.math.max
 import kotlin.math.min
 
-
 class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
@@ -104,10 +103,8 @@ class HomeFragment : Fragment() {
     private var homeBannerItems: List<Media> = emptyList()
     private var homeBannerLogos: Map<Int, String?> = emptyMap()
 
-    /** True when the tracker sheet points Home at an extension/native catalogue. */
     private var catalogueMode = false
 
-    /** The in-flight catalogue load, cancelled when a new load starts. */
     private var catalogueJob: Job? = null
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -263,7 +260,6 @@ class HomeFragment : Fragment() {
         }
         binding.homeCatalogueRefresh.setOnRefreshListener { loadCatalogue() }
 
-        //UserData
         binding.homeUserDataProgressBar.visibility = View.VISIBLE
         binding.homeUserDataContainer.visibility = View.GONE
         if (catalogueMode) {
@@ -272,14 +268,14 @@ class HomeFragment : Fragment() {
         } else if (model.loaded) {
             load()
         }
-        //List Images
+
         model.getListImages().observe(viewLifecycleOwner) {
             if (it != null && it.isNotEmpty()) {
                 binding.homeAnimeListImage.loadImage(it[0] ?: "https://bit.ly/31bsIHq")
                 binding.homeMangaListImage.loadImage(it[1] ?: "https://bit.ly/2ZGfcuG")
             }
         }
-        
+
         fun initContinueWatchingRecyclerView(
             mode: LiveData<ArrayList<Media>>,
             container: View,
@@ -353,7 +349,6 @@ class HomeFragment : Fragment() {
             }
         }
 
-        //Function For Recycler Views
         fun initRecyclerView(
             mode: LiveData<ArrayList<Media>>,
             container: View,
@@ -414,7 +409,6 @@ class HomeFragment : Fragment() {
 
         }
 
-        // Recycler Views
         initContinueWatchingRecyclerView(
             model.getAnimeContinue(),
             binding.homeContinueWatchingContainer,
@@ -547,7 +541,6 @@ class HomeFragment : Fragment() {
                 (binding.homeSaninIcon.drawable as? Animatable)?.start()
             }
         }
-
 
         val array = arrayOf(
             "AnimeContinue",
@@ -710,8 +703,6 @@ class HomeFragment : Fragment() {
 
     private fun <T : View> id(id: Int): T = requireView().findViewById(id)
 
-
-
     private class HomeSection(val container: ViewGroup, val rv: RecyclerView, val title: TextView)
 
     private val sectionItemFocusListeners = mutableSetOf<RecyclerView>()
@@ -727,7 +718,7 @@ class HomeFragment : Fragment() {
 
     private fun setupSectionFocusChain() {
         val sections = homeSections()
-        // Reset links first so sections that are no longer visible can't grab focus
+
         for (sec in sections) {
             sec.rv.nextFocusUpId = View.NO_ID
             sec.rv.nextFocusDownId = View.NO_ID
@@ -744,7 +735,7 @@ class HomeFragment : Fragment() {
                 })
             }
         }
-        // Wire only visible sections, in their on-screen order (reorder-aware)
+
         val wired = homeSections()
             .filter {
                 it.container.visibility == View.VISIBLE &&
@@ -764,7 +755,7 @@ class HomeFragment : Fragment() {
             sec.rv.nextFocusDownId = next?.rv?.id ?: View.NO_ID
             row.nextFocusUpId = prev?.rv?.id ?: View.NO_ID
         }
-        // Apply the same item-level links to already-attached children
+
         for (sec in sections) {
             for (i in 0 until sec.rv.childCount) {
                 wireSectionItem(sec.rv.getChildAt(i))
@@ -805,8 +796,7 @@ class HomeFragment : Fragment() {
         rv.isFocusable = true
         rv.descendantFocusability = android.view.ViewGroup.FOCUS_AFTER_DESCENDANTS
         rv.nextFocusDownId = R.id.homeWatchingRecyclerView
-        // The default animator cross-fades a full-bleed banner on every bind,
-        // which is the most expensive thing on a low-RAM TV. The slide is enough.
+
         rv.itemAnimator = null
         bannerSnapHelper.attachToRecyclerView(rv)
 
@@ -839,8 +829,7 @@ class HomeFragment : Fragment() {
                             }, urls, logos,
                             nextFocusDownId = R.id.homeWatchingRecyclerView,
                             layoutRes = layoutForBannerType(modern),
-                            // Classic carries its own watch pill, same as Modern.
-                            // Leaving it in cardMode hid the button entirely.
+
                             cardMode = !modern && !isClassicBanner() && !is3DBanner(),
                             hideDescription = !modern,
                             modernMode = modern,
@@ -899,7 +888,7 @@ class HomeFragment : Fragment() {
         val dots = binding.homeBannerDots
         dots.removeAllViews()
         val density = resources.displayMetrics.density
-        // Portrait: max 7 dots, cycling (8th banner lights dot 0). Landscape: all.
+
         val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
         val shown = if (isPortrait) minOf(itemCount, 7) else itemCount
         val dotsList = mutableListOf<View>()
@@ -928,8 +917,7 @@ class HomeFragment : Fragment() {
 
         rv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrollStateChanged(rv: RecyclerView, newState: Int) {
-                // Manual scroll: reset the auto timer so it never yanks mid-swipe,
-                // and sync its index so the next auto step continues from here.
+
                 if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
                     resetHomeBannerAutoScroll()
                     return
@@ -962,11 +950,7 @@ class HomeFragment : Fragment() {
         bannerAutoScrollRunnable = object : Runnable {
             override fun run() {
                 if (itemCount == 0) return
-                // The timer used to be its own clock, so a tick could land while the
-                // previous slide was still travelling. startSmoothScroll replaces the
-                // in-flight scroller, so each tick cut the last one off partway and
-                // aimed again: the banner crept forward and never came to rest. Waiting
-                // for the settle makes "slide, then pause" the only possible sequence.
+
                 val lm = rv.layoutManager as? LinearLayoutManager
                 if (lm != null && lm.isSmoothScrolling()) {
                     bannerAutoScrollHandler?.postDelayed(this, BANNER_SETTLE_POLL_MS)
@@ -979,10 +963,7 @@ class HomeFragment : Fragment() {
                     binding.homeBannerCarousel.findContainingViewHolder(focus) != null
                 )
                 if (!onBannerControl) {
-                    // Aimed from what is on screen rather than from a remembered index:
-                    // the index only got corrected on idle, so any move that did not
-                    // settle through that listener left the next step aimed at a stale
-                    // target, which is what slid through every banner on the way.
+
                     val current = lm?.findFirstVisibleItemPosition() ?: RecyclerView.NO_POSITION
                     if (current != RecyclerView.NO_POSITION) rv.smoothScrollToPosition(current + 1)
                 }
@@ -992,7 +973,6 @@ class HomeFragment : Fragment() {
         bannerAutoScrollHandler?.postDelayed(bannerAutoScrollRunnable!!, 5000L)
     }
 
-    /** Reset the auto-scroll timer (call on manual drag + settle). */
     private fun resetHomeBannerAutoScroll() {
         val runnable = bannerAutoScrollRunnable ?: return
         bannerAutoScrollHandler?.removeCallbacksAndMessages(null)
@@ -1094,8 +1074,7 @@ class HomeFragment : Fragment() {
         if (_binding != null) {
             applyHomeBannerLandscapeMode()
             applyHomeBannerFocusChain()
-            // Rotation does not re-inflate the banner items, so a rebind is what
-            // makes them pick up the landscape height and synopsis size.
+
             bannerCarouselAdapter?.notifyDataSetChanged()
         }
     }
@@ -1174,9 +1153,7 @@ class HomeFragment : Fragment() {
                 watchBtn.isVisible = true
             }
             else -> {
-                // Compact keeps the side panel's watch button. Classic and Modern
-                // hide that panel, so pointing the chain at it would strand the
-                // user on a view that is not on screen.
+
                 val target =
                     if (isModernBanner() || isClassicBanner() || (is3DBanner() && carouselActive)) R.id.homeBannerCarousel
                     else R.id.homeBannerWatchBtn
@@ -1187,7 +1164,7 @@ class HomeFragment : Fragment() {
                 watchBtn.isVisible = target == R.id.homeBannerWatchBtn
             }
         }
-        // Keep already-attached continue-watching cards pointed at the mode target
+
         for (i in 0 until b.homeWatchingRecyclerView.childCount) {
             b.homeWatchingRecyclerView.getChildAt(i).nextFocusUpId = cwItemUpTarget
         }
@@ -1213,8 +1190,6 @@ class HomeFragment : Fragment() {
             c.layoutParams = lp
         }
 
-        // Modern is full-bleed in every orientation: the artwork, logo, synopsis and
-        // metadata all live inside the banner, so the side strip is never used.
         if ((isModernBanner() && hasBanner) || (is3DBanner() && carouselActive)) {
             card.sizeBannerCard()
             setCardCentered(card)
@@ -1268,10 +1243,6 @@ class HomeFragment : Fragment() {
         val sidePad = (24 * density).toInt()
         val stripW = ctx.resources.displayMetrics.widthPixels - cardW
 
-        // Classic and Modern are full-bleed and already carry the logo, the
-        // chips and a watch pill on the card itself, so the side panel would
-        // duplicate all three and leave a second watch button stranded at the
-        // bottom left. Only Compact is still narrow enough to need it.
         val fullBleed = isModernBanner() || isClassicBanner() || (is3DBanner() && carouselActive)
 
         fade.isVisible = !fullBleed
@@ -1299,7 +1270,7 @@ class HomeFragment : Fragment() {
         if (navActive) {
             val largeBanner = isClassicBanner()
             b.navBannerContent.isVisible = false
-            // Large type: no left 3-layer scrim, only the gradient below.
+
             b.navBannerBottomGradient.isVisible = largeBanner
             b.navBannerScrim.isVisible = !largeBanner
             b.navBannerScrim.layoutParams = b.navBannerScrim.layoutParams.apply {
@@ -1334,9 +1305,7 @@ class HomeFragment : Fragment() {
 
     private fun updateHomeBannerOverlay(media: Media) {
         val b = _binding ?: return
-        // The panel is hidden for Classic and Modern, which draw this content on
-        // the card instead. Guarded here rather than at each of the call sites,
-        // which include a scroll listener and the nav banner path.
+
         if (!b.homeBannerOverlay.isVisible) return
         val logo = b.homeBannerOverlayLogo
         val title = b.homeBannerOverlayTitle
@@ -1369,7 +1338,7 @@ class HomeFragment : Fragment() {
             ?.replace(Regex("<.*?>"), "")
             ?.replace(Regex("\\s+"), " ")
             ?.trim()
-        // Large type: title + chips only, no synopsis.
+
         if (isClassicBanner()) {
             synopsis.isVisible = false
         } else if (!desc.isNullOrBlank()) {
@@ -1425,8 +1394,6 @@ class HomeFragment : Fragment() {
 
     private fun homeOverlayScoreText(media: Media): String? =
         media.meanScore?.let { "$it%" }
-
-    // --------------------------------------------------------------- catalogue
 
     private fun applyCatalogueMode() {
         binding.homeRefresh.visibility = View.GONE
@@ -1570,7 +1537,6 @@ class HomeFragment : Fragment() {
         reapplyHomeLayout()
     }
 
-    /** Re-applies home section visibility/order from prefs without refetching data. */
     private fun reapplyHomeLayout() {
         if (_binding == null || catalogueMode || PrefManager.getVal(PrefName.RescueMode)) return
         val homeLayoutShow = PrefManager.getVal<List<Boolean>>(PrefName.HomeLayout)

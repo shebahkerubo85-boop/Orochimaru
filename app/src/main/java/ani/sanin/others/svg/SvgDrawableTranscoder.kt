@@ -7,11 +7,6 @@ import com.bumptech.glide.load.resource.SimpleResource
 import com.bumptech.glide.load.resource.transcode.ResourceTranscoder
 import com.caverock.androidsvg.SVG
 
-/**
- * Transcodes a parsed [SVG] into a framework [PictureDrawable] so it can be
- * shown by an [android.widget.ImageView] when loaded with
- * `as(PictureDrawable::class)`.
- */
 class SvgDrawableTranscoder :
     ResourceTranscoder<SVG, PictureDrawable> {
 

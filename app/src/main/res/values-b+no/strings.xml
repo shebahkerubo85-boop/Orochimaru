@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- IS NOT NEEDED TO TRANSLATE AS THEY ARE ONLY USED FOR SCREEN READERS AND WONT SHOW UP TO NORMAL USERS -->
+
     <string name="result_poster_img_des">Plakat</string>
     <string name="search_poster_img_des">Plakat</string>
     <string name="episode_poster_img_des">Episode Plakat</string>
@@ -9,7 +9,7 @@
     <string name="go_back_img_des">Gå tilbake</string>
     <string name="home_change_provider_img_des">Bytt leverandør</string>
     <string name="preview_background_img_des">Forhåndsvisning Bakgrunn</string>
-    <!-- TRANSLATE, BUT DON'T FORGET FORMAT -->
+
     <string name="player_speed_text_format" formatted="true">Avspillingshastighet (%.2fx)</string>
     <string name="rated_format" formatted="true">Vurdert: %.1f</string>
     <string name="new_update_format" formatted="true">Ny oppdatering funnet! \n%1$s -&gt; %2$s</string>
@@ -39,7 +39,7 @@
     <string name="reload_error">Prøv tilkoblingen på nytt…</string>
     <string name="go_back">Gå tilbake</string>
     <string name="play_episode">Spille Episode</string>
-    <!--<string name="need_storage">Tillat å laste ned episoder</string>-->
+
     <string name="download">nedlasting</string>
     <string name="downloaded">Lastet ned</string>
     <string name="downloading">Nedlasting pågår</string>

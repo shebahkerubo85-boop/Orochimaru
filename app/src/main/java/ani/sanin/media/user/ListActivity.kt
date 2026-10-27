@@ -31,7 +31,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-
 class ListActivity : AppCompatActivity() {
     private lateinit var binding: ActivityListBinding
     private val scope = lifecycleScope
@@ -183,7 +182,7 @@ class ListActivity : AppCompatActivity() {
         }
 
         binding.random.setOnClickListener {
-            //get the current tab
+
             val currentTab =
                 binding.listTabLayout.getTabAt(binding.listTabLayout.selectedTabPosition)
             val currentFragment =

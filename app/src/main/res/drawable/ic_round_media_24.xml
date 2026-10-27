@@ -1,12 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Tab icon for the media tabs. Neutral artwork so the anime tab and the TMDB
-  tab can share it, which is why this is not named after either one.
 
-  A mask: white fill under a tint, no colour of its own. fill="currentColor" in
-  the source becomes a white fill here, and the last path carried
-  fill-rule="evenodd", which is android:fillType here.
--->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"

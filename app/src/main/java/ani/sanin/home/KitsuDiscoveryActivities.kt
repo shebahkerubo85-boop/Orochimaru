@@ -164,9 +164,7 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
             var added = false
             var attempts = 0
             do {
-                // The curated grid's slug is the preferred stable mapping. If Kitsu ever
-                // renames a tag or an editorial title maps to a different official slug,
-                // resolve it against the full live catalogue before querying results.
+
                 if (resolvedCategorySlug == null && offset == 0 && adapter.itemCount == 0) {
                     val matchedCategory = withContext(Dispatchers.IO) {
                         val categories = Kitsu.allCategories()
@@ -211,8 +209,7 @@ class KitsuCategoryResultsActivity : AppCompatActivity() {
                 offset += page.rawCount
                 endReached = !page.hasMore
                 if (page.items.isNotEmpty()) {
-                    // Kitsu determines category membership and provides AniList mappings only.
-                    // Display posters from AniList; unmapped titles keep the placeholder.
+
                     val anilistIds = page.items.mapNotNull { it.anilistId }.distinct()
                     val covers = if (anilistIds.isEmpty()) {
                         emptyMap()

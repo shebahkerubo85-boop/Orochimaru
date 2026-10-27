@@ -9,7 +9,6 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- Title -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -24,7 +23,6 @@
             android:layout_height="1dp"
             android:background="?android:attr/listDivider" />
 
-        <!-- ─── Style options ─── -->
         <RadioGroup
             android:id="@+id/oledModeGroup"
             android:layout_width="match_parent"
@@ -89,7 +87,6 @@
             android:layout_marginTop="8dp"
             android:background="?android:attr/listDivider" />
 
-        <!-- ─── Intensity slider ─── -->
         <include
             android:id="@+id/oledIntensitySlider"
             layout="@layout/item_settings_section_slider" />

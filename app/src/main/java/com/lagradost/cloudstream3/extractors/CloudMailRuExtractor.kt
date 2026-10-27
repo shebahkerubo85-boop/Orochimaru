@@ -1,4 +1,4 @@
-// ! Bu araç @Kraptor123 tarafından | @kekikanime için yazılmıştır.
+
 package com.lagradost.cloudstream3.extractors
 
 import com.lagradost.cloudstream3.SubtitleFile
@@ -17,7 +17,7 @@ open class CloudMailRu : ExtractorApi() {
     override val requiresReferer = false
 
     override suspend fun getUrl(url: String, referer: String?, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit) {
-//        Log.d("kraptor_${this.name}","url = $url")
+
         val headers = mapOf(
             "Accept" to "*/*",
             "Connection" to "keep-alive",
@@ -33,8 +33,6 @@ open class CloudMailRu : ExtractorApi() {
         val regex      = Regex(pattern = "videowl_view\":\\{\"count\":\"1\",\"url\":\"([^\"]*)\"\\}", options = setOf(RegexOption.IGNORE_CASE))
         val videoMatch = regex.find(videoReq)?.groupValues?.get(1).toString()
         val videoUrl   = "$videoMatch/0p/$vidIdEnc.m3u8?double_encode=1"
-//        Log.d("kraptor_${this.name}","videoMatch = $videoMatch hani base64 = $vidIdEnc vidurl = $videoUrl")
-
 
         callback.invoke(
             newExtractorLink(

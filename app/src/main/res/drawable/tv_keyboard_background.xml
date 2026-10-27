@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Fallback panel for the full TV keyboard (replaced by the glass effect when enabled). -->
+
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- soft outer shadow -->
+
     <item>
         <shape android:shape="rectangle">
             <solid android:color="#4D000000" />
             <corners android:radius="20dp" />
         </shape>
     </item>
-    <!-- neutral dark translucent glass body -->
+
     <item
         android:top="1dp"
         android:left="1dp"

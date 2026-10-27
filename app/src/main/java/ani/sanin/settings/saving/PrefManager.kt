@@ -23,7 +23,7 @@ object PrefManager {
     private var animeDownloadsPreferences: SharedPreferences? = null
     private var protectedPreferences: SharedPreferences? = null
 
-    fun init(context: Context) {  //must be called in Application class or will crash
+    fun init(context: Context) {
         if (generalPreferences != null) return
         generalPreferences =
             context.getSharedPreferences(Location.General.location, Context.MODE_PRIVATE)
@@ -43,11 +43,6 @@ object PrefManager {
         migrateRenamedFloatPrefs()
     }
 
-    /**
-     * Stored keys are the PrefName constant names, so renaming a PrefName orphans the
-     * old key and silently resets the user's setting to its default. Carry those values
-     * across once, then drop the stale keys.
-     */
     private fun migrateRenamedFloatPrefs() {
         if (getVal(PrefName.HasMigratedBannerTransparency)) return
         val uiPref = getPrefLocation(Location.UI)
@@ -145,7 +140,7 @@ object PrefManager {
     fun <T> getNullableVal(
         prefName: PrefName,
         default: T?
-    ): T? {  //Strings don't necessarily need to use this one
+    ): T? {
         return try {
             val pref = getPrefLocation(prefName.data.prefLocation)
             when (prefName.data.type) {
@@ -221,7 +216,6 @@ object PrefManager {
         }
     }
 
-
     fun removeVal(prefName: PrefName) {
         val pref = getPrefLocation(prefName.data.prefLocation)
         with(pref.edit()) {
@@ -232,7 +226,7 @@ object PrefManager {
 
     @Suppress("UNCHECKED_CAST")
     fun <T> setCustomVal(key: String, value: T?) {
-        //for custom force irrelevant
+
         with(irrelevantPreferences!!.edit()) {
             when (value) {
                 is Boolean -> putBoolean(key, value as Boolean)
@@ -249,19 +243,13 @@ object PrefManager {
     }
 
     fun removeCustomVal(key: String) {
-        //for custom force irrelevant
+
         with(irrelevantPreferences!!.edit()) {
             remove(key)
             apply()
         }
     }
 
-    /**
-     * Retrieves all SharedPreferences entries with keys starting with the specified prefix.
-     *
-     * @param prefix The prefix to filter keys.
-     * @return A map containing key-value pairs that match the prefix.
-     */
     fun getAllCustomValsForMedia(prefix: String): Map<String, Any?> {
         val prefs = irrelevantPreferences ?: return emptyMap()
         val allEntries = mutableMapOf<String, Any?>()
@@ -353,11 +341,10 @@ object PrefManager {
             ?: throw ClassCastException("Cannot cast to SharedPreferenceLiveData<T>")
 
     fun getAnimeDownloadPreferences(): SharedPreferences =
-        animeDownloadsPreferences!!  //needs to be used externally
+        animeDownloadsPreferences!!
 
-    /** Per-provider dub/sub preference, falling back to the global default. */
     fun getProviderDub(saveName: String): Boolean {
-        // AnimeJL is a Spanish-dubbed source, so prefer dub by default there.
+
         val fallback = if (saveName.equals("animejl", ignoreCase = true)) true else getVal<Boolean>(PrefName.PreferDub)
         return generalPreferences?.getBoolean("prefer_dub_$saveName", fallback) ?: fallback
     }
@@ -372,20 +359,11 @@ object PrefManager {
         )
     }
 
-
-    /**
-     * @param prefs Map of preferences to import
-     * @param prefLocation Location to import to
-     * @return true if successful, false if error
-     */
-
     @Suppress("UNCHECKED_CAST")
     fun importAllPrefs(prefs: Map<String, *>, prefLocation: Location): Boolean {
         val pref = getPrefLocation(prefLocation)
         var hadError = false
-        // Merge rather than clear the file first. A backup written by an older build has no
-        // keys for settings that have since been added, so clearing first would delete
-        // exactly those on import and hand the user a silently shorter settings list.
+
         with(pref.edit()) {
             prefs.forEach { (key, value) ->
                 when (value) {

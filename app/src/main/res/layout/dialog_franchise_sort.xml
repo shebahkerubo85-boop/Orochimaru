@@ -1,16 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  The body of the Franchise sort dialog.
 
-  Sort order and the single-entry toggle are both in this one view rather than split between
-  setSingleChoiceItems and setView: the dialog only has a single content panel, so asking for
-  both leaves the option list with nowhere to draw and the dialog opens showing only the
-  switch. A RadioGroup is what setSingleChoiceItems would have produced, and it can live
-  beside the switch.
-
-  Options are in enum order, and FranchiseSortDialog reads the checked id back through
-  FranchiseSort, so adding a sort means adding an entry here and a label in strings.xml.
--->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -76,7 +65,6 @@
         android:background="#1F000000"
         android:importantForAccessibility="no" />
 
-    <!-- Off by default: a one-poster card is a smaller version of the row this replaced. -->
     <com.google.android.material.materialswitch.MaterialSwitch
         android:id="@+id/franchiseShowSingleEntry"
         android:layout_width="match_parent"

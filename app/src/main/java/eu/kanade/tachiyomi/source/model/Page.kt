@@ -14,7 +14,7 @@ open class Page(
     var imageUrl: String? = null,
     @kotlin.jvm.Transient
     @KotlinxTransient
-    var uri: Uri? = null, // Deprecated but can't be deleted due to extensions
+    var uri: Uri? = null,
 ) : ProgressListener {
 
     val number: Int

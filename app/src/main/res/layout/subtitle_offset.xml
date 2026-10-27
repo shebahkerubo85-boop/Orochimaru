@@ -143,7 +143,6 @@
                     tools:ignore="ContentDescription" />
             </LinearLayout>
 
-
         </LinearLayout>
 
         <LinearLayout

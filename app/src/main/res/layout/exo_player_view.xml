@@ -16,8 +16,6 @@
         android:layout_height="match_parent"
         android:layout_gravity="center">
 
-        <!-- Video surface will be inserted as the first child of the content frame. -->
-
         <View
             android:id="@id/exo_shutter"
             android:layout_width="match_parent"
@@ -431,7 +429,7 @@
         app:lottie_rawRes="@raw/tomoe"
         app:lottie_autoPlay="true"
         app:lottie_loop="true"
-        app:lottie_colorFilter="?attr/colorSecondary" 
+        app:lottie_colorFilter="?attr/colorSecondary"
         app:lottie_speed="1.75" android:rotation="75" />
 
         <com.airbnb.lottie.LottieAnimationView
@@ -443,7 +441,7 @@
         app:lottie_rawRes="@raw/tomoe"
         app:lottie_autoPlay="true"
         app:lottie_loop="true"
-        app:lottie_colorFilter="?attr/colorSecondary" 
+        app:lottie_colorFilter="?attr/colorSecondary"
         app:lottie_speed="1.75" android:rotation="-45" />
 
         <com.airbnb.lottie.LottieAnimationView
@@ -455,7 +453,7 @@
         app:lottie_rawRes="@raw/tomoe"
         app:lottie_autoPlay="true"
         app:lottie_loop="true"
-        app:lottie_colorFilter="?attr/colorSecondary" 
+        app:lottie_colorFilter="?attr/colorSecondary"
         app:lottie_speed="1.75" android:rotation="195" />
 
     </FrameLayout>

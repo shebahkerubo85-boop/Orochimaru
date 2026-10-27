@@ -164,5 +164,4 @@ class SettingsThemeActivity : AppCompatActivity() {
         }
     }
 
-
 }

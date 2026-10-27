@@ -11,7 +11,6 @@
 
     <include layout="@layout/standard_toolbar" />
 
-    <!-- Required ViewGroup for PreferenceFragmentCompat -->
     <FrameLayout
         android:id="@android:id/list_container"
         android:layout_width="match_parent"
@@ -19,6 +18,5 @@
         android:background="?attr/primaryBlackBackground"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
         tools:targetApi="n" />
-        <!-- list_container is actually defined by the support library, but lint doesn't know that it exists before API 24. -->
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

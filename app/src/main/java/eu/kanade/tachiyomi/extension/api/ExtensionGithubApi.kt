@@ -139,11 +139,11 @@ internal class ExtensionGithubApi {
             if (responseBytes.isEmpty()) return emptyList()
             val firstByte = responseBytes[0]
 
-            if (firstByte == 0x5B.toByte()) { // '['
+            if (firstByte == 0x5B.toByte()) {
                 val bodyString = responseBytes.toString(Charsets.UTF_8)
                 return json.decodeFromString<List<ExtensionJsonObject>>(bodyString)
             } else {
-                val store = if (firstByte == 0x7B.toByte()) { // '{'
+                val store = if (firstByte == 0x7B.toByte()) {
                     val bodyString = responseBytes.toString(Charsets.UTF_8)
                     if (bodyString.contains("\"index_v2\"") || bodyString.contains("\"indexV2\"")) {
                         val legacyRepo = json.decodeFromString<NetworkLegacyExtensionRepo>(bodyString)
@@ -154,9 +154,8 @@ internal class ExtensionGithubApi {
                         }
                     }
                     json.decodeFromString<NetworkExtensionStore>(bodyString)
-                } else { // Protobuf
-                    // A repo index may omit fields this model doesn't care about, so a strict
-                    // decode failure shouldn't discard the whole repo.
+                } else {
+
                     runCatching {
                         ProtoBuf.decodeFromByteArray<NetworkExtensionStore>(responseBytes)
                     }.getOrNull() ?: return emptyList()
@@ -172,7 +171,7 @@ internal class ExtensionGithubApi {
                         networkService.client.newCall(GET(listUrl)).awaitSuccess()
                     }.getOrNull()
                     val listBytes = listResponse?.body?.bytes()?.decompressIfGzipped()
-                    if (listBytes != null && listBytes.isNotEmpty() && listBytes[0] == 0x7B.toByte()) { // '{'
+                    if (listBytes != null && listBytes.isNotEmpty() && listBytes[0] == 0x7B.toByte()) {
                         runCatching {
                             json.decodeFromString<NetworkExtensionStore.ExtensionList>(listBytes.toString(Charsets.UTF_8))
                         }.getOrNull()

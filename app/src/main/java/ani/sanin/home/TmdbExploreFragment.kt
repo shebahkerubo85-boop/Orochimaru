@@ -73,7 +73,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.min
 
-/** Folds a TMDB title into the shared domain Media the banner carousel binds. */
 internal fun TmdbMedia.toExploreMedia(): Media = Media(
     id = id,
     name = displayTitle,
@@ -83,34 +82,15 @@ internal fun TmdbMedia.toExploreMedia(): Media = Media(
     banner = Tmdb.imageUrl(backdropPath, 1280) ?: Tmdb.imageUrl(posterPath, 780),
     cover = Tmdb.imageUrl(posterPath, 500),
     description = overview,
-    // The banner's first chip is the format, and it comes from Media.format, which TMDB
-    // never populated here — so the row opened on the score chip instead of saying what
-    // kind of title it was. Upper case matches how the anime side stores it, and "TV" is
-    // the value BannerCarouselAdapter already renders as "TV Series"; "movie" falls
-    // through its own mapping untouched.
+
     format = type.uppercase(),
-    // The classic banner builds its centred chip row from format, status, season, score
-    // and genres. TMDB has no season and no clear logo on a list response, but genres are
-    // there as ids — without them the banner's middle is empty but for a score chip.
+
     genres = ArrayList(Tmdb.genreNames(this)),
-    // TMDB votes are 0-10; the banner's score chip is a 0-100 percentage.
+
     meanScore = if (voteAverage > 0) (voteAverage * 10).toInt() else null,
     tmdbType = type
 )
 
-/**
- * The TMDB (movie) mode's Explore tab: the anime explore's banner and chip row, fed by
- * TMDB instead of AniList, with the streaming-services rail beneath the type chips.
- *
- * The banner reuses `layout_trending` and `BannerCarouselAdapter` exactly as the anime
- * page does, so the user's banner settings — classic / modern / compact, the blur slider,
- * focus, D-pad movement and click behaviour — all apply here too. Only the data source
- * differs: each TMDB title is folded into the domain [Media] the carousel already binds.
- *
- * The three chips replace the season selector; picking one reloads the banner for that
- * type. Portion 1 carries the banner, the chips and the rail; the content rows below the
- * rail are a later portion.
- */
 class TmdbExploreFragment : Fragment() {
 
     private var _binding: FragmentTmdbExploreBinding? = null
@@ -119,92 +99,32 @@ class TmdbExploreFragment : Fragment() {
     private lateinit var trendingBinding: LayoutTrendingBinding
     private lateinit var streamingAdapter: StreamingServicesAdapter
 
-    /** The single page item; every chip and rail id lives in here, not in the fragment. */
     private var pageBinding: ItemTmdbExplorePageBinding? = null
     private val page get() = requireNotNull(pageBinding) { "explore page not bound" }
     private lateinit var pageAdapter: TmdbExplorePageAdapter
 
-    /**
-     * The Franchise cards that replaced the Popular list. Each card is one franchise; the
-     * cards themselves follow the type chip like the rails do.
-     */
     private lateinit var franchiseAdapter: FranchiseAdaptor
 
-    /** The row's own search, held so a page rebind can close it. */
     private var franchiseSearch: InlineSearchBar? = null
 
-    /**
-     * Every card the source returned, unsorted and unfiltered.
-     *
-     * The sort dialog reorders and re-filters this list locally instead of refetching: the
-     * ranking lives on each card, so every ordering is a permutation of what is already here.
-     */
     private var allFranchiseCards: List<Franchise> = emptyList()
 
-    /**
-     * How much of the current source the row has already resolved, and what is left.
-     *
-     * A card costs one request, so the row resolves a batch and asks for more as the user scrolls
-     * rather than paying for the whole source before the first poster.
-     *
-     * The unit is per source, and only one source is ever live at a time because a sort change
-     * resets it: [Trakt.BATCH_CARDS] for Collections, which counts lists asked for, and consumed
-     * `discover` pages for the TMDB sources, which counts seeds walked. Either way it counts what
-     * was *asked for* rather than what came back, so a batch whose cards were all dropped still
-     * moves the row forward instead of requesting the same thing again.
-     */
     private var franchiseSkip = 0
     private var franchiseHasMore = false
 
-    /** A batch in flight, so a scroll near the end does not stack requests on top of it. */
     private var franchiseLoading = false
 
-    /**
-     * Whether the row is waiting on a source that can still fill it.
-     *
-     * Separate from [franchiseLoading], which is about requests: this is about what the
-     * reader sees. The row is only "loading" while it is empty and a source is on its way,
-     * so a batch that pages more cards onto a row that already has some does not turn the
-     * spinner back on beside cards that are already there.
-     */
     private var franchiseRowLoading = false
 
-    /**
-     * Whether the row has ever been asked for cards.
-     *
-     * Until it has, "the row is empty" says nothing about the source — the source has not
-     * been asked. The row's own message is held back until it has, so it cannot report an
-     * empty row that is really a row that has not started.
-     */
     private var franchiseLoadStarted = false
 
-    /**
-     * Which source the cards currently in the row came from.
-     *
-     * The sort dialog's callback fires for the single-entry toggle as well as for a sort pick,
-     * and only a pick can change the source. Comparing the pending sort against this tells a
-     * cheap local re-filter apart from a reload, so toggling the switch does not refetch.
-     */
     private var loadedCollections = false
 
-    /**
-     * One adapter and one backing list per row, created on the row's first load and
-     * updated in place after that.
-     *
-     * Handing a rail a fresh MediaAdaptor on every load throws away every card it had
-     * already inflated, so the whole row — and the page item around it — re-measures and
-     * re-binds from scratch. That is the visible twitch on a chip change.
-     */
     private val rowAdapters = mutableMapOf<Tmdb.ExploreRow, MediaAdaptor>()
     private val rowMedia = mutableMapOf<Tmdb.ExploreRow, ArrayList<Media>>()
 
-    /** Guards the one-time setup in [TmdbExplorePageAdapter.onPageBound]. */
     private var pageBound = false
 
-    /**
-     * Bumped on every chip pick. A request that comes back after the viewer has already
-     * moved on is dropped, so a slow row cannot land on top of the new chip's data.
-     */
     private var loadGeneration = 0
 
     private var trendingMedia: List<TmdbMedia> = emptyList()
@@ -236,8 +156,7 @@ class TmdbExploreFragment : Fragment() {
     override fun onDestroyView() {
         trendingAutoScrollHandler?.removeCallbacksAndMessages(null)
         pageBinding = null
-        // The rails are rebuilt against the new page item next time; keeping the old
-        // adapters would hand a new page the previous view's list.
+
         rowAdapters.clear()
         rowMedia.clear()
         franchiseSearch?.release()
@@ -260,17 +179,12 @@ class TmdbExploreFragment : Fragment() {
         loadGeneration++
         bannerTitleShown = false
 
-        // The page is one item and the Franchise cards hang off the end of it, the same
-        // shape the Popular list used to have.
         pageAdapter = TmdbExplorePageAdapter()
-        // The card opens the franchise screen, which is where the entries that did not fit this
-        // row are reached. The view is passed for the shared-element transition into its hero.
+
         franchiseAdapter = FranchiseAdaptor { card, view -> openFranchise(card, view) }
         binding.tmdbExploreRecyclerView.adapter =
             ConcatAdapter(pageAdapter, franchiseAdapter)
-        // Scrolling the last card into view asks Trakt for the next batch. The row is the tail
-        // of this list, so this is the gesture that pages it; the call is a no-op while nothing
-        // is left or a request is already running.
+
         binding.tmdbExploreRecyclerView.onNearEnd {
             loadFranchises(selectedType, loadGeneration, reset = false)
         }
@@ -278,14 +192,9 @@ class TmdbExploreFragment : Fragment() {
         pageAdapter.onPageBound = { page ->
             pageBinding = page
             trendingBinding = LayoutTrendingBinding.bind(page.root)
-            // Cheap and idempotent: put each rail's existing adapter back on this page's
-            // rail. A recycled holder has freshly inflated, adapter-less rails, and
-            // without this they would sit there empty.
+
             reattachRowAdapters()
-            // ConcatAdapter rebinds the page whenever the Franchise cards below it change,
-            // so this runs again on every reload. Re-running the setup from here would
-            // reload again, which rebinds the page again: a loop that reloads the whole tab
-            // forever. The wiring is per view, not per bind, so it runs once.
+
             if (!pageBound) {
                 pageBound = true
                 setupChips()
@@ -298,10 +207,6 @@ class TmdbExploreFragment : Fragment() {
         }
     }
 
-    /**
-     * Re-points each row's RecyclerView at the adapter it already owns. No data is
-     * touched, so a rebind of the page repaints without reloading anything.
-     */
     private fun reattachRowAdapters() {
         for (row in railRows) {
             if (row == Tmdb.ExploreRow.POPULAR) continue
@@ -314,14 +219,12 @@ class TmdbExploreFragment : Fragment() {
         }
     }
 
-    // ---- Banner: the reused layout_trending carousel, driven exactly like the anime page ----
-
     private fun setupBanner(media: List<TmdbMedia>) {
         trendingMedia = media
         trendingBinding.trendingProgressBar.visibility = View.GONE
         val rv = trendingBinding.trendingViewPager
         rv.layoutManager = LinearLayoutManager(rv.context, LinearLayoutManager.HORIZONTAL, false)
-        // Detach the previous snap helper first; each chip pick rebuilds the carousel.
+
         bannerSnap?.attachToRecyclerView(null)
         bannerSnap = PagerSnapHelper().also { it.attachToRecyclerView(rv) }
         rv.overScrollMode = RecyclerView.OVER_SCROLL_NEVER
@@ -336,8 +239,7 @@ class TmdbExploreFragment : Fragment() {
             onItemClick = { item -> openDetails(item) },
             nextFocusDownId = R.id.tmdbExploreTypeScroll,
             layoutRes = layoutForBannerType(isModernBanner()),
-            // Classic and Modern carry their own watch pill, so the cardMode path that
-            // hides it only applies to Compact.
+
             cardMode = !isModernBanner() && !isClassicBanner() && !is3DBanner(),
             hideDescription = !isModernBanner(),
             modernMode = isModernBanner()
@@ -345,9 +247,7 @@ class TmdbExploreFragment : Fragment() {
         bannerAdapterType = ani.sanin.bannerType()
         rv.adapter = bannerAdapter
         trendingBinding.trendingCard.sizeBannerCard(0.65f)
-        // Before the scroll, same as the anime page: this sets the card's constraints and
-        // the watch button's visibility, and doing it after the carousel has jumped to the
-        // middle makes the banner re-layout under the viewer's thumb.
+
         applyTrendingBannerMode()
         applyTypeSelectorSpacing()
 
@@ -391,13 +291,11 @@ class TmdbExploreFragment : Fragment() {
         }
         rv.addOnScrollListener(bannerScrollListener!!)
         setupTrendingDots(media.size)
-        // The banner mode above ran before the carousel had a position, so the overlay for
-        // the first visible card is filled in now.
+
         updateTrendingOverlayForCurrent()
 
         if (media.isNotEmpty()) {
-            // Layout animation is a one-shot on the carousel's children. Re-assigning it
-            // on every chip switch would replay the slide-in over and over.
+
             if (rv.layoutAnimation == null) {
                 rv.layoutAnimation = LayoutAnimationController(setSlideIn(), 0.25f)
             }
@@ -410,13 +308,6 @@ class TmdbExploreFragment : Fragment() {
         loadBannerLogos(bannerMedia)
     }
 
-    /**
-     * TMDB list responses carry no logo artwork, and BannerCarouselAdapter only shows the
-     * clearlogo when it is handed one — otherwise it falls back to the plain text title.
-     * Anime mode gets its logos from AniZip for free, so without this the movie banner
-     * would be the only one on the app with no logo. Bounded parallelism keeps it from
-     * firing one request per item at once.
-     */
     private fun loadBannerLogos(bannerMedia: List<Media>) {
         if (bannerMedia.isEmpty()) return
         if (!PrefManager.getVal<Boolean>(PrefName.UseClearlogoInPosters)) return
@@ -442,9 +333,6 @@ class TmdbExploreFragment : Fragment() {
         cardLp.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID
         trendingBinding.trendingCard.layoutParams = cardLp
 
-        // Modern and Classic fill the whole width, so there is no left strip to fade and
-        // no side panel — the banner carries the logo, chips and watch pill instead. Only
-        // Compact keeps the side panel.
         val fullBleed = isModernBanner() || isClassicBanner() || is3DBanner() || is3DBanner()
 
         trendingBinding.trendingLeftFade.isVisible = isLandscape && !fullBleed
@@ -531,12 +419,6 @@ class TmdbExploreFragment : Fragment() {
         rv.smoothScrollToPosition(pos + (if (forward) 1 else -1))
     }
 
-    /**
-     * The chip row's gap under the banner. The anime page needs 120dp here because its
-     * season row is a wide, sparse strip; three short chips sitting that far from the
-     * banner read as a hole rather than a group, so the gap is dropped and the banner
-     * container's own 16dp bottom margin is the whole separation.
-     */
     private fun applyTypeSelectorSpacing() {
         if (pageBinding == null) return
         page.tmdbExploreTypeScroll.updateLayoutParams<ViewGroup.MarginLayoutParams> {
@@ -554,8 +436,7 @@ class TmdbExploreFragment : Fragment() {
         if (!overlay.isVisible) return
         val title = trendingBinding.trendingOverlayTitle
         val logo = trendingBinding.trendingOverlayLogo
-        // The TMDB page shows the title (TMDB backdrops have no clearlogo here), so the
-        // title TextView stays visible and the logo slot stays empty.
+
         logo.isVisible = false
         title.isVisible = true
         title.text = media.displayTitle
@@ -630,11 +511,7 @@ class TmdbExploreFragment : Fragment() {
         trendingAutoScrollRunnable = object : Runnable {
             override fun run() {
                 if (trendingMedia.isEmpty()) return
-                // A tick used to be able to land while the previous slide was still
-                // travelling, and startSmoothScroll replaces the in-flight scroller, so
-                // each tick cut the last one short and aimed again, so the banner crept
-                // forward and never came to rest. Waiting for the settle forces one
-                // slide, one pause.
+
                 val lm = rv.layoutManager as? LinearLayoutManager
                 if (lm != null && lm.isSmoothScrolling()) {
                     trendingAutoScrollHandler?.postDelayed(this, BANNER_SETTLE_POLL_MS)
@@ -662,8 +539,6 @@ class TmdbExploreFragment : Fragment() {
         trendingAutoScrollHandler?.postDelayed(runnable, 5000L)
     }
 
-    // ---- Type chips: Movie / TV show / Animation ----
-
     private fun setupChips() {
         page.tmdbExploreChipMovie.setSafeOnClickListener { selectType(ExploreType.MOVIE) }
         page.tmdbExploreChipTv.setSafeOnClickListener { selectType(ExploreType.TV) }
@@ -682,16 +557,14 @@ class TmdbExploreFragment : Fragment() {
         selectedChip?.takeIf { it !== chip }?.let { setChipSelected(it, false) }
         setChipSelected(chip, true)
         selectedChip = chip
-        // Everything already in flight belongs to the previous chip; drop it on arrival
-        // rather than letting it land on top of this one.
+
         val generation = ++loadGeneration
         loadBannerFor(type, generation)
-        // The rows and the Franchise cards follow the chip, same as the banner.
+
         loadRows(type, generation)
         loadFranchises(type, generation)
     }
 
-    /** Same translucent-primary selected fill the season selector uses. */
     private fun setChipSelected(chip: Chip, selected: Boolean) {
         if (unselectedChipBackground == null) {
             unselectedChipBackground = chip.chipBackgroundColor
@@ -715,8 +588,7 @@ class TmdbExploreFragment : Fragment() {
             val media = when (type) {
                 ExploreType.MOVIE -> Tmdb.trending("movie")
                 ExploreType.TV -> Tmdb.trending("tv")
-                // Animated movies AND animated shows — genre 16 on both. Anime sneaks in
-                // here, but the point of the chip is animation, not anime.
+
                 ExploreType.ANIMATION ->
                     Tmdb.discover("movie", genres = "16", sort = "popularity.desc") +
                         Tmdb.discover("tv", genres = "16", sort = "popularity.desc")
@@ -725,8 +597,6 @@ class TmdbExploreFragment : Fragment() {
             setupBanner(media)
         }
     }
-
-    // ---- Streaming services rail ----
 
     private fun setupStreamingRail() {
         streamingAdapter = StreamingServicesAdapter(
@@ -739,11 +609,6 @@ class TmdbExploreFragment : Fragment() {
         page.tmdbExploreStreamingRail.adapter = streamingAdapter
     }
 
-    /**
-     * Opens a service's own catalogue, landing on the filter that matches the chip in
-     * use: the TV chip carries the user to a service's shows, and the other two to its
-     * films. Animation mixes both, so it starts on Movie and the filter does the rest.
-     */
     private fun openServiceCatalogue(provider: TmdbProvider) {
         startActivity(
             Intent(requireContext(), TmdbServiceCatalogueActivity::class.java)
@@ -759,26 +624,14 @@ class TmdbExploreFragment : Fragment() {
     private fun loadStreamingServices() {
         viewLifecycleOwner.lifecycleScope.launch {
             val providers = Tmdb.watchProviders()
-            // Nothing for the region: collapse rather than leave a titled empty strip.
+
             page.tmdbExploreStreamingRail.isVisible = providers.isNotEmpty()
             streamingAdapter.submit(providers)
         }
     }
 
-    /**
-     * The D-pad chain down the page: banner, type chips, services rail, then each row in
-     * turn, then the Popular switch.
-     *
-     * Anime mode points every row's `nextFocusUp` at the id of the row above
-     * (item_anime_page.xml). These five rows are five includes of one layout, so their
-     * child ids repeat and an id would land on the first match rather than the row
-     * meant — so each rail is tagged with its own id from ids.xml and the chain is
-     * built from those. Down is left to the outer scroller's spatial search, which is
-     * what the anime rows rely on too.
-     */
     private fun setupFocusChain() {
-        // Each row hangs off whatever is directly above it; the row's arrow shares the
-        // rail's target so the header button does not jump a row when focus moves up.
+
         var aboveId: Int = R.id.tmdbExploreStreamingRail
         for (row in railRows) {
             val (rowBinding, rowId) = when (row) {
@@ -795,24 +648,12 @@ class TmdbExploreFragment : Fragment() {
             rowBinding.rowMore.nextFocusUpId = aboveId
             aboveId = rowId
         }
-        // The Franchise section's first card sits under the last rail.
+
         page.tmdbFranchiseHeader.nextFocusUpId = aboveId
-        // The row's search button is a child of that header, and a child does not inherit
-        // its parent's next-focus, so it is given the same target on its own.
+
         page.tmdbFranchiseSearch.nextFocusUpId = aboveId
     }
 
-    /**
-     * Replaces an adapter's contents without ever leaving the count and the list out of
-     * step.
-     *
-     * MediaAdaptor binds with a hard [MutableList.get], so an item count that runs ahead
-     * of the list crashes the prefetcher. Clearing the list *before* awaiting a request
-     * opens exactly that window — the list is empty while the adapter still reports the
-     * old count, and the next frame binds an index that is not there. So the caller
-     * assembles the new items first, and this swaps them in with no suspension point
-     * between the clear and the notify.
-     */
     private fun swapAdapterList(
         list: MutableList<Media>,
         adapter: RecyclerView.Adapter<*>,
@@ -829,9 +670,6 @@ class TmdbExploreFragment : Fragment() {
         }
     }
 
-    // ---- Rows: five rails plus the Popular list, all driven by the type chip ----
-
-    /** The five rails, in page order, each an include of the one shared row layout. */
     private fun rowFor(row: Tmdb.ExploreRow): Pair<ItemExploreRowBinding, Int>? {
         val page = pageBinding ?: return null
         val binding = when (row) {
@@ -848,7 +686,7 @@ class TmdbExploreFragment : Fragment() {
             Tmdb.ExploreRow.TOP_RATED -> R.string.top_rated
             Tmdb.ExploreRow.LATEST_RELEASE -> R.string.latest_release
             Tmdb.ExploreRow.UPCOMING -> R.string.upcoming
-            // Popular is no longer a row: the Franchise cards replaced it.
+
             Tmdb.ExploreRow.POPULAR -> R.string.row_franchise
         }
     }
@@ -861,10 +699,6 @@ class TmdbExploreFragment : Fragment() {
         Tmdb.ExploreRow.UPCOMING
     )
 
-    /**
-     * Reloads every row for [type]. Each row is its own request so a slow one cannot hold
-     * up the rest, which is why this fans out instead of awaiting in sequence.
-     */
     private fun loadRows(type: ExploreType, generation: Int) {
         val tmdbType = when (type) {
             ExploreType.MOVIE -> "movie"
@@ -882,10 +716,6 @@ class TmdbExploreFragment : Fragment() {
         }
     }
 
-    /**
-     * Shows a row, or hides it when the request came back empty — a titled rail with
-     * nothing in it is worse than no row.
-     */
     private fun bindRow(row: Tmdb.ExploreRow, media: List<Media>) {
         val target = rowFor(row) ?: return
         val (rowBinding, titleRes) = target
@@ -893,8 +723,7 @@ class TmdbExploreFragment : Fragment() {
             rowBinding.root.isVisible = false
             return
         }
-        // Only the first load of a row slides in. Re-animating on every chip change puts
-        // ten running animations on screen at once, which reads as flicker.
+
         val firstLoad = row !in rowAdapters
         val wasHidden = !rowBinding.root.isVisible
         rowBinding.root.isVisible = true
@@ -910,10 +739,9 @@ class TmdbExploreFragment : Fragment() {
                 ConcatAdapter(created, SectionMoreAdapter { openRowMore(row) })
             created
         }
-        // The list is filled and swapped without a suspension point, so the adapter's
-        // count never runs ahead of the cards it can bind.
+
         swapAdapterList(list, adapter, media)
-        // The row's arrow opens the same screen every other row's arrow opens.
+
         rowBinding.rowMore.setSafeOnClickListener {
             openRowMore(row)
         }
@@ -926,7 +754,6 @@ class TmdbExploreFragment : Fragment() {
         }
     }
 
-    /** Opens the see-all screen for a rail, with the same args as the header arrow. */
     private fun openRowMore(row: Tmdb.ExploreRow) {
         val target = rowFor(row) ?: return
         val list = rowMedia[row] ?: ArrayList()
@@ -943,13 +770,9 @@ class TmdbExploreFragment : Fragment() {
         )
     }
 
-    // ---- Franchise: cards, not a paginated catalogue ----
-
     private fun setupFranchiseHeader() {
         page.tmdbFranchiseHeader.isVisible = true
 
-        // The pill shows the selected sort and opens the dropdown; the direction button is
-        // separate, because inverting is a different action from choosing a sort.
         page.tmdbFranchiseSortPill.setSafeOnClickListener { openFranchiseSortDialog() }
         page.tmdbFranchiseSortDirection.setSafeOnClickListener { invertFranchiseSort() }
         updateFranchiseSortUi()
@@ -957,15 +780,8 @@ class TmdbExploreFragment : Fragment() {
         setupFranchiseSearch()
     }
 
-    /**
-     * The row's own search: a lens button beside the title that opens a bar under it.
-     *
-     * The search filters the cards the row already holds, so it costs nothing: no request is
-     * made for it and clearing it brings the whole row back.
-     */
     private fun setupFranchiseSearch() {
-        // The same page view is wired once. A new one means the old bar belongs to a view
-        // that is gone, so it is released rather than left listening.
+
         if (franchiseSearch?.button === page.tmdbFranchiseSearch) return
         franchiseSearch?.release()
         franchiseSearch = InlineSearchBar(
@@ -979,14 +795,6 @@ class TmdbExploreFragment : Fragment() {
         updateFranchiseState()
     }
 
-    /**
-     * Says what the row is doing: still loading, empty, or filtered down to nothing.
-     *
-     * An empty row under its own title is ambiguous, and a reader who scrolled down before
-     * the cards landed had no way to tell "still loading" from "there is nothing here" — so
-     * the section looked like it did not exist and had to be found again later. The spinner
-     * says the first, the line under the search bar says the second and the third.
-     */
     private fun updateFranchiseState() {
         val page = pageBinding ?: return
         val cards = allFranchiseCards
@@ -1001,13 +809,6 @@ class TmdbExploreFragment : Fragment() {
         if (message != null) page.tmdbFranchiseMessage.setText(message)
     }
 
-    /**
-     * Puts the franchise header at the top of the screen.
-     *
-     * Opening the search bar pushes the row down by the bar's own height, so the results the
-     * reader is looking for get pushed out of view by the very control that is meant to find
-     * them. Scrolling the header back up puts the bar and the results together in view.
-     */
     private fun scrollTmdbFranchiseHeaderIntoView() {
         val page = pageBinding ?: return
         val rv = binding.tmdbExploreRecyclerView
@@ -1019,26 +820,12 @@ class TmdbExploreFragment : Fragment() {
         if (delta > 0) rv.smoothScrollBy(0, -delta)
     }
 
-    /**
-     * The row's current sort, direction and single-entry choice, read from preferences.
-     *
-     * Read on demand rather than held in a field: the sort dialog is the only writer, and a
-     * cached copy would go stale the moment it is dismissed without a change.
-     */
     private fun franchisePrefs() = FranchiseListPrefs.read()
 
-    /** Writes the pill's label from the persisted sort. */
     private fun updateFranchiseSortUi() {
         page.tmdbFranchiseSortPill.setText(franchisePrefs().sort.labelRes())
     }
 
-    /**
-     * Re-applies the current sort to the cards already loaded.
-     *
-     * Sorting is local, so it must not refetch: the ranking lives on the card and reordering is
-     * just a permutation of the list in hand.
-     */
-    /** @return how many cards were actually submitted, after the single-entry filter. */
     private fun applyFranchiseSort(): Int {
         val prefs = franchisePrefs()
         val shuffled = if (prefs.sort == FranchiseSort.RANDOM) {
@@ -1047,8 +834,7 @@ class TmdbExploreFragment : Fragment() {
             allFranchiseCards
         }
         val sorted = FranchiseSorter.apply(allFranchiseCards, prefs, shuffled)
-        // The order is logged, not just the counts, so a sort that reorders can be told apart
-        // from one that did nothing.
+
         Logger.log(
             "Franchise(movie) sort=${prefs.sort} dir=${prefs.direction} " +
                 "showSingle=${prefs.showSingleEntry}: ${allFranchiseCards.size} in, " +
@@ -1058,46 +844,21 @@ class TmdbExploreFragment : Fragment() {
         return sorted.size
     }
 
-    /**
-     * Adds cards to the pool and shows them in arrival order, without re-sorting.
-     *
-     * Used while a batch is still resolving. Deduped by name because the sources hand back the
-     * same franchise more than once: on film, every instalment of a popular collection is itself
-     * separately popular and separately seeded, so consecutive batches overlap.
-     *
-     * Deliberately does not sort. Sorting per arriving card would re-shuffle a RANDOM row on
- * every card and reorder the whole row under the user's thumb; the batch's own sort lands once
-     * when it completes.
- *
-     * @return how many were new, after the name dedup.
- */
     private fun appendFranchiseCards(cards: List<Franchise>): Int {
         if (cards.isEmpty()) return 0
         val known = allFranchiseCards.mapTo(HashSet()) { it.name.lowercase() }
         val fresh = cards.filterNot { it.name.lowercase() in known }
         if (fresh.isEmpty()) return 0
         allFranchiseCards = allFranchiseCards + fresh
-        // Run through the sorter purely for the single-entry filter, handing it the pool as its
-        // own permutation so arrival order survives. Filtering has to happen here too and not
-        // only in the final sort, or a one-poster card would appear while the batch resolved and
-        // then vanish when the sort landed — the row would flicker cards in and straight back
-        // out under a toggle that is supposed to be off.
+
         franchiseAdapter.submit(
             FranchiseSorter.apply(allFranchiseCards, franchisePrefs(), allFranchiseCards)
         )
-        // The first card ends the row's waiting: the spinner only belongs on a row that is
-        // still empty.
+
         updateFranchiseState()
         return fresh.size
     }
 
-    /**
-     * Inverts the sort direction and says so.
-     *
-     * On random this cannot change the order, because a shuffle has no ascending or descending
-     * form. It re-rolls and reports "Randomized" instead, so the user is never told the list
-     * became ascending when what actually happened is that it was shuffled again.
-     */
     private fun invertFranchiseSort() {
         val prefs = franchisePrefs()
         if (prefs.sort == FranchiseSort.RANDOM) {
@@ -1111,62 +872,31 @@ class TmdbExploreFragment : Fragment() {
         applyFranchiseSort()
     }
 
-    /** The sort dropdown, plus the "show single item entries" toggle, as specced. */
     private fun openFranchiseSortDialog() {
-        // Collections is offered here and nowhere else: it is the movie row's curated-list
-        // source, and picking it swaps the whole row's source, so this reloads rather than
-        // re-sorting the cards already in hand.
+
         showFranchiseSortDialog(showCollections = true) {
             updateFranchiseSortUi()
-            // The single-entry toggle fires this too, and it only re-filters. Reload only when
-            // the pick actually changed the source; otherwise re-sort the cards already in hand.
+
             if (collectionsMode() == loadedCollections) applyFranchiseSort() else reloadFranchises()
         }
     }
-    /**
-     * True when the row is showing Trakt's curated lists rather than real franchises.
-     *
-     * The sort *is* the source: Collections is the curated-list mode, every other sort is the
-     * franchise mode. Read in one place so the loader, the paging and the dialog cannot each
-     * decide independently what the row is showing.
-     */
+
     private fun collectionsMode() = franchisePrefs().sort == FranchiseSort.COLLECTIONS
 
-    /** The TMDB media type the current chip maps to. */
     private fun tmdbTypeFor(type: ExploreType) = when (type) {
         ExploreType.MOVIE -> "movie"
         ExploreType.TV -> "tv"
         ExploreType.ANIMATION -> "animation"
     }
 
-    /**
-     * Reloads the row for the current chip and sort.
-     *
-     * Needed because picking a sort can now swap the *source*, not just the order: Collections
-     * comes from Trakt and every other sort from TMDB. Bumps the generation so an in-flight load
-     * for the previous source cannot land on top of the new one.
-     */
     private fun reloadFranchises() = loadFranchises(selectedType, ++loadGeneration, reset = true)
 
-    /**
-     * Loads the Franchise row for the selected chip, from whichever source the sort selects.
-     *
-     * Two sources share the row and both page a batch at a time as the last card scrolls into
-     * view. The real-franchise source (TMDB collections for film, a show per card with its
-     * seasons for TV) walks TMDB's popularity ranking; the Collections source (Trakt's curated
-     * lists) walks a long tail of lists. A card is a whole franchise either way; the entries that
-     * do not fit its row live on the dedicated franchise screen.
-     *
-     * @param reset whether this is a fresh load, which starts the row over from the first
-     *   batch. A chip or sort change resets; a scroll does not and appends to what is shown.
-     */
     private fun loadFranchises(
         type: ExploreType,
         generation: Int,
         reset: Boolean = true,
     ) {
-        // A scroll asks for more only when there is more and nothing is already on its way;
-        // both are row state, and a fling past the end would otherwise stack requests.
+
         if (!reset && (franchiseHasMore.not() || franchiseLoading)) return
         val collections = collectionsMode()
         loadedCollections = collections
@@ -1188,20 +918,16 @@ class TmdbExploreFragment : Fragment() {
             franchiseLoading = true
             try {
                 if (collections) {
-                    // Trakt's curated lists are movies, so all three chips share one source and
-                    // filter client-side. There is a long tail of lists, so this pages too.
+
                     val batch = try {
                         Trakt.franchiseCards(skip = skip)
                     } catch (e: Exception) {
-                        // Was runCatching{}.getOrDefault(emptyList()): a failure and a genuinely
-                        // empty source looked identical from the row, which is an empty row and no
-                        // way to tell which happened.
+
                         Logger.log(e)
                         Logger.log("Franchise(movie) load threw: ${e.message}")
                         Trakt.TraktBatch(emptyList(), hasMore = false)
                     }
-                    // Everything already in flight belongs to the previous chip; drop it on arrival
-                    // rather than letting it land on top of this one.
+
                     if (generation != loadGeneration) {
                         Logger.log(
                             "Franchise(movie) dropping ${batch.cards.size} stale cards " +
@@ -1209,15 +935,11 @@ class TmdbExploreFragment : Fragment() {
                         )
                         return@launch
                     }
-                    // A card already in the pool keeps its place and its rank rather than being
-                    // restated by a second batch, so a list that drops out of the index cannot make
-                    // the row jump when the next batch lands.
+
                     val known = allFranchiseCards.mapTo(HashSet()) { it.name.lowercase() }
                     val fresh = batch.cards.filterNot { it.name.lowercase() in known }
                     allFranchiseCards = allFranchiseCards + fresh
-                    // The cursor advances by what was asked for, not by what came back, so a batch
-                    // whose cards were all dropped still moves the row forward instead of
-                    // re-requesting the same lists forever.
+
                     franchiseSkip = skip + Trakt.BATCH_CARDS
                     franchiseHasMore = batch.hasMore
                     val shown = applyFranchiseSort()
@@ -1227,21 +949,10 @@ class TmdbExploreFragment : Fragment() {
                             "sort from ${allFranchiseCards.size}, more=$franchiseHasMore"
                     )
                 } else {
-                    // Real franchises: movies from TMDB collections, or one card per show with its
-                    // seasons for TV. Paged like the Collections source, so a scroll past the end
-                    // of what is loaded asks the source for the next batch.
+
                     val batch = try {
                         Tmdb.franchiseCards(tmdbTypeFor(type), page = skip + 1) { card ->
-                            // Published the moment it resolves, so the row fills in while the
-                            // batch is still being fetched instead of sitting empty until the
-                            // slowest collection lands.
-                            //
-                            // Marshalled to the main thread explicitly rather than trusting where
-                            // the callback lands: it submits to the adapter and diffs, neither of
-                            // which may be touched off the main thread. It happens to arrive there
-                            // already, because the requests are the only thing that leaves Main,
-                            // but that is an accident of the current plumbing rather than a
-                            // guarantee worth depending on.
+
                             withContext(Dispatchers.Main) {
                                 if (generation == loadGeneration) appendFranchiseCards(listOf(card))
                             }
@@ -1258,20 +969,10 @@ class TmdbExploreFragment : Fragment() {
                         )
                         return@launch
                     }
-                    // The cards are already on screen: the callback above appended each one as it
-                    // resolved, deduped by name, so a later seed page cannot restate a collection
-                    // an earlier one already returned. Every film in a popular franchise is
-                    // separately popular and separately seeded, so that repeat is common.
-                    //
-                    // The cursor advances by what was asked for, not by what came back, so a batch
-                    // whose cards were all dropped or filtered still moves the row forward instead
-                    // of re-requesting the same pages forever. The source reports its own stride,
-                    // since a film batch walks several seed pages and a TV batch is one.
+
                     franchiseSkip = batch.nextPage - 1
                     franchiseHasMore = batch.hasMore
-                    // One sort for the whole batch rather than one per arriving card: a RANDOM
-                    // row would otherwise re-shuffle on every arrival and reorder itself under
-                    // the user's thumb.
+
                     val shown = applyFranchiseSort()
                     Logger.log(
                         "Franchise(movie) got ${batch.cards.size} franchises in " +
@@ -1280,35 +981,18 @@ class TmdbExploreFragment : Fragment() {
                     )
                 }
             } finally {
-                // Cleared here rather than at each exit so a cancelled load cannot leave the
-                // flag set and wedge the row against ever asking for another batch.
+
                 franchiseLoading = false
                 if (reset) setFranchiseProgress(false)
             }
         }
     }
 
-    /**
-     * Records whether the row is waiting on a source, and says so.
-     *
-     * The row had no loading state at all, so a slow source and a source that returned nothing
-     * looked identical from the tab. The bar lives in the row's own header rather than in a
-     * list item, so it costs no layout and no adapter swap.
-     *
-     * The bar only shows while the row is empty: a batch that pages more cards onto a row that
-     * already has some is not a row that is loading, and a spinner turning beside cards that
-     * are already there says otherwise.
-     */
     private fun setFranchiseProgress(loading: Boolean) {
         franchiseRowLoading = loading
         updateFranchiseState()
     }
 
-    /**
-     * Opens the franchise screen for a pressed card.
-     *
-     * @param view the card's banner, so the screen can transition out of it rather than cutting.
-     */
     private fun openFranchise(card: Franchise, view: View) {
         view.transitionName = FRANCHISE_TRANSITION
         startActivity(
@@ -1321,21 +1005,11 @@ class TmdbExploreFragment : Fragment() {
         )
     }
 
-    /**
-     * The category a franchise opened from the current chip should land on.
-     *
-     * The Movie chip's franchises are all films and the TV show chip's are all seasons, so the
-     * filter that matches the chip is the one the reader is already in; landing on All would
-     * hide the choice they just made. Animation mixes films and shows, so All is the only
-     * honest answer there.
-     */
     private fun preselectTypeFor(type: ExploreType): FranchiseType? = when (type) {
         ExploreType.MOVIE -> FranchiseType.MOVIE
         ExploreType.TV -> FranchiseType.SEQUENCE
         ExploreType.ANIMATION -> null
     }
-
-    // ---- Navigation: banner click + watch both open the TMDB screens ----
 
     private fun openDetails(media: Media) {
         val type = media.tmdbType ?: "movie"
@@ -1357,7 +1031,6 @@ class TmdbExploreFragment : Fragment() {
     private companion object {
         const val SELECTED_FILL_ALPHA = 0x4D
 
-        /** Shared-element name for the card banner handing off to the franchise screen. */
         const val FRANCHISE_TRANSITION = "franchiseCard"
     }
 }

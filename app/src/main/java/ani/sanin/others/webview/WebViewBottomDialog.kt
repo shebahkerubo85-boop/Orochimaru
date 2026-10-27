@@ -35,7 +35,6 @@ abstract class WebViewBottomDialog : BottomSheetDialogFragment() {
     }
 
     val cookies: CookieManager? = Injekt.get<NetworkHelper>().cookieJar.manager
-    //CookieManager.getInstance()
 
     override fun onCreateView(
         inflater: LayoutInflater,

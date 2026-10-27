@@ -91,7 +91,7 @@ class AniWavesProvider : NativeAnimeParser() {
         return withContext(Dispatchers.IO) {
             try {
                 val html = get("$baseUrl/watch/$slug", "$baseUrl/", "text/html,*/*")
-                // Parse total episode count
+
                 val count = Regex("""<div>\s*Episodes?:\s*<span[^>]*>([\s\S]*?)</span>""", RegexOption.IGNORE_CASE).find(html)
                     ?.groupValues?.get(1)?.let { Regex("\\d+").find(it)?.value?.toIntOrNull() }
                     ?: Regex("""Episodes?[:\s]*(\d+)""", RegexOption.IGNORE_CASE).find(html)
@@ -158,7 +158,7 @@ class AniWavesProvider : NativeAnimeParser() {
                                 }
                                 extraData["subtitles"] = "[$subJson]"
                             }
-                            // Get intro/outro from skip data if present
+
                             skipData?.get("intro")?.let { arr ->
                                 val a = arr as? JsonArray
                                 val s = (a?.getOrNull(0) as? JsonPrimitive)?.doubleOrNull ?: return@let
@@ -195,7 +195,7 @@ class AniWavesProvider : NativeAnimeParser() {
         val re = Regex("""<div class="type" data-type="(\w+)">([\s\S]*?)</ul>\s*</div>""")
         val groups = re.findAll(html)
         if (!groups.iterator().hasNext()) {
-            // Fallback: try <li> elements with data-link-id directly
+
             for (m in Regex("""<li\b([^>]*)>([\s\S]*?)</li>""", RegexOption.IGNORE_CASE).findAll(html)) {
                 val lid = Regex("""data-link-id="([^"]+)"""").find(m.groupValues[1])?.groupValues?.get(1) ?: continue
                 val name = stripTags(m.groupValues[2])

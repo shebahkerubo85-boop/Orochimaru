@@ -26,12 +26,6 @@ import eu.kanade.tachiyomi.util.lang.truncateCenter
 import java.io.File
 import kotlin.math.roundToInt
 
-/**
- * Copies a string to clipboard
- *
- * @param label Label to show to the user describing the content
- * @param content the actual text to copy to the board
- */
 fun Context.copyToClipboard(label: String, content: String) {
     if (content.isBlank()) return
 
@@ -39,8 +33,6 @@ fun Context.copyToClipboard(label: String, content: String) {
         val clipboard = getSystemService<ClipboardManager>()!!
         clipboard.setPrimaryClip(ClipData.newPlainText(label, content))
 
-        // Android 13 and higher shows a visual confirmation of copied contents
-        // https://developer.android.com/about/versions/13/features/copy-paste
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
             toast("Copied to clipboard: " + content.truncateCenter(50))
         }
@@ -50,21 +42,9 @@ fun Context.copyToClipboard(label: String, content: String) {
     }
 }
 
-/**
- * Checks if the give permission is granted.
- *
- * @param permission the permission to check.
- * @return true if it has permissions.
- */
 fun Context.hasPermission(permission: String) =
     PermissionChecker.checkSelfPermission(this, permission) == PermissionChecker.PERMISSION_GRANTED
 
-/**
- * Returns the color for the given attribute.
- *
- * @param resource the attribute.
- * @param alphaFactor the alpha number [0,1].
- */
 @ColorInt
 fun Context.getResourceColor(@AttrRes resource: Int, alphaFactor: Float = 1f): Int {
     val typedArray = obtainStyledAttributes(intArrayOf(resource))
@@ -79,23 +59,15 @@ fun Context.getResourceColor(@AttrRes resource: Int, alphaFactor: Float = 1f): I
     return color
 }
 
-
-
 val Context.powerManager: PowerManager
     get() = getSystemService()!!
 
-/**
- * Convenience method to acquire a partial wake lock.
- */
 fun Context.acquireWakeLock(tag: String): PowerManager.WakeLock {
     val wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "$tag:WakeLock")
     wakeLock.acquire()
     return wakeLock
 }
 
-/**
- * Returns true if the given service class is running.
- */
 fun Context.isServiceRunning(serviceClass: Class<*>): Boolean {
     val className = serviceClass.name
     val manager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
@@ -111,7 +83,7 @@ fun Context.openInBrowser(url: String, forceDefaultBrowser: Boolean = false) {
 fun Context.openInBrowser(uri: Uri, forceDefaultBrowser: Boolean = false) {
     try {
         val intent = Intent(Intent.ACTION_VIEW, uri).apply {
-            // Force default browser so that verified extensions don't re-open Tachiyomi
+
             if (forceDefaultBrowser) {
                 defaultBrowserPackageName()?.let { setPackage(it) }
             }
@@ -147,10 +119,6 @@ fun Context.createFileInCacheDir(name: String): File {
     return file
 }
 
-
-/**
- * Returns true if [packageName] is installed.
- */
 fun Context.isPackageInstalled(packageName: String): Boolean {
     return try {
         packageManager.getApplicationInfo(packageName, 0)
@@ -160,20 +128,13 @@ fun Context.isPackageInstalled(packageName: String): Boolean {
     }
 }
 
-/**
- * Gets document size of provided [Uri]
- *
- * @return document size of [uri] or null if size can't be obtained
- */
 fun Context.getUriSize(uri: Uri): Long? {
     return UniFile.fromUri(this, uri).length().takeIf { it >= 0 }
 }
 
-
 val Context.hasMiuiPackageInstaller get() = isPackageInstalled("com.miui.packageinstaller")
 
 val Context.isShizukuInstalled get() = false
-
 
 fun Context.getApplicationIcon(pkgName: String): Drawable? {
     return try {

@@ -13,7 +13,7 @@ import ani.sanin.settings.saving.internal.Location
 import ani.sanin.settings.saving.internal.Pref
 
 enum class PrefName(val data: Pref) {
-    //General
+
     SharedUserID(Pref(Location.General, Boolean::class, true)),
 
     NSFWExtension(Pref(Location.General, Boolean::class, true)),
@@ -33,7 +33,7 @@ enum class PrefName(val data: Pref) {
     VerboseLogging(Pref(Location.General, Boolean::class, false)),
     DohProvider(Pref(Location.General, Int::class, 0)),
     HidePrivate(Pref(Location.General, Boolean::class, false)),
-    /** Removes the floating "jump to top" arrow that sits over long lists. */
+
     HideScrollTopButtons(Pref(Location.General, Boolean::class, true)),
     DefaultUserAgent(
         Pref(
@@ -51,37 +51,16 @@ enum class PrefName(val data: Pref) {
     ContentMode(Pref(Location.General, String::class, "anime")),
     TmdbApiKey(Pref(Location.General, String::class, "3075f2db53ed0690a350d3559ac9cd8c")),
 
-    /**
-     * Trakt client id for the movie Franchise row.
-     *
-     * Read-only and app-only, as the user accepted when this was added: an APK's contents are
-     * extractable, so this is public to anyone who unpacks the app. It is not a user token and
-     * grants access to nothing private. Trakt still requires *some* id on every request, and
-     * without it every call returns 403.
-     */
     TraktClientId(Pref(Location.General, String::class, "7VKqwFd6wak-r_YMIhVQ-VqQTxkpbLZvRz5GfK9pMVE")),
 
-    /**
-     * Fanart.tv API key, used for anime artwork only.
-     *
-     * Supplies the wordmark, the clear art and the 4k banner, which AniZip cannot: its clear
-     * logos are proxied from TheTVDB and are often character art, and it has no way to be asked
-     * for a language. Fanart tags every asset with one, so filtering on `lang == "en"` is what
-     * fixes the wrong-language titles.
-     *
-     * Read-only and app-only, for the same reason as [TraktClientId]: an APK's contents are
-     * extractable, so this is public to anyone who unpacks the app. It belongs to a
-     * credentials-only account and grants access to nothing private. Fanart serves the image
-     * files from its own CDN, so this key only ever reaches the metadata endpoint.
-     */
     FanartApiKey(Pref(Location.General, String::class, "101614385118c8e692166ad862413832")),
     YouTubeApiKey(Pref(Location.General, String::class, "AIzaSyDdQwsx0lYEU8ZnAke0ghcqoS1G5VxM2BE")),
     YouTubeChannelId(Pref(Location.General, String::class, "UC7oi5vkTHCwl3sS9NPBFCZg")),
     TmdbSearchHistory(Pref(Location.General, List::class, listOf<String>())),
     ContentSource(Pref(Location.General, String::class, "simkl")),
     AnimeCatalogueSource(Pref(Location.General, String::class, "")),
-    SelectedMediaType(Pref(Location.General, Int::class, 0)),  // 0=anime, 1=movie
-    SelectedTracker(Pref(Location.Protected, Int::class, 0)),  // 0=AniList, 1=MAL, 2=Simkl
+    SelectedMediaType(Pref(Location.General, Int::class, 0)),
+    SelectedTracker(Pref(Location.Protected, Int::class, 0)),
 
     AnimeSourcesOrder(Pref(Location.General, List::class, listOf<String>())),
     ProvidersOrder(Pref(Location.General, List::class, listOf<String>())),
@@ -101,8 +80,7 @@ enum class PrefName(val data: Pref) {
     LastAnilistNotificationId(Pref(Location.General, Int::class, 0)),
     AnilistFilteredTypes(Pref(Location.General, Set::class, setOf<String>())),
     UseAlarmManager(Pref(Location.General, Boolean::class, false)),
-    // Set once the system battery-exemption prompt has been shown for downloads, so we only
-    // interrupt the user a single time.
+
     BatteryOptimizationPrompted(Pref(Location.General, Boolean::class, false)),
     IncludeAnimeList(Pref(Location.General, Boolean::class, true)),
 
@@ -121,7 +99,6 @@ enum class PrefName(val data: Pref) {
     ServerLoadTimeoutSeconds(Pref(Location.General, Int::class, 12)),
     AnikotoCommentsEnabled(Pref(Location.General, Int::class, 1)),
 
-    //User Interface
     EpisodeMetadataSource(Pref(Location.UI, Int::class, 0)),
 
     UseCustomTheme(Pref(Location.UI, Boolean::class, false)),
@@ -134,9 +111,7 @@ enum class PrefName(val data: Pref) {
     AnimeDefaultView(Pref(Location.UI, Int::class, 3)),
 
     BlurBanners(Pref(Location.UI, Boolean::class, true)),
-    // Single knob for blur strength, replacing the old radius and down-sample
-    // choices. 0 is unused: BlurBanners is the on/off switch. Capped at 25
-    // because that is the ceiling the blur backend accepts.
+
     BlurStrength(Pref(Location.UI, Float::class, 10f)),
     ImmersiveMode(Pref(Location.UI, Boolean::class, false)),
     SmallView(Pref(Location.UI, Boolean::class, true)),
@@ -161,23 +136,16 @@ enum class PrefName(val data: Pref) {
     AnimationSpeed(Pref(Location.UI, Float::class, 1f)),
     ListGrid(Pref(Location.UI, Boolean::class, true)),
     PopularAnimeList(Pref(Location.UI, Boolean::class, true)),
-    /** The movie mode's Popular row switch, which is the same idea on a different library. */
+
     PopularMovieList(Pref(Location.UI, Boolean::class, true)),
     AnimeListSortOrder(Pref(Location.UI, String::class, "score")),
 
-    /**
-     * Off by default. On, the anime Franchise cards spend requests asking Kitsu for its
-     * curated installment order; off, they never probe and stay on release-date order.
-     */
     KitsuCuratedOrder(Pref(Location.UI, Boolean::class, false)),
 
-    /** The Franchise row's chosen sort. See [ani.sanin.media.FranchiseSort]. */
     FranchiseSortOrder(Pref(Location.UI, String::class, "RANDOM")),
 
-    /** Which way that sort runs, persisted because which way the user left it is a preference. */
     FranchiseSortDirectionPref(Pref(Location.UI, String::class, "DESCENDING")),
 
-    /** Whether a one-entry franchise is shown. Off, since that is what replaced Popular. */
     FranchiseShowSingleEntry(Pref(Location.UI, Boolean::class, false)),
 
     CommentSortOrder(Pref(Location.UI, String::class, "newest")),
@@ -226,23 +194,22 @@ enum class PrefName(val data: Pref) {
     NavPillIconSize(Pref(Location.UI, Int::class, 23)),
     NavPillIconColor(Pref(Location.UI, Int::class, 0xFFFFFFFF.toInt())),
     NavPillCornerRadius(Pref(Location.UI, Int::class, 18)),
-    /** False leaves the rail as icons only: no text next to the selected pill. */
+
     NavPillShowLabel(Pref(Location.UI, Boolean::class, true)),
-    /** When off, banners & cards fall back to the plain text title instead of clearlogo art. */
+
     UseClearlogoInPosters(Pref(Location.UI, Boolean::class, true)),
-    /** False pins the rail expanded, so scrolling never collapses it to fewer icons. */
+
     NavPillShrinkOnScroll(Pref(Location.UI, Boolean::class, true)),
     BlurUnwatchedEpisodes(Pref(Location.UI, Boolean::class, true)),
     GreyWatchedEpisodes(Pref(Location.UI, Boolean::class, true)),
     FocusEffect(Pref(Location.UI, Int::class, 0)),
     CardStyle(Pref(Location.UI, Int::class, 0)),
     UseCustomKeyboard(Pref(Location.UI, Boolean::class, true)),
-    KeyboardMode(Pref(Location.UI, Int::class, -1)), // -1=Auto, 0=System, 1=ToggleButton (hidden), 2=Custom
+    KeyboardMode(Pref(Location.UI, Int::class, -1)),
 
     UIScale(Pref(Location.UI, Float::class, 1.0f)),
 
     AccentColor(Pref(Location.UI, Int::class, 0)),
-
 
     CardOrientation(Pref(Location.UI, Int::class, 1)),
 
@@ -253,10 +220,9 @@ enum class PrefName(val data: Pref) {
     ShowMediaBanner(Pref(Location.UI, Boolean::class, true)),
     BannerTransparency(Pref(Location.UI, Float::class, 1.0f)),
     CardGradientIntensity(Pref(Location.UI, Float::class, 0.7f)),
-    CardMetadataTop(Pref(Location.UI, Int::class, 3)),   // bitmask: 1=Rating badge, 2=Airing status
-    CardMetadataBottom(Pref(Location.UI, Int::class, 1)), // 0=None, 1=Sub & Dub badge, 2=Progress badge
+    CardMetadataTop(Pref(Location.UI, Int::class, 3)),
+    CardMetadataBottom(Pref(Location.UI, Int::class, 1)),
 
-    // Glass Effect
     GlassEffectEnabled(Pref(Location.UI, Boolean::class, true)),
     GlassEffectNavPills(Pref(Location.UI, Boolean::class, true)),
     GlassEffectSideRail(Pref(Location.UI, Boolean::class, true)),
@@ -276,9 +242,8 @@ enum class PrefName(val data: Pref) {
     GlassEffectSurfaceTint(Pref(Location.UI, Int::class, Color.parseColor("#000000"))),
     GlassEffectTextColor(Pref(Location.UI, Int::class, Color.WHITE)),
 
-    //Home
     HomeBannerMode(Pref(Location.UI, Int::class, 2)),
-    BannerType(Pref(Location.UI, Int::class, 0)), // 0=Compact, 1=Classic, 2=Modern, 3=3D
+    BannerType(Pref(Location.UI, Int::class, 0)),
     ShowContinueWatching(Pref(Location.UI, Boolean::class, true)),
     ShowPlanned(Pref(Location.UI, Boolean::class, true)),
     ShowRecommendations(Pref(Location.UI, Boolean::class, true)),
@@ -286,7 +251,6 @@ enum class PrefName(val data: Pref) {
     ShowPopular(Pref(Location.UI, Boolean::class, true)),
     ShowRecent(Pref(Location.UI, Boolean::class, true)),
 
-    //Player
     DefaultSpeed(Pref(Location.Player, Int::class, 5)),
     CursedSpeeds(Pref(Location.Player, Boolean::class, false)),
     Resize(Pref(Location.Player, Int::class, 0)),
@@ -344,17 +308,16 @@ enum class PrefName(val data: Pref) {
 
     AutoHideTimeout(Pref(Location.Player, Int::class, 5)),
     BufferSize(Pref(Location.Player, Int::class, 64)),
-    DecodingMode(Pref(Location.Player, Int::class, 0)), // 0=Hardware, 1=Software
-    SubtitleRenderMode(Pref(Location.Player, Int::class, 0)), // 0=Canvas (TV), 1=OpenGL (Phone)
+    DecodingMode(Pref(Location.Player, Int::class, 0)),
+    SubtitleRenderMode(Pref(Location.Player, Int::class, 0)),
 
     GestureSliders(Pref(Location.Player, Boolean::class, true)),
     DpadEpisodeSkip(Pref(Location.Player, Boolean::class, true)),
-    WrapButtons(Pref(Location.Player, Int::class, 0)), // 0=Off, 1=Dark, 2=No tint, 3=Primary
+    WrapButtons(Pref(Location.Player, Int::class, 0)),
     Interpolation(Pref(Location.Player, Boolean::class, false)),
     UpscalingAlgorithm(Pref(Location.Player, Int::class, 0)),
     RawConfiguration(Pref(Location.Player, String::class, "")),
 
-    //Irrelevant
     Incognito(Pref(Location.Irrelevant, Boolean::class, false)),
     RescueMode(Pref(Location.Irrelevant, Boolean::class, false)),
     PendingProgressUpdates(Pref(Location.Irrelevant, List::class, listOf<PendingProgressUpdate>())),
@@ -388,7 +351,7 @@ enum class PrefName(val data: Pref) {
     CacheCapMb(Pref(Location.UI, Int::class, 100)),
     TrimIntervalMin(Pref(Location.UI, Int::class, 10)),
     TrimIntensity(Pref(Location.UI, Int::class, 80)),
-    // Dedicated poster bitmap memory cache (separate from downloader Trim sliders)
+
     PosterCacheCapMb(Pref(Location.UI, Int::class, 100)),
     PosterCacheTrimIntervalMin(Pref(Location.UI, Int::class, 10)),
     PosterCacheTrimIntensity(Pref(Location.UI, Int::class, 80)),
@@ -405,8 +368,7 @@ enum class PrefName(val data: Pref) {
     UnreadCommentNotifications(Pref(Location.Irrelevant, Int::class, 0)),
     DownloadsDir(Pref(Location.Irrelevant, String::class, "")),
 
-    // Downloads (Settings -> Downloads)
-    DownloadStorage(Pref(Location.AnimeDownloads, Int::class, 0)),        // 0 = app, 1 = shared
+    DownloadStorage(Pref(Location.AnimeDownloads, Int::class, 0)),
     DownloadOnlyOverWifi(Pref(Location.AnimeDownloads, Boolean::class, false)),
     DownloadConcurrency(Pref(Location.AnimeDownloads, Int::class, 3)),
     DownloadSegments(Pref(Location.AnimeDownloads, Int::class, 8)),
@@ -417,13 +379,8 @@ enum class PrefName(val data: Pref) {
     LocalDir(Pref(Location.Irrelevant, String::class, "")),
     OC(Pref(Location.Irrelevant, Boolean::class, false)),
 
-    // Library settings
     LibraryNsfw(Pref(Location.UI, Boolean::class, false)),
     LibraryGenreFilter(Pref(Location.UI, String::class, "")),
-
-
-
-    //Protected
 
     AnilistToken(Pref(Location.Protected, String::class, "")),
     AnilistAvatar(Pref(Location.Protected, String::class, "")),
@@ -445,8 +402,7 @@ enum class PrefName(val data: Pref) {
     Socks5ProxyPort(Pref(Location.Protected, String::class, "")),
     Socks5ProxyUsername(Pref(Location.Protected, String::class, "")),
     Socks5ProxyPassword(Pref(Location.Protected, String::class, "")),
-    
-    // Login Diagnostics (local only)
+
     LastLoginTimestamp(Pref(Location.Irrelevant, Long::class, 0L)),
     LoginMethod(Pref(Location.Irrelevant, String::class, "UNKNOWN")),
     LoginAppVersion(Pref(Location.Irrelevant, String::class, "")),

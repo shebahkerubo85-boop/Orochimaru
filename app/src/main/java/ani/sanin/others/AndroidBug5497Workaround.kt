@@ -26,11 +26,11 @@ class AndroidBug5497Workaround private constructor(
             val usableHeightSansKeyboard = mChildOfContent.rootView.height
             val heightDifference = usableHeightSansKeyboard - usableHeightNow
             if (heightDifference > usableHeightSansKeyboard / 4) {
-                // keyboard probably just became visible
+
                 callback.invoke(true)
                 frameLayoutParams.height = usableHeightSansKeyboard - heightDifference
             } else {
-                // keyboard probably just became hidden
+
                 callback.invoke(false)
                 frameLayoutParams.height = usableHeightSansKeyboard
             }
@@ -45,15 +45,8 @@ class AndroidBug5497Workaround private constructor(
         return r.bottom
     }
 
-    /**
-     * Fixes windowSoftInputMode adjustResize when used with setDecorFitsSystemWindows(false)
-     *
-     * @see <a href="https://issuetracker.google.com/issues/36911528">adjustResize breaks when activity is fullscreen </a>
-     */
     companion object {
-        /**
-         * Called on an Activity after the content view has been set.
-         */
+
         fun assistActivity(activity: Activity, callback: (Boolean) -> Unit) {
             AndroidBug5497Workaround(activity, callback)
         }

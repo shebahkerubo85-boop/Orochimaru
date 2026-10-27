@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- KEYS DON'T TRANSLATE -->
-    <!-- FORMAT MIGHT TRANSLATE, WILL CAUSE CRASH IF APPLIED WRONG -->
+
     <string name="app_dub_sub_episode_text_format" formatted="true">%1$s Ep %2$d</string>
     <string name="cast_format" formatted="true">Hrají: %s</string>
-    <!-- IS NOT NEEDED TO TRANSLATE AS THEY ARE ONLY USED FOR SCREEN READERS AND WONT SHOW UP TO NORMAL USERS -->
+
     <string name="result_poster_img_des">Plakát</string>
     <string name="search_poster_img_des">Plakát</string>
     <string name="episode_poster_img_des">Plakát epizody</string>
@@ -13,7 +12,7 @@
     <string name="go_back_img_des">Přejít zpět</string>
     <string name="home_change_provider_img_des">Změnit poskytovatele</string>
     <string name="preview_background_img_des">Náhled pozadí</string>
-    <!-- TRANSLATE, BUT DON'T FORGET FORMAT -->
+
     <string name="player_speed_text_format" formatted="true">Rychlost (%.2fx)</string>
     <string name="rated_format" formatted="true">Hodnocení: %.1f</string>
     <string name="new_update_format" formatted="true">Nalezena nová aktualizace! \n%1$s -&gt; %2$s</string>
@@ -47,7 +46,7 @@
     <string name="reload_error">Opakovat připojení…</string>
     <string name="go_back">Návrat zpět</string>
     <string name="play_episode">Přehrát epizodu</string>
-    <!--<string name="need_storage">Umožnit stahování epizod</string>-->
+
     <string name="download">Stáhnout</string>
     <string name="downloaded">Stáhnuto</string>
     <string name="downloading">Stahování</string>
@@ -187,7 +186,7 @@
     <string name="free_storage">Volné</string>
     <string name="used_storage">Použito</string>
     <string name="app_storage">Aplikace</string>
-    <!--plural-->
+
     <string name="movies">Filmy</string>
     <string name="tv_series">Seriály</string>
     <string name="cartoons">Animované</string>
@@ -196,7 +195,7 @@
     <string name="documentaries">Dokumenty</string>
     <string name="ova">OVA</string>
     <string name="asian_drama">Asijská dramata</string>
-    <!--singular-->
+
     <string name="movies_singular">Film</string>
     <string name="tv_series_singular">Seriál</string>
     <string name="cartoons_singular">Animovaný</string>
@@ -266,7 +265,7 @@
     <string name="app_theme_settings">Motiv aplikace</string>
     <string name="bottom_title_settings">Umístění názvu plakátu</string>
     <string name="bottom_title_settings_des">Umístit název pod plakát</string>
-    <!-- account stuff -->
+
     <string name="example_password">heslo123</string>
     <string name="example_username">Uživatelské jméno</string>
     <string name="example_email">ahoj@svete.cz</string>
@@ -287,7 +286,7 @@
     <string name="sync_total_episodes_some" formatted="true">/%d</string>
     <string name="authenticated_user" formatted="true">Přihlášeno k %s</string>
     <string name="authenticated_user_fail" formatted="true">Nepodařilo se přihlásit k %s</string>
-    <!-- ============ -->
+
     <string name="none">Žádné</string>
     <string name="normal">Normální</string>
     <string name="all">Vše</string>
@@ -303,12 +302,7 @@
     <string name="subtitle_offset_extra_hint_later_format">Toto použijte, pokud jsou titulky zobrazeny o %d ms dříve</string>
     <string name="subtitle_offset_extra_hint_before_format">Toto použijte, pokud jsou titulky zobrazeny o %d ms později</string>
     <string name="subtitle_offset_extra_hint_none_format">Žádné zpoždění titulků</string>
-    <!--
-    Example text (pangram) can optionally be translated; if you do, include all the letters in the alphabet,
-    see: 
-	https://en.wikipedia.org/w/index.php?title=Pangram&oldid=225849300
-	https://en.wikipedia.org/wiki/The_quick_brown_fox_jumps_over_the_lazy_dog
-    -->
+
     <string name="subtitles_example_text">Příliš žluťoučký kůň úpěl ďábelské ódy</string>
     <string name="recommended">Doporučeno</string>
     <string name="player_loaded_subtitles" formatted="true">Načteno %s</string>

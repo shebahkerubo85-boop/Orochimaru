@@ -41,9 +41,6 @@ object SubDLSubtitles {
                     val body = response.body?.string() ?: return@withContext emptyList()
                     val result = Mapper.json.decodeFromString<SubDLResponse>(body)
 
-                    // Server-side filtering is requested via season_number/episode_number,
-                    // but the API sometimes still returns releases for other episodes;
-                    // each row carries its own season/episode, so refuse mismatches.
                     result.subtitles?.filter { sub ->
                         val badSeason = season > 0 && sub.season != null && sub.season != season
                         val badEpisode = episode > 0 && sub.episode != null && sub.episode != episode

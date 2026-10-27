@@ -6,7 +6,6 @@
     android:layout_height="match_parent"
     android:background="?attr/colorSurface">
 
-    <!-- Main content: toolbar + tabs + list -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -71,11 +70,6 @@
 
     </LinearLayout>
 
-    <!--
-      Bottom pill nav rail — kept for FeedActivity (which shares this layout).
-      GONE by default; NotificationActivity never shows it; FeedActivity
-      toggles visibility via its own show/hide logic.
-    -->
     <FrameLayout
         android:id="@+id/notificationNavRail"
         android:layout_width="wrap_content"

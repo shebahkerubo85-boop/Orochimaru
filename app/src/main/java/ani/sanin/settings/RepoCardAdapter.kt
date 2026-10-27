@@ -36,7 +36,6 @@ data class RepoUi(
     }
 }
 
-/** Extract GitHub owner avatar from a raw.githubusercontent.com repo URL. */
 fun githubOwnerAvatar(repoUrl: String): String? {
     val raw = "raw.githubusercontent.com/"
     val idx = repoUrl.indexOf(raw)
@@ -47,7 +46,6 @@ fun githubOwnerAvatar(repoUrl: String): String? {
     return "https://github.com/$owner.png"
 }
 
-/** Shared Nuvio-style repo card adapter (cloudstream + aniyomi + installers). */
 class RepoCardAdapter(
     private val onOpen: (RepoUi) -> Unit,
     private val onLongClick: (RepoUi) -> Unit,
@@ -68,10 +66,8 @@ class RepoCardAdapter(
 
         holder.binding.repoName.text = item.name
 
-        // Count badge
         holder.binding.repoCount.text = "${item.count} $countLabel"
 
-        // Content type chips
         holder.binding.repoContentTypes.removeAllViews()
         val chipTextColor = ctx.getThemeColor(com.google.android.material.R.attr.colorOnSurface)
         item.contentTypes.forEach { type ->
@@ -96,10 +92,6 @@ class RepoCardAdapter(
             holder.binding.repoContentTypes.addView(chip)
         }
 
-        // Language count: one centred chip rather than a chip per language. A busy repo listed
-        // every language it had, which ran the row wide and buried the count. Extensions with no
-        // usable lang are dropped when the list is built, so an unreadable or absent lang counts
-        // as none rather than as a bogus entry.
         holder.binding.repoLanguages.removeAllViews()
         val languageCount = item.languages.size
         holder.binding.repoLanguages.addView(com.google.android.material.chip.Chip(ctx).apply {
@@ -122,13 +114,11 @@ class RepoCardAdapter(
             )
         })
 
-        // Fallback gradient: theme primary
         val primaryColor = ctx.getThemeColor(com.google.android.material.R.attr.colorPrimary)
         val defaultTop = if (isDark) Color.BLACK else Color.WHITE
         val defaultBot = blendWithSurface(primaryColor, if (isDark) 0.55f else 0.35f)
         applyGradient(holder.binding.repoCardRoot, defaultTop, defaultBot)
 
-        // Logo + Palette gradient (GitHub avatar for aniyomi/installers)
         val skipIcons = PrefManager.getVal<Boolean>(PrefName.SkipExtensionIcons)
         if (!skipIcons && !item.iconUrl.isNullOrBlank()) {
             Glide.with(ctx)
@@ -154,27 +144,23 @@ class RepoCardAdapter(
             holder.binding.repoLogo.setImageResource(R.drawable.ic_extension)
         }
 
-        // Browse button — only focusable element
         with(holder.binding.repoBrowseButton) {
             text = "Browse"
             contentDescription = "Browse ${item.name}"
             setOnClickListener { onOpen(item) }
             isFocusable = true
-            // MaterialButton tints its background with colorPrimary by default, which would
-            // flatten the focus stroke into the primary fill; clear it so the ring shows.
+
             backgroundTintList = null
             val onPrimary = ctx.getThemeColor(com.google.android.material.R.attr.colorOnPrimary)
             val borderWidth = (3f * resources.displayMetrics.density).toInt()
-            // Unfocused: solid white pill with dark text; focused: primary fill plus a visible
-            // on-primary focus border (a stroke that follows the pill's corners).
+
             fun styleBrowse(focused: Boolean) {
                 background = android.graphics.drawable.GradientDrawable().apply {
                     shape = android.graphics.drawable.GradientDrawable.RECTANGLE
                     setColor(if (focused) ctx.getThemeColor(com.google.android.material.R.attr.colorPrimary) else Color.WHITE)
                     cornerRadius = 24f * resources.displayMetrics.density
                 }
-                // Ring as foreground so it is never flattened by the MaterialButton's background
-                // tint, and follows the pill's 24dp corners.
+
                 foreground = if (focused) {
                     android.graphics.drawable.GradientDrawable().apply {
                         shape = android.graphics.drawable.GradientDrawable.RECTANGLE
@@ -191,8 +177,7 @@ class RepoCardAdapter(
             setOnFocusChangeListener { _, hasFocus ->
                 styleBrowse(hasFocus)
             }
-            // Explicit adjacency chain so DPAD moves card-to-card with no gaps: the pill's
-            // DPAD_DOWN lands here, and each Browse hands off to the next/previous one.
+
             setOnKeyListener { _, keyCode, event ->
                 if (event.action != KeyEvent.ACTION_DOWN) {
                     false
@@ -206,17 +191,10 @@ class RepoCardAdapter(
             }
         }
 
-        // Card: not focusable, only long-press
         holder.binding.repoCardRoot.isFocusable = false
         holder.binding.repoCardRoot.setOnLongClickListener { onLongClick(item); true }
     }
 
-    /**
-     * Moves D-pad focus [delta] cards away to that card's Browse button, so the chain runs
-     * pill -> Browse -> Browse ... and back with no gaps. Returns false at either end (the first
-     * card hands the up press to [onExitTop], typically the pill) or when the neighbour is not
-     * laid out yet, so the default focus search and its auto-scrolling take over.
-     */
     private fun moveBrowseFocus(holder: VH, delta: Int): Boolean {
         val rv = holder.itemView.parent as? RecyclerView ?: return false
         val current = holder.absoluteAdapterPosition

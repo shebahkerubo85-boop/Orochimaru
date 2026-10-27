@@ -34,12 +34,6 @@ object CsRepos {
         json.decodeFromString<CsRepoManifest>(body)
     }
 
-    /**
-     * Resolves CloudStream short codes (a single bare token) through the same
-     * shorteners the real CloudStream app uses: cutt.ly, or py.md for "!" codes.
-     * Full URLs pass through unchanged; anything else returns null so callers
-     * keep their normalized URL.
-     */
     suspend fun resolveRepoUrl(input: String): String? = withContext(Dispatchers.IO) {
         val trimmed = input.trim()
         if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
@@ -129,7 +123,7 @@ object CsRepos {
                 repoUrl = repoUrl,
                 iconUrl = iconUrl
             )
-            // A previously loaded plugin is made read-only for the dex loader; allow overwrite here.
+
             installedFile(context, installed).setWritable(true)
             installedFile(context, installed).writeBytes(body)
             val current = PrefManager.getVal<List<String>>(PrefName.CloudStreamInstalledSources)

@@ -16,11 +16,6 @@
         android:layout_gravity="center"
         android:scaleType="fitCenter" />
 
-    <!--
-      See All. The app never uses a text "see all" — every row that can be opened
-      fully ends its header with this arrow (arrow_mark, 8dp padding), so the rail
-      borrows that exact button rather than inventing a text affordance.
-    -->
     <ImageButton
         android:id="@+id/streamingServiceSeeAll"
         android:layout_width="36dp"

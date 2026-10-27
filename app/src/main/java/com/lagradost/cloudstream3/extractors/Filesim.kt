@@ -42,7 +42,7 @@ class Movhide : Filesim() {
 }
 
 class Ztreamhub : Filesim() {
-    override val mainUrl: String = "https://ztreamhub.com" //Here 'cause works
+    override val mainUrl: String = "https://ztreamhub.com"
     override val name = "Zstreamhub"
 }
 
@@ -82,7 +82,7 @@ open class Filesim : ExtractorApi() {
         val linkFound = JwPlayerHelper.extractStreamLinks(scriptData.orEmpty(), name, mainUrl, callback, subtitleCallback)
 
         if (!linkFound) {
-            // Fallback using WebViewResolver
+
             val resolver = WebViewResolver(
                 interceptUrl = Regex("""(m3u8|master\.txt)"""),
                 additionalUrls = listOf(Regex("""(m3u8|master\.txt)""")),

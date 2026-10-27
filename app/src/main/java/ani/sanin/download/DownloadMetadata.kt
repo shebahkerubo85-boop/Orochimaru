@@ -9,20 +9,10 @@ import okhttp3.Request
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-/**
- * Offline extras the player and the download screens need on downloaded episodes: synopsis,
- * genres, and small "display-quality" artwork (a thumbnail and the title's wordmark) written to
- * disk so the pause overlay and the cards keep working with no network.
- *
- * Runs once per item during its PREPARING phase. Every step is soft — a failed artwork resolves
- * to nothing and the actual download goes on untouched.
- */
 object DownloadMetadata {
 
-    /** Safety cap. These are thumbnails/wordmarks, not full-res posters. */
     private const val MAX_META_BYTES = 1_048_576L
 
-    /** Neutral extension — Glide sniffs the real format from the bytes. */
     private const val IMAGE_EXT = "img"
 
     private val client = OkHttpClient.Builder()
@@ -36,10 +26,6 @@ object DownloadMetadata {
     private fun fileFor(context: Context, name: String): File =
         File(metaDir(context), "$name.$IMAGE_EXT")
 
-    /**
-     * Fills the item's offline fields. Synopsis and genres are already captured on the item at
-     * enqueue time; the remaining work is resolving the wordmark and pulling the small artwork.
-     */
     suspend fun prepare(context: Context, item: DownloadItem) {
         withContext(Dispatchers.IO) {
             if (item.logoPath == null) {

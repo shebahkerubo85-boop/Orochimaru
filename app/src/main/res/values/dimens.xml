@@ -1,5 +1,5 @@
 <resources>
-    <!-- Default screen margins, per the Android Design guidelines. -->
+
     <dimen name="activity_horizontal_margin">16dp</dimen>
     <dimen name="activity_vertical_margin">16dp</dimen>
     <dimen name="rounded_image_radius">10dp</dimen>
@@ -34,7 +34,6 @@
     <dimen name="download_header_progress_size">35dp</dimen>
     <dimen name="library_top_push">0dp</dimen>
 
-    <!-- Modern banner (phone defaults; taller on landscape/TV via values-land, values-sw600dp) -->
     <dimen name="banner_modern_height">355dp</dimen>
     <dimen name="banner_modern_content_start">20dp</dimen>
     <dimen name="banner_modern_poster_width">110dp</dimen>
@@ -48,8 +47,6 @@
     <dimen name="banner_modern_meta_gap">6dp</dimen>
     <integer name="banner_modern_synopsis_lines">2</integer>
 
-    <!-- Classic banner: taller in portrait to fit the logo, the watch pill and
-         two rows of chips without crowding the art. -->
     <dimen name="banner_classic_height">355dp</dimen>
     <dimen name="banner_classic_logo_width">260dp</dimen>
     <dimen name="banner_classic_logo_height">72dp</dimen>
@@ -67,45 +64,13 @@
     <dimen name="banner_modern_watch_min_width">150dp</dimen>
     <dimen name="banner_modern_watch_text">13sp</dimen>
     <dimen name="banner_modern_synopsis_spacing">2dp</dimen>
-    <!--
-      Franchise screen row: a portrait poster with the list-status button 1dp under it.
 
-      The poster is a fixed width rather than a share of the row, and the synopsis takes
-      whatever is left. That is the whole sizing decision: a weighted split would grow the
-      poster with the screen until on a tablet it was most of the width and the prose it is
-      supposed to sit beside had nothing to sit in. Fixed, it stays a poster at every size,
-      and the column that grows with the screen is the one carrying the text.
-
-      2:3, the usual poster proportion, so the picture is not stretched. The height comes
-      from that ratio in the layout rather than from a second number here, because two
-      numbers kept in step by hand is a number that will drift.
-    -->
-    <!--
-      The poster's width, from which its 2:3 height follows.
-
-      Cut at the user's request: at 136dp the card was 204dp tall and the row read as two
-      pictures with a column of text beside them rather than as a list entry with a picture on
-      it. 112dp gives a 168dp poster, which is still large enough to recognise a key visual
-      from but leaves the text column 197dp instead of 173dp, and the words are what say which
-      entry a row is.
-
-      The height is not stated separately. It comes from the ratio on the card in the layout,
-      so narrowing the width narrows both and there is no second number to drift out of step.
-    -->
     <dimen name="franchise_poster_width">112dp</dimen>
     <dimen name="franchise_row_margin">24dp</dimen>
     <dimen name="franchise_row_gap">3dp</dimen>
-    <!--
-      The gap between one row and the next.
 
-      Kept at 20dp rather than the 12dp it was before the connector, at the user's request. It
-      was raised for the line, which needed a clear band to run in, but the wider gap is wanted
-      on its own now that the line is gone: with the poster cut to 112dp the rows are shorter
-      than they were, and 12dp between two of them made the list read as a stack rather than as
-      a set of entries. The extra 8dp is breathing room, not a diagram's ruins.
-    -->
     <dimen name="franchise_row_bottom_margin">20dp</dimen>
-    <!-- 1dp under the poster, before the list-status button. -->
+
     <dimen name="franchise_list_status_top">1dp</dimen>
     <dimen name="franchise_list_status_height">30dp</dimen>
     <dimen name="franchise_info_size">30dp</dimen>
@@ -114,30 +79,9 @@
     <dimen name="franchise_synopsis_gap">6dp</dimen>
     <dimen name="franchise_title_size">14sp</dimen>
     <dimen name="franchise_synopsis_size">12sp</dimen>
-    <!--
-      The year, over the artwork at the poster's foot.
 
-      Taken up again at the user's request, twice over now: 11sp read as a caption somebody had
-      left under the info button, and 13sp was still smaller than the title beside the poster,
-      which is not how the row is ranked. The year is the one piece of metadata this row states
-      nowhere else, so it is set to be read rather than to be consistent: the entry's own screen
-      carries the format and the runtime, and nothing here repeats the year.
-
-      96dp of the poster's 112dp width is available to the run and the widest case is four
-      digits, so even 2011 at this size is well inside the column. It still sits under a 30dp
-      circle rather than beside it, so the number reads as the button's caption at a size you
-      can read across a room, which is what it is for.
-    -->
     <dimen name="franchise_year_size">16sp</dimen>
     <dimen name="franchise_meta_size">10sp</dimen>
 
-    <!--
-      How much of the poster's foot the gradient covers, measured up from the bottom edge.
-
-      Tall enough to sit behind the info button, the year and their padding, plus a little run
-      in above them so the ramp starts somewhere rather than arriving abruptly. Not a fraction
-      of the poster's height: the two marks are a fixed dp tall whatever the poster is, so a
-      percentage would make the ramp's reach depend on the screen size for no gain.
-    -->
     <dimen name="franchise_poster_gradient_height">76dp</dimen>
 </resources>

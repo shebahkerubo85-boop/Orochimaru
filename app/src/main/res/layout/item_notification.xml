@@ -112,7 +112,7 @@
                 android:textSize="10sp"
                 tools:ignore="HardcodedText,SmallSp" />
         </LinearLayout>
-<!--this thing is being changed in NotificationItem.kt for media and user card dynamically-->
+
         <ImageView
             android:id="@+id/notificationTypeIcon"
             android:layout_width="24dp"

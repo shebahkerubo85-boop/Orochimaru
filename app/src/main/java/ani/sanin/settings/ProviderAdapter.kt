@@ -97,8 +97,6 @@ class ProviderAdapter(
         val isDragging = dragActivePosition == holder.absoluteAdapterPosition
         tintArrows(b, isDragging)
 
-        // Phone: one tap arms drag mode (primary fill) — touch the row anywhere to drag;
-        // TV: the handle keeps focus, leave via BACK/RIGHT.
         b.providerDragHandle.setOnClickListener {
             val currentPos = holder.absoluteAdapterPosition
             if (currentPos == RecyclerView.NO_POSITION) return@setOnClickListener
@@ -113,8 +111,6 @@ class ProviderAdapter(
             }
         }
 
-        // Phone: once armed, dragging anywhere on the row moves the item — no need to keep
-        // holding the handle.
         holder.itemView.setOnTouchListener { _, event ->
             if (event.actionMasked == MotionEvent.ACTION_DOWN &&
                 dragActivePosition == holder.absoluteAdapterPosition

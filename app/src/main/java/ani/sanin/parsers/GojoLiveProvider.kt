@@ -20,23 +20,6 @@ import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-/**
- * GojoLive (https://gojolive.site) — an AniList-metadata frontend.
- *
- * Metadata (search / titles / episode counts) comes from the public AniList GraphQL API.
- * Streams come from the same embeds the site uses:
- *
- *   - MegaPlay  -> megaplay.buzz/stream/{ani|mal}/{id}/{ep}/{sub|dub}       (via [EmbedRouter])
- *   - Vidnest   -> new.vidnest.fun/aniwave_hls/{id}/{ep}/{sub|dub}         (AES-GCM encrypted JSON)
- *   - Anitaku   -> new.vidnest.fun/hianime/anime/{id}/{ep}/{sub|dub}/hd-2  (AES-GCM encrypted JSON)
- *
- * All three are listed *lazily*: [loadVideoServers] does no network, so the server sheet fills
- * instantly with placeholders, then each row is resolved independently in Phase 2
- * (via [getVideoExtractor]). A slow embed (MegaPlay downloads a large JS bundle) therefore
- * only delays its own row instead of blocking the whole sheet.
- *
- * Only English sub/dub audio is surfaced (the site defaults to sub), matching the request.
- */
 class GojoLiveProvider : NativeAnimeParser() {
 
     override val name = "GojoLive"
@@ -47,10 +30,6 @@ class GojoLiveProvider : NativeAnimeParser() {
     override val knownServers = listOf("MegaPlay", "Vidnest", "Anitaku")
 
     private val aniListUrl = "https://graphql.anilist.co"
-
-    // ============================================================
-    //  Search / autoSearch (AniList GraphQL)
-    // ============================================================
 
     private val searchQuery =
         "query (\$search: String) { Page(perPage: 25) { media(search: \$search, type: ANIME, isAdult: false) " +
@@ -146,10 +125,6 @@ class GojoLiveProvider : NativeAnimeParser() {
         }
     }
 
-    // ============================================================
-    //  Episodes
-    // ============================================================
-
     override suspend fun loadEpisodes(animeLink: String, extra: Map<String, String>?, sAnime: SAnime): List<Episode> {
         val anilistId = extra?.get("anilistId")?.toIntOrNull() ?: animeLink.toIntOrNull() ?: return emptyList()
         val idMal = extra?.get("idMal")?.toIntOrNull()
@@ -183,7 +158,7 @@ class GojoLiveProvider : NativeAnimeParser() {
             ((m["nextAiringEpisode"] as? JsonObject)?.get("episode") as? JsonPrimitive)?.intOrNull
                 ?.let { return (it - 1).coerceAtLeast(1) }
         }
-        // Fallback: anizip episode map (reflects actually-aired episodes)
+
         runCatching {
             val json = get("https://api.ani.zip/mappings?anilist_id=$anilistId", "$defaultBaseUrl/")
             val eps = (Mapper.json.parseToJsonElement(json) as? JsonObject)?.get("episodes")?.jsonObject
@@ -195,10 +170,6 @@ class GojoLiveProvider : NativeAnimeParser() {
     }
 
     private fun currentAudio(): String = if (selectDub) "dub" else "sub"
-
-    // ============================================================
-    //  Video servers (all lazy — no network here)
-    // ============================================================
 
     override suspend fun loadVideoServers(episodeLink: String, extra: Map<String, String>?, sEpisode: SEpisode): List<VideoServer> {
         val anilistId = extra?.get("anilistId")?.toIntOrNull() ?: return emptyList()
@@ -215,7 +186,6 @@ class GojoLiveProvider : NativeAnimeParser() {
         return servers
     }
 
-    /** Lightweight MegaPlay entry resolved by [GojoLiveMegaPlayExtractor] in Phase 2. */
     private fun megaPlayLazy(anilistId: Int, idMal: Int?, ep: Int, audio: String): VideoServer {
         val embed = "$MEGAPLAY_ORIGIN/stream/ani/$anilistId/$ep/$audio"
         val extraData = mutableMapOf(
@@ -228,7 +198,6 @@ class GojoLiveProvider : NativeAnimeParser() {
         return VideoServer("MegaPlay", embed, extraData)
     }
 
-    /** Lightweight Vidnest/Anitaku entry resolved by [GojoLiveVidnestExtractor] in Phase 2. */
     private fun vidnestLazy(
         name: String,
         path: String,
@@ -258,10 +227,6 @@ class GojoLiveProvider : NativeAnimeParser() {
         }
 }
 
-/* ================================================================
-   Shared constants & helpers
-   ================================================================ */
-
 private const val VIDNEST_BASE = "https://new.vidnest.fun"
 private const val VIDNEST_REFERER = "https://vidnest.fun/"
 private const val MEGAPLAY_ORIGIN = "https://megaplay.buzz"
@@ -287,7 +252,6 @@ private fun vidnestNonce(): String {
     return Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
 }
 
-/** key = SHA-256(nonce|secret); payload = iv(12) || ciphertext || tag(16). */
 private fun vidnestDecrypt(d: String, nonce: String): JsonObject? {
     val raw = try {
         Base64.decode(d, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
@@ -336,15 +300,6 @@ private fun parseSkip(v: JsonElement?): Pair<Double, Double>? {
     return if (e > s) s to e else null
 }
 
-/* ================================================================
-   Lazy extractors (Phase 2)
-   ================================================================ */
-
-/**
- * Resolves a MegaPlay embed on demand via [EmbedRouter] (megaplay.buzz + its app.main.js
- * bundle), then reuses [NativeVideoExtractor] for HLS parsing, subtitles and intro/outro.
- * Tries the AniList-id route first, then the MAL-id route.
- */
 class GojoLiveMegaPlayExtractor(override val server: VideoServer) : VideoExtractor() {
 
     override suspend fun extract(): VideoContainer {
@@ -384,11 +339,6 @@ class GojoLiveMegaPlayExtractor(override val server: VideoServer) : VideoExtract
     }
 }
 
-/**
- * Resolves a Vidnest/Anitaku embed on demand: requests the `{v:2,d,n}` AES-GCM envelope from
- * new.vidnest.fun, decrypts it, and reuses [NativeVideoExtractor] for HLS parsing,
- * subtitles and intro/outro.
- */
 class GojoLiveVidnestExtractor(override val server: VideoServer) : VideoExtractor() {
 
     override suspend fun extract(): VideoContainer {
@@ -420,8 +370,6 @@ class GojoLiveVidnestExtractor(override val server: VideoServer) : VideoExtracto
                 ?: (first["url"] as? JsonPrimitive)?.contentOrNull
                 ?: throw IllegalStateException("no stream url")
 
-            // Some CDNs are picky about Referer. MegaPlay-CDN hosts (megap.*/shiora) want
-            // megaplay.buzz; Vidnest returns an explicit referer per source.
             val srcReferer = (first["referer"] as? JsonPrimitive)?.contentOrNull
             val isMegaCdn = streamUrl.contains("megap.", true) || streamUrl.contains("shiora", true)
             val referer = when {

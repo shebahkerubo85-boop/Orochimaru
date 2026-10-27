@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- TRANSLATE, BUT DON'T FORGET FORMAT -->
+
     <string name="player_speed_text_format" formatted="true">Брзина (%.2fx)</string>
     <string name="rated_format" formatted="true">Оценето: %.1f</string>
     <string name="new_update_format" formatted="true">Пронајдена нова верзија!\n%1$s -&gt; %2$s</string>
@@ -32,7 +32,7 @@
     <string name="reload_error">Повтори конекција…</string>
     <string name="go_back">Оди назад</string>
     <string name="play_episode">Вклучи епизода</string>
-    <!--<string name="need_storage">Allow to download episodes</string>-->
+
     <string name="download">Преземи</string>
     <string name="downloaded">Преземено</string>
     <string name="downloading">Преземање</string>
@@ -190,7 +190,7 @@
     <string name="login">Најави се</string>
     <string name="switch_account">Промени корисничка сметка</string>
     <string name="add_account">Додади корисничка сметка</string>
-    <!-- ============ -->
+
     <string name="none">Ништо</string>
     <string name="normal">Нормално</string>
     <string name="all">Сите</string>

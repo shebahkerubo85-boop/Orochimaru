@@ -19,58 +19,23 @@ import ani.sanin.setSafeOnClickListener
 import ani.sanin.ui.LensButtonBackground
 import ani.sanin.util.FocusEffectUtil
 
-/**
- * The streaming-services rail: a horizontal strip of service cards for the app's region.
- * Tapping one opens that service's catalogue. This browses; it plays nothing.
- *
- * Each card is a WIDE tile filled with the brand's own colour — read off the logo by
- * [StreamingLogoTint] — with the square logo drawn on top. Because the fill is the logo's
- * exact background, the two blend with no inner edge. A logo that cannot be read keeps a
- * neutral plate, which is the honest fallback rather than a wrong colour.
- *
- * Sizes match Zangetsu: 128x70 phone, 168x92 TV, the latter growing because TV sits further
- * from the eye.
- *
- * There is no "Streaming Services" header here, so the See All is the last CARD in the rail
- * (Zangetsu's TV treatment) rather than a text button beside a title — the D-pad simply
- * walks onto it.
- */
 class StreamingServicesAdapter(
     private val isTv: Boolean,
     private val onServiceClick: (TmdbProvider) -> Unit,
     private val onSeeAll: () -> Unit,
-    /**
-     * The Explore rail ends in a See All card, because it is the way to the full list.
-     * That list itself is nothing but cards, so it renders the same tiles with the
-     * trailing card and the cap turned off.
-     */
+
     private val showSeeAll: Boolean = true,
-    /** The rail is capped so a long tail never pushes the majors out of reach. */
+
     private val limit: Int = MAX_SERVICES
 ) : RecyclerView.Adapter<StreamingServicesAdapter.ServiceViewHolder>() {
 
     private var providers: List<TmdbProvider> = emptyList()
 
-    /**
-     * Grid geometry, handed in by the host; zero width means this adapter is in a rail.
-     *
-     * The rail is a fixed 128x70 tile, but the full services screen is a grid, and that
-     * fixed width is what made its tiles overlap. GridLayoutManager hands a child the
-     * cell's width and then lays it out at that size without clamping, so a tile asking
-     * for 128dp inside a 109dp cell simply spilled over its neighbour. Zangetsu cannot
-     * hit that because Flutter's SliverGrid forces the child to the cell and it passes
-     * the card double.infinity, which is why its grid is clean at any width. So in a
-     * grid the tile is measured to the cell here too, rather than assuming a width.
-     */
     private var gridTileWidthPx = 0
     private var gridTileHeightPx = 0
     private var gridCrossSpacingPx = 0
     private var gridMainSpacingPx = 0
 
-    /**
-     * Sizes the tiles to one grid cell. The host recomputes this on rotation, because
-     * this screen is not recreated when the device turns.
-     */
     fun setGridTileSize(widthPx: Int, heightPx: Int, crossSpacingPx: Int, mainSpacingPx: Int) {
         if (gridTileWidthPx == widthPx && gridTileHeightPx == heightPx) return
         gridTileWidthPx = widthPx
@@ -80,7 +45,6 @@ class StreamingServicesAdapter(
         notifyDataSetChanged()
     }
 
-    /** Enough to fill a phone rail twice over without waiting on a long tail nobody scrolls to. */
     fun submit(list: List<TmdbProvider>) {
         providers = list.take(limit)
         notifyDataSetChanged()
@@ -92,7 +56,6 @@ class StreamingServicesAdapter(
         notifyDataSetChanged()
     }
 
-    // +1 for the trailing See All card, which the full-services screen does not draw.
     override fun getItemCount(): Int = providers.size + if (showSeeAll) 1 else 0
 
     override fun getItemViewType(position: Int): Int =
@@ -123,8 +86,7 @@ class StreamingServicesAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
 
         init {
-            // Sizes are applied per bind: a service is a fixed tile, the See All arrow is
-            // its natural size.
+
         }
 
         private fun sizeTile() {
@@ -135,7 +97,7 @@ class StreamingServicesAdapter(
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
             if (gridTileWidthPx > 0) {
-                // A grid cell, measured rather than assumed: see setGridTileSize.
+
                 lp.width = gridTileWidthPx
                 lp.height = gridTileHeightPx
                 lp.marginEnd = gridCrossSpacingPx
@@ -158,8 +120,7 @@ class StreamingServicesAdapter(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
-            // A round lens button, matching the row-header More buttons. The column is as tall
-            // as a service tile so the button centres against the tiles beside it.
+
             val w = if (isTv) 44 else 36
             val h = if (isTv) 92 else 70
             lp.width = (w * density).toInt()
@@ -174,7 +135,7 @@ class StreamingServicesAdapter(
             val logo = binding.streamingServiceLogo
             sizeTile()
             card.contentDescription = provider.displayName
-            // The whole service tile is one D-pad target; draw the focus ring on its bounds.
+
             card.isFocusable = true
             card.isFocusableInTouchMode = false
             FocusEffectUtil.applyFocusListener(card)
@@ -185,12 +146,11 @@ class StreamingServicesAdapter(
             card.setSafeOnClickListener { onServiceClick(provider) }
 
             val ctx = card.context
-            // Neutral plate until a tint is known, so a recycled card never shows the
-            // previous service's colour.
+
             applyPlate(card, ctx.getThemeColor(com.google.android.material.R.attr.colorSurfaceVariant))
 
             val logoUrl = Tmdb.imageUrl(provider.logoPath, LOGO_WIDTH) ?: return
-            // A tint already read this session paints on the first frame.
+
             StreamingLogoTint.cached(logoUrl)?.let {
                 applyTint(card, logo, it)
                 return@let
@@ -231,17 +191,16 @@ class StreamingServicesAdapter(
             card.contentDescription = "See all streaming services"
             arrow.isVisible = true
             logo.isVisible = false
-            // Keep See All as one card-sized D-pad target, not a tiny arrow target.
+
             card.isFocusable = true
             card.isFocusableInTouchMode = false
             FocusEffectUtil.applyFocusListener(card)
             arrow.isFocusable = false
             arrow.isFocusableInTouchMode = false
             card.setSafeOnClickListener { onSeeAll() }
-            // The arrow is an ImageButton, so it would swallow the tap before the card sees it;
-            // it needs its own listener or the See All stops opening the full list.
+
             arrow.setOnClickListener { onSeeAll() }
-            // Round lens button, like the row-header More chevrons — no brand tile behind it.
+
             card.background = null
             LensButtonBackground.apply(arrow)
             FocusEffectUtil.applyFocusListener(arrow)
@@ -251,7 +210,6 @@ class StreamingServicesAdapter(
             binding.streamingServiceLogo.setImageDrawable(null)
         }
 
-        /** Rounded plate in [colour]; a gradient fill replaces it once a tint is known. */
         private fun applyPlate(card: android.view.View, colour: Int) {
             card.background = GradientDrawable().apply {
                 cornerRadius = CORNER_DP * card.resources.displayMetrics.density
@@ -267,9 +225,7 @@ class StreamingServicesAdapter(
             ).apply {
                 cornerRadius = CORNER_DP * card.resources.displayMetrics.density
             }
-            // Enlarging pushes the logo's own edges past the card, but those edges are the
-            // logo's background — the same colour the card is filled with — so nothing
-            // visible is cropped.
+
             logo.scaleX = tint.contentScale
             logo.scaleY = tint.contentScale
         }
@@ -281,17 +237,11 @@ class StreamingServicesAdapter(
         const val MAX_SERVICES = 12
         const val GAP_DP = 10
 
-        /**
-         * The rail's row spacing. It lives here rather than on the layout because the
-         * grid overrides it, and a value set in two places would be one of them wrong.
-         */
         const val RAIL_MARGIN_BOTTOM_DP = 8
         const val CORNER_DP = 14f
 
-        /** Provider logos are 332x332 on TMDB; 185 is the size the CDN serves natively. */
         const val LOGO_WIDTH = 185
 
-        /** Requested above native so the edge sampling and mark box stay crisp. */
         const val LOGO_SAMPLE_PX = 320
     }
 }

@@ -48,7 +48,7 @@ object TestingUtils {
             messageLog.add(Message(LogLevel.Error, message))
         }
     }
-    
+
     private fun fail(message: String): Nothing = throw AssertionError(message)
     private fun assertTrue(message: String, condition: Boolean) { if (!condition) fail(message) }
     private fun assertNotNull(message: String, value: Any?) { if (value == null) fail(message) }
@@ -130,12 +130,11 @@ object TestingUtils {
 
         return if (searchResults.isNullOrEmpty()) {
             fail("Api ${api.name} did not return any search responses")
-            TestResult.Fail // Should not be reached
+            TestResult.Fail
         } else {
             TestResultList(searchResults)
         }
     }
-
 
     @Throws(AssertionError::class, CancellationException::class)
     private suspend fun testLoad(
@@ -207,17 +206,6 @@ object TestingUtils {
 
             return TestResultLoad(url, loadResponse.type != TvType.CustomMedia)
 
-//            val loadTest = testLoadResponse(api, load, logger)
-//            if (loadTest is TestResultLoad) {
-//                testLinkLoading(api, loadTest.extractorData, logger).success
-//            } else {
-//                false
-//            }
-//            if (!validResults) {
-//                logger("Api ${api.name} did not load on the first search results: ${smallSearchResults.map { it.name }}")
-//            }
-
-//            return TestResult(validResults)
         } catch (e: Throwable) {
             if (e is NotImplementedError) {
                 fail("Provider has not implemented load()")
@@ -233,7 +221,7 @@ object TestingUtils {
         logger: Logger
     ): TestResult {
         assertNotNull("Api ${api.name} has invalid url on episode", url)
-        if (url == null) return TestResult.Fail // Should never trigger
+        if (url == null) return TestResult.Fail
 
         var linksLoaded = 0
         try {
@@ -278,24 +266,20 @@ object TestingUtils {
                 val result = try {
                     logger.log("Trying ${api.name}")
 
-                    // Test Homepage
                     val homepage = testHomepage(api, logger)
                     assertTrue("Homepage failed to load", homepage.success)
                     val homePageList = (homepage as? TestResultList)?.results ?: emptyList()
 
-                    // Test Search Results
                     val searchQueries =
-                        // Use the random 3 home page results as queries since they are guaranteed to exist
+
                         (homePageList.shuffled(Random).take(3).map { it.name.split(" ").first() } +
-                                // If home page is sparse then use generic search queries
+
                                 listOf("over", "iron", "guy")).take(3)
 
                     val searchResults = testSearch(api, searchQueries, logger)
                     assertTrue("Failed to get search results", searchResults.success)
                     searchResults as TestResultList
 
-                    // Test Load and LoadLinks
-                    // Only try the first 3 search results to prevent spamming
                     val success = searchResults.results.take(3).any { searchResponse ->
                         logger.log("Testing search result: ${searchResponse.url}")
                         val loadResponse = testLoad(api, searchResponse, logger)

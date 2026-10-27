@@ -60,16 +60,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHolder>() {
-    /**
-     * Positions into Anilist.currentSeasons, which is built as
-     * listOf(previous, current, next). Every season callback takes one of these.
-     */
+
     private companion object {
         const val PREVIOUS_SEASON = 0
         const val CURRENT_SEASON = 1
         const val NEXT_SEASON = 2
 
-        /** ~30% primary, so the fill reads without swallowing the chip stroke. */
         const val SELECTED_SEASON_FILL_ALPHA = 0x4D
     }
 
@@ -78,22 +74,18 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
     private lateinit var trendingBinding: LayoutTrendingBinding
     var bannerAdapter: BannerCarouselAdapter? = null
         private set
-    /** Banner type the live adapter was inflated for, so a no-op resume is free. */
+
     private var bannerAdapterType: Int = -1
     private var bannerSnap: PagerSnapHelper? = null
     private var trendingMedia: List<Media> = emptyList()
     private var trendingLogos: Map<Int, String?> = emptyMap()
     private var trendingAutoScrollHandler: android.os.Handler? = null
     private var trendingAutoScrollRunnable: Runnable? = null
-    /** Season index whose chip carries the selected fill. */
+
     private var selectedSeason = CURRENT_SEASON
-    /**
-     * The chip's untouched background, captured before anything overwrites it,
-     * so unselecting restores exactly what the theme gave rather than assuming
-     * the outlined style is fully transparent.
-     */
+
     private var unselectedChipBackground: ColorStateList? = null
-    /** The filled chip, so a new selection can clear the one it replaces. */
+
     private var selectedSeasonChip: Chip? = null
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AnimePageViewHolder {
@@ -115,11 +107,6 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             bottomMargin = (-108f).px
         }
 
-        // Order matches Anilist.currentSeasons, previous | current | next, so a
-        // chip's position and the index it loads are the same thing. The index is
-        // still carried explicitly rather than read off the position: the two
-        // orders living in different files is exactly the kind of thing that
-        // drifts, and a wrong index here loads the wrong season silently.
         val seasons = Anilist.currentSeasons
         listOf(
             binding.animePreviousSeason to PREVIOUS_SEASON,
@@ -139,9 +126,6 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             FocusEffectUtil.applyFocusListener(chip)
         }
 
-        // The old "Include List" switch is gone with the Popular list it belonged to; the
-        // Franchise header shows unconditionally. Sort, filter, and content controls go
-        // back at the right of the title later.
         binding.animeFranchiseHeader.isVisible = true
 
         if (ready.value == false)
@@ -159,20 +143,6 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         }
     }
 
-    /**
-     * Applies a banner type change without reloading the tab.
-     *
-     * The banner layout is a constructor argument, so switching type cannot be a
-     * rebind: the existing ViewHolders are already inflated with the old layout
-     * and RecyclerView recycles them, so notifyDataSetChanged would keep showing
-     * the old design. The adapter has to be rebuilt. Everything cheaper than
-     * that is kept: the LayoutManager, SnapHelper, scroll listener and auto-scroll
-     * all hang off the RecyclerView rather than the adapter, and the media plus
-     * logo maps are already in memory, so nothing refetches. Only the carousel
-     * re-inflates; the rest of the tab is untouched.
-     *
-     * No-op when the type has not changed, so it is safe to call on every resume.
-     */
     fun refreshBannerTypeIfChanged() {
         if (!::trendingBinding.isInitialized) return
         val type = bannerType()
@@ -205,12 +175,9 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         bannerAdapterType = type
         rv.adapter = bannerAdapter
 
-        // A fresh adapter starts at 0, which for this endless carousel is the far
-        // left end. Recentre so the reload is not visible as a jump.
         val start = Int.MAX_VALUE / 2 - (Int.MAX_VALUE / 2 % media.size)
         rv.scrollToPosition(start)
 
-        // Width and the side-panel/fade treatment both depend on the type.
         applyTrendingBannerMode()
         updateTrendingOverlayForCurrent()
     }
@@ -223,8 +190,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             }
             applyTrendingBannerMode()
             applySeasonSelectorSpacing()
-            // Rotation does not re-inflate the pager items, so the banner has to
-            // be rebound to pick up the new portrait/landscape height.
+
             bannerAdapter?.notifyDataSetChanged()
         }
     }
@@ -306,10 +272,6 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         cardLp.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID
         trendingBinding.trendingCard.layoutParams = cardLp
 
-        // Modern and Classic fill the whole width, so there is no left strip to
-        // fade and no room for a side panel — and the banner already carries the
-        // logo, chips and watch pill that the panel used to supply. Only Compact
-        // is narrow enough to keep the side panel.
         val modern = isModernBanner()
         val classic = isClassicBanner()
         val fullBleed = modern || classic || is3DBanner() || is3DBanner()
@@ -390,7 +352,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             ?.replace(Regex("<.*?>"), "")
             ?.replace(Regex("\\s+"), " ")
             ?.trim()
-        // Large type: title + chips only, no synopsis.
+
         if (isClassicBanner()) {
             synopsis.isVisible = false
         } else if (!desc.isNullOrBlank()) {
@@ -435,20 +397,6 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             }
         }
 
-    /**
-     * Renders an Anilist season pair as e.g. "Summer '27". The API sends the
-     * season upper case and a four digit year, neither of which wants showing
-     * on a chip that is only as wide as its text.
-     */
-    /**
-     * Marks one season chip as the selected one with a translucent primary fill
-     * and clears the rest back to the theme's own background. The chips stay
-     * non-checkable on purpose: a ChipGroup would own the selection itself, but
-     * it also brings its own spacing that would fight the 8dp margins already
-     * on each chip, and isSelected keeps the state readable to accessibility
-     * services either way.
-     */
-    /** Moves the fill to [chip], clearing whichever chip held it before. */
     private fun selectSeason(chip: Chip, index: Int) {
         selectedSeason = index
         selectedSeasonChip?.takeIf { it !== chip }?.let { setSeasonSelected(it, false) }
@@ -470,8 +418,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
                 )
             )
         } else {
-            // getChipBackgroundColor() is nullable and this runs per chip, so
-            // fall back rather than asserting.
+
             unselectedChipBackground
                 ?: ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
         }
@@ -480,7 +427,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
 
     private fun seasonLabel(season: String, year: Int): String {
         val name = season.lowercase().replaceFirstChar { it.uppercase() }
-        // %02d, not string padding: 2005 has to read as '05 and not '50.
+
         return "$name '${"%02d".format(year % 100)}"
     }
 
@@ -523,8 +470,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             },
             nextFocusDownId = R.id.animeSeasons,
             layoutRes = layoutForBannerType(isModernBanner()),
-            // Classic and Modern carry their own watch pill, so the cardMode
-            // path that hides it only applies to Compact.
+
             cardMode = !isModernBanner() && !isClassicBanner(),
             hideDescription = !isModernBanner(),
             modernMode = isModernBanner(),
@@ -578,10 +524,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         trendingAutoScrollRunnable = object : Runnable {
             override fun run() {
                 if (media.isEmpty()) return
-                // A tick used to be able to land while the previous slide was still
-                // travelling, and startSmoothScroll replaces the in-flight scroller, so
-                // each tick cut the last one short and aimed again, so the banner crept
-                // forward and never came to rest. Waiting for the settle forces one slide, one pause.
+
                 val lm = rv.layoutManager as? LinearLayoutManager
                 if (lm != null && lm.isSmoothScrolling()) {
                     trendingAutoScrollHandler?.postDelayed(this, BANNER_SETTLE_POLL_MS)
@@ -594,9 +537,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
                     trendingBinding.trendingViewPager.findContainingViewHolder(focus) != null
                 )
                 if (!onTrendingControl) {
-                    // Aimed from what is on screen, not from a remembered index that only
-                    // got corrected on idle; a stale one aimed at a distant target and slid
-                    // through every banner on the way there.
+
                     val current = lm?.findFirstVisibleItemPosition() ?: RecyclerView.NO_POSITION
                     if (current != RecyclerView.NO_POSITION) rv.smoothScrollToPosition(current + 1)
                 }
@@ -628,7 +569,6 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         }
     }
 
-    /** Reset the auto-scroll timer (call on manual drag + settle). */
     private fun resetTrendingAutoScroll() {
         val runnable = trendingAutoScrollRunnable ?: return
         trendingAutoScrollHandler?.removeCallbacksAndMessages(null)
@@ -639,7 +579,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         val dots = trendingBinding.trendingDots
         dots.removeAllViews()
         val density = rv.context.resources.displayMetrics.density
-        // Portrait: max 7 dots, cycling (8th banner lights dot 0). Landscape: all.
+
         val isPortrait = rv.context.resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
         val shown = if (isPortrait) minOf(itemCount, 7) else itemCount
         val dotsList = mutableListOf<View>()
@@ -668,8 +608,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
 
         rv.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrollStateChanged(rv: RecyclerView, newState: Int) {
-                // Manual scroll: reset the auto timer so it never yanks mid-swipe,
-                // and sync its index so the next auto step continues from here.
+
                 if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
                     resetTrendingAutoScroll()
                     return

@@ -14,10 +14,6 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import ani.sanin.R
 
-/**
- * Minimal foreground service whose only job is to keep the process alive (and the OS from killing
- * it) while [DownloadManager] has work to do. All real work happens in the manager's coroutines.
- */
 class DownloadService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -51,7 +47,7 @@ class DownloadService : Service() {
             }
             ServiceCompat.startForeground(this, DownloadNotifier.PROGRESS_ID, notification, type)
         } catch (_: Exception) {
-            // Foreground start not allowed (background start restrictions) — harmless.
+
         }
     }
 

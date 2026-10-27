@@ -1,5 +1,5 @@
 package com.lagradost.cloudstream3.utils
-//Reference: https://stackoverflow.com/a/29055283
+
 import android.content.Context
 import android.graphics.Matrix
 import android.graphics.drawable.Drawable
@@ -8,47 +8,6 @@ import androidx.core.content.withStyledAttributes
 import ani.sanin.R
 import com.lagradost.cloudstream3.mvvm.logError
 
-/**
- * A custom [AppCompatImageView] that allows precise control over the visible crop area
- * of an image by adjusting its horizontal and vertical center offset percentages.
- *
- * ### Key Features:
- * - Allows **manual vertical or horizontal cropping** via percentage offsets.
- * - Works seamlessly with Coil, Glide, or any image loading library.
- *
- * ### Usage (XML):
- * You can set the crop offset directly in XML using custom attributes:
- * ```xml
- * <com.lagradost.cloudstream3.utils.PercentageCropImageView
- *     android:id="@+id/home_scroll_preview"
- *     android:layout_width="match_parent"
- *     android:layout_height="match_parent"
- *     android:scaleType="matrix"
- *     app:cropYCenterOffsetPct="0.2"
- *     app:cropXCenterOffsetPct="0.5"
- *     tools:src="@drawable/example_poster" />
- * ```
- * - `app:cropYCenterOffsetPct` → controls how far vertically the image shifts
- *   `0.0` = top-aligned, `0.5` = centered, `1.0` = bottom-aligned.
- * - `app:cropXCenterOffsetPct` → controls how far horizontally the image shifts
- *   `0.0` = left, `0.5` = center, `1.0` = right.
- *
- * ### Programmatic Example:
- * ```kotlin
- * imageView.cropYCenterOffsetPct = 0.15f   // Show slightly more (15%) of the top area
- * imageView.cropXCenterOffsetPct = 0.5f    // Keep image centered horizontally
- * imageView.redraw()    //Only needed if you changed cropYCenterOffsetPct/cropXCenterOffsetPct at runtime
- * ```
- *
- * ### Notes:
- * - Must use `android:scaleType="matrix"` to enable manual matrix transformations.
- * - Reference: https://stackoverflow.com/a/29055283
- *
- * @property cropYCenterOffsetPct the vertical crop percentage (0.0–1.0)
- * @property cropXCenterOffsetPct the horizontal crop percentage (0.0–1.0)
- *
- * @see ImageView.ScaleType.MATRIX
- */
 class PercentageCropImageView : androidx.appcompat.widget.AppCompatImageView {
     private var mCropYCenterOffsetPct: Float? = null
     private var mCropXCenterOffsetPct: Float? = null
@@ -110,12 +69,6 @@ class PercentageCropImageView : androidx.appcompat.widget.AppCompatImageView {
         }
     }
 
-    // These 3 methods call configureBounds in ImageView.java class, which
-    // adjusts the matrix in a call to center_crop (android's built-in
-    // scaling and centering crop method). We also want to trigger
-    // in the same place, but using our own matrix, which is then set
-    // directly at line 588 of ImageView.java and then copied over
-    // as the draw matrix at line 942 of ImageView.java
     override fun setFrame(l: Int, t: Int, r: Int, b: Int): Boolean {
         val changed = super.setFrame(l, t, r, b)
         myConfigureBounds()
@@ -132,13 +85,10 @@ class PercentageCropImageView : androidx.appcompat.widget.AppCompatImageView {
         myConfigureBounds()
     }
 
-    // In case you can change the ScaleType in code you have to call redraw()
-    //fullsizeImageView.setScaleType(ScaleType.FIT_CENTER);
-    //fullsizeImageView.redraw();
     fun redraw() {
         val d = this.drawable
         if (d != null) {
-            // Force toggle to recalculate our bounds
+
             setImageDrawable(null)
             setImageDrawable(d)
         }
