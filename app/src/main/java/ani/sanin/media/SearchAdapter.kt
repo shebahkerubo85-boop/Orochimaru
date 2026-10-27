@@ -60,7 +60,7 @@ class SearchAdapter(
     }
 
     private fun updateFilterState() {
-        // The filter is a lens button now: tint the icon instead of filling a chip.
+
         val tint = if (hasActiveFilters()) {
             FocusEffectUtil.getPrimaryColor(activity)
         } else {

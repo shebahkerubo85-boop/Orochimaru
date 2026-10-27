@@ -129,11 +129,10 @@ object MediaNameAdapter {
         }
     }
 
-
     fun removeEpisodeNumberCompletely(text: String): String {
         val regexPattern = Regex(REGEX_EPISODE, RegexOption.IGNORE_CASE)
         val removedNumber = text.replace(regexPattern, "")
-        return if (removedNumber.equals(text, true)) {  // if nothing was removed
+        return if (removedNumber.equals(text, true)) {
             val failedEpisodeNumberPattern =
                 Regex(REGEX_PART_NUMBER, RegexOption.IGNORE_CASE)
             failedEpisodeNumberPattern.replace(removedNumber) { mr ->

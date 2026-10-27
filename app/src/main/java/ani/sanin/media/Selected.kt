@@ -7,7 +7,7 @@ data class Selected(
     var recyclerStyle: Int? = null,
     var recyclerReversed: Boolean = false,
     var chip: Int = 0,
-    //var source: String = "",
+
     var sourceIndex: Int = 0,
     var langIndex: Int = 0,
     var preferDub: Boolean = false,

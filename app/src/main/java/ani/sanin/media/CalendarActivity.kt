@@ -44,7 +44,7 @@ class CalendarActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityCalendarBinding
     private val model: OtherDetailsViewModel by viewModels()
-    /** First day of the fixed 3-week range: the Monday of last week. */
+
     private var rangeStart = Calendar.getInstance()
     private var selectedDate = Calendar.getInstance()
     private val dateFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
@@ -52,7 +52,6 @@ class CalendarActivity : AppCompatActivity() {
     private var allCalendarData: Map<String, MutableList<Media>> = emptyMap()
     private val dayShortNames = arrayOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
-    /** The single travelling selection indicator drawn behind the day cells. */
     private var indicatorPlaced = false
     private var indLeft = 0f
     private var indRight = 0f
@@ -60,13 +59,12 @@ class CalendarActivity : AppCompatActivity() {
     private var indBottom = 0f
     private var indicatorAnimator: ValueAnimator? = null
 
-    /** Snaps the pill to a whole day after a drag settles, so exactly 7 days stay visible. */
     private val pillSnap = Runnable { snapPill() }
 
     private companion object {
-        /** Last week + this week + next week. Nothing exists outside it. */
+
         const val TOTAL_DAYS = 21
-        /** The number of days the pill shows at once; it steps one day at a time. */
+
         const val VISIBLE_DAYS = 7
     }
 
@@ -84,10 +82,6 @@ class CalendarActivity : AppCompatActivity() {
         binding.calendarBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
         FocusEffectUtil.applyFocusListener(binding.calendarBack)
 
-        // List-only toggle
-        // Bound from the pref every time, so it must not restore its own checked state on top
-        // of that: a restored setChecked fires the listener below and writes the stale value
-        // back, undoing the user's choice.
         binding.calendarListToggle.isSaveEnabled = false
         binding.calendarListToggle.isChecked = PrefManager.getVal<Boolean>(PrefName.CalendarListOnly)
         binding.calendarListToggle.setOnCheckedChangeListener { _, isChecked ->
@@ -96,28 +90,21 @@ class CalendarActivity : AppCompatActivity() {
         }
         FocusEffectUtil.applyFocusListener(binding.calendarListToggle)
 
-        // Today button
         binding.calendarTodayBtn.setOnClickListener { goToToday() }
         FocusEffectUtil.applyFocusListener(binding.calendarTodayBtn)
 
-        // --- Focus chain ---
-        // Up from toggle → back arrow; down → the date pill
         binding.calendarListToggle.nextFocusUpId = R.id.calendarBack
         binding.calendarListToggle.nextFocusDownId = R.id.calendarWeekStrip
 
-        // Start with toggle focused on open
         binding.calendarListToggle.post { binding.calendarListToggle.requestFocus() }
 
-        // The range is fixed to the three weeks around today: last Monday → next Sunday.
         rangeStart = mondayOfWeek(Calendar.getInstance()).apply {
             add(Calendar.DAY_OF_YEAR, -7)
         }
-        selectedDate = Calendar.getInstance() // today
+        selectedDate = Calendar.getInstance()
 
-        // The pill is the library capsule; the day cells carry the indicator.
         GlassPill.applyContainer(binding.calendarPill)
 
-        // Snap the pill back to whole days after the user drags it.
         binding.calendarWeekScroll.setOnScrollChangeListener { _, _, _, _, _ ->
             binding.calendarWeekScroll.removeCallbacks(pillSnap)
             binding.calendarWeekScroll.postDelayed(pillSnap, 150)
@@ -148,9 +135,6 @@ class CalendarActivity : AppCompatActivity() {
         }
         setupDaySwipe()
     }
-
-
-
 
     private fun setupDaySwipe() {
         val container = binding.calendarDayEpisodes
@@ -187,7 +171,7 @@ class CalendarActivity : AppCompatActivity() {
                     val dx = event.x - downX
                     val threshold = 80 * resources.displayMetrics.density
                     if (isDragging && (Math.abs(dx) > threshold || Math.abs(vx) > 500f)) {
-                        // One day per swipe, like the library pager switching one tab.
+
                         moveSelection(if (dx < 0 || vx < -500f) 1 else -1)
                         velocityTracker?.recycle()
                         velocityTracker = null
@@ -208,7 +192,6 @@ class CalendarActivity : AppCompatActivity() {
         afterSelectionChanged()
     }
 
-    /** Monday 00:00 of the week containing [cal]. */
     private fun mondayOfWeek(cal: Calendar): Calendar {
         val c = cal.clone() as Calendar
         c.set(Calendar.HOUR_OF_DAY, 0); c.set(Calendar.MINUTE, 0)
@@ -218,7 +201,6 @@ class CalendarActivity : AppCompatActivity() {
         return c
     }
 
-    /** Index of [selectedDate] within the fixed range, clamped to the range. */
     private fun selectedIndex(): Int {
         val start = rangeStart.timeInMillis
         val sel = (selectedDate.clone() as Calendar).apply {
@@ -228,7 +210,6 @@ class CalendarActivity : AppCompatActivity() {
         return ((sel - start) / 86_400_000L).toInt().coerceIn(0, TOTAL_DAYS - 1)
     }
 
-    /** Steps the selection one day, stopping at the ends of the 3-week range. */
     private fun moveSelection(delta: Int) {
         val current = selectedIndex()
         val target = (current + delta).coerceIn(0, TOTAL_DAYS - 1)
@@ -252,7 +233,6 @@ class CalendarActivity : AppCompatActivity() {
         refreshDisplay(allCalendarData)
     }
 
-    /** One-time build of all 21 day cells; selection repaints, it never rebuilds. */
     private fun buildWeekStrip() {
         val strip = binding.calendarWeekStrip
         val row = binding.calendarWeekRow
@@ -292,7 +272,6 @@ class CalendarActivity : AppCompatActivity() {
             row.addView(cell)
         }
 
-        // Dpad: left/right step one day (the pill follows), up to the toggle, down to episodes.
         for (i in 0 until row.childCount) {
             val cell = row.getChildAt(i)
             cell.nextFocusLeftId = if (i > 0) row.getChildAt(i - 1).id else View.NO_ID
@@ -301,7 +280,6 @@ class CalendarActivity : AppCompatActivity() {
             cell.nextFocusDownId = R.id.calendarDayEpisodes
         }
 
-        // The indicator is drawn by the strip behind the cells, so selection travels as one capsule.
         strip.setIndicator(GlassPill.indicatorDrawable(this))
         repaintCells()
         strip.post {
@@ -310,11 +288,6 @@ class CalendarActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Moves the single selection indicator onto day [index]. When [animate], the leading edge
-     * eases out faster than the trailing edge so the capsule stretches toward the new day and
-     * settles, instead of snapping.
-     */
     private fun moveIndicatorTo(index: Int, animate: Boolean) {
         val strip = binding.calendarWeekStrip
         val row = binding.calendarWeekRow
@@ -364,7 +337,6 @@ class CalendarActivity : AppCompatActivity() {
         }
     }
 
-    /** Repaints every cell for the current selection without touching focus or scroll. */
     private fun repaintCells() {
         val row = binding.calendarWeekRow
         for (i in 0 until row.childCount) {
@@ -375,11 +347,6 @@ class CalendarActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Paints one day: only the oval rim when focused; the selected fill now comes from the
-     * single travelling indicator behind the cells, so a cell never paints a selected fill.
-     * Today keeps an accent number so it is marked without being selected.
-     */
     private fun paintDayCell(cell: LinearLayout, nameTv: TextView, numTv: TextView, index: Int) {
         val day = (rangeStart.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, index) }
         val iso = dateFmt.format(day.time)
@@ -402,7 +369,6 @@ class CalendarActivity : AppCompatActivity() {
         numTv.setTypeface(null, if (selected) Typeface.BOLD else Typeface.NORMAL)
     }
 
-    /** Scrolls the pill so [index] sits inside the 7-day window, always on a whole-day boundary. */
     private fun scrollPillTo(index: Int, smooth: Boolean = true) {
         val scroll = binding.calendarWeekScroll
         val row = binding.calendarWeekRow
@@ -415,7 +381,6 @@ class CalendarActivity : AppCompatActivity() {
         if (smooth) scroll.smoothScrollTo(target, 0) else scroll.scrollTo(target, 0)
     }
 
-    /** Snaps a manual drag back to a whole-day boundary so exactly 7 days stay visible. */
     private fun snapPill() {
         val scroll = binding.calendarWeekScroll
         val row = binding.calendarWeekRow
@@ -428,7 +393,6 @@ class CalendarActivity : AppCompatActivity() {
         if (target != scroll.scrollX) scroll.smoothScrollTo(target, 0)
     }
 
-    /** "Episodes past / this / next week" for the week the selected day falls in. */
     private fun updateSubtitle() {
         val todayMonday = mondayOfWeek(Calendar.getInstance())
         val selectedMonday = mondayOfWeek(selectedDate)
@@ -449,14 +413,12 @@ class CalendarActivity : AppCompatActivity() {
         val selectedIso = dateFmt.format(selectedDate.time)
         val allEpisodes = mutableListOf<Media>()
 
-        // Collect episodes for selected day — ISO match
         for ((key, list) in data) {
             val keyDate = try { dateFmt.parse(key) } catch (_: Exception) { null }
             val isoMatch = key == selectedIso || (keyDate != null && dateFmt.format(keyDate) == selectedIso)
             if (isoMatch) allEpisodes.addAll(list)
         }
 
-        // Fallback: formatted date string match (movie mode uses "September 10, 2026")
         if (allEpisodes.isEmpty()) {
             val selectedDoy = selectedDate.get(Calendar.DAY_OF_YEAR)
             val selectedYear = selectedDate.get(Calendar.YEAR)
@@ -516,7 +478,7 @@ class CalendarActivity : AppCompatActivity() {
                     spannable.setSpan(ForegroundColorSpan(primaryColor), match.range.first, match.range.last + 1, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
                 }
                 badge.text = spannable
-// Card click → info screen
+
                 v.setOnClickListener {
                     val isAnime = media.anime != null
                     val intent = if (isAnime) {
@@ -537,7 +499,6 @@ class CalendarActivity : AppCompatActivity() {
             }
         }
     }
-
 
     private fun dpToPx(dp: Int): Int = (dp * resources.displayMetrics.density).toInt()
 }

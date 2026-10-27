@@ -35,7 +35,6 @@ class MediaSocialAdapter(
         )
     }
 
-
     override fun onBindViewHolder(holder: FollowerGridViewHolder, position: Int) {
         holder.binding.apply {
             val user = user[position]

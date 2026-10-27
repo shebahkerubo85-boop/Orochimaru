@@ -70,7 +70,6 @@ import kotlinx.coroutines.withContext
 import java.io.Serializable
 import java.net.URLEncoder
 
-
 class MediaInfoFragment : Fragment() {
     private var _binding: FragmentMediaInfoBinding? = null
     private val binding get() = _binding!!
@@ -162,12 +161,10 @@ class MediaInfoFragment : Fragment() {
                 binding.mediaInfoProgressBar.visibility = View.GONE
                 binding.mediaInfoContainer.visibility = View.VISIBLE
 
-                // Portrait: stack OP/ED below the trailer. Landscape keeps them beside it.
                 val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
                 binding.mediaInfoTrailerRow.orientation =
                     if (isPortrait) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
-                // The OP/ED container was weight=1/width=0dp in the horizontal row;
-                // in vertical mode it must fill width or it collapses to 0 and disappears.
+
                 val opEdLp = binding.mediaInfoOpEdContainer.layoutParams as LinearLayout.LayoutParams
                 if (isPortrait) {
                     opEdLp.width = LinearLayout.LayoutParams.MATCH_PARENT
@@ -178,7 +175,6 @@ class MediaInfoFragment : Fragment() {
                 }
                 binding.mediaInfoOpEdContainer.layoutParams = opEdLp
 
-                // Swap meta row: icons on the left, square info card on the right.
                 (binding.mediaInfoMetaSquare.parent as? ViewGroup)?.let { row ->
                     if (row.indexOfChild(binding.mediaInfoMetaIcons) != 0) {
                         row.removeView(binding.mediaInfoMetaIcons)
@@ -186,14 +182,13 @@ class MediaInfoFragment : Fragment() {
                     }
                 }
 
-                // Logo art: AniZip → TMDB fallback → plain title
                 binding.mediaInfoLogo.visibility = View.GONE
                 binding.mediaInfoTitle.visibility = View.GONE
                 viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
                     var logoUrl = if (PrefManager.getVal(PrefName.UseClearlogoInPosters)) LogoApi.getLogoUrl(media.id) else null
                     if (_binding == null || !isAdded) return@launch
                     if (logoUrl.isNullOrBlank()) {
-                        // TMDB fallback: search by title, grab clear logo
+
                         val title = media.userPreferredName ?: media.name
                         if (!title.isNullOrBlank()) {
                             logoUrl = runCatching {
@@ -221,23 +216,22 @@ class MediaInfoFragment : Fragment() {
                 binding.mediaInfoPlayCard.setOnClickListener {
                     (requireActivity() as? MediaDetailsActivity)?.watchTabOpener?.invoke()
                 }
-                // Status
+
                 binding.mediaInfoStatus.text = media.status ?: ""
                 val statusColor = when {
                     media.status?.equals("RELEASING", true) == true
                             || media.status == getString(R.string.status_releasing) ->
-                        Color.parseColor("#76FF03") // lime green
+                        Color.parseColor("#76FF03")
                     media.status?.equals("FINISHED", true) == true
                             || media.status == getString(R.string.status_finished) ->
-                        Color.parseColor("#F44336") // red
+                        Color.parseColor("#F44336")
                     media.status?.equals("NOT_YET_RELEASED", true) == true
                             || media.status == getString(R.string.status_not_yet_released) ->
-                        Color.parseColor("#00E5FF") // cyan
+                        Color.parseColor("#00E5FF")
                     else -> Color.WHITE
                 }
                 binding.mediaInfoStatus.setTextColor(statusColor)
 
-                // Aired dates
                 val startFmt = media.startDate?.let { formatFuzzyDate(it) }
                 val endFmt = media.endDate?.let { formatFuzzyDate(it) }
                 val airedStr = buildString {
@@ -252,7 +246,6 @@ class MediaInfoFragment : Fragment() {
                     binding.mediaInfoAired.visibility = View.GONE
                 }
 
-                // Description (right after status, before everything else)
                 val desc = HtmlCompat.fromHtml(
                     (media.description ?: "null").replace("\\n", "<br>").replace("\\\"", "\""),
                     HtmlCompat.FROM_HTML_MODE_LEGACY
@@ -285,7 +278,6 @@ class MediaInfoFragment : Fragment() {
                     }
                 }
 
-                // Add to List
                 val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
                 fun updateAddToList() {
                     val statuses: Array<String> = resources.getStringArray(R.array.status)
@@ -320,7 +312,6 @@ class MediaInfoFragment : Fragment() {
                     true
                 }
 
-                // Container 1 quick info (reuses existing sanin media fields)
                 fun updateQuickInfo() {
                     val totalEps = media.anime?.totalEpisodes
                     val nextEp = media.anime?.nextAiringEpisode
@@ -346,7 +337,6 @@ class MediaInfoFragment : Fragment() {
                 }
                 updateQuickInfo()
 
-                // Mapping button (local media)
                 if (media.format?.startsWith("LOCAL") == true) {
                     binding.mediaInfoMapping.visibility = View.VISIBLE
                     binding.mediaInfoMapping.setOnClickListener {
@@ -366,7 +356,6 @@ class MediaInfoFragment : Fragment() {
                     }
                 }
 
-                // Fav button
                 var isFavSyncRunning = false
                 fun syncMediaFavStateIfNeeded() {
                     if (rescueMode || Anilist.userid == null || media.isFav || isFavSyncRunning) return
@@ -415,7 +404,6 @@ class MediaInfoFragment : Fragment() {
                     binding.mediaInfoFav.visibility = View.VISIBLE
                 }
 
-                // Share button
                 binding.mediaInfoShare.setOnClickListener {
                     val i = Intent(Intent.ACTION_SEND)
                     i.type = "text/plain"
@@ -427,7 +415,6 @@ class MediaInfoFragment : Fragment() {
                     true
                 }
 
-                // Comment button -> comments tab
                 binding.mediaInfoComment.setOnClickListener {
                     (requireActivity() as? MediaDetailsActivity)?.commentTabOpener?.invoke()
                 }
@@ -439,7 +426,6 @@ class MediaInfoFragment : Fragment() {
                     binding.mediaInfoMapping,
                 )
 
-                // --- Existing details population from original ---
                 val infoName = media.name ?: media.nameRomaji
                 binding.mediaInfoName.text = infoName
                 binding.mediaInfoName.setOnLongClickListener {

@@ -61,7 +61,7 @@ class OtherDetailsViewModel : ViewModel() {
 
                     roles.sortByDescending { it.idMAL }
                     m.roles = roles
-                    
+
                     val voiceActors = arrayListOf<Author>()
                     jikanData.voices.forEach { voice ->
                         voice.person?.let { person ->
@@ -191,7 +191,7 @@ class OtherDetailsViewModel : ViewModel() {
                             m.dateOfBirth = jikanData.birthday.substringBefore("T")
                         }
                     }
-                    
+
                     val yearMedia = mutableMapOf<String, ArrayList<Media>>()
 
                     jikanData.anime.forEach { role ->
@@ -215,15 +215,13 @@ class OtherDetailsViewModel : ViewModel() {
                         }
                     }
 
-
-
                     val voiceMediaMap = mutableMapOf<Int, Media>()
                     jikanData.voices.forEach { voice ->
                         voice.anime?.let { animeEntry ->
                             val characterInfo = if (voice.character != null) {
                                 "${voice.character.name ?: ""}${if (!voice.role.isNullOrBlank()) " (${voice.role})" else ""}"
                             } else ""
-                            
+
                             val existing = voiceMediaMap[animeEntry.malId]
                             if (existing != null) {
                                 if (characterInfo.isNotEmpty()) {
@@ -305,19 +303,17 @@ class OtherDetailsViewModel : ViewModel() {
         }
     }
 
-    /** Load calendar for movie/TV mode: real per-day airing schedule + this week's movie releases. */
     private suspend fun loadCalendarForMovieMode() {
         val df = DateFormat.getDateInstance(DateFormat.FULL)
         val dayFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
-        // Fetch Simkl library for status info (parallel)
         val (simklShows, simklMovies) = coroutineScope {
             val shows = async { try { Simkl.getShowLibrary() } catch (_: Exception) { emptyList<Simkl.SimklWatchedItem>() } }
             val movies = async { try { Simkl.getMovieLibrary() } catch (_: Exception) { emptyList<Simkl.SimklWatchedItem>() } }
             shows.await() to movies.await()
         }
-        val simklIdMap = mutableMapOf<Int, String>() // tmdbId -> status
-        val simklItemMap = mutableMapOf<Int, Simkl.SimklWatchedItem>() // tmdbId -> full item
+        val simklIdMap = mutableMapOf<Int, String>()
+        val simklItemMap = mutableMapOf<Int, Simkl.SimklWatchedItem>()
         simklShows.filter { it.status != null }.forEach { item ->
             item.ids?.tmdb?.let { simklIdMap[it] = item.status!!; simklItemMap[it] = item }
         }
@@ -325,7 +321,6 @@ class OtherDetailsViewModel : ViewModel() {
             item.ids?.tmdb?.let { simklIdMap[it] = item.status!!; simklItemMap[it] = item }
         }
 
-        // (tmdbId, title, posterPath, date "yyyy-MM-dd" when applicable)
         fun parseResults(jsonStr: String): List<List<Any?>> {
             if (jsonStr.isBlank()) return emptyList()
             return runCatching {
@@ -367,7 +362,7 @@ class OtherDetailsViewModel : ViewModel() {
             )
             media.tmdbType = type
             media.relation = relation
-            // Set userStatus so list-only filter works
+
             val simklItem = simklItemMap[tmdbId]
             if (simklItem != null) {
                 media.userStatus = simklItem.status
@@ -383,12 +378,11 @@ class OtherDetailsViewModel : ViewModel() {
             val day = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, offset) }
             return dayFmt.format(day.time) to df.format(day.time)
         }
-        // Fixed 3-week range: last week Monday → next week Sunday. Nothing beyond it is fetched.
+
         val daysSinceMonday = (today.get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY + 7) % 7
         val startOffset = -daysSinceMonday - 7
         val allWeekDays = (startOffset until startOffset + 21).map { dayKey(it) }
 
-        // Helper to fetch a batch of days (parallel TVmaze + TMDB)
         suspend fun fetchDays(days: List<Pair<String, String>>): Map<String, MutableList<Media>> {
             val batchMap = LinkedHashMap<String, MutableList<Media>>()
             val batchSeen = mutableSetOf<Int>()
@@ -451,7 +445,6 @@ class OtherDetailsViewModel : ViewModel() {
             return batchMap
         }
 
-        // Step 1: Load first 2 days (today + tomorrow) and show immediately
         val initialDays = allWeekDays.filter { (iso, _) ->
             val d = try { dayFmt.parse(iso) } catch (_: Exception) { null }
             d != null && (d.time >= today.timeInMillis - 86400000L)
@@ -463,14 +456,12 @@ class OtherDetailsViewModel : ViewModel() {
             calendar.postValue(LinkedHashMap(allMap))
         }
 
-        // Step 2: Load remaining days
         val remainingDays = allWeekDays.toSet() - initialDays.toSet()
         if (remainingDays.isNotEmpty()) {
             val remaining = fetchDays(remainingDays.toList())
             remaining.forEach { (k, v) -> allMap.getOrPut(k) { mutableListOf() }.addAll(v) }
         }
 
-        // Step 3: Load upcoming movies
         val moviesBody = try { Tmdb.get("/movie/upcoming") } catch (_: Exception) { null }
         parseResults(moviesBody ?: "").forEach { entry ->
             val dateIso = entry[3] as String? ?: return@forEach
@@ -504,7 +495,7 @@ class OtherDetailsViewModel : ViewModel() {
 
     private suspend fun loadCalendarFromAnilist(showOnlyLibrary: Boolean) {
         if (cachedAllCalendarData == null || cachedLibraryCalendarData == null) {
-            // Fetch the fixed 3-week window only: last week Monday → next week Sunday.
+
             val base = Calendar.getInstance().apply {
                 set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
                 set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
@@ -593,7 +584,6 @@ class OtherDetailsViewModel : ViewModel() {
                 }
             }
 
-            // Fixed 3-week range: last week Monday → next week Sunday.
             val baseCal = Calendar.getInstance()
             val daysSinceMonday = (baseCal.get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY + 7) % 7
             val startOffset = -daysSinceMonday - 7
@@ -645,7 +635,7 @@ class OtherDetailsViewModel : ViewModel() {
                             media.anime?.nextAiringEpisode = airedEps
 
                             val nextEp = watchedEpisodesMap[jikanData.malId]?.let { it + 1 }
-                            
+
                             var timeStr = ""
                             var sortTime = Int.MAX_VALUE
                             val bTime = jikanData.broadcast?.time
@@ -662,10 +652,10 @@ class OtherDetailsViewModel : ViewModel() {
                                         timeCal.time = parsedTime
                                         targetCal.set(Calendar.HOUR_OF_DAY, timeCal.get(Calendar.HOUR_OF_DAY))
                                         targetCal.set(Calendar.MINUTE, timeCal.get(Calendar.MINUTE))
-                                        
+
                                         tf.timeZone = TimeZone.getDefault()
                                         timeStr = tf.format(targetCal.time)
-                                        
+
                                         val localCal = Calendar.getInstance()
                                         localCal.time = targetCal.time
                                         sortTime = localCal.get(Calendar.HOUR_OF_DAY) * 60 + localCal.get(Calendar.MINUTE)

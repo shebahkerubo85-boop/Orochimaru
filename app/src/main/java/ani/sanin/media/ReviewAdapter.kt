@@ -1,6 +1,5 @@
 package ani.sanin.media
 
-
 import android.content.Intent
 import android.view.View
 import androidx.core.content.ContextCompat

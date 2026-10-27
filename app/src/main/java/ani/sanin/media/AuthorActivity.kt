@@ -232,7 +232,6 @@ class AuthorActivity : AppCompatActivity(), AppBarLayout.OnOffsetChangedListener
         }
     }
 
-
     override fun onDestroy() {
         if (Refresh.activity.containsKey(this.hashCode())) {
             Refresh.activity.remove(this.hashCode())

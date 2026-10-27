@@ -69,8 +69,7 @@ class SheetSourceSelector : DialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        // The generic option list never fetches anything — the tomoe spinner is
-        // only meaningful inside SelectorDialogFragment's auto-select screen.
+
         binding.selectorProgressBar.visibility = View.GONE
         binding.selectorMakeDefault.visibility = View.GONE
         binding.selectorRecyclerView.layoutManager = LinearLayoutManager(requireActivity())
@@ -141,12 +140,9 @@ class SheetSourceSelector : DialogFragment() {
         }
     }
 
-    /** Replaces the shown entries in place — used to fill a "Fetching…" sheet with
-     *  the resolved links as soon as they arrive. Safe to call once the view is
-     *  gone (the update is skipped, the dialog is being dismissed). */
     fun updateSources(newSources: List<String>) {
         if (_binding == null) {
-            // View not inflated yet — stash and apply in onViewCreated.
+
             pendingSources = newSources
             return
         }
@@ -308,8 +304,6 @@ class SheetSourceSelector : DialogFragment() {
             return f
         }
 
-        /** Opens the sheet with a single disabled "Fetching from …" row; call
-         *  [SheetSourceSelector.updateSources] once links are resolved. */
         fun newInstanceLoading(
             message: String,
             onDismiss: (() -> Unit)? = null,

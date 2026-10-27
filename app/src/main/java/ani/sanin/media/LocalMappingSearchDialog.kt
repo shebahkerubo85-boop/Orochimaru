@@ -28,7 +28,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-
 class LocalMappingSearchDialog : BottomSheetDialogFragment() {
 
     private var _binding: BottomSheetSourceSearchBinding? = null
@@ -85,7 +84,7 @@ class LocalMappingSearchDialog : BottomSheetDialogFragment() {
                     binding.searchProgress.visibility = View.GONE
                     binding.searchRecyclerView.adapter =
                         LocalMappingResultAdapter(results.results) { selectedMedia ->
-                            // Save the mapping
+
                             val mapKey = folderName ?: return@LocalMappingResultAdapter
                             PrefManager.setCustomVal("local_mapping_$mapKey", selectedMedia.id)
                             snackString("Mapped to: ${selectedMedia.userPreferredName}")
@@ -144,7 +143,6 @@ class LocalMappingSearchDialog : BottomSheetDialogFragment() {
         }
     }
 }
-
 
 private class LocalMappingResultAdapter(
     private val results: List<Media>,

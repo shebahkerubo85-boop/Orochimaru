@@ -25,4 +25,3 @@ enum class MediaType : Type {
     }
 }
 
-// AddonType removed (TORRENT and DOWNLOAD removed)

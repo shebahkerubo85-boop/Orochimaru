@@ -64,7 +64,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.milliseconds
 
-
 class MediaDetailsActivity : AppCompatActivity() {
     lateinit var launcher: LauncherWrapper
     lateinit var binding: ActivityMediaBinding
@@ -87,18 +86,12 @@ class MediaDetailsActivity : AppCompatActivity() {
         val id = intent.getIntExtra("mediaId", -1)
         val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
 
-        // Build the screen shell first so the window, theme and back/gesture wiring are up
-        // immediately. A caller that names the title only by id (a reel, a deep link) must not
-        // block the UI thread on the AniList round-trip, so the fetch lands later and fills in.
         ThemeManager(this).applyTheme()
         initActivity(this)
         MediaSingleton.bitmap = null
         binding = ActivityMediaBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Activity Result launchers must be registered before the Activity reaches STARTED.
-        // Do this synchronously in onCreate, before the id-based media fetch can suspend and
-        // resume after the Activity has already reached RESUMED.
         launcher = LauncherWrapper(this, ActivityResultContracts.OpenDocumentTree())
 
         if (id != -1) {
@@ -112,7 +105,6 @@ class MediaDetailsActivity : AppCompatActivity() {
         }
     }
 
-    /** The AniList (or MAL, in rescue mode) round-trip, kept off the main thread. */
     private suspend fun fetchMediaById(id: Int, rescueMode: Boolean): Media? = withContext(Dispatchers.IO) {
         if (rescueMode) {
             MAL.query.getAnimeDetails(id)?.let { Media(it, true) }
@@ -129,28 +121,15 @@ class MediaDetailsActivity : AppCompatActivity() {
             onBackPressedDispatcher.onBackPressed()
             return
         }
-        // Hand the media to the static so a rebuilt activity can find it again. Rotating hands
-        // this activity the very same Intent instance, and the extra was pulled off that at
-        // :88, so without this the rebuild resolves to emptyMedia() and immediately backs out
-        // to the home screen. Cleared again in onDestroy, but only when the activity is going
-        // away for good.
+
         mediaSingleton = media
 
-        // Backing out of an extension's source prefs must restore the media UI.
         supportFragmentManager.addOnBackStackChangedListener { syncExtensionPrefsUi() }
 
         val isDownload = intent.getBooleanExtra("download", false)
         media.selected = model.loadSelected(media, isDownload)
         hasComments = PrefManager.getVal<Int>(PrefName.CommentsEnabled) == 1 && !rescueMode
 
-// Load full-screen banner background.
-        // This is the one surface where the source changes with orientation, because it is the only
-        // one showing a single full-bleed image that has to work either way round:
-        //   portrait  - Fanart's poster, falling back to the AniList cover.
-        //   landscape - Fanart's 4k background (then its standard background), then the AniZip
-        //               backdrop, then TMDB, and only then the AniList banner loaded just below.
-        // The feeds keep their own sources: a home or library card is still AniList artwork, and
-        // only what a title shows about itself comes from Fanart.
         val bannerTransparency = PrefManager.getVal<Float>(PrefName.BannerTransparency)
         val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
         if (bannerTransparency > 0f) {
@@ -165,16 +144,13 @@ class MediaDetailsActivity : AppCompatActivity() {
             binding.mediaBanner?.alpha = bannerTransparency
             binding.mediaBannerNoKen?.loadImage(fallbackUrl)
             binding.mediaBannerNoKen?.alpha = bannerTransparency
-            // Only replace what is already up once there is something to replace it with, so a
-            // title Fanart does not cover keeps the AniList art given to it here.
+
             lifecycleScope.launch {
                 val fanartUrl = withContext(Dispatchers.IO) {
                     if (isPortrait) LogoApi.getPosterUrl(media.id)
                     else LogoApi.getBackgroundUrl(media.id)
                 }
-                // Landscape still falls back past Fanart: its 4k background covers only about two
-                // thirds of anime and AniZip/TMDB answer for the rest. Portrait has no such step,
-                // because the AniList cover is already showing underneath as its fallback.
+
                 val url = fanartUrl ?: if (isPortrait) {
                     null
                 } else {
@@ -193,26 +169,21 @@ class MediaDetailsActivity : AppCompatActivity() {
             binding.mediaBannerNoKen?.visibility = View.GONE
         }
 
-        // Close button
         binding.mediaClose.setOnClickListener {
             onBackPressedDispatcher.onBackPressed()
         }
         FocusEffectUtil.applyFocusListener(binding.mediaClose)
 
-        // Incognito mode
         if (PrefManager.getVal(PrefName.Incognito)) {
             binding.incognito.visibility = View.VISIBLE
         }
 
-        // Load MediaInfoFragment into the left panel. If the id-based fetch finished after the
-        // activity had already saved its state, this transaction can no longer use commit().
         if (savedInstanceState == null) {
             supportFragmentManager.beginTransaction()
                 .replace(R.id.mediaInfoFragmentContainer, MediaInfoFragment())
                 .commitAllowingStateLoss()
         }
 
-        // Native nav pills (info/watch/comments — info now focuses the left panel)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             val cornerPx = NavPillCustomizer.getCornerRadiusDp() * resources.displayMetrics.density
             binding.mediaNavPills?.outlineProvider = object : android.view.ViewOutlineProvider() {
@@ -239,8 +210,7 @@ class MediaDetailsActivity : AppCompatActivity() {
             frame.findViewWithTag<LinearLayout>("pill_list")?.let {
                 NavPillCustomizer.applyToPillList(it)
             }
-            // Push pill up to avoid phone navigation bar overlap, reacting to
-            // the system nav bar appearing/hiding (gesture vs 3-button mode).
+
             ViewCompat.setOnApplyWindowInsetsListener(frame) { v, insets ->
                 val bottomInset = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
                 (v.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
@@ -251,8 +221,6 @@ class MediaDetailsActivity : AppCompatActivity() {
             }
         }
 
-        // Echo-style scroll morph. Collapsing leaves only the selected tab, floating
-        // at the bottom-left (no search affordance on this screen).
         val mediaPillContainer = binding.mediaNavPills
         mediaNavPill = EchoNavPillController(
             container = mediaPillContainer!!,
@@ -269,7 +237,7 @@ class MediaDetailsActivity : AppCompatActivity() {
             floatToStartOnCollapse = true
         ).also { controller ->
             controller.attach(selected)
-            // Defer glass to the next layout pass so the backdrop has rendered.
+
             binding.mediaNavPills?.post { controller.syncGlass() }
         }
         attachNavPillScroll()
@@ -354,9 +322,6 @@ class MediaDetailsActivity : AppCompatActivity() {
             selected = idx
             updateMediaNavIconTints(selected, animate)
 
-            // Watch uses the banner image itself at a fixed 14% opacity (86% dim),
-            // rather than the full-screen darkening overlay. Restore the original
-            // preference-driven appearance for Info and Comments.
             if (idx == 1) {
                 if (bannerTransparency > 0f) {
                     binding.mediaBg?.alpha = 0.14f
@@ -391,7 +356,7 @@ class MediaDetailsActivity : AppCompatActivity() {
                     binding.mediaTabContent?.let {
                         showWatchTab(it, animate)
                         it.requestFocus()
-                        // Prefer the selected source chip over "first focusable".
+
                         it.post {
                             if (::watchFragment.isInitialized && watchFragment.isAdded)
                                 watchFragment.focusSelectedSourceChip()
@@ -414,8 +379,6 @@ class MediaDetailsActivity : AppCompatActivity() {
             model.saveSelected(media.id, sel)
         }
 
-        // A tap on the floating pill first restores the full rail; only then does it
-        // act as a normal tab switch.
         fun onNavPillClick(idx: Int) {
             if (mediaNavPill?.isCollapsed == true) {
                 mediaNavPill?.setCollapsed(false)
@@ -433,11 +396,6 @@ class MediaDetailsActivity : AppCompatActivity() {
         commentTabOpener = { selectTab(2) }
         watchTabOpener = { selectTab(1) }
 
-
-
-        // Restore last selected tab (0=Info, 1=Watch, 2=Comments). Only when the user has opted
-        // in via "Remember Media Tab"; otherwise the details screen always opens on Info (or
-        // wherever an explicit caller/extra points).
         val savedWindow = if (PrefManager.getVal<Boolean>(PrefName.RememberMediaTab)) {
             media.selected!!.window
         } else {
@@ -449,22 +407,14 @@ class MediaDetailsActivity : AppCompatActivity() {
             defaultTab = 1
         }
         if (intent.getStringExtra("FRAGMENT_TO_LOAD") != null && hasComments) defaultTab = 2
-        // A caller that means a specific tab on arrival says which with this. Read last, so it
-        // wins over the tab the title happened to be left on and over FRAGMENT_TO_LOAD: the
-        // franchise row's "i" asks for Info precisely because that is where its poster, score and
-        // synopsis are, and it must not land on whichever tab this entry was last open on.
+
         val forcedTab = intent.getIntExtra(TAB_TO_OPEN, NO_TAB)
         if (forcedTab in INFO_TAB..COMMENTS_TAB) defaultTab = forcedTab
-        // A rotation rebuilds this activity from the same Intent, extras and all, so every
-        // branch above still asks for the tab the screen was originally opened on and would
-        // walk the user back off whatever they switched to. Those extras mean "where do I
-        // start"; a screen that is already up has passed that point, so the tab showing now
-        // outranks all of them.
+
         val restoredTab = savedInstanceState?.getInt(STATE_SELECTED_TAB, NO_TAB) ?: NO_TAB
         if (restoredTab in INFO_TAB..COMMENTS_TAB) defaultTab = restoredTab
         selectTab(defaultTab, animate = false)
 
-        // Gesture for double-tap on banner bg
         val gestureDetector = GestureDetector(this, object : GesturesListener() {
             override fun onDoubleClick(event: MotionEvent) {
                 snackString(getString(R.string.enable_banner_animations))
@@ -508,13 +458,6 @@ class MediaDetailsActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Keeps the media UI in sync with whether an extension source-preferences fragment is showing.
-     *
-     * The extension prefs live in [R.id.fragmentExtensionsContainer] over the media content, so the
-     * two are shown/hidden together. Presence of the fragment is the source of truth rather than a
-     * back-stack pop, so leaving the app and returning no longer discards the user's place.
-     */
     private fun syncExtensionPrefsUi() {
         if (!::binding.isInitialized) return
         val hasExtFragment =
@@ -534,8 +477,7 @@ class MediaDetailsActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        // A rotation destroys this activity too, but the one replacing it still needs the
-        // media, so only let go of it on a real teardown.
+
         if (!isChangingConfigurations) mediaSingleton = null
         super.onDestroy()
     }
@@ -544,13 +486,9 @@ class MediaDetailsActivity : AppCompatActivity() {
         super.onResume()
         if (!::binding.isInitialized) return
 
-        // Don't pop the extension prefs fragment here: returning from another app used to
-        // throw away the user's place in an extension's source settings. Just resync visibility.
         syncExtensionPrefsUi()
         binding.navPillBg?.live = PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.LiveSideRail)
-        // On phones, preserve the horizontal media pill's existing visibility behavior:
-        // only explicitly restore it when persistent rails are enabled. Do not forcibly hide
-        // the portrait pill on every resume. TV/landscape media rails remain summonable overlays.
+
         val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
         if (PrefManager.getVal<Boolean>(PrefName.SideRailPersist)) {
             showNavPills()
@@ -693,24 +631,14 @@ class MediaDetailsActivity : AppCompatActivity() {
     companion object {
         var mediaSingleton: Media? = null
 
-        /**
-         * Intent extra naming the tab to open on arrival.
-         *
-         * Deliberately separate from `FRAGMENT_TO_LOAD`, which means the comments tab and is only
-         * honoured when this entry has comments at all. That is the wrong shape for a caller that
-         * wants Info, because Info always exists and FRAGMENT_TO_LOAD would silently ignore it.
-         */
         const val TAB_TO_OPEN = "TAB_TO_OPEN"
 
-        /** Sent as [TAB_TO_OPEN] when the caller has no opinion and the saved tab should stand. */
         const val NO_TAB = -1
 
-        /** The three tabs, in rail order. Index 0 is the one the poster, score and synopsis live on. */
         const val INFO_TAB = 0
         const val WATCH_TAB = 1
         const val COMMENTS_TAB = 2
 
-        /** Where the showing tab is parked across a configuration change. */
         private const val STATE_SELECTED_TAB = "selectedTab"
     }
 

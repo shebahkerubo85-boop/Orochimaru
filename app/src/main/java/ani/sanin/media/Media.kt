@@ -583,7 +583,6 @@ data class Media(
     fun mainName() = name ?: nameMAL ?: nameRomaji
 }
 
-
 private fun parseIsoDate(dateStr: String?): FuzzyDate? {
     if (dateStr.isNullOrBlank()) return null
     val parts = dateStr.substringBefore('T').split("-")
@@ -594,7 +593,6 @@ private fun parseIsoDate(dateStr: String?): FuzzyDate? {
         day = parts.getOrNull(2)?.toIntOrNull(),
     )
 }
-
 
 private fun parseJikanDuration(duration: String?): Int? {
     if (duration.isNullOrBlank() || duration == "Unknown") return null
@@ -609,7 +607,6 @@ private fun parseJikanDuration(duration: String?): Int? {
     return if (totalMinutes > 0) totalMinutes else null
 }
 
-
 private fun convertMalStatusToAnilist(malStatus: String?, isAnime: Boolean): String? {
     return when (malStatus?.lowercase()) {
         "watching", "reading" -> "CURRENT"
@@ -618,7 +615,7 @@ private fun convertMalStatusToAnilist(malStatus: String?, isAnime: Boolean): Str
         "dropped" -> "DROPPED"
         "plan_to_watch", "plan_to_read" -> "PLANNING"
         "rewatching", "rereading" -> "REPEATING"
-        else -> null 
+        else -> null
     }
 }
 
@@ -671,7 +668,7 @@ fun Media?.deleteFromList(
         withContext(Dispatchers.IO) {
             this@deleteFromList?.let { media ->
                 if (rescueMode) {
-                    
+
                     val pending = ani.sanin.connections.PendingDeletion(
                         mediaId = media.id,
                         idMAL = media.idMAL,
@@ -685,7 +682,7 @@ fun Media?.deleteFromList(
                     PrefManager.setCustomVal("removeList", removeList.minus(media.id))
                     try {
                         MAL.query.deleteList(media.anime != null, media.idMAL)
-                    } catch (_: Exception) { /* MAL delete failed; AniList sync still queued */ }
+                    } catch (_: Exception) {  }
                     onSuccess()
                 } else {
                     val _id = id ?: Anilist.query.userMediaDetails(media).userListId

@@ -47,7 +47,6 @@ class MediaDetailsViewModel : ViewModel() {
         PrefManager.setCustomVal("Selected-$id", data)
     }
 
-
     fun loadSelected(media: Media, isDownload: Boolean = false): Selected {
         if ((media.format == "LOCAL" || media.format == "LOCAL_NOVEL") && media.selected != null) {
             return media.selected!!
@@ -89,8 +88,7 @@ class MediaDetailsViewModel : ViewModel() {
             val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
             viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                 if (m.id < 0) {
-                    // Negative ids identify catalogue-only synthetic entries. Never send
-                    // these IDs to AniList; enrich the info tab from an exact TMDB title match.
+
                     media.postValue(m)
                     enrichTmdbCatalogueMedia(m)
                     media.postValue(m)
@@ -122,9 +120,8 @@ class MediaDetailsViewModel : ViewModel() {
                     if (mappedId != 0) {
                         val newMedia = m.copy(id = mappedId)
                         val fetchedMedia = Anilist.query.mediaDetails(newMedia)
-                        fetchedMedia?.format = m.format 
-                        
-                        // Cache
+                        fetchedMedia?.format = m.format
+
                         fetchedMedia?.cover?.let { ani.sanin.settings.saving.PrefManager.setCustomVal("local_cover_$mapKeyStr", it) }
                         fetchedMedia?.banner?.let { ani.sanin.settings.saving.PrefManager.setCustomVal("local_banner_$mapKeyStr", it) }
 
@@ -236,7 +233,7 @@ class MediaDetailsViewModel : ViewModel() {
         if (media.status.isNullOrBlank()) {
             media.status = detail.status?.takeIf { it.isNotBlank() }
         }
-        // "TV" is the synthetic placeholder format; replace it with the matched TMDB type.
+
         if (media.format.isNullOrBlank() || media.format == "TV") {
             media.format = if (match.type == "tv") "TV" else "MOVIE"
         }
@@ -345,7 +342,7 @@ class MediaDetailsViewModel : ViewModel() {
                 }
                 ?.distinctBy { it.id }
                 ?.let { ArrayList(it) }
-            
+
             if (!mappedRecommendations.isNullOrEmpty()) {
                 if (media.recommendations.isNullOrEmpty() || mappedRecommendations.size > (media.recommendations?.size ?: 0)) {
                     media.recommendations = mappedRecommendations
@@ -428,7 +425,7 @@ class MediaDetailsViewModel : ViewModel() {
                 async {
                     try {
                         val recMalId = rec.idMAL ?: return@async
-                        
+
                         val coverUrl: String?
                         val score: Int?
                         val statusStr: String?
@@ -476,7 +473,6 @@ class MediaDetailsViewModel : ViewModel() {
         }
         media.recommendations = ArrayList(recs)
     }
-
 
     private fun mapJikanReviews(
         media: Media,
@@ -622,8 +618,6 @@ class MediaDetailsViewModel : ViewModel() {
 
     val responses = MutableLiveData<List<ShowResponse>?>(null)
 
-
-    //Anime
     private val kitsuEpisodes: MutableLiveData<Map<String, Episode>> =
         MutableLiveData<Map<String, Episode>>(null)
 
@@ -702,8 +696,7 @@ class MediaDetailsViewModel : ViewModel() {
         if (epsLoaded[i].isNullOrEmpty() || invalidate) {
             Logger.log("Watch: ViewModel loadEpisodes source idx=$i invalidate=$invalidate media='${media.name}'")
             val loaded = watchSources?.loadEpisodesFromMedia(i, media) ?: return
-            // Don't cache an empty result: a failed scrape (Cloudflare challenge, timeout)
-            // must stay retryable instead of being treated as "already loaded" forever.
+
             if (loaded.isNotEmpty() || invalidate) {
                 epsLoaded[i] = loaded
             }
@@ -832,9 +825,7 @@ class MediaDetailsViewModel : ViewModel() {
             )
             return
         }
-        // Fixed fallback order (no TV/phone variants):
-        //  TMDB mode: IntroDB (api.introdb.app, imdb) -> TheIntroDB (v4, tmdb/imdb) -> plugin
-        //  Anime mode: plugin -> AniSkip -> IntroDB -> TheIntroDB
+
         val keyMatch = Regex("^S(\\d+)E(\\d+)$", RegexOption.IGNORE_CASE).find(episodeKey ?: "")
         val keySeason = keyMatch?.groupValues?.get(1)?.toIntOrNull()
         val keyEpisode = keyMatch?.groupValues?.get(2)?.toIntOrNull()
@@ -855,8 +846,7 @@ class MediaDetailsViewModel : ViewModel() {
             "loadTimeStamps: result for cacheKey=$cacheKey = ${result?.size ?: "null"} " +
                 "currentEpisode=${media.value?.anime?.selectedEpisode}"
         )
-        // Ignore results for an episode the user already navigated away from,
-        // so a slow request can't overwrite a newer episode's timestamps.
+
         if (currentEpisode == cacheKey) {
             timeStamps.postValue(result)
         } else {
@@ -864,8 +854,6 @@ class MediaDetailsViewModel : ViewModel() {
         }
     }
 
-    // AniSkip is retried once after a short delay on transient failures; failures
-    // stay uncached so the next first-frame/episode change can retry again.
     private suspend fun tryAniSkip(
         malId: Int?,
         episodeNum: Int?,
@@ -927,8 +915,7 @@ class MediaDetailsViewModel : ViewModel() {
             ?: currentMedia?.let {
                 runCatching { ani.sanin.others.IdMappers.getImdbId(it.id) }.getOrNull()
             }
-        // Synthetic TMDB media uses a negative id, so only anime-mode (positive
-        // AniList id) media may be resolved through the AniList id mapper.
+
         val tvdbId = if ((currentMedia?.id ?: 0) > 0) {
             currentMedia?.id?.let {
                 runCatching { ani.sanin.others.IdMappers.getIds(it) }.getOrNull()
@@ -972,8 +959,7 @@ class MediaDetailsViewModel : ViewModel() {
             interval = AniSkip.AniSkipInterval(start, end),
             skipType = skipType,
             skipId = name,
-            // episodeLength represents total episode duration; use 0.0 as a sentinel since
-            // extension timestamps don't carry the full episode length
+
             episodeLength = 0.0
         )
     }
@@ -988,8 +974,6 @@ class MediaDetailsViewModel : ViewModel() {
         val server = selectedServerName ?: selected.server ?: return false
         val link = ep.link ?: return false
 
-        // A cached extractor from a previous source must not be reused after a
-        // source switch; drop it so the fresh server is loaded from the new source.
         if (ep.extractorsSource != selected.sourceIndex) {
             ep.extractors = null
             ep.extractorsSource = null
@@ -1049,7 +1033,7 @@ class MediaDetailsViewModel : ViewModel() {
         launch: Boolean = true,
         prevEp: String? = null,
         isDownload: Boolean = false,
-        episodes: ArrayList<String> = arrayListOf() // used for handling an array of episodes to download or to view a single episode
+        episodes: ArrayList<String> = arrayListOf()
     ) {
         Handler(Looper.getMainLooper()).post {
             if (manager.findFragmentByTag("dialog") == null && !manager.isDestroyed) {
@@ -1065,9 +1049,7 @@ class MediaDetailsViewModel : ViewModel() {
                 }
                 Logger.log("Watch: opening selector for episode(s) ${episodes.joinToString(",")} source='${watchSources?.get(media.selected?.sourceIndex ?: 0)?.name}' (idx ${media.selected?.sourceIndex})")
                 media.selected = this.loadSelected(media)
-                // Only clear the selected server for manual episode picks (launch=true) so the
-                // autoplay/next-episode handoff (launch=false) keeps continuity. Cross-source
-                // cache safety is still enforced by extractorsSource in SelectorDialogFragment.
+
                 if (launch) media.selected!!.server = null
                 val selector =
                     SelectorDialogFragment.newInstance(

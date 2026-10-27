@@ -49,7 +49,6 @@ class MediaListDialogFragment : DialogFragment() {
     private var _binding: BottomSheetMediaListBinding? = null
     private val binding get() = _binding!!
 
-    /** Called after a save or delete lands, so the caller can refresh its own status chip. */
     var onSaved: (() -> Unit)? = null
 
     override fun onStart() {

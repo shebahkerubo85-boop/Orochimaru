@@ -50,7 +50,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-
 class MediaAdaptor(
     var type: Int,
     private val mediaList: MutableList<Media>?,
@@ -59,7 +58,7 @@ class MediaAdaptor(
     private val viewPager: ViewPager2? = null,
     private val fav: Boolean = false,
     private val isOtherUser: Boolean = false,
-    /** Optional click hook; returning true consumes the click instead of opening details. */
+
     private val onItemClickOverride: ((Media) -> Boolean)? = null,
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     private var rawCardStyle = 0
@@ -143,11 +142,6 @@ class MediaAdaptor(
     private var backdropJobs = mutableMapOf<Int, Job>()
     private var tmdbArtworkJobs = mutableMapOf<Int, Job>()
 
-    /**
-     * The See All screen shares this adapter between AniList and TMDB/Simkl items.
-     * TMDB items must resolve artwork through TMDB IDs; AniZip IDs are AniList IDs,
-     * so querying AniZip with a TMDB ID cannot reliably supply their landscape art.
-     */
     private fun bindMediaCover(image: ImageView, media: Media, position: Int) {
         image.loadImage(media.cover)
         image.tag = media.id
@@ -161,8 +155,6 @@ class MediaAdaptor(
             }
         }
     }
-
-
 
     private fun bindLogo(
         clearlogo: ImageView,
@@ -213,7 +205,6 @@ class MediaAdaptor(
                     }
                     b.itemCompactCard.radius = styleRadius
 
-                    // Adapt pill position to card radius so it doesn't get cropped
                     b.itemCompactScoreBG.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                         val m = (styleRadius * 0.3f).toInt().coerceAtLeast(4)
                         topMargin = m
@@ -230,7 +221,6 @@ class MediaAdaptor(
                     b.itemCompactScoreBG.findViewById<View>(R.id.imageView2)?.isVisible = showScore
                     b.itemCompactTitle.text = media.userPreferredName
 
-                    // Sub/Dub badge
                     if (shouldShowBottomBadge(1)) {
                         val badge0 = b.root.findViewById<View>(R.id.subDubBadge)
                         if (badge0 != null) {
@@ -242,8 +232,6 @@ class MediaAdaptor(
                         b.root.findViewById<View>(R.id.subDubBadge)?.visibility = View.GONE
                     }
 
-                    // Bottom overlay is landscape-only; portrait cards always
-                    // show the title below unless it's set to Hidden.
                     b.itemCompactOverlay.visibility = View.GONE
                     b.itemCompactClearlogo.visibility = View.GONE
                     b.itemCompactOverlayTitle.visibility = View.GONE
@@ -266,10 +254,10 @@ class MediaAdaptor(
                 val media = mediaList?.get(position)
                 if (media != null) {
                     bindMediaCover(b.itemCompactImage, media, position)
-                    // List cards use sharp source-provided landscape artwork, never blurred posters or logo art.
+
                     b.itemCompactBanner.setImageDrawable(null)
                     if (!media.banner.isNullOrBlank()) b.itemCompactBanner.loadImage(media.banner)
-                    // List layout is a fixed design and intentionally ignores card appearance preferences.
+
                     b.itemCompactScoreBG.visibility = View.GONE
                     b.itemCompactBroadcast.visibility = View.GONE
                     b.itemCompactScore.visibility = View.GONE
@@ -612,7 +600,7 @@ class MediaAdaptor(
                 else -> cardRoundness
             }
             b.itemCompactCard.radius = landStyleRadius
-            // Adapt pill position to card radius so it doesn't get cropped
+
             b.itemCompactScoreBG.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                 val m = (landStyleRadius * 0.3f).toInt().coerceAtLeast(4)
                 topMargin = m
@@ -723,8 +711,6 @@ class MediaAdaptor(
         view.background = gradient
     }
 
-
-
     fun clicked(position: Int, itemCompactImage: ImageView?, bitmap: Bitmap? = null) {
         if ((mediaList?.size ?: 0) > position && position != -1) {
             val media = mediaList?.get(position)
@@ -759,7 +745,6 @@ class MediaAdaptor(
         }
     }
 
-
     fun longClicked(position: Int): Boolean {
         if (isOtherUser) return false
         if ((mediaList?.size ?: 0) > position && position != -1) {
@@ -776,19 +761,16 @@ class MediaAdaptor(
     fun getBitmapFromImageView(imageView: ImageView): Bitmap? {
         val drawable = imageView.drawable ?: return null
 
-        // If the drawable is a BitmapDrawable, then just get the bitmap
         if (drawable is BitmapDrawable) {
             return drawable.bitmap
         }
 
-        // Create a bitmap with the same dimensions as the drawable
         val bitmap = Bitmap.createBitmap(
             drawable.intrinsicWidth,
             drawable.intrinsicHeight,
             Bitmap.Config.ARGB_8888
         )
 
-        // Draw the drawable onto the bitmap
         val canvas = Canvas(bitmap)
         drawable.setBounds(0, 0, canvas.width, canvas.height)
         drawable.draw(canvas)
@@ -816,7 +798,7 @@ class MediaAdaptor(
 
     private fun bindSubDubBadge(badge: android.view.View, info: SubDubInfo?, media: Media) {
         scaleBadgeElements(badge)
-        // Sub/dub counts only exist for anime (AniVault data); never render for movies.
+
         if (media.anime == null) {
             badge.visibility = View.GONE
             return
@@ -829,7 +811,6 @@ class MediaAdaptor(
         val dubCount = badge.findViewById<TextView>(R.id.subDubDubCount)
         val dividerMid = badge.findViewById<android.view.View>(R.id.subDubDividerMid)
 
-        // Always both halves: "sub | dub", with ~ placeholders for missing/zero data.
         subIcon.visibility = View.VISIBLE
         subCount.visibility = View.VISIBLE
         subCount.text = (info?.sub ?: 0).takeIf { it > 0 }?.toString() ?: "~"
@@ -847,7 +828,6 @@ class MediaAdaptor(
     private fun shouldShowBottomBadge(flag: Int): Boolean =
         PrefManager.getVal<Int>(PrefName.CardMetadataBottom) == flag
 
-    /** Scale badge elements proportionally to card size (baseline 2.25x). */
     private fun scaleBadgeElements(badge: View) {
         val scale = cachedCardSize / 2.25f
         badge.scaleX = scale
@@ -856,35 +836,29 @@ class MediaAdaptor(
 
     private fun bindProgressBadge(badge: View, media: Media) {
         scaleBadgeElements(badge)
-        val watched = media.userProgress          // nullable Int
+        val watched = media.userProgress
         val isAnime = media.anime != null
         val totalEp = if (isAnime) media.anime?.totalEpisodes else null
         val nextAiring = if (isAnime) media.anime?.nextAiringEpisode else null
         val isReleasing = media.status == currActivity()?.getString(R.string.status_releasing)
 
-        // TMDB TV rows are not Anime, so the anime-only episode fields are meaningless and
-        // the badge would sit on the "movie" fallback of 1. Fetch the real aired count from
-        // TMDB and drop it straight back into the visible sections once the detail lands.
         val isTmdbTv = !isAnime && media.tmdbType == "tv"
         val initialReleased = when {
             isAnime && isReleasing && (nextAiring ?: 0) > 1 -> (nextAiring ?: 1) - 1
             isAnime -> totalEp
-            !isTmdbTv -> 1                                          // a movie is a single item
-            else -> null                                           // TMDB TV: filled from detail
+            !isTmdbTv -> 1
+            else -> null
         }
 
         fun render(released: Int?) {
             val allReleased = isAnime && totalEp != null && released != null && released >= totalEp
             val timeUntil = if (isAnime && isReleasing) media.timeUntilAiring else null
 
-            // Completed shows: just seen + total (no broadcast icon, no divider, no TT).
-            // Ongoing shows: full format with broadcast, divider, TT.
             val hasReleased = released != null && released > 0
             val hasTT = timeUntil != null && timeUntil > 0
 
-            // Show the badge if any section has real data (0 progress counts as unknown)
             if ((watched == null || watched <= 0) && !hasReleased && !hasTT) { badge.visibility = View.GONE; return }
-            // Eye-only is useless (no context). Hide if only watched with no released/tt info.
+
             val hasWatched = watched != null && watched > 0
             if (hasWatched && !hasReleased && !hasTT) { badge.visibility = View.GONE; return }
 
@@ -897,18 +871,14 @@ class MediaAdaptor(
             val dividerTT     = badge.findViewById<android.view.View>(R.id.progressDividerTT)
             val ttText        = badge.findViewById<TextView>(R.id.progressTT)
 
-            // Watched section
             watchedIcon.visibility = if (hasWatched) View.VISIBLE else View.GONE
             watchedCount.visibility = View.VISIBLE
             watchedCount.text = if (hasWatched) watched.toString() else "~"
 
-            // Released section: icon hidden for completed shows (seen + total = eye 8 | 24),
-            // count always visible when hasReleased (it IS the total for completed shows).
             releasedIcon.visibility = if (hasReleased && !allReleased) View.VISIBLE else View.GONE
             releasedCount.visibility = if (hasReleased) View.VISIBLE else View.GONE
             releasedCount.text = if (hasReleased) released.toString() else "~"
 
-            // TT section (never for completed shows)
             if (hasTT && !allReleased) {
                 val DAY_MILLIS = 86_400_000L
                 val HOUR_MILLIS = 3_600_000L
@@ -919,9 +889,6 @@ class MediaAdaptor(
             dividerTT.visibility = if (hasTT && hasReleased && !allReleased) View.VISIBLE else View.GONE
             ttText.visibility = if (hasTT) View.VISIBLE else View.GONE
 
-            // Divider: always present when 2+ visible sections. The watched placeholder "~"
-            // renders above whether or not a real progress number exists, so it counts as a
-            // section too - `~ 1` and `8 | 24` both earn a divider.
             val visibleSections = 1 + listOf(hasReleased, hasTT).count { it }
             midDivider.visibility = if (visibleSections >= 2) View.VISIBLE else View.GONE
         }
@@ -929,15 +896,12 @@ class MediaAdaptor(
         render(initialReleased)
 
         if (isTmdbTv) {
-            // Tag guards against the row being recycled to another title while the
-            // request is in flight; only the latest binding may write the badge back.
+
             val tag = "tv:${media.id}"
             badge.tag = tag
             activity.lifecycleScope.launch {
                 val detail = runCatching { Tmdb.detail("tv", media.id) }.getOrNull()
-                // Aired so far is episode-before-next when a next exists (the anime badge
-                // does the same); without one the show is finished/sleeping, so the total
-                // is the aired count.
+
                 val aired = detail?.nextEpisodeToAir?.episodeNumber
                     ?.takeIf { it > 1 }?.minus(1)
                     ?: detail?.numberOfEpisodes?.takeIf { it > 0 }

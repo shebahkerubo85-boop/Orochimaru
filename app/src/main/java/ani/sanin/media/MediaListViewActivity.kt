@@ -97,8 +97,6 @@ class MediaListViewActivity : AppCompatActivity() {
             if (view == 1) 1 else (screenWidth / 120f).toInt()
         )
 
-        // TMDB explore rows open this screen with the rail's first page; pull the next two
-        // pages as the viewer scrolls, hard-capped at 60.
         val exploreRow = passedExploreRow
         val exploreType = passedExploreType
         passedExploreRow = null
