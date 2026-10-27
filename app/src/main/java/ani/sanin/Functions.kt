@@ -316,11 +316,9 @@ fun initActivity(a: Activity) {
     WindowCompat.setDecorFitsSystemWindows(window, false)
     val darkMode = PrefManager.getVal<Int>(PrefName.DarkMode)
     val immersiveMode: Boolean = PrefManager.getVal(PrefName.ImmersiveMode)
-    darkMode.apply {
-        AppCompatDelegate.setDefaultNightMode(
-            if (this == 1) AppCompatDelegate.MODE_NIGHT_YES
-            else AppCompatDelegate.MODE_NIGHT_NO
-        )
+    val nightMode = if (darkMode == 1) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
+    if (AppCompatDelegate.getDefaultNightMode() != nightMode) {
+        AppCompatDelegate.setDefaultNightMode(nightMode)
     }
     if (immersiveMode) {
         if (navBarHeight == 0) {

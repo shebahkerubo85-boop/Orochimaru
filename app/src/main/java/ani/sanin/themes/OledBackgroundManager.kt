@@ -14,9 +14,7 @@ import android.view.ViewGroup
 
 object OledBackgroundManager {
 
-    private var appliedActivity: Activity? = null
-    private var originalBackground: android.graphics.drawable.Drawable? = null
-    private var originalContentBackground: android.graphics.drawable.Drawable? = null
+    private val applied = java.util.WeakHashMap<Activity, Pair<android.graphics.drawable.Drawable?, android.graphics.drawable.Drawable?>>()
 
     fun apply(activity: Activity, oledMode: Int, primaryColor: Int, gradientDir: Int = 0, intensity: Float = 1f) {
         val drawable = when (oledMode) {
@@ -27,46 +25,33 @@ object OledBackgroundManager {
             else -> return
         }
 
-        if (appliedActivity != activity) {
-            originalBackground = activity.window.decorView.background
-            originalContentBackground = null
-        }
+        if (applied.containsKey(activity) && activity.window.decorView.background === drawable) return
+        applied.remove(activity)
 
+        applied[activity] = Pair(activity.window.decorView.background, null)
         activity.window.setBackgroundDrawable(drawable)
-        appliedActivity = activity
 
         if (oledMode >= 2) {
-            activity.window.decorView.post {
-                clearContentBackground(activity)
-            }
+            clearContentBackground(activity)
         }
     }
 
     fun remove(activity: Activity) {
-        if (appliedActivity == activity) {
-
-            activity.window.decorView.post {
-                val content = activity.findViewById<ViewGroup>(android.R.id.content)
-                val root = content?.getChildAt(0)
-                if (root != null && originalContentBackground != null) {
-                    root.background = originalContentBackground
-                }
-            }
-
-            activity.window.setBackgroundDrawable(originalBackground)
-            originalContentBackground = null
-            originalBackground = null
-            appliedActivity = null
-        }
+        val stored = applied.remove(activity) ?: return
+        activity.window.setBackgroundDrawable(stored.first)
+        val content = activity.findViewById<ViewGroup>(android.R.id.content)
+        val root = content?.getChildAt(0)
+        if (root != null && stored.second != null) root.background = stored.second
     }
 
     private fun clearContentBackground(activity: Activity) {
         val content = activity.findViewById<ViewGroup>(android.R.id.content) ?: return
         val root = content.getChildAt(0) ?: return
-        if (originalContentBackground == null) {
-            originalContentBackground = root.background
+        if (root.background != null) {
+            val existing = applied[activity]
+            if (existing != null) applied[activity] = Pair(existing.first, root.background)
+            root.background = null
         }
-        root.background = null
     }
 
     private class SolidBlackDrawable : Drawable() {
