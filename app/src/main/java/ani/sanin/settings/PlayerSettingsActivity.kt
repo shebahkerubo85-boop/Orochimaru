@@ -568,6 +568,13 @@ class PlayerSettingsActivity :
                         PrefManager.setVal(PrefName.AutoSkipFiller, it)
                     },
                 ),
+                SubscreenBuilder.Entry(
+                    title = "Compatibility: Seek Bar Refresh",
+                    desc = "Periodically refreshes the seek bar/watch-status timestamp even when the player controls are hidden. Turn on only if you notice stale or frozen timestamps in the player.",
+                    switch = PrefManager.getVal<Boolean>(PrefName.AlwaysUpdateSeekbar) to {
+                        PrefManager.setVal(PrefName.AlwaysUpdateSeekbar, it)
+                    },
+                ),
             )),
         ))
     }

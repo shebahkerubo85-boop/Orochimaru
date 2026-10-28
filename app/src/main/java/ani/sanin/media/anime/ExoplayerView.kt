@@ -4414,7 +4414,12 @@ class ExoplayerView :
                 }
         }
 
-        updateTimelineUi()
+        val forceSeekbarUpdate = PrefManager.getVal(PrefName.AlwaysUpdateSeekbar)
+        if (::playerView.isInitialized &&
+            (playerView.isControllerFullyVisible || forceSeekbarUpdate)
+        ) {
+            updateTimelineUi()
+        }
 
         handler.postDelayed({
             updateTimeStamp()

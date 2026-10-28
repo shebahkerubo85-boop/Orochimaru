@@ -284,6 +284,7 @@ enum class PrefName(val data: Pref) {
     AutoSkipRecap(Pref(Location.Player, Boolean::class, false)),
     AutoPlay(Pref(Location.Player, Boolean::class, true)),
     AutoSkipFiller(Pref(Location.Player, Boolean::class, false)),
+    AlwaysUpdateSeekbar(Pref(Location.Player, Boolean::class, false)),
     DataSaver(Pref(Location.Player, Boolean::class, false)),
     AskIndividualPlayer(Pref(Location.Player, Boolean::class, true)),
     ChapterZeroPlayer(Pref(Location.Player, Boolean::class, true)),
