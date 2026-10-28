@@ -339,6 +339,11 @@ private data class TmdbSeasonDetail(val episodes: List<TmdbEpisode> = emptyList(
 
 object Tmdb {
     private val json = Json { ignoreUnknownKeys = true }
+
+    private class CacheEntry(val body: String, val at: Long)
+    private val cache = java.util.concurrent.ConcurrentHashMap<String, CacheEntry>()
+    private const val CACHE_TTL: Long = 15 * 60 * 1000L
+    private const val CACHE_MAX = 64
     private val client get() = Injekt.get<NetworkHelper>().client
     private const val BASE = "https://api.themoviedb.org/3"
     private const val IMG = "https://image.tmdb.org/t/p"
@@ -355,10 +360,17 @@ object Tmdb {
 
     internal suspend fun get(path: String, vararg query: Pair<String, String>): String? =
         withContext(Dispatchers.IO) {
+            val fullUrl = url(path, *query)
+            val now = System.currentTimeMillis()
+            cache[fullUrl]?.takeIf { now - it.at < CACHE_TTL }?.let { return@withContext it.body }
             runCatching {
-                val request = Request.Builder().url(url(path, *query)).build()
+                val request = Request.Builder().url(fullUrl).build()
                 client.newCall(request).execute().use { it.body?.string() }
-            }.getOrNull()
+            }.getOrNull()?.let { body ->
+                if (cache.size >= CACHE_MAX) cache.clear()
+                cache[fullUrl] = CacheEntry(body, now)
+                body
+            }
         }
 
     suspend fun detailGenres(mediaType: String, id: Int): List<TmdbGenre> {
