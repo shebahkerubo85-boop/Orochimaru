@@ -574,6 +574,10 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         trendingAutoScrollHandler?.postDelayed(runnable, 5000L)
     }
 
+    fun pauseTrendingAutoScroll() {
+        trendingAutoScrollHandler?.removeCallbacksAndMessages(null)
+    }
+
     private fun setupTrendingDots(rv: RecyclerView, itemCount: Int) {
         val dots = trendingBinding.trendingDots
         dots.removeAllViews()

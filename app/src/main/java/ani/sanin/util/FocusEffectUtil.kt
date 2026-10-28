@@ -18,6 +18,16 @@ import ani.sanin.ui.GlassPill
 object FocusEffectUtil {
 
     private var lastFocusedView: View? = null
+    private var animPrefCache: Pair<Long, Boolean>? = null
+
+    private fun focusAnimEnabled(): Boolean {
+        val now = android.os.SystemClock.elapsedRealtime()
+        animPrefCache?.takeIf { now - it.first < 10_000L }?.let { return it.second }
+        val enabled = PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) &&
+            PrefManager.getVal<Boolean>(PrefName.FocusAnimations)
+        animPrefCache = now to enabled
+        return enabled
+    }
     private val savedForegrounds = mutableMapOf<View, Drawable?>()
     private val savedBackgrounds = mutableMapOf<View, Drawable?>()
 
@@ -40,7 +50,7 @@ object FocusEffectUtil {
                     applyBorder(v, v is ImageButton, borderDp, borderColor, cornerRadiusPx = cornerRadiusPx)
                     applyFocusGain(v)
                     if (fade) {
-                        if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.FocusAnimations)) {
+                        if (focusAnimEnabled()) {
                             v.animate().alpha(1f).setDuration(200).start()
                         } else {
                             v.alpha = 1f
@@ -49,7 +59,7 @@ object FocusEffectUtil {
                 } else {
                     removeBorder(v)
                     if (fade) {
-                        if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.FocusAnimations)) {
+                        if (focusAnimEnabled()) {
                             v.animate().alpha(0.85f).rotationY(0f).setDuration(200).start()
                         } else {
                             v.alpha = 0.85f
@@ -106,7 +116,7 @@ object FocusEffectUtil {
                 applyBorder(borderTarget, isCircular, borderDp)
                 applyFocusGain(borderTarget)
                 if (fade) {
-                    if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.FocusAnimations)) {
+                    if (focusAnimEnabled()) {
                         v.animate().alpha(1f).setDuration(200).start()
                     } else {
                         v.alpha = 1f
@@ -115,7 +125,7 @@ object FocusEffectUtil {
             } else {
                 removeBorder(borderTarget)
                 if (fade) {
-                    if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.FocusAnimations)) {
+                    if (focusAnimEnabled()) {
                         v.animate().alpha(0.85f).rotationY(0f).setDuration(200).start()
                     } else {
                         v.alpha = 0.85f
@@ -129,7 +139,7 @@ object FocusEffectUtil {
     }
 
     fun spinOnTouch(view: View) {
-        if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.FocusAnimations)) {
+        if (focusAnimEnabled()) {
             view.animate().cancel()
             view.animate().rotationYBy(360f).setDuration(400).start()
         }
@@ -319,7 +329,7 @@ object FocusEffectUtil {
     private fun applyFocusGain(v: View) {
         applyLensElevation(v)
         if (shouldSpin(v)) {
-            if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.FocusAnimations)) {
+            if (focusAnimEnabled()) {
                 v.animate().rotationYBy(360f).setDuration(400).start()
             } else {
                 v.rotationY = 0f
@@ -328,7 +338,7 @@ object FocusEffectUtil {
     }
 
     private fun applyFocusLoss(v: View) {
-        if (PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.FocusAnimations)) {
+        if (focusAnimEnabled()) {
             v.animate().cancel()
             v.animate().rotationY(0f).setDuration(200).start()
         } else {

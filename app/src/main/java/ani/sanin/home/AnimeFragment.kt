@@ -332,6 +332,11 @@ class AnimeFragment : Fragment() {
         return binding.root
     }
 
+    override fun onPause() {
+        super.onPause()
+        animePageAdapter.pauseTrendingAutoScroll()
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null

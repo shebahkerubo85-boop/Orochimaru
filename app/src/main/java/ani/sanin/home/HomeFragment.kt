@@ -994,6 +994,7 @@ class HomeFragment : Fragment() {
                 if (_binding == null || navBannerCurrentMediaId != media.id) return@withContext
                 Glide.with(back.context)
                     .load(bannerUrl)
+                    .override(1280, 720)
                     .error(R.drawable.ic_round_person_24)
                     .listener(object : RequestListener<Drawable> {
                         override fun onResourceReady(

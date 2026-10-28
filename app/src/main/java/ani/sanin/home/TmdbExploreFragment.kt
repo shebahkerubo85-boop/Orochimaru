@@ -152,6 +152,11 @@ class TmdbExploreFragment : Fragment() {
         return binding.root
     }
 
+    override fun onPause() {
+        super.onPause()
+        trendingAutoScrollHandler?.removeCallbacksAndMessages(null)
+    }
+
     override fun onDestroyView() {
         trendingAutoScrollHandler?.removeCallbacksAndMessages(null)
         pageBinding = null
