@@ -51,7 +51,7 @@ class StackBlurTransformation(
     }
 }
 
-const val BANNER_BLUR_SAMPLING = 2
+const val BANNER_BLUR_SAMPLING = 3
 
 const val BANNER_MAX_WIDTH = 720
 
@@ -128,7 +128,7 @@ fun bannerLoadOptions(bannerType: Int): RequestOptions {
     if (!PrefManager.getVal<Boolean>(PrefName.BlurBanners)) return options
     val radius = PrefManager.getVal<Float>(PrefName.BlurStrength).toInt()
     if (radius <= 0) return options
-    val r = radius.coerceIn(1, 25)
+    val r = radius.coerceIn(1, 16)
     return when (bannerType) {
         BANNER_TYPE_CLASSIC -> options.transform(BottomBlurTransformation(r))
         BANNER_TYPE_MODERN -> options.transform(StackBlurTransformation(r, BANNER_BLUR_SAMPLING))
