@@ -30,11 +30,14 @@ class TomoeView @JvmOverloads constructor(
     private fun applyFilters() {
         val dots = PorterDuffColorFilter(if (dark) Color.WHITE else Color.BLACK, PorterDuff.Mode.SRC_IN)
         val rail = PorterDuffColorFilter(railColor, PorterDuff.Mode.SRC_IN)
+        val outline = PorterDuffColorFilter(if (monochrome) Color.BLACK else railColor, PorterDuff.Mode.SRC_IN)
+        val railColorOnMonochrome = PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN)
         for (nm in arrayOf("Ellipse 281", "Ellipse 280", "Ellipse 279")) {
             addValueCallback(KeyPath(nm, "**", "**"), LottieProperty.COLOR_FILTER) { dots }
             addValueCallback(KeyPath(nm, nm, "Contour 1"), LottieProperty.COLOR_FILTER) { dots }
         }
-        addValueCallback(KeyPath("Cercle complet", "**", "**"), LottieProperty.COLOR_FILTER) { rail }
-        addValueCallback(KeyPath("Cercle complet", "Ellipse 279", "Contour en dégradé 1"), LottieProperty.COLOR_FILTER) { rail }
+        addValueCallback(KeyPath("Cercle complet", "**", "**"), LottieProperty.COLOR_FILTER) { if (monochrome) railColorOnMonochrome else rail }
+        addValueCallback(KeyPath("Cercle complet", "Ellipse 279", "Contour en dégradé 1"), LottieProperty.COLOR_FILTER) { if (monochrome) railColorOnMonochrome else rail }
+        addValueCallback(KeyPath("Rail outline", "**", "**"), LottieProperty.COLOR_FILTER) { outline }
     }
 }
