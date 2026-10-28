@@ -142,6 +142,13 @@ class SettingsAnimeActivity : AppCompatActivity() {
                         PrefManager.setVal(PrefName.SmartSourcePersistence, it)
                     },
                 ),
+                SubscreenBuilder.Entry(
+                    title = getString(R.string.kitsu_curated_order),
+                    desc = getString(R.string.kitsu_curated_order_desc),
+                    switch = PrefManager.getVal<Boolean>(PrefName.KitsuCuratedOrder) to {
+                        PrefManager.setVal(PrefName.KitsuCuratedOrder, it)
+                    },
+                ),
             )),
 
             SubscreenBuilder.Section("Library Sync", R.drawable.ic_set_anime, entries = listOf(

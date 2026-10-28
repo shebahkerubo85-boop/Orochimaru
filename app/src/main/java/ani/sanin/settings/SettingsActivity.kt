@@ -150,7 +150,7 @@ class SettingsActivity : AppCompatActivity() {
             ),
         ),
         SettingsSection(
-            title = "Playback",
+            title = "Playback & App Behaviour",
             desc = "Player, decoder & sync",
             iconRes = R.drawable.ic_set_video,
             entries = listOf(
