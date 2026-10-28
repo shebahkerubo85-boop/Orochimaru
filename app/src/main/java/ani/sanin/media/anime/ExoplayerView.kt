@@ -1860,7 +1860,9 @@ class ExoplayerView :
         preloading = false
         val incognito: Boolean = PrefManager.getVal(PrefName.Incognito)
         val showProgressDialog =
-            if (PrefManager.getVal(PrefName.AskIndividualPlayer)) {
+            if (PrefManager.getVal<Boolean>(PrefName.AutoTrackNewShows)) {
+                false
+            } else if (PrefManager.getVal(PrefName.AskIndividualPlayer)) {
                 PrefManager.getCustomVal(
                     "${media.id}_progressDialog",
                     true,

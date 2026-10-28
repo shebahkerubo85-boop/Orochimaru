@@ -20,12 +20,11 @@ import kotlinx.coroutines.launch
 fun updateProgress(media: Media, number: String) {
     val incognito: Boolean = PrefManager.getVal(PrefName.Incognito)
     val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
-    val autoUpdate: Boolean = PrefManager.getVal(PrefName.UpdateProgressAutomatically)
     val autoSync: Boolean = PrefManager.getVal(PrefName.AutoSyncAniList)
     val progressInt = ani.sanin.media.MediaNameAdapter.findEpisodeNumber(number)?.toInt()
         ?: number.toFloatOrNull()?.toInt()
         ?: return
-    if (!incognito && autoUpdate) {
+    if (!incognito) {
         if (rescueMode) {
 
             val a = progressInt

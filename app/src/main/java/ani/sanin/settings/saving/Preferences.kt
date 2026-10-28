@@ -93,7 +93,7 @@ enum class PrefName(val data: Pref) {
     EpisodeNotifications(Pref(Location.General, Boolean::class, true)),
     ListStatusNotification(Pref(Location.General, Boolean::class, true)),
     AutoSyncAniList(Pref(Location.General, Boolean::class, true)),
-    UpdateProgressAutomatically(Pref(Location.General, Boolean::class, true)),
+    AutoTrackNewShows(Pref(Location.General, Boolean::class, false)),
     AutoUpdateExtensions(Pref(Location.General, Boolean::class, true)),
     ConfirmPlayerExit(Pref(Location.General, Boolean::class, false)),
     ServerLoadTimeoutSeconds(Pref(Location.General, Int::class, 12)),

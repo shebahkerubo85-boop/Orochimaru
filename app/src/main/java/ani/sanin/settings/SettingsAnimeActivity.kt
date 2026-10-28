@@ -159,8 +159,8 @@ class SettingsAnimeActivity : AppCompatActivity() {
                 ),
                 SubscreenBuilder.Entry(
                     title = "Auto-Update Progress",
-                    desc = "Push episode progress to AniList",
-                    switch = PrefManager.getVal<Boolean>(PrefName.UpdateProgressAutomatically) to { v: Boolean -> PrefManager.setVal(PrefName.UpdateProgressAutomatically, v) },
+                    desc = "Turning on hides the prompt to track a new show and tracks automatically.",
+                    switch = PrefManager.getVal<Boolean>(PrefName.AutoTrackNewShows) to { v: Boolean -> PrefManager.setVal(PrefName.AutoTrackNewShows, v) },
                 ),
                 SubscreenBuilder.Entry(
                     title = "Include in Library",
