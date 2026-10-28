@@ -19,7 +19,8 @@ class TomoeView @JvmOverloads constructor(
 ) : LottieAnimationView(context, attrs) {
 
     private val dark = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-    private val railColor = if (PrefManager.getVal<String>(PrefName.Theme).contains("MONOCHROME", ignoreCase = true)) Color.BLACK
+    private val monochrome = PrefManager.getVal<String>(PrefName.Theme).contains("MONOCHROME", ignoreCase = true)
+    private val railColor = if (monochrome) Color.BLACK
     else context.getThemeColor(com.google.android.material.R.attr.colorPrimary)
 
     init {
