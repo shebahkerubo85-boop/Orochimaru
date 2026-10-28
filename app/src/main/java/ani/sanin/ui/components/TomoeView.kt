@@ -31,8 +31,10 @@ class TomoeView @JvmOverloads constructor(
         val dots = PorterDuffColorFilter(if (dark) Color.WHITE else Color.BLACK, PorterDuff.Mode.SRC_IN)
         val rail = PorterDuffColorFilter(railColor, PorterDuff.Mode.SRC_IN)
         for (nm in arrayOf("Ellipse 281", "Ellipse 280", "Ellipse 279")) {
-            addValueCallback(KeyPath(nm), LottieProperty.COLOR_FILTER) { dots }
+            addValueCallback(KeyPath(nm, "**", "**"), LottieProperty.COLOR_FILTER) { dots }
+            addValueCallback(KeyPath(nm, nm, "Contour 1"), LottieProperty.COLOR_FILTER) { dots }
         }
-        addValueCallback(KeyPath("Cercle complet"), LottieProperty.COLOR_FILTER) { rail }
+        addValueCallback(KeyPath("Cercle complet", "**", "**"), LottieProperty.COLOR_FILTER) { rail }
+        addValueCallback(KeyPath("Cercle complet", "Ellipse 279", "Contour en dégradé 1"), LottieProperty.COLOR_FILTER) { rail }
     }
 }
