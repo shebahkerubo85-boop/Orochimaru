@@ -87,11 +87,24 @@ class TmdbBannerCarouselAdapter(
             holder.bannerBg.isVisible = true
             bannerImage?.scaleType = if (isClassicBanner()) android.widget.ImageView.ScaleType.CENTER_CROP
                 else android.widget.ImageView.ScaleType.FIT_CENTER
+            holder.bannerBg.setImageDrawable(
+                androidx.appcompat.content.res.AppCompatResources.getDrawable(ctx, R.color.bg_black)
+            )
             Glide.with(ctx).load(imageUrl).placeholder(R.color.bg_black).error(R.drawable.ic_round_person_24)
                 .apply(loadOptions)
-                .into(holder.bannerBg)
-            Glide.with(ctx).load(imageUrl).placeholder(R.color.bg_black).error(R.drawable.ic_round_person_24)
-                .apply(loadOptions)
+                .listener(object : com.bumptech.glide.request.RequestListener<Drawable> {
+                    override fun onResourceReady(
+                        resource: Drawable, model: Any, target: Target<Drawable>,
+                        dataSource: DataSource, isFirstResource: Boolean
+                    ): Boolean {
+                        holder.bannerBg.setImageDrawable(resource)
+                        return false
+                    }
+                    override fun onLoadFailed(
+                        e: GlideException?, model: Any?, target: Target<Drawable>,
+                        isFirstResource: Boolean
+                    ): Boolean = false
+                })
                 .into(bannerImage ?: holder.bannerBg)
         } else {
             bannerImage?.isVisible = false

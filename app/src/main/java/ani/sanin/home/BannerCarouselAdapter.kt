@@ -89,18 +89,16 @@ class BannerCarouselAdapter(
         val anizipUrl = backdropUrls[media.id]
         val imageUrl = if (!anizipUrl.isNullOrBlank()) anizipUrl else media.banner ?: media.cover
         val bannerImage = holder.bannerImage
+        val bannerBgView = holder.bannerBg
         val loadOptions = bannerLoadOptions(currentBannerType(modernMode, isClassicBanner()))
         if (!imageUrl.isNullOrBlank()) {
             holder.bannerBg.visibility = View.VISIBLE
             bannerImage?.visibility = View.VISIBLE
             bannerImage?.scaleType = if (isClassicBanner()) ImageView.ScaleType.CENTER_CROP
                 else ImageView.ScaleType.FIT_CENTER
-            Glide.with(holder.itemView.context)
-                .load(imageUrl)
-                .placeholder(R.color.bg_black)
-                .error(R.drawable.ic_round_person_24)
-                .apply(loadOptions)
-                .into(holder.bannerBg)
+            holder.bannerBg.setImageDrawable(
+                androidx.appcompat.content.res.AppCompatResources.getDrawable(holder.itemView.context, R.color.bg_black)
+            )
             Glide.with(holder.itemView.context)
                 .load(imageUrl)
                 .placeholder(R.color.bg_black)
@@ -116,6 +114,7 @@ class BannerCarouselAdapter(
                             ImageView.ScaleType.CENTER_CROP
                         else
                             ImageView.ScaleType.FIT_CENTER
+                        bannerBgView.setImageDrawable(resource)
                         return false
                     }
                     override fun onLoadFailed(
