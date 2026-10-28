@@ -154,7 +154,7 @@ class SettingsAnimeActivity : AppCompatActivity() {
             SubscreenBuilder.Section("Library Sync", R.drawable.ic_set_anime, entries = listOf(
                 SubscreenBuilder.Entry(
                     title = "Auto-Sync AniList",
-                    desc = "Keep AniList library in sync",
+                    desc = "Keep AniList library in sync when you set MAL as your tracker.",
                     switch = PrefManager.getVal<Boolean>(PrefName.AutoSyncAniList) to { v: Boolean -> PrefManager.setVal(PrefName.AutoSyncAniList, v) },
                 ),
                 SubscreenBuilder.Entry(
