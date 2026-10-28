@@ -44,7 +44,6 @@
                     android:layout_width="72dp"
                     android:layout_height="72dp"
                     android:layout_gravity="center"
-                    android:rotation="75"
                     app:lottie_rawRes="@raw/tomoe"
                     app:lottie_autoPlay="true"
                     app:lottie_loop="true"
