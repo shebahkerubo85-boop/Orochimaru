@@ -19,15 +19,17 @@ class TomoeView @JvmOverloads constructor(
 ) : LottieAnimationView(context, attrs) {
 
     private val dark = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-    private val monochrome = PrefManager.getVal<String>(PrefName.Theme).contains("MONOCHROME", ignoreCase = true)
+    private val railColor = if (PrefManager.getVal<String>(PrefName.Theme).contains("MONOCHROME", ignoreCase = true)) Color.BLACK
+    else context.getThemeColor(com.google.android.material.R.attr.colorPrimary)
 
     init {
+        if (composition != null) applyFilters()
+        addLottieOnCompositionLoadedListener { applyFilters() }
+    }
+
+    private fun applyFilters() {
         val dots = PorterDuffColorFilter(if (dark) Color.WHITE else Color.BLACK, PorterDuff.Mode.SRC_IN)
-        val rail = PorterDuffColorFilter(
-            if (monochrome) Color.BLACK
-            else context.getThemeColor(com.google.android.material.R.attr.colorPrimary),
-            PorterDuff.Mode.SRC_IN
-        )
+        val rail = PorterDuffColorFilter(railColor, PorterDuff.Mode.SRC_IN)
         for (nm in arrayOf("Ellipse 281", "Ellipse 280", "Ellipse 279")) {
             addValueCallback(KeyPath(nm), LottieProperty.COLOR_FILTER) { dots }
         }
