@@ -83,10 +83,6 @@ class SettingsActivity : AppCompatActivity() {
             }
             FocusEffectUtil.applyFocusListener(settingsBack)
 
-            settingsLogo.setOnLongClickListener {
-                startActivity(Intent(this@SettingsActivity, ani.sanin.youtube.YouTubeShortsActivity::class.java))
-                true
-            }
             settingsLogo.setSafeOnClickListener {
                 cursedCounter++
                 (settingsLogo.drawable as? Animatable)?.start()

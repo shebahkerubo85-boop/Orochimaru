@@ -41,7 +41,7 @@ import ani.sanin.media.MediaDetailsActivity
 import ani.sanin.media.SearchActivity
 import ani.sanin.home.SearchBottomSheet
 import ani.sanin.reels.ReelFeed
-import ani.sanin.youtube.YouTubeShortsPlayerActivity
+import ani.sanin.youtube.ReelShortsPlayerActivity
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -1223,39 +1223,39 @@ class DiscoveryFragment : Fragment() {
 
     private fun openReelPlayer(startIndex: Int) {
         if (reelEntries.isEmpty() || !isAdded) return
-        val intent = Intent(requireContext(), YouTubeShortsPlayerActivity::class.java).apply {
+        val intent = Intent(requireContext(), ReelShortsPlayerActivity::class.java).apply {
             putStringArrayListExtra(
-                YouTubeShortsPlayerActivity.EXTRA_VIDEO_IDS,
+                ReelShortsPlayerActivity.EXTRA_VIDEO_IDS,
                 ArrayList(reelEntries.map { it.key })
             )
 
             putStringArrayListExtra(
-                YouTubeShortsPlayerActivity.EXTRA_TITLES,
+                ReelShortsPlayerActivity.EXTRA_TITLES,
                 ArrayList(reelEntries.map { it.videoName })
             )
             putStringArrayListExtra(
-                YouTubeShortsPlayerActivity.EXTRA_ANIME_TITLES,
+                ReelShortsPlayerActivity.EXTRA_ANIME_TITLES,
                 ArrayList(reelEntries.map { it.animeTitle })
             )
             putStringArrayListExtra(
-                YouTubeShortsPlayerActivity.EXTRA_SYNOPSIS,
+                ReelShortsPlayerActivity.EXTRA_SYNOPSIS,
                 ArrayList(reelEntries.map { it.synopsis ?: "" })
             )
             putStringArrayListExtra(
-                YouTubeShortsPlayerActivity.EXTRA_GENRES,
+                ReelShortsPlayerActivity.EXTRA_GENRES,
                 ArrayList(reelEntries.map { it.genres.joinToString("|") })
             )
             putStringArrayListExtra(
-                YouTubeShortsPlayerActivity.EXTRA_COVERS,
+                ReelShortsPlayerActivity.EXTRA_COVERS,
                 ArrayList(reelEntries.map { it.cover ?: "" })
             )
 
             putIntegerArrayListExtra(
-                YouTubeShortsPlayerActivity.EXTRA_ANIME_IDS,
+                ReelShortsPlayerActivity.EXTRA_ANIME_IDS,
                 ArrayList(reelEntries.map { it.anilistId })
             )
-            putExtra(YouTubeShortsPlayerActivity.EXTRA_START_INDEX, startIndex)
-            putExtra(YouTubeShortsPlayerActivity.EXTRA_REEL_MODE, true)
+            putExtra(ReelShortsPlayerActivity.EXTRA_START_INDEX, startIndex)
+            putExtra(ReelShortsPlayerActivity.EXTRA_REEL_MODE, true)
         }
         startActivity(intent)
     }

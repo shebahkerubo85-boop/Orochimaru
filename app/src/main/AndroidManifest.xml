@@ -535,14 +535,11 @@
             android:value="androidx.media3.cast.DefaultCastOptionsProvider" />
 
         <activity
-            android:name=".youtube.YouTubeShortsPlayerActivity"
+            android:name=".youtube.ReelShortsPlayerActivity"
             android:theme="@style/Theme.AppCompat"
             android:screenOrientation="sensor"
             android:configChanges="orientation|screenSize" />
 
-        <activity
-            android:name=".youtube.YouTubeShortsActivity"
-            android:theme="@style/Theme.AppCompat" />
 
     </application>
 

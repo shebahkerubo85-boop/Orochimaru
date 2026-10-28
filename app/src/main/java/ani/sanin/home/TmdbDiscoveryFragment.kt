@@ -39,7 +39,7 @@ import ani.sanin.loadImage
 import ani.sanin.reels.ReelFeed
 import ani.sanin.reels.TmdbReelFeed
 import ani.sanin.util.FocusEffectUtil
-import ani.sanin.youtube.YouTubeShortsPlayerActivity
+import ani.sanin.youtube.ReelShortsPlayerActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -279,44 +279,44 @@ class TmdbDiscoveryFragment : Fragment() {
 
     private fun openTmdbReelPlayer(startIndex: Int) {
         if (tmdbReelEntries.isEmpty() || !isAdded) return
-        val intent = Intent(requireContext(), YouTubeShortsPlayerActivity::class.java).apply {
+        val intent = Intent(requireContext(), ReelShortsPlayerActivity::class.java).apply {
             putStringArrayListExtra(
-                YouTubeShortsPlayerActivity.EXTRA_VIDEO_IDS,
+                ReelShortsPlayerActivity.EXTRA_VIDEO_IDS,
                 ArrayList(tmdbReelEntries.map { it.key })
             )
 
             putStringArrayListExtra(
-                YouTubeShortsPlayerActivity.EXTRA_TITLES,
+                ReelShortsPlayerActivity.EXTRA_TITLES,
                 ArrayList(tmdbReelEntries.map { it.videoName })
             )
             putStringArrayListExtra(
-                YouTubeShortsPlayerActivity.EXTRA_ANIME_TITLES,
+                ReelShortsPlayerActivity.EXTRA_ANIME_TITLES,
                 ArrayList(tmdbReelEntries.map { it.animeTitle })
             )
             putStringArrayListExtra(
-                YouTubeShortsPlayerActivity.EXTRA_SYNOPSIS,
+                ReelShortsPlayerActivity.EXTRA_SYNOPSIS,
                 ArrayList(tmdbReelEntries.map { it.synopsis ?: "" })
             )
             putStringArrayListExtra(
-                YouTubeShortsPlayerActivity.EXTRA_GENRES,
+                ReelShortsPlayerActivity.EXTRA_GENRES,
                 ArrayList(tmdbReelEntries.map { it.genres.joinToString("|") })
             )
             putStringArrayListExtra(
-                YouTubeShortsPlayerActivity.EXTRA_COVERS,
+                ReelShortsPlayerActivity.EXTRA_COVERS,
                 ArrayList(tmdbReelEntries.map { it.cover ?: "" })
             )
 
             putIntegerArrayListExtra(
-                YouTubeShortsPlayerActivity.EXTRA_TMDB_IDS,
+                ReelShortsPlayerActivity.EXTRA_TMDB_IDS,
                 ArrayList(tmdbReelEntries.map { it.tmdbId })
             )
             putStringArrayListExtra(
-                YouTubeShortsPlayerActivity.EXTRA_TMDB_TYPES,
+                ReelShortsPlayerActivity.EXTRA_TMDB_TYPES,
                 ArrayList(tmdbReelEntries.map { it.mediaType ?: "movie" })
             )
-            putExtra(YouTubeShortsPlayerActivity.EXTRA_START_INDEX, startIndex)
-            putExtra(YouTubeShortsPlayerActivity.EXTRA_REEL_MODE, true)
-            putExtra(YouTubeShortsPlayerActivity.EXTRA_REEL_SOURCE, YouTubeShortsPlayerActivity.SOURCE_TMDB)
+            putExtra(ReelShortsPlayerActivity.EXTRA_START_INDEX, startIndex)
+            putExtra(ReelShortsPlayerActivity.EXTRA_REEL_MODE, true)
+            putExtra(ReelShortsPlayerActivity.EXTRA_REEL_SOURCE, ReelShortsPlayerActivity.SOURCE_TMDB)
         }
         startActivity(intent)
     }

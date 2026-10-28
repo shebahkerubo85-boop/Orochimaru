@@ -54,8 +54,6 @@ enum class PrefName(val data: Pref) {
     TraktClientId(Pref(Location.General, String::class, "7VKqwFd6wak-r_YMIhVQ-VqQTxkpbLZvRz5GfK9pMVE")),
 
     FanartApiKey(Pref(Location.General, String::class, "101614385118c8e692166ad862413832")),
-    YouTubeApiKey(Pref(Location.General, String::class, "AIzaSyDdQwsx0lYEU8ZnAke0ghcqoS1G5VxM2BE")),
-    YouTubeChannelId(Pref(Location.General, String::class, "UC7oi5vkTHCwl3sS9NPBFCZg")),
     TmdbSearchHistory(Pref(Location.General, List::class, listOf<String>())),
     ContentSource(Pref(Location.General, String::class, "simkl")),
     AnimeCatalogueSource(Pref(Location.General, String::class, "")),

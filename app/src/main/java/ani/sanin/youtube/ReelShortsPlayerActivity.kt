@@ -42,7 +42,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
-class YouTubeShortsPlayerActivity : AppCompatActivity() {
+class ReelShortsPlayerActivity : AppCompatActivity() {
 
     private lateinit var recycler: RecyclerView
     private lateinit var adapter: ShortsAdapter
@@ -516,7 +516,7 @@ class YouTubeShortsPlayerActivity : AppCompatActivity() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
             val view = LayoutInflater.from(parent.context)
-                .inflate(R.layout.item_youtube_short_player, parent, false)
+                .inflate(R.layout.item_reel_short_player, parent, false)
             return VH(view)
         }
 
