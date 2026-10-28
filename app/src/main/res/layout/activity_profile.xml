@@ -21,7 +21,7 @@
             android:layout_height="76.5dp"
         >
 
-            <com.airbnb.lottie.LottieAnimationView
+            <ani.sanin.ui.components.TomoeView
             android:layout_width="45dp"
             android:layout_height="45dp"
             android:layout_gravity="center_horizontal|top"
@@ -29,10 +29,9 @@
             app:lottie_rawRes="@raw/tomoe"
             app:lottie_autoPlay="true"
             app:lottie_loop="true"
-            app:lottie_colorFilter="?attr/colorSecondary"
             app:lottie_speed="1.75" android:rotation="75" />
 
-            <com.airbnb.lottie.LottieAnimationView
+            <ani.sanin.ui.components.TomoeView
             android:layout_width="45dp"
             android:layout_height="45dp"
             android:layout_gravity="bottom|start"
@@ -41,10 +40,9 @@
             app:lottie_rawRes="@raw/tomoe"
             app:lottie_autoPlay="true"
             app:lottie_loop="true"
-            app:lottie_colorFilter="?attr/colorSecondary"
             app:lottie_speed="1.75" android:rotation="-45" />
 
-            <com.airbnb.lottie.LottieAnimationView
+            <ani.sanin.ui.components.TomoeView
             android:layout_width="45dp"
             android:layout_height="45dp"
             android:layout_gravity="bottom|end"
@@ -53,7 +51,6 @@
             app:lottie_rawRes="@raw/tomoe"
             app:lottie_autoPlay="true"
             app:lottie_loop="true"
-            app:lottie_colorFilter="?attr/colorSecondary"
             app:lottie_speed="1.75" android:rotation="195" />
 
         </FrameLayout>

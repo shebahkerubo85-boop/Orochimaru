@@ -38,7 +38,6 @@ import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.Logger
-import com.airbnb.lottie.LottieAnimationView
 import com.xwray.groupie.GroupieAdapter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -138,12 +137,11 @@ class NotificationActivity : AppCompatActivity() {
         binding.notificationTabLayout.getTabAt(startTab)?.select()
     }
 
-    private fun tomoe(sizeDp: Float, speed: Float, rot: Float, grav: Int): LottieAnimationView {
+    private fun tomoe(sizeDp: Float, speed: Float, rot: Float, grav: Int): TomoeView {
         val s = (sizeDp * resources.displayMetrics.density).toInt()
-        return LottieAnimationView(this).apply {
+        return TomoeView(this).apply {
             layoutParams = FrameLayout.LayoutParams(s, s).apply { this.gravity = grav }
             setAnimation(R.raw.tomoe)
-            setColorFilter(getThemeColor(android.R.attr.colorPrimary))
             this.speed = speed
             repeatCount = Int.MAX_VALUE
             playAnimation()

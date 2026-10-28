@@ -379,14 +379,13 @@
         tools:visibility="gone"
     >
 
-        <com.airbnb.lottie.LottieAnimationView
+        <ani.sanin.ui.components.TomoeView
         android:layout_width="45dp"
         android:layout_height="45dp"
         android:layout_gravity="center"
         app:lottie_rawRes="@raw/tomoe"
         app:lottie_autoPlay="true"
         app:lottie_loop="true"
-        app:lottie_colorFilter="?attr/colorSecondary"
         app:lottie_speed="1.75" />
 
     </FrameLayout>
