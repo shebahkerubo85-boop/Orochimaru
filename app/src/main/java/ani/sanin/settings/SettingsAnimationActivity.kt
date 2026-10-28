@@ -77,7 +77,6 @@ class SettingsAnimationActivity : AppCompatActivity() {
                     entry(PrefName.PlayerOverlayAnimations, "Overlay Slide"),
                     entry(PrefName.DoubleTapAnimations, "Double-Tap Ripple"),
                     entry(PrefName.SeekBarAnimations, "Seek Bar Glide"),
-                    entry(PrefName.ProgressShakeAnimations, "Progress Wiggle"),
                 ),
             ),
 
@@ -97,7 +96,6 @@ class SettingsAnimationActivity : AppCompatActivity() {
                     entry(PrefName.NotificationPopupAnimations, "Toast Float"),
                     entry(PrefName.CommentInputAnimations, "Comment Expand"),
                     entry(PrefName.ImageDialogAnimations, "Image Zoom"),
-                    entry(PrefName.SplashAnimations, "Splash Reveal"),
                     entry(PrefName.LikeButtonAnimations, "Heart Burst"),
                 ),
             ),
