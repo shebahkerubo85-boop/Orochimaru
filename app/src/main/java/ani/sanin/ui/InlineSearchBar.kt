@@ -1,4 +1,5 @@
 package ani.sanin.ui
+import ani.sanin.settings.AnimUtils
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
@@ -69,7 +70,7 @@ class InlineSearchBar(
         bar.visibility = View.VISIBLE
         bar.alpha = 0f
         ValueAnimator.ofInt(0, barHeightPx()).apply {
-            duration = 220
+            duration = if (AnimUtils.enabled(ani.sanin.settings.saving.PrefName.SearchHeaderAnimations)) 220 else 0
             interpolator = DecelerateInterpolator()
             addUpdateListener {
                 bar.layoutParams.height = it.animatedValue as Int
@@ -94,7 +95,7 @@ class InlineSearchBar(
         field.setText("")
         val startHeight = bar.layoutParams.height
         ValueAnimator.ofInt(startHeight, 0).apply {
-            duration = 200
+            duration = if (AnimUtils.enabled(ani.sanin.settings.saving.PrefName.SearchHeaderAnimations)) 200 else 0
             interpolator = DecelerateInterpolator()
             addUpdateListener {
                 bar.layoutParams.height = it.animatedValue as Int

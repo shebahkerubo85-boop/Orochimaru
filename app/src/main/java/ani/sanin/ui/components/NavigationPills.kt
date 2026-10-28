@@ -1,4 +1,6 @@
 package ani.sanin.ui.components
+import ani.sanin.settings.AnimUtils
+import androidx.compose.animation.core.snap
 
 import android.view.View
 import android.view.ViewGroup
@@ -68,7 +70,7 @@ fun NavigationPills(
 
     val pillHeight by animateDpAsState(
         targetValue = if (isExpanded) 56.dp else 48.dp,
-        animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessVeryLow),
+        animationSpec = if (AnimUtils.enabled(ani.sanin.settings.saving.PrefName.NavRailAnimations)) spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessVeryLow) else snap(),
         label = "pillHeight"
     )
 
@@ -199,7 +201,7 @@ fun NavigationPill(
 
     val pillWidth by animateDpAsState(
         targetValue = if (isExpanded) 88.dp else 48.dp,
-        animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessVeryLow),
+        animationSpec = if (AnimUtils.enabled(ani.sanin.settings.saving.PrefName.NavRailAnimations)) spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessVeryLow) else snap(),
         label = "pillWidth"
     )
 

@@ -1,4 +1,5 @@
 package ani.sanin
+import ani.sanin.settings.AnimUtils
 
 import android.Manifest
 import android.animation.ObjectAnimator
@@ -413,18 +414,20 @@ fun Activity.reloadActivity() {
     Refresh.all()
     finish()
     startActivity(Intent(this, this::class.java))
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-        overrideActivityTransition(
-            Activity.OVERRIDE_TRANSITION_OPEN,
-            android.R.anim.fade_in,
-            android.R.anim.fade_out
-        )
-    } else {
-        @Suppress("DEPRECATION")
-        overridePendingTransition(
-            android.R.anim.fade_in,
-            android.R.anim.fade_out
-        )
+    if (AnimUtils.enabled(ani.sanin.settings.saving.PrefName.TransitionAnimations)) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            overrideActivityTransition(
+                Activity.OVERRIDE_TRANSITION_OPEN,
+                android.R.anim.fade_in,
+                android.R.anim.fade_out
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(
+                android.R.anim.fade_in,
+                android.R.anim.fade_out
+            )
+        }
     }
     initActivity(this)
 }

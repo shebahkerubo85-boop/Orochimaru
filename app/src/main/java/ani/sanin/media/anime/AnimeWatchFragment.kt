@@ -1,4 +1,5 @@
 package ani.sanin.media.anime
+import ani.sanin.settings.AnimUtils
 
 import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
@@ -655,7 +656,7 @@ class AnimeWatchFragment : Fragment() {
                                         loadEpisodes(media.selected!!.sourceIndex, true)
                                     }
                                 parentFragmentManager.beginTransaction()
-                                    .setCustomAnimations(R.anim.slide_up, R.anim.slide_down)
+                                .apply { if (AnimUtils.enabled(ani.sanin.settings.saving.PrefName.TransitionAnimations)) setCustomAnimations(R.anim.slide_up, R.anim.slide_down) }
                                     .replace(R.id.fragmentExtensionsContainer, fragment)
                                     .addToBackStack(null)
                                     .commit()
@@ -677,7 +678,7 @@ class AnimeWatchFragment : Fragment() {
                             loadEpisodes(media.selected!!.sourceIndex, true)
                         }
                     parentFragmentManager.beginTransaction().apply {
-                        setCustomAnimations(R.anim.slide_up, R.anim.slide_down)
+                        if (AnimUtils.enabled(ani.sanin.settings.saving.PrefName.TransitionAnimations)) setCustomAnimations(R.anim.slide_up, R.anim.slide_down)
                         replace(R.id.fragmentExtensionsContainer, fragment)
                         addToBackStack(null)
                         commit()
@@ -711,7 +712,7 @@ class AnimeWatchFragment : Fragment() {
                 loadEpisodes(media.selected!!.sourceIndex, true)
             }
             parentFragmentManager.beginTransaction().apply {
-                setCustomAnimations(R.anim.slide_up, R.anim.slide_down)
+                if (AnimUtils.enabled(ani.sanin.settings.saving.PrefName.TransitionAnimations)) setCustomAnimations(R.anim.slide_up, R.anim.slide_down)
                 replace(R.id.fragmentExtensionsContainer, fragment)
                 addToBackStack(null)
                 commit()

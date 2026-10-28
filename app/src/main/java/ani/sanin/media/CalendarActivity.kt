@@ -1,4 +1,5 @@
 package ani.sanin.media
+import ani.sanin.settings.AnimUtils
 
 import android.content.Intent
 import android.animation.ValueAnimator
@@ -301,7 +302,7 @@ class CalendarActivity : AppCompatActivity() {
         val tt = (cell.top + gap).toFloat()
         val tb = (cell.bottom - gap).toFloat()
 
-        if (!animate || !indicatorPlaced) {
+        if (!animate || !AnimUtils.enabled(ani.sanin.settings.saving.PrefName.NavRailAnimations) || !indicatorPlaced) {
             indicatorAnimator?.cancel()
             indLeft = tl; indRight = tr; indTop = tt; indBottom = tb
             strip.setIndicatorBounds(tl, tt, tr, tb)

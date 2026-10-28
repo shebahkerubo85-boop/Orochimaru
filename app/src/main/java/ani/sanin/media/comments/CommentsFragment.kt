@@ -1,4 +1,5 @@
 package ani.sanin.media.comments
+import ani.sanin.settings.AnimUtils
 
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
@@ -423,17 +424,17 @@ class CommentsFragment : Fragment() {
                     layoutParams.width = valueAnimator.animatedValue as Int
                     binding.commentInput.layoutParams = layoutParams
                 }
-                anim.duration = 300
+                anim.duration = if (AnimUtils.enabled(ani.sanin.settings.saving.PrefName.CommentInputAnimations)) 300 else 0
                 anim.start()
                 anim.doOnEnd {
                     binding.commentGif.visibility = View.VISIBLE
                     binding.commentSpoiler.visibility = View.VISIBLE
                     binding.commentLabel.visibility = View.VISIBLE
                     binding.commentSend.visibility = View.VISIBLE
-                    binding.commentGif.animate().translationX(0f).setDuration(300).start()
-                    binding.commentSpoiler.animate().translationX(0f).setDuration(300).start()
-                    binding.commentLabel.animate().translationX(0f).setDuration(300).start()
-                    binding.commentSend.animate().translationX(0f).setDuration(300).start()
+                    binding.commentGif.animate().translationX(0f).setDuration(if (AnimUtils.enabled(ani.sanin.settings.saving.PrefName.CommentInputAnimations)) 300 else 0).start()
+                    binding.commentSpoiler.animate().translationX(0f).setDuration(if (AnimUtils.enabled(ani.sanin.settings.saving.PrefName.CommentInputAnimations)) 300 else 0).start()
+                    binding.commentLabel.animate().translationX(0f).setDuration(if (AnimUtils.enabled(ani.sanin.settings.saving.PrefName.CommentInputAnimations)) 300 else 0).start()
+                    binding.commentSend.animate().translationX(0f).setDuration(if (AnimUtils.enabled(ani.sanin.settings.saving.PrefName.CommentInputAnimations)) 300 else 0).start()
                 }
             }
         }

@@ -1,4 +1,5 @@
 package ani.sanin.media
+import ani.sanin.settings.AnimUtils
 
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint

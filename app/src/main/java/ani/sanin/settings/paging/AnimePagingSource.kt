@@ -1,4 +1,5 @@
 package ani.sanin.settings.paging
+import ani.sanin.settings.AnimUtils
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
@@ -185,6 +186,7 @@ class AnimeExtensionAdapter(private val clickListener: OnAnimeInstallClickListen
                 if (extension != null) {
                     clickListener.onInstallClick(extension)
                     binding.closeTextView.setImageResource(R.drawable.ic_sync)
+                    if (!AnimUtils.enabled(ani.sanin.settings.saving.PrefName.InstallSpinnerAnimations)) return@setOnClickListener
                     scope.launch {
                         while (isActive) {
                             withContext(Dispatchers.Main) {

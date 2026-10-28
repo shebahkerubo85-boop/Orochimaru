@@ -1,4 +1,5 @@
 package ani.sanin.ui.components
+import ani.sanin.settings.AnimUtils
 
 import android.animation.ValueAnimator
 import android.graphics.Canvas
@@ -29,6 +30,7 @@ class CurseMarkSpinnerDrawable : Drawable() {
     init { startAnimation() }
 
     private fun startAnimation() {
+        if (!AnimUtils.enabled(ani.sanin.settings.saving.PrefName.InstallSpinnerAnimations)) return
         animator?.cancel()
         animator = ValueAnimator.ofFloat(0f, 360f).apply {
             duration = 1200

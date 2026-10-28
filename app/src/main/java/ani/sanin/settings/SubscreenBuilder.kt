@@ -269,9 +269,9 @@ object SubscreenBuilder {
                                         if (shouldShow) {
                                             expandSliderView.visibility = View.VISIBLE
                                             expandSliderView.alpha = 0f
-                                            expandSliderView.animate().alpha(1f).setDuration(200).start()
+                                            expandSliderView.animate().alpha(1f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 200 else 0).start()
                                         } else {
-                                            expandSliderView.animate().alpha(0f).setDuration(150).withEndAction {
+                                            expandSliderView.animate().alpha(0f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 150 else 0).withEndAction {
                                                 expandSliderView.visibility = View.GONE
                                             }.start()
                                         }
@@ -304,7 +304,7 @@ object SubscreenBuilder {
                 ObjectAnimator.ofFloat(chevron, "rotation",
                     if (isExpanding) 0f else 180f,
                     if (isExpanding) 180f else 0f,
-                ).apply { duration = 250; interpolator = AccelerateDecelerateInterpolator(); start() }
+                ).apply { duration = if (AnimUtils.enabled(PrefName.XpandableAnimations)) 250 else 0; interpolator = AccelerateDecelerateInterpolator(); start() }
 
                 if (isExpanding) AnimUtils.rollExpand(items) else AnimUtils.rollCollapse(items)
             }

@@ -281,7 +281,7 @@ class SettingsActivity : AppCompatActivity() {
                 if (isExpanding) 0f else 180f,
                 if (isExpanding) 180f else 0f,
             ).apply {
-                duration = 250
+                duration = if (AnimUtils.enabled(PrefName.XpandableAnimations)) 250 else 0
                 interpolator = AccelerateDecelerateInterpolator()
                 start()
             }

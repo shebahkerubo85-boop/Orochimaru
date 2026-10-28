@@ -88,7 +88,7 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
                                     changeUIVisibility(true)
                                 }
                             parentFragmentManager.beginTransaction()
-                                .setCustomAnimations(R.anim.slide_up, R.anim.slide_down)
+                                .apply { if (AnimUtils.enabled(PrefName.TransitionAnimations)) setCustomAnimations(R.anim.slide_up, R.anim.slide_down) }
                                 .replace(R.id.fragmentExtensionsContainer, fragment)
                                 .addToBackStack(null)
                                 .commit()
@@ -107,7 +107,7 @@ class InstalledAnimeExtensionsFragment : Fragment(), SearchQueryHandler {
                             changeUIVisibility(true)
                         }
                     parentFragmentManager.beginTransaction()
-                        .setCustomAnimations(R.anim.slide_up, R.anim.slide_down)
+                        .apply { if (AnimUtils.enabled(PrefName.TransitionAnimations)) setCustomAnimations(R.anim.slide_up, R.anim.slide_down) }
                         .replace(R.id.fragmentExtensionsContainer, fragment)
                         .addToBackStack(null)
                         .commit()

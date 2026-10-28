@@ -1,4 +1,5 @@
 package ani.sanin.home
+import ani.sanin.settings.AnimUtils
 
 import android.animation.ObjectAnimator
 import android.content.Intent
@@ -534,10 +535,10 @@ class HomeFragment : Fragment() {
         model.empty.observe(viewLifecycleOwner)
         {
             binding.homeSaninContainer.visibility = if (it == true) View.VISIBLE else View.GONE
-            (binding.homeSaninIcon.drawable as? Animatable)?.start()
+            if (AnimUtils.enabled(ani.sanin.settings.saving.PrefName.AnimatedVectorDrawables)) (binding.homeSaninIcon.drawable as? Animatable)?.start()
             binding.homeSaninContainer.startAnimation(setSlideUp())
             binding.homeSaninIcon.setSafeOnClickListener {
-                (binding.homeSaninIcon.drawable as? Animatable)?.start()
+                if (AnimUtils.enabled(ani.sanin.settings.saving.PrefName.AnimatedVectorDrawables)) (binding.homeSaninIcon.drawable as? Animatable)?.start()
             }
         }
 

@@ -1,4 +1,5 @@
 package ani.sanin.ui.components
+import ani.sanin.settings.AnimUtils
 
 import android.animation.ValueAnimator
 import android.content.Context
@@ -252,7 +253,7 @@ class LibraryStatusPill @JvmOverloads constructor(
         val tt = cell.top + gap
         val tb = cell.bottom - gap
 
-        if (!animate || !indicatorPlaced) {
+        if (!animate || !AnimUtils.enabled(ani.sanin.settings.saving.PrefName.NavRailAnimations) || !indicatorPlaced) {
             indicatorAnimator?.cancel()
             indLeft = tl
             indRight = tr

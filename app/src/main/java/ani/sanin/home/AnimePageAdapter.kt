@@ -1,4 +1,5 @@
 package ani.sanin.home
+import ani.sanin.settings.AnimUtils
 
 import android.content.Intent
 import android.content.res.Configuration
@@ -518,6 +519,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
         trendingBinding.titleContainer.startAnimation(setSlideUp())
         binding.animeSeasonsCont.layoutAnimation =
             LayoutAnimationController(setSlideIn(), 0.25f)
+        if (AnimUtils.enabled(ani.sanin.settings.saving.PrefName.TrendingScroller)) {
         trendingAutoScrollHandler?.removeCallbacksAndMessages(null)
         trendingAutoScrollHandler = android.os.Handler(android.os.Looper.getMainLooper())
         trendingAutoScrollRunnable = object : Runnable {
@@ -544,6 +546,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             }
         }
         trendingAutoScrollHandler?.postDelayed(trendingAutoScrollRunnable!!, 5000L)
+        }
 
         scope.launch(Dispatchers.IO) {
             val allImages = AniZip.getImagesBatch(media.map { it.id })

@@ -39,6 +39,10 @@ object AnimUtils {
             }.start()
     }
 
+    fun enabled(pref: PrefName): Boolean =
+        PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) &&
+            PrefManager.getVal<Boolean>(pref)
+
     fun duration(ms: Long): Long =
         if (enabled()) (ms * PrefManager.getVal<Float>(PrefName.AnimationSpeed)).toLong() else 0L
 }

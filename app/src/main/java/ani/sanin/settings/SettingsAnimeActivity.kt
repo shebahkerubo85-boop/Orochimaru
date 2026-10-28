@@ -203,21 +203,21 @@ class SettingsAnimeActivity : AppCompatActivity() {
 
         animeRow.setOnClickListener {
             if (movieExpanded.visibility == View.VISIBLE) {
-                movieExpanded.animate().alpha(0f).setDuration(120).withEndAction {
+                movieExpanded.animate().alpha(0f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 120 else 0).withEndAction {
                     movieExpanded.visibility = View.GONE; movieExpanded.alpha = 1f
                 }.start()
-                movieChevron.animate().rotation(0f).setDuration(200).start()
+                movieChevron.animate().rotation(0f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 200 else 0).start()
             }
             if (animeExpanded.visibility == View.VISIBLE) {
-                animeExpanded.animate().alpha(0f).setDuration(120).withEndAction {
+                animeExpanded.animate().alpha(0f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 120 else 0).withEndAction {
                     animeExpanded.visibility = View.GONE; animeExpanded.alpha = 1f
                 }.start()
-                animeChevron.animate().rotation(0f).setDuration(200).start()
+                animeChevron.animate().rotation(0f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 200 else 0).start()
             } else {
                 animeExpanded.visibility = View.VISIBLE
                 animeExpanded.alpha = 0f
-                animeExpanded.animate().alpha(1f).setDuration(200).start()
-                animeChevron.animate().rotation(180f).setDuration(200).start()
+                animeExpanded.animate().alpha(1f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 200 else 0).start()
+                animeChevron.animate().rotation(180f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 200 else 0).start()
             }
         }
         FocusEffectUtil.applyFocusListener(animeRow)
@@ -226,21 +226,21 @@ class SettingsAnimeActivity : AppCompatActivity() {
 
         movieRow.setOnClickListener {
             if (animeExpanded.visibility == View.VISIBLE) {
-                animeExpanded.animate().alpha(0f).setDuration(120).withEndAction {
+                animeExpanded.animate().alpha(0f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 120 else 0).withEndAction {
                     animeExpanded.visibility = View.GONE; animeExpanded.alpha = 1f
                 }.start()
-                animeChevron.animate().rotation(0f).setDuration(200).start()
+                animeChevron.animate().rotation(0f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 200 else 0).start()
             }
             if (movieExpanded.visibility == View.VISIBLE) {
-                movieExpanded.animate().alpha(0f).setDuration(120).withEndAction {
+                movieExpanded.animate().alpha(0f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 120 else 0).withEndAction {
                     movieExpanded.visibility = View.GONE; movieExpanded.alpha = 1f
                 }.start()
-                movieChevron.animate().rotation(0f).setDuration(200).start()
+                movieChevron.animate().rotation(0f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 200 else 0).start()
             } else {
                 movieExpanded.visibility = View.VISIBLE
                 movieExpanded.alpha = 0f
-                movieExpanded.animate().alpha(1f).setDuration(200).start()
-                movieChevron.animate().rotation(180f).setDuration(200).start()
+                movieExpanded.animate().alpha(1f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 200 else 0).start()
+                movieChevron.animate().rotation(180f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 200 else 0).start()
             }
         }
         FocusEffectUtil.applyFocusListener(movieRow)

@@ -1,4 +1,5 @@
 package ani.sanin.home
+import ani.sanin.settings.AnimUtils
 
 import android.content.Intent
 import android.content.res.ColorStateList
@@ -510,6 +511,7 @@ class TmdbExploreFragment : Fragment() {
     }
 
     private fun startTrendingAutoScroll(rv: RecyclerView) {
+        if (!AnimUtils.enabled(ani.sanin.settings.saving.PrefName.TrendingScroller)) return
         trendingAutoScrollHandler?.removeCallbacksAndMessages(null)
         trendingAutoScrollHandler = Handler(Looper.getMainLooper())
         trendingAutoScrollRunnable = object : Runnable {

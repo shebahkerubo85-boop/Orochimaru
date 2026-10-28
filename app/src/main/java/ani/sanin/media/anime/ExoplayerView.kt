@@ -1,4 +1,5 @@
 package ani.sanin.media.anime
+import ani.sanin.settings.AnimUtils
 
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
@@ -660,7 +661,7 @@ class ExoplayerView :
             setOnClickListener {
                 enabled = !enabled
                 PrefManager.setVal(PrefName.AutoPlay, enabled)
-                renderAutoplay(enabled, animate = true)
+                renderAutoplay(enabled, animate = AnimUtils.enabled(ani.sanin.settings.saving.PrefName.MiscUiAnimations))
                 snackString("${context.getString(R.string.autoplay)} ${if (enabled) "on" else "off"}")
                 Logger.log("Player: AUTOPLAY toggled — enabled=$enabled")
             }

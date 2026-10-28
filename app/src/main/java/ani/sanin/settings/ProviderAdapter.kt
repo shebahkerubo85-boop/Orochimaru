@@ -208,6 +208,17 @@ class ProviderAdapter(
         b.providerProgress.progress = 0
         b.providerProgress.visibility = View.VISIBLE
 
+        if (!AnimUtils.enabled(PrefName.InstallSpinnerAnimations)) {
+            b.providerProgress.progress = 100
+            b.providerProgress.visibility = View.GONE
+            downloading.remove(item.saveName)
+            item.isEnabled = true
+            val current = PrefManager.getVal<Set<String>>(PrefName.EnabledProviders)
+            PrefManager.setVal(PrefName.EnabledProviders, current + item.saveName)
+            notifyItemChanged(pos)
+            onStateChanged()
+            return
+        }
         val animator = ObjectAnimator.ofInt(b.providerProgress, "progress", 0, 100)
         animator.duration = 2500
         animator.interpolator = AccelerateDecelerateInterpolator()

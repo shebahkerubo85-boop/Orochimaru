@@ -658,7 +658,7 @@ class SettingsAppearanceActivity : AppCompatActivity() {
                 chevron, "rotation",
                 if (expanded) 0f else 180f,
                 if (expanded) 180f else 0f
-            ).apply { duration = 250; start() }
+            ).apply { duration = if (AnimUtils.enabled(PrefName.XpandableAnimations)) 250 else 0; start() }
             if (expanded) AnimUtils.rollExpand(items) else AnimUtils.rollCollapse(items)
         }
         header.setOnClickListener { toggleSection() }
@@ -806,21 +806,21 @@ class SettingsAppearanceActivity : AppCompatActivity() {
         topRow.setOnClickListener {
             val closingBottom = bottomExpanded.visibility == View.VISIBLE
             if (bottomExpanded.visibility == View.VISIBLE) {
-                bottomExpanded.animate().alpha(0f).setDuration(120).withEndAction {
+                bottomExpanded.animate().alpha(0f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 120 else 0).withEndAction {
                     bottomExpanded.visibility = View.GONE; bottomExpanded.alpha = 1f
                 }.start()
-                bottomChevron.animate().rotation(0f).setDuration(200).start()
+                bottomChevron.animate().rotation(0f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 200 else 0).start()
             }
             if (topExpanded.visibility == View.VISIBLE) {
-                topExpanded.animate().alpha(0f).setDuration(120).withEndAction {
+                topExpanded.animate().alpha(0f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 120 else 0).withEndAction {
                     topExpanded.visibility = View.GONE; topExpanded.alpha = 1f
                 }.start()
-                topChevron.animate().rotation(0f).setDuration(200).start()
+                topChevron.animate().rotation(0f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 200 else 0).start()
             } else {
                 topExpanded.visibility = View.VISIBLE
                 topExpanded.alpha = 0f
-                topExpanded.animate().alpha(1f).setDuration(200).start()
-                topChevron.animate().rotation(180f).setDuration(200).start()
+                topExpanded.animate().alpha(1f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 200 else 0).start()
+                topChevron.animate().rotation(180f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 200 else 0).start()
                 if (closingBottom) bottomChevron.animate().rotation(0f).start()
             }
         }
@@ -842,21 +842,21 @@ class SettingsAppearanceActivity : AppCompatActivity() {
 
         bottomRow.setOnClickListener {
             if (topExpanded.visibility == View.VISIBLE) {
-                topExpanded.animate().alpha(0f).setDuration(120).withEndAction {
+                topExpanded.animate().alpha(0f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 120 else 0).withEndAction {
                     topExpanded.visibility = View.GONE; topExpanded.alpha = 1f
                 }.start()
-                topChevron.animate().rotation(0f).setDuration(200).start()
+                topChevron.animate().rotation(0f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 200 else 0).start()
             }
             if (bottomExpanded.visibility == View.VISIBLE) {
-                bottomExpanded.animate().alpha(0f).setDuration(120).withEndAction {
+                bottomExpanded.animate().alpha(0f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 120 else 0).withEndAction {
                     bottomExpanded.visibility = View.GONE; bottomExpanded.alpha = 1f
                 }.start()
-                bottomChevron.animate().rotation(0f).setDuration(200).start()
+                bottomChevron.animate().rotation(0f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 200 else 0).start()
             } else {
                 bottomExpanded.visibility = View.VISIBLE
                 bottomExpanded.alpha = 0f
-                bottomExpanded.animate().alpha(1f).setDuration(200).start()
-                bottomChevron.animate().rotation(180f).setDuration(200).start()
+                bottomExpanded.animate().alpha(1f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 200 else 0).start()
+                bottomChevron.animate().rotation(180f).setDuration(if (AnimUtils.enabled(PrefName.XpandableAnimations)) 200 else 0).start()
             }
         }
 

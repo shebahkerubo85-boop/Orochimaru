@@ -1,4 +1,5 @@
 package ani.sanin.ui.components
+import ani.sanin.settings.AnimUtils
 
 import android.animation.PropertyValuesHolder
 import android.animation.ValueAnimator
@@ -658,7 +659,7 @@ class EchoNavPillController(
                 animateContainerWidth(startWidth, target) {
                     if (version != morphVersion || !collapsed) return@animateContainerWidth
                     searchButton?.animate()
-                        ?.alpha(1f)?.scaleX(1f)?.scaleY(1f)?.setDuration(180)?.start()
+                        ?.alpha(1f)?.scaleX(1f)?.scaleY(1f)?.setDuration(if (motionOn()) 180 else 0)?.start()
                 }
             }
         }, 170)
@@ -703,9 +704,9 @@ class EchoNavPillController(
 
         indicator.alpha = 1f
 
-        others.forEach { it.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(200).start() }
-        labelView?.let { lbl -> lbl.animate().alpha(1f).setDuration(200).start() }
-        backgroundPill?.animate()?.alpha(1f)?.setDuration(200)?.start()
+        others.forEach { it.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(if (motionOn()) 200 else 0).start() }
+        labelView?.let { lbl -> lbl.animate().alpha(1f).setDuration(if (motionOn()) 200 else 0).start() }
+        backgroundPill?.animate()?.alpha(1f)?.setDuration(if (motionOn()) 200 else 0)?.start()
 
         container.post {
             if (version != morphVersion || collapsed) return@post
@@ -886,6 +887,16 @@ class EchoNavPillController(
     }
 
     private fun animateIndicator(vx: Float, vy: Float, width: Int, height: Int) {
+        if (!motionOn()) {
+            indicator.translationX = vx
+            indicator.translationY = vy
+            val lp0 = indicator.layoutParams
+            lp0.width = width
+            lp0.height = height
+            indicator.layoutParams = lp0
+            indicator.visibility = View.VISIBLE
+            return
+        }
         indicatorAnimator?.cancel()
         indicator.visibility = View.VISIBLE
         indicator.animate()
@@ -911,6 +922,7 @@ class EchoNavPillController(
     }
 
     private fun animateContainerWidth(from: Int, to: Int, done: () -> Unit) {
+        if (!motionOn()) { applyContainerWidth(to); widthAnimating = false; done(); return }
         containerWidthAnimator?.cancel()
         widthAnimating = true
         applyContainerWidth(from)
@@ -935,17 +947,19 @@ class EchoNavPillController(
         container.layoutParams = lp
     }
 
+    private fun motionOn(): Boolean = AnimUtils.enabled(ani.sanin.settings.saving.PrefName.NavRailAnimations)
+
     private fun fadeOut(view: View) {
         view.animate().cancel()
         view.animate()
             .alpha(0f).scaleX(0.3f).scaleY(0.3f)
-            .setDuration(170)
+            .setDuration(if (motionOn()) 170 else 0)
             .start()
     }
 
     private fun fadeAlpha(view: View, to: Float) {
         view.animate().cancel()
-        view.animate().alpha(to).setDuration(170).start()
+        view.animate().alpha(to).setDuration(if (motionOn()) 170 else 0).start()
     }
 
     private fun ImageButton.updateSurface(color: Int) {

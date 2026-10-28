@@ -1,4 +1,5 @@
 package ani.sanin.notifications.subscription
+import ani.sanin.settings.AnimUtils
 
 import android.animation.ObjectAnimator
 import android.graphics.Color
@@ -70,6 +71,13 @@ class NotificationPopupActivity : AppCompatActivity() {
     }
 
     private fun startEntryAnimation() {
+        if (!AnimUtils.enabled(ani.sanin.settings.saving.PrefName.NotificationPopupAnimations)) {
+            binding.popupCard.alpha = 1f
+            binding.popupCard.translationY = 0f
+            binding.popupCard.scaleY = 1f
+            binding.popupCard.visibility = View.VISIBLE
+            return
+        }
         binding.popupCard.apply {
             pivotY = 0f
             translationY = -resources.displayMetrics.heightPixels.toFloat()

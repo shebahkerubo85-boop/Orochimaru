@@ -222,7 +222,7 @@ class ExtensionsActivity : AppCompatActivity() {
         binding.searchView.visibility = View.VISIBLE
         binding.searchView.alpha = 0f
         val anim = ValueAnimator.ofInt(0, heightPx).apply {
-            duration = 220
+            duration = if (AnimUtils.enabled(PrefName.SearchHeaderAnimations)) 220 else 0
             interpolator = DecelerateInterpolator()
             addUpdateListener {
                 binding.searchView.layoutParams.height = it.animatedValue as Int
@@ -245,7 +245,7 @@ class ExtensionsActivity : AppCompatActivity() {
         binding.searchViewText.clearFocus()
         val startHeight = binding.searchView.layoutParams.height
         val anim = ValueAnimator.ofInt(startHeight, 0).apply {
-            duration = 200
+            duration = if (AnimUtils.enabled(PrefName.SearchHeaderAnimations)) 200 else 0
             interpolator = DecelerateInterpolator()
             addUpdateListener {
                 binding.searchView.layoutParams.height = it.animatedValue as Int
@@ -294,7 +294,7 @@ class ExtensionsActivity : AppCompatActivity() {
         val thumbEnd = (160 - 30 - 3) * density
         binding.modeToggleLabel.text = if (cloudStream) "CloudStream" else "Aniyomi"
         styleToggleDrawables(cloudStream)
-        if (!animate || !PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled)) {
+        if (!animate || !PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) || !PrefManager.getVal<Boolean>(PrefName.MiscUiAnimations)) {
             binding.modeToggleThumb.translationX = if (cloudStream) thumbEnd else thumbStart
             return
         }
