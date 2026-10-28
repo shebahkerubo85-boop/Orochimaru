@@ -136,8 +136,8 @@
             tools:visibility="gone">
 
             <ani.sanin.ui.components.TomoeView
-                android:layout_width="60dp"
-                android:layout_height="60dp"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
                 android:layout_gravity="center"
                 app:lottie_autoPlay="true"
                 app:lottie_loop="true"

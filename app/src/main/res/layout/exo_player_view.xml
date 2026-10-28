@@ -416,14 +416,14 @@
 
     <FrameLayout
         android:id="@id/exo_buffering"
-        android:layout_width="76.5dp"
-        android:layout_height="76.5dp"
+        android:layout_width="88dp"
+        android:layout_height="88dp"
         android:layout_gravity="center"
     >
 
         <ani.sanin.ui.components.TomoeView
-        android:layout_width="64dp"
-        android:layout_height="64dp"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
         android:layout_gravity="center"
         app:lottie_rawRes="@raw/tomoe"
         app:lottie_autoPlay="true"

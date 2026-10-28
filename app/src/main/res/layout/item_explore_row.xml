@@ -49,8 +49,8 @@
             android:layout_gravity="center">
 
             <ani.sanin.ui.components.TomoeView
-                android:layout_width="56dp"
-                android:layout_height="56dp"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
                 android:layout_gravity="center"
                 android:rotation="75"
                 app:lottie_autoPlay="true"

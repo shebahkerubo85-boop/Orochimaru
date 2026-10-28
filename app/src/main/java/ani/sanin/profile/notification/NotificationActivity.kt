@@ -213,7 +213,7 @@ class NotificationActivity : AppCompatActivity() {
         tabProgress = FrameLayout(this).apply {
             val sz = (76.5f * dp).toInt()
             layoutParams = FrameLayout.LayoutParams(sz, sz).apply { gravity = Gravity.CENTER }
-            addView(tomoe(45f, 1.75f, 75f, Gravity.CENTER))
+            addView(tomoe(72f, 1.75f, 75f, Gravity.CENTER))
             visibility = View.GONE
         }
 
