@@ -4414,7 +4414,7 @@ class ExoplayerView :
                 }
         }
 
-        val forceSeekbarUpdate = PrefManager.getVal(PrefName.AlwaysUpdateSeekbar)
+        val forceSeekbarUpdate = PrefManager.getVal<Boolean>(PrefName.AlwaysUpdateSeekbar)
         if (::playerView.isInitialized &&
             (playerView.isControllerFullyVisible || forceSeekbarUpdate)
         ) {
