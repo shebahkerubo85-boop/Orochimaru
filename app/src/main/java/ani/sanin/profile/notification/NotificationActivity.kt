@@ -36,6 +36,7 @@ import ani.sanin.settings.saving.PrefManager
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.statusBarHeight
 import ani.sanin.themes.ThemeManager
+import ani.sanin.ui.components.TomoeView
 import ani.sanin.util.FocusEffectUtil
 import ani.sanin.util.Logger
 import com.xwray.groupie.GroupieAdapter
