@@ -27,9 +27,6 @@ import com.bumptech.glide.Glide
 import ani.sanin.R
 import ani.sanin.connections.tmdb.TmdbDetail
 import ani.sanin.isClassicBanner
-import ani.sanin.is3DBanner
-import ani.sanin.apply3DBannerTransforms
-import ani.sanin.BannerCylinderLayoutManager
 import ani.sanin.getThemeColor
 
 class TmdbBannerCarouselAdapter(
@@ -42,7 +39,6 @@ class TmdbBannerCarouselAdapter(
     private val modernMode: Boolean = false,
 ) : RecyclerView.Adapter<TmdbBannerCarouselAdapter.ViewHolder>() {
 
-    private var threeDScrollListener: RecyclerView.OnScrollListener? = null
     private var detailsByIndex: Map<Int, TmdbDetail?> = emptyMap()
     private var postersByIndex: Map<Int, String?> = emptyMap()
 
@@ -61,17 +57,6 @@ class TmdbBannerCarouselAdapter(
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         super.onAttachedToRecyclerView(recyclerView)
-        if (!is3DBanner()) return
-        val current = recyclerView.layoutManager as? LinearLayoutManager ?: return
-        if (current is BannerCylinderLayoutManager) return
-        val position = current.findFirstVisibleItemPosition()
-            .takeIf { it != RecyclerView.NO_POSITION } ?: 0
-        val offset = current.findViewByPosition(position)?.left ?: 0
-        recyclerView.layoutManager = BannerCylinderLayoutManager(
-            recyclerView.context,
-            current.orientation,
-            current.reverseLayout,
-        ).also { it.scrollToPositionWithOffset(position, offset) }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -81,40 +66,6 @@ class TmdbBannerCarouselAdapter(
                 parent,
                 false,
             )
-        if (is3DBanner()) {
-            val density = parent.resources.displayMetrics.density
-            val viewportWidth = parent.width.takeIf { it > 0 }
-                ?: parent.resources.displayMetrics.widthPixels
-            val cardWidth = if (parent.resources.configuration.orientation ==
-                android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
-                (200 * density).toInt()
-            } else {
-                (viewportWidth * 0.42f).toInt()
-            }
-            view.layoutParams = RecyclerView.LayoutParams(
-                cardWidth,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-            ).apply {
-                val margin = (8 * density).toInt()
-                leftMargin = margin
-                rightMargin = margin
-                topMargin = (6 * density).toInt()
-            }
-            parent.clipToPadding = false
-            parent.clipChildren = false
-            val sidePadding = ((viewportWidth - cardWidth) / 2).coerceAtLeast(0)
-            parent.setPadding(sidePadding, parent.paddingTop, sidePadding, parent.paddingBottom)
-            val recycler = parent as? RecyclerView
-            if (recycler != null && threeDScrollListener == null) {
-                threeDScrollListener = object : RecyclerView.OnScrollListener() {
-                    override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                        recyclerView.apply3DBannerTransforms()
-                    }
-                }
-                recycler.addOnScrollListener(threeDScrollListener!!)
-                recycler.post { recycler.apply3DBannerTransforms() }
-            }
-        }
         return ViewHolder(view)
     }
 
@@ -128,13 +79,13 @@ class TmdbBannerCarouselAdapter(
             return
         }
 
-        val imageUrl = if (is3DBanner()) item.posterUrl else item.bannerUrl
+        val imageUrl = item.bannerUrl
         val bannerImage = holder.bannerImage
         val loadOptions = bannerLoadOptions(currentBannerType(modernMode, isClassicBanner()))
         if (!imageUrl.isNullOrBlank()) {
             holder.bannerImage?.isVisible = true
             holder.bannerBg.isVisible = true
-            bannerImage?.scaleType = if (isClassicBanner() || is3DBanner()) android.widget.ImageView.ScaleType.CENTER_CROP
+            bannerImage?.scaleType = if (isClassicBanner()) android.widget.ImageView.ScaleType.CENTER_CROP
                 else android.widget.ImageView.ScaleType.FIT_CENTER
             Glide.with(ctx).load(imageUrl).placeholder(R.color.bg_black).error(R.drawable.ic_round_person_24)
                 .apply(loadOptions)
@@ -170,7 +121,7 @@ class TmdbBannerCarouselAdapter(
                         return false
                     }
                 })
-            if (isClassicBanner() || is3DBanner()) {
+            if (isClassicBanner()) {
 
                 logoReq.override(
                     holder.clearlogo.layoutParams.width,
@@ -259,7 +210,7 @@ class TmdbBannerCarouselAdapter(
 
         holder.description.isVisible = false
 
-        if (isClassicBanner() || is3DBanner()) {
+        if (isClassicBanner()) {
             holder.playBtn.setOnClickListener { onItemClick(item) }
             holder.playBtn.isFocusable = true
             holder.playBtn.isFocusableInTouchMode = false
@@ -279,7 +230,7 @@ class TmdbBannerCarouselAdapter(
         for (offset in listOf(-1, 1)) {
             val adjPos = realPosition(position + offset)
             if (adjPos in items.indices) {
-                (if (is3DBanner()) items[adjPos].posterUrl else items[adjPos].bannerUrl)?.let {
+                items[adjPos].bannerUrl?.let {
                     Glide.with(ctx)
                         .load(it)
                         .apply(bannerLoadOptions(currentBannerType(modernMode, isClassicBanner())))
@@ -317,30 +268,6 @@ class TmdbBannerCarouselAdapter(
         val scrim = holder.scrim ?: return
         val content = holder.content ?: return
         val density = holder.itemView.context.resources.displayMetrics.density
-
-        if (is3DBanner()) {
-            scrim.isVisible = false
-            val lp = content.layoutParams as FrameLayout.LayoutParams
-            lp.width = FrameLayout.LayoutParams.MATCH_PARENT
-            lp.gravity = Gravity.BOTTOM
-            content.layoutParams = lp
-            content.gravity = Gravity.CENTER_HORIZONTAL
-            val pad = (14 * density).toInt()
-            content.setPadding(pad, 0, pad, pad)
-            holder.clearlogo.maxWidth = (holder.itemView.width - (28 * density).toInt()).coerceAtLeast(1)
-            holder.clearlogo.maxHeight = (52 * density).toInt()
-            holder.title.isVisible = !holder.clearlogo.isVisible
-            holder.title.maxLines = 3
-            holder.title.setAutoSizeTextTypeUniformWithConfiguration(9, 14, 1, android.util.TypedValue.COMPLEX_UNIT_SP)
-            holder.formatTag?.isVisible = false
-            holder.statusTag?.isVisible = false
-            holder.seasonTag?.isVisible = false
-            holder.scoreTag?.isVisible = false
-            holder.genresRow?.isVisible = false
-            holder.description.isVisible = false
-            holder.favBtn?.isVisible = false
-            return
-        }
 
         if (isClassicBanner()) {
             scrim.isVisible = false

@@ -27,9 +27,6 @@ import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
 import ani.sanin.R
 import ani.sanin.isClassicBanner
-import ani.sanin.is3DBanner
-import ani.sanin.apply3DBannerTransforms
-import ani.sanin.BannerCylinderLayoutManager
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.getThemeColor
 import ani.sanin.loadImage
@@ -51,7 +48,6 @@ class BannerCarouselAdapter(
 ) : RecyclerView.Adapter<BannerCarouselAdapter.ViewHolder>() {
 
     private var landscapeOverlay = false
-    private var threeDScrollListener: RecyclerView.OnScrollListener? = null
     private var cardWidthPx = 0
 
     fun setLandscapeMode(enabled: Boolean, cardWidthPx: Int) {
@@ -73,56 +69,11 @@ class BannerCarouselAdapter(
 
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         super.onAttachedToRecyclerView(recyclerView)
-        if (!is3DBanner()) return
-        val current = recyclerView.layoutManager as? LinearLayoutManager ?: return
-        if (current is BannerCylinderLayoutManager) return
-        val position = current.findFirstVisibleItemPosition()
-            .takeIf { it != RecyclerView.NO_POSITION } ?: 0
-        val offset = current.findViewByPosition(position)?.left ?: 0
-        recyclerView.layoutManager = BannerCylinderLayoutManager(
-            recyclerView.context,
-            current.orientation,
-            current.reverseLayout,
-        ).also { it.scrollToPositionWithOffset(position, offset) }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(layoutRes, parent, false)
-        if (is3DBanner()) {
-            val density = parent.resources.displayMetrics.density
-            val viewportWidth = parent.width.takeIf { it > 0 }
-                ?: parent.resources.displayMetrics.widthPixels
-            val cardWidth = if (parent.resources.configuration.orientation ==
-                android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
-                (200 * density).toInt()
-            } else {
-                (viewportWidth * 0.42f).toInt()
-            }
-            view.layoutParams = RecyclerView.LayoutParams(
-                cardWidth,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-            ).apply {
-                val margin = (8 * density).toInt()
-                leftMargin = margin
-                rightMargin = margin
-                topMargin = (6 * density).toInt()
-            }
-            parent.clipToPadding = false
-            parent.clipChildren = false
-            val sidePadding = ((viewportWidth - cardWidth) / 2).coerceAtLeast(0)
-            parent.setPadding(sidePadding, parent.paddingTop, sidePadding, parent.paddingBottom)
-            val recycler = parent as? RecyclerView
-            if (recycler != null && threeDScrollListener == null) {
-                threeDScrollListener = object : RecyclerView.OnScrollListener() {
-                    override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                        recyclerView.apply3DBannerTransforms()
-                    }
-                }
-                recycler.addOnScrollListener(threeDScrollListener!!)
-                recycler.post { recycler.apply3DBannerTransforms() }
-            }
-        }
         return ViewHolder(view)
     }
 
@@ -136,15 +87,13 @@ class BannerCarouselAdapter(
         }
 
         val anizipUrl = backdropUrls[media.id]
-        val imageUrl = if (is3DBanner()) media.cover
-                       else if (!anizipUrl.isNullOrBlank()) anizipUrl
-                       else media.banner ?: media.cover
+        val imageUrl = if (!anizipUrl.isNullOrBlank()) anizipUrl else media.banner ?: media.cover
         val bannerImage = holder.bannerImage
         val loadOptions = bannerLoadOptions(currentBannerType(modernMode, isClassicBanner()))
         if (!imageUrl.isNullOrBlank()) {
             holder.bannerBg.visibility = View.VISIBLE
             bannerImage?.visibility = View.VISIBLE
-            bannerImage?.scaleType = if (isClassicBanner() || is3DBanner()) ImageView.ScaleType.CENTER_CROP
+            bannerImage?.scaleType = if (isClassicBanner()) ImageView.ScaleType.CENTER_CROP
                 else ImageView.ScaleType.FIT_CENTER
             Glide.with(holder.itemView.context)
                 .load(imageUrl)
@@ -162,7 +111,7 @@ class BannerCarouselAdapter(
                         resource: Drawable, model: Any, target: Target<Drawable>,
                         dataSource: DataSource, isFirstResource: Boolean
                     ): Boolean {
-                        bannerImage?.scaleType = if (isClassicBanner() || is3DBanner() ||
+                        bannerImage?.scaleType = if (isClassicBanner() ||
                             resource.intrinsicHeight > resource.intrinsicWidth)
                             ImageView.ScaleType.CENTER_CROP
                         else
@@ -173,7 +122,7 @@ class BannerCarouselAdapter(
                         e: GlideException?, model: Any?, target: Target<Drawable>,
                         isFirstResource: Boolean
                     ): Boolean {
-                        bannerImage?.scaleType = if (isClassicBanner() || is3DBanner()) ImageView.ScaleType.CENTER_CROP
+                        bannerImage?.scaleType = if (isClassicBanner()) ImageView.ScaleType.CENTER_CROP
                             else ImageView.ScaleType.FIT_CENTER
                         return false
                     }
@@ -210,7 +159,7 @@ class BannerCarouselAdapter(
                     }
                 })
 
-            if (isClassicBanner() || is3DBanner()) {
+            if (isClassicBanner()) {
                 logoReq.override(
                     holder.clearlogo.layoutParams.width,
                     holder.clearlogo.layoutParams.height
@@ -235,13 +184,7 @@ class BannerCarouselAdapter(
             }
         val scoreText = media.meanScore?.let { "$it%" }
 
-        if (is3DBanner()) {
-            holder.genresRow?.isVisible = false
-            holder.formatTag?.isVisible = false
-            holder.statusTag?.isVisible = false
-            holder.seasonTag?.isVisible = false
-            holder.scoreTag?.isVisible = false
-        } else if (isClassicBanner()) {
+        if (isClassicBanner()) {
             bindClassicChips(
                 holder.genresRow,
                 holder.chipsTop,
@@ -263,7 +206,7 @@ class BannerCarouselAdapter(
             ?.replace(Regex("<.*?>"), "")
             ?.replace(Regex("\\s+"), " ")
             ?.trim()
-        if (hideDescription || isClassicBanner() || is3DBanner()) {
+        if (hideDescription || isClassicBanner()) {
             holder.description.isVisible = false
         } else if (!desc.isNullOrBlank()) {
             holder.description.text = desc
@@ -273,7 +216,7 @@ class BannerCarouselAdapter(
         }
 
         val genresRow = holder.genresRow
-        if (!isClassicBanner() && !is3DBanner()) {
+        if (!isClassicBanner()) {
             genresRow?.removeAllViews()
             if (media.genres.isNotEmpty() && genresRow != null) {
                 val density = ctx.resources.displayMetrics.density
@@ -362,7 +305,7 @@ class BannerCarouselAdapter(
             val pos = realPosition(position + offset)
             if (pos in items.indices) {
                 val item = items[pos]
-                val url = if (is3DBanner()) item.cover else backdropUrls[item.id] ?: item.banner ?: item.cover
+                val url = backdropUrls[item.id] ?: item.banner ?: item.cover
                 if (!url.isNullOrBlank()) {
                     Glide.with(ctx)
                         .load(url)
@@ -505,31 +448,6 @@ class BannerCarouselAdapter(
         val content = holder.content ?: return
         val bottomGradient = holder.bottomGradient ?: return
         val density = holder.itemView.context.resources.displayMetrics.density
-
-        if (is3DBanner()) {
-            scrim.isVisible = false
-            bottomGradient.isVisible = true
-            val lp = content.layoutParams as FrameLayout.LayoutParams
-            lp.width = FrameLayout.LayoutParams.MATCH_PARENT
-            lp.gravity = Gravity.BOTTOM
-            content.layoutParams = lp
-            content.gravity = Gravity.CENTER_HORIZONTAL
-            val pad = (14 * density).toInt()
-            content.setPadding(pad, 0, pad, pad)
-            holder.clearlogo.maxWidth = (holder.itemView.width - (28 * density).toInt()).coerceAtLeast(1)
-            holder.clearlogo.maxHeight = (52 * density).toInt()
-            holder.title.isVisible = !holder.clearlogo.isVisible
-            holder.title.maxLines = 3
-            holder.title.setAutoSizeTextTypeUniformWithConfiguration(9, 14, 1, android.util.TypedValue.COMPLEX_UNIT_SP)
-            holder.formatTag?.isVisible = false
-            holder.statusTag?.isVisible = false
-            holder.seasonTag?.isVisible = false
-            holder.scoreTag?.isVisible = false
-            holder.genresRow?.isVisible = false
-            holder.description.isVisible = false
-            holder.favBtn?.isVisible = false
-            return
-        }
 
         if (isClassicBanner()) {
             scrim.isVisible = false
@@ -686,7 +604,6 @@ private fun setChip(view: TextView?, text: String?) {
 }
 
 fun layoutForBannerType(modern: Boolean): Int = when {
-    is3DBanner() -> R.layout.item_banner_3d
     modern -> R.layout.item_banner_modern
     isClassicBanner() -> R.layout.item_banner_classic
     else -> R.layout.item_banner_card

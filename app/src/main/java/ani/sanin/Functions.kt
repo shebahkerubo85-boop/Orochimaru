@@ -184,8 +184,6 @@ fun isClassicBanner(): Boolean = bannerType() == BANNER_TYPE_CLASSIC
 
 fun isModernBanner(): Boolean = bannerType() == BANNER_TYPE_MODERN
 
-fun is3DBanner(): Boolean = false
-
 fun View.bannerCardSizePx(maxHeightFraction: Float = 0.55f): Pair<Int, Int> {
     val dm = resources.displayMetrics
     val density = dm.density
@@ -213,66 +211,6 @@ fun View.bannerCardSizePx(maxHeightFraction: Float = 0.55f): Pair<Int, Int> {
         }
     }
     return (finalW * density).toInt() to (finalH * density).toInt()
-}
-
-fun RecyclerView.apply3DBannerTransforms() {
-    if (!is3DBanner() || width <= 0 || childCount == 0) return
-
-    val centerX = width / 2f
-    val density = resources.displayMetrics.density
-    val firstChild = getChildAt(0)
-    val firstMargins = firstChild.layoutParams as? ViewGroup.MarginLayoutParams
-    val fallbackSpacing = firstChild.width +
-        (firstMargins?.leftMargin ?: 0) + (firstMargins?.rightMargin ?: 0)
-    val measuredSpacing = if (childCount > 1) {
-        val firstCenter = (getChildAt(0).left + getChildAt(0).right) / 2f
-        val secondCenter = (getChildAt(1).left + getChildAt(1).right) / 2f
-        kotlin.math.abs(secondCenter - firstCenter)
-    } else 0f
-    val spacing = (measuredSpacing.takeIf { it > 1f } ?: fallbackSpacing.toFloat())
-        .coerceAtLeast(1f)
-
-    val anglePerFace = 45f
-    val gapPx = 12f * density
-    val radius = ((firstChild.width + gapPx) /
-        (2f * kotlin.math.sin(Math.toRadians(22.5)).toFloat())).coerceAtLeast(1f)
-
-    for (index in 0 until childCount) {
-        val child = getChildAt(index)
-        val childCenterX = (child.left + child.right) / 2f
-        val angle = (((childCenterX - centerX) / spacing) * anglePerFace)
-            .coerceIn(-180f, 180f)
-        val radians = Math.toRadians(angle.toDouble())
-        val projectedX = centerX + kotlin.math.sin(radians).toFloat() * radius
-        val depth = kotlin.math.cos(radians).toFloat()
-        val frontness = ((depth + 1f) / 2f).coerceIn(0f, 1f)
-
-        child.cameraDistance = 10000f * density
-        child.rotationY = angle
-        child.translationX = projectedX - childCenterX
-        child.translationZ = depth * radius
-        child.scaleX = 0.84f + frontness * 0.16f
-        child.scaleY = 0.88f + frontness * 0.12f
-
-        child.alpha = 1f
-    }
-}
-
-class BannerCylinderLayoutManager(
-    context: Context,
-    orientation: Int,
-    reverseLayout: Boolean,
-) : LinearLayoutManager(context, orientation, reverseLayout) {
-    override fun calculateExtraLayoutSpace(
-        state: RecyclerView.State,
-        extraLayoutSpace: IntArray,
-    ) {
-        super.calculateExtraLayoutSpace(state, extraLayoutSpace)
-        if (!is3DBanner()) return
-        val extra = width * 2
-        extraLayoutSpace[0] = max(extraLayoutSpace[0], extra)
-        extraLayoutSpace[1] = max(extraLayoutSpace[1], extra)
-    }
 }
 
 fun View.sizeBannerCard(maxHeightFraction: Float = 0.55f) {

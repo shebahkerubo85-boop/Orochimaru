@@ -26,7 +26,6 @@ import androidx.recyclerview.widget.RecyclerView
 import ani.sanin.R
 import ani.sanin.isClassicBanner
 import ani.sanin.isModernBanner
-import ani.sanin.is3DBanner
 import ani.sanin.bannerCardSizePx
 import ani.sanin.cloudstream.CsInstalledSource
 import ani.sanin.cloudstream.CsRepos
@@ -171,18 +170,17 @@ class TmdbHomeFragment : Fragment() {
         val cal = activity?.findViewById<View>(R.id.mainCalendarContainer)
         val avatar = activity?.findViewById<View>(R.id.mainUserAvatarContainer)
         val carouselMode = mode == 0
-        val threeD = carouselMode && is3DBanner()
 
         if (bannerShown) {
 
             b.tmdbBannerFrame.isFocusable = !carouselMode
             b.tmdbBannerFrame.isClickable = !carouselMode
             b.tmdbBannerFrame.nextFocusUpId = R.id.mainCalendarContainer
-            watchBtn.isVisible = !threeD
-            watchBtn.isFocusable = !threeD
+            watchBtn.isVisible = true
+            watchBtn.isFocusable = true
             watchBtn.nextFocusUpId = R.id.mainCalendarContainer
-            cal?.nextFocusDownId = if (threeD) View.NO_ID else watchBtn.id
-            avatar?.nextFocusDownId = if (threeD) View.NO_ID else watchBtn.id
+            cal?.nextFocusDownId = watchBtn.id
+            avatar?.nextFocusDownId = watchBtn.id
             watchBtn.nextFocusDownId = View.NO_ID
         } else {
             b.tmdbBannerFrame.nextFocusUpId = View.NO_ID
@@ -194,8 +192,7 @@ class TmdbHomeFragment : Fragment() {
 
         binding.tmdbHomeSections.post {
             if (_binding == null) return@post
-            val threeD = mode == 0 && is3DBanner()
-            val activeBtn = if (bannerShown && !threeD) activeWatchBtn() else null
+            val activeBtn = if (bannerShown) activeWatchBtn() else null
             val carousel = if (mode == 0) b.tmdbBannerCarousel else null
             var first = true
             for (i in 0 until b.tmdbHomeSections.childCount) {
@@ -439,9 +436,8 @@ class TmdbHomeFragment : Fragment() {
         val rv = binding.tmdbBannerCarousel
         rv.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
 
-        rv.isFocusable = is3DBanner()
-        rv.descendantFocusability = if (is3DBanner()) ViewGroup.FOCUS_AFTER_DESCENDANTS
-            else ViewGroup.FOCUS_BLOCK_DESCENDANTS
+        rv.isFocusable = false
+        rv.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
 
         rv.itemAnimator = null
         bannerSnapHelper.attachToRecyclerView(rv)

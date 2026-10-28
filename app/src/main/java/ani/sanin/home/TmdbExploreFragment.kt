@@ -38,7 +38,6 @@ import ani.sanin.databinding.LayoutTrendingBinding
 import ani.sanin.getThemeColor
 import ani.sanin.isClassicBanner
 import ani.sanin.isModernBanner
-import ani.sanin.is3DBanner
 import ani.sanin.isTvDevice
 import ani.sanin.limitedAsyncMap
 import ani.sanin.settings.saving.PrefManager
@@ -240,7 +239,7 @@ class TmdbExploreFragment : Fragment() {
             nextFocusDownId = R.id.tmdbExploreTypeScroll,
             layoutRes = layoutForBannerType(isModernBanner()),
 
-            cardMode = !isModernBanner() && !isClassicBanner() && !is3DBanner(),
+            cardMode = !isModernBanner() && !isClassicBanner(),
             hideDescription = !isModernBanner(),
             modernMode = isModernBanner()
         )
@@ -333,7 +332,7 @@ class TmdbExploreFragment : Fragment() {
         cardLp.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID
         trendingBinding.trendingCard.layoutParams = cardLp
 
-        val fullBleed = isModernBanner() || isClassicBanner() || is3DBanner() || is3DBanner()
+        val fullBleed = isModernBanner() || isClassicBanner()
 
         trendingBinding.trendingLeftFade.isVisible = isLandscape && !fullBleed
         if (isLandscape) {

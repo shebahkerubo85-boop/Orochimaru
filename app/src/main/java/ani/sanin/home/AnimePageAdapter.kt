@@ -29,7 +29,6 @@ import ani.sanin.R
 import ani.sanin.bannerType
 import ani.sanin.isClassicBanner
 import ani.sanin.isModernBanner
-import ani.sanin.is3DBanner
 import com.google.android.material.chip.Chip
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.anizip.AniZip
@@ -168,7 +167,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
             },
             nextFocusDownId = R.id.animeSeasons,
             layoutRes = layoutForBannerType(isModernBanner()),
-            cardMode = !isModernBanner() && !isClassicBanner() && !is3DBanner(),
+            cardMode = !isModernBanner() && !isClassicBanner(),
             hideDescription = !isModernBanner(),
             modernMode = isModernBanner(),
         )
@@ -274,7 +273,7 @@ class AnimePageAdapter : RecyclerView.Adapter<AnimePageAdapter.AnimePageViewHold
 
         val modern = isModernBanner()
         val classic = isClassicBanner()
-        val fullBleed = modern || classic || is3DBanner() || is3DBanner()
+        val fullBleed = modern || classic
 
         trendingBinding.trendingLeftFade.isVisible = isLandscape && !fullBleed
         if (isLandscape) {

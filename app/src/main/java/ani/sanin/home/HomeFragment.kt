@@ -47,7 +47,6 @@ import com.bumptech.glide.request.target.Target
 import ani.sanin.MainActivity
 import ani.sanin.isClassicBanner
 import ani.sanin.isModernBanner
-import ani.sanin.is3DBanner
 import ani.sanin.R
 import ani.sanin.Refresh
 import ani.sanin.blurImage
@@ -830,7 +829,7 @@ class HomeFragment : Fragment() {
                             nextFocusDownId = R.id.homeWatchingRecyclerView,
                             layoutRes = layoutForBannerType(modern),
 
-                            cardMode = !modern && !isClassicBanner() && !is3DBanner(),
+                            cardMode = !modern && !isClassicBanner(),
                             hideDescription = !modern,
                             modernMode = modern,
                         )
@@ -1155,7 +1154,7 @@ class HomeFragment : Fragment() {
             else -> {
 
                 val target =
-                    if (isModernBanner() || isClassicBanner() || (is3DBanner() && carouselActive)) R.id.homeBannerCarousel
+                    if (isModernBanner() || isClassicBanner()) R.id.homeBannerCarousel
                     else R.id.homeBannerWatchBtn
                 cwItemUpTarget = target
                 cwRow?.nextFocusUpId = target
@@ -1190,7 +1189,7 @@ class HomeFragment : Fragment() {
             c.layoutParams = lp
         }
 
-        if ((isModernBanner() && hasBanner) || (is3DBanner() && carouselActive)) {
+        if (isModernBanner() && hasBanner) {
             card.sizeBannerCard()
             setCardCentered(card)
             fade.isVisible = false
@@ -1243,7 +1242,7 @@ class HomeFragment : Fragment() {
         val sidePad = (24 * density).toInt()
         val stripW = ctx.resources.displayMetrics.widthPixels - cardW
 
-        val fullBleed = isModernBanner() || isClassicBanner() || (is3DBanner() && carouselActive)
+        val fullBleed = isModernBanner() || isClassicBanner()
 
         fade.isVisible = !fullBleed
         fade.updateLayoutParams<ViewGroup.MarginLayoutParams> {
