@@ -60,11 +60,15 @@ class DiscoveryStandardCardAdapter(
             holder.itemView.updateLayoutParams<ViewGroup.MarginLayoutParams> { bottomMargin = gap }
         }
         holder.itemView.setOnClickListener { onClick(item) }
-        holder.binding.tmdbCardPoster.setOnClickListener { onClick(item) }
-        FocusEffectUtil.applyFocusListener(holder.binding.tmdbCardPoster)
+        FocusEffectUtil.applyFocusListener(holder.itemView, holder.binding.tmdbCard)
     }
 
     override fun getItemCount(): Int = items.size
 
-    class VH(val binding: ItemTmdbCardBinding) : RecyclerView.ViewHolder(binding.root)
+    class VH(val binding: ItemTmdbCardBinding) : RecyclerView.ViewHolder(binding.root) {
+        init {
+            binding.root.isFocusable = true
+            binding.root.isFocusableInTouchMode = false
+        }
+    }
 }

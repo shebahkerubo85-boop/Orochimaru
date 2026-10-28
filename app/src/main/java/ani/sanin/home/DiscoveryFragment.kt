@@ -313,7 +313,6 @@ class DiscoveryFragment : Fragment() {
     private var animeCategorySlug = ""
     private var animeCategoryTitle = ""
     private var animeCategoryDescription = ""
-    private var resolvedAnimeCategorySlug: String? = null
     private var animeCategoryOffset = 0
     private var animeCategoryLoading = false
     private var animeCategoryEndReached = false
@@ -403,7 +402,7 @@ class DiscoveryFragment : Fragment() {
 
                 val resultsContent = binding.discoverScroll.getChildAt(0)?.height
                     ?: return@setOnScrollChangeListener
-                if (scrollY + binding.discoverScroll.height >= resultsContent - dp(500)) {
+                if (scrollY + b.discoverScroll.height >= resultsContent - dp(500)) {
                     loadAnimeCategoryPage()
                 }
                 return@setOnScrollChangeListener
@@ -923,6 +922,7 @@ class DiscoveryFragment : Fragment() {
                 startActivity(
                     Intent(requireContext(), MediaDetailsActivity::class.java)
                         .putExtra("mediaId", card.id)
+                        .putExtra("mediaFallbackTitle", card.title)
                 )
             }
         }
@@ -946,7 +946,7 @@ class DiscoveryFragment : Fragment() {
         animeCategorySlug = slug
         animeCategoryTitle = title
         animeCategoryDescription = description
-        resolvedAnimeCategorySlug = null
+        categoryArtworkGeneration++
         animeCategoryOffset = 0
         animeCategoryEndReached = false
         animeCategoryBackCallback?.isEnabled = true
@@ -1009,56 +1009,34 @@ class DiscoveryFragment : Fragment() {
     }
 
     private fun loadAnimeCategoryPage() {
+        val b = _binding ?: return
         if (animeCategoryLoading || animeCategoryEndReached) return
         animeCategoryLoading = true
-        binding.discoverCategoryProgress.visibility = View.VISIBLE
+        b.discoverCategoryProgress.visibility = View.VISIBLE
         viewLifecycleOwner.lifecycleScope.launch {
             var added = false
+            var statusShown = false
             var attempts = 0
             do {
-
-                if (resolvedAnimeCategorySlug == null && animeCategoryOffset == 0 && animeCategoryAdapter.isEmpty()) {
-                    val matched = withContext(Dispatchers.IO) {
-                        runCatching {
-                            val categories = Kitsu.allCategories()
-                            val requestedSlug = normalizeAnimeCategoryKey(animeCategorySlug)
-                            val requestedTitle = normalizeAnimeCategoryKey(animeCategoryTitle)
-                            categories.firstOrNull { it.slug.equals(animeCategorySlug, ignoreCase = true) }
-                                ?: categories.firstOrNull { normalizeAnimeCategoryKey(it.title) == requestedTitle }
-                                ?: categories.firstOrNull { normalizeAnimeCategoryKey(it.slug) == requestedSlug }
-                        }.getOrNull()
-                    }
-                    resolvedAnimeCategorySlug = matched?.slug ?: animeCategorySlug
-                    if (_binding == null) {
-                        animeCategoryLoading = false
-                        return@launch
-                    }
-                    matched?.let { category ->
-                        if (animeCategoryDescription.isBlank()) {
-                            animeCategoryDescription = category.description
-                                ?.replace(Regex("<[^>]*>"), " ")
-                                ?.replace(Regex("\\s+"), " ")
-                                ?.trim()
-                                .orEmpty()
-                        }
-                        renderAnimeCategoryHeader(mediaCount = category.mediaCount)
-                    }
-                }
                 val page = withContext(Dispatchers.IO) {
                     Kitsu.categoryAnime(
-                        categorySlug = resolvedAnimeCategorySlug ?: animeCategorySlug,
+                        categorySlug = animeCategorySlug,
                         offset = animeCategoryOffset,
                         limit = ANIME_CATEGORY_PAGE_SIZE,
                     )
                 }
                 if (!page.success) {
                     if (animeCategoryAdapter.isEmpty()) {
+                        statusShown = true
                         showAnimeCategoryStatus("Couldn't load this category. Tap to retry.") {
                             animeCategoryEndReached = false
                             loadAnimeCategoryPage()
                         }
+                    } else {
+                        animeCategoryEndReached = false
+                        statusShown = true
+                        showAnimeCategoryStatus("Couldn't load more. Scroll down to retry.")
                     }
-                    animeCategoryEndReached = true
                     break
                 }
                 animeCategoryOffset += page.rawCount
@@ -1095,12 +1073,21 @@ class DiscoveryFragment : Fragment() {
             }
             if (animeCategoryAdapter.isEmpty() && animeCategoryEndReached) {
                 showAnimeCategoryStatus("No mapped anime found in this category.")
-            } else {
+            } else if (!statusShown) {
                 binding.discoverCategoryStatus.visibility = View.GONE
             }
             binding.discoverCategoryProgress.visibility = View.GONE
             animeCategoryLoading = false
+            if (added && animeCategoryOpen && !animeCategoryEndReached && animeCategoryNearBottom()) {
+                binding.discoverScroll.post { loadAnimeCategoryPage() }
+            }
         }
+    }
+
+    private fun animeCategoryNearBottom(): Boolean {
+        val scroll = binding.discoverScroll
+        val content = scroll.getChildAt(0)?.height ?: return false
+        return scroll.scrollY + scroll.height >= content - dp(500)
     }
 
     private fun showAnimeCategoryStatus(message: String, onRetry: (() -> Unit)? = null) {
@@ -1110,9 +1097,6 @@ class DiscoveryFragment : Fragment() {
         binding.discoverCategoryStatus.setOnClickListener { onRetry?.invoke() }
         binding.discoverCategoryStatus.visibility = View.VISIBLE
     }
-
-    private fun normalizeAnimeCategoryKey(value: String): String =
-        value.lowercase(java.util.Locale.ROOT).filter { it.isLetterOrDigit() }
 
     private fun loadReelRail() {
         if (reelRailLoaded) {

@@ -61,6 +61,11 @@ class TmdbDiscoveryFragment : Fragment() {
 
     private var shelvesScrollY = 0
     private var selectedCategory: TmdbDiscoveryCategory? = null
+    private val tmdbCategoryItems = mutableListOf<TmdbMedia>()
+    private var tmdbCategoryPage = 1
+    private var tmdbCategoryLoading = false
+    private var tmdbCategoryEndReached = false
+    private var tmdbCategoryEmptyView: TextView? = null
     private val keywordCache = mutableMapOf<String, Int?>()
     private val artworkCache = mutableMapOf<String, String?>()
     private val artworkLoading = mutableSetOf<String>()
@@ -138,6 +143,13 @@ class TmdbDiscoveryFragment : Fragment() {
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backCallback!!)
 
         binding.tmdbDiscoveryScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+            if (selectedCategory != null) {
+                val content = binding.tmdbDiscoveryScroll.getChildAt(0)?.height ?: return@setOnScrollChangeListener
+                if (scrollY + binding.tmdbDiscoveryScroll.height >= content - dp(600)) {
+                    loadTmdbCategoryPage()
+                }
+                return@setOnScrollChangeListener
+            }
             if (selectedCategory == null) {
 
                 val rowsAhead = (scrollY + binding.tmdbDiscoveryScroll.height) / dp(118) + 2
@@ -505,6 +517,10 @@ class TmdbDiscoveryFragment : Fragment() {
         binding.tmdbDiscoveryGrid.isVisible = true
         binding.tmdbDiscoveryProgress.isVisible = true
         binding.tmdbDiscoverySearchBar.contentDescription = "Search movies and TV"
+        tmdbCategoryItems.clear()
+        tmdbCategoryPage = 1
+        tmdbCategoryLoading = false
+        tmdbCategoryEndReached = false
         val host = binding.tmdbEditorialShelves
         host.removeAllViews()
         val header = LinearLayout(requireContext()).apply {
@@ -532,25 +548,77 @@ class TmdbDiscoveryFragment : Fragment() {
         })
         host.addView(header)
         if (isTvDevice(requireContext())) back.post { back.requestFocus() }
+        loadTmdbCategoryPage()
+    }
+
+    private fun loadTmdbCategoryPage() {
+        val category = selectedCategory ?: return
+        val b = _binding ?: return
+        if (tmdbCategoryLoading || tmdbCategoryEndReached) return
+        tmdbCategoryLoading = true
+        val firstLoad = tmdbCategoryPage == 1
+        b.tmdbDiscoveryProgress.isVisible = firstLoad
         viewLifecycleOwner.lifecycleScope.launch {
-            val items = runCatching { fetchCategory(category, page = 1) }.getOrDefault(emptyList())
+            val outcome = runCatching { fetchCategory(category, page = tmdbCategoryPage) }
+            val items = outcome.getOrDefault(emptyList())
             if (_binding == null || selectedCategory?.id != category.id) return@launch
-            adapter.submit(items)
-            binding.tmdbDiscoveryProgress.isVisible = false
-            binding.tmdbDiscoveryGrid.isVisible = items.isNotEmpty()
-            if (items.isEmpty()) {
-                host.addView(TextView(requireContext()).apply {
-                    text = "No reliable matches found for this shelf yet. Try another category."
-                    textSize = 13f
-                    setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
-                    setPadding(dp(12), dp(12), dp(12), dp(24))
-                })
+            var succeeded = false
+            when {
+                !outcome.isSuccess -> showTmdbCategoryEmpty("Couldn't load this shelf. Scroll down to retry.")
+                items.isEmpty() -> tmdbCategoryEndReached = true
+                else -> {
+                    val seen = tmdbCategoryItems.mapTo(HashSet()) { it.type to it.id }
+                    val fresh = items.filter { seen.add(it.type to it.id) }
+                    if (fresh.isEmpty()) {
+                        tmdbCategoryEndReached = true
+                    } else {
+                        succeeded = true
+                        tmdbCategoryItems.addAll(fresh)
+                        if (firstLoad) adapter.submit(tmdbCategoryItems.toList())
+                        else adapter.append(fresh)
+                        tmdbCategoryPage++
+                    }
+                }
             }
+            b.tmdbDiscoveryProgress.isVisible = false
+            b.tmdbDiscoveryGrid.isVisible = tmdbCategoryItems.isNotEmpty()
+            if (tmdbCategoryItems.isNotEmpty()) {
+                tmdbCategoryEmptyView?.let { if (it.parent != null) (it.parent as? android.view.ViewGroup)?.removeView(it) }
+                tmdbCategoryEmptyView = null
+            }
+            if (tmdbCategoryItems.isEmpty() && tmdbCategoryEndReached) {
+                showTmdbCategoryEmpty("No reliable matches found for this shelf yet. Try another category.")
+            }
+            tmdbCategoryLoading = false
+            if (succeeded && !tmdbCategoryEndReached) {
+                val scroll = b.tmdbDiscoveryScroll
+                val content = scroll.getChildAt(0)?.height
+                if (content != null && scroll.scrollY + scroll.height >= content - dp(600)) {
+                    scroll.post { if (_binding != null) loadTmdbCategoryPage() }
+                }
+            }
+        }
+    }
+
+    private fun showTmdbCategoryEmpty(message: String) {
+        val host = _binding?.tmdbEditorialShelves ?: return
+        if (tmdbCategoryEmptyView?.parent == null) tmdbCategoryEmptyView = TextView(requireContext()).apply {
+            textSize = 13f
+            setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
+            setPadding(dp(12), dp(12), dp(12), dp(24))
+        }
+        tmdbCategoryEmptyView?.let { view ->
+            view.text = message
+            if (view.parent == null) host.addView(view)
         }
     }
 
     private fun showCategories() {
         selectedCategory = null
+        tmdbCategoryItems.clear()
+        tmdbCategoryPage = 1
+        tmdbCategoryLoading = false
+        tmdbCategoryEndReached = false
         backCallback?.isEnabled = false
         binding.tmdbDiscoveryProgress.isVisible = false
         binding.tmdbDiscoveryGrid.isVisible = false
@@ -666,6 +734,14 @@ class TmdbDiscoveryFragment : Fragment() {
             items = list
             notifyDataSetChanged()
         }
+        fun append(list: List<TmdbMedia>) {
+            val existing = items.mapTo(HashSet()) { it.type to it.id }
+            val fresh = list.filter { existing.add(it.type to it.id) }
+            if (fresh.isEmpty()) return
+            val start = items.size
+            items = items + fresh
+            notifyItemRangeInserted(start, fresh.size)
+        }
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
             val binding = ItemTmdbCardBinding.inflate(LayoutInflater.from(parent.context), parent, false)
             return VH(binding)
@@ -681,11 +757,15 @@ class TmdbDiscoveryFragment : Fragment() {
             }
             holder.binding.tmdbCardTitle.text = item.displayTitle
             holder.binding.tmdbCardYear.text = item.year
-            holder.binding.tmdbCardPoster.setOnClickListener { onOpen(item) }
             holder.binding.root.setOnClickListener { onOpen(item) }
-            FocusEffectUtil.applyFocusListener(holder.binding.tmdbCardPoster)
+            FocusEffectUtil.applyFocusListener(holder.itemView, holder.binding.tmdbCard)
         }
         override fun getItemCount(): Int = items.size
-        class VH(val binding: ItemTmdbCardBinding) : RecyclerView.ViewHolder(binding.root)
+        class VH(val binding: ItemTmdbCardBinding) : RecyclerView.ViewHolder(binding.root) {
+            init {
+                binding.root.isFocusable = true
+                binding.root.isFocusableInTouchMode = false
+            }
+        }
     }
 }

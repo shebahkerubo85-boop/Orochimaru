@@ -84,6 +84,7 @@ class MediaDetailsActivity : AppCompatActivity() {
         val providedMedia: Media = intent.getSerialized("media") ?: mediaSingleton ?: emptyMedia()
         intent.removeExtra("media")
         val id = intent.getIntExtra("mediaId", -1)
+        val fallbackTitle = intent.getStringExtra("mediaFallbackTitle")
         val rescueMode: Boolean = PrefManager.getVal(PrefName.RescueMode)
 
         ThemeManager(this).applyTheme()
@@ -97,6 +98,9 @@ class MediaDetailsActivity : AppCompatActivity() {
         if (id != -1) {
             lifecycleScope.launch {
                 val media = withContext(Dispatchers.IO) { fetchMediaById(id, rescueMode) }
+                    ?: withContext(Dispatchers.IO) {
+                        fallbackTitle?.takeIf { it.isNotBlank() && !rescueMode }?.let { fetchMediaByTitle(it) }
+                    }
                 if (isFinishing || isDestroyed) return@launch
                 bindMedia(media ?: emptyMedia(), savedInstanceState, rescueMode)
             }
@@ -111,6 +115,12 @@ class MediaDetailsActivity : AppCompatActivity() {
         } else {
             Anilist.query.getMedia(id, false)
         }
+    }
+
+    private suspend fun fetchMediaByTitle(title: String): Media? = withContext(Dispatchers.IO) {
+        runCatching {
+            Anilist.query.searchAniManga("ANIME", perPage = 5, search = title)?.results?.firstOrNull()?.id
+        }.getOrNull()?.let { Anilist.query.getMedia(it, false) }
     }
 
     @SuppressLint("ClickableViewAccessibility")
