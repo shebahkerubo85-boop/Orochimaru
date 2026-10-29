@@ -1038,25 +1038,12 @@ class DiscoveryFragment : Fragment() {
                 animeCategoryOffset += page.rawCount
                 animeCategoryEndReached = !page.hasMore
                 if (page.items.isNotEmpty()) {
-
-                    val anilistIds = page.items.mapNotNull { it.anilistId }.distinct()
-                    val covers = if (anilistIds.isEmpty()) {
-                        emptyMap<Int, String>()
-                    } else {
-                        runCatching {
-                            withContext(Dispatchers.IO) {
-                                Anilist.query.getMediaList(anilistIds).orEmpty()
-                                    .mapNotNull { media -> media.cover?.let { media.id to it } }
-                                    .toMap()
-                            }
-                        }.getOrDefault(emptyMap())
-                    }
                     animeCategoryAdapter.append(page.items.map { item ->
                         DiscoveryStandardCardAdapter.Card(
                             id = item.anilistId
                                 ?: -(kotlin.math.abs(item.title.hashCode() % 1_000_000_000) + 1),
                             title = item.title,
-                            posterUrl = item.anilistId?.let(covers::get) ?: item.posterUrl,
+                            posterUrl = item.posterUrl,
                         )
                     })
                     added = true
