@@ -712,9 +712,9 @@ class TmdbDiscoveryFragment : Fragment() {
                 tmdbCategoryEmptyView?.let { if (it.parent != null) (it.parent as? android.view.ViewGroup)?.removeView(it) }
                 tmdbCategoryEmptyView = null
             }
-            if (tmdbCategoryItems.isEmpty() && tmdbAllExhausted()) {
+            if (tmdbCategoryItems.isEmpty() && (tmdbAllExhausted() || failures >= 3)) {
                 val reason = Tmdb.lastError
-                val message: String = if (reason != null) "TMDB can\'t be reached from your network right now (${Tmdb.lastError}). Anime shelves still work - try Wi-Fi or another network, then go back and retry."
+                val message: String = if (reason != null) "TMDB can" + "\u2019" + "t be reached from your network right now ($reason). Anime shelves still work - try Wi-Fi or another network, then go back and retry."
                 else "No reliable matches found for this shelf yet. Try another category."
                 showTmdbCategoryEmpty(message)
                 if (firstLoad && !tmdbReloadUsed) {
