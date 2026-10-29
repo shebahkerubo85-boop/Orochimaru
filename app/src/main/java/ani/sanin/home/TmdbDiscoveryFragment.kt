@@ -513,7 +513,7 @@ class TmdbDiscoveryFragment : Fragment() {
         pending.forEach { category ->
             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                 val startedAt = System.currentTimeMillis()
-                val url = runCatching { fetchCategoryGridPoster(category) }
+                val url = runCatching { categorySemaphore.withPermit { fetchCategoryGridPoster(category) } }
                     .onFailure { Logger.log("TMDB shelf grid poster failed category=" + category.id + ": " + it.message) }
                     .getOrNull()
                 withContext(Dispatchers.Main) {
