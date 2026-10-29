@@ -26,11 +26,14 @@ import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
+import android.widget.ImageButton
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import ani.sanin.R
+import ani.sanin.settings.saving.PrefManager
 import ani.sanin.connections.anilist.Anilist
 import ani.sanin.connections.kitsu.Kitsu
 import ani.sanin.connections.kitsu.KitsuCategory
@@ -58,6 +61,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import ani.sanin.getThemeColor
 import ani.sanin.isTvDevice
 import ani.sanin.loadImage
+import ani.sanin.ui.LensButtonBackground
 import ani.sanin.util.FocusEffectUtil
 
 class DiscoverViewModel : ViewModel() {
@@ -317,6 +321,10 @@ class DiscoveryFragment : Fragment() {
     private var animeCategoryLoading = false
     private var animeCategoryEndReached = false
     private lateinit var animeCategoryAdapter: DiscoveryStandardCardAdapter
+    private lateinit var animeCategoryListRowAdapter: DiscoveryListRowAdapter
+    private val animeCategoryCards = mutableListOf<DiscoveryStandardCardAdapter.Card>()
+    private var animeCategoryGridButton: ImageButton? = null
+    private var animeCategoryListButton: ImageButton? = null
     private var animeCategoryBackCallback: OnBackPressedCallback? = null
 
     private data class ReelCard(
@@ -915,17 +923,16 @@ class DiscoveryFragment : Fragment() {
     }
 
     private fun setupAnimeCategoryResults() {
-        animeCategoryAdapter = DiscoveryStandardCardAdapter { card ->
+        val openCard: (DiscoveryStandardCardAdapter.Card) -> Unit = { card ->
             startActivity(
                 Intent(requireContext(), MediaDetailsActivity::class.java)
                     .putExtra("mediaId", if (card.id > 0) card.id else 0)
                     .putExtra("mediaFallbackTitle", card.title)
             )
         }
+        animeCategoryAdapter = DiscoveryStandardCardAdapter(animeCategoryCards, openCard)
+        animeCategoryListRowAdapter = DiscoveryListRowAdapter(animeCategoryCards, openCard)
         val dm = resources.displayMetrics
-        binding.discoverCategoryResultsGrid.layoutManager =
-            GridLayoutManager(requireContext(), TmdbCards.gridSpan(dm.widthPixels / dm.density))
-        binding.discoverCategoryResultsGrid.adapter = animeCategoryAdapter
         binding.discoverCategoryResultsGrid.isNestedScrollingEnabled = false
         animeCategoryBackCallback = object : OnBackPressedCallback(false) {
             override fun handleOnBackPressed() {
@@ -946,13 +953,16 @@ class DiscoveryFragment : Fragment() {
         animeCategoryOffset = 0
         animeCategoryEndReached = false
         animeCategoryBackCallback?.isEnabled = true
-        animeCategoryAdapter.clear()
+        animeCategoryCards.clear()
+        animeCategoryAdapter.notifyDataSetChanged()
+        animeCategoryListRowAdapter.notifyDataSetChanged()
         binding.discoverCategoryGrid.visibility = View.GONE
         binding.discoverEditorialShelves.visibility = View.GONE
         binding.discoverCategoryHeader.visibility = View.VISIBLE
         binding.discoverCategoryResultsGrid.visibility = View.VISIBLE
         binding.discoverCategoryStatus.visibility = View.GONE
         renderAnimeCategoryHeader(mediaCount = null)
+        applyAnimeCategoryLayout(PrefManager.getCustomVal("discover_category_view", 0))
         binding.discoverScroll.scrollTo(0, 0)
         if (isTv) {
             binding.discoverCategoryHeader.post {
@@ -966,7 +976,9 @@ class DiscoveryFragment : Fragment() {
         if (!animeCategoryOpen) return
         animeCategoryOpen = false
         animeCategoryBackCallback?.isEnabled = false
-        animeCategoryAdapter.clear()
+        animeCategoryCards.clear()
+        animeCategoryAdapter.notifyDataSetChanged()
+        animeCategoryListRowAdapter.notifyDataSetChanged()
         binding.discoverCategoryHeader.visibility = View.GONE
         binding.discoverCategoryResultsGrid.visibility = View.GONE
         binding.discoverCategoryStatus.visibility = View.GONE
@@ -988,13 +1000,45 @@ class DiscoveryFragment : Fragment() {
             setOnClickListener { closeAnimeCategory() }
             FocusEffectUtil.applyFocusListener(this)
         })
-        header.addView(TextView(context).apply {
+        val titleRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+        }
+        titleRow.addView(TextView(context).apply {
             text = if (mediaCount != null) "$animeCategoryTitle ($mediaCount)" else animeCategoryTitle
             textSize = 21f
             setTypeface(typeface, Typeface.BOLD)
             setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
             setPadding(0, dp(10), 0, dp(4))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         })
+        val gridButton = ImageButton(context).apply {
+            setImageResource(ani.sanin.R.drawable.ic_round_grid_view_24)
+            setColorFilter(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            background = null
+            setPadding(dp(11), dp(11), dp(11), dp(11))
+            LensButtonBackground.apply(this)
+            contentDescription = context.getString(ani.sanin.R.string.grid)
+            layoutParams = LinearLayout.LayoutParams(dp(44), dp(44))
+        }
+        val listButton = ImageButton(context).apply {
+            setImageResource(ani.sanin.R.drawable.ic_round_view_list_24)
+            setColorFilter(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            background = null
+            setPadding(dp(11), dp(11), dp(11), dp(11))
+            LensButtonBackground.apply(this)
+            contentDescription = context.getString(ani.sanin.R.string.list)
+            layoutParams = LinearLayout.LayoutParams(dp(44), dp(44))
+        }
+        titleRow.addView(gridButton)
+        titleRow.addView(listButton)
+        FocusEffectUtil.applyFocusListener(gridButton)
+        FocusEffectUtil.applyFocusListener(listButton)
+        animeCategoryGridButton = gridButton
+        animeCategoryListButton = listButton
+        gridButton.setOnClickListener { applyAnimeCategoryLayout(0) }
+        listButton.setOnClickListener { applyAnimeCategoryLayout(1) }
+        header.addView(titleRow)
         if (animeCategoryDescription.isNotBlank()) {
             header.addView(TextView(context).apply {
                 text = animeCategoryDescription
@@ -1002,6 +1046,21 @@ class DiscoveryFragment : Fragment() {
                 setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
             })
         }
+    }
+
+    private fun applyAnimeCategoryLayout(mode: Int) {
+        val b = _binding ?: return
+        PrefManager.setCustomVal("discover_category_view", mode)
+        animeCategoryGridButton?.alpha = if (mode == 0) 1f else 0.33f
+        animeCategoryListButton?.alpha = if (mode == 1) 1f else 0.33f
+        b.discoverCategoryResultsGrid.adapter =
+            if (mode == 1) animeCategoryListRowAdapter else animeCategoryAdapter
+        b.discoverCategoryResultsGrid.layoutManager =
+            if (mode == 1) {
+                LinearLayoutManager(requireContext())
+            } else {
+                GridLayoutManager(requireContext(), TmdbCards.gridSpan(resources.displayMetrics.widthPixels / resources.displayMetrics.density))
+            }
     }
 
     private fun loadAnimeCategoryPage() {
@@ -1022,7 +1081,7 @@ class DiscoveryFragment : Fragment() {
                     )
                 }
                 if (!page.success) {
-                    if (animeCategoryAdapter.isEmpty()) {
+                    if (animeCategoryCards.isEmpty()) {
                         statusShown = true
                         showAnimeCategoryStatus("Couldn't load this category. Tap to retry.") {
                             animeCategoryEndReached = false
@@ -1038,14 +1097,19 @@ class DiscoveryFragment : Fragment() {
                 animeCategoryOffset += page.rawCount
                 animeCategoryEndReached = !page.hasMore
                 if (page.items.isNotEmpty()) {
-                    animeCategoryAdapter.append(page.items.map { item ->
+                    val start = animeCategoryCards.size
+                    animeCategoryCards.addAll(page.items.map { item ->
                         DiscoveryStandardCardAdapter.Card(
                             id = item.anilistId
                                 ?: -(kotlin.math.abs(item.title.hashCode() % 1_000_000_000) + 1),
                             title = item.title,
                             posterUrl = item.posterUrl,
+                            year = item.year?.toString(),
                         )
                     })
+                    val count = animeCategoryCards.size - start
+                    animeCategoryAdapter.notifyItemRangeInserted(start, count)
+                    animeCategoryListRowAdapter.notifyItemRangeInserted(start, count)
                     added = true
                 }
                 attempts++
@@ -1055,7 +1119,7 @@ class DiscoveryFragment : Fragment() {
                 animeCategoryLoading = false
                 return@launch
             }
-            if (animeCategoryAdapter.isEmpty() && animeCategoryEndReached) {
+            if (animeCategoryCards.isEmpty() && animeCategoryEndReached) {
                 showAnimeCategoryStatus("No mapped anime found in this category.")
             } else if (!statusShown) {
                 binding.discoverCategoryStatus.visibility = View.GONE

@@ -21,10 +21,14 @@ import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
+import android.widget.ImageButton
+import androidx.recyclerview.widget.LinearLayoutManager
+import ani.sanin.ui.LensButtonBackground
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.chip.Chip
 import com.bumptech.glide.Glide
 import ani.sanin.R
+import ani.sanin.settings.saving.PrefManager
 import ani.sanin.cloudstream.TmdbCards
 import ani.sanin.cloudstream.TmdbDetailsActivity
 import ani.sanin.cloudstream.TmdbSearchActivity
@@ -56,12 +60,16 @@ class TmdbDiscoveryFragment : Fragment() {
 
     private var _binding: FragmentTmdbDiscoveryBinding? = null
     private val binding get() = _binding!!
-    private val adapter = TmdbGridAdapter { openDetails(it) }
+    private val tmdbCategoryItems = mutableListOf<TmdbMedia>()
+    private val tmdbCategoryRowCards = mutableListOf<DiscoveryStandardCardAdapter.Card>()
+    private val adapter = TmdbGridAdapter(tmdbCategoryItems) { openDetails(it) }
+    private lateinit var tmdbListRowAdapter: DiscoveryListRowAdapter
+    private var tmdbGridButton: ImageButton? = null
+    private var tmdbListButton: ImageButton? = null
     private var genres: List<TmdbGenre> = emptyList()
 
     private var shelvesScrollY = 0
     private var selectedCategory: TmdbDiscoveryCategory? = null
-    private val tmdbCategoryItems = mutableListOf<TmdbMedia>()
     private val tmdbPool = mutableListOf<TmdbMedia>()
     private val tmdbSeen = HashSet<Pair<String, Int>>()
     private var tmdbMoviePage = 1
@@ -104,6 +112,10 @@ class TmdbDiscoveryFragment : Fragment() {
             requireContext(), TmdbCards.gridSpan(dm.widthPixels / dm.density)
         )
         binding.tmdbDiscoveryGrid.isNestedScrollingEnabled = false
+        tmdbListRowAdapter = DiscoveryListRowAdapter(tmdbCategoryRowCards) { card ->
+            val item = tmdbCategoryItems.firstOrNull { it.id == -card.id }
+            if (item != null) openDetails(item)
+        }
         binding.tmdbDiscoveryGrid.adapter = adapter
         binding.tmdbDiscoveryProgress.isVisible = false
         binding.tmdbGenreChips.isVisible = false
@@ -537,13 +549,45 @@ class TmdbDiscoveryFragment : Fragment() {
             FocusEffectUtil.applyFocusListener(this)
         }
         header.addView(back)
-        header.addView(TextView(requireContext()).apply {
+        val titleRow = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+        }
+        titleRow.addView(TextView(requireContext()).apply {
             text = category.title
             textSize = 21f
             setTypeface(typeface, Typeface.BOLD)
             setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
             setPadding(0, dp(10), 0, dp(4))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         })
+        val gridButton = ImageButton(requireContext()).apply {
+            setImageResource(ani.sanin.R.drawable.ic_round_grid_view_24)
+            setColorFilter(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            background = null
+            setPadding(dp(11), dp(11), dp(11), dp(11))
+            LensButtonBackground.apply(this)
+            contentDescription = context.getString(ani.sanin.R.string.grid)
+            layoutParams = LinearLayout.LayoutParams(dp(44), dp(44))
+        }
+        val listButton = ImageButton(requireContext()).apply {
+            setImageResource(ani.sanin.R.drawable.ic_round_view_list_24)
+            setColorFilter(context.getThemeColor(com.google.android.material.R.attr.colorOnSurface))
+            background = null
+            setPadding(dp(11), dp(11), dp(11), dp(11))
+            LensButtonBackground.apply(this)
+            contentDescription = context.getString(ani.sanin.R.string.list)
+            layoutParams = LinearLayout.LayoutParams(dp(44), dp(44))
+        }
+        titleRow.addView(gridButton)
+        titleRow.addView(listButton)
+        FocusEffectUtil.applyFocusListener(gridButton)
+        FocusEffectUtil.applyFocusListener(listButton)
+        tmdbGridButton = gridButton
+        tmdbListButton = listButton
+        gridButton.setOnClickListener { applyTmdbCategoryLayout(0) }
+        listButton.setOnClickListener { applyTmdbCategoryLayout(1) }
+        header.addView(titleRow)
         header.addView(TextView(requireContext()).apply {
             text = category.description
             textSize = 13f
@@ -551,6 +595,7 @@ class TmdbDiscoveryFragment : Fragment() {
         })
         host.addView(header)
         if (isTvDevice(requireContext())) back.post { back.requestFocus() }
+        applyTmdbCategoryLayout(PrefManager.getCustomVal("discover_category_view", 0))
         loadTmdbCategoryPage()
     }
 
@@ -570,6 +615,23 @@ class TmdbDiscoveryFragment : Fragment() {
 
     private fun tmdbAllExhausted(): Boolean =
         tmdbMovieExhausted && tmdbTvExhausted && tmdbPool.isEmpty()
+
+    private fun applyTmdbCategoryLayout(mode: Int) {
+        val b = _binding ?: return
+        PrefManager.setCustomVal("discover_category_view", mode)
+        tmdbGridButton?.alpha = if (mode == 0) 1f else 0.33f
+        tmdbListButton?.alpha = if (mode == 1) 1f else 0.33f
+        b.tmdbDiscoveryGrid.adapter = if (mode == 1) tmdbListRowAdapter else adapter
+        b.tmdbDiscoveryGrid.layoutManager =
+            if (mode == 1) {
+                LinearLayoutManager(requireContext())
+            } else {
+                GridLayoutManager(
+                    requireContext(),
+                    TmdbCards.gridSpan(resources.displayMetrics.widthPixels / resources.displayMetrics.density)
+                )
+            }
+    }
 
     private fun loadTmdbCategoryPage() {
         val category = selectedCategory ?: return
@@ -601,8 +663,18 @@ class TmdbDiscoveryFragment : Fragment() {
                 if (fresh.isEmpty()) continue
                 emitted += fresh.size
                 tmdbCategoryItems.addAll(fresh)
-                if (firstLoad) adapter.submit(tmdbCategoryItems.toList())
-                else adapter.append(fresh)
+                val rowStart = tmdbCategoryRowCards.size
+                tmdbCategoryRowCards.addAll(fresh.map { item ->
+                    DiscoveryStandardCardAdapter.Card(
+                        id = -item.id,
+                        title = item.displayTitle,
+                        posterUrl = item.posterPath?.let { Tmdb.imageUrl(it, 300) },
+                        year = item.year.takeIf { y -> y.isNotBlank() },
+                    )
+                })
+                val start = tmdbCategoryItems.size - fresh.size
+                adapter.notifyItemRangeInserted(start, fresh.size)
+                tmdbListRowAdapter.notifyItemRangeInserted(rowStart, fresh.size)
             }
             if (_binding == null || selectedCategory?.id != category.id) return@launch
             b.tmdbDiscoveryProgress.isVisible = false
@@ -732,7 +804,10 @@ class TmdbDiscoveryFragment : Fragment() {
         backCallback?.isEnabled = false
         binding.tmdbDiscoveryProgress.isVisible = false
         binding.tmdbDiscoveryGrid.isVisible = false
-        adapter.submit(emptyList())
+        tmdbCategoryItems.clear()
+        tmdbCategoryRowCards.clear()
+        adapter.notifyDataSetChanged()
+        tmdbListRowAdapter.notifyDataSetChanged()
         renderCategories()
 
         val target = shelvesScrollY
@@ -789,21 +864,10 @@ class TmdbDiscoveryFragment : Fragment() {
         super.onDestroyView()
     }
 
-    class TmdbGridAdapter(private val onOpen: (TmdbMedia) -> Unit) :
-        RecyclerView.Adapter<TmdbGridAdapter.VH>() {
-        private var items: List<TmdbMedia> = emptyList()
-        fun submit(list: List<TmdbMedia>) {
-            items = list
-            notifyDataSetChanged()
-        }
-        fun append(list: List<TmdbMedia>) {
-            val existing = items.mapTo(HashSet()) { it.type to it.id }
-            val fresh = list.filter { existing.add(it.type to it.id) }
-            if (fresh.isEmpty()) return
-            val start = items.size
-            items = items + fresh
-            notifyItemRangeInserted(start, fresh.size)
-        }
+    class TmdbGridAdapter(
+        private val items: MutableList<TmdbMedia>,
+        private val onOpen: (TmdbMedia) -> Unit,
+    ) : RecyclerView.Adapter<TmdbGridAdapter.VH>() {
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
             val binding = ItemTmdbCardBinding.inflate(LayoutInflater.from(parent.context), parent, false)
             return VH(binding)

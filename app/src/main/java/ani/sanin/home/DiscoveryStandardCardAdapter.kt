@@ -10,6 +10,7 @@ import ani.sanin.databinding.ItemTmdbCardBinding
 import ani.sanin.util.FocusEffectUtil
 
 class DiscoveryStandardCardAdapter(
+    private val cards: MutableList<Card>,
     private val onClick: (Card) -> Unit,
 ) : RecyclerView.Adapter<DiscoveryStandardCardAdapter.VH>() {
 
@@ -17,32 +18,8 @@ class DiscoveryStandardCardAdapter(
         val id: Int,
         val title: String,
         val posterUrl: String?,
+        val year: String? = null,
     )
-
-    private val items = ArrayList<Card>()
-
-    fun submit(list: List<Card>) {
-        items.clear()
-        items.addAll(list)
-        notifyDataSetChanged()
-    }
-
-    fun append(list: List<Card>) {
-        val existing = items.mapTo(HashSet()) { it.id }
-        val unique = list.filter { existing.add(it.id) }
-        if (unique.isEmpty()) return
-        val start = items.size
-        items.addAll(unique)
-        notifyItemRangeInserted(start, unique.size)
-    }
-
-    fun clear() {
-        if (items.isEmpty()) return
-        items.clear()
-        notifyDataSetChanged()
-    }
-
-    fun isEmpty(): Boolean = items.isEmpty()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val binding = ItemTmdbCardBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -50,7 +27,7 @@ class DiscoveryStandardCardAdapter(
     }
 
     override fun onBindViewHolder(holder: VH, position: Int) {
-        val item = items[position]
+        val item = cards[position]
         val rv = holder.itemView.parent as? RecyclerView
         val span = (rv?.layoutManager as? GridLayoutManager)?.spanCount ?: 0
         val cell = if (rv != null && span > 0) TmdbCards.cellWidthPx(rv, span) else null
@@ -59,11 +36,13 @@ class DiscoveryStandardCardAdapter(
             val gap = TmdbCards.gridRowGapPx(rv)
             holder.itemView.updateLayoutParams<ViewGroup.MarginLayoutParams> { bottomMargin = gap }
         }
+        holder.binding.tmdbCardTitle.text = item.title
+        holder.binding.tmdbCardYear.text = item.year.orEmpty()
         holder.itemView.setOnClickListener { onClick(item) }
         FocusEffectUtil.applyFocusListener(holder.itemView, holder.binding.tmdbCard)
     }
 
-    override fun getItemCount(): Int = items.size
+    override fun getItemCount(): Int = cards.size
 
     class VH(val binding: ItemTmdbCardBinding) : RecyclerView.ViewHolder(binding.root) {
         init {
