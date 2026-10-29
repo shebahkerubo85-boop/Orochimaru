@@ -43,6 +43,7 @@ import ani.sanin.loadImage
 import ani.sanin.reels.ReelFeed
 import ani.sanin.reels.TmdbReelFeed
 import ani.sanin.util.FocusEffectUtil
+import ani.sanin.util.Logger
 import ani.sanin.youtube.ReelShortsPlayerActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -83,6 +84,7 @@ class TmdbDiscoveryFragment : Fragment() {
     private var tmdbCategoryEmptyView: TextView? = null
     private val keywordCache = java.util.concurrent.ConcurrentHashMap<String, Int?>()
     private val artworkCache = mutableMapOf<String, String?>()
+    private val artworkRenderedUrls = mutableMapOf<String, String>()
     private val artworkLoading = mutableSetOf<String>()
     private val artworkFailedAt = mutableMapOf<String, Long>()
     private var artworkLimit = 12
@@ -495,14 +497,19 @@ class TmdbDiscoveryFragment : Fragment() {
             (!failedRecently && stale) && artworkLoading.add(it.id)
         }
         if (pending.isEmpty()) return
+        Logger.log("TMDB shelves artwork: requesting " + pending.size + " category thumbnails (visible=" + categories.size + ")")
         viewLifecycleOwner.lifecycleScope.launch {
             val results = coroutineScope {
                 pending.map { category ->
                     async(Dispatchers.IO) {
                         categorySemaphore.withPermit {
-                            category.id to runCatching {
-                                fetchArtworkPoster(category)
-                            }.getOrNull()
+                            val startedAt = System.currentTimeMillis()
+                            val url = runCatching { fetchArtworkPoster(category) }
+                                .onFailure { Logger.log("TMDB shelf thumbnail failed category=" + category.id + ": " + it.message) }
+                                .getOrNull()
+                            if (url.isNullOrBlank()) Logger.log("TMDB shelf thumbnail missing category=" + category.id + "; fallback exhausted")
+                            else Logger.log("TMDB shelf thumbnail resolved category=" + category.id + " elapsedMs=" + (System.currentTimeMillis() - startedAt))
+                            category.id to url
                         }
                     }
                 }.awaitAll()
@@ -512,7 +519,8 @@ class TmdbDiscoveryFragment : Fragment() {
                 artworkLoading.remove(id)
                 artworkCache[id] = url
                 if (url.isNullOrBlank()) artworkFailedAt[id] = System.currentTimeMillis()
-                if (!url.isNullOrBlank()) {
+                else {
+                    artworkFailedAt.remove(id)
                     DiscoveryArtworkStore.putTmdb(requireContext(), id, url)
                 }
             }
@@ -531,9 +539,9 @@ class TmdbDiscoveryFragment : Fragment() {
                     val image = frame.getChildAt(0) as? ImageView ?: continue
                     val id = image.tag as? String ?: continue
                     val url = artworkCache[id]
-                    if (!url.isNullOrBlank() && image.tag != "loaded:$id") {
+                    if (!url.isNullOrBlank() && artworkRenderedUrls[id] != url) {
                         image.loadImage(url, dp(82))
-                        image.tag = "loaded:$id"
+                        artworkRenderedUrls[id] = url
                     }
                 }
             }
@@ -678,7 +686,13 @@ class TmdbDiscoveryFragment : Fragment() {
             ) {
                 if (tmdbPool.isEmpty()) {
                     val outcome = runCatching { refillTmdbPool(category) }
-                    if (outcome.isSuccess) failures = 0 else failures++
+                    if (outcome.isFailure) {
+                        failures++
+                        Logger.log("TMDB shelf load failed category=" + category.id + " attempt=" + failures + " error=" + outcome.exceptionOrNull()?.message)
+                    } else if (tmdbPool.isEmpty()) {
+                        failures++
+                        Logger.log("TMDB shelf made no progress category=" + category.id + " attempt=" + failures + " moviePage=" + tmdbMoviePage + " tvPage=" + tmdbTvPage)
+                    } else failures = 0
                 }
                 if (tmdbPool.isEmpty()) {
                     if (tmdbAllExhausted() || failures >= 3) break
@@ -688,16 +702,17 @@ class TmdbDiscoveryFragment : Fragment() {
                 val chunk = tmdbPool.take(take)
                 repeat(take) { tmdbPool.removeAt(0) }
                 if (chunk.isEmpty()) break
-                val fresh = chunk.filter { tmdbSeen.add(it.type to it.id) }
-                if (fresh.isEmpty()) continue
+                // addToTmdbPool() owns deduplication; do not mark queued items as seen twice.
+                val fresh = chunk
                 emitted += fresh.size
+                Logger.log("TMDB shelf page category=" + category.id + " emitted=" + fresh.size + " total=" + (tmdbCategoryItems.size + fresh.size) + " poolRemaining=" + tmdbPool.size)
                 tmdbCategoryItems.addAll(fresh)
                 val rowStart = tmdbCategoryRowCards.size
                 tmdbCategoryRowCards.addAll(fresh.map { item ->
                     DiscoveryStandardCardAdapter.Card(
                         id = -item.id,
                         title = item.displayTitle,
-                        posterUrl = item.posterPath?.let { Tmdb.imageUrl(it, 300) },
+                        posterUrl = (item.posterPath ?: item.backdropPath)?.let { Tmdb.imageUrl(it, 300) },
                         year = item.year.takeIf { y -> y.isNotBlank() },
                     )
                 })
@@ -778,7 +793,9 @@ class TmdbDiscoveryFragment : Fragment() {
     }
 
     private fun addToTmdbPool(list: List<TmdbMedia>) {
-        list.forEach { if (tmdbSeen.add(it.type to it.id)) tmdbPool.add(it) }
+        var added = 0
+        list.forEach { if (tmdbSeen.add(it.type to it.id)) { tmdbPool.add(it); added++ } }
+        Logger.log("TMDB shelf pool received=" + list.size + " added=" + added + " duplicates=" + (list.size - added) + " queued=" + tmdbPool.size)
     }
 
     private suspend fun fetchTmdbType(
@@ -872,7 +889,18 @@ class TmdbDiscoveryFragment : Fragment() {
         ).firstOrNull { !it.posterPath.isNullOrBlank() }
             ?.posterPath
             ?.let { Tmdb.imageUrl(it, 342) }
-        return poster("movie") ?: poster("tv")
+        val categoryMatch = poster("movie") ?: poster("tv")
+        if (!categoryMatch.isNullOrBlank()) return categoryMatch
+        // Narrow keyword/genre combinations may return no poster. Use trending artwork as a visual fallback.
+        val fallback = runCatching {
+            Tmdb.trending("all", "week").firstOrNull {
+                !it.posterPath.isNullOrBlank() && it.mediaType != "person"
+            }?.posterPath?.let { Tmdb.imageUrl(it, 342) }
+        }.onFailure {
+            Logger.log("TMDB shelf thumbnail fallback failed category=" + category.id + ": " + it.message)
+        }.getOrNull()
+        if (fallback.isNullOrBlank()) Logger.log("TMDB shelf thumbnail fallback returned no artwork category=" + category.id)
+        return fallback
     }
 
     private suspend fun resolveKeyword(category: TmdbDiscoveryCategory): Int? {
