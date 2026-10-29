@@ -800,6 +800,12 @@ class DiscoveryFragment : Fragment() {
                     }
                     val artworkImage = ImageView(context).apply {
                         scaleType = ImageView.ScaleType.CENTER_CROP
+                        clipToOutline = true
+                        outlineProvider = object : android.view.ViewOutlineProvider() {
+                            override fun getOutline(view: android.view.View, outline: android.graphics.Outline) {
+                                outline.setRoundRect(0, 0, view.width, view.height, dp(14).toFloat())
+                            }
+                        }
                         setImageResource(R.drawable.ic_editorial_artwork_unavailable)
                         contentDescription = "${category.title} category thumbnail"
                         rotation = if (columnIndex % 2 == 0) -8f else 8f
