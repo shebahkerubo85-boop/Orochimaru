@@ -516,7 +516,7 @@ class MediaAdaptor(
             }
             itemView.setOnLongClickListener { longClicked(bindingAdapterPosition) }
             setupDpadLongPress(itemView) { longClicked(bindingAdapterPosition) }
-            applyFocusWithFade(itemView, binding.itemCompactCard)
+            applyFocusWithFade(itemView, binding.root)
         }
     }
 
@@ -533,7 +533,7 @@ class MediaAdaptor(
             }
             itemView.isFocusable = true
             itemView.isFocusableInTouchMode = false
-            applyFocusWithFade(itemView, binding.itemCompactCard)
+            applyFocusWithFade(itemView, binding.root)
             itemView.setOnTouchListener { _, _ -> true }
             itemView.setOnLongClickListener { longClicked(bindingAdapterPosition) }
             setupDpadLongPress(itemView) { longClicked(bindingAdapterPosition) }
@@ -560,7 +560,7 @@ class MediaAdaptor(
             }
             itemView.isFocusable = true
             itemView.isFocusableInTouchMode = false
-            applyFocusWithFade(itemView, binding.itemCompactCard)
+            applyFocusWithFade(itemView, binding.root)
             itemView.setOnTouchListener { _, _ -> true }
             itemView.setOnLongClickListener { longClicked(bindingAdapterPosition) }
             setupDpadLongPress(itemView) { longClicked(bindingAdapterPosition) }

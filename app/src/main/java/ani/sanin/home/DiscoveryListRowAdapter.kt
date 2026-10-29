@@ -26,10 +26,7 @@ class DiscoveryListRowAdapter(
         holder.binding.discoverListRowYear.visibility =
             if (item.year.isNullOrBlank()) View.GONE else View.VISIBLE
         holder.binding.root.setOnClickListener { onClick(item) }
-        FocusEffectUtil.applyFocusListener(
-            holder.binding.root,
-            holder.binding.discoverListRowCard,
-        )
+        FocusEffectUtil.applyFocusListener(holder.binding.root)
     }
 
     override fun getItemCount(): Int = cards.size
