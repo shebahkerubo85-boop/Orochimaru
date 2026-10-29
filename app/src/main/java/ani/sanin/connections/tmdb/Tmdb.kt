@@ -372,16 +372,25 @@ object Tmdb {
             val fullUrl = url(path, *query)
             val now = System.currentTimeMillis()
             cache[fullUrl]?.takeIf { now - it.at < CACHE_TTL }?.let { return@withContext it.body }
+            val startedAt = System.currentTimeMillis()
             runCatching {
                 val request = Request.Builder().url(fullUrl).build()
                 timeoutClient.newCall(request).execute().use { resp ->
                     val body = resp.body?.string()
-                    if (resp.isSuccessful) body else null.also {
+                    val elapsedMs = System.currentTimeMillis() - startedAt
+                    if (resp.isSuccessful) {
+                        lastError = null
+                        if (elapsedMs >= 1500L) Logger.log("TMDB slow request path=" + path + " status=" + resp.code + " elapsedMs=" + elapsedMs)
+                        body
+                    } else {
                         lastError = "HTTP ${resp.code}"
+                        Logger.log("TMDB request failed path=" + path + " status=" + resp.code + " elapsedMs=" + elapsedMs)
+                        null
                     }
                 }
             }.getOrElse { ex ->
                 lastError = ex.message ?: ex.javaClass.simpleName
+                Logger.log("TMDB request exception path=" + path + " elapsedMs=" + (System.currentTimeMillis() - startedAt) + " error=" + (ex.message ?: ex.javaClass.simpleName))
                 null
             }?.let { body ->
                 if (cache.size >= CACHE_MAX) cache.clear()
