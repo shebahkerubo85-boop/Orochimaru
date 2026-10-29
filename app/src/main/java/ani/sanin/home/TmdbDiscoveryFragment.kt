@@ -49,7 +49,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -97,6 +99,8 @@ class TmdbDiscoveryFragment : Fragment() {
     private data class TmdbReelCard(val title: String, val key: String, val startIndex: Int)
 
     private val categorySemaphore = Semaphore(3)
+    private val fallbackArtworkMutex = Mutex()
+    private var tmdbFallbackArtwork: List<String> = emptyList()
 
     private companion object {
 
@@ -177,7 +181,10 @@ class TmdbDiscoveryFragment : Fragment() {
                 val rowsAhead = (scrollY + binding.tmdbDiscoveryScroll.height) / dp(118) + 2
                 val needed = (rowsAhead * 2).coerceAtMost(TmdbDiscoveryCategories.all.size)
                 if (needed > artworkLimit) {
-                    artworkLimit = (artworkLimit + 12).coerceAtMost(needed)
+                    // A fast TV fling can skip many intermediate scroll callbacks. Catch up directly
+                    // to the visible range instead of advancing only one small batch.
+                    artworkLimit = needed
+                    Logger.log("TMDB shelf artwork scroll catch-up scrollY=" + scrollY + " requested=" + artworkLimit + "/" + TmdbDiscoveryCategories.all.size)
                     loadCategoryArtwork()
                 }
             }
@@ -491,6 +498,7 @@ class TmdbDiscoveryFragment : Fragment() {
 
     private fun loadCategoryArtwork() {
         val categories = TmdbDiscoveryCategories.all.take(artworkLimit)
+        Logger.log("TMDB shelf artwork coverage requested=" + categories.size + "/" + TmdbDiscoveryCategories.all.size + " cached=" + categories.count { !artworkCache[it.id].isNullOrBlank() })
         val now = System.currentTimeMillis()
         val pending = categories.filter {
             val failedRecently = artworkFailedAt.containsKey(it.id) && now - artworkFailedAt[it.id]!! < 60000
@@ -892,15 +900,24 @@ class TmdbDiscoveryFragment : Fragment() {
             ?.let { Tmdb.imageUrl(it, 342) }
         val categoryMatch = poster("movie") ?: poster("tv")
         if (!categoryMatch.isNullOrBlank()) return categoryMatch
-        // Narrow keyword/genre combinations may return no poster. Use trending artwork as a visual fallback.
+        // Narrow keyword/genre combinations may return no poster. Reuse a single cached trending
+        // artwork pool instead of making another trending request for every missing category.
         val fallback = runCatching {
-            Tmdb.trending("all", "week").firstOrNull {
-                !it.posterPath.isNullOrBlank() && it.mediaType != "person"
-            }?.posterPath?.let { Tmdb.imageUrl(it, 342) }
+            fallbackArtworkMutex.withLock {
+                if (tmdbFallbackArtwork.isEmpty()) {
+                    tmdbFallbackArtwork = Tmdb.trending("all", "week")
+                        .filter { it.mediaType != "person" }
+                        .mapNotNull { it.posterPath?.let { path -> Tmdb.imageUrl(path, 342) } }
+                    Logger.log("TMDB shelf fallback pool loaded posters=" + tmdbFallbackArtwork.size)
+                }
+                if (tmdbFallbackArtwork.isEmpty()) null
+                else tmdbFallbackArtwork[Math.floorMod(category.id.hashCode(), tmdbFallbackArtwork.size)]
+            }
         }.onFailure {
             Logger.log("TMDB shelf thumbnail fallback failed category=" + category.id + ": " + it.message)
         }.getOrNull()
         if (fallback.isNullOrBlank()) Logger.log("TMDB shelf thumbnail fallback returned no artwork category=" + category.id)
+        else Logger.log("TMDB shelf thumbnail using shared fallback category=" + category.id)
         return fallback
     }
 
