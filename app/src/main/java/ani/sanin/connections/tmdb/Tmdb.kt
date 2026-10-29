@@ -375,7 +375,7 @@ object Tmdb {
             runCatching {
                 val request = Request.Builder().url(fullUrl).build()
                 timeoutClient.newCall(request).execute().use { resp ->
-                    val body = it.body?.string()
+                    val body = resp.body?.string()
                     if (resp.isSuccessful) body else null.also {
                         lastError = "HTTP ${resp.code}"
                     }
