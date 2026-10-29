@@ -20,6 +20,7 @@ class DiscoveryListRowAdapter(
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val item = cards[position]
+        holder.binding.discoverListRowBanner.loadImage(item.posterUrl)
         holder.binding.discoverListRowPoster.loadImage(item.posterUrl)
         holder.binding.discoverListRowTitle.text = item.title
         holder.binding.discoverListRowYear.text = item.year.orEmpty()
@@ -37,5 +38,4 @@ class DiscoveryListRowAdapter(
             binding.root.isFocusableInTouchMode = false
         }
     }
-
 }

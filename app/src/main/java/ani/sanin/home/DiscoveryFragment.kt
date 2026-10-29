@@ -320,6 +320,7 @@ class DiscoveryFragment : Fragment() {
     private var animeCategoryOffset = 0
     private var animeCategoryLoading = false
     private var animeCategoryEndReached = false
+    private var animeCategoryRetries = 0
     private lateinit var animeCategoryAdapter: DiscoveryStandardCardAdapter
     private lateinit var animeCategoryListRowAdapter: DiscoveryListRowAdapter
     private val animeCategoryCards = mutableListOf<DiscoveryStandardCardAdapter.Card>()
@@ -1086,6 +1087,7 @@ class DiscoveryFragment : Fragment() {
                         limit = ANIME_CATEGORY_PAGE_SIZE,
                     )
                 }
+                if (page.success) animeCategoryRetries = 0
                 if (!page.success) {
                     if (animeCategoryCards.isEmpty()) {
                         statusShown = true
@@ -1097,6 +1099,14 @@ class DiscoveryFragment : Fragment() {
                         animeCategoryEndReached = false
                         statusShown = true
                         showAnimeCategoryStatus("Couldn't load more. Scroll down to retry.")
+                        if (animeCategoryRetries < 5) {
+                            animeCategoryRetries++
+                            b.discoverScroll.postDelayed({
+                                if (_binding != null && animeCategoryOpen &&
+                                    !animeCategoryLoading && !animeCategoryEndReached
+                                ) loadAnimeCategoryPage()
+                            }, 5000)
+                        }
                     }
                     break
                 }

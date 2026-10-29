@@ -80,7 +80,7 @@ class TmdbDiscoveryFragment : Fragment() {
     private var tmdbTvExhausted = false
     private var tmdbCategoryLoading = false
     private var tmdbCategoryEmptyView: TextView? = null
-    private val keywordCache = mutableMapOf<String, Int?>()
+    private val keywordCache = java.util.concurrent.ConcurrentHashMap<String, Int?>()
     private val artworkCache = mutableMapOf<String, String?>()
     private val artworkLoading = mutableSetOf<String>()
     private var artworkLimit = 12
@@ -648,6 +648,20 @@ class TmdbDiscoveryFragment : Fragment() {
         val want = if (firstLoad) 20 else 30
         b.tmdbDiscoveryProgress.isVisible = firstLoad
         viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                runLoadTmdbCategoryPage(category, want)
+            } finally {
+                tmdbCategoryLoading = false
+                if (_binding != null && selectedCategory?.id == category.id) {
+                    _binding?.tmdbDiscoveryProgress?.isVisible = false
+                }
+            }
+        }
+    }
+
+    private suspend fun runLoadTmdbCategoryPage(category: TmdbDiscoveryCategory, want: Int) {
+        val b = _binding ?: return
+        run {
             var emitted = 0
             var failures = 0
             while (emitted < want && !tmdbAllExhausted() && failures < 3 &&
