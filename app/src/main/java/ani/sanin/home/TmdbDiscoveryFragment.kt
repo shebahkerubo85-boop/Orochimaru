@@ -500,60 +500,55 @@ class TmdbDiscoveryFragment : Fragment() {
         val categories = TmdbDiscoveryCategories.all.take(artworkLimit)
         Logger.log("TMDB shelf artwork coverage requested=" + categories.size + "/" + TmdbDiscoveryCategories.all.size + " cached=" + categories.count { !artworkCache[it.id].isNullOrBlank() })
         val now = System.currentTimeMillis()
-        val pending = categories.filter {
-            val failedRecently = artworkFailedAt.containsKey(it.id) && now - artworkFailedAt[it.id]!! < 60000
-            val stale = !artworkCache.containsKey(it.id) || artworkCache[it.id] == null
-            (!failedRecently && stale) && artworkLoading.add(it.id)
+        val pending = categories.filter { category ->
+            val failedAt = artworkFailedAt[category.id]
+            val failedRecently = failedAt != null && now - failedAt < 60000
+            val hasPoster = !artworkCache[category.id].isNullOrBlank()
+            !hasPoster && !failedRecently && artworkLoading.add(category.id)
         }
         if (pending.isEmpty()) return
-        Logger.log("TMDB shelves artwork: requesting " + pending.size + " category thumbnails (visible=" + categories.size + ")")
-        viewLifecycleOwner.lifecycleScope.launch {
-            val results = coroutineScope {
-                pending.map { category ->
-                    async(Dispatchers.IO) {
-                        categorySemaphore.withPermit {
-                            val startedAt = System.currentTimeMillis()
-                            val url = runCatching { fetchArtworkPoster(category) }
-                                .onFailure { Logger.log("TMDB shelf thumbnail failed category=" + category.id + ": " + it.message) }
-                                .getOrNull()
-                            if (url.isNullOrBlank()) Logger.log("TMDB shelf thumbnail missing category=" + category.id + "; fallback exhausted")
-                            else Logger.log("TMDB shelf thumbnail resolved category=" + category.id + " elapsedMs=" + (System.currentTimeMillis() - startedAt))
-                            category.id to url
-                        }
+        Logger.log("TMDB shelves artwork: requesting " + pending.size + " category grid previews")
+        // Resolve and render each category independently. A slow/failing category must not hold
+        // every later shelf hostage behind awaitAll(), which previously left long blank runs.
+        pending.forEach { category ->
+            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                val startedAt = System.currentTimeMillis()
+                val url = runCatching { fetchCategoryGridPoster(category) }
+                    .onFailure { Logger.log("TMDB shelf grid poster failed category=" + category.id + ": " + it.message) }
+                    .getOrNull()
+                withContext(Dispatchers.Main) {
+                    if (_binding == null) return@withContext
+                    artworkLoading.remove(category.id)
+                    if (!url.isNullOrBlank()) {
+                        artworkCache[category.id] = url
+                        artworkFailedAt.remove(category.id)
+                        DiscoveryArtworkStore.putTmdb(requireContext(), category.id, url)
+                        Logger.log("TMDB shelf grid poster resolved category=" + category.id + " elapsedMs=" + (System.currentTimeMillis() - startedAt))
+                    } else {
+                        artworkFailedAt[category.id] = System.currentTimeMillis()
+                        Logger.log("TMDB shelf grid poster missing category=" + category.id + "; category grid queries returned no poster")
                     }
-                }.awaitAll()
-            }
-            if (_binding == null) return@launch
-            // Build a fallback pool from both previously cached posters and successful results
-            // in this batch. A category-specific TMDB search can fail even while other categories
-            // have usable artwork; never leave a shelf blank if any poster is available.
-            val sharedPosters = (artworkCache.values.filterNotNull() + results.mapNotNull { it.second })
-                .filter { it.isNotBlank() }
-                .distinct()
-            results.forEach { (id, url) ->
-                artworkLoading.remove(id)
-                // A category may have been opened while this background artwork request was
-                // still running. In that case the category grid already supplied the exact poster
-                // the user sees; never overwrite that real result with a generic/empty search result.
-                val gridPoster = artworkCache[id]?.takeIf { it.isNotBlank() }
-                val resolvedUrl = gridPoster ?: url?.takeIf { it.isNotBlank() } ?: sharedPosters
-                    .takeIf { it.isNotEmpty() }
-                    ?.get(Math.floorMod(id.hashCode(), sharedPosters.size))
-                if (!gridPoster.isNullOrBlank()) {
-                    Logger.log("TMDB shelf thumbnail preserved grid poster category=" + id)
-                } else if (url.isNullOrBlank() && !resolvedUrl.isNullOrBlank()) {
-                    Logger.log("TMDB shelf thumbnail using batch/cache fallback category=" + id)
-                }
-                artworkCache[id] = resolvedUrl
-                if (resolvedUrl.isNullOrBlank()) artworkFailedAt[id] = System.currentTimeMillis()
-                else {
-                    artworkFailedAt.remove(id)
-                    DiscoveryArtworkStore.putTmdb(requireContext(), id, resolvedUrl)
+                    updateArtworkViews()
                 }
             }
-            Logger.log("TMDB shelf artwork batch complete requested=" + results.size + " usablePosters=" + sharedPosters.size + " covered=" + results.count { !it.second.isNullOrBlank() })
-            updateArtworkViews()
         }
+    }
+
+    /**
+     * Uses the same category query phases as the opened TMDB results grid. The shelf artwork is
+     * the first poster available from those results, not a separate keyword/trending artwork search.
+     */
+    private suspend fun fetchCategoryGridPoster(category: TmdbDiscoveryCategory): String? {
+        for (phase in 0..2) {
+            for (type in listOf("movie", "tv")) {
+                val results = fetchTmdbType(type, category, phase, 1)
+                val posterPath = results.firstNotNullOfOrNull { item ->
+                    item.posterPath?.takeIf { it.isNotBlank() }
+                }
+                if (!posterPath.isNullOrBlank()) return Tmdb.imageUrl(posterPath, 342)
+            }
+        }
+        return null
     }
 
     private fun updateArtworkViews() {
@@ -740,8 +735,7 @@ class TmdbDiscoveryFragment : Fragment() {
                 // This ties the thumbnail to the same results the user sees after opening the shelf,
                 // instead of depending on a separate keyword-search request that may fail.
                 val firstShelfPoster = fresh.firstNotNullOfOrNull { item ->
-                    (item.posterPath ?: item.backdropPath)
-                        ?.takeIf { it.isNotBlank() }
+                    item.posterPath?.takeIf { it.isNotBlank() }
                         ?.let { Tmdb.imageUrl(it, 300) }
                 }
                 if (!firstShelfPoster.isNullOrBlank() && _binding != null) {
