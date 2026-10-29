@@ -345,6 +345,11 @@ object Tmdb {
     private const val CACHE_TTL: Long = 15 * 60 * 1000L
     private const val CACHE_MAX = 64
     private val client get() = Injekt.get<NetworkHelper>().client
+    private val timeoutClient by lazy {
+        client.newBuilder()
+            .callTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+    }
     private const val BASE = "https://api.themoviedb.org/3"
     private const val IMG = "https://image.tmdb.org/t/p"
 
@@ -365,7 +370,7 @@ object Tmdb {
             cache[fullUrl]?.takeIf { now - it.at < CACHE_TTL }?.let { return@withContext it.body }
             runCatching {
                 val request = Request.Builder().url(fullUrl).build()
-                client.newCall(request).execute().use { it.body?.string() }
+                timeoutClient.newCall(request).execute().use { it.body?.string() }
             }.getOrNull()?.let { body ->
                 if (cache.size >= CACHE_MAX) cache.clear()
                 cache[fullUrl] = CacheEntry(body, now)

@@ -79,10 +79,12 @@ class TmdbDiscoveryFragment : Fragment() {
     private var tmdbMovieExhausted = false
     private var tmdbTvExhausted = false
     private var tmdbCategoryLoading = false
+    private var tmdbReloadUsed = false
     private var tmdbCategoryEmptyView: TextView? = null
     private val keywordCache = java.util.concurrent.ConcurrentHashMap<String, Int?>()
     private val artworkCache = mutableMapOf<String, String?>()
     private val artworkLoading = mutableSetOf<String>()
+    private val artworkFailedAt = mutableMapOf<String, Long>()
     private var artworkLimit = 12
     private var backCallback: OnBackPressedCallback? = null
 
@@ -486,7 +488,12 @@ class TmdbDiscoveryFragment : Fragment() {
 
     private fun loadCategoryArtwork() {
         val categories = TmdbDiscoveryCategories.all.take(artworkLimit)
-        val pending = categories.filter { !artworkCache.containsKey(it.id) && artworkLoading.add(it.id) }
+        val now = System.currentTimeMillis()
+        val pending = categories.filter {
+            val failedRecently = artworkFailedAt.containsKey(it.id) && now - artworkFailedAt[it.id]!! < 60000
+            val stale = !artworkCache.containsKey(it.id) || artworkCache[it.id] == null
+            (!failedRecently && stale) && artworkLoading.add(it.id)
+        }
         if (pending.isEmpty()) return
         viewLifecycleOwner.lifecycleScope.launch {
             val results = coroutineScope {
@@ -504,6 +511,7 @@ class TmdbDiscoveryFragment : Fragment() {
             results.forEach { (id, url) ->
                 artworkLoading.remove(id)
                 artworkCache[id] = url
+                if (url.isNullOrBlank()) artworkFailedAt[id] = System.currentTimeMillis()
                 if (!url.isNullOrBlank()) {
                     DiscoveryArtworkStore.putTmdb(requireContext(), id, url)
                 }
@@ -617,6 +625,7 @@ class TmdbDiscoveryFragment : Fragment() {
         tmdbTvExhausted = false
         tmdbCategoryLoading = false
         tmdbCategoryEmptyView = null
+        tmdbReloadUsed = false
     }
 
     private fun tmdbAllExhausted(): Boolean =
@@ -649,7 +658,7 @@ class TmdbDiscoveryFragment : Fragment() {
         b.tmdbDiscoveryProgress.isVisible = firstLoad
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                runLoadTmdbCategoryPage(category, want)
+                runLoadTmdbCategoryPage(category, want, firstLoad)
             } finally {
                 tmdbCategoryLoading = false
                 if (_binding != null && selectedCategory?.id == category.id) {
@@ -659,7 +668,7 @@ class TmdbDiscoveryFragment : Fragment() {
         }
     }
 
-    private suspend fun runLoadTmdbCategoryPage(category: TmdbDiscoveryCategory, want: Int) {
+    private suspend fun runLoadTmdbCategoryPage(category: TmdbDiscoveryCategory, want: Int, firstLoad: Boolean) {
         val b = _binding ?: return
         run {
             var emitted = 0
@@ -705,6 +714,15 @@ class TmdbDiscoveryFragment : Fragment() {
             }
             if (tmdbCategoryItems.isEmpty() && tmdbAllExhausted()) {
                 showTmdbCategoryEmpty("No reliable matches found for this shelf yet. Try another category.")
+                if (firstLoad && !tmdbReloadUsed) {
+                    tmdbReloadUsed = true
+                    b.tmdbDiscoveryScroll.postDelayed({
+                        if (_binding != null && selectedCategory?.id == category.id) {
+                            resetTmdbCategoryPaging()
+                            loadTmdbCategoryPage()
+                        }
+                    }, 6000)
+                }
             }
             tmdbCategoryLoading = false
             if (emitted > 0 && !tmdbAllExhausted()) {
