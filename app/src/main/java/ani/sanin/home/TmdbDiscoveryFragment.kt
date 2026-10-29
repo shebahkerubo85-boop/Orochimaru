@@ -365,6 +365,7 @@ class TmdbDiscoveryFragment : Fragment() {
 
     private fun renderCategories() {
         val host = _binding?.tmdbEditorialShelves ?: return
+        artworkRenderedUrls.clear()
         host.removeAllViews()
         host.orientation = LinearLayout.VERTICAL
         host.setPadding(dp(3), dp(4), dp(3), dp(18))
