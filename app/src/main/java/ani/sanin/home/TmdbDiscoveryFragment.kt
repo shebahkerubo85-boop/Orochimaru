@@ -729,6 +729,21 @@ class TmdbDiscoveryFragment : Fragment() {
                 emitted += fresh.size
                 Logger.log("TMDB shelf page category=" + category.id + " emitted=" + fresh.size + " total=" + (tmdbCategoryItems.size + fresh.size) + " poolRemaining=" + tmdbPool.size)
                 tmdbCategoryItems.addAll(fresh)
+
+                // Use the first real poster returned for this category as its editorial shelf art.
+                // This ties the thumbnail to the same results the user sees after opening the shelf,
+                // instead of depending on a separate keyword-search request that may fail.
+                val firstShelfPoster = fresh.firstNotNullOfOrNull { item ->
+                    item.posterPath?.takeIf { it.isNotBlank() }?.let { Tmdb.imageUrl(it, 300) }
+                }
+                if (!firstShelfPoster.isNullOrBlank() && _binding != null) {
+                    artworkCache[category.id] = firstShelfPoster
+                    artworkFailedAt.remove(category.id)
+                    DiscoveryArtworkStore.putTmdb(requireContext(), category.id, firstShelfPoster)
+                    updateArtworkViews()
+                    Logger.log("TMDB shelf thumbnail sourced from first grid poster category=" + category.id)
+                }
+
                 val rowStart = tmdbCategoryRowCards.size
                 tmdbCategoryRowCards.addAll(fresh.map { item ->
                     DiscoveryStandardCardAdapter.Card(
