@@ -713,7 +713,10 @@ class TmdbDiscoveryFragment : Fragment() {
                 tmdbCategoryEmptyView = null
             }
             if (tmdbCategoryItems.isEmpty() && tmdbAllExhausted()) {
-                showTmdbCategoryEmpty("No reliable matches found for this shelf yet. Try another category.")
+                val reason = Tmdb.lastError
+                val message: String = if (reason != null) "TMDB can\'t be reached from your network right now (${Tmdb.lastError}). Anime shelves still work - try Wi-Fi or another network, then go back and retry."
+                else "No reliable matches found for this shelf yet. Try another category."
+                showTmdbCategoryEmpty(message)
                 if (firstLoad && !tmdbReloadUsed) {
                     tmdbReloadUsed = true
                     b.tmdbDiscoveryScroll.postDelayed({
@@ -740,6 +743,7 @@ class TmdbDiscoveryFragment : Fragment() {
         if (tmdbTvPhase == 0 && tmdbTvPage == 1 && resolveKeyword(category) == null) tmdbTvPhase = 1
         if (!tmdbMovieExhausted) {
             val movie = fetchTmdbType("movie", category, tmdbMoviePhase, tmdbMoviePage)
+            if (Tmdb.lastError != null) throw java.io.IOException(Tmdb.lastError ?: "connection failed")
             if (movie.isEmpty()) advanceTmdbPhase(movie = true) else {
                 addToTmdbPool(movie)
                 tmdbMoviePage++
@@ -747,6 +751,7 @@ class TmdbDiscoveryFragment : Fragment() {
         }
         if (!tmdbTvExhausted) {
             val tv = fetchTmdbType("tv", category, tmdbTvPhase, tmdbTvPage)
+            if (Tmdb.lastError != null) throw java.io.IOException(Tmdb.lastError ?: "connection failed")
             if (tv.isEmpty()) advanceTmdbPhase(movie = false) else {
                 addToTmdbPool(tv)
                 tmdbTvPage++
