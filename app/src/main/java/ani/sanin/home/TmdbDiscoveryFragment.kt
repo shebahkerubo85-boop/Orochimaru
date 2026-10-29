@@ -524,15 +524,28 @@ class TmdbDiscoveryFragment : Fragment() {
                 }.awaitAll()
             }
             if (_binding == null) return@launch
+            // Build a fallback pool from both previously cached posters and successful results
+            // in this batch. A category-specific TMDB search can fail even while other categories
+            // have usable artwork; never leave a shelf blank if any poster is available.
+            val sharedPosters = (artworkCache.values.filterNotNull() + results.mapNotNull { it.second })
+                .filter { it.isNotBlank() }
+                .distinct()
             results.forEach { (id, url) ->
                 artworkLoading.remove(id)
-                artworkCache[id] = url
-                if (url.isNullOrBlank()) artworkFailedAt[id] = System.currentTimeMillis()
+                val resolvedUrl = url?.takeIf { it.isNotBlank() } ?: sharedPosters
+                    .takeIf { it.isNotEmpty() }
+                    ?.get(Math.floorMod(id.hashCode(), sharedPosters.size))
+                if (url.isNullOrBlank() && !resolvedUrl.isNullOrBlank()) {
+                    Logger.log("TMDB shelf thumbnail using batch/cache fallback category=" + id)
+                }
+                artworkCache[id] = resolvedUrl
+                if (resolvedUrl.isNullOrBlank()) artworkFailedAt[id] = System.currentTimeMillis()
                 else {
                     artworkFailedAt.remove(id)
-                    DiscoveryArtworkStore.putTmdb(requireContext(), id, url)
+                    DiscoveryArtworkStore.putTmdb(requireContext(), id, resolvedUrl)
                 }
             }
+            Logger.log("TMDB shelf artwork batch complete requested=" + results.size + " usablePosters=" + sharedPosters.size + " covered=" + results.count { !it.second.isNullOrBlank() })
             updateArtworkViews()
         }
     }
