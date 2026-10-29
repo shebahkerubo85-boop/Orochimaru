@@ -532,10 +532,16 @@ class TmdbDiscoveryFragment : Fragment() {
                 .distinct()
             results.forEach { (id, url) ->
                 artworkLoading.remove(id)
-                val resolvedUrl = url?.takeIf { it.isNotBlank() } ?: sharedPosters
+                // A category may have been opened while this background artwork request was
+                // still running. In that case the category grid already supplied the exact poster
+                // the user sees; never overwrite that real result with a generic/empty search result.
+                val gridPoster = artworkCache[id]?.takeIf { it.isNotBlank() }
+                val resolvedUrl = gridPoster ?: url?.takeIf { it.isNotBlank() } ?: sharedPosters
                     .takeIf { it.isNotEmpty() }
                     ?.get(Math.floorMod(id.hashCode(), sharedPosters.size))
-                if (url.isNullOrBlank() && !resolvedUrl.isNullOrBlank()) {
+                if (!gridPoster.isNullOrBlank()) {
+                    Logger.log("TMDB shelf thumbnail preserved grid poster category=" + id)
+                } else if (url.isNullOrBlank() && !resolvedUrl.isNullOrBlank()) {
                     Logger.log("TMDB shelf thumbnail using batch/cache fallback category=" + id)
                 }
                 artworkCache[id] = resolvedUrl
@@ -734,7 +740,9 @@ class TmdbDiscoveryFragment : Fragment() {
                 // This ties the thumbnail to the same results the user sees after opening the shelf,
                 // instead of depending on a separate keyword-search request that may fail.
                 val firstShelfPoster = fresh.firstNotNullOfOrNull { item ->
-                    item.posterPath?.takeIf { it.isNotBlank() }?.let { Tmdb.imageUrl(it, 300) }
+                    (item.posterPath ?: item.backdropPath)
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { Tmdb.imageUrl(it, 300) }
                 }
                 if (!firstShelfPoster.isNullOrBlank() && _binding != null) {
                     artworkCache[category.id] = firstShelfPoster
