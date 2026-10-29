@@ -696,7 +696,7 @@ class TmdbDiscoveryFragment : Fragment() {
                 adapter.notifyItemRangeInserted(start, fresh.size)
                 tmdbListRowAdapter.notifyItemRangeInserted(rowStart, fresh.size)
             }
-            if (_binding == null || selectedCategory?.id != category.id) return@launch
+            if (_binding == null || selectedCategory?.id != category.id) return
             b.tmdbDiscoveryProgress.isVisible = false
             b.tmdbDiscoveryGrid.isVisible = tmdbCategoryItems.isNotEmpty()
             if (tmdbCategoryItems.isNotEmpty()) {
