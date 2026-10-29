@@ -402,7 +402,7 @@ class DiscoveryFragment : Fragment() {
 
                 val resultsContent = binding.discoverScroll.getChildAt(0)?.height
                     ?: return@setOnScrollChangeListener
-                if (scrollY + b.discoverScroll.height >= resultsContent - dp(500)) {
+                if (scrollY + binding.discoverScroll.height >= resultsContent - dp(500)) {
                     loadAnimeCategoryPage()
                 }
                 return@setOnScrollChangeListener
