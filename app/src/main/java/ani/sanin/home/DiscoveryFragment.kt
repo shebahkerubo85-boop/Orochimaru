@@ -916,15 +916,11 @@ class DiscoveryFragment : Fragment() {
 
     private fun setupAnimeCategoryResults() {
         animeCategoryAdapter = DiscoveryStandardCardAdapter { card ->
-            if (card.id <= 0) {
-                Toast.makeText(requireContext(), "AniList mapping unavailable for this title", Toast.LENGTH_SHORT).show()
-            } else {
-                startActivity(
-                    Intent(requireContext(), MediaDetailsActivity::class.java)
-                        .putExtra("mediaId", card.id)
-                        .putExtra("mediaFallbackTitle", card.title)
-                )
-            }
+            startActivity(
+                Intent(requireContext(), MediaDetailsActivity::class.java)
+                    .putExtra("mediaId", if (card.id > 0) card.id else 0)
+                    .putExtra("mediaFallbackTitle", card.title)
+            )
         }
         val dm = resources.displayMetrics
         binding.discoverCategoryResultsGrid.layoutManager =
@@ -1057,9 +1053,10 @@ class DiscoveryFragment : Fragment() {
                     }
                     animeCategoryAdapter.append(page.items.map { item ->
                         DiscoveryStandardCardAdapter.Card(
-                            id = item.anilistId ?: 0,
+                            id = item.anilistId
+                                ?: -(kotlin.math.abs(item.title.hashCode() % 1_000_000_000) + 1),
                             title = item.title,
-                            posterUrl = item.anilistId?.let(covers::get),
+                            posterUrl = item.anilistId?.let(covers::get) ?: item.posterUrl,
                         )
                     })
                     added = true

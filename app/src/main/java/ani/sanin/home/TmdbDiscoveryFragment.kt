@@ -62,9 +62,15 @@ class TmdbDiscoveryFragment : Fragment() {
     private var shelvesScrollY = 0
     private var selectedCategory: TmdbDiscoveryCategory? = null
     private val tmdbCategoryItems = mutableListOf<TmdbMedia>()
-    private var tmdbCategoryPage = 1
+    private val tmdbPool = mutableListOf<TmdbMedia>()
+    private val tmdbSeen = HashSet<Pair<String, Int>>()
+    private var tmdbMoviePage = 1
+    private var tmdbTvPage = 1
+    private var tmdbMoviePhase = 0
+    private var tmdbTvPhase = 0
+    private var tmdbMovieExhausted = false
+    private var tmdbTvExhausted = false
     private var tmdbCategoryLoading = false
-    private var tmdbCategoryEndReached = false
     private var tmdbCategoryEmptyView: TextView? = null
     private val keywordCache = mutableMapOf<String, Int?>()
     private val artworkCache = mutableMapOf<String, String?>()
@@ -517,10 +523,7 @@ class TmdbDiscoveryFragment : Fragment() {
         binding.tmdbDiscoveryGrid.isVisible = true
         binding.tmdbDiscoveryProgress.isVisible = true
         binding.tmdbDiscoverySearchBar.contentDescription = "Search movies and TV"
-        tmdbCategoryItems.clear()
-        tmdbCategoryPage = 1
-        tmdbCategoryLoading = false
-        tmdbCategoryEndReached = false
+        resetTmdbCategoryPaging()
         val host = binding.tmdbEditorialShelves
         host.removeAllViews()
         val header = LinearLayout(requireContext()).apply {
@@ -551,46 +554,68 @@ class TmdbDiscoveryFragment : Fragment() {
         loadTmdbCategoryPage()
     }
 
+    private fun resetTmdbCategoryPaging() {
+        tmdbCategoryItems.clear()
+        tmdbPool.clear()
+        tmdbSeen.clear()
+        tmdbMoviePage = 1
+        tmdbTvPage = 1
+        tmdbMoviePhase = 0
+        tmdbTvPhase = 0
+        tmdbMovieExhausted = false
+        tmdbTvExhausted = false
+        tmdbCategoryLoading = false
+        tmdbCategoryEmptyView = null
+    }
+
+    private fun tmdbAllExhausted(): Boolean =
+        tmdbMovieExhausted && tmdbTvExhausted && tmdbPool.isEmpty()
+
     private fun loadTmdbCategoryPage() {
         val category = selectedCategory ?: return
         val b = _binding ?: return
-        if (tmdbCategoryLoading || tmdbCategoryEndReached) return
+        if (tmdbCategoryLoading || tmdbAllExhausted()) return
         tmdbCategoryLoading = true
-        val firstLoad = tmdbCategoryPage == 1
+        val firstLoad = tmdbCategoryItems.isEmpty()
+        val want = if (firstLoad) 20 else 30
         b.tmdbDiscoveryProgress.isVisible = firstLoad
         viewLifecycleOwner.lifecycleScope.launch {
-            val outcome = runCatching { fetchCategory(category, page = tmdbCategoryPage) }
-            val items = outcome.getOrDefault(emptyList())
-            if (_binding == null || selectedCategory?.id != category.id) return@launch
-            var succeeded = false
-            when {
-                !outcome.isSuccess -> showTmdbCategoryEmpty("Couldn't load this shelf. Scroll down to retry.")
-                items.isEmpty() -> tmdbCategoryEndReached = true
-                else -> {
-                    val seen = tmdbCategoryItems.mapTo(HashSet()) { it.type to it.id }
-                    val fresh = items.filter { seen.add(it.type to it.id) }
-                    if (fresh.isEmpty()) {
-                        tmdbCategoryEndReached = true
-                    } else {
-                        succeeded = true
-                        tmdbCategoryItems.addAll(fresh)
-                        if (firstLoad) adapter.submit(tmdbCategoryItems.toList())
-                        else adapter.append(fresh)
-                        tmdbCategoryPage++
-                    }
+            var emitted = 0
+            var failures = 0
+            while (emitted < want && !tmdbAllExhausted() && failures < 3 &&
+                _binding != null && selectedCategory?.id == category.id
+            ) {
+                if (tmdbPool.isEmpty()) {
+                    val outcome = runCatching { refillTmdbPool(category) }
+                    if (outcome.isSuccess) failures = 0 else failures++
                 }
+                if (tmdbPool.isEmpty()) {
+                    if (tmdbAllExhausted() || failures >= 3) break
+                    continue
+                }
+                val take = minOf(tmdbPool.size, want - emitted)
+                val chunk = tmdbPool.take(take)
+                repeat(take) { tmdbPool.removeAt(0) }
+                if (chunk.isEmpty()) break
+                val fresh = chunk.filter { tmdbSeen.add(it.type to it.id) }
+                if (fresh.isEmpty()) continue
+                emitted += fresh.size
+                tmdbCategoryItems.addAll(fresh)
+                if (firstLoad) adapter.submit(tmdbCategoryItems.toList())
+                else adapter.append(fresh)
             }
+            if (_binding == null || selectedCategory?.id != category.id) return@launch
             b.tmdbDiscoveryProgress.isVisible = false
             b.tmdbDiscoveryGrid.isVisible = tmdbCategoryItems.isNotEmpty()
             if (tmdbCategoryItems.isNotEmpty()) {
                 tmdbCategoryEmptyView?.let { if (it.parent != null) (it.parent as? android.view.ViewGroup)?.removeView(it) }
                 tmdbCategoryEmptyView = null
             }
-            if (tmdbCategoryItems.isEmpty() && tmdbCategoryEndReached) {
+            if (tmdbCategoryItems.isEmpty() && tmdbAllExhausted()) {
                 showTmdbCategoryEmpty("No reliable matches found for this shelf yet. Try another category.")
             }
             tmdbCategoryLoading = false
-            if (succeeded && !tmdbCategoryEndReached) {
+            if (emitted > 0 && !tmdbAllExhausted()) {
                 val scroll = b.tmdbDiscoveryScroll
                 val content = scroll.getChildAt(0)?.height
                 if (content != null && scroll.scrollY + scroll.height >= content - dp(600)) {
@@ -598,6 +623,94 @@ class TmdbDiscoveryFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private suspend fun refillTmdbPool(category: TmdbDiscoveryCategory) {
+        if (tmdbMoviePhase == 0 && tmdbMoviePage == 1 && resolveKeyword(category) == null) tmdbMoviePhase = 1
+        if (tmdbTvPhase == 0 && tmdbTvPage == 1 && resolveKeyword(category) == null) tmdbTvPhase = 1
+        if (!tmdbMovieExhausted) {
+            val movie = fetchTmdbType("movie", category, tmdbMoviePhase, tmdbMoviePage)
+            if (movie.isEmpty()) advanceTmdbPhase(movie = true) else {
+                addToTmdbPool(movie)
+                tmdbMoviePage++
+            }
+        }
+        if (!tmdbTvExhausted) {
+            val tv = fetchTmdbType("tv", category, tmdbTvPhase, tmdbTvPage)
+            if (tv.isEmpty()) advanceTmdbPhase(movie = false) else {
+                addToTmdbPool(tv)
+                tmdbTvPage++
+            }
+        }
+    }
+
+    private fun advanceTmdbPhase(movie: Boolean) {
+        if (movie) {
+            if (tmdbMoviePhase < 2) {
+                tmdbMoviePhase++
+                tmdbMoviePage = 1
+            } else {
+                tmdbMovieExhausted = true
+            }
+        } else {
+            if (tmdbTvPhase < 2) {
+                tmdbTvPhase++
+                tmdbTvPage = 1
+            } else {
+                tmdbTvExhausted = true
+            }
+        }
+    }
+
+    private fun addToTmdbPool(list: List<TmdbMedia>) {
+        list.forEach { if (tmdbSeen.add(it.type to it.id)) tmdbPool.add(it) }
+    }
+
+    private suspend fun fetchTmdbType(
+        mediaType: String,
+        category: TmdbDiscoveryCategory,
+        phase: Int,
+        page: Int,
+    ): List<TmdbMedia> {
+        val keyword = if (phase == 0) resolveKeyword(category)?.toString() else null
+        val useGenres = phase <= 1
+        val sort = if (phase == 0 && (category.id == "hidden-gems" || category.id == "underrated-masterpieces")) {
+            "vote_average.desc"
+        } else {
+            "popularity.desc"
+        }
+        val extra = mutableListOf<Pair<String, String>>("include_adult" to "false")
+        category.originalLanguage?.let { extra.add("with_original_language" to it) }
+        if (phase == 0 && (category.id == "hidden-gems" || category.id == "underrated-masterpieces")) {
+            extra.add("vote_count.gte" to "250")
+            extra.add("vote_average.gte" to "7.0")
+            if (mediaType == "movie") extra.add("release_date.lte" to todayIso())
+            else extra.add("first_air_date.lte" to todayIso())
+        }
+        val genres: String? = if (useGenres && category.genres != null) {
+            if (mediaType == "movie") {
+                category.genres
+            } else {
+                category.genres?.split(",")?.mapNotNull { it.trim().toIntOrNull() }
+                    ?.map { id ->
+                        when (id) {
+                            28, 12 -> 10759
+                            14, 878 -> 10765
+                            else -> id
+                        }
+                    }?.distinct()?.joinToString(",")
+            }
+        } else {
+            null
+        }
+        return Tmdb.discover(
+            mediaType = mediaType,
+            genres = genres,
+            sort = sort,
+            keywords = keyword,
+            page = page,
+            extra = extra
+        )
     }
 
     private fun showTmdbCategoryEmpty(message: String) {
@@ -615,10 +728,7 @@ class TmdbDiscoveryFragment : Fragment() {
 
     private fun showCategories() {
         selectedCategory = null
-        tmdbCategoryItems.clear()
-        tmdbCategoryPage = 1
-        tmdbCategoryLoading = false
-        tmdbCategoryEndReached = false
+        resetTmdbCategoryPaging()
         backCallback?.isEnabled = false
         binding.tmdbDiscoveryProgress.isVisible = false
         binding.tmdbDiscoveryGrid.isVisible = false
@@ -645,54 +755,6 @@ class TmdbDiscoveryFragment : Fragment() {
             ?.posterPath
             ?.let { Tmdb.imageUrl(it, 342) }
         return poster("movie") ?: poster("tv")
-    }
-
-    private suspend fun fetchCategory(category: TmdbDiscoveryCategory, page: Int): List<TmdbMedia> {
-        val keywordId = resolveKeyword(category)
-        val movieGenres = category.genres
-        val tvGenres = category.genres?.split(",")?.mapNotNull { it.trim().toIntOrNull() }
-            ?.map { id ->
-                when (id) {
-                    28, 12 -> 10759
-                    14, 878 -> 10765
-                    else -> id
-                }
-            }?.distinct()?.joinToString(",")
-        val extra = mutableListOf<Pair<String, String>>("include_adult" to "false")
-        category.originalLanguage?.let { extra.add("with_original_language" to it) }
-        if (category.id == "hidden-gems" || category.id == "underrated-masterpieces") {
-            extra.add("vote_count.gte" to "250")
-            extra.add("vote_average.gte" to "7.0")
-            extra.add("release_date.lte" to todayIso())
-        }
-        val keyword = keywordId?.toString()
-        val movie = Tmdb.discover(
-            mediaType = "movie",
-            genres = if (keyword == null) movieGenres else null,
-            sort = if (category.id == "hidden-gems" || category.id == "underrated-masterpieces") "vote_average.desc" else "popularity.desc",
-            keywords = keyword,
-            page = page,
-            extra = extra
-        )
-        val tvExtra = extra.filterNot { it.first == "release_date.lte" }.toMutableList()
-        if (category.id == "hidden-gems" || category.id == "underrated-masterpieces") {
-            tvExtra.add("first_air_date.lte" to todayIso())
-        }
-        val tv = Tmdb.discover(
-            mediaType = "tv",
-            genres = if (keyword == null) tvGenres else null,
-            sort = if (category.id == "hidden-gems" || category.id == "underrated-masterpieces") "vote_average.desc" else "popularity.desc",
-            keywords = keyword,
-            page = page,
-            extra = tvExtra
-        )
-        val merged = mutableListOf<TmdbMedia>()
-        val max = maxOf(movie.size, tv.size)
-        for (i in 0 until max) {
-            movie.getOrNull(i)?.let { merged.add(it) }
-            tv.getOrNull(i)?.let { merged.add(it) }
-        }
-        return merged.distinctBy { it.type to it.id }
     }
 
     private suspend fun resolveKeyword(category: TmdbDiscoveryCategory): Int? {

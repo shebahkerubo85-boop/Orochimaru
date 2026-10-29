@@ -97,10 +97,14 @@ class MediaDetailsActivity : AppCompatActivity() {
 
         if (id != -1) {
             lifecycleScope.launch {
-                val media = withContext(Dispatchers.IO) { fetchMediaById(id, rescueMode) }
-                    ?: withContext(Dispatchers.IO) {
+                val media = withContext(Dispatchers.IO) {
+                    if (id > 0) {
+                        fetchMediaById(id, rescueMode)
+                            ?: fallbackTitle?.takeIf { it.isNotBlank() && !rescueMode }?.let { fetchMediaByTitle(it) }
+                    } else {
                         fallbackTitle?.takeIf { it.isNotBlank() && !rescueMode }?.let { fetchMediaByTitle(it) }
                     }
+                }
                 if (isFinishing || isDestroyed) return@launch
                 bindMedia(media ?: emptyMedia(), savedInstanceState, rescueMode)
             }
