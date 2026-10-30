@@ -28,6 +28,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.chip.Chip
 import com.bumptech.glide.Glide
 import ani.sanin.R
+import ani.sanin.settings.saving.PrefName
 import ani.sanin.settings.saving.PrefManager
 import ani.sanin.cloudstream.TmdbCards
 import ani.sanin.cloudstream.TmdbDetailsActivity
@@ -955,7 +956,7 @@ class TmdbDiscoveryFragment : Fragment() {
         return fallback
     }
 
-    private suspend fun resolveKeyword(category: TmdbDiscoveryCategory): Int? {
+    private suspend fun resolveKeyword(category: TmdbDiscoveryCategory): String? {
         val query = category.keyword?.trim()?.takeIf { it.isNotEmpty() } ?: return null
         val key = query.lowercase(Locale.ROOT)
         if (keywordCache.containsKey(key)) return keywordCache[key]
