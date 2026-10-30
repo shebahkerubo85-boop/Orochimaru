@@ -876,7 +876,7 @@ class TmdbDiscoveryFragment : Fragment() {
                     if (_binding != null && selectedCategory?.id == category.id && !tmdbAllExhausted()) {
                         loadTmdbCategoryPage()
                     }
-                }, 2000)
+                }, 3000)
             }
         }
     }

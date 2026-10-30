@@ -1185,7 +1185,7 @@ class DiscoveryFragment : Fragment() {
                     if (_binding != null && animeCategoryOpen &&
                         !animeCategoryLoading && !animeCategoryEndReached
                     ) loadAnimeCategoryPage()
-                }, 2000)
+                }, 3000)
             }
         }
     }
