@@ -87,6 +87,7 @@ class TmdbDiscoveryFragment : Fragment() {
     private var tmdbTvExhausted = false
     private var tmdbMovieSkips = 0
     private var tmdbTvSkips = 0
+    private var tmdbExhaustedAnnounced = false
     private var tmdbCategoryLoading = false
     private var tmdbReloadUsed = false
     private var tmdbCategoryEmptyView: TextView? = null
@@ -651,6 +652,7 @@ class TmdbDiscoveryFragment : Fragment() {
             LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
         )
         pillParams.topMargin = dp(10)
+        pillParams.gravity = android.view.Gravity.CENTER_HORIZONTAL
         typePill.layoutParams = pillParams
         typePill.isFocusable = true
         typePill.isFocusable = true
@@ -687,6 +689,7 @@ class TmdbDiscoveryFragment : Fragment() {
         tmdbTvExhausted = false
         tmdbMovieSkips = 0
         tmdbTvSkips = 0
+        tmdbExhaustedAnnounced = false
         tmdbCategoryLoading = false
         tmdbCategoryEmptyView = null
         tmdbReloadUsed = false
@@ -804,6 +807,14 @@ class TmdbDiscoveryFragment : Fragment() {
             if (tmdbCategoryItems.isNotEmpty()) {
                 tmdbCategoryEmptyView?.let { if (it.parent != null) (it.parent as? android.view.ViewGroup)?.removeView(it) }
                 tmdbCategoryEmptyView = null
+            }
+            if (tmdbAllExhausted() && tmdbCategoryItems.isNotEmpty() && !tmdbExhaustedAnnounced) {
+                tmdbExhaustedAnnounced = true
+                com.google.android.material.snackbar.Snackbar.make(
+                    b.tmdbDiscoveryScroll,
+                    category.title + " shelf is exhausted",
+                    com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+                ).show()
             }
             if (tmdbCategoryItems.isEmpty() && (tmdbAllExhausted() || failures >= 3)) {
                 val reason = Tmdb.lastError

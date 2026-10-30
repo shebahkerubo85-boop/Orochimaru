@@ -19,7 +19,6 @@ class DiscoveryStandardCardAdapter(
         val title: String,
         val posterUrl: String?,
         val year: String? = null,
-        val isMovie: Boolean = false,
     )
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
