@@ -85,6 +85,8 @@ class TmdbDiscoveryFragment : Fragment() {
     private var tmdbTvPhase = 0
     private var tmdbMovieExhausted = false
     private var tmdbTvExhausted = false
+    private var tmdbMovieSkips = 0
+    private var tmdbTvSkips = 0
     private var tmdbCategoryLoading = false
     private var tmdbReloadUsed = false
     private var tmdbCategoryEmptyView: TextView? = null
@@ -683,6 +685,8 @@ class TmdbDiscoveryFragment : Fragment() {
         tmdbTvPhase = 0
         tmdbMovieExhausted = false
         tmdbTvExhausted = false
+        tmdbMovieSkips = 0
+        tmdbTvSkips = 0
         tmdbCategoryLoading = false
         tmdbCategoryEmptyView = null
         tmdbReloadUsed = false
@@ -853,21 +857,36 @@ class TmdbDiscoveryFragment : Fragment() {
         if (tmdbMoviePhase == 0 && tmdbMoviePage == 1 && resolveKeyword(category) == null) tmdbMoviePhase = 1
         if (tmdbTvPhase == 0 && tmdbTvPage == 1 && resolveKeyword(category) == null) tmdbTvPhase = 1
         if (!tmdbMovieExhausted) {
-            val movie = fetchTmdbType("movie", category, tmdbMoviePhase, tmdbMoviePage)
-            if (Tmdb.lastError != null) throw java.io.IOException(Tmdb.lastError ?: "connection failed")
-            if (movie.isEmpty()) {
+            val outcome = runCatching { fetchTmdbType("movie", category, tmdbMoviePhase, tmdbMoviePage) }
+            val movie = outcome.getOrNull()
+            if (movie == null) {
+                // Skip the stuck page instead of retrying it forever.
+                tmdbMoviePage++; tmdbMovieSkips++
+                if (tmdbMovieSkips >= 3) {
+                    tmdbMovieExhausted = true
+                    Logger.log("TMDB shelf movie lane exhausted after " + tmdbMovieSkips + " bad pages category=" + category.id + " reason=" + (Tmdb.lastError ?: outcome.exceptionOrNull()?.message))
+                }
+            } else if (movie.isEmpty()) {
                 if (category.adult) tmdbMovieExhausted = true else advanceTmdbPhase(movie = true)
             } else {
+                tmdbMovieSkips = 0
                 addToTmdbPool(category, movie)
                 tmdbMoviePage++
             }
         }
         if (!tmdbTvExhausted) {
-            val tv = fetchTmdbType("tv", category, tmdbTvPhase, tmdbTvPage)
-            if (Tmdb.lastError != null) throw java.io.IOException(Tmdb.lastError ?: "connection failed")
-            if (tv.isEmpty()) {
+            val outcome = runCatching { fetchTmdbType("tv", category, tmdbTvPhase, tmdbTvPage) }
+            val tv = outcome.getOrNull()
+            if (tv == null) {
+                tmdbTvPage++; tmdbTvSkips++
+                if (tmdbTvSkips >= 3) {
+                    tmdbTvExhausted = true
+                    Logger.log("TMDB shelf tv lane exhausted after " + tmdbTvSkips + " bad pages category=" + category.id + " reason=" + (Tmdb.lastError ?: outcome.exceptionOrNull()?.message))
+                }
+            } else if (tv.isEmpty()) {
                 if (category.adult) tmdbTvExhausted = true else advanceTmdbPhase(movie = false)
             } else {
+                tmdbTvSkips = 0
                 addToTmdbPool(category, tv)
                 tmdbTvPage++
             }
