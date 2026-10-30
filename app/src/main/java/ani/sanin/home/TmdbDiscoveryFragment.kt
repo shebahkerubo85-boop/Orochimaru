@@ -497,7 +497,9 @@ class TmdbDiscoveryFragment : Fragment() {
     }
 
     private fun loadCategoryArtwork() {
-        val categories = TmdbDiscoveryCategories.all.take(artworkLimit)
+        // Queue every shelf on initial discovery load. The semaphore below keeps network
+        // pressure bounded while allowing posters to appear without opening each category.
+        val categories = TmdbDiscoveryCategories.all
         Logger.log("TMDB shelf artwork coverage requested=" + categories.size + "/" + TmdbDiscoveryCategories.all.size + " cached=" + categories.count { !artworkCache[it.id].isNullOrBlank() })
         val now = System.currentTimeMillis()
         val pending = categories.filter { category ->
