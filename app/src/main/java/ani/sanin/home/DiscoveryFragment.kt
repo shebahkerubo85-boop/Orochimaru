@@ -411,7 +411,7 @@ class DiscoveryFragment : Fragment() {
         binding.discoverCategoryResultsGrid.addOnScrollListener(
             object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
             override fun onScrolled(rv: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
-                if (!animeCategoryOpen) return
+                if (dy <= 0 || !animeCategoryOpen) return
                 val count = rv.adapter?.itemCount ?: return
                 val lm = rv.layoutManager
                 val last = when (lm) {
@@ -994,6 +994,25 @@ class DiscoveryFragment : Fragment() {
                 if (_binding != null) binding.discoverCategoryHeader.getChildAt(0)?.requestFocus()
             }
         }
+        // Pin the results grid so it recycles internally while the shelf is open.
+        val parent = binding.discoverCategoryResultsGrid.parent as android.view.ViewGroup
+        val grid = binding.discoverCategoryResultsGrid
+        val scrollHost = binding.discoverScroll
+        parent.post {
+            parent.post {
+                var others = 0
+                for (i in 0 until parent.childCount) {
+                    val child = parent.getChildAt(i)
+                    if (child !== grid && child.visibility != android.view.View.GONE) others += child.height
+                }
+                val remaining = scrollHost.height - others
+                if (remaining > dp(240)) {
+                    grid.layoutParams.height = remaining
+                    grid.isNestedScrollingEnabled = false
+                    grid.requestLayout()
+                }
+            }
+        }
         loadAnimeCategoryPage()
     }
 
@@ -1006,6 +1025,8 @@ class DiscoveryFragment : Fragment() {
         animeCategoryListRowAdapter.notifyDataSetChanged()
         binding.discoverCategoryHeader.visibility = View.GONE
         binding.discoverCategoryResultsGrid.visibility = View.GONE
+        binding.discoverCategoryResultsGrid.layoutParams.height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+        binding.discoverCategoryResultsGrid.isNestedScrollingEnabled = true
         binding.discoverCategoryStatus.visibility = View.GONE
         binding.discoverCategoryProgress.visibility = View.GONE
         binding.discoverCategoryGrid.visibility = View.VISIBLE
