@@ -175,7 +175,7 @@ object TmdbDiscoveryCategories {
     c("Switched Bodies", "Wake up in the wrong skin.", "35,14", "body swap"),
     c("Outliving Everyone", "Forever is the loneliest promise.", "14,878", "immortality"),
     c("Secret Societies", "Handshakes you were never meant to see...", "9648,53", "secret society"),
-    c("Adult (NFSW)", "For grown eyes only.", null,
+    c("Adult (NSFW)", "For grown eyes only.", null,
       "erotic,softcore,lesbian sex,sex comedy,nudity,nudism,lingerie,unsimulated sex,sex scene", null, true),
     )
 }

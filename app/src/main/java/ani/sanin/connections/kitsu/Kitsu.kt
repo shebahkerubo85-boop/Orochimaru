@@ -430,7 +430,7 @@ object Kitsu {
         ) ?: return emptyList()
         val posters = doc.dataList().asSequence().mapNotNull { resource ->
             val attrs = resource.animeAttributes() ?: return@mapNotNull null
-            if (attrs.nsfw) return@mapNotNull null
+            if (attrs.nsfw && !PrefManager.getVal<Boolean>(PrefName.IncludeAdultDiscovery)) return@mapNotNull null
             attrs.posterImage?.large
                 ?: attrs.posterImage?.medium
                 ?: attrs.posterImage?.original
@@ -455,7 +455,7 @@ object Kitsu {
         val mappingsById = doc.included.orEmpty().associateBy { it.id }
         val media = rows.mapNotNull { resource ->
             val attrs = resource.animeAttributes() ?: return@mapNotNull null
-            if (attrs.nsfw) return@mapNotNull null
+            if (attrs.nsfw && !PrefManager.getVal<Boolean>(PrefName.IncludeAdultDiscovery)) return@mapNotNull null
             val anilistId = resource.relationshipIds("mappings").firstNotNullOfOrNull { mappingId ->
                 mappingsById[mappingId]?.mappingAttributes()
                     ?.takeIf { it.externalSite == ANILIST_SITE }

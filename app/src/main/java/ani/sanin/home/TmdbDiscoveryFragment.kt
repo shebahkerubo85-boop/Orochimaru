@@ -852,7 +852,8 @@ class TmdbDiscoveryFragment : Fragment() {
         } else {
             "popularity.desc"
         }
-        val extra = mutableListOf<Pair<String, String>>("include_adult" to if (category.adult) "true" else "false")
+        val adult = category.adult || PrefManager.getVal<Boolean>(PrefName.IncludeAdultDiscovery)
+        val extra = mutableListOf<Pair<String, String>>("include_adult" to if (adult) "true" else "false")
         category.originalLanguage?.let { extra.add("with_original_language" to it) }
         if (phase == 0 && (category.id == "hidden-gems" || category.id == "underrated-masterpieces")) {
             extra.add("vote_count.gte" to "250")
@@ -918,7 +919,8 @@ class TmdbDiscoveryFragment : Fragment() {
 
     private suspend fun fetchArtworkPoster(category: TmdbDiscoveryCategory): String? {
         val keyword = resolveKeyword(category)?.toString()
-        val extra = mutableListOf<Pair<String, String>>("include_adult" to if (category.adult) "true" else "false")
+        val adult = category.adult || PrefManager.getVal<Boolean>(PrefName.IncludeAdultDiscovery)
+        val extra = mutableListOf<Pair<String, String>>("include_adult" to if (adult) "true" else "false")
         category.originalLanguage?.let { extra.add("with_original_language" to it) }
         suspend fun poster(type: String): String? = Tmdb.discover(
             mediaType = type,

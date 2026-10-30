@@ -17,6 +17,7 @@ enum class PrefName(val data: Pref) {
     SharedUserID(Pref(Location.General, Boolean::class, true)),
 
     NSFWExtension(Pref(Location.General, Boolean::class, true)),
+    IncludeAdultDiscovery(Pref(Location.General, Boolean::class, false)),
     ContinueMedia(Pref(Location.General, Boolean::class, true)),
     SearchSources(Pref(Location.General, Boolean::class, false)),
     RecentlyListOnly(Pref(Location.General, Boolean::class, false)),

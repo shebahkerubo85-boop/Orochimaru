@@ -93,6 +93,13 @@ class SettingsExtrasActivity : AppCompatActivity() {
                         PrefManager.setVal(PrefName.HideScrollTopButtons, it)
                     },
                 ),
+                SubscreenBuilder.Entry(
+                    title = "Include Adult Content In Discovery Shelves",
+                    desc = "Enable NSFW titles inside Discover shelves",
+                    switch = PrefManager.getVal<Boolean>(PrefName.IncludeAdultDiscovery) to {
+                        PrefManager.setVal(PrefName.IncludeAdultDiscovery, it)
+                    },
+                ),
 
             )),
         ))
