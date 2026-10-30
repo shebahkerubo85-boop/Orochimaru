@@ -50,6 +50,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
@@ -812,7 +813,7 @@ class TmdbDiscoveryFragment : Fragment() {
                 tmdbExhaustedAnnounced = true
                 com.google.android.material.snackbar.Snackbar.make(
                     b.tmdbDiscoveryScroll,
-                    category.title + " shelf is exhausted",
+                    "That\'s all for \'" + category.title + "\'",
                     com.google.android.material.snackbar.Snackbar.LENGTH_LONG
                 ).show()
             }
@@ -867,40 +868,61 @@ class TmdbDiscoveryFragment : Fragment() {
     private suspend fun refillTmdbPool(category: TmdbDiscoveryCategory) {
         if (tmdbMoviePhase == 0 && tmdbMoviePage == 1 && resolveKeyword(category) == null) tmdbMoviePhase = 1
         if (tmdbTvPhase == 0 && tmdbTvPage == 1 && resolveKeyword(category) == null) tmdbTvPhase = 1
-        if (!tmdbMovieExhausted) {
+        if (!tmdbMovieExhausted) refillMovieLane(category)
+        if (!tmdbTvExhausted) refillTvLane(category)
+    }
+
+    private suspend fun refillMovieLane(category: TmdbDiscoveryCategory) {
+        // Bursts (timeouts, 429 rate limiting) are transient: retry the same page with
+        // escalating backoff before skipping it, so browsing fast through many shelves
+        // cannot dry up a lane permanently.
+        repeat(3) { attempt ->
             val outcome = runCatching { fetchTmdbType("movie", category, tmdbMoviePhase, tmdbMoviePage) }
             val movie = outcome.getOrNull()
-            if (movie == null) {
-                // Skip the stuck page instead of retrying it forever.
-                tmdbMoviePage++; tmdbMovieSkips++
-                if (tmdbMovieSkips >= 3) {
-                    tmdbMovieExhausted = true
-                    Logger.log("TMDB shelf movie lane exhausted after " + tmdbMovieSkips + " bad pages category=" + category.id + " reason=" + (Tmdb.lastError ?: outcome.exceptionOrNull()?.message))
+            if (movie != null && Tmdb.lastError == null) {
+                if (movie.isEmpty()) {
+                    if (category.adult) tmdbMovieExhausted = true else advanceTmdbPhase(movie = true)
+                } else {
+                    tmdbMovieSkips = 0
+                    addToTmdbPool(category, movie)
+                    tmdbMoviePage++
                 }
-            } else if (movie.isEmpty()) {
-                if (category.adult) tmdbMovieExhausted = true else advanceTmdbPhase(movie = true)
-            } else {
-                tmdbMovieSkips = 0
-                addToTmdbPool(category, movie)
-                tmdbMoviePage++
+                return
             }
+            delay(900L * (attempt + 1))
         }
-        if (!tmdbTvExhausted) {
+        tmdbMoviePage++; tmdbMovieSkips++
+        if (tmdbMovieSkips >= 4) {
+            tmdbMovieExhausted = true
+            Logger.log("TMDB shelf movie lane exhausted after " + tmdbMovieSkips + " bad pages category=" + category.id)
+        } else {
+            Logger.log("TMDB shelf movie page skipped category=" + category.id)
+        }
+    }
+
+    private suspend fun refillTvLane(category: TmdbDiscoveryCategory) {
+        // Same retry policy as the movie lane.
+        repeat(3) { attempt ->
             val outcome = runCatching { fetchTmdbType("tv", category, tmdbTvPhase, tmdbTvPage) }
             val tv = outcome.getOrNull()
-            if (tv == null) {
-                tmdbTvPage++; tmdbTvSkips++
-                if (tmdbTvSkips >= 3) {
-                    tmdbTvExhausted = true
-                    Logger.log("TMDB shelf tv lane exhausted after " + tmdbTvSkips + " bad pages category=" + category.id + " reason=" + (Tmdb.lastError ?: outcome.exceptionOrNull()?.message))
+            if (tv != null && Tmdb.lastError == null) {
+                if (tv.isEmpty()) {
+                    if (category.adult) tmdbTvExhausted = true else advanceTmdbPhase(movie = false)
+                } else {
+                    tmdbTvSkips = 0
+                    addToTmdbPool(category, tv)
+                    tmdbTvPage++
                 }
-            } else if (tv.isEmpty()) {
-                if (category.adult) tmdbTvExhausted = true else advanceTmdbPhase(movie = false)
-            } else {
-                tmdbTvSkips = 0
-                addToTmdbPool(category, tv)
-                tmdbTvPage++
+                return
             }
+            delay(900L * (attempt + 1))
+        }
+        tmdbTvPage++; tmdbTvSkips++
+        if (tmdbTvSkips >= 4) {
+            tmdbTvExhausted = true
+            Logger.log("TMDB shelf tv lane exhausted after " + tmdbTvSkips + " bad pages category=" + category.id)
+        } else {
+            Logger.log("TMDB shelf tv page skipped category=" + category.id)
         }
     }
 

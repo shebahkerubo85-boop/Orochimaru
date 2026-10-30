@@ -327,6 +327,7 @@ class DiscoveryFragment : Fragment() {
     private var animeCategoryGridButton: ImageButton? = null
     private var animeCategoryListButton: ImageButton? = null
     private var animeCategoryBackCallback: OnBackPressedCallback? = null
+    private var animeExhaustedAnnounced = false
 
     private data class ReelCard(
         val title: String,
@@ -412,7 +413,8 @@ class DiscoveryFragment : Fragment() {
                 val resultsContent = binding.discoverScroll.getChildAt(0)?.height
                     ?: return@setOnScrollChangeListener
                 if (scrollY + binding.discoverScroll.height >= resultsContent - dp(500)) {
-                    loadAnimeCategoryPage()
+                    if (animeCategoryEndReached && animeCategoryCards.isNotEmpty()) showAnimeExhaustedSnackbar()
+                    else loadAnimeCategoryPage()
                 }
                 return@setOnScrollChangeListener
             }
@@ -960,6 +962,7 @@ class DiscoveryFragment : Fragment() {
         animeCategoryOffset = 0
         animeCategoryEndReached = false
         animeCategoryBackCallback?.isEnabled = true
+        animeExhaustedAnnounced = false
         animeCategoryCards.clear()
         animeCategoryAdapter.notifyDataSetChanged()
         animeCategoryListRowAdapter.notifyDataSetChanged()
@@ -1146,6 +1149,16 @@ class DiscoveryFragment : Fragment() {
                 binding.discoverScroll.post { loadAnimeCategoryPage() }
             }
         }
+    }
+
+    private fun showAnimeExhaustedSnackbar() {
+        if (animeExhaustedAnnounced || _binding == null) return
+        animeExhaustedAnnounced = true
+        com.google.android.material.snackbar.Snackbar.make(
+            binding.discoverScroll,
+            "That\'s all for \'" + animeCategoryTitle + "\'",
+            com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+        ).show()
     }
 
     private fun animeCategoryNearBottom(): Boolean {
