@@ -4,6 +4,7 @@ import ani.sanin.settings.AnimUtils
 import android.animation.ObjectAnimator
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Typeface
 import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
 import android.net.Uri
@@ -11,6 +12,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
@@ -26,6 +28,7 @@ import androidx.browser.customtabs.CustomTabsIntent
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
@@ -83,6 +86,7 @@ import ani.sanin.sizeBannerCard
 import ani.sanin.statusBarHeight
 import ani.sanin.tryWithSuspend
 import ani.sanin.util.Logger
+import ani.sanin.util.bindClassicChips
 import ani.sanin.util.customAlertDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -979,8 +983,116 @@ class HomeFragment : Fragment() {
         bannerAutoScrollHandler?.postDelayed(runnable, 5000L)
     }
 
+    private fun applyNavBannerContentStyle(classic: Boolean) {
+        val b = _binding ?: return
+        val ctx = b.root.context
+        val density = ctx.resources.displayMetrics.density
+        val content = b.navBannerContent
+
+        content.gravity = if (classic) Gravity.CENTER_HORIZONTAL else 0
+        content.setPadding(
+            ((if (classic) 16 else 12) * density).toInt(),
+            0,
+            ((if (classic) 16 else 12) * density).toInt(),
+            ((if (classic) 14 else 12) * density).toInt()
+        )
+
+        val logoLp = b.navBannerLogo.layoutParams as LinearLayout.LayoutParams
+        if (classic) {
+            logoLp.width = ViewGroup.LayoutParams.WRAP_CONTENT
+            logoLp.height = ViewGroup.LayoutParams.WRAP_CONTENT
+            logoLp.gravity = Gravity.CENTER_HORIZONTAL
+            b.navBannerLogo.scaleType = ImageView.ScaleType.FIT_CENTER
+            b.navBannerLogo.maxWidth = Int.MAX_VALUE
+            b.navBannerLogo.maxHeight = Int.MAX_VALUE
+        } else {
+            logoLp.width = (120 * density).toInt()
+            logoLp.height = (32 * density).toInt()
+            logoLp.gravity = Gravity.NO_GRAVITY
+            b.navBannerLogo.scaleType = ImageView.ScaleType.FIT_START
+            b.navBannerLogo.maxWidth = (120 * density).toInt()
+            b.navBannerLogo.maxHeight = (32 * density).toInt()
+        }
+        b.navBannerLogo.layoutParams = logoLp
+
+        val res = ctx.resources
+        if (classic) {
+            b.navBannerTitle.setTextSize(
+                TypedValue.COMPLEX_UNIT_PX,
+                res.getDimension(R.dimen.banner_classic_title_text)
+            )
+            b.navBannerTitle.gravity = Gravity.CENTER_HORIZONTAL
+            ResourcesCompat.getFont(ctx, R.font.poppins_bold)?.let { b.navBannerTitle.typeface = it }
+            b.navBannerMetaRow.isVisible = false
+            b.navBannerChipsRow.isVisible = true
+        } else {
+            b.navBannerTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            b.navBannerTitle.gravity = Gravity.NO_GRAVITY
+            b.navBannerTitle.typeface =
+                Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            b.navBannerMetaRow.isVisible = true
+            b.navBannerChipsRow.isVisible = false
+        }
+
+        val btn = b.navBannerWatchBtn
+        val btnLp = btn.layoutParams as LinearLayout.LayoutParams
+        btnLp.gravity = if (classic) Gravity.CENTER_HORIZONTAL else Gravity.NO_GRAVITY
+        btn.layoutParams = btnLp
+        if (classic) {
+            btn.setBackgroundResource(R.drawable.banner_classic_pill_bg)
+            btn.minWidth = 0
+            btn.minHeight = 0
+            btn.minimumHeight = res.getDimensionPixelSize(R.dimen.banner_classic_watch_height)
+            btn.maxHeight = res.getDimensionPixelSize(R.dimen.banner_classic_watch_height)
+            btn.setPadding(
+                res.getDimensionPixelSize(R.dimen.banner_classic_watch_padding), 0,
+                res.getDimensionPixelSize(R.dimen.banner_classic_watch_padding), 0
+            )
+            btn.setTextSize(
+                TypedValue.COMPLEX_UNIT_PX,
+                res.getDimension(R.dimen.banner_classic_watch_text)
+            )
+            btn.setTextColor(
+                ContextCompat.getColor(ctx, R.color.bg_white)
+            )
+            btn.gravity = Gravity.CENTER
+            btn.allCaps = false
+        } else {
+            btn.setBackgroundResource(R.drawable.tag_chip_bg)
+            btn.gravity = Gravity.CENTER
+            btn.setPadding(
+                (20 * density).toInt(), (8 * density).toInt(),
+                (20 * density).toInt(), (8 * density).toInt()
+            )
+            btn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            btn.setTextColor(
+                ctx.getThemeColor(com.google.android.material.R.attr.colorOnBackground)
+            )
+        }
+    }
+
+    private fun navBannerChipsLabels(media: Media): List<String> {
+        val formatText = media.format?.replace("_", " ")?.let { fmt ->
+            when {
+                fmt.equals("TV", true) -> "TV Series"
+                fmt.equals("TV_SHORT", true) -> "TV Short"
+                else -> fmt
+            }
+        }
+        val statusText =
+            media.status?.replace("_", " ")?.lowercase()?.replaceFirstChar { it.uppercase() }
+        val seasonText = media.anime?.season?.lowercase()
+            ?.let { season ->
+                media.anime?.seasonYear?.let { year -> "$season $year" } ?: season
+            }
+        val scoreText = media.meanScore?.let { "$it%" }
+        return listOfNotNull(formatText, statusText, seasonText, scoreText) + media.genres
+    }
+
     private fun updateNavigatingBanner(media: Media) {
         val b = _binding ?: return
+        val classic = isClassicBanner()
+        applyNavBannerContentStyle(classic)
         navBannerCurrentMediaId = media.id
         navBannerCurrentMedia = media
         updateHomeBannerOverlay(media)
@@ -1008,7 +1120,8 @@ class HomeFragment : Fragment() {
                             val navActive = PrefManager.getVal<Int>(PrefName.HomeBannerMode) == 2
                             back.scaleType = when {
                                 portrait -> ImageView.ScaleType.CENTER_CROP
-                                isLandscape && navActive -> ImageView.ScaleType.FIT_CENTER
+                                isLandscape && navActive && !isClassicBanner() ->
+                                    ImageView.ScaleType.FIT_CENTER
                                 else -> ImageView.ScaleType.CENTER_CROP
                             }
                             return false
@@ -1036,6 +1149,15 @@ class HomeFragment : Fragment() {
         b.navBannerGenres.text = media.genres.take(2).joinToString(" • ")
         b.navBannerGenres.isVisible = media.genres.isNotEmpty()
         b.navBannerSynopsis.isVisible = false
+
+        if (classic) {
+            bindClassicChips(
+                b.navBannerChipsRow,
+                b.navBannerChipsTop,
+                b.navBannerChipsBottom,
+                navBannerChipsLabels(media)
+            )
+        }
 
         val isWatching = media.userStatus == "CURRENT"
         b.navBannerWatchBtn.text = if (isWatching)
@@ -1221,6 +1343,7 @@ class HomeFragment : Fragment() {
             setCardCentered(b.homeBannerCard)
             setCardCentered(b.navBannerCard)
             b.navBannerContent.isVisible = true
+            applyNavBannerContentStyle(isClassicBanner())
             b.navBannerBottomGradient.isVisible = true
             b.navBannerScrim.isVisible = false
             b.navBannerBgA.scaleType = ImageView.ScaleType.CENTER_CROP
@@ -1270,7 +1393,8 @@ class HomeFragment : Fragment() {
 
         if (navActive) {
             val largeBanner = isClassicBanner()
-            b.navBannerContent.isVisible = false
+            applyNavBannerContentStyle(largeBanner)
+            b.navBannerContent.isVisible = largeBanner
 
             b.navBannerBottomGradient.isVisible = largeBanner
             b.navBannerScrim.isVisible = !largeBanner

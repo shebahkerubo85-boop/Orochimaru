@@ -189,6 +189,34 @@
                                                     android:textSize="16sp" />
 
                                                 <LinearLayout
+                                                    android:id="@+id/navBannerChipsRow"
+                                                    android:layout_width="match_parent"
+                                                    android:layout_height="wrap_content"
+                                                    android:layout_gravity="center_horizontal"
+                                                    android:layout_marginTop="8dp"
+                                                    android:orientation="vertical">
+
+                                                    <com.google.android.flexbox.FlexboxLayout
+                                                        android:id="@+id/navBannerChipsTop"
+                                                        android:layout_width="match_parent"
+                                                        android:layout_height="wrap_content"
+                                                        app:alignItems="center"
+                                                        app:flexWrap="wrap"
+                                                        app:justifyContent="center" />
+
+                                                    <com.google.android.flexbox.FlexboxLayout
+                                                        android:id="@+id/navBannerChipsBottom"
+                                                        android:layout_width="match_parent"
+                                                        android:layout_height="wrap_content"
+                                                        android:layout_marginTop="@dimen/banner_classic_chip_gap"
+                                                        app:alignItems="center"
+                                                        app:flexWrap="wrap"
+                                                        app:justifyContent="center" />
+
+                                                </LinearLayout>
+
+                                                <LinearLayout
+                                                    android:id="@+id/navBannerMetaRow"
                                                     android:layout_width="match_parent"
                                                     android:layout_height="wrap_content"
                                                     android:layout_marginTop="4dp"
