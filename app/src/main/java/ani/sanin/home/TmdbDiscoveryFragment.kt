@@ -855,7 +855,9 @@ class TmdbDiscoveryFragment : Fragment() {
         if (!tmdbMovieExhausted) {
             val movie = fetchTmdbType("movie", category, tmdbMoviePhase, tmdbMoviePage)
             if (Tmdb.lastError != null) throw java.io.IOException(Tmdb.lastError ?: "connection failed")
-            if (movie.isEmpty()) advanceTmdbPhase(movie = true) else {
+            if (movie.isEmpty()) {
+                if (category.adult) tmdbMovieExhausted = true else advanceTmdbPhase(movie = true)
+            } else {
                 addToTmdbPool(category, movie)
                 tmdbMoviePage++
             }
@@ -863,7 +865,9 @@ class TmdbDiscoveryFragment : Fragment() {
         if (!tmdbTvExhausted) {
             val tv = fetchTmdbType("tv", category, tmdbTvPhase, tmdbTvPage)
             if (Tmdb.lastError != null) throw java.io.IOException(Tmdb.lastError ?: "connection failed")
-            if (tv.isEmpty()) advanceTmdbPhase(movie = false) else {
+            if (tv.isEmpty()) {
+                if (category.adult) tmdbTvExhausted = true else advanceTmdbPhase(movie = false)
+            } else {
                 addToTmdbPool(category, tv)
                 tmdbTvPage++
             }
