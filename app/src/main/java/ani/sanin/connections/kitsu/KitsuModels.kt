@@ -96,6 +96,7 @@ data class KitsuDiscoveryItem(
     val score: Double?,
     val posterUrl: String?,
     val anilistId: Int?,
+    val subtype: String? = null,
 )
 
 data class KitsuCategoryPage(

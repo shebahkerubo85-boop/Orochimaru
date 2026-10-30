@@ -324,6 +324,8 @@ class DiscoveryFragment : Fragment() {
     private lateinit var animeCategoryAdapter: DiscoveryStandardCardAdapter
     private lateinit var animeCategoryListRowAdapter: DiscoveryListRowAdapter
     private val animeCategoryCards = mutableListOf<DiscoveryStandardCardAdapter.Card>()
+    private val animeCategoryCardsAll = mutableListOf<DiscoveryStandardCardAdapter.Card>()
+    private var animeTypeFilter = 0
     private var animeCategoryGridButton: ImageButton? = null
     private var animeCategoryListButton: ImageButton? = null
     private var animeCategoryBackCallback: OnBackPressedCallback? = null
@@ -960,7 +962,9 @@ class DiscoveryFragment : Fragment() {
         animeCategoryOffset = 0
         animeCategoryEndReached = false
         animeCategoryBackCallback?.isEnabled = true
+        animeTypeFilter = 0
         animeCategoryCards.clear()
+        animeCategoryCardsAll.clear()
         animeCategoryAdapter.notifyDataSetChanged()
         animeCategoryListRowAdapter.notifyDataSetChanged()
         binding.discoverCategoryGrid.visibility = View.GONE
@@ -983,7 +987,9 @@ class DiscoveryFragment : Fragment() {
         if (!animeCategoryOpen) return
         animeCategoryOpen = false
         animeCategoryBackCallback?.isEnabled = false
+        animeTypeFilter = 0
         animeCategoryCards.clear()
+        animeCategoryCardsAll.clear()
         animeCategoryAdapter.notifyDataSetChanged()
         animeCategoryListRowAdapter.notifyDataSetChanged()
         binding.discoverCategoryHeader.visibility = View.GONE
@@ -1053,6 +1059,41 @@ class DiscoveryFragment : Fragment() {
                 setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
             })
         }
+        val typePill = ani.sanin.ui.components.LibraryStatusPill(context)
+        val pillParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        pillParams.topMargin = dp(10)
+        typePill.layoutParams = pillParams
+        typePill.isFocusable = true
+        typePill.bind(
+            tabs = listOf(
+                ani.sanin.ui.components.LibraryStatusTab(label = "All"),
+                ani.sanin.ui.components.LibraryStatusTab(label = "Movie"),
+                ani.sanin.ui.components.LibraryStatusTab(label = "TV show"),
+            ),
+            selectedIndex = animeTypeFilter,
+            onTabSelected = { index -> applyAnimeTypeFilter(index) },
+            fillWidth = false,
+            compact = true,
+        )
+        header.addView(typePill)
+    }
+
+    private fun animeCardMatches(card: DiscoveryStandardCardAdapter.Card): Boolean =
+        when (animeTypeFilter) {
+            1 -> card.isMovie
+            2 -> !card.isMovie
+            else -> true
+        }
+
+    private fun applyAnimeTypeFilter(filter: Int) {
+        if (filter == animeTypeFilter) return
+        animeTypeFilter = filter
+        animeCategoryCards.clear()
+        animeCategoryCards.addAll(animeCategoryCardsAll.filter { animeCardMatches(it) })
+        animeCategoryAdapter.notifyDataSetChanged()
+        animeCategoryListRowAdapter.notifyDataSetChanged()
     }
 
     private fun applyAnimeCategoryLayout(mode: Int) {
@@ -1114,19 +1155,25 @@ class DiscoveryFragment : Fragment() {
                 animeCategoryEndReached = !page.hasMore
                 if (page.items.isNotEmpty()) {
                     val start = animeCategoryCards.size
-                    animeCategoryCards.addAll(page.items.map { item ->
+                    val fresh = page.items.map { item ->
                         DiscoveryStandardCardAdapter.Card(
                             id = item.anilistId
                                 ?: -(kotlin.math.abs(item.title.hashCode() % 1_000_000_000) + 1),
                             title = item.title,
                             posterUrl = item.posterUrl,
                             year = item.year?.toString(),
+                            isMovie = item.subtype == "MOVIE",
                         )
-                    })
-                    val count = animeCategoryCards.size - start
-                    animeCategoryAdapter.notifyItemRangeInserted(start, count)
-                    animeCategoryListRowAdapter.notifyItemRangeInserted(start, count)
-                    added = true
+                    }
+                    animeCategoryCardsAll.addAll(fresh)
+                    val accepted = fresh.filter { animeCardMatches(it) }
+                    animeCategoryCards.addAll(accepted)
+                    val count = accepted.size
+                    if (count > 0) {
+                        animeCategoryAdapter.notifyItemRangeInserted(start, count)
+                        animeCategoryListRowAdapter.notifyItemRangeInserted(start, count)
+                    }
+                    added = fresh.isNotEmpty()
                 }
                 attempts++
             } while (!added && !animeCategoryEndReached && attempts < 3)

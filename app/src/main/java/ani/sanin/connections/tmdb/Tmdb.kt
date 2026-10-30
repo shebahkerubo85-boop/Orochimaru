@@ -35,7 +35,8 @@ data class TmdbMedia(
     val overview: String? = null,
     @SerialName("genre_ids") val genreIds: List<Int> = emptyList(),
     @SerialName("media_type") val mediaType: String? = null,
-    @SerialName("belongs_to_collection") val collection: TmdbCollection? = null
+    @SerialName("belongs_to_collection") val collection: TmdbCollection? = null,
+    val adult: Boolean = false
 ) {
     val displayTitle: String get() = title ?: name ?: ""
     val year: String get() = (releaseDate ?: firstAirDate ?: "").take(4)

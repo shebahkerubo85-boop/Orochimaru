@@ -140,6 +140,7 @@ object Kitsu {
                 posterUrl = attributes.posterImage?.large
                     ?: attributes.posterImage?.medium ?: attributes.posterImage?.small,
                 anilistId = anilistId,
+                subtype = attributes.subtype,
             )
         }
         KitsuCategoryPage(items, resources.size, resources.size >= safeLimit, true)

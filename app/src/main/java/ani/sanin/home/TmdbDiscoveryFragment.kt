@@ -65,7 +65,10 @@ class TmdbDiscoveryFragment : Fragment() {
     private var _binding: FragmentTmdbDiscoveryBinding? = null
     private val binding get() = _binding!!
     private val tmdbCategoryItems = mutableListOf<TmdbMedia>()
+    private val tmdbCategoryItemsAll = mutableListOf<TmdbMedia>()
     private val tmdbCategoryRowCards = mutableListOf<DiscoveryStandardCardAdapter.Card>()
+    private val tmdbCategoryRowCardsAll = mutableListOf<DiscoveryStandardCardAdapter.Card>()
+    private var tmdbTypeFilter = 0
     private val adapter = TmdbGridAdapter(tmdbCategoryItems) { openDetails(it) }
     private lateinit var tmdbListRowAdapter: DiscoveryListRowAdapter
     private var tmdbGridButton: ImageButton? = null
@@ -641,6 +644,25 @@ class TmdbDiscoveryFragment : Fragment() {
             textSize = 13f
             setTextColor(context.getThemeColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
         })
+        val typePill = ani.sanin.ui.components.LibraryStatusPill(requireContext())
+        val pillParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        pillParams.topMargin = dp(10)
+        typePill.layoutParams = pillParams
+        typePill.isFocusable = true
+        typePill.bind(
+            tabs = listOf(
+                ani.sanin.ui.components.LibraryStatusTab(label = "All"),
+                ani.sanin.ui.components.LibraryStatusTab(label = "Movie"),
+                ani.sanin.ui.components.LibraryStatusTab(label = "TV show"),
+            ),
+            selectedIndex = tmdbTypeFilter,
+            onTabSelected = { index -> applyTmdbTypeFilter(index) },
+            fillWidth = false,
+            compact = true,
+        )
+        header.addView(typePill)
         host.addView(header)
         if (isTvDevice(requireContext())) back.post { back.requestFocus() }
         applyTmdbCategoryLayout(PrefManager.getCustomVal("discover_category_view", 0))
@@ -648,6 +670,9 @@ class TmdbDiscoveryFragment : Fragment() {
     }
 
     private fun resetTmdbCategoryPaging() {
+        tmdbTypeFilter = 0
+        tmdbCategoryItemsAll.clear()
+        tmdbCategoryRowCardsAll.clear()
         tmdbCategoryItems.clear()
         tmdbPool.clear()
         tmdbSeen.clear()
@@ -732,7 +757,8 @@ class TmdbDiscoveryFragment : Fragment() {
                 val fresh = chunk
                 emitted += fresh.size
                 Logger.log("TMDB shelf page category=" + category.id + " emitted=" + fresh.size + " total=" + (tmdbCategoryItems.size + fresh.size) + " poolRemaining=" + tmdbPool.size)
-                tmdbCategoryItems.addAll(fresh)
+                tmdbCategoryItemsAll.addAll(fresh)
+                tmdbCategoryItems.addAll(fresh.filter { tmdbTypeMatches(it) })
 
                 // Use the first real poster returned for this category as its editorial shelf art.
                 // This ties the thumbnail to the same results the user sees after opening the shelf,
@@ -749,18 +775,23 @@ class TmdbDiscoveryFragment : Fragment() {
                     Logger.log("TMDB shelf thumbnail sourced from first grid poster category=" + category.id)
                 }
 
-                val rowStart = tmdbCategoryRowCards.size
-                tmdbCategoryRowCards.addAll(fresh.map { item ->
+                val freshRows = fresh.map { item ->
                     DiscoveryStandardCardAdapter.Card(
                         id = -item.id,
                         title = item.displayTitle,
                         posterUrl = (item.posterPath ?: item.backdropPath)?.let { Tmdb.imageUrl(it, 300) },
                         year = item.year.takeIf { y -> y.isNotBlank() },
                     )
-                })
-                val start = tmdbCategoryItems.size - fresh.size
-                adapter.notifyItemRangeInserted(start, fresh.size)
-                tmdbListRowAdapter.notifyItemRangeInserted(rowStart, fresh.size)
+                }
+                tmdbCategoryRowCardsAll.addAll(freshRows)
+                val itemStart = tmdbCategoryItems.size
+                val rowStart = tmdbCategoryRowCards.size
+                val accepted = fresh.zip(freshRows).filter { tmdbTypeMatches(it.first) }
+                accepted.forEach { tmdbCategoryRowCards.add(it.second) }
+                if (accepted.isNotEmpty()) {
+                    adapter.notifyItemRangeInserted(itemStart, accepted.size)
+                    tmdbListRowAdapter.notifyItemRangeInserted(rowStart, accepted.size)
+                }
             }
             if (_binding == null || selectedCategory?.id != category.id) return
             b.tmdbDiscoveryProgress.isVisible = false
@@ -795,6 +826,28 @@ class TmdbDiscoveryFragment : Fragment() {
         }
     }
 
+    private fun tmdbTypeMatches(item: TmdbMedia): Boolean =
+        when (tmdbTypeFilter) {
+            1 -> item.type == "movie"
+            2 -> item.type != "movie"
+            else -> true
+        }
+
+    private fun applyTmdbTypeFilter(filter: Int) {
+        if (filter == tmdbTypeFilter) return
+        tmdbTypeFilter = filter
+        tmdbCategoryItems.clear()
+        tmdbCategoryRowCards.clear()
+        tmdbCategoryItemsAll.zip(tmdbCategoryRowCardsAll).forEach { (item, row) ->
+            if (tmdbTypeMatches(item)) {
+                tmdbCategoryItems.add(item)
+                tmdbCategoryRowCards.add(row)
+            }
+        }
+        adapter.notifyDataSetChanged()
+        tmdbListRowAdapter.notifyDataSetChanged()
+    }
+
     private suspend fun refillTmdbPool(category: TmdbDiscoveryCategory) {
         if (tmdbMoviePhase == 0 && tmdbMoviePage == 1 && resolveKeyword(category) == null) tmdbMoviePhase = 1
         if (tmdbTvPhase == 0 && tmdbTvPage == 1 && resolveKeyword(category) == null) tmdbTvPhase = 1
@@ -802,7 +855,7 @@ class TmdbDiscoveryFragment : Fragment() {
             val movie = fetchTmdbType("movie", category, tmdbMoviePhase, tmdbMoviePage)
             if (Tmdb.lastError != null) throw java.io.IOException(Tmdb.lastError ?: "connection failed")
             if (movie.isEmpty()) advanceTmdbPhase(movie = true) else {
-                addToTmdbPool(movie)
+                addToTmdbPool(category, movie)
                 tmdbMoviePage++
             }
         }
@@ -810,7 +863,7 @@ class TmdbDiscoveryFragment : Fragment() {
             val tv = fetchTmdbType("tv", category, tmdbTvPhase, tmdbTvPage)
             if (Tmdb.lastError != null) throw java.io.IOException(Tmdb.lastError ?: "connection failed")
             if (tv.isEmpty()) advanceTmdbPhase(movie = false) else {
-                addToTmdbPool(tv)
+                addToTmdbPool(category, tv)
                 tmdbTvPage++
             }
         }
@@ -834,10 +887,13 @@ class TmdbDiscoveryFragment : Fragment() {
         }
     }
 
-    private fun addToTmdbPool(list: List<TmdbMedia>) {
+    private fun addToTmdbPool(category: TmdbDiscoveryCategory, list: List<TmdbMedia>) {
+        var received = list.size
+        val accepted = list.filter { category.adult || !it.adult }
         var added = 0
-        list.forEach { if (tmdbSeen.add(it.type to it.id)) { tmdbPool.add(it); added++ } }
-        Logger.log("TMDB shelf pool received=" + list.size + " added=" + added + " duplicates=" + (list.size - added) + " queued=" + tmdbPool.size)
+        accepted.forEach { if (tmdbSeen.add(it.type to it.id)) { tmdbPool.add(it); added++ } }
+        val rejected = received - accepted.size
+        Logger.log("TMDB shelf pool received=" + received + " adultFlagged=" + rejected + " added=" + added + " duplicates=" + (accepted.size - added) + " queued=" + tmdbPool.size)
     }
 
     private suspend fun fetchTmdbType(
@@ -909,6 +965,8 @@ class TmdbDiscoveryFragment : Fragment() {
         binding.tmdbDiscoveryGrid.isVisible = false
         tmdbCategoryItems.clear()
         tmdbCategoryRowCards.clear()
+        tmdbCategoryItemsAll.clear()
+        tmdbCategoryRowCardsAll.clear()
         adapter.notifyDataSetChanged()
         tmdbListRowAdapter.notifyDataSetChanged()
         renderCategories()
@@ -970,7 +1028,7 @@ class TmdbDiscoveryFragment : Fragment() {
                             normalize(part).contains(normalize(it.name))
                     })?.id
             }.getOrNull().let { it?.toString() }
-        }.filterNotNull().joinToString(",")
+        }.filterNotNull().joinToString("|")
         val resolved: String? = resolvedIds.takeIf { it.isNotEmpty() }
         keywordCache[key] = resolved
         return resolved
