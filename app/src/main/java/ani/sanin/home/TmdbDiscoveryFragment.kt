@@ -181,7 +181,7 @@ class TmdbDiscoveryFragment : Fragment() {
         binding.tmdbDiscoveryGrid.addOnScrollListener(
             object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
             override fun onScrolled(rv: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
-                if (selectedCategory == null) return
+                if (dy <= 0 || selectedCategory == null) return
                 val count = rv.adapter?.itemCount ?: return
                 val lm = rv.layoutManager
                 val last = when (lm) {
@@ -688,6 +688,26 @@ class TmdbDiscoveryFragment : Fragment() {
         host.addView(header)
         if (isTvDevice(requireContext())) back.post { back.requestFocus() }
         applyTmdbCategoryLayout(PrefManager.getCustomVal("discover_category_view", 0))
+        // Pin the grid to the remaining viewport so it recycles internally; the outer
+        // scroll view measured every loaded card while it grew, freezing large shelves.
+        val parent = binding.tmdbDiscoveryGrid.parent as android.view.ViewGroup
+        val grid = binding.tmdbDiscoveryGrid
+        val scrollHost = binding.tmdbDiscoveryScroll
+        parent.post {
+            parent.post {
+                var others = 0
+                for (i in 0 until parent.childCount) {
+                    val child = parent.getChildAt(i)
+                    if (child !== grid && child.visibility != android.view.View.GONE) others += child.height
+                }
+                val remaining = scrollHost.height - others
+                if (remaining > dp(240)) {
+                    grid.layoutParams.height = remaining
+                    grid.isNestedScrollingEnabled = false
+                    grid.requestLayout()
+                }
+            }
+        }
         loadTmdbCategoryPage()
     }
 
@@ -849,12 +869,14 @@ class TmdbDiscoveryFragment : Fragment() {
                 }
             }
             tmdbCategoryLoading = false
-            if (emitted > 0 && !tmdbAllExhausted()) {
-                val scroll = b.tmdbDiscoveryScroll
-                val content = scroll.getChildAt(0)?.height
-                if (content != null && scroll.scrollY + scroll.height >= content - dp(600)) {
-                    scroll.post { if (_binding != null) loadTmdbCategoryPage() }
-                }
+            if (emitted > 0 && !tmdbAllExhausted() && tmdbCategoryItemsAll.size < 160) {
+                // Backfill pacing: one follow-up batch every ~900ms until the shelf
+                // holds enough depth, independent of scroll events.
+                b.tmdbDiscoveryScroll.postDelayed({
+                    if (_binding != null && selectedCategory?.id == category.id && !tmdbAllExhausted()) {
+                        loadTmdbCategoryPage()
+                    }
+                }, 2000)
             }
         }
     }
@@ -1036,6 +1058,8 @@ class TmdbDiscoveryFragment : Fragment() {
         backCallback?.isEnabled = false
         binding.tmdbDiscoveryProgress.isVisible = false
         binding.tmdbDiscoveryGrid.isVisible = false
+        binding.tmdbDiscoveryGrid.layoutParams.height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+        binding.tmdbDiscoveryGrid.isNestedScrollingEnabled = true
         tmdbCategoryItems.clear()
         tmdbCategoryRowCards.clear()
         tmdbCategoryItemsAll.clear()
