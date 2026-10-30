@@ -999,18 +999,16 @@ class DiscoveryFragment : Fragment() {
         val grid = binding.discoverCategoryResultsGrid
         val scrollHost = binding.discoverScroll
         parent.post {
-            parent.post {
-                var others = 0
-                for (i in 0 until parent.childCount) {
-                    val child = parent.getChildAt(i)
-                    if (child !== grid && child.visibility != android.view.View.GONE) others += child.height
-                }
-                val remaining = scrollHost.height - others
-                if (remaining > dp(240)) {
-                    grid.layoutParams.height = remaining
-                    grid.isNestedScrollingEnabled = false
-                    grid.requestLayout()
-                }
+            var others = 0
+            for (i in 0 until parent.childCount) {
+                val child = parent.getChildAt(i)
+                if (child !== grid && child.visibility != android.view.View.GONE) others += child.height
+            }
+            val remaining = scrollHost.height - others
+            if (remaining > dp(240)) {
+                grid.layoutParams.height = remaining
+                grid.isNestedScrollingEnabled = false
+                grid.requestLayout()
             }
         }
         loadAnimeCategoryPage()
@@ -1113,7 +1111,8 @@ class DiscoveryFragment : Fragment() {
         val b = _binding ?: return
         if (animeCategoryLoading || animeCategoryEndReached) return
         animeCategoryLoading = true
-        b.discoverCategoryProgress.visibility = View.VISIBLE
+        b.discoverCategoryProgress.visibility =
+            if (animeCategoryCards.isEmpty()) View.VISIBLE else View.GONE
         viewLifecycleOwner.lifecycleScope.launch {
             var added = false
             var statusShown = false
