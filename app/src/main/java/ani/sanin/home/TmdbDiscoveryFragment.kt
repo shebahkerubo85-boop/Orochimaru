@@ -84,7 +84,7 @@ class TmdbDiscoveryFragment : Fragment() {
     private var tmdbCategoryLoading = false
     private var tmdbReloadUsed = false
     private var tmdbCategoryEmptyView: TextView? = null
-    private val keywordCache = java.util.concurrent.ConcurrentHashMap<String, Int?>()
+    private val keywordCache = java.util.concurrent.ConcurrentHashMap<String, String?>()
     private val artworkCache = mutableMapOf<String, String?>()
     private val artworkRenderedUrls = mutableMapOf<String, String>()
     private val artworkLoading = mutableSetOf<String>()
@@ -852,7 +852,7 @@ class TmdbDiscoveryFragment : Fragment() {
         } else {
             "popularity.desc"
         }
-        val extra = mutableListOf<Pair<String, String>>("include_adult" to "false")
+        val extra = mutableListOf<Pair<String, String>>("include_adult" to if (category.adult) "true" else "false")
         category.originalLanguage?.let { extra.add("with_original_language" to it) }
         if (phase == 0 && (category.id == "hidden-gems" || category.id == "underrated-masterpieces")) {
             extra.add("vote_count.gte" to "250")
@@ -918,7 +918,7 @@ class TmdbDiscoveryFragment : Fragment() {
 
     private suspend fun fetchArtworkPoster(category: TmdbDiscoveryCategory): String? {
         val keyword = resolveKeyword(category)?.toString()
-        val extra = mutableListOf<Pair<String, String>>("include_adult" to "false")
+        val extra = mutableListOf<Pair<String, String>>("include_adult" to if (category.adult) "true" else "false")
         category.originalLanguage?.let { extra.add("with_original_language" to it) }
         suspend fun poster(type: String): String? = Tmdb.discover(
             mediaType = type,
@@ -957,14 +957,18 @@ class TmdbDiscoveryFragment : Fragment() {
         val query = category.keyword?.trim()?.takeIf { it.isNotEmpty() } ?: return null
         val key = query.lowercase(Locale.ROOT)
         if (keywordCache.containsKey(key)) return keywordCache[key]
-        val resolved = runCatching {
-            val matches = Tmdb.searchKeywords(query)
-            matches.firstOrNull { normalize(it.name) == normalize(query) }?.id
-                ?: matches.firstOrNull {
-                    normalize(it.name).contains(normalize(query)) ||
-                        normalize(query).contains(normalize(it.name))
-                }?.id
-        }.getOrNull()
+        val parts = query.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        val resolvedIds = parts.map { part ->
+            runCatching {
+                val matches = Tmdb.searchKeywords(part)
+                (matches.firstOrNull { normalize(it.name) == normalize(part) }
+                    ?: matches.firstOrNull {
+                        normalize(it.name).contains(normalize(part)) ||
+                            normalize(part).contains(normalize(it.name))
+                    })?.id
+            }.getOrNull().let { it?.toString() }
+        }.filterNotNull().joinToString(",")
+        val resolved: String? = resolvedIds.takeIf { it.isNotEmpty() }
         keywordCache[key] = resolved
         return resolved
     }

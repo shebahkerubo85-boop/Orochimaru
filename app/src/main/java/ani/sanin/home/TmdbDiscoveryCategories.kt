@@ -6,6 +6,7 @@ data class TmdbDiscoveryCategory(
     val genres: String? = null,
     val keyword: String? = null,
     val originalLanguage: String? = null,
+    val adult: Boolean = false,
 ) {
     val id: String get() = title.lowercase(java.util.Locale.ROOT)
         .replace(Regex("[^a-z0-9]+"), "-").trim('-')
@@ -13,8 +14,8 @@ data class TmdbDiscoveryCategory(
 
 object TmdbDiscoveryCategories {
     private fun c(title: String, description: String, genres: String? = null,
-                  keyword: String? = null, language: String? = null) =
-        TmdbDiscoveryCategory(title, description, genres, keyword, language)
+                  keyword: String? = null, language: String? = null, adult: Boolean = false) =
+        TmdbDiscoveryCategory(title, description, genres, keyword, language, adult)
 
     val all = listOf(
         c("Psychological Thrillers", "Every clue has a second meaning.", "53", "psychological thriller"),
@@ -167,12 +168,14 @@ object TmdbDiscoveryCategories {
         c("Japanese Cinema", "From intimate character studies to bold genre films.", "18", null, "ja"),
         c("French Cinema", "Distinctive moods, daring ideas, lasting images.", "18", null, "fr"),
         c("Latin American Cinema", "Stories of family, identity, and transformation.", "18", null, "es"),
-    c("Zombie Breakouts", "When the world dies, the living keep running.", "27,878", "zombie"),
-    c("Samurai Paths", "Blade, honor, and the code that outlives it.", "28,18", "samurai"),
-    c("Christmas Stories", "Snowfall, chance, and small miracles.", "35,10751", "christmas"),
-    c("Demon Possession", "Something else answers to your own voice.", "14,27", "demon"),
-    c("Switched Bodies", "One blink and you are wearing someone else.", "35,14", "body swap"),
-    c("Outliving Everyone", "Forever turns out to be its own burden.", "14,878", "immortality"),
-    c("Secret Societies", "Handshakes you were never meant to see.", "9648,53", "secret society"),
+    c("Zombie Breakouts", "The dead walk. Run faster.", "27,878", "zombie"),
+    c("Samurai Paths", "One blade. A lifetime of honor.", "28,18", "samurai"),
+    c("Christmas Stories", "Snow, strangers, small miracles.", "35,10751", "christmas"),
+    c("Demon Possession", "Your body. Someone else\u2019s tenant.", "14,27", "demon"),
+    c("Switched Bodies", "Wake up in the wrong skin.", "35,14", "body swap"),
+    c("Outliving Everyone", "Forever is the loneliest promise.", "14,878", "immortality"),
+    c("Secret Societies", "Handshakes you were never meant to see...", "9648,53", "secret society"),
+    c("Adult (NFSW)", "For grown eyes only.", null,
+      "erotic,softcore,lesbian sex,sex comedy,nudity,nudism,lingerie,unsimulated sex,sex scene", null, true),
     )
 }
