@@ -167,5 +167,12 @@ object TmdbDiscoveryCategories {
         c("Japanese Cinema", "From intimate character studies to bold genre films.", "18", null, "ja"),
         c("French Cinema", "Distinctive moods, daring ideas, lasting images.", "18", null, "fr"),
         c("Latin American Cinema", "Stories of family, identity, and transformation.", "18", null, "es"),
+    c("Zombie Breakouts", "When the world dies, the living keep running.", "27,878", "zombie"),
+    c("Samurai Paths", "Blade, honor, and the code that outlives it.", "28,18", "samurai"),
+    c("Christmas Stories", "Snowfall, chance, and small miracles.", "35,10751", "christmas"),
+    c("Demon Possession", "Something else answers to your own voice.", "14,27", "demon"),
+    c("Switched Bodies", "One blink and you are wearing someone else.", "35,14", "body swap"),
+    c("Outliving Everyone", "Forever turns out to be its own burden.", "14,878", "immortality"),
+    c("Secret Societies", "Handshakes you were never meant to see.", "9648,53", "secret society"),
     )
 }
