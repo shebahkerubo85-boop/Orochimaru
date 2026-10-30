@@ -1069,9 +1069,9 @@ class DiscoveryFragment : Fragment() {
         typePill.isFocusable = true
         typePill.bind(
             tabs = listOf(
-                ani.sanin.ui.components.LibraryStatusTab(label = "All"),
-                ani.sanin.ui.components.LibraryStatusTab(label = "Movie"),
-                ani.sanin.ui.components.LibraryStatusTab(label = "TV show"),
+                ani.sanin.ui.components.LibraryStatusTab(label = "All", count = 0),
+                ani.sanin.ui.components.LibraryStatusTab(label = "Movie", count = 0),
+                ani.sanin.ui.components.LibraryStatusTab(label = "TV show", count = 0),
             ),
             selectedIndex = animeTypeFilter,
             onTabSelected = { index -> applyAnimeTypeFilter(index) },
