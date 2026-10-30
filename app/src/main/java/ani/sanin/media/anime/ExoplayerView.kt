@@ -2658,7 +2658,10 @@ class ExoplayerView :
                 var lastPeriodShiftMs = 0L
 
                 override fun onCues(cueGroup: CueGroup) {
-
+                    val cueCallbackStartedNs = System.nanoTime()
+                    val cueCallbackThread = Thread.currentThread().name
+                    val cueCount = cueGroup.cues.size
+                    try {
                     val selectedTextMime = exoPlayer.currentTracks.groups
                         .firstOrNull { it.type == TRACK_TYPE_TEXT && it.isSelected }
                         ?.getTrackFormat(0)?.sampleMimeType
@@ -2768,6 +2771,17 @@ class ExoplayerView :
                         customSubtitleView.text = ""
                         customSubtitleView.visibility = View.GONE
                         exoSubtitleView.visibility = View.VISIBLE
+                    }
+                    } finally {
+                        val elapsedMs = (System.nanoTime() - cueCallbackStartedNs) / 1_000_000L
+                        if (elapsedMs >= 16L) {
+                            Logger.log(
+                                Log.WARN,
+                                "PlayerPerf: onCues slow durationMs=$elapsedMs cues=$cueCount " +
+                                    "storedSyncCues=${synchronized(storedSyncCues) { storedSyncCues.size }} " +
+                                    "thread=$cueCallbackThread mediaId=${media.id} ep=${media.anime?.selectedEpisode}"
+                            )
+                        }
                     }
                 }
             },

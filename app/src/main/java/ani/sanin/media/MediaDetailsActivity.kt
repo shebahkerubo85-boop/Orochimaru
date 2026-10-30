@@ -138,6 +138,20 @@ class MediaDetailsActivity : AppCompatActivity() {
 
         mediaSingleton = media
 
+        // FragmentManager restores tagged fragments after process death. Rebind references
+        // before tab selection so restored instances are reused instead of duplicated.
+        watchFragment = supportFragmentManager.findFragmentByTag("watch") as? AnimeWatchFragment
+            ?: AnimeWatchFragment()
+        commentsFragment = supportFragmentManager.findFragmentByTag("comments") as? CommentsFragment
+            ?: CommentsFragment()
+        commentsAdded = commentsFragment.isAdded
+        Logger.log(
+            "MediaDetails: fragments restored watchAdded=${watchFragment.isAdded} " +
+                "commentsAdded=${commentsFragment.isAdded} " +
+                "watchCount=${supportFragmentManager.fragments.count { it is AnimeWatchFragment }} " +
+                "commentsCount=${supportFragmentManager.fragments.count { it is CommentsFragment }}"
+        )
+
         supportFragmentManager.addOnBackStackChangedListener { syncExtensionPrefsUi() }
 
         val isDownload = intent.getBooleanExtra("download", false)
@@ -258,13 +272,21 @@ class MediaDetailsActivity : AppCompatActivity() {
 
         fun showWatchTab(container: FrameLayout, animate: Boolean) {
             val ft = supportFragmentManager.beginTransaction()
-            val alreadyAdded = ::watchFragment.isInitialized && watchFragment.isAdded
+            val restoredWatch = supportFragmentManager.findFragmentByTag("watch") as? AnimeWatchFragment
+            if (restoredWatch != null && restoredWatch !== watchFragment) {
+                watchFragment = restoredWatch
+                Logger.log("MediaDetails: rebound Watch fragment from FragmentManager")
+            }
+            val alreadyAdded = watchFragment.isAdded
             if (alreadyAdded) {
                 ft.show(watchFragment)
             } else {
-                watchFragment = AnimeWatchFragment()
                 ft.add(R.id.mediaTabContent, watchFragment, "watch")
             }
+            Logger.log(
+                "MediaDetails: showWatchTab alreadyAdded=$alreadyAdded " +
+                    "watchCount=${supportFragmentManager.fragments.count { it is AnimeWatchFragment }}"
+            )
             if (::commentsFragment.isInitialized && commentsFragment.isAdded) {
                 if (animate && alreadyAdded && PrefManager.getVal<Boolean>(PrefName.AnimationsEnabled) && PrefManager.getVal<Boolean>(PrefName.TransitionAnimations)) {
                     val watchView = watchFragment.requireView()
@@ -289,8 +311,13 @@ class MediaDetailsActivity : AppCompatActivity() {
         fun showCommentsTab(container: FrameLayout, animate: Boolean) {
             val parent = container.parent as? View
             parent?.layoutParams = (parent?.layoutParams as? ViewGroup.MarginLayoutParams)?.apply { topMargin = 0 }
+            val restoredComments = supportFragmentManager.findFragmentByTag("comments") as? CommentsFragment
+            if (restoredComments != null && restoredComments !== commentsFragment) {
+                commentsFragment = restoredComments
+                Logger.log("MediaDetails: rebound Comments fragment from FragmentManager")
+            }
+            commentsAdded = commentsFragment.isAdded
             if (!commentsAdded) {
-                commentsAdded = true
                 val ft = supportFragmentManager.beginTransaction()
                 commentsFragment = CommentsFragment().apply {
                     arguments = Bundle().apply {
@@ -306,6 +333,7 @@ class MediaDetailsActivity : AppCompatActivity() {
                 }
                 ft.add(R.id.mediaTabContent, commentsFragment, "comments")
                 ft.commit()
+                commentsAdded = true
             } else {
                 val ft = supportFragmentManager.beginTransaction()
                 val watchAlreadyAdded = ::watchFragment.isInitialized && watchFragment.isAdded
