@@ -651,6 +651,7 @@ class TmdbDiscoveryFragment : Fragment() {
         pillParams.topMargin = dp(10)
         typePill.layoutParams = pillParams
         typePill.isFocusable = true
+        typePill.isFocusable = true
         typePill.bind(
             tabs = listOf(
                 ani.sanin.ui.components.LibraryStatusTab(label = "All"),
