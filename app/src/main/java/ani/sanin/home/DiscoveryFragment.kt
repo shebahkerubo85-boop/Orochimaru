@@ -407,6 +407,21 @@ class DiscoveryFragment : Fragment() {
         binding.discoverAvatar.nextFocusDownId = View.NO_ID
         binding.discoverAvatar.nextFocusLeftId = R.id.discoverSearchBar
 
+        // Same inner-grid trigger for anime shelves.
+        binding.discoverCategoryResultsGrid.addOnScrollListener(
+            object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            override fun onScrolled(rv: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
+                if (!animeCategoryOpen) return
+                val count = rv.adapter?.itemCount ?: return
+                val lm = rv.layoutManager
+                val last = when (lm) {
+                    is androidx.recyclerview.widget.GridLayoutManager -> lm.findLastVisibleItemPosition()
+                    is androidx.recyclerview.widget.LinearLayoutManager -> lm.findLastVisibleItemPosition()
+                    else -> return
+                }
+                if (last >= count - 8) loadAnimeCategoryPage()
+            }
+        })
         binding.discoverScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
             if (animeCategoryOpen) {
 

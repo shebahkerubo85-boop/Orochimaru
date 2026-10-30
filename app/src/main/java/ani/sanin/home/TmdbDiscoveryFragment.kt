@@ -176,6 +176,22 @@ class TmdbDiscoveryFragment : Fragment() {
         }
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backCallback!!)
 
+        // Inner-grid scroll trigger: the NestedScrollView listener alone misses
+        // bottom-reaching flings (measure churn during loads), leaving batches unloaded.
+        binding.tmdbDiscoveryGrid.addOnScrollListener(
+            object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            override fun onScrolled(rv: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
+                if (selectedCategory == null) return
+                val count = rv.adapter?.itemCount ?: return
+                val lm = rv.layoutManager
+                val last = when (lm) {
+                    is androidx.recyclerview.widget.GridLayoutManager -> lm.findLastVisibleItemPosition()
+                    is androidx.recyclerview.widget.LinearLayoutManager -> lm.findLastVisibleItemPosition()
+                    else -> return
+                }
+                if (last >= count - 8) loadTmdbCategoryPage()
+            }
+        })
         binding.tmdbDiscoveryScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
             if (selectedCategory != null) {
                 val content = binding.tmdbDiscoveryScroll.getChildAt(0)?.height ?: return@setOnScrollChangeListener
