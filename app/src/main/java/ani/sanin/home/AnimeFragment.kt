@@ -167,6 +167,14 @@ class AnimeFragment : Fragment() {
                 )
             }
             adaptor.markDone(claimed.map { it.id })
+            // ---------- global search fallback ----------
+            if (adaptor.query.isNotBlank() && adaptor.currentCards().none { it.name.normalise().contains(adaptor.query.normalise()) }) {
+                Logger.log("AnimeShelf search global query=${adaptor.query} no local matches")
+                // TODO: call Kitsu.franchise(adaptor.query) and submit results
+                // Example placeholder:
+                // Kitsu.franchise(adaptor.query) { results ->
+                //     adaptor.submitGlobalResults(results)
+                // }
             animeFranchiseResolving = false
             updateAnimeFranchiseState()
             Logger.log("Franchise(anime) built row of ${adaptor.currentCards().size} cards from ${claimed.size} seeds")
