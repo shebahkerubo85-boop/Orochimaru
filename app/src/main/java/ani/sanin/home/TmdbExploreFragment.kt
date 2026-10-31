@@ -11,6 +11,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.LayoutAnimationController
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.content.ContextCompat
@@ -66,9 +68,11 @@ import ani.sanin.setSlideUp
 import ani.sanin.settings.saving.PrefName
 import ani.sanin.sizeBannerCard
 import ani.sanin.util.FocusEffectUtil
+import com.bumptech.glide.Glide
 import com.google.android.material.chip.Chip
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.min
@@ -135,6 +139,8 @@ class TmdbExploreFragment : Fragment() {
     private var bannerTitleShown = false
     private var trendingAutoScrollHandler: Handler? = null
     private var trendingAutoScrollRunnable: Runnable? = null
+    private var trendingLogoJob: Job? = null
+    private val trendingLogos = mutableMapOf<String, String?>()
 
     private var selectedType: ExploreType = ExploreType.MOVIE
     private var selectedChip: Chip? = null
@@ -160,6 +166,9 @@ class TmdbExploreFragment : Fragment() {
 
     override fun onDestroyView() {
         trendingAutoScrollHandler?.removeCallbacksAndMessages(null)
+        trendingLogoJob?.cancel()
+        trendingLogoJob = null
+        trendingLogos.clear()
         pageBinding = null
 
         rowAdapters.clear()
@@ -317,14 +326,23 @@ class TmdbExploreFragment : Fragment() {
         if (bannerMedia.isEmpty()) return
         if (!PrefManager.getVal<Boolean>(PrefName.UseClearlogoInPosters)) return
         viewLifecycleOwner.lifecycleScope.launch {
-            val logos = bannerMedia.limitedAsyncMap(concurrency = 6) { media ->
+            val fetched = bannerMedia.limitedAsyncMap(concurrency = 6) { media ->
                 val type = media.tmdbType ?: return@limitedAsyncMap null
-                media.id to runCatching { Tmdb.logoUrl(type, media.id) }.getOrNull()
-            }.mapNotNull { it }.toMap()
-            if (logos.isEmpty() || _binding == null) return@launch
-            bannerAdapter?.updateUrls(emptyMap(), logos)
+                val url = runCatching { Tmdb.logoUrl(type, media.id) }.getOrNull()
+                Triple(logoKey(type, media.id), media.id, url)
+            }.mapNotNull { it }
+            if (fetched.isEmpty() || _binding == null) return@launch
+            val logosById = mutableMapOf<Int, String?>()
+            for ((key, id, url) in fetched) {
+                trendingLogos[key] = url
+                if (!url.isNullOrBlank()) logosById[id] = url
+            }
+            if (logosById.isNotEmpty()) bannerAdapter?.updateUrls(emptyMap(), logosById)
+            updateTrendingOverlayForCurrent()
         }
     }
+
+    private fun logoKey(type: String, id: Int): String = "$type:$id"
 
     private fun applyTrendingBannerMode() {
         val ctx = trendingBinding.root.context
@@ -442,46 +460,120 @@ class TmdbExploreFragment : Fragment() {
         val title = trendingBinding.trendingOverlayTitle
         val logo = trendingBinding.trendingOverlayLogo
 
-        logo.isVisible = false
-        title.isVisible = true
         title.text = media.displayTitle
+        val cacheKey = logoKey(media.type, media.id)
+        if (trendingLogos.containsKey(cacheKey)) {
+            val cached = trendingLogos[cacheKey]
+            if (!cached.isNullOrBlank()) {
+                trendingLogoJob?.cancel()
+                showTrendingLogo(logo, title, cached)
+            } else {
+                logo.isVisible = false
+                logo.setImageDrawable(null)
+                title.isVisible = true
+            }
+        } else {
+            title.isVisible = true
+            logo.isVisible = false
+            logo.setImageDrawable(null)
+            loadTrendingLogo(media, logo, title)
+        }
+
         val chips = trendingBinding.trendingOverlayChips
         chips.removeAllViews()
-        val meta = buildString {
-            if (media.voteAverage > 0) {
-                append("★ ").append(String.format(java.util.Locale.US, "%.1f", media.voteAverage))
-                append("  •  ")
-            }
-            if (media.year.isNotBlank()) append(media.year).append("  •  ")
-            append(media.type.replaceFirstChar { it.uppercase() })
+        if (media.voteAverage > 0) {
+            addOverlayChip(chips, "★ " + String.format(java.util.Locale.US, "%.1f", media.voteAverage))
         }
-        addOverlayChip(chips, meta)
+        if (media.year.isNotBlank()) addOverlayChip(chips, media.year)
+        addOverlayChip(chips, media.type.replaceFirstChar { it.uppercase() })
+        chips.isVisible = chips.childCount > 0
+
         val genres = trendingBinding.trendingOverlayGenres
         genres.removeAllViews()
-        genres.isVisible = false
+        val genreNames = Tmdb.genreNames(media).take(3)
+        val density = genres.resources.displayMetrics.density
+        for (name in genreNames) {
+            val chip = TextView(genres.context).apply {
+                text = name
+                textSize = 11f
+                setTextColor(genres.context.getThemeColor(com.google.android.material.R.attr.colorOnBackground))
+                setBackgroundResource(R.drawable.tag_chip_bg)
+                setPadding(
+                    (10 * density).toInt(),
+                    (3 * density).toInt(),
+                    (10 * density).toInt(),
+                    (3 * density).toInt()
+                )
+                maxLines = 1
+            }
+            val lp = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            lp.marginEnd = (6 * density).toInt()
+            genres.addView(chip, lp)
+        }
+        genres.isVisible = genreNames.isNotEmpty()
+
         val synopsis = trendingBinding.trendingOverlaySynopsis
         val desc = media.overview?.takeIf { it.isNotBlank() }
         synopsis.isVisible = !isModernBanner() && desc != null
         if (desc != null) synopsis.text = desc
     }
 
-    private fun addOverlayChip(container: ViewGroup, text: String) {
-        val chip = Chip(container.context).apply {
-            this.text = text
-            isClickable = false
-            isCheckable = false
-            isFocusable = false
-            chipStrokeWidth = 0f
-            setTextColor(container.context.getThemeColor(android.R.attr.textColorPrimary))
-            chipBackgroundColor = ColorStateList.valueOf(0x33FFFFFF)
+    private fun loadTrendingLogo(
+        media: TmdbMedia,
+        logo: android.widget.ImageView,
+        title: TextView,
+    ) {
+        trendingLogoJob?.cancel()
+        if (!PrefManager.getVal<Boolean>(PrefName.UseClearlogoInPosters)) return
+        trendingLogoJob = viewLifecycleOwner.lifecycleScope.launch {
+            val url = runCatching { Tmdb.logoUrl(media.type, media.id) }.getOrNull()
+            if (!isAdded || _binding == null) return@launch
+            trendingLogos[logoKey(media.type, media.id)] = url
+            if (url.isNullOrBlank()) return@launch
+            showTrendingLogo(logo, title, url)
         }
-        val lp = ViewGroup.MarginLayoutParams(
+    }
+
+    private fun showTrendingLogo(
+        logo: android.widget.ImageView,
+        title: TextView,
+        url: String,
+    ) {
+        val width = logo.maxWidth.coerceIn(200, 400)
+        Glide.with(logo.context)
+            .load(url)
+            .override(width, (width * 0.4f).toInt())
+            .into(logo)
+        logo.isVisible = true
+        title.isVisible = false
+    }
+
+    private fun addOverlayChip(container: LinearLayout, text: String?) {
+        if (text.isNullOrBlank()) return
+        val ctx = container.context
+        val density = ctx.resources.displayMetrics.density
+        val chip = TextView(ctx).apply {
+            this.text = text
+            setTextColor(ctx.getThemeColor(com.google.android.material.R.attr.colorOnBackground))
+            textSize = 12f
+            setBackgroundResource(R.drawable.tag_chip_bg)
+            setPadding(
+                (10 * density).toInt(),
+                (4 * density).toInt(),
+                (10 * density).toInt(),
+                (4 * density).toInt()
+            )
+            maxLines = 1
+        }
+        val lp = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
-        lp.marginEnd = (6 * chip.resources.displayMetrics.density).toInt()
-        chip.layoutParams = lp
-        container.addView(chip)
+        lp.marginEnd = (6 * density).toInt()
+        container.addView(chip, lp)
     }
 
     private fun setupTrendingDots(itemCount: Int) {
