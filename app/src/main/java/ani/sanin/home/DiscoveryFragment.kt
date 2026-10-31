@@ -16,10 +16,12 @@ import android.widget.TextView
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.doOnLayout
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -63,6 +65,7 @@ import ani.sanin.isTvDevice
 import ani.sanin.loadImage
 import ani.sanin.ui.LensButtonBackground
 import ani.sanin.util.FocusEffectUtil
+import ani.sanin.util.Logger
 
 class DiscoverViewModel : ViewModel() {
     private val _categories = MutableStateFlow<List<KitsuCategory>>(emptyList())
@@ -410,8 +413,16 @@ class DiscoveryFragment : Fragment() {
         // Same inner-grid trigger for anime shelves.
         binding.discoverCategoryResultsGrid.addOnScrollListener(
             object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            override fun onScrollStateChanged(rv: androidx.recyclerview.widget.RecyclerView, newState: Int) {
+                if (animeCategoryOpen) {
+                    Logger.log("AnimeShelf grid state=$newState gridH=${rv.height} nested=${rv.isNestedScrollingEnabled}")
+                }
+            }
+
             override fun onScrolled(rv: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
-                if (dy <= 0 || !animeCategoryOpen) return
+                if (!animeCategoryOpen) return
+                Logger.log("AnimeShelf grid scrolled dx=$dx dy=$dy")
+                if (dy <= 0) return
                 val count = rv.adapter?.itemCount ?: return
                 val lm = rv.layoutManager
                 val last = when (lm) {
@@ -424,7 +435,7 @@ class DiscoveryFragment : Fragment() {
         })
         binding.discoverScroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
             if (animeCategoryOpen) {
-
+                Logger.log("AnimeShelf outer scrollY=$scrollY viewport=${binding.discoverScroll.height}")
                 val resultsContent = binding.discoverScroll.getChildAt(0)?.height
                     ?: return@setOnScrollChangeListener
                 if (scrollY + binding.discoverScroll.height >= resultsContent - dp(500)) {
@@ -958,6 +969,45 @@ class DiscoveryFragment : Fragment() {
         animeCategoryListRowAdapter = DiscoveryListRowAdapter(animeCategoryCards, openCard)
         val dm = resources.displayMetrics
         binding.discoverCategoryResultsGrid.isNestedScrollingEnabled = false
+        binding.discoverCategoryResultsGrid.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+            if (animeCategoryOpen) {
+                Logger.log(
+                    "AnimeShelf gridLayout h=${v.height} nested=${v.isNestedScrollingEnabled} " +
+                        "canDown=${v.canScrollVertically(1)} canUp=${v.canScrollVertically(-1)} " +
+                        "items=${binding.discoverCategoryResultsGrid.adapter?.itemCount ?: 0}"
+                )
+            }
+        }
+        binding.discoverCategoryResultsGrid.addOnItemTouchListener(
+            object : androidx.recyclerview.widget.RecyclerView.SimpleOnItemTouchListener() {
+                override fun onInterceptTouchEvent(
+                    rv: androidx.recyclerview.widget.RecyclerView,
+                    e: MotionEvent,
+                ): Boolean {
+                    if (animeCategoryOpen && !rv.isNestedScrollingEnabled) {
+                        when (e.actionMasked) {
+                            MotionEvent.ACTION_DOWN -> {
+                                rv.parent?.requestDisallowInterceptTouchEvent(true)
+                                Logger.log(
+                                    "AnimeShelf touch DOWN gridH=${rv.height} " +
+                                        "canDown=${rv.canScrollVertically(1)} " +
+                                        "canUp=${rv.canScrollVertically(-1)} state=${rv.scrollState}"
+                                )
+                            }
+                            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                                rv.parent?.requestDisallowInterceptTouchEvent(false)
+                                Logger.log(
+                                    "AnimeShelf touch UP gridH=${rv.height} " +
+                                        "canDown=${rv.canScrollVertically(1)} " +
+                                        "canUp=${rv.canScrollVertically(-1)} state=${rv.scrollState}"
+                                )
+                            }
+                        }
+                    }
+                    return false
+                }
+            }
+        )
         animeCategoryBackCallback = object : OnBackPressedCallback(false) {
             override fun handleOnBackPressed() {
                 closeAnimeCategory()
@@ -968,6 +1018,7 @@ class DiscoveryFragment : Fragment() {
 
     private fun openAnimeCategory(slug: String, title: String, description: String) {
         if (animeCategoryOpen || slug.isBlank()) return
+        Logger.log("AnimeShelf open slug=$slug title=$title viewport=${binding.discoverScroll.height}")
         animeCategoryOpen = true
         shelvesScrollY = binding.discoverScroll.scrollY
         animeCategorySlug = slug
@@ -999,26 +1050,37 @@ class DiscoveryFragment : Fragment() {
         // Pin the results grid so it recycles internally while the shelf is open.
         // The other shelves are hidden first: measuring them made `remaining` collapse,
         // leaving the grid at wrap_content with nested scrolling disabled (unscrollable).
-        val parent = binding.discoverCategoryResultsGrid.parent as android.view.ViewGroup
+        val content = binding.discoverScroll.getChildAt(0) as? android.view.ViewGroup
         val grid = binding.discoverCategoryResultsGrid
         val scrollHost = binding.discoverScroll
-        parent.post {
-            parent.post {
-                if (_binding == null || !animeCategoryOpen) return@post
+        if (content != null) {
+            content.requestLayout()
+            content.doOnLayout {
+                if (_binding == null || !animeCategoryOpen) return@doOnLayout
                 var others = 0
-                for (i in 0 until parent.childCount) {
-                    val child = parent.getChildAt(i)
+                for (i in 0 until content.childCount) {
+                    val child = content.getChildAt(i)
                     if (child !== grid && child.visibility != android.view.View.GONE) others += child.height
                 }
                 val remaining = scrollHost.height - others
                 if (remaining > dp(240)) {
+                    content.layoutParams.height = scrollHost.height
                     grid.layoutParams.height = remaining
                     grid.isNestedScrollingEnabled = false
                 } else {
+                    content.layoutParams.height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
                     grid.layoutParams.height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
                     grid.isNestedScrollingEnabled = true
                 }
+                content.requestLayout()
                 grid.requestLayout()
+                scrollHost.scrollTo(0, 0)
+                Logger.log(
+                    "AnimeShelf pin viewport=${scrollHost.height} contentH=${content.height} " +
+                        "gridH=${grid.height} others=$others remaining=$remaining " +
+                        "nested=${grid.isNestedScrollingEnabled} canDown=${grid.canScrollVertically(1)} " +
+                        "items=${grid.adapter?.itemCount ?: 0}"
+                )
             }
         }
         loadAnimeCategoryPage()
@@ -1042,6 +1104,10 @@ class DiscoveryFragment : Fragment() {
         binding.discoverResultsSection.visibility = View.VISIBLE
         binding.discoverTrailerCarousel.visibility =
             if (binding.discoverTrailerCarousel.childCount > 0) View.VISIBLE else View.GONE
+        (binding.discoverScroll.getChildAt(0) as? android.view.View)?.let {
+            it.layoutParams.height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            it.requestLayout()
+        }
 
         val target = shelvesScrollY
         binding.discoverScroll.post { if (_binding != null) binding.discoverScroll.scrollTo(0, target) }
@@ -1125,6 +1191,7 @@ class DiscoveryFragment : Fragment() {
         val b = _binding ?: return
         if (animeCategoryLoading || animeCategoryEndReached) return
         animeCategoryLoading = true
+        Logger.log("AnimeShelf loadPage start offset=$animeCategoryOffset cards=${animeCategoryCards.size}")
         b.discoverCategoryProgress.visibility =
             if (animeCategoryCards.isEmpty()) View.VISIBLE else View.GONE
         viewLifecycleOwner.lifecycleScope.launch {
@@ -1164,6 +1231,10 @@ class DiscoveryFragment : Fragment() {
                 }
                 animeCategoryOffset += page.rawCount
                 animeCategoryEndReached = !page.hasMore
+                Logger.log(
+                    "AnimeShelf loadPage offset=$animeCategoryOffset raw=${page.rawCount} " +
+                        "items=${page.items.size} hasMore=${page.hasMore}"
+                )
                 if (page.items.isNotEmpty()) {
                     val start = animeCategoryCards.size
                     animeCategoryCards.addAll(page.items.map { item ->
@@ -1226,6 +1297,10 @@ class DiscoveryFragment : Fragment() {
         binding.discoverCategoryStatus.isClickable = onRetry != null
         binding.discoverCategoryStatus.setOnClickListener { onRetry?.invoke() }
         binding.discoverCategoryStatus.visibility = View.VISIBLE
+        (binding.discoverScroll.getChildAt(0) as? android.view.View)?.let {
+            it.layoutParams.height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            it.requestLayout()
+        }
     }
 
     private fun loadReelRail() {
