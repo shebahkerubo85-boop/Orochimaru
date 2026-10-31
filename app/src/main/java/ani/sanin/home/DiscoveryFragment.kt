@@ -983,6 +983,8 @@ class DiscoveryFragment : Fragment() {
         animeCategoryListRowAdapter.notifyDataSetChanged()
         binding.discoverCategoryGrid.visibility = View.GONE
         binding.discoverEditorialShelves.visibility = View.GONE
+        binding.discoverTrailerCarousel.visibility = View.GONE
+        binding.discoverResultsSection.visibility = View.GONE
         binding.discoverCategoryHeader.visibility = View.VISIBLE
         binding.discoverCategoryResultsGrid.visibility = View.VISIBLE
         binding.discoverCategoryStatus.visibility = View.GONE
@@ -995,19 +997,27 @@ class DiscoveryFragment : Fragment() {
             }
         }
         // Pin the results grid so it recycles internally while the shelf is open.
+        // The other shelves are hidden first: measuring them made `remaining` collapse,
+        // leaving the grid at wrap_content with nested scrolling disabled (unscrollable).
         val parent = binding.discoverCategoryResultsGrid.parent as android.view.ViewGroup
         val grid = binding.discoverCategoryResultsGrid
         val scrollHost = binding.discoverScroll
         parent.post {
-            var others = 0
-            for (i in 0 until parent.childCount) {
-                val child = parent.getChildAt(i)
-                if (child !== grid && child.visibility != android.view.View.GONE) others += child.height
-            }
-            val remaining = scrollHost.height - others
-            if (remaining > dp(240)) {
-                grid.layoutParams.height = remaining
-                grid.isNestedScrollingEnabled = false
+            parent.post {
+                if (_binding == null || !animeCategoryOpen) return@post
+                var others = 0
+                for (i in 0 until parent.childCount) {
+                    val child = parent.getChildAt(i)
+                    if (child !== grid && child.visibility != android.view.View.GONE) others += child.height
+                }
+                val remaining = scrollHost.height - others
+                if (remaining > dp(240)) {
+                    grid.layoutParams.height = remaining
+                    grid.isNestedScrollingEnabled = false
+                } else {
+                    grid.layoutParams.height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                    grid.isNestedScrollingEnabled = true
+                }
                 grid.requestLayout()
             }
         }
@@ -1028,6 +1038,10 @@ class DiscoveryFragment : Fragment() {
         binding.discoverCategoryStatus.visibility = View.GONE
         binding.discoverCategoryProgress.visibility = View.GONE
         binding.discoverCategoryGrid.visibility = View.VISIBLE
+        binding.discoverEditorialShelves.visibility = View.VISIBLE
+        binding.discoverResultsSection.visibility = View.VISIBLE
+        binding.discoverTrailerCarousel.visibility =
+            if (binding.discoverTrailerCarousel.childCount > 0) View.VISIBLE else View.GONE
 
         val target = shelvesScrollY
         binding.discoverScroll.post { if (_binding != null) binding.discoverScroll.scrollTo(0, target) }
@@ -1238,7 +1252,7 @@ class DiscoveryFragment : Fragment() {
 
     private fun renderReelRail() {
         val host = _binding?.discoverTrailerCarousel ?: return
-        host.visibility = View.VISIBLE
+        host.visibility = if (animeCategoryOpen) View.GONE else View.VISIBLE
         host.removeAllViews()
         val context = host.context
         host.addView(TextView(context).apply {
