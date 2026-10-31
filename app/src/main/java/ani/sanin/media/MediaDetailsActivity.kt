@@ -54,6 +54,7 @@ import ani.sanin.settings.saving.PrefName
 import ani.sanin.snackString
 import ani.sanin.themes.ThemeManager
 import ani.sanin.util.FocusEffectUtil
+import ani.sanin.util.Logger
 import ani.sanin.util.LauncherWrapper
 import ani.sanin.util.NavPillCustomizer
 import ani.sanin.ui.components.EchoNavPillController

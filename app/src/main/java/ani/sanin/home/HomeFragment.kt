@@ -1056,7 +1056,7 @@ class HomeFragment : Fragment() {
                 ContextCompat.getColor(ctx, R.color.bg_white)
             )
             btn.gravity = Gravity.CENTER
-            btn.allCaps = false
+            btn.setAllCaps(false)
         } else {
             btn.setBackgroundResource(R.drawable.tag_chip_bg)
             btn.gravity = Gravity.CENTER

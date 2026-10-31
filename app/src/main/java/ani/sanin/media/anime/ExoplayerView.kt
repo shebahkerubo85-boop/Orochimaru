@@ -2658,7 +2658,7 @@ class ExoplayerView :
                 var lastPeriodShiftMs = 0L
 
                 override fun onCues(cueGroup: CueGroup) {
-                    val cueCallbackStartedNs = System.nanoTime()
+                    val cueCallbackStartedNs = java.lang.System.nanoTime()
                     val cueCallbackThread = Thread.currentThread().name
                     val cueCount = cueGroup.cues.size
                     try {
@@ -2773,7 +2773,7 @@ class ExoplayerView :
                         exoSubtitleView.visibility = View.VISIBLE
                     }
                     } finally {
-                        val elapsedMs = (System.nanoTime() - cueCallbackStartedNs) / 1_000_000L
+                        val elapsedMs = (java.lang.System.nanoTime() - cueCallbackStartedNs) / 1_000_000L
                         if (elapsedMs >= 16L) {
                             Logger.log(
                                 Log.WARN,
