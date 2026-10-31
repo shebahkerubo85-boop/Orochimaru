@@ -901,16 +901,10 @@ class TmdbExploreFragment : Fragment() {
         val message = when {
             franchiseAdapter.isSearchMissed() -> R.string.franchise_search_empty
             cards.isEmpty() && !loading && franchiseLoadStarted -> R.string.franchise_none
-            adaptor.query.isNotBlank() && !franchiseAdapter.matchesQuery(franchiseAdapter.currentCards().firstOrNull()) -> R.string.franchise_search_global
             else -> null
         }
         page.tmdbFranchiseMessage.isVisible = message != null
         if (message != null) page.tmdbFranchiseMessage.setText(message)
-        // ---------- global search fallback ----------
-        if (message == R.string.franchise_search_global) {
-            Logger.log("TMDB franchise search global query=${franchiseAdapter.query}")
-            // TODO: call Tmdb.franchise(franchiseAdapter.query) and update UI
-        }
     }
 
     private fun scrollTmdbFranchiseHeaderIntoView() {
